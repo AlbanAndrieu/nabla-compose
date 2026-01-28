@@ -87,7 +87,7 @@ services:
 ### Development Workflow
 
 ```bash
-# Start all services
+# Start all services (automatically uses docker-compose.override.yml)
 docker-compose up
 
 # Start in detached mode
@@ -113,6 +113,30 @@ docker-compose exec web bash
 
 # Run one-off command
 docker-compose run web python manage.py migrate
+```
+
+### Production Deployment
+
+```bash
+# Use production compose file
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Pull latest images
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+# Scale services (stateless services only)
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale web=3
+```
+
+### Docker Compose Files
+
+- **docker-compose.yml**: Base configuration for all environments
+- **docker-compose.override.yml**: Local development overrides (automatically applied)
+- **docker-compose.prod.yml**: Production-specific configuration
+
+To use production configuration:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ### Testing and Debugging

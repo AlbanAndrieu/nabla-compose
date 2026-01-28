@@ -36,18 +36,22 @@ jobs:
       - name: Validate docker-compose.yml syntax
         run: |
           echo "Validating docker-compose.yml syntax..."
-          docker-compose config --quiet
+          docker compose config --quiet
           echo "✅ docker-compose.yml syntax is valid"
+          
+          echo "Validating docker-compose with production overrides..."
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+          echo "✅ docker-compose.prod.yml syntax is valid"
 
       - name: Check docker-compose version
         run: |
-          docker-compose version
+          docker compose version
           docker version
 
       - name: Validate compose file structure
         run: |
           echo "Checking compose file structure..."
-          docker-compose config > /tmp/docker-compose-resolved.yml
+          docker compose config > /tmp/docker-compose-resolved.yml
           cat /tmp/docker-compose-resolved.yml
           
           # Check for required services
@@ -76,12 +80,12 @@ jobs:
       - name: Build Docker images
         run: |
           echo "Building Docker images..."
-          docker-compose build --no-cache web
+          docker compose build --no-cache web
 
       - name: Start Docker Compose stack
         run: |
           echo "Starting Docker Compose stack..."
-          docker-compose up -d
+          docker compose up -d
           
           # Wait for services to be healthy
           echo "Waiting for services to become healthy..."
@@ -90,12 +94,12 @@ jobs:
       - name: Check running services
         run: |
           echo "Checking running services..."
-          docker-compose ps
+          docker compose ps
           
           # Verify all services are running
-          if ! docker-compose ps | grep -q "Up"; then
+          if ! docker compose ps | grep -q "Up"; then
             echo "❌ Some services failed to start"
-            docker-compose logs
+            docker compose logs
             exit 1
           fi
           echo "✅ All services are running"
@@ -109,8 +113,8 @@ jobs:
           attempt=0
           
           while [ $attempt -lt $max_attempts ]; do
-            healthy_count=$(docker-compose ps --format json | jq -r 'select(.Health == "healthy") | .Name' | wc -l)
-            running_count=$(docker-compose ps --format json | jq -r '.Name' | wc -l)
+            healthy_count=$(docker compose ps --format json | jq -r 'select(.Health == "healthy") | .Name' | wc -l)
+            running_count=$(docker compose ps --format json | jq -r '.Name' | wc -l)
             
             echo "Attempt $((attempt+1))/$max_attempts: $healthy_count/$running_count services healthy"
             
@@ -128,10 +132,10 @@ jobs:
           echo "Testing service connectivity..."
           
           # Test PostgreSQL
-          docker-compose exec -T postgres pg_isready -U user -d appdb || echo "⚠️ PostgreSQL not ready"
+          docker compose exec -T postgres pg_isready -U user -d appdb || echo "⚠️ PostgreSQL not ready"
           
           # Test Redis
-          docker-compose exec -T redis redis-cli ping || echo "⚠️ Redis not ready"
+          docker compose exec -T redis redis-cli ping || echo "⚠️ Redis not ready"
           
           # Test FastAPI health endpoint (when implemented)
           # curl -f http://localhost:8000/health || echo "⚠️ Web service not responding"
@@ -144,18 +148,18 @@ jobs:
           echo "=========================================="
           echo "Docker Compose Logs"
           echo "=========================================="
-          docker-compose logs
+          docker compose logs
           echo "=========================================="
           echo "Container Status"
           echo "=========================================="
-          docker-compose ps -a
+          docker compose ps -a
 
       - name: Stop and clean up
         if: always()
         run: |
           echo "Stopping Docker Compose stack..."
-          docker-compose down -v
-          docker-compose ps -a
+          docker compose down -v
+          docker compose ps -a
           echo "✅ Cleanup completed"
 
   security-scan:
@@ -210,7 +214,7 @@ jobs:
           for file in docker-compose*.yml docker-compose*.yaml; do
             if [ -f "$file" ]; then
               echo "Linting $file..."
-              docker-compose -f "$file" config --quiet || exit 1
+              docker compose -f "$file" config --quiet || exit 1
               echo "✅ $file is valid"
             fi
           done
