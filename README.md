@@ -183,6 +183,8 @@ API information endpoint.
 
 This project includes a complete Docker Compose setup for running the FastAPI application with all its dependencies.
 
+📖 **[Full Docker Compose Guide](DOCKER-COMPOSE.md)** - Comprehensive documentation with examples
+
 ### Quick Start with Docker Compose
 
 1. Create environment file:
