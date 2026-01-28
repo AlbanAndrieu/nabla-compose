@@ -1,0 +1,11 @@
+# Ignore everything (folders and files) on root only
+# /*
+!api
+!public
+!templates
+!nabla
+!main.py
+!my-app
+!vercel.json
+!*.html
+packages/*/test/**

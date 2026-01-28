@@ -1,0 +1,29 @@
+{
+	"name": "nabla-site-python",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "uv run pywrangler deploy",
+		"dev": "uv run pywrangler dev",
+		"start": "uv run pywrangler dev"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^20.3.1",
+		"@commitlint/config-conventional": "^20.3.1",
+		"commitlint": "^20.3.1",
+		"cz-conventional-changelog": "^3.3.0",
+		"opencommit": "^3.2.10",
+		"wrangler": "^4.46.0"
+	},
+	"dependencies": {
+		"@vercel/analytics": "^1.6.1",
+		"lodash-es": "^4.17.22",
+		"vercel": "^50.5.0"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-emoji-conventional",
+			"useGitmojis": true
+		}
+	}
+}

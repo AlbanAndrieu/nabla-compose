@@ -1,0 +1,885 @@
+[build-system]
+requires = ["hatchling", "versioningit", "setuptools>=61.0", "versioneer[toml]==0.29", "packaging>=24.2", "wheel"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nabla-site-python"
+version = "1.0.0"
+description = "Sample FastAPI Hello World for Vercel and Cloudflare deployment"
+authors = [{ name = "Alban Andrieu", email = "alban.andrieu@free.fr" }]
+requires-python = ">=3.12"
+readme = "README.md"
+license = "MIT"
+maintainers = [{ name = "Alban Andrieu", email = "alban.andrieu@free.fr" }]
+keywords = [
+    "packaging",
+    "poetry",
+    "nabla-site-python",
+]
+classifiers = ["Private :: Do not Upload"]
+# dependencies = ["statsig-python-core (>=0.14.0,<0.15.0)", "legacy-cgi (>=2.6.4,<3.0.0)"]
+# dependencies = [
+#     "legacy-cgi (>=2.6.4,<3.0.0)",
+#     "jinja2>=3.1.6",
+# ]
+license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+build = ["setuptools", "cython"]
+toml = ["tomli; python_version < '3.11'"]
+# numpy-1 = [
+#     "numpy<2.0.0",
+# ]
+# numpy-2 = [
+#     "numpy>=2.0.0",
+# ]
+# cpu = [
+#   "torch>=2.5.1",
+# ]
+# cu128 = [
+#   "torch>=2.5.1",
+# ]
+# build = [
+#     "setuptools",
+#     "cython",
+#     "ninja>=1.13.0",
+#     "packaging>=25.0",
+#     "psutil>=7.2.1",
+# ]
+# pytorch = [
+#     "python>=3.12,<4.0",
+#     "torch",
+# ]
+# nvidia = [
+#     "faiss-cpu>=1.10.0",
+#     "sentence-transformers>=5.1.0",
+# ]
+
+
+[project.urls]
+Homepage = "https://github.com/AlbanAndrieu/nabla-site-python"
+
+[dependency-groups]
+api = [
+    "annotated-types>=0.7.0",
+    "anyio>=4.11.0",
+    "ansicolors>=1.1.8",
+    "arel>=0.3.0",
+    "asyevent>=0.2.10",
+    "certifi>=2025.10.5",
+    "charset-normalizer>=3.4.4",
+    "click>=8.3.0",
+    "click-completion>=0.5.2",
+    "distro>=1.9.0",
+    "fastapi[standard]>=0.121.0",
+    "h11>=0.16.0",
+    "httpcore>=1.0.9",
+    "httpx>=0.28.1",
+    "idna>=3.11",
+    "jiter>=0.11.1",
+    "jinja2>=3.1.6",
+    "podmena>=0.6.1",
+    "passlib>=1.7.4",
+    "plotly>=6.3.0",
+    "polars>=1.32.3",
+    "pybreaker>=1.4.0",
+    "pyarrow>=16.0.0",
+    "pydantic>=2.12.3",
+    "pydantic-settings",
+    "PyMuPDF>=1.26.4",
+    "pydantic_core>=2.41.4",
+    "python-dotenv>=1.1.1",
+    "python-gitlab>=6.4.0",
+    "python-json-logger>=2.0.7",
+    "python-keycloak>=4.4.0",
+    "python-multipart>=0.0.20",
+    "pyyaml>=6.0",
+    "pyjwt>=2.7.0",
+    "redis>=4.6.0",
+    "requests>=2.32.5",
+    "reretry>=0.11.8",
+    "sniffio>=1.3.1",
+    "slowapi>=0.1.9",
+    "sse-starlette>=2.3.6",
+    "structlog>=25.4.0",
+    "tqdm>=4.67.1",
+    "typing-inspection>=0.4.2",
+    "typing_extensions>=4.15.0",
+    "types-pytz>=2025.2.0.20250809",
+]
+api-cgi = [
+    "legacy-cgi; python_version >= '3.13'",
+]
+api-extra = [
+    "fastapi-featureflags>=0.4.7",
+    "fastapi-mail>=1.5.0",
+    "fastapi-users[sqlalchemy]>=14.0.1",
+    "fastapi-cache2[redis]>=0.0.1",
+    "fastmcp>=2.12.2",
+    "uvicorn[standard]>=0.38.0",
+    "uvicorn-worker>=0.2.0",
+    "gunicorn>=23.0.0",
+]
+api-tracing = [
+    "ddtrace>=3.12.2",
+    "dd-import>=1.0.12",
+    "logfire>=4.2.0",
+    "pyroscope-io>=0.8.5",
+    "sentry-sdk[fastapi]",
+    "UnleashClient>=6.3.0",
+]
+api-ai = [
+    "langgraph>=0.6.6",
+    "langchain>=0.3.27",
+    "langchain-openai>=0.3.32",
+    "openai>=2.6.0",
+]
+deployment-vercel = [
+    "vercel>=0.3.2",
+    "vercel-sandbox>=0.0.2",
+    "vercel-sdk>=0.0.8",
+    ]
+deployment = [
+    "python-keystoneclient>=5.1.0",
+    "python-swiftclient>=4.2.0",
+    "asyncpg>=0.27.0",
+    "databases>=0.5.3",
+    "dateparser>=1.1.8",
+    "spacy>=3.5.4",
+    "sqladmin[full]>=0.21.0",
+    "dacite>=1.8.0",
+    "prometheus-client>=0.21.1",
+    "prometheus-fastapi-instrumentator>=7.1.0",
+    "structlog>=25.4.0",
+    "reretry>=0.11.8",
+]
+utils = [
+    "pytesseract>=0.3.13",
+    "types-requests>=2.32.4.20250611",
+]
+webui = [
+    "gradio>=5.44.1",
+    "opencv-python-headless>=4.6.0.66",
+]
+encryption = [
+    "cryptography>=41.0.2",
+    "aiohttp>=3.8.1,<4",
+]
+temporal = ["temporalio[opentelemetry]>=1.6.0"]
+open_telemetry = [
+    "deprecated>=1.2.18",
+    "opentelemetry-distro>=0.49b1",
+    "opentelemetry-exporter-otlp>=1.33.1",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.33.1",
+    "opentelemetry-instrumentation-fastapi>=0.49b1",
+    "opentelemetry-instrumentation-logging>=0.49b1",
+    "opentelemetry-api>=1.33.1",
+    "opentelemetry-sdk>=1.33.1",
+]
+db = [
+    "alembic>=1.16.5",
+    "ovh>=1.2.0",
+    "psycopg[binary, pool]>=3.2.10",
+    ]
+panda = [
+    "sqlalchemy[asyncio]>=2.0.20",
+    "sqlmodel>=0.0.25",
+    # "psycopg2>=2.9.7",
+    "psycopg2-binary>=2.9.11",
+]
+influxdb = ["influxdb-client>=1.29.1"]
+csv = ["asyncpg>=0.27.0"]
+notebook = [
+    "notebook>=6.4.12",
+    "nbdev>=2.3.7",
+]
+test = [
+    "async-asgi-testclient>= 1.4.11",
+    "coverage>= 7.2.7",
+    "mypy>=1.16.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.21.0",
+    "pytest-env>=1.1.5",
+    "pytest-cases>=3.8.6",
+    "pytest-cov>=6.0.0",
+    "pytest-dependency>=0.5.1",
+    "pytest-icdiff>=0.9",
+    "pytest-mock>=3.14.0",
+    "pytest-order>=1.0.1",
+    "pytest-playwright>=0.6.2",
+    "pytest-profiling>=1.8.1",
+    "pytest-random-order>=1.1.1",
+    "pytest-shutil>=1.8.1",
+    "pytest-split>=0.10.0",
+    "pytest-sugar>=1.0.0",
+    "pytest-testinfra>=10.1.1",
+    "pytest-timeout>=2.3.1",
+    "pyright>=1.1.0",
+    "pyright-to-gitlab-ci>=1.1.0",
+    "nox>=2023.4.22",
+    # "statsig-python-core>=0.12.0",
+    "tox>=3.27.1",
+]
+format = [
+    "black[d]>=23.9.1",
+    "flake8>=6.1.0",
+    "flake8-formatter-junit-xml>=0.0.6",
+    "pylint>=2.15.6",
+    "pylint-junit>=0.3.2",
+    "ruff>=0.12.10",
+]
+ci = [
+    "bandit>=1.8.3",
+    "sphinx>=7.1.2",
+    "twine>=4.0.2",
+    "cyclonedx-bom>=4.5.0",
+]
+extra = [
+    "ansible-core>=2.16.8",
+    "ansible-lint>=25.8.2",
+    "click-completion>=0.5.2",
+    "colorama>=0.4.6",
+    "dvc-s3>=3.2.2",
+    "httpx>=0.23.3",
+    "jupyterlab>=3.4.3",
+    "git-url-parse>=1.2.2",
+    "gitpython>=3.1.29",
+    "markdown-it-py>=4.0.0",
+    "mdformat>=1.0.0",
+    "mdformat-gfm>=1.0.0",
+    "mdurl>=0.1.2",
+    "numpy>=1.19.3",
+    "packaging>=24.2",
+    "pre-commit>=4.5.0",
+    "pip-upgrader>=1.4.15",
+    "python-keystoneclient>=0.0.18",
+    "readme-renderer[md]>=43.0",
+    "sqlfluff>=3.1.0",
+    "setup-cfg-fmt>=2.2.0",
+    "setuptools>=70.0.0",
+    "srsly>=2.4.8",
+    "termcolor>=1.1.0",
+    "types-PyYAML>=6.0.12.20250915",
+    "versioneer[toml]>=0.29",
+    "versioningit>=3.3.0",
+    "vulture>=2.14",
+    "webtypy>=0.1.7",
+    "workers-py>=1.7.0",
+    "workers-runtime-sdk>=0.3.1",
+]
+dev = [
+    "locust>=2.18.3",
+    "commitizen>=4.10.0,<5",
+]
+github-actions = ["pytest-github-actions-annotate-failures>=0.1.7,<0.2"]
+
+[tool.uv]
+#  "pandas>=2.3.3",
+default-groups = [
+    "api",
+    "api-cgi",
+    # "utils",
+    # "encryption",
+    # "open_telemetry",
+    # "panda",
+    "deployment-vercel",
+    # "dev",
+]
+conflicts = [
+  [
+    { extra = "numpy-1" },
+    { extra = "numpy-2" },
+  ],
+  [
+    { extra = "cpu" },
+    { extra = "cu128" },
+  ],
+]
+no-build-isolation-package = ["flash-attn"]
+
+# [tool.uv.extra-build-dependencies]
+# web-py = ["cgi"]
+
+# [virtualenvs]
+# in-project = true
+
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+version = "2.6.3"
+requires-dist = ["torch", "einops"]
+
+[tool.poetry]
+name = "nabla-site-python"
+description = "Custom hooks to improve code quality before pushing to git"
+authors = ["Alban Andrieu <alban.andrieu@free.fr>"]
+
+packages = [
+  { include = "api" }
+]
+
+# [tool.uv]
+# package = false
+
+[[tool.uv.index]]
+name = "gitlab-ds"
+url = "https://gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple"
+explicit = true
+
+# See https://medium.com/@turingmotors/5-useful-features-of-the-python-project-management-tool-uv-up-to-v0-5-3-dependencies-edition-9aab2cddceeb
+# [[tool.uv.index]]
+# name = "pytorch-gpu"
+# url = "https://download.pytorch.org/whl/cu128"
+# explicit = true
+#
+# [[tool.uv.index]]
+# name = "pytorch-cpu"
+# url = "https://download.pytorch.org/whl/cpu"
+# explicit = true
+
+# [tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu128", extra = "cu128" },
+]
+# torch = [
+#     { index = "pypi", marker = "sys_platform == 'darwin'" },
+#     { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" },
+# ]
+
+# torch = [
+#     { index = "torch-cuda", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'"},
+#     { index = "torch-cpu", marker = "sys_platform == 'darwin' or (sys_platform == 'linux' and platform_machine == 'aarch64')"},
+# ]
+
+[[tool.poetry.source]]
+name = "gitlab-ds"
+# poetry config http-basic.gitlab-ds __token__ ${GITLAB_FULL_PRIVATE_TOKEN}
+# export POETRY_GITLAB_TOKEN_GITLAB=${GITLAB_FULL_PRIVATE_TOKEN}
+url = "https://gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple"
+priority = "explicit"
+
+[[tool.poetry.source]]
+name = "pytorch-gpu"
+url = "https://download.pytorch.org/whl/cu128"
+priority = "explicit"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+
+[tool.poetry.group.api]
+optional = false
+[tool.poetry.group.api.dependencies]
+annotated-types = ">=0.7.0"
+anyio = ">=4.11.0"
+alembic = ">=1.16.5"
+ansicolors = ">=1.1.8"
+arel = ">=0.3.0"
+asyevent = ">=0.2.10"
+# aioredis = ">=2.0.1"
+# cfgv = ">=3.3.0"
+# chardet = ">=5.0.0"
+certifi = ">=2025.10.5"
+charset-normalizer = ">=3.4.4"
+click = ">=8.3.0"
+click-completion = ">=0.5.2"
+# cmarkgfm = "2024.11.20" # NOK 2025.10.20
+ddtrace = ">=3.12.2"
+dd-import = ">=1.0.12"
+distro = ">=1.9.0"
+faiss-cpu = ">=1.10.0" # 1.12.0
+fastapi = {version = ">=0.121.0", extras = ["standard"]}
+fastapi-featureflags = ">=0.4.7"
+fastapi-mail = ">=1.5.0" # NOK 1.5.2
+fastapi-users = {version = ">=14.0.1", extras = ["sqlalchemy"]}
+fastapi-cache2 = {version = ">=0.0.1", extras = ["redis"]} # NOK aioredis deprecated
+fastmcp = ">=2.12.2"
+gunicorn = ">=23.0.0"
+h11 = ">=0.16.0"
+httpcore = ">=1.0.9"
+httpx = ">=0.28.1"
+idna = ">=3.11"
+jiter = ">=0.11.1"
+jinja2 = ">=3.1.6"
+langgraph = ">=0.6.6"
+langchain = ">=0.3.27"
+langchain-openai = ">=0.3.32"
+logfire = ">=4.2.0"
+# markupsafe = "*"
+# notion-client = ">=2.5.0"
+openai = ">=2.6.0"
+ovh = ">=1.2.0"
+podmena = ">=0.6.1"
+# psycopg2-binary = ">=2.9.5"
+passlib = ">=1.7.4"
+pandas = ">=2.2.1"
+plotly = ">=6.3.0"
+polars = ">=1.32.3"
+pybreaker = ">=1.4.0"
+# psycopg2 = ">=2.9.7"  # WARNING need sudo apt-get install libpq-dev
+psycopg = {version = ">=3.2.10", extras = ["binary","pool"]}
+pyarrow = ">=16.0.0"
+# pydantic = {version = ">=2.12.3", extras = ["dotenv"]}
+pydantic = ">=2.12.3"
+pydantic-settings = "*" # Defined by pydantic
+PyMuPDF = ">=1.26.4"
+pyroscope-io = ">=0.8.5"
+pydantic_core = ">=2.41.4"
+python-dotenv = ">=1.1.1"
+python-gitlab = ">=6.4.0"
+python-json-logger = ">=2.0.7"
+python-keycloak = ">=4.4.0"
+python-multipart = ">=0.0.20"
+pyyaml = ">=6.0" # awscli needed
+pyjwt = ">=2.7.0"
+redis = ">=4.6.0"
+requests = ">=2.32.5"
+reretry = ">=0.11.8"
+sentence-transformers = ">=5.1.0"
+sentry-sdk = {version = "*", extras = ["fastapi"]}
+sniffio = ">=1.3.1"
+slowapi = ">=0.1.9"
+# six = ">=1.16.0" # awscli needed
+# starlette = ">=0.48.0"
+sse-starlette = ">=2.3.6"
+structlog = ">=25.4.0"
+tqdm = ">=4.67.1"
+typing-inspection = ">=0.4.2"
+typing_extensions = ">=4.15.0"
+types-pytz = ">=2025.2.0.20250809"
+UnleashClient = ">=6.3.0"
+urllib3 = ">=2.5.0"
+uvicorn = {version = ">=0.38.0", extras = ["standard"]}
+uvicorn-worker = ">=0.2.0"
+vercel = ">=0.3.2"
+vercel-sandbox = ">=0.0.2"
+vercel-sdk = ">=0.0.8"
+webtypy = ">=0.1.7"
+# "web.py" = ">=0.62"
+"web.py" = ["web.py; python_version < '3.13'"]
+legacy-cgi = ["legacy-cgi; python_version >= '3.13'"]
+# htmx = "*"
+
+[tool.poetry.group.locust]
+optional = true
+[tool.poetry.group.locust.dependencies]
+locust = ">=2.18.3"
+
+[tool.poetry.group.deployment]
+optional = true
+[tool.poetry.group.deployment.dependencies]
+python-keystoneclient = ">=5.1.0"
+python-swiftclient = ">=4.2.0"
+asyncpg = ">=0.27.0"
+databases = ">=0.5.3"
+dateparser = ">=1.1.8"
+spacy = ">=3.5.4"
+sqladmin = {version = ">=0.21.0", extras = ["full"]}
+dacite = ">=1.8.0"
+# citation-dataclasses = {version = ">=0.0.4", source="gitlab"}
+prometheus-client = ">=0.21.1"
+prometheus-fastapi-instrumentator = ">=7.1.0"
+structlog = ">=25.4.0"
+reretry = ">=0.11.8"
+
+[tool.poetry.group.utils]
+optional = false
+[tool.poetry.group.utils.dependencies]
+pytesseract = ">=0.3.13"
+types-requests = ">=2.32.4.20250611"
+
+[tool.poetry.group.webui]
+optional = true
+[tool.poetry.group.webui.dependencies]
+gradio = ">=5.44.1"
+# tensorflow = ">=2.9.1"
+opencv-python-headless = ">=4.6.0.66"
+
+# See https://github.com/temporalio/samples-python/blob/main/pyproject.toml
+[tool.poetry.group.encryption]
+optional = false
+dependencies = { cryptography = ">=41.0.2", aiohttp = "^3.8.1" }
+
+[tool.poetry.group.temporal]
+optional = true
+[tool.poetry.group.temporal.dependencies]
+temporalio = {version = ">=1.6.0", extras = ["opentelemetry"] }
+
+[tool.poetry.group.open_telemetry]
+optional = false
+[tool.poetry.group.open_telemetry.dependencies]
+# temporalio = { version = "*", extras = ["opentelemetry"] }
+deprecated = ">=1.2.18" # For opentelemetry https://github.com/open-telemetry/opentelemetry-python/issues/4020
+opentelemetry-distro = ">=0.49b1"
+opentelemetry-exporter-otlp = ">=1.33.1"
+opentelemetry-exporter-otlp-proto-grpc = ">=1.33.1"
+opentelemetry-instrumentation-fastapi = ">=0.49b1"
+opentelemetry-instrumentation-logging = ">=0.49b1"
+# opentelemetry-exporter-jaeger-thrift = ">=1.13.0"
+# opentelemetry-exporter-otlp-proto-http
+opentelemetry-api = ">=1.33.1"
+opentelemetry-sdk = ">=1.33.1"
+
+[tool.poetry.group.panda]
+optional = false
+[tool.poetry.group.panda.dependencies]
+# pandas = ">=2.2.1"
+sqlalchemy =  {extras = ["asyncio"], version = ">=2.0.20"}
+sqlmodel = ">=0.0.25"
+psycopg2 = ">=2.9.7"  # WARNING need sudo apt-get install libpq-dev
+
+[tool.poetry.group.influxdb]
+optional = true
+[tool.poetry.group.influxdb.dependencies]
+influxdb-client = ">=1.29.1"
+
+[tool.poetry.group.csv]
+optional = true
+[tool.poetry.group.csv.dependencies]
+asyncpg = ">=0.27.0"
+
+[tool.poetry.group.pytorch]
+optional = true
+[tool.poetry.group.pytorch.dependencies]
+python = ">=3.12,<4.0"
+# python = ">=3.14,<3.15" for trition 2.8.0
+torch = [
+    { version = ">=2.7.1", source = "pypi", markers = "sys_platform == 'darwin'" }, # For macOS users (CPU only)
+    { version = ">=2.7.1", source = "pytorch-cpu", markers = "sys_platform != 'darwin'" }, # For non-macOS users (CPU only)
+    # { version = ">=2.7.1", source = "pytorch-gpu", markers = "sys_platform != 'darwin'" }, # For GPU users (non-macOS only)
+]
+
+[tool.poetry.group.notebook]
+optional = true
+[tool.poetry.group.notebook.dependencies]
+notebook = ">=6.4.12"
+# poetry run nbdev_install_quarto
+# poetry run nbdev_install_hooks
+nbdev = ">=2.3.7"
+
+[tool.poetry.group.test]
+optional = true
+[tool.poetry.group.test.dependencies]
+async-asgi-testclient = ">= 1.4.11"
+coverage = ">= 7.2.7"
+# git-ai-commit = ">= 1.0.13"
+# molecule = ">=5.1.0"
+mypy = ">=1.16.0"
+pytest = ">=8.4.1"              # Testing framework
+pytest-asyncio = ">=0.21.0"
+pytest-env = ">=1.1.5"
+pytest-cases = ">=3.8.6"        # Parametrized testing
+pytest-cov = ">=6.0.0"          # Coverage reporting
+pytest-dependency = ">=0.5.1"
+pytest-icdiff = ">=0.9"         # Improved diffs
+pytest-mock = ">=3.14.0"        # Mocking
+pytest-order = ">=1.0.1"
+pytest-playwright = ">=0.6.2"   # Browser testing
+pytest-profiling = ">=1.8.1"    # Test profiling
+pytest-random-order = ">=1.1.1" # Randomized test order
+pytest-shutil = ">=1.8.1"       # File system testing
+pytest-split = ">=0.10.0"       # Parallel testing
+pytest-sugar = ">=1.0.0"        # Test progress visualization
+pytest-testinfra = ">=10.1.1"
+pytest-timeout = ">=2.3.1"      # Test timeouts
+pyright = ">=1.1.0"
+pyright-to-gitlab-ci = ">=1.1.0"
+nox = ">=2023.4.22"
+# statsig-python-core = ">=0.12.0"
+tox = ">=3.27.1"
+
+[tool.poetry.group.format]
+optional = true
+[tool.poetry.group.format.dependencies]
+# autopep8 = ">=2.0.0"
+black = {version = ">=23.9.1", extras = ["d"]}
+flake8 = ">=6.1.0"
+flake8-formatter-junit-xml = ">=0.0.6"
+pylint = ">=2.15.6"
+pylint-junit = ">=0.3.2"
+ruff = ">=0.12.10"
+
+[tool.poetry.group.ci]
+optional = true
+[tool.poetry.group.ci.dependencies]
+bandit = ">=1.8.3"
+# checkov = ">=3.2.372"
+# selenium = ">=4.6.0"
+# semgrep = ">=1.15.0" # semgrep (>=1.15.0) and ansible-lint[yamllint] (>=6.18.0), version solving failed
+sphinx = ">=7.1.2"
+twine = ">=4.0.2"
+cyclonedx-bom = ">=4.5.0"
+
+# [tool.poetry.group.aws]
+# optional = true
+# [tool.poetry.group.aws.dependencies]
+# awscli = ">=1.32.11"
+# awscli-plugin-endpoint = ">=0.4"
+
+# [tool.poetry.dev-dependencies]
+[tool.poetry.group.extra]
+optional = true
+[tool.poetry.group.extra.dependencies]
+ansible-core = ">=2.16.8"
+ansible-lint = ">=25.8.2"
+# ansible-navigator = ">=1.1.0"
+# ansible-runner = ">=2.2.1"
+# ansible-builder = ">=1.1.0"
+# ansible-playbook-grapher = ">=1.1.0"
+click-completion = ">=0.5.2"
+colorama = ">=0.4.6"
+dvc-s3 = ">=3.2.2"
+httpx = {version = ">=0.23.3"}
+jupyterlab = ">=3.4.3"
+git-url-parse = ">=1.2.2"
+gitpython = ">=3.1.29"
+markdown-it-py = ">=4.0.0"
+mdformat = ">=1.0.0"
+mdformat-gfm = ">=1.0.0"
+mdurl = ">=0.1.2"
+numpy = ">=1.19.3,<2" # conflict possible with jm-multilabel-evaluator, TODO >=2.2.3
+packaging = ">=24.2"
+pre-commit = ">=4.5.0"
+# pre-commit-hooks = ">=4.4.0"
+pip-upgrader = ">=1.4.15"
+python-keystoneclient = ">=0.0.18"
+readme-renderer = {version = ">=43.0", extras = ["md"]}
+sqlfluff = ">=3.1.0"
+setup-cfg-fmt = ">=2.2.0"
+setuptools = ">=70.0.0"
+srsly = ">=2.4.8" # Downgrading srsly (2.5.1 -> 2.4.8) with python  3.13.3
+termcolor = ">=1.1.0" # >=2.4.0
+types-PyYAML = ">=6.0.12.20250915" # for notebooks/training_example.ipynb
+versioneer = {version = ">=0.29", extras = ["toml"]}
+versioningit = ">=3.3.0"
+vulture = ">=2.14"
+webtypy = ">=0.1.7"
+# wheel = ">=0.45.1"
+workers-py = ">=1.7.0"
+workers-runtime-sdk = ">=0.3.1"
+
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+# poetry export -f requirements.txt --output requirements.txt --all-extras --all-groups
+# pip3 freeze > requirements.txt
+
+
+#[tool.setuptools-pipfile]
+
+#[tool]
+#setuptools-pipfile = "Pipfile"
+
+[tool.poetry.group.dev.dependencies]
+commitizen = "^4.10.0"
+
+[tool.pytest.ini_options]
+testpaths = "tests/"
+
+[tool.sqlfluff.core]
+templater = "jinja"
+sql_file_exts = ".sql,.sql.j2,.dml,.ddl"
+
+[tool.sqlfluff.indentation]
+indented_joins = false
+indented_using_on = true
+template_blocks_indent = false
+
+[tool.sqlfluff.templater]
+unwrap_wrapped_queries = true
+
+[tool.sqlfluff.templater.jinja]
+apply_dbt_builtins = true
+
+# For rule specific configuration, use dots between the names exactly
+# as you would in .sqlfluff. In the background, SQLFluff will unpack the
+# configuration paths accordingly.
+[tool.sqlfluff.rules.capitalisation.keywords]
+capitalisation_policy = "upper"
+
+[tool.bandit]
+skips = ["B101", "B311"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311"]
+include = "/(tests|nabla)"
+
+[tool.pyright]
+include = ["nabla"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "nabla/experimental",
+    "nabla/typestubs"
+]
+venvPath = "."
+venv = ".venv"
+
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+
+[tool.ruff]
+# Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+lint.select = ["E", "F"]
+lint.ignore = ["E501", "E203", "RUF012"]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+lint.fixable = ["ALL"]
+lint.unfixable = []
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+lint.per-file-ignores = {}
+
+# Same as Black.
+line-length = 88
+
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.12.3
+target-version = "py312"
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*site-packages*",
+    "*__init__.py",
+]
+
+[tool.mypy]
+show_error_codes = true
+warn_unreachable = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+# Disabling incremental mode is required for `warn_unused_configs = true` to work
+incremental = false
+disallow_untyped_defs = true
+check_untyped_defs = true
+strict_equality = true
+implicit_reexport = false
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pdm]
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "nabla/_version.py"
+versionfile_build = "nabla/_version.py"
+tag_prefix = "prod-"
+parentdir_prefix = ""
+
+# [tool.hatch.metadata.hooks.datadog-build-metadata]
+#
+# [tool.hatch.metadata.hooks.datadog-build-metadata.urls]
+# Homepage = "https://gitlab.com/jusmundi-group/proof-of-concept/fastapi-sample"
+# source_archive = "{remote_http_url}/archive/{commit_hash}.tar.gz"
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit]
+default-version = "0.0.0+unknown"
+
+[tool.commitizen]
+name = "cz_customize"
+version = "1.2.3"
+update_changelog_on_bump = true
+
+[tool.commitizen.customize]
+message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
+example = "feature: this feature enable customize through config file"
+schema = "<type>: <body>"
+schema_pattern = "(feature|fix):(\\s.*)"
+bump_pattern = "^(break|new|fix|hotfix)"
+bump_map = {"break" = "MAJOR", "new" = "MINOR", "fix" = "PATCH", "hotfix" = "PATCH"}
+change_type_order = ["BREAKING CHANGE", "feat", "fix", "refactor", "perf"]
+info_path = "cz_customize_info.txt"
+info = """
+This is customized info
+"""
+commit_parser = "^(?P<change_type>feature|fix):\\s(?P<message>.*)?"
+changelog_pattern = "^(feature|fix)?(!)?"
+change_type_map = {"feature" = "Feat", "fix" = "Fix"}
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "change_type"
+choices = [{value = "feature", name = "feature: A new feature."}, {value = "fix", name = "bug fix: A bug fix."}]
+# choices = ["feature", "fix"]  # short version
+message = "Select the type of change you are committing"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "message"
+message = "Body."
+
+[[tool.commitizen.customize.questions]]
+type = "confirm"
+name = "show_message"
+message = "Do you want to add body message in commit?"
+
+[tool.vercel.scripts]
+build = "uv sync"
+
+[project.scripts]
+app = "api:main"
+
+# only used in github actions
+[tool.poetry.group.github-actions]
+optional = true
+[tool.poetry.group.github-actions.dependencies]
+pytest-github-actions-annotate-failures = "^0.1.7"

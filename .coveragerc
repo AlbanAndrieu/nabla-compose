@@ -1,0 +1,55 @@
+# .coveragerc to control coverage.py
+[run]
+omit =
+ */site-packages/*
+    */dist-packages/*
+    */distutils/*
+    tests/*
+    .venv/*
+    # Django framework files
+    */tests/*
+    */migrations/*
+    */wsgi.py
+    */asgi.py
+    */celery.py
+    */settings.py
+    */urls.py
+    */__init__.py
+    # Additional Django files
+    */manage.py
+    */apps.py
+    */admin.py
+    # Static and media files
+    */static/*
+    */staticfiles/*
+    */media/*
+    # Configuration files
+    */config_settings.py
+    # Vue frontend files
+    */vue-frontend/*
+    # Data and var directories
+    */data/*
+    */var/*
+    # Reports directory
+    */reports/*
+    # Docker and deployment files
+    */Dockerfile*
+    */docker-compose*
+    */job.nomad
+    */Makefile
+
+
+[report]
+include = hooks/*
+omit = hooks/tests/*
+    # omit everything in /usr
+    /tests/*
+
+[html]
+directory = reports/htmlcov
+
+[xml]
+output = reports/coverage.xml
+
+[json]
+output = reports/coverage.json

@@ -1,0 +1,15 @@
+.terraform/
+.cache/
+.bower/
+bower_components/
+.node_cache/
+node_modules/
+.node_tmp/
+npm/
+.npmrc
+.venv/
+.direnv/
+megalinter-reports/
+.env.secrets
+.netlify/
+.vercel/
