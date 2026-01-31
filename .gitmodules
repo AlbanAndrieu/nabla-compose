@@ -1,0 +1,6 @@
+[submodule "temporal"]
+	path = temporal
+	url = git@github.com:AlbanAndrieu/my-temporal-dockercompose.git
+[submodule "pgwatch"]
+	path = pgwatch
+	url = https://github.com/cybertec-postgresql/pgwatch

@@ -1,0 +1,109 @@
+services:
+  localai:
+    # See https://localai.io/basics/container/#standard-container-images for
+    # a list of available container images (or build your own with the provided Dockerfile)
+    # Available images with CUDA, ROCm, SYCL, Vulkan
+    # Image list (quay.io): https://quay.io/repository/go-skynet/local-ai?tab=tags
+    # Image list (dockerhub): https://hub.docker.com/r/localai/localai
+    image: localai/localai:master
+    command:
+      - ${MODEL_NAME:-gemma-3-4b-it-qat}
+      - ${MULTIMODAL_MODEL:-moondream2-20250414}
+      - ${IMAGE_MODEL:-sd-1.5-ggml}
+      - granite-embedding-107m-multilingual
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/readyz"]
+      interval: 60s
+      timeout: 10m
+      retries: 120
+    ports:
+      - 8083:8080
+    environment:
+      - DEBUG=true
+      #- LOCALAI_API_KEY=sk-1234567890 #nosec allow:gitleaks
+    volumes:
+      - ./volumes/models:/models
+      - ./volumes/backends:/backends
+      - ./volumes/images:/tmp/generated/images
+
+  localrecall:
+    image: quay.io/mudler/localrecall:main
+    ports:
+      - 8083 # 8080
+    environment:
+      - COLLECTION_DB_PATH=/db
+      - EMBEDDING_MODEL=granite-embedding-107m-multilingual
+      - FILE_ASSETS=/assets
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=http://localai:8080
+    volumes:
+      - ./volumes/localrag/db:/db
+      - ./volumes/localrag/assets/:/assets
+
+  localrecall-healthcheck:
+    depends_on:
+      localrecall:
+        condition: service_started
+    image: busybox
+    command:
+      [
+        "sh",
+        "-c",
+        "until wget -q -O - http://localrecall:8080 > /dev/null 2>&1; do echo 'Waiting for localrecall...'; sleep 1; done; echo 'localrecall is up!'",
+      ]
+
+  sshbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.sshbox
+    ports:
+      - "22"
+    environment:
+      - SSH_USER=root
+      - SSH_PASSWORD=root
+      - DOCKER_HOST=tcp://dind:2375
+    depends_on:
+      dind:
+        condition: service_healthy
+
+  dind:
+    image: docker:dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=""
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  localagi:
+    depends_on:
+      localai:
+        condition: service_healthy
+      localrecall-healthcheck:
+        condition: service_completed_successfully
+      dind:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile.webui
+    ports:
+      - 3002:3000 # 3001 is used by anythingllm API
+    #image: quay.io/mudler/localagi:master
+    environment:
+      - LOCALAGI_MODEL=${MODEL_NAME:-gemma-3-4b-it-qat}
+      - LOCALAGI_MULTIMODAL_MODEL=${MULTIMODAL_MODEL:-moondream2-20250414}
+      - LOCALAGI_IMAGE_MODEL=${IMAGE_MODEL:-sd-1.5-ggml}
+      - LOCALAGI_LLM_API_URL=http://localai:8080
+      #- LOCALAGI_LLM_API_KEY=sk-1234567890 #nosec allow:gitleaks
+      - LOCALAGI_LOCALRAG_URL=http://localrecall:8080
+      - LOCALAGI_STATE_DIR=/pool
+      - LOCALAGI_TIMEOUT=5m
+      - LOCALAGI_ENABLE_CONVERSATIONS_LOGGING=false
+      - LOCALAGI_SSHBOX_URL=root:root@sshbox:22
+      - DOCKER_HOST=tcp://dind:2375
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./volumes/localagi/:/pool

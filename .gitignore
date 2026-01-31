@@ -6,6 +6,11 @@ env/scripts/jenkins/tls.lua
 *.csv
 *.ipynb_checkpoints
 data/*
+models
+portracker-data/
+stirling-data/
+vw-data/
+
 notebooks/.ipynb_checkpoints
 *mlruns
 # .editorconfig

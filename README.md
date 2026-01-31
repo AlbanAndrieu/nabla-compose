@@ -1,110 +1,41 @@
-# nabla-compose
-
-Docker compose project for workstation.
-
-## Overview
-
-This is a docker compose application.
-
-## Local Development
-
-### Prerequisites
-
-- Python 3.12 or higher
-
-## Docker Compose Deployment
-
-This project includes a complete Docker Compose setup for running the FastAPI application with all its dependencies.
-
-📖 **[Full Docker Compose Guide](DOCKER-COMPOSE.md)** - Comprehensive documentation with examples
-
-### Quick Start with Docker Compose
-
-1. Create environment file:
-
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+
+sudo systemctl disable prometheus
+sudo systemctl disable ntopng
+
+docker compose --env-file .env --env-file .env.secrets -f  docker-compose.yml up -d
 ```
 
-2. Start all services:
-
 ```bash
-# Start in foreground
-docker compose up
+git submodule add -f git@github.com:AlbanAndrieu/my-temporal-dockercompose.git temporal
+git submodule add -f https://github.com/cybertec-postgresql/pgwatch pgwatch
 
-# Start in background
-docker compose up -d
+git pull origin master --allow-unrelated-histories
+git pull && git submodule init && git submodule update && git submodule status
+
 ```
 
-3. Access the application:
-
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- Health Check: http://localhost:8000/health
-
-### Docker Compose Services
-
-The docker-compose.yml includes:
-
-- **web**: FastAPI application (port 8000)
-- **postgres**: PostgreSQL database (port 5432)
-- **redis**: Redis cache (port 6379)
-- **nginx**: Nginx reverse proxy (ports 80/443)
-
-### Docker Compose Commands
-
 ```bash
-# View running services
-docker compose ps
+cd temporal
 
-# View logs
-docker compose logs -f
+docker volume create portainer_data
+docker network create temporal-network
+docker network create proxy
+docker compose --env-file .env --env-file .env.secrets -f compose-postgres.yml -f compose-services.yml up --detach
 
-# View logs for specific service
-docker compose logs -f web
+cd pgwatch
+docker compose -f ./docker/docker-compose.yml up
 
-# Restart a service
-docker compose restart web
-
-# Stop all services
-docker compose down
-
-# Stop and remove volumes (deletes data)
-docker compose down -v
-
-# Rebuild and restart
-docker compose up --build
-
-# Execute command in container
-docker compose exec web bash
+# at root
+docker compose -f ./docker-compose.yml up -d
 ```
 
-### Validation
-
-Validate the docker-compose configuration:
-
-```bash
-# Check syntax
-docker compose config
-
-# Verify services are running
-docker compose ps
-
-# Check health status
-docker compose ps --format json | jq '.Health'
-```
-
-### Initialize opencommit and oco
-
-1. Install opencommit:
+portainer : http://localhost:9001/#!/init/admin
+grafana : http://localhost:8085/
 
 ```bash
-npm install -D opencommit
-npm install -D @commitlint/cli @commitlint/config-conventional @commitlint/prompt-cli commitizen cz-emoji-conventional
+cd openvas
 
-git add .opencommit-commitlint
-oco commitlint get
-
-oco config set OCO_PROMPT_MODULE=@commitlint
+docker compose --env-file .env --env-file .env.secrets -f docker-compose-openvas.yml up -d
 ```
