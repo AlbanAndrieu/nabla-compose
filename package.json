@@ -18,7 +18,7 @@
 	"dependencies": {
 		"@vercel/analytics": "^1.6.1",
 		"lodash-es": "^4.17.22",
-		"vercel": "^50.8.1"
+		"vercel": "^50.10.0"
 	},
 	"config": {
 		"commitizen": {
