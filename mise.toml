@@ -16,10 +16,6 @@ pre-commit = "latest"
 # Utiliser le nom du projet dérivé du répertoire courant
 PROJECT_NAME = "{{ config_root | basename }}"
 
-# API keys (must be set in environment or mise.local.toml)
-STATSIG_API_KEY = { required = true }
-SENTRY_DSN = { required = true }
-
 # Database connection (must be set in environment or mise.local.toml)
 DATABASE_URL = { required = "Set DATABASE_URL to your PostgreSQL connection string (e.g., postgres://user:pass@localhost/dbname)" } #nosec allow:gitleaks
 

@@ -4,3 +4,21 @@
 [submodule "pgwatch"]
 	path = pgwatch
 	url = https://github.com/cybertec-postgresql/pgwatch
+[submodule "open-resume"]
+	path = open-resume
+	url = https://github.com/xitanggg/open-resume.git
+[submodule "reactive-resume"]
+	path = reactive-resume
+	url = https://github.com/AlbanAndrieu/reactive-resume.git
+[submodule "cyberbro"]
+	path = cyberbro
+	url = git@github.com:stanfrbd/cyberbro.git
+[submodule "sentry"]
+	path = sentry
+	url = https://github.com/getsentry/self-hosted.git
+[submodule "plumber-platform"]
+	path = plumber-platform
+	url = https://github.com/AlbanAndrieu/platform.git
+[submodule "litellm"]
+	path = litellm
+	url = git@github.com:AlbanAndrieu/litellm.git

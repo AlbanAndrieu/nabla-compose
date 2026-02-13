@@ -1,0 +1,13 @@
+---
+# kics-scan ignore
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      DOMAIN: "https://vaultwarden.albandrieu.com"
+    volumes:
+      - ./vw-data/:/data/
+    ports:
+      - 127.0.0.1:8007:80

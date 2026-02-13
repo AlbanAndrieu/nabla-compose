@@ -1,0 +1,62 @@
+---
+# kics-scan ignore
+services:
+  datascience-notebook:
+    image: registry.gitlab.com/gitlab-data/data-image/analyst-image:v0.0.19
+    volumes:
+      - type: bind
+        # source: ${HOME}/
+        source: /home/albandrieu/
+        target: /files
+      - type: bind
+        # source: ${HOME}/.dbt
+        source: /home/albandrieu/.dbt
+        target: /usr/local/snowflake_profile/
+      - type: bind
+        # source: ${HOME}/.ssh
+        source: /home/albandrieu/.ssh
+        target: /home/albanandrieu/.ssh/
+    ports:
+      - "8889:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=1
+    command: start-notebook.sh --NotebookApp.notebook_dir=/files
+
+  # See "http://127.0.0.1:8888/lab"
+
+  languagetool:
+    image: erikvl87/languagetool
+    container_name: LanguageTool
+    restart: always
+    ports:
+      - 8010:8010 # Using default port from the image
+    environment:
+      - langtool_languageModel=/ngrams # OPTIONAL: Using ngrams data
+      - Java_Xms=512m # OPTIONAL: Setting a minimal Java heap size of 512 mib
+      - Java_Xmx=1g # OPTIONAL: Setting a maximum Java heap size of 1 Gib
+    volumes:
+      - ./ngrams:/ngrams
+
+  convertx:
+    image: ghcr.io/c4illin/convertx
+    container_name: convertx
+    restart: unless-stopped
+    ports:
+      - "3444:3000"
+    environment:
+      - ACCOUNT_REGISTRATION=false
+      - JWT_SECRET=${CONVERTX_JWT_SECRET} # will use randomUUID() if unset
+      # - HTTP_ALLOWED=true # uncomment this if accessing it over a non-https connection
+      - ALLOW_UNAUTHENTICATED=false # allows anyone to use the service without logging in, only set this to true locally
+      - AUTO_DELETE_EVERY_N_HOURS=24
+    volumes:
+      - ./data:/app/data
+
+  stirling-pdf:
+    image: stirlingtools/stirling-pdf:latest
+    container_name: stirling-pdf
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./stirling-data:/configs
+    restart: unless-stopped

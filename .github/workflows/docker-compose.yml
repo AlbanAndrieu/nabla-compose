@@ -5,17 +5,17 @@ on:
   push:
     branches: [master, main]
     paths:
-      - 'docker-compose*.yml'
-      - 'docker-compose*.yaml'
-      - 'Dockerfile'
-      - '.github/workflows/docker-compose.yml'
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - "Dockerfile"
+      - ".github/workflows/docker-compose.yml"
   pull_request:
     branches: [master, main]
     paths:
-      - 'docker-compose*.yml'
-      - 'docker-compose*.yaml'
-      - 'Dockerfile'
-      - '.github/workflows/docker-compose.yml'
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - "Dockerfile"
+      - ".github/workflows/docker-compose.yml"
   workflow_dispatch:
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
           echo "Validating docker-compose.yml syntax..."
           docker compose config --quiet
           echo "✅ docker-compose.yml syntax is valid"
-          
+
           echo "Validating docker-compose with production overrides..."
           docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
           echo "✅ docker-compose.prod.yml syntax is valid"
@@ -53,7 +53,7 @@ jobs:
           echo "Checking compose file structure..."
           docker compose config > /tmp/docker-compose-resolved.yml
           cat /tmp/docker-compose-resolved.yml
-          
+
           # Check for required services
           if ! grep -q "services:" /tmp/docker-compose-resolved.yml; then
             echo "❌ No services defined in docker-compose.yml"
@@ -86,7 +86,7 @@ jobs:
         run: |
           echo "Starting Docker Compose stack..."
           docker compose up -d
-          
+
           # Wait for services to be healthy
           echo "Waiting for services to become healthy..."
           sleep 10
@@ -95,7 +95,7 @@ jobs:
         run: |
           echo "Checking running services..."
           docker compose ps
-          
+
           # Verify all services are running
           if ! docker compose ps | grep -q "Up"; then
             echo "❌ Some services failed to start"
@@ -107,22 +107,22 @@ jobs:
       - name: Check service health
         run: |
           echo "Checking service health status..."
-          
+
           # Wait for health checks to pass
           max_attempts=30
           attempt=0
-          
+
           while [ $attempt -lt $max_attempts ]; do
             healthy_count=$(docker compose ps --format json | jq -r 'select(.Health == "healthy") | .Name' | wc -l)
             running_count=$(docker compose ps --format json | jq -r '.Name' | wc -l)
-            
+
             echo "Attempt $((attempt+1))/$max_attempts: $healthy_count/$running_count services healthy"
-            
+
             if [ "$healthy_count" -ge 3 ]; then
               echo "✅ Services are healthy"
               break
             fi
-            
+
             attempt=$((attempt+1))
             sleep 5
           done
@@ -130,16 +130,16 @@ jobs:
       - name: Test service connectivity
         run: |
           echo "Testing service connectivity..."
-          
+
           # Test PostgreSQL
           docker compose exec -T postgres pg_isready -U user -d appdb || echo "⚠️ PostgreSQL not ready"
-          
+
           # Test Redis
           docker compose exec -T redis redis-cli ping || echo "⚠️ Redis not ready"
-          
+
           # Test FastAPI health endpoint (when implemented)
           # curl -f http://localhost:8000/health || echo "⚠️ Web service not responding"
-          
+
           echo "✅ Service connectivity tests completed"
 
       - name: Display logs on failure
@@ -183,15 +183,15 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: fastapi-app:latest
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
   docker-compose-lint:
     name: Lint Docker Compose Files
@@ -222,25 +222,25 @@ jobs:
       - name: Check for best practices
         run: |
           echo "Checking Docker Compose best practices..."
-          
+
           # Check for version specification
           if ! grep -q "version:" docker-compose.yml; then
             echo "⚠️ Warning: No version specified in docker-compose.yml"
           fi
-          
+
           # Check for health checks
           if ! grep -q "healthcheck:" docker-compose.yml; then
             echo "⚠️ Warning: No health checks defined"
           fi
-          
+
           # Check for restart policies
           if ! grep -q "restart:" docker-compose.yml; then
             echo "⚠️ Warning: No restart policies defined"
           fi
-          
+
           # Check for named volumes
           if grep -q "volumes:" docker-compose.yml && ! grep -q "driver:" docker-compose.yml; then
             echo "⚠️ Warning: Volumes defined but no driver specified"
           fi
-          
+
           echo "✅ Best practices check completed"

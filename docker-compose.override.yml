@@ -3,32 +3,32 @@
 # This file is automatically merged with docker-compose.yml
 # Use it to customize settings for your local environment
 
-services:
-  web:
-    # Enable hot-reload for development
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
-    environment:
-      - DEBUG=true
-      - LOG_LEVEL=debug
-    volumes:
-      # Mount source code for live reloading
-      - ./api:/app/api:ro
-      - ./pyproject.toml:/app/pyproject.toml:ro
-
-  postgres:
-    # Expose database for debugging tools
-    ports:
-      - "5432:5432"
-    # Add custom initialization scripts
-    # volumes:
-    #   - ./init-scripts:/docker-entrypoint-initdb.d
-
-  redis:
-    # Expose Redis for debugging tools
-    ports:
-      - "6379:6379"
-
-  # Disable nginx in development (access FastAPI directly)
-  nginx:
-    profiles:
-      - production
+# services:
+#   web:
+#     # Enable hot-reload for development
+#     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+#     environment:
+#       - DEBUG=true
+#       - LOG_LEVEL=debug
+#     volumes:
+#       # Mount source code for live reloading
+#       - ./api:/app/api:ro
+#       - ./pyproject.toml:/app/pyproject.toml:ro
+#
+#   postgres:
+#     # Expose database for debugging tools
+#     ports:
+#       - "5432:5432"
+#     # Add custom initialization scripts
+#     # volumes:
+#     #   - ./init-scripts:/docker-entrypoint-initdb.d
+#
+#   redis:
+#     # Expose Redis for debugging tools
+#     ports:
+#       - "6379:6379"
+#
+#   # Disable nginx in development (access FastAPI directly)
+#   nginx:
+#     profiles:
+#       - production

@@ -121,7 +121,7 @@ services:
   grafana:
     image: grafana/grafana:3.0.4
     ports:
-      - 3000:3000
+      - 3002:3000
     links:
       - elasticsearch:elasticsearch
     ## uncomment and adjust the path before the colon to some local directory where the data should be stored at
