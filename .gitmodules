@@ -7,9 +7,6 @@
 [submodule "open-resume"]
 	path = open-resume
 	url = https://github.com/xitanggg/open-resume.git
-[submodule "reactive-resume"]
-	path = reactive-resume
-	url = https://github.com/AlbanAndrieu/reactive-resume.git
 [submodule "cyberbro"]
 	path = cyberbro
 	url = git@github.com:stanfrbd/cyberbro.git
