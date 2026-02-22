@@ -19,3 +19,6 @@
 [submodule "litellm"]
 	path = litellm
 	url = git@github.com:AlbanAndrieu/litellm.git
+[submodule "reactive"]
+	path = reactive
+	url = https://github.com/AlbanAndrieu/reactive-resume.git

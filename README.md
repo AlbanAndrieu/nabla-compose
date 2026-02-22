@@ -2,7 +2,7 @@
 git submodule add -f git@github.com:AlbanAndrieu/my-temporal-dockercompose.git temporal
 git submodule add -f https://github.com/cybertec-postgresql/pgwatch pgwatch
 git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
-git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive-resume
+git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive
 git submodule add -f git@github.com:stanfrbd/cyberbro.git
 git submodule add -f https://github.com/getsentry/self-hosted.git sentry
 git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
@@ -56,14 +56,32 @@ cd open-resume
 
 docker build -t open-resume .
 docker run -p 3006:3000 open-resume
+```
 
-cd reactive-resume
+```bash
+cd reactive
+
+ln -s /home/albandrieu/.reactive/.env .env
 
 # Start all services
-docker compose up -d
+# docker compose up -d
+
+sudo systemctl restart reactive.service
+sudo journalctl -xeu reactive
 
 # Access the app
 open http://localhost:3007
+```
+
+```bash
+cd litellm
+
+ln -s /home/albandrieu/.litellm/litellm_config.yaml config.yaml
+
+sudo systemctl restart litellm.service
+sudo journalctl -xeu  litellm
+
+docker logs litellm-litellm-1
 ```
 
 ```bash

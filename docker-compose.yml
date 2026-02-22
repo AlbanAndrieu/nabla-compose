@@ -93,15 +93,18 @@ include:
   # - path: pgwatch/docker/compose.pgadmin.yml
   # - path: pgwatch/docker/compose.prometheus.yml
   # - path: compose.postgres.yml
-  # - path: compose.ntopng.yml
-  # - path: compose.monitoring.yml
+  - path: compose.ntopng.yml
+  - path: compose.monitoring.yml
   - path: compose.tool.yml
   - path: compose.security.yml
   # - path: compose.truenas.yml
   # - path: compose.anythingllm.yml #nosec allow:gitleaks
   # - path: docker-compose-sentry.yml
-  - path: reactive-resume/compose.yml
   # - path: plumber-platform/compose.local.yml
+
+# BELOW use systemd
+# - path: reactive/compose.yml
+# - path: litellm/compose.yml
 
 # # docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:lts
 
