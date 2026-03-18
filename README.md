@@ -7,6 +7,7 @@ git submodule add -f git@github.com:stanfrbd/cyberbro.git
 git submodule add -f https://github.com/getsentry/self-hosted.git sentry
 git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
 git submodule add -f git@github.com:AlbanAndrieu/litellm.git
+git submodule add -f git@github.com:n8n-io/n8n-hosting.git n8n
 
 git pull origin master --allow-unrelated-histories
 git pull && git submodule init && git submodule update && git submodule status
@@ -38,7 +39,7 @@ docker compose -f compose.postgres.yml up --build  --force-recreate
 cd pgwatch
 docker compose -f ./docker/docker-compose.yml up
 
-# at root
+# as root
 docker compose -f ./docker-compose.yml up -d
 ```
 
@@ -82,6 +83,13 @@ sudo systemctl restart litellm.service
 sudo journalctl -xeu  litellm
 
 docker logs litellm-litellm-1
+```
+
+```bash
+cd n8n/docker-compose/withPostgresAndWorker/
+
+# https://docs.n8n.io/hosting/installation/server-setups/docker-compose/#5-create-local-files-directory
+docker compose up -d
 ```
 
 ```bash

@@ -22,3 +22,6 @@
 [submodule "reactive"]
 	path = reactive
 	url = https://github.com/AlbanAndrieu/reactive-resume.git
+[submodule "n8n"]
+	path = n8n
+	url = git@github.com:n8n-io/n8n-hosting.git

@@ -101,6 +101,7 @@ include:
   # - path: compose.anythingllm.yml #nosec allow:gitleaks
   # - path: docker-compose-sentry.yml
   # - path: plumber-platform/compose.local.yml
+  # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
 
 # BELOW use systemd
 # - path: reactive/compose.yml

@@ -191,7 +191,7 @@ repos:
     -   id: pyupgrade
         name: "🐍 python · Py Upgrade"
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.2
+    rev: v0.15.6
     hooks:
     -   id: ruff-format
         name: "🐍 python · Format with Ruff"
@@ -221,7 +221,7 @@ repos:
     # This helps ensure cross-compatibility with people who don't wish to use uv
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.10.4
+    rev: 0.10.11
     hooks:
     -   id: uv-sync
         name: "⚡️ uv · Sync dependencies with uv"
@@ -351,7 +351,7 @@ repos:
 
     ### Javascript & Web Tools ###
 -   repo: https://github.com/biomejs/pre-commit
-    rev: "v2.4.4"
+    rev: "v2.4.7"
     hooks:
     -   id: biome-check
         name: "🟨 javascript · Lint, format, and safe fixes with Biome"
@@ -420,7 +420,7 @@ repos:
 
     ### Data & Config Validation ###
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.36.2
+    rev: 0.37.0
     hooks:
     -   id: check-github-workflows
         name: "🧩 github-actions · Validate gh workflow files"
@@ -452,7 +452,7 @@ repos:
     # ----------------------------- 🔒 Security Tools ---------------------------- #
 
 -   repo: https://github.com/PyCQA/bandit
-    rev: 1.9.3
+    rev: 1.9.4
     hooks:
     -   id: bandit
         name: "🔒 security · Detect security issues"
@@ -480,7 +480,7 @@ repos:
           )$
 
 -   repo: https://github.com/zricethezav/gitleaks
-    rev: v8.30.0
+    rev: v8.30.1
     hooks:
     -   id: gitleaks-docker
         name: "🔒 🐳 security · Detect hardcoded secrets"
