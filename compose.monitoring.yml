@@ -1,6 +1,74 @@
 ---
 # kics-scan ignore
+# Prometheus + Grafana: config from temporal/deployment + pgwatch/docker/bootstrap fragments.
+# Merge compose.prometheus.temporal-net.yml (pgwatch/docker) when scraping Temporal on temporal-network.
 services:
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_IMG:-latest}
+    # container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./temporal/deployment/prometheus/config.yml
+        target: /etc/prometheus/prometheus.yml
+      - type: bind
+        source: ./pgwatch/docker/bootstrap/pgwatch-scrapes.yml
+        target: /etc/prometheus/pgwatch-scrapes.yml
+      - type: bind
+        source: ./pgwatch/docker/bootstrap/temporal-scrapes.yml
+        target: /etc/prometheus/temporal-docker-scrapes.yml
+    networks:
+      - intranet
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_IMG:-12.3}
+    # container_name: grafana
+    user: "0:0"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/postgres/1-global-db-overview.json
+      GF_INSTALL_PLUGINS: marcusolsson-treemap-panel
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    ports:
+      - "${GRAFANA_PORT:-3009}:3000"
+    restart: unless-stopped
+    volumes:
+      # - ./grafana/provisioning:/etc/grafana/provisioning  # no :ro here
+      - ./pgwatch/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/pgwatch_dashboards.yml
+      - ./pgwatch/grafana/postgres_datasource.yml:/etc/grafana/provisioning/datasources/postgres_datasource.yml
+      - ./pgwatch/grafana/prometheus_datasource.yml:/etc/grafana/provisioning/datasources/prometheus_datasource.yml
+      - ./pgwatch/grafana/postgres/v12:/var/lib/grafana/dashboards/postgres
+      - ./pgwatch/grafana/prometheus/v12:/var/lib/grafana/dashboards/prometheus
+      - ./pgwatch/grafana/temporal_dashboard_provider.yml:/etc/grafana/provisioning/dashboards/temporal_dashboard_provider.yml:ro
+      - ./temporal/deployment/grafana/dashboards:/var/lib/grafana/dashboards/temporal:ro
+      - ./temporal/deployment/grafana/provisioning/datasources/all.yml:/etc/grafana/provisioning/datasources/temporal_datasources.yml:ro
+      - ./temporal/deployment/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./grafana/provisioning/datasources/pyroscope.yml:/etc/grafana/provisioning/datasources/pyroscope.yml
+      - type: bind
+        source: ./temporal/deployment/grafana/grafana.ini
+        target: /etc/grafana/grafana.ini
+        read_only: true
+    networks:
+      - intranet
+
+  pyroscope:
+    image: grafana/pyroscope:latest
+    ports:
+      # open port to access frontend
+      - "4040:4040"
+    command:
+      # run pyroscope in server mode
+      - "server"
+    restart: unless-stopped
+    networks:
+      - intranet
+
   # https://github.com/githubexporter/github-exporter
   github-exporter:
     tty: true
@@ -14,25 +82,12 @@ services:
       - REPOS=AlbanAndrieu/nabla-hooks
       - GITHUB_TOKEN=${GITHUB_TOKEN}
 
-  prometheus:
-    image: prom/prometheus
-    volumes:
-      - prometheus_data:/prometheus
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-    restart: always
-
   # https://github.com/RichiH/openweathermap_exporter
 
   # See https://github.com/jokob-sk/NetAlertX/blob/main/docs/DOCKER_COMPOSE.md
   # docker compose --env-file .env --env-file .env.secrets -f  docker-compose.yml up --force-recreate  netalertx -d
   netalertx:
-    container_name: netalertx
+    # container_name: netalertx
     # use the below line if you want to test the latest dev image
     # image: "ghcr.io/jokob-sk/netalertx-dev:latest"
     image: "ghcr.io/jokob-sk/netalertx:latest"
@@ -113,7 +168,7 @@ services:
 
   portracker:
     image: mostafawahied/portracker:latest
-    container_name: portracker
+    # container_name: portracker
     restart: unless-stopped
     pid: "host" # Required for port detection
     # Required permissions for system ports service namespace access
@@ -136,6 +191,7 @@ services:
   scrutiny-collector:
     restart: unless-stopped
     image: "ghcr.io/analogj/scrutiny:master-collector"
+    container_name: scrutiny
     cap_add:
       - SYS_RAWIO
     volumes:
@@ -168,8 +224,11 @@ services:
   #     - /var/run/docker.sock:/var/run/docker.sock:ro
   #   restart: unless-stopped
 
+networks:
+  intranet:
+    external: true
+    name: intranet
+
 volumes: # Persistent volume for configuration and database storage
   netalertx_data:
   autoxpose-data:
-  prometheus_data:
-    driver: local

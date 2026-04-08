@@ -1,5 +1,4 @@
 ---
-# kics-scan ignore
 services:
   vaultwarden:
     image: vaultwarden/server:latest
@@ -11,3 +10,24 @@ services:
       - ./vw-data/:/data/
     ports:
       - 127.0.0.1:8007:80
+
+  # MCP Inspector (https://github.com/modelcontextprotocol/inspector)
+  mcp-inspector:
+    image: ghcr.io/modelcontextprotocol/inspector:latest
+    container_name: mcp-inspector
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      MCP_AUTO_OPEN_ENABLED: "false"
+    ports:
+      - 127.0.0.1:6274:6274
+      - 127.0.0.1:6277:6277
+
+volumes:
+  output:
+    driver: local
+
+networks:
+  intranet:
+    external: true
+    name: intranet

@@ -1,0 +1,77 @@
+---
+# WordPress on the shared PostgreSQL from pgwatch/docker/compose.postgres.yml (service `postgres`,
+# network `intranet`). Standard wordpress:* images only support MySQL/MariaDB; this stack uses
+# ntninja/wordpress-postgresql (PG4WP). That image is community-maintained and based on an older
+# WordPress line — not suitable for untrusted production; prefer MariaDB + official wordpress if
+# you need current WP.
+#
+# Merge:
+#   docker compose -f docker-compose.yml -f docker-compose-wordpress.yml up -d
+#
+# Requires: docker network create intranet (if not already), and postgres healthy.
+services:
+  wordpress-initdb:
+    image: postgres:18-bookworm
+    container_name: wordpress-initdb
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${WORDPRESS_DB_SUPERUSER:-postgres}
+      PGPASSWORD: ${WORDPRESS_DB_SUPERUSER_PASSWORD:-}
+    networks:
+      - intranet
+    entrypoint: ["/bin/bash", "-eu", "-c"]
+    command:
+      - |
+        until pg_isready -h "$$PGHOST" -p "$$PGPORT" -U "$$PGUSER"; do sleep 2; done
+        exists=$$(psql -h "$$PGHOST" -p "$$PGPORT" -U "$$PGUSER" -d postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname = '$$WORDPRESS_DB_NAME'" || true)
+        if [ "$$exists" = "1" ]; then
+          echo "database $$WORDPRESS_DB_NAME already exists"
+          exit 0
+        fi
+        psql -h "$$PGHOST" -p "$$PGPORT" -U "$$PGUSER" -d postgres -v ON_ERROR_STOP=1 \
+          -c "CREATE DATABASE \"$$WORDPRESS_DB_NAME\";"
+
+  wordpress:
+    image: ntninja/wordpress-postgresql:latest
+    container_name: wordpress
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      wordpress-initdb:
+        condition: service_completed_successfully
+    ports:
+      - "${WORDPRESS_HTTP_PORT:-8088}:80"
+    environment:
+      WORDPRESS_DB_HOST: postgres:5432
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-postgres}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('FS_METHOD', 'direct');
+    volumes:
+      - wordpress_html:/var/www/html
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - intranet
+
+volumes:
+  wordpress_html:
+
+networks:
+  intranet:
+    external: true
+    name: intranet

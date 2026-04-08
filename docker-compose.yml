@@ -33,19 +33,6 @@ services:
   #             count: 1
   #             capabilities: [gpu]
 
-  dockge:
-    image: louislam/dockge:1
-    restart: unless-stopped
-    ports:
-      - 5001:5001
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /data/dockge:/app/data
-      - /opt/stacks:/opt/stacks
-    environment:
-      # Tell Dockge where to find the stacks
-      - DOCKGE_STACKS_DIR=/opt/stacks
-
   traefik:
     image: traefik:latest
     container_name: traefik
@@ -53,7 +40,8 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - proxy
+      # - proxy
+      - intranet
     ports:
       - 80:80
       - 443:443
@@ -84,43 +72,39 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data/acme.json:/acme.json
 
+# PostgreSQL: only pgwatch/docker/compose.postgres.yml defines the `postgres` service for this
+# project. Do not add another `postgres` service in included fragments; use depends_on / env only.
 include:
   - path: pgwatch/docker/compose.postgres.yml
   # - path: pgwatch/docker/compose.pgpool.yml
-  # - path: pgwatch/docker/compose.pgbouncer.yml
-  # - path: pgwatch/docker/compose.grafana.yml
+  - path: pgwatch/docker/compose.pgbouncer.yml
   # - path: pgwatch/docker/compose.pgwatch.yml
   # - path: pgwatch/docker/compose.pgadmin.yml
-  # - path: pgwatch/docker/compose.prometheus.yml
-  # - path: compose.postgres.yml
+  - path: compose.redis.yml
+  - path: sentry/docker-compose.yml
   - path: compose.ntopng.yml
-  - path: compose.monitoring.yml
+  - path: compose.monitoring.yml # Prometheus + Grafana
   - path: compose.tool.yml
+  # - path: compose.prowler.yml # TODO, consuming too much ressources
   - path: compose.security.yml
-  # - path: compose.truenas.yml
-  # - path: compose.anythingllm.yml #nosec allow:gitleaks
-  # - path: docker-compose-sentry.yml
-  # - path: plumber-platform/compose.local.yml
+  # - path: compose.truenas.yml #nosec allow:gitleaks
+  # - path: anything-llm/docker/docker-compose.yml
+  - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
   # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
+  - path: temporal/compose-services.yml
+  - path: openvas/docker-compose-openvas.yml
+  # - path: compose.fixinventory.yaml
 
 # BELOW use systemd
 # - path: reactive/compose.yml
 # - path: litellm/compose.yml
 
-# # docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:lts
-
 # cd temporal
 # docker compose -f compose-postgres.yml -f compose-services.yml up --detach
-#
-# docker run -d \
-#   --name watchtower \
-#   -v /var/run/docker.sock:/var/run/docker.sock \
-#   containrrr/watchtower
-#
-# docker run -d \
-#   -p 3001:3001 \
-#   louislam/uptime-kuma
 
 networks:
-  proxy:
+  intranet:
     external: true
+    name: intranet
+  # proxy:
+  #   external: true

@@ -1,27 +1,11 @@
 ---
-# Docker Compose production configuration
-# Use: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
+# Production-oriented overrides. Use as a second file (include cannot merge these into other
+# included services): docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# The default stack already maps AnythingLLM to host port 3007 in docker-compose.yml (root
+# services); this file repeats that mapping so a prod-only CLI merge stays consistent.
 services:
-  web:
-    # Use production-ready command
-    command: gunicorn api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-    environment:
-      - ENVIRONMENT=production
-      - DEBUG=false
-      - LOG_LEVEL=warning
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    # Remove volume mounts in production
-    volumes: []
-
+  # Merges into the `postgres` service from pgwatch/docker/compose.postgres.yml (same container).
   postgres:
     restart: always
     deploy:
@@ -32,14 +16,9 @@ services:
         reservations:
           cpus: "0.5"
           memory: 1G
-    # Production backup strategy
-    # volumes:
-    #   - postgres-data:/var/lib/postgresql/data
-    #   - ./backups:/backups
 
   redis:
     restart: always
-    # Enable persistence in production
     command: redis-server --appendonly yes
     deploy:
       resources:
@@ -50,17 +29,6 @@ services:
           cpus: "0.25"
           memory: 256M
 
-  nginx:
-    restart: always
-    # Add production SSL configuration
-    # volumes:
-    #   - ./nginx-prod.conf:/etc/nginx/nginx.conf:ro
-    #   - ./certs:/etc/nginx/certs:ro
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
+  anything-llm:
+    ports:
+      - "${ANYTHINGLLM_PORT:-3007}:3001"

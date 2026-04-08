@@ -7,7 +7,8 @@ git submodule add -f git@github.com:stanfrbd/cyberbro.git
 git submodule add -f https://github.com/getsentry/self-hosted.git sentry
 git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
 git submodule add -f git@github.com:AlbanAndrieu/litellm.git
-git submodule add -f git@github.com:n8n-io/n8n-hosting.git n8n
+git submodule add -f git@github.com:AlbanAndrieu/n8n-hosting.git n8n
+git submodule add -f https://github.com/AlbanAndrieu/anything-llm
 
 git pull origin master --allow-unrelated-histories
 git pull && git submodule init && git submodule update && git submodule status

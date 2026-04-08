@@ -1,6 +1,8 @@
+---
 # https://github.com/ntop/docker-ntop
 services:
   nprobe_collector:
+    # container_name: nprobe
     image: ntop/nprobe:latest
     restart: always
     network_mode: "host"
@@ -24,6 +26,7 @@ services:
 
   ntopng:
     image: ntop/ntopng:latest
+    # container_name: ntopng
     restart: always
     network_mode: "host"
     cap_add:
@@ -56,13 +59,14 @@ services:
       - clickhouse
       - nprobe_collector
 
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    network_mode: "host"
-    restart: always
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_logs:/var/log/clickhouse-server/
+  # clickhouse:
+  #   image: clickhouse/clickhouse-server:latest
+  #   container_name: clickhouse
+  #   network_mode: "host"
+  #   restart: always
+  #   volumes:
+  #     - clickhouse_data:/var/lib/clickhouse
+  #     - clickhouse_logs:/var/log/clickhouse-server/
 
 volumes:
   clickhouse_data:

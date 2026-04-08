@@ -51,11 +51,19 @@ services:
     volumes:
       - gpg_data_vol:/mnt
 
-  redis-server:
-    image: registry.community.greenbone.net/community/redis-server
-    restart: on-failure
-    volumes:
-      - redis_socket_vol:/run/redis/
+  # redis-server:
+  #   image: registry.community.greenbone.net/community/redis-server
+  #   container_name: redis
+  #   restart: on-failure
+  #   volumes:
+  #     - redis_socket_vol:/run/redis/
+  #   # Unix socket only (port 0); required for depends_on condition: service_healthy (e.g. Prowler).
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "-s", "/run/redis/redis.sock", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
   pg-gvm:
     image: registry.community.greenbone.net/community/pg-gvm:stable

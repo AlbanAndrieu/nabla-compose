@@ -10,6 +10,7 @@ models
 portracker-data/
 stirling-data/
 vw-data/
+_data/
 
 notebooks/.ipynb_checkpoints
 *mlruns

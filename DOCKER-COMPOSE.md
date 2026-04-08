@@ -57,7 +57,7 @@ The docker-compose setup includes four main services:
 
 ```
 ┌─────────────┐     ┌─────────────┐
-│   Nginx     │────▶│  FastAPI    │
+│   Traefik   │────▶│  FastAPI    │
 │  (Port 80)  │     │ (Port 8000) │
 └─────────────┘     └─────────────┘
                            │
@@ -86,7 +86,7 @@ The docker-compose setup includes four main services:
    - Session management and caching
    - Exposes port 6379
 
-4. **nginx** - Reverse proxy
+4. **traefik** - Reverse proxy
    - Nginx Alpine
    - SSL/TLS termination (production)
    - Exposes ports 80 and 443
@@ -232,13 +232,13 @@ docker compose restart web
 
 ```bash
 # Start with production settings
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # View configuration
-docker compose -f docker-compose.yml -f docker-compose.prod.yml config
+docker compose -f docker-compose.yml config
 
 # Stop production stack
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker compose -f docker-compose.yml down
 ```
 
 ### Environment Setup
@@ -267,14 +267,14 @@ EOF
 2. **Use production environment**
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.yml  up -d
 ```
 
 ### Scaling Services
 
 ```bash
 # Scale web service to 3 instances
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale web=3
+docker compose -f docker-compose.yml up -d --scale web=3
 
 # Note: Requires load balancer (nginx) configuration
 ```
@@ -469,7 +469,6 @@ See `.github/workflows/docker-compose.yml` for details.
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [PostgreSQL Docker Hub](https://hub.docker.com/_/postgres)
 - [Redis Docker Hub](https://hub.docker.com/_/redis)
-- [Nginx Docker Hub](https://hub.docker.com/_/nginx)
 
 ## Support
 
