@@ -191,7 +191,7 @@ repos:
     -   id: pyupgrade
         name: "🐍 python · Py Upgrade"
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.9
+    rev: v0.15.10
     hooks:
     -   id: ruff-format
         name: "🐍 python · Format with Ruff"
@@ -221,7 +221,7 @@ repos:
     # This helps ensure cross-compatibility with people who don't wish to use uv
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.11.5
+    rev: 0.11.6
     hooks:
     -   id: uv-sync
         name: "⚡️ uv · Sync dependencies with uv"

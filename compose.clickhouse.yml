@@ -1,0 +1,55 @@
+---
+# Shared ClickHouse on `intranet` (service hostname `clickhouse`). Sentry/Snuba use CLICKHOUSE_HOST=clickhouse.
+# ntopng uses `network_mode: host` in compose.ntopng.yml — use 127.0.0.1 and the published ports below.
+# Volumes match sentry/install/create-docker-volumes.sh (external names).
+services:
+  clickhouse:
+    image: clickhouse-self-hosted-local
+    build:
+      context: ./sentry/clickhouse
+      args:
+        BASE_IMAGE: "altinity/clickhouse-server:25.3.6.10034.altinitystable"
+    restart: unless-stopped
+    pull_policy: never
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - "sentry-clickhouse:/var/lib/clickhouse"
+      - "sentry-clickhouse-log:/var/log/clickhouse-server"
+      - type: bind
+        read_only: true
+        source: "./sentry/clickhouse/config.xml"
+        target: "/etc/clickhouse-server/config.d/sentry.xml"
+      - type: bind
+        read_only: true
+        source: "./sentry/clickhouse/default-password.xml"
+        target: "/etc/clickhouse-server/users.d/default-password.xml"
+    environment:
+      MAX_MEMORY_USAGE_RATIO: 0.3
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "HTTP_PROXY='' http_proxy='' wget -nv -t1 --spider 'http://localhost:8123/' || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    networks:
+      - intranet
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+
+volumes:
+  sentry-clickhouse:
+    external: true
+  sentry-clickhouse-log:
+    external: true

@@ -81,6 +81,7 @@ include:
   # - path: pgwatch/docker/compose.pgwatch.yml
   # - path: pgwatch/docker/compose.pgadmin.yml
   - path: compose.redis.yml
+  - path: compose.clickhouse.yml
   - path: sentry/docker-compose.yml
   - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
