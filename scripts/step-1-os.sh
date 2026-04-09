@@ -9,7 +9,7 @@ bsd*) export SYSTEM=BSD;;
 solaris*) export SYSTEM=SOLARIS;;
 *) export SYSTEM=UNKNOWN
 esac
-echo "SYSTEM : ${SYSTEM}"
+echo "SYSTEM : $SYSTEM"
 if [ -f /etc/os-release ];then
   . /etc/os-release
   OS=$NAME
@@ -33,5 +33,5 @@ else
   OS=$(uname -s)
   VER=$(uname -r)
 fi
-echo "OS : ${OS}"
-echo "VER : ${VER}"
+echo "OS : $OS"
+echo "VER : $VER"
