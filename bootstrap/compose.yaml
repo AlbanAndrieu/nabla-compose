@@ -1,0 +1,42 @@
+---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albandrieu/nabla-compose.git
+        reference: main
+        interval: 3600
+
+secrets:
+  1pw_token:
+    file: /root/.doco-cd/1pw_token
+
+volumes:
+  data: {}
+
+services:
+  app:
+    container_name: doco-cd
+    image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - data:/data
+
+    secrets: ["1pw_token"]
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      SECRET_PROVIDER: 1password
+      SECRET_PROVIDER_ACCESS_TOKEN_FILE: /run/secrets/1pw_token
+
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -70,6 +70,9 @@ Thumbs.db
 
 .infracost/
 .terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terragrunt-cache/
 .tfsec/
 
 # Latex

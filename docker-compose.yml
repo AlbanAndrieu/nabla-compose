@@ -1,4 +1,11 @@
 ---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albandrieu/nabla-compose.git
+        reference: main
+        interval: 3600
+
 # kics-scan ignore
 services:
   # https://localai.io/installation/docker/
@@ -48,7 +55,6 @@ services:
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-
     command:
       - "--log.level=DEBUG"
       - "--providers.docker=true"
@@ -61,7 +67,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
       - "--certificatesresolvers.cloudflare.acme.storage=acme.json"
-      - "--certificatesResolvers.cloudflare.acme.email=yourcfemail@here.com"
+      - "--certificatesResolvers.cloudflare.acme.email=alban.andrieu@free.fr"
       - "--certificatesResolvers.cloudflare.acme.dnsChallenge=true"
       - "--certificatesResolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
       - "--certificatesResolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
@@ -82,7 +88,6 @@ include:
   # - path: pgwatch/docker/compose.pgadmin.yml
   - path: compose.redis.yml
   - path: compose.clickhouse.yml
-  - path: sentry/docker-compose.yml
   - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
   - path: compose.tool.yml
@@ -90,10 +95,11 @@ include:
   - path: compose.security.yml
   # - path: compose.truenas.yml #nosec allow:gitleaks
   # - path: anything-llm/docker/docker-compose.yml
+  # - path: sentry/docker-compose.yml  
   - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
   # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
-  - path: temporal/compose-services.yml
-  - path: openvas/docker-compose-openvas.yml
+  # - path: temporal/compose-services.yml
+  # - path: openvas/docker-compose-openvas.yml
   # - path: compose.fixinventory.yaml
 
 # BELOW use systemd
@@ -102,6 +108,9 @@ include:
 
 # cd temporal
 # docker compose -f compose-postgres.yml -f compose-services.yml up --detach
+
+volumes:
+  data: {}
 
 networks:
   intranet:

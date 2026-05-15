@@ -1,4 +1,5 @@
-# fail_fast: true
+---
+fail_fast: true
 minimum_pre_commit_version: 4.2.0
 exclude: |
   (?x)^(

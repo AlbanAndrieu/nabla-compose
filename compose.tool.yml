@@ -1,26 +1,26 @@
 ---
 # kics-scan ignore
 services:
-  datascience-notebook:
-    image: registry.gitlab.com/gitlab-data/data-image/analyst-image:v0.0.19
-    volumes:
-      - type: bind
-        # source: ${HOME}/
-        source: /home/albandrieu/
-        target: /files
-      - type: bind
-        # source: ${HOME}/.dbt
-        source: /home/albandrieu/.dbt
-        target: /usr/local/snowflake_profile/
-      - type: bind
-        # source: ${HOME}/.ssh
-        source: /home/albandrieu/.ssh
-        target: /home/albanandrieu/.ssh/
-    ports:
-      - "8890:8888"
-    environment:
-      - JUPYTER_ENABLE_LAB=1
-    command: start-notebook.sh --NotebookApp.notebook_dir=/files
+  # datascience-notebook:
+  #   image: registry.gitlab.com/gitlab-data/data-image/analyst-image:v0.0.19
+  #   volumes:
+  #     - type: bind
+  #       # source: ${HOME}/
+  #       source: /home/albandrieu/
+  #       target: /files
+  #     - type: bind
+  #       # source: ${HOME}/.dbt
+  #       source: /home/albandrieu/.dbt
+  #       target: /usr/local/snowflake_profile/
+  #     - type: bind
+  #       # source: ${HOME}/.ssh
+  #       source: /home/albandrieu/.ssh
+  #       target: /home/albanandrieu/.ssh/
+  #   ports:
+  #     - "8890:8888"
+  #   environment:
+  #     - JUPYTER_ENABLE_LAB=1
+  #   command: start-notebook.sh --NotebookApp.notebook_dir=/files
 
   # See "http://127.0.0.1:8888/lab"
 

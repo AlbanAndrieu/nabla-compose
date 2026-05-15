@@ -59,15 +59,13 @@ docker compose pull --ignore-pull-failures
 docker pull registry.community.greenbone.net/community/gsa:stable
 docker pull registry.community.greenbone.net/community/openvas-scanner:stable
 
-echo "docker compose --env-file .env --env-file .env.secrets -f docker-compose.yml up --force-recreate -d"
+echo "docker compose --env-file .env --env-file .env.secrets -f docker-compose.yml up --pull=never --no-build -d --force-recreate --remove-orphans"
 
-docker compose --env-file .env --env-file .env.secrets -f docker-compose.yml up --pull=never --no-build -d --force-recreate --remove-orphans
+docker compose --env-file .env --env-file .env.secrets -f docker-compose.yml up --pull=never --no-build -d
 
+echo "./kill-container.sh temporal-frontend"
 echo "docker images --filter dangling=true"
 
-# docker run --rm --network intranet \
-#   -e DATABASE_URL="$DATABASE_URL" \
-#   docker.litellm.ai/berriai/litellm:main-stable \
-#   prisma migrate deploy
+echo "./build-litellm.sh"
 
 exit 0
