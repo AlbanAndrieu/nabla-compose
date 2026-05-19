@@ -25,6 +25,35 @@ services:
     networks:
       - intranet
 
+  # OLD influxb for PfSense monitoring
+  # https://github.com/jersonmartinez/docker-compose-influxdb-telegraf-grafana/blob/main/docker-compose.yml
+  # influxdb:
+  #   image: influxdb:1.8-alpine
+  #   container_name: influxdb
+  #   restart: always
+  #   environment:
+  #     - INFLUXDB_DB=influx
+  #     - INFLUXDB_ADMIN_USER=admin
+  #     - INFLUXDB_ADMIN_PASSWORD=admin
+  #   ports:
+  #     - '8086:8086'  # Expose InfluxDB on port 8086
+  #   volumes:
+  #     - influxdb_data:/var/lib/influxdb 
+  #   networks:
+  #     - intranet
+            
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: always
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro  # Mount the Telegraf configuration file
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Mount the Docker socket to collect Docker metrics
+    ports:
+      - '8125:8125'  # Expose Telegraf's StatsD port
+    networks:
+      - intranet
+      
   grafana:
     image: grafana/grafana:${GRAFANA_IMG:-12.3}
     # container_name: grafana
@@ -81,7 +110,9 @@ services:
     environment:
       - REPOS=AlbanAndrieu/nabla-hooks
       - GITHUB_TOKEN=${GITHUB_TOKEN}
-
+    networks:
+      - intranet
+      
   # https://github.com/RichiH/openweathermap_exporter
 
   # See https://github.com/jokob-sk/NetAlertX/blob/main/docs/DOCKER_COMPOSE.md
@@ -93,7 +124,6 @@ services:
     image: "ghcr.io/jokob-sk/netalertx:latest"
     network_mode: "host"
     # network_mode: ${NETALERTX_NETWORK_MODE:-host} # Use host networking for ARP scanning and other services
-
     read_only: true # Make the container filesystem read-only
     cap_drop: # Drop all capabilities for enhanced security
       - ALL
@@ -102,7 +132,6 @@ services:
       - NET_RAW # Required for raw socket operations
       - NET_BIND_SERVICE # Required to bind to privileged ports (nbtscan)
       - CAP_NET_RAW
-
     restart: unless-stopped
     volumes:
       # - type: volume # Persistent Docker-managed named volume for config + database
@@ -209,7 +238,9 @@ services:
       - "/dev/sda"
       - "/dev/sdb"
       - "/dev/sdc"
-
+    networks:
+      - intranet
+      
   # docker exec scrutiny-collector /opt/scrutiny/bin/scrutiny-collector-metrics run
 
   # autoxpose:
@@ -230,5 +261,6 @@ networks:
     name: intranet
 
 volumes: # Persistent volume for configuration and database storage
-  netalertx_data:
-  autoxpose-data:
+  netalertx_data: {}
+  autoxpose-data: {}
+  # influxdb_data: {}

@@ -7,10 +7,16 @@ awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
 kubectl = "latest"
 helm = "latest"
-terraform = "latest"
 argocd = "latest"
 trivy = "latest"
 pre-commit = "latest"
+task = "latest"
+yamlfmt = "latest"
+actionlint = "latest"
+opentofu = "latest"
+op = "latest"
+# terraform = "latest"
+terragrunt = "0.97.0"
 
 [env]
 # Utiliser le nom du projet dérivé du répertoire courant

@@ -166,7 +166,7 @@ repos:
         name: "🔒 security · Detect private keys"
 
 -   repo: https://github.com/pre-commit/pre-commit.git
-    rev: v4.5.1
+    rev: v4.6.0
     hooks:
     -   id: validate_manifest
         name: "🤖 manifest · Validate manifest scripts"
@@ -192,7 +192,7 @@ repos:
     -   id: pyupgrade
         name: "🐍 python · Py Upgrade"
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.10
+    rev: v0.15.13
     hooks:
     -   id: ruff-format
         name: "🐍 python · Format with Ruff"
@@ -222,7 +222,7 @@ repos:
     # This helps ensure cross-compatibility with people who don't wish to use uv
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.11.6
+    rev: 0.11.15
     hooks:
     -   id: uv-sync
         name: "⚡️ uv · Sync dependencies with uv"
@@ -254,7 +254,7 @@ repos:
 
     ### Shell ###
 -   repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.0-1
+    rev: v3.13.1-1
     hooks:
       # Choose one of:
       # - id: shfmt         # native (requires Go to build)
@@ -266,7 +266,7 @@ repos:
           )$
 
 -   repo: https://github.com/detailyang/pre-commit-shell
-    rev: v1.0.6
+    rev: 1.0.5
     hooks:
     -   id: shell-lint
         name: "🐚 shell · Lint shell scripts"
@@ -298,14 +298,14 @@ repos:
 
     ### Makefile ###
 -   repo: https://github.com/mrtazz/checkmake.git
-    rev: v0.3.2
+    rev: v0.3.0
     hooks:
     -   id: checkmake
         name: "🐮 Makefile · Lint Makefile"
 
     ### SQL ###
 -   repo: https://github.com/sqlfluff/sqlfluff
-    rev: 4.1.0
+    rev: 4.2.1
     hooks:
     -   id: sqlfluff-fix
         name: "📊 SQL · Attempts to fix rule violations."
@@ -357,7 +357,7 @@ repos:
 
     ### Javascript & Web Tools ###
 -   repo: https://github.com/biomejs/pre-commit
-    rev: "v2.4.10"
+    rev: "v2.4.15"
     hooks:
     -   id: biome-check
         name: "🟨 javascript · Lint, format, and safe fixes with Biome"
@@ -403,7 +403,7 @@ repos:
 
     ### Additional File Types ###
 -   repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
+    rev: v4.0.0-alpha.8
     hooks:
     -   id: prettier
         name: "✨ misc-files · Format misc web files"
@@ -426,7 +426,7 @@ repos:
 
     ### Data & Config Validation ###
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.1
+    rev: 0.37.2
     hooks:
     -   id: check-github-workflows
         name: "🧩 github-actions · Validate gh workflow files"
@@ -486,7 +486,7 @@ repos:
           )$
 
 -   repo: https://github.com/zricethezav/gitleaks
-    rev: v8.30.1
+    rev: v8.30.0
     hooks:
     -   id: gitleaks-docker
         name: "🔒 🐳 security · Detect hardcoded secrets"
