@@ -1,0 +1,50 @@
+services:
+  openhands:
+    image: docker.all-hands.dev/all-hands-ai/openhands:0.23
+    container_name: openhands-app
+    ports:
+      - "3010:3000"
+    environment:
+      - SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.all-hands.dev/all-hands-ai/runtime:0.24-nikolaik
+      - WORKSPACE_MOUNT_PATH=${HOME}/OH
+      - LOG_ALL_EVENTS=true
+    volumes:
+      - ${HOME}/OH:/opt/worspace_base
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.openhands-state:/.openhands-state
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - intranet  
+      
+  # https://localai.io/installation/docker/
+  # See https://localai.io/basics/getting_started/
+  # cd ~/w/follow/LocalAGI
+  # docker compose -f docker-compose.nvidia.yaml up
+  # localai:
+  #   # image: localai/localai:latest-aio-cpu
+  #   # For GPU support, use one of:
+  #   image: localai/localai:latest-aio-gpu-nvidia-cuda-13
+  #   # image: localai/localai:latest-aio-gpu-nvidia-cuda-12
+  #   # image: localai/localai:latest-aio-gpu-nvidia-cuda-11
+  #   # image: localai/localai:latest-aio-gpu-hipblas
+  #   # image: localai/localai:latest-aio-gpu-intel
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/readyz"]
+  #     interval: 1m
+  #     timeout: 20m
+  #     retries: 5
+  #   ports:
+  #     - 8080:8080
+  #   environment:
+  #     - DEBUG=true
+  #   volumes:
+  #     - ./models:/models:cached
+  #   # For NVIDIA GPUs, uncomment:
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]

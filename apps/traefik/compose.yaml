@@ -1,0 +1,86 @@
+---
+services:      
+  traefik:
+    image: docker.io/traefik:v3.7.0
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Paris
+      - CF_DNS_API_TOKEN=${TRAEFIK_CF_DNS_API_TOKEN}
+      - CF_API_EMAIL=${TRAEFIK_CF_API_EMAIL}
+    security_opt:
+      - no-new-privileges:true
+
+    command:
+      - "--configfile="
+
+      # API / Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"      
+      - "--entrypoints.websecure.address=:443"
+
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
+      - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
+      
+      # Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik_network"
+
+      # Let's Encrypt / Cloudflare DNS
+      - "--certificatesresolvers.cloudflare.acme.email=alban.andrieu@free.fr"
+      # - "--certificatesresolvers.cloudflare.acme.storage=/acme.json"
+      - "--certificatesresolvers.cloudflare.acme.storage=acme.json"      
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30"
+      # - "--certificatesresolvers.cloudflare.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+      # Logging
+      - "--log.level=INFO"
+      # - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--accesslog.bufferingsize=100"
+
+      # Metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addentrypointslabels=true"
+      - "--metrics.prometheus.addserviceslabels=true"
+
+    ports:
+      - "172.17.0.24:80:80"
+      - "172.17.0.24:443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme:/etc/traefik      
+      # - ./data/acme.json:/acme.json
+      
+    networks: ["traefik_network"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`nas.svc.h.albandrieu.com`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
+
+networks:
+  traefik_network:
+    name: traefik_network
+    driver: bridge
+
+volumes:
+  acme: {}
