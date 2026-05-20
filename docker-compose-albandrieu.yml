@@ -6,11 +6,11 @@ configs:
         reference: main
         interval: 3600
 
-# https://doco.cd/latest/External-Secrets/        
+# https://doco.cd/latest/External-Secrets/      f
 secrets:
   1pw_token:
     file: /root/.doco-cd/1pw_token
-    
+
 # kics-scan ignore
 services:
   op-connect-api:
@@ -18,7 +18,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json 
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json
       - op_data:/home/opuser/.op/data
 
   op-connect-sync:
@@ -26,9 +26,9 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json 
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json
       - op_data:/home/opuser/.op/data
-      
+
   app:
     container_name: doco-cd
     # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
@@ -53,23 +53,23 @@ services:
       # https://doco.cd/latest/External-Secrets/1Password-Connect/
       SECRET_PROVIDER: 1password
       SECRET_PROVIDER_CONNECT_HOST: http://op-connect-api:8080
-      SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN}      
+      SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN}
       # GIT_ACCESS_TOKEN: xxx
       # WEBHOOK_SECRET: xxx  # Uncomment this line and the webhook port above and set a secure secret if you want to use webhooks.
       # <<: *poll-config  # Uncomment this line to use the poll configuration from above (the `x-poll-config` section).
-        
+
     depends_on:
       - op-connect-api
-              
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # The data volume (left side) can also be replaced with a bind mount to a local directory, for example:
-      # - ./data:/data      
+      # - ./data:/data
       - data:/data
-      
+
     cap_drop:
       - ALL
-      
+
     healthcheck:
       test: [CMD, /doco-cd, healthcheck]
       start_period: 15s
@@ -94,7 +94,7 @@ include:
   - path: compose.security.yml
   # - path: compose.truenas.yml #nosec allow:gitleaks
   # - path: anything-llm/docker/docker-compose.yml
-  # - path: sentry/docker-compose.yml  
+  # - path: sentry/docker-compose.yml
   - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
   # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
   # - path: temporal/compose-services.yml
@@ -110,7 +110,8 @@ include:
 
 volumes:
   data: {}
-  
+  op_data: {}
+
 networks:
   intranet:
     external: true

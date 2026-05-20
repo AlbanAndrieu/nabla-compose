@@ -57,7 +57,7 @@ if [ "$HOSTNAME" = albandrieu ]; then
   
   netstat |  grep 3000
   
-  docker compose pull --ignore-pull-failures
+  docker compose -f docker-compose.yml pull --ignore-pull-failures
   # DOCKER_BUILDKIT=1 docker compose pull 2>&1|  tee pull.log
   
   docker pull registry.community.greenbone.net/community/gsa:stable

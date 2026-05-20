@@ -1,0 +1,89 @@
+---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albandrieu/nabla-compose.git
+        reference: main
+        interval: 3600
+
+# https://doco.cd/latest/External-Secrets/      f
+secrets:
+  1pw_token:
+    file: /root/.doco-cd/1pw_token
+
+# kics-scan ignore
+services:
+  op-connect-api:
+    image: 1password/connect-api:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json
+      - op_data:/home/opuser/.op/data
+
+  op-connect-sync:
+    image: 1password/connect-sync:latest
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json
+      - op_data:/home/opuser/.op/data
+
+  app:
+    container_name: doco-cd
+    # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
+    image: ghcr.io/kimdre/doco-cd:latest
+    restart: unless-stopped
+    ports:
+      - "80:80" # Webhook endpoint
+      - "9120:9120" # Prometheus metrics
+    # For all available environment variables and explanations, see https://doco.cd/latest/App-Settings/
+
+    secrets: ["1pw_token"]
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      # SECRET_PROVIDER: 1password
+      # SECRET_PROVIDER_ACCESS_TOKEN_FILE: /run/secrets/1pw_token
+      # https://doco.cd/latest/External-Secrets/1Password-Connect/
+      SECRET_PROVIDER: 1password
+      SECRET_PROVIDER_CONNECT_HOST: http://op-connect-api:8080
+      SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN}
+      # GIT_ACCESS_TOKEN: xxx
+      # WEBHOOK_SECRET: xxx  # Uncomment this line and the webhook port above and set a secure secret if you want to use webhooks.
+      # <<: *poll-config  # Uncomment this line to use the poll configuration from above (the `x-poll-config` section).
+
+    depends_on:
+      - op-connect-api
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The data volume (left side) can also be replaced with a bind mount to a local directory, for example:
+      # - ./data:/data
+      - data:/data
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  data: {}
+  op_data: {}
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+  # proxy:
+  #   external: true
