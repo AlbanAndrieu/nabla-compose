@@ -10,9 +10,6 @@
 [submodule "cyberbro"]
 	path = cyberbro
 	url = git@github.com:stanfrbd/cyberbro.git
-[submodule "sentry"]
-	path = sentry
-	url = https://github.com/getsentry/self-hosted.git
 [submodule "plumber-platform"]
 	path = plumber-platform
 	url = https://github.com/AlbanAndrieu/platform.git
