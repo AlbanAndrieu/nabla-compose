@@ -12,7 +12,7 @@ services:
     container_name: dozzle
     image: amir20/dozzle:v10.5.2
     restart: unless-stopped
-    expose: ["8080"]
+    expose: ["30064"]
     configs:
       - source: users.yml
         target: /data/users.yml

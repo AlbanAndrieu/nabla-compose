@@ -41,7 +41,8 @@ create_dataset() {
 
     # Verify mount exists before applying permissions
     if [ -d "$mountpoint" ]; then
-        chown root:apps "$mountpoint"
+        # chown root:apps "$mountpoint"
+        chown 1000:apps "$mountpoint"
         chmod 770 "$mountpoint"
     else
         echo "⚠️ Warning: $mountpoint does not exist after mounting. Check dataset status."
@@ -99,7 +100,7 @@ services:
     container_name: prowlarr
     restart: unless-stopped
     ports:
-      - 9696:9696
+      - 30050:9696
     volumes:
       - /mnt/$CONFIG_POOL/$prowlarr/{CONFIG_DIR}:/config
       - /mnt/$MEDIA_POOL/media:/media
@@ -109,7 +110,7 @@ services:
     container_name: radarr
     restart: unless-stopped
     ports:
-      - 7878:7878
+      - 30025:7878
     environment:
       - PUID=568
       - PGID=568
@@ -123,7 +124,7 @@ services:
     container_name: sonarr
     restart: unless-stopped
     ports:
-      - 8989:8989
+      - 30113:8989
     environment:
       - PUID=568
       - PGID=568
@@ -134,15 +135,15 @@ services:
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
-    init: true
     container_name: seerr
+    init: true
     user: "568:568"
+    ports:
+      - 30357:5055
     environment:
       - LOG_LEVEL=info
       - TZ=${CONFIG_TZ}
       - PORT=5055
-    ports:
-      - 5055:5055
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/status || exit 1
       start_period: 20s
@@ -156,20 +157,20 @@ services:
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
+    ports:
+      - 30098:8191
     environment:
       - LOG_LEVEL=info
       - LOG_HTML=false
       - CAPTCHA_SOLVER=none
       - TZ=${CONFIG_TZ}
-    ports:
-      - 8191:8191
     restart: unless-stopped
 
   profilarr:
     image: santiagosayshey/profilarr:latest
     container_name: profilarr
     ports:
-      - 6868:6868
+      - 30223:6868
     volumes:
       - /mnt/$CONFIG_POOL/profilarr/${CONFIG_DIR}:/config
     environment:
@@ -181,7 +182,7 @@ services:
     container_name: bazarr
     restart: unless-stopped
     ports:
-      - 6767:6767
+      - 30046:6767
     environment:
       - PUID=568
       - PGID=568
@@ -192,14 +193,14 @@ services:
 
   jellyfin:
     container_name: jellyfin
+    image: lscr.io/linuxserver/jellyfin:latest
+    restart: unless-stopped
+    ports:
+      - '30013:8096'
     environment:
       - PUID=568
       - PGID=568
       - TZ=${CONFIG_TZ}
-    image: lscr.io/linuxserver/jellyfin:latest
-    ports:
-      - '8096:8096'
-    restart: unless-stopped
     volumes:
       - /mnt/$CONFIG_POOL/jellyfin/${CONFIG_DIR}:/config
       - /mnt/$MEDIA_POOL/media:/media
@@ -209,7 +210,7 @@ services:
     image: ghcr.io/hotio/qbittorrent:release-5.1.2
     restart: unless-stopped
     ports:
-      - 8080:8080
+      - 30024:8080
     environment:
       - PUID=568
       - PGID=568
@@ -237,8 +238,18 @@ services:
       - /mnt/$CONFIG_POOL/qbittorrent/${CONFIG_DIR}:/config
       - /mnt/$MEDIA_POOL/media:/media
 
+  # Add wizarr f30229
+
+  # Add cleanuparr 30263
+
+  # lidarr 30071
+
+  # tracearr 30316
+
+  # homarr 30100
+
   toparr:
-    container_name: toparr  
+    container_name: toparr
     image: ghcr.io/ajthom90/toparr:latest
     restart: unless-stopped
     pid: host
@@ -251,17 +262,17 @@ services:
     volumes:
       - /sys/kernel/debug:/sys/kernel/debug:ro
     ports:
-      - "8095:8080"
+      - "30391:8080"
     environment:
       - GPU_TDP_WATTS=60
-      
+
   # See apps/dozzle/compose.yaml instead
   # dozzle:
-  #   container_name: dozzle  
+  #   container_name: dozzle
   #   image: amir20/dozzle
   #   restart: unless-stopped
   #   ports:
-  #     - '8888:8080'
+  #     - '30064:8080'
   #   volumes:
   #     - /var/run/docker.sock:/var/run/docker.sock
   #     - /mnt/$CONFIG_POOL/dozzle/${CONFIG_DIR}:/data
@@ -270,7 +281,7 @@ services:
     container_name: watchtower
     image: nickfedor/watchtower
     # image: containrrr/watchtower
-    restart: unless-stopped    
+    restart: unless-stopped
     environment:
       - TZ=${CONFIG_TZ}
       - WATCHTOWER_CLEANUP=true
@@ -283,7 +294,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     # security_opt:
     #   - apparmor=unconfined
-      
+
 EOF
 
 echo "Docker Compose file created at $DOCKER_COMPOSE_FILE"
@@ -309,7 +320,7 @@ if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
     # Change to the Docker Compose directory and launch the containers
     cd "$DOCKER_COMPOSE_PATH"
     echo "Launching Docker containers from $DOCKER_COMPOSE_PATH..."
-    docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up -d
+    docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml -f ${DOCKER_COMPOSE_FILE} up -d
 
     if [ $? -eq 0 ]; then
         echo "Docker containers launched successfully!"
