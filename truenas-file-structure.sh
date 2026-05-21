@@ -17,7 +17,7 @@ CONFIG_DATASETS=("prowlarr" "radarr" "sonarr" "seerr" "profilarr" "bazarr" "jell
 CONFIG_DIR="config";
 MEDIA_SUBDIRECTORIES=("movies" "tv" "downloads")
 DOCKER_COMPOSE_PATH="/mnt/$CONFIG_POOL/compose/nabla-compose"
-QBITTORRENT_WIREGUARD_DIR="/mnt/$CONFIG_POOL/${CONFIG_DIR}/qbittorrent/wireguard"
+QBITTORRENT_WIREGUARD_DIR="/mnt/$CONFIG_POOL/qbittorrent/${CONFIG_DIR}/wireguard"
 
 CONFIG_TZ="Europe/Paris";
 
@@ -64,7 +64,7 @@ create_directory() {
 }
 
 # Create the "config" dataset (parent) on the config pool
-create_dataset "$CONFIG_POOL" "${CONFIG_DIR}"
+# create_dataset "$CONFIG_POOL" "${CONFIG_DIR}"
 
 # Create the config datasets on the config pool
 for dataset in "${CONFIG_DATASETS[@]}"; do
@@ -309,13 +309,13 @@ if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
     # Change to the Docker Compose directory and launch the containers
     cd "$DOCKER_COMPOSE_PATH"
     echo "Launching Docker containers from $DOCKER_COMPOSE_PATH..."
-    sudo docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up -d
+    docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up -d
 
     if [ $? -eq 0 ]; then
         echo "Docker containers launched successfully!"
 
         # Modify qBittorrent.conf after the container is running
-        QBITTORRENT_CONF_FILE="/mnt/$CONFIG_POOL/qbittorrent/${CONFIG_DIR}/config/qBittorrent.conf"
+        QBITTORRENT_CONF_FILE="/mnt/$CONFIG_POOL/qbittorrent/${CONFIG_DIR}/qBittorrent.conf"
         echo "Waiting for qBittorrent to generate its configuration file..."
         while [ ! -f "$QBITTORRENT_CONF_FILE" ]; do
             sleep 5
