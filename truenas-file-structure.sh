@@ -16,7 +16,7 @@ CIDR_NETWORK="${PRIVATE_IP%.*}.0/24"
 CONFIG_DATASETS=("prowlarr" "radarr" "sonarr" "seerr" "profilarr" "bazarr" "jellyfin" "qbittorrent" "dozzle")
 CONFIG_DIR="config";
 MEDIA_SUBDIRECTORIES=("movies" "tv" "downloads")
-DOCKER_COMPOSE_PATH="/mnt/$CONFIG_POOL/docker"
+DOCKER_COMPOSE_PATH="/mnt/$CONFIG_POOL/compose/nabla-compose"
 QBITTORRENT_WIREGUARD_DIR="/mnt/$CONFIG_POOL/${CONFIG_DIR}/qbittorrent/wireguard"
 
 CONFIG_TZ="Europe/Paris";
@@ -68,7 +68,7 @@ create_dataset "$CONFIG_POOL" "${CONFIG_DIR}"
 
 # Create the config datasets on the config pool
 for dataset in "${CONFIG_DATASETS[@]}"; do
-    create_dataset "$CONFIG_POOL" "${CONFIG_DIR}/$dataset"
+    create_dataset "$CONFIG_POOL" "$dataset"
 done
 
 # Create the "media" dataset on the media pool
@@ -309,7 +309,7 @@ if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
     # Change to the Docker Compose directory and launch the containers
     cd "$DOCKER_COMPOSE_PATH"
     echo "Launching Docker containers from $DOCKER_COMPOSE_PATH..."
-    docker compose up -d
+    sudo docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up -d
 
     if [ $? -eq 0 ]; then
         echo "Docker containers launched successfully!"

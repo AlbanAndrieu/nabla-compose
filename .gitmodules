@@ -25,3 +25,6 @@
 [submodule "anything-llm"]
 	path = anything-llm
 	url = https://github.com/AlbanAndrieu/anything-llm
+[submodule "sentry"]
+	path = sentry
+	url = git@github.com:AlbanAndrieu/sentry.git

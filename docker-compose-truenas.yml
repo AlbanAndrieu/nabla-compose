@@ -9,7 +9,8 @@ configs:
 # https://doco.cd/latest/External-Secrets/      f
 secrets:
   1pw_token:
-    file: /root/.doco-cd/1pw_token
+    # file: /root/.doco-cd/1pw_token
+    file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
 
 # kics-scan ignore
 services:
