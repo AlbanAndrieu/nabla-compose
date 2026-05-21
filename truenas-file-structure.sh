@@ -15,6 +15,7 @@ CIDR_NETWORK="${PRIVATE_IP%.*}.0/24"
 # Define datasets and directories
 CONFIG_DATASETS=("prowlarr" "radarr" "sonarr" "seerr" "profilarr" "bazarr" "jellyfin" "qbittorrent" "dozzle")
 CONFIG_DIR="config";
+CONFIG_USER="1000:apps";
 MEDIA_SUBDIRECTORIES=("movies" "tv" "downloads")
 DOCKER_COMPOSE_PATH="/mnt/$CONFIG_POOL/compose/nabla-compose"
 QBITTORRENT_WIREGUARD_DIR="/mnt/$CONFIG_POOL/qbittorrent/${CONFIG_DIR}/wireguard"
@@ -41,8 +42,7 @@ create_dataset() {
 
     # Verify mount exists before applying permissions
     if [ -d "$mountpoint" ]; then
-        # chown root:apps "$mountpoint"
-        chown 1000:apps "$mountpoint"
+        chown ${CONFIG_USER} "$mountpoint"
         chmod 770 "$mountpoint"
     else
         echo "⚠️ Warning: $mountpoint does not exist after mounting. Check dataset status."
@@ -55,11 +55,11 @@ create_directory() {
     if [ ! -d "$dir_path" ]; then
         echo "Creating directory: $dir_path"
         mkdir -p "$dir_path"
-        chown root:apps "$dir_path"
+        chown ${CONFIG_USER} "$dir_path"
         chmod 770 "$dir_path"
     else
         echo "Directory already exists: $dir_path, updating permissions..."
-        chown root:apps "$dir_path"
+        chown ${CONFIG_USER} "$dir_path"
         chmod 770 "$dir_path"
     fi
 }
@@ -88,7 +88,7 @@ DOCKER_COMPOSE_FILE="$DOCKER_COMPOSE_PATH/compose.arr.yml"
 if [ ! -d "$DOCKER_COMPOSE_PATH" ]; then
     echo "⚠️ Docker Compose directory missing, creating: $DOCKER_COMPOSE_PATH"
     mkdir -p "$DOCKER_COMPOSE_PATH"
-    chown root:apps "$DOCKER_COMPOSE_PATH"
+    chown ${CONFIG_USER} "$DOCKER_COMPOSE_PATH"
     chmod 770 "$DOCKER_COMPOSE_PATH"
 fi
 
@@ -313,7 +313,7 @@ if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
 
     # Save the VPN configuration as wg0.conf
     echo "$WG_CONFIG" > "$QBITTORRENT_WIREGUARD_DIR/wg0.conf"
-    chown root:apps "$QBITTORRENT_WIREGUARD_DIR/wg0.conf"
+    chown ${CONFIG_USER} "$QBITTORRENT_WIREGUARD_DIR/wg0.conf"
     chmod 660 "$QBITTORRENT_WIREGUARD_DIR/wg0.conf"
     echo "WireGuard configuration saved to $QBITTORRENT_WIREGUARD_DIR/wg0.conf"
 
