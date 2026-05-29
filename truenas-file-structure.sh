@@ -102,7 +102,7 @@ services:
     ports:
       - 30050:9696
     volumes:
-      - /mnt/$CONFIG_POOL/$prowlarr/{CONFIG_DIR}:/config
+      - /mnt/$CONFIG_POOL/$prowlarr/${CONFIG_DIR}:/config
       - /mnt/$MEDIA_POOL/media:/media
 
   radarr:
