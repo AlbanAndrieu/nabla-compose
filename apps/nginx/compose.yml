@@ -2,7 +2,19 @@
 services:
   nginx:
     image: nginx:1-alpine
+    environment:
+      UID: 1000
+      GID: 1000
     ports:
       - 8099:80
     volumes:
       - /mnt/cpool/nginx/html/:/usr/share/nginx/html
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        deluser nginx
+        addgroup -g $${GID} -S nginx
+        adduser -S -D -H -u $${UID} -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+        /docker-entrypoint.sh nginx -g 'daemon off;'
+

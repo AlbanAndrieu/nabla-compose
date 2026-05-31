@@ -10,16 +10,15 @@ services:
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
-      - TZ: Europe/Paris
-      - PASSWORD: ${CODE_PASSWORD}
+      - TZ=Europe/Paris
+      - PASSWORD=${CODE_PASSWORD}
     volumes:
-      - ./config:/config
       - /mnt/cpool/nginx/:/nginx
       - /mnt/cpool/code-server/:/code-server
       - /mnt/cpool/drawio/:/drawio
       - /mnt/cpool/compose/:/compose
       - /mnt/cpool/code/config:/config
-      - /:/config/workspace
+      - /mnt/cpool/compose/nabla-compose/:/config/workspace
     ports:
       - 8443:8443
     security_opt:
