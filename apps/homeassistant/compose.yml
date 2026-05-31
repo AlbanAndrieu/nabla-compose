@@ -1,0 +1,32 @@
+---
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      iot_macvlan:
+        ipv4_address: 192.168.20.202
+      traefik:
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /mnt/storage0/home-assistant/config:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.albanandrieu.com`)"
+      - "traefik.http.routers.homeassistant.entrypoints=https"
+      - "traefik.http.routers.homeassistant.tls=true"
+      - "traefik.http.routers.homeassistant.tls.certresolver=cloudflare"
+      - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+
+networks:
+  iot_macvlan:
+    external: true
+  traefik:
+    external: true
