@@ -1,0 +1,8 @@
+---
+services:
+  nginx:
+    image: nginx:1-alpine
+    ports:
+      - 8099:80
+    volumes:
+      - /mnt/cpool/nginx/html/:/usr/share/nginx/html

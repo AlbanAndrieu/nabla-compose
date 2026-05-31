@@ -63,7 +63,7 @@ services:
 
   dockge:
     image: louislam/dockge:1
-    container_name: dockge  
+    container_name: dockge
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -100,24 +100,6 @@ services:
     volumes:
       - uptime-kuma-data:/app/data
 
-  code-server:
-    image: lscr.io/linuxserver/code-server:latest
-    container_name: code-server
-    restart: unless-stopped
-    environment:
-      PUID: "0"
-      PGID: "0"
-      TZ: America/New_York
-      PASSWORD: admin
-    volumes:
-      # - ./config:/config
-      - /mnt/cpool/code/config:/config      
-      - /:/config/workspace
-    ports:
-      - 8443:8443
-    security_opt:
-      - apparmor=unconfined
-      
 volumes:
   portainer_data:
   uptime-kuma-data:
