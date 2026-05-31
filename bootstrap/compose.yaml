@@ -34,7 +34,7 @@ services:
       POLL_CONFIG_FILE: /poll-config.yml
       SECRET_PROVIDER: 1password
       # SECRET_PROVIDER_ACCESS_TOKEN_FILE: /run/secrets/1pw_token
-      SECRET_PROVIDER_CONNECT_HOST: http://op-connect-api:8080
+      SECRET_PROVIDER_CONNECT_HOST: http://172.17.0.24:8097
       SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN}
       
     healthcheck:
