@@ -14,7 +14,7 @@ services:
       - PASSWORD=${CODE_PASSWORD}
     volumes:
       - /mnt/cpool/nginx/:/nginx
-      - /mnt/cpool/code-server/:/code-server
+      - /mnt/cpool/code/:/code-server
       - /mnt/cpool/drawio/:/drawio
       - /mnt/cpool/compose/:/compose
       - /mnt/cpool/code/config:/config

@@ -4,34 +4,39 @@ configs:
     content: |
       users:
         admin:
-          name: "${DOZZLE_ADMIN_USERNAME}"
-          password: "${DOZZLE_ADMIN_PASSWORD}"
+          name: "Admin"
+          password: "${DOZZLE_ADMIN_PASSWORD_BCRYPTED}"
 
 services:
   dozzle:
     container_name: dozzle
-    image: amir20/dozzle:v10.5.2
+    image: amir20/dozzle:v10.6.2 # amir20/dozzle:latest
     restart: unless-stopped
-    expose: ["30064"]
-    configs:
-      - source: users.yml
-        target: /data/users.yml
+    ports:
+     - '8888:8080'
+    #onfigs:
+    #- source: users.yml
+    #  target: /mnt/cpool/dozzle/users.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/cpool/dozzle/data:/data
     env_file:
       - /mnt/cpool/dozzle/.env
       - /mnt/cpool/dozzle/.env.secrets
     environment:
       - DOZZLE_NO_ANALYTICS=true
       - DOZZLE_AUTH_PROVIDER=simple
+    security_opt:
+      - no-new-privileges:true      
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dozzle.rule=Host(`dozzle.nas.svc.h.albandrieu.com`)"
+      # - "traefik.http.routers.dozzle.rule=Host(`dozzle.nas.svc.h.albandrieu.com`)"
+      - "traefik.http.routers.dozzle.rule=Host(`dozzle.albandrieu.com`)"
       - "traefik.http.routers.dozzle.entrypoints=websecure"
       - "traefik.http.routers.dozzle.tls.certresolver=cloudflare"
       - "traefik.http.routers.dozzle.service=dozzle"
-      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8888"
 
 networks:
   traefik_network:
