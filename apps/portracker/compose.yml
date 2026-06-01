@@ -17,7 +17,7 @@ services:
       # Required for discovering services running in Docker
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - "4999:4999"
+      - "4999:4999" # 30233
     environment:
       # Optional: For enhanced TrueNAS features
       - TRUENAS_API_KEY=${TRUENAS_API_KEY}
