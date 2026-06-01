@@ -17,8 +17,9 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
+      - "traefik.http.routers.drawio.rule=Host(`drawio.int.albandrieu.com`)"
       - "traefik.http.routers.drawio.entrypoints=websecure"
-      - "traefik.http.routers.drawio.tls.certresolver=cloudflare"
+      # - "traefik.http.routers.drawio.tls.certresolver=cloudflare"
+      - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
       - "traefik.http.routers.drawio.service=drawio"
       - "traefik.http.services.drawio.loadbalancer.server.port=9443"

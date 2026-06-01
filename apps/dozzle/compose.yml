@@ -37,9 +37,10 @@ services:
     labels:
       - "traefik.enable=true"
       # - "traefik.http.routers.dozzle.rule=Host(`dozzle.nas.svc.h.albandrieu.com`)"
-      - "traefik.http.routers.dozzle.rule=Host(`dozzle.albandrieu.com`)"
+      - "traefik.http.routers.dozzle.rule=Host(`dozzle.int.albandrieu.com`)"
       - "traefik.http.routers.dozzle.entrypoints=websecure"
-      - "traefik.http.routers.dozzle.tls.certresolver=cloudflare"
+      # - "traefik.http.routers.dozzle.tls.certresolver=cloudflare"
+      - "traefik.http.routers.dozzle.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dozzle.service=dozzle"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8888"
 

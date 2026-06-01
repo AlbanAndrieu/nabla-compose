@@ -9,7 +9,7 @@ services:
       - /mnt/cpool/traefik/.env.secrets
     environment:
       - TZ=Europe/Paris
-      
+      - CF_API_EMAIL=alban.andrieu@free.fr
     security_opt:
       - no-new-privileges:true
 
@@ -18,7 +18,7 @@ services:
 
       # API / Dashboard
       - "--api.dashboard=true"
-      - "--api.insecure=false"
+      - "--api.insecure=true"
 
       # Entrypoints
       - "--entrypoints.web.address=:80"
@@ -26,28 +26,39 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
       - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
+
+      #  - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
+      - "--entrypoints.websecure.http.tls.certresolver=letsencrypt"
+      - "--entrypoints.websecure.http.tls.domains[0].main=int.albandrieu.com" # local.albandrieu.com
+      - "--entrypoints.websecure.http.tls.domains[0].sans=*.int.albandrieu.com" # *.local.albandrieu.com
+      - "--providers.file.filename=/etc/traefik/routes.yml"
+
+      - "--providers.file.watch=true"
 
       # Docker provider
       - "--providers.docker=true"
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=traefik_network"
+      # - "--providers.docker.network=traefik_network"
 
       # Let's Encrypt / Cloudflare DNS
-      - "--certificatesresolvers.cloudflare.acme.email=alban.andrieu@free.fr"
-      # - "--certificatesresolvers.cloudflare.acme.storage=/acme.json"
-      - "--certificatesresolvers.cloudflare.acme.storage=acme.json"
-      - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
-      - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
-      - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
-      - "--certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30"
-      # - "--certificatesresolvers.cloudflare.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/certs/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+
+      # - "--certificatesresolvers.cloudflare.acme.email=alban.andrieu@free.fr"
+      # # - "--certificatesresolvers.cloudflare.acme.storage=/acme.json"
+      # - "--certificatesresolvers.cloudflare.acme.storage=acme.json"
+      # - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+      # - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+      # - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+      # - "--certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=30"
+      # # - "--certificatesresolvers.cloudflare.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
 
       # Logging
-      - "--log.level=INFO"
-      #- "--log.level=DEBUG"
+      # - "--log.level=INFO"
+      - "--log.level=DEBUG"
       - "--accesslog=true"
       - "--accesslog.bufferingsize=100"
 
@@ -57,25 +68,47 @@ services:
       - "--metrics.prometheus.addserviceslabels=true"
 
     ports:
-      - "172.17.0.24:7080:80"
-      - "172.17.0.24:7443:443"
+      - "80:80" # Traefik 
+      - "443:443" # Traefik    
+      - "8080:8080"
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/localtime:/etc/localtime:ro
-      - acme:/etc/traefik
-      # - ./data/acme.json:/acme.json
+      - /mnt/cpool/traefik/:/etc/traefik/  
+      # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro     
 
-    networks: ["traefik_network"]
+    # networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
       # - "traefik.http.routers.traefik.rule=Host(`nas.svc.h.albandrieu.com`)"
-      - "traefik.http.routers.traefik.rule=Host(`truenas`) || Host(`traefik.albandrieu.com`)"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       # - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
       # NOK - "traefik.http.routers.traefik.middlewares=traefik-auth"
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
+
+  pihole-dns-sync:
+    image: ghcr.io/cajuclc/traefik-pihole-sync:v0.0.1
+    container_name: pihole-dns-sync
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/cpool/traefik/:/etc/traefik/
+      # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
+      # - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
+    env_file:
+      - /mnt/cpool/traefik/.env.secrets      
+    environment:
+      PIHOLE_URL: http://172.17.0.24:20720
+      SKIP_TLS_VERIFY: "true"
+      TARGET_IP: 172.17.0.24
+      # DOMAIN_SUFFIX: local.albandrieu.com
+      DOMAIN_SUFFIX: int.albandrieu.com
+      EXTERNAL_SERVICES_FILE: /etc/traefik/external-services.yml
+      OUTPUT_FILE: /etc/traefik/routes.yml
 
 networks:
   traefik_network:

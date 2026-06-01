@@ -17,6 +17,7 @@ services:
       - /mnt/cpool/code/:/code-server
       - /mnt/cpool/drawio/:/drawio
       - /mnt/cpool/compose/:/compose
+      - /mnt/cpool/traefik/:/traefik
       - /mnt/cpool/code/config:/config
       - /mnt/cpool/compose/nabla-compose/:/config/workspace
     ports:
