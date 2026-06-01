@@ -5,7 +5,7 @@ services:
     container_name: drawio
     restart: unless-stopped
     ports:
-      - 9080:8080
+      # - 9080:8080
       - 9443:8443
     environment:
       - PUBLIC_DNS=${PUBLIC_DNS:-drawio.albandrieu.com}
@@ -15,3 +15,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
+      - "traefik.http.routers.drawio.entrypoints=websecure"
+      - "traefik.http.routers.drawio.tls.certresolver=cloudflare"
+      - "traefik.http.routers.drawio.service=drawio"
+      - "traefik.http.services.drawio.loadbalancer.server.port=9443"

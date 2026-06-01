@@ -9,6 +9,7 @@ services:
       - /mnt/cpool/traefik/.env.secrets
     environment:
       - TZ=Europe/Paris
+      
     security_opt:
       - no-new-privileges:true
 

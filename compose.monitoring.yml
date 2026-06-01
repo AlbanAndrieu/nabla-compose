@@ -245,18 +245,6 @@ services:
 
   # docker exec scrutiny-collector /opt/scrutiny/bin/scrutiny-collector-metrics run
 
-  # autoxpose:
-  #   image: mostafawahied/autoxpose:latest
-  #   ports:
-  #     - '4949:3000'
-  #   environment:
-  #     - SERVER_IP=82.66.4.247
-  #     - LAN_IP=172.17.0.57
-  #   volumes:
-  #     - autoxpose-data:/app/packages/backend/data
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   restart: unless-stopped
-
   dozzle-agent:
     image: amir20/dozzle:latest
     container_name: dozzle-agent
