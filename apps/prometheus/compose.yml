@@ -1,0 +1,33 @@
+---
+services:
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_IMG:-latest}
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090" # 30104
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ../../temporal/deployment/prometheus/config.yml
+        target: /etc/prometheus/prometheus.yml
+    networks: ["traefik_network"]
+    environment:
+      - RETENTION_TIME=1d
+      - RETENTION_SIZE=10G
+
+    labels:
+      - "traefik.enable=true"
+      # Registry (services network)
+      - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.albandrieu.com`)"
+      - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
+      - "traefik.http.routers.prometheus-svc.tls.certresolver=cloudflare"
+      - "traefik.http.routers.prometheus-svc.service=prometheus"
+      # Service definition
+      # - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+networks:
+  traefik_network:
+    external: true

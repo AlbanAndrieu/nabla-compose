@@ -159,6 +159,7 @@ repos:
             public/wireframe.css|
             public/assets/fontawesome-free-7.1.0-web/.*|
             public/assets/fontawesome/.*|
+            config/telegraf.conf|
           )$
         # ----------------------------- 🔒 Security Tools ---------------------------- #
     -   id: detect-private-key
@@ -279,6 +280,7 @@ repos:
             docs/Makefile|
             .envrc|
             scripts/run-wicked.sh|
+            build.sh|
           )$
 
 -   repo: https://github.com/openstack/bashate

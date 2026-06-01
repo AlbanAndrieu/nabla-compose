@@ -1,0 +1,60 @@
+---
+configs:
+  garage_config:
+    file: ./garage.toml
+
+services:
+  garage:
+    container_name: garage
+    image: dxflrs/garage:v2.3.0
+    configs:
+      - source: garage_config
+        target: /etc/garage.toml
+    environment:
+      - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
+      - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN}
+    volumes:
+      - /mnt/tank/Apps/Garage/meta:/var/lib/garage/meta
+      - /mnt/tank/Apps/Garage/data:/var/lib/garage/data
+    expose: ["3900", "3903"]
+    networks: ["traefik_network"]
+    labels:
+      - "traefik.enable=true"
+      # S3 API
+      - "traefik.http.routers.garage-s3.rule=Host(`s3.albandrieu.com`) || HostRegexp(`{subdomain:.+}.s3.albandrieu.com`)"
+      - "traefik.http.routers.garage-s3.entrypoints=websecure"
+      - "traefik.http.routers.garage-s3.tls.certresolver=cloudflare"
+      - "traefik.http.routers.garage-s3.service=garage-s3"
+      - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
+      # Admin API
+      - "traefik.http.routers.garage-admin.rule=Host(`garage-admin.albandrieu.com`)"
+      - "traefik.http.routers.garage-admin.entrypoints=websecure"
+      - "traefik.http.routers.garage-admin.tls.certresolver=cloudflare"
+      - "traefik.http.routers.garage-admin.service=garage-admin"
+      - "traefik.http.services.garage-admin.loadbalancer.server.port=3903"
+
+  webui:
+    container_name: garage-webui
+    image: khairul169/garage-webui:1.1.0
+    restart: unless-stopped
+    configs:
+      - source: garage_config
+        target: /etc/garage.toml
+    expose: ["3909"]
+    environment:
+      API_BASE_URL: "http://garage:3903"
+      API_ADMIN_KEY: ${GARAGE_ADMIN_TOKEN}
+      S3_ENDPOINT_URL: "http://garage:3900"
+      AUTH_USER_PASS: ${GARAGE_WEBUI_ADMIN_PASS}
+    networks: ["traefik_network"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.garage-webui.rule=Host(`garage.albandrieu.com`)"
+      - "traefik.http.routers.garage-webui.entrypoints=websecure"
+      - "traefik.http.routers.garage-webui.tls.certresolver=cloudflare"
+      - "traefik.http.routers.garage-webui.service=garage-webui"
+      - "traefik.http.services.garage-webui.loadbalancer.server.port=3909"
+
+networks:
+  traefik_network:
+    external: true

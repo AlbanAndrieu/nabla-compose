@@ -10,13 +10,13 @@ configs:
 services:
   dozzle:
     container_name: dozzle
-    image: amir20/dozzle:v10.6.2 # amir20/dozzle:latest
+    image: amir20/dozzle:v10.6.3 # amir20/dozzle:latest
     restart: unless-stopped
     ports:
-     - '8888:8080'
-    #onfigs:
-    #- source: users.yml
-    #  target: /mnt/cpool/dozzle/users.yml
+      - "8888:8080"
+    # onfigs:
+    # - source: users.yml
+    #   target: /mnt/cpool/dozzle/users.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/dozzle/data:/data
@@ -26,8 +26,13 @@ services:
     environment:
       - DOZZLE_NO_ANALYTICS=true
       - DOZZLE_AUTH_PROVIDER=simple
+      - DOZZLE_ENABLE_ACTIONS=true
+      - DOZZLE_ENABLE_SHELL=true
+      - DOZZLE_ENABLE_MCP=true # https://dozzle.dev/guide/mcp
+      - DOZZLE_REMOTE_AGENT=172.17.0.57:7007
+      - DOZZLE_HOSTNAME=dozzle.albandrieu.com
     security_opt:
-      - no-new-privileges:true      
+      - no-new-privileges:true
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"

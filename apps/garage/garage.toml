@@ -1,0 +1,32 @@
+# Garage Configuration File
+# Documentation: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+
+# ===== METADATA & DATA STORAGE =====
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+
+# Database engine: lmdb (default, fastest) or sqlite (more robust for power failures)
+db_engine = "sqlite"
+
+# Automatic metadata snapshots every 2 hours (recommended for recovery)
+metadata_auto_snapshot_interval = "2h"
+
+# ===== CLUSTER CONFIGURATION =====
+replication_factor = 1
+
+# Compression level (0-3): 0=none, 1=fast, 2=balanced, 3=max
+compression_level = 3
+
+# ===== RPC CONFIGURATION =====
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "garage:3901"
+
+# ===== S3 API CONFIGURATION =====
+[s3_api]
+s3_region = "us-east-1"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.albandrieu.com"
+
+# ===== ADMIN API =====
+[admin]
+api_bind_addr = "[::]:3903"
