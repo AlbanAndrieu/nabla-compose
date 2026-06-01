@@ -32,7 +32,7 @@ services:
       - "--entrypoints.websecure.http.tls.certresolver=letsencrypt"
       - "--entrypoints.websecure.http.tls.domains[0].main=int.albandrieu.com" # local.albandrieu.com
       - "--entrypoints.websecure.http.tls.domains[0].sans=*.int.albandrieu.com" # *.local.albandrieu.com
-      - "--providers.file.filename=/etc/traefik/routes.yml"
+      # - "--providers.file.filename=/etc/traefik/routes.yml"
 
       - "--providers.file.watch=true"
 
@@ -40,7 +40,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedbydefault=false"
-      # - "--providers.docker.network=traefik_network"
+      - "--providers.docker.network=traefik_network"
 
       # Let's Encrypt / Cloudflare DNS
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/certs/acme.json"
@@ -78,12 +78,11 @@ services:
       - /mnt/cpool/traefik/:/etc/traefik/  
       # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro     
 
-    # networks: ["traefik_network"]
+    networks: ["traefik_network"]
     labels:
-      - "traefik.enable=true"
-      # - "traefik.http.routers.traefik.rule=Host(`nas.svc.h.albandrieu.com`)"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
+      # - "traefik.http.routers.traefik.entrypoints=websecure"
       # - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
@@ -113,7 +112,10 @@ services:
 networks:
   traefik_network:
     name: traefik_network
-    driver: bridge
+    # driver: bridge
+    external: true
+  ix-dozzle_default: 
+    external: true 
 
 volumes:
   acme: {}
