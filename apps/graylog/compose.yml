@@ -15,6 +15,9 @@ services:
   opensearch:
     image: opensearchproject/opensearch:2
     container_name: opensearch
+    env_file:
+      # - /mnt/cpool/opensearch/.env
+      - /mnt/cpool/opensearch/.env.secrets
     environment:
       - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
       - "bootstrap.memory_lock=true"
@@ -41,6 +44,9 @@ services:
   graylog:
     image: graylog/graylog:6.3
     container_name: graylog
+    env_file:
+      # - /mnt/cpool/graylog/.env
+      - /mnt/cpool/graylog/.env.secrets
     environment:
       GRAYLOG_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET}"
       GRAYLOG_ROOT_PASSWORD_SHA2: "${GRAYLOG_ROOT_PASSWORD_SHA2}"
