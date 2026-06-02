@@ -1,0 +1,11 @@
+services:
+  squid:
+    image: sameersbn/squid:3.5.27-2
+    restart: unless-stopped
+    ports:
+      - "3128:3128"
+    tmpfs:
+      - /var/spool/squid:rw,noexec,nosuid,nodev,size=64m
+      - /var/log/squid:rw,noexec,nosuid,nodev,size=16m
+    networks:
+      - intranet

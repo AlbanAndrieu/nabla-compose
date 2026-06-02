@@ -1,0 +1,55 @@
+---
+# More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+services:
+  pihole:
+    image: pihole/pihole:latest # pihole/pihole:2026.05.0
+    container_name: pihole
+    restart: unless-stopped
+    user: "568:568" # TrueNAS apps user
+    ports:
+      # DNS Ports
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Default HTTP Port 20720
+      - 20720:20720
+      # - "80:80/tcp"
+      # Default HTTPs Port. FTL will generate a self-signed certificate
+      - 30132:30132
+      # - "443:443/tcp"
+      # Uncomment the below if using Pi-hole as your DHCP Server
+      # - "67:67/udp"
+      # Uncomment the line below if you are using Pi-hole as your NTP server
+      # - "123:123/udp"
+    en v_file:
+      - /mnt/cpool/pihole/.env.secrets
+    environment:
+      # Set the appropriate timezone for your location from
+      # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g:
+      TZ: "Europe/Paris"
+      # Set a password to access the web interface. Not setting one will result in a random password being assigned
+      # FTLCONF_webserver_api_password: 'XXX' # WEB_PASSWORD
+      # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
+      FTLCONF_dns_listeningMode: "ALL"
+      SHM_SIZE_MB: "64"
+    # Volumes store your data between container upgrades
+    volumes:
+      # For persisting Pi-hole's databases and common configuration file
+      - "/mnt/cpool/pihole/config:/etc/pihole"
+      # Uncomment the below if you have custom dnsmasq config files that you want to persist. Not needed for most starting fresh with Pi-hole v6. If you're upgrading from v5 you and have used this directory before, you should keep it enabled for the first v6 container start to allow for a complete migration. It can be removed afterwards. Needs environment variable FTLCONF_misc_etc_dnsmasq_d: 'true'
+      - "/mnt/cpool/pihole/dnsmasq:/etc/dnsmasq.d"
+    cap_add:
+      # See https://docs.pi-hole.net/docker/configuration/#note-on-capabilities
+      # Required if you are using Pi-hole as your DHCP server, else not needed
+      - NET_ADMIN
+      # Required if you are using Pi-hole as your NTP client to be able to set the host's system time
+      - SYS_TIME
+      # Optional, if Pi-hole should get some more processing time
+      - SYS_NICE
+#   unbound:
+#     image: mvance/unbound-rpi:1.13.0
+#     hostname: unbound
+#     restart: unless-stopped
+#     ports:
+#       - 172.17.0.24:53:53/udp
+#       - 172.17.0.24:53:53/tcp
+# #    volumes: [...]

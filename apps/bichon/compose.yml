@@ -1,7 +1,7 @@
 ---
 services:
   bichon:
-    image: rustmailer/bichon:latest
+    image: rustmailer/bichon:latest # 1.4.3
     container_name: bichon
     ports:
       - "15630:15630" # 30313
