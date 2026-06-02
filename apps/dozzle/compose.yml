@@ -30,17 +30,16 @@ services:
       - DOZZLE_ENABLE_SHELL=true
       - DOZZLE_ENABLE_MCP=true # https://dozzle.dev/guide/mcp
       - DOZZLE_REMOTE_AGENT=172.17.0.57:7007
-      - DOZZLE_HOSTNAME=dozzle.albandrieu.com
+      - DOZZLE_HOSTNAME=dozzle.int.albandrieu.com
     security_opt:
       - no-new-privileges:true
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
-    #  # - "traefik.http.routers.dozzle.rule=Host(`dozzle.nas.svc.h.albandrieu.com`)"
       - "traefik.http.routers.dozzle.rule=Host(`dozzle.int.albandrieu.com`)"
       - "traefik.http.routers.dozzle.entrypoints=websecure"
-    #  # - "traefik.http.routers.dozzle.tls.certresolver=cloudflare"
-    #  - "traefik.http.routers.dozzle.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.dozzle.tls.certresolver=cloudflare"
+      - "traefik.http.routers.dozzle.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dozzle.service=dozzle"
       - "traefik.http.services.dozzle.loadbalancer.server.scheme=http"
     #  - "traefik.http.services.dozzle.loadbalancer.server.port=8080"

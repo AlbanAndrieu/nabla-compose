@@ -4,6 +4,11 @@ services:
     image: prom/prometheus:${PROMETHEUS_IMG:-latest}
     container_name: prometheus
     restart: unless-stopped
+    user: "568:568" # TrueNAS apps user    
+    environment:
+      - TZ=Europe/Paris
+      - RETENTION_TIME=1d
+      - RETENTION_SIZE=10G    
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
@@ -16,63 +21,58 @@ services:
       - /mnt/cpool/prometheus/config:/etc/prometheus
       - /mnt/cpool/prometheus/data:/prometheus
     networks: ["traefik_network"]
-    environment:
-      - RETENTION_TIME=1d
-      - RETENTION_SIZE=10G
 
     labels:
       - "traefik.enable=true"
       # Registry (services network)
-      - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.albandrieu.com`)"
+      - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
       - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
-      - "traefik.http.routers.prometheus-svc.tls.certresolver=cloudflare"
+      - "traefik.http.routers.prometheus-svc.tls.certresolver=letsencrypt"
       - "traefik.http.routers.prometheus-svc.service=prometheus"
       # Service definition
       # - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
-#  node-exporter:
-#    image: quay.io/prometheus/node-exporter:latest
-#    restart: unless-stopped
-#    volumes:
-#      - /proc:/host/proc:ro
-#      - /sys:/host/sys:ro
-#      - /:/rootfs:ro
-#      - /:/host:ro,rslave
-#    command:
-#      - '--path.rootfs=/host'
-#      - '--path.procfs=/host/proc'
-#      - '--path.sysfs=/host/sys'
-#      - --collector.filesystem.ignored-mount-points
-#      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
-#    ports:
-#      - 9100:9100
-#    networks: ["traefik_network"]
-#    restart: always
-#
-#  alertmanager:
-#    image: prom/alertmanager
-#    restart: unless-stopped
-#    ports:
-#      - 9093:9093
-#    volumes:
-#      - ./alertmanager/:/etc/alertmanager/
-#    networks: ["traefik_network"]
-#    command:
-#      - '--config.file=/etc/alertmanager/config.yml'
-#      - '--storage.path=/alertmanager'
-#
-#  cadvisor:
-#    image: gcr.io/cadvisor/cadvisor
-#    restart: unless-stopped
-#    volumes:
-#      - /:/rootfs:ro
-#      - /var/run:/var/run:rw
-#      - /sys:/sys:ro
-#      - /var/lib/docker/:/var/lib/docker:ro
-#    ports:
-#      - 8080:8080
-#    networks: ["traefik_network"]
-#    restart: always
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /:/host:ro,rslave
+    command:
+      - '--path.rootfs=/host'
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - --collector.filesystem.ignored-mount-points
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+    ports:
+      - 9100:9100
+    networks: ["traefik_network"]
+
+  alertmanager:
+    image: prom/alertmanager
+    restart: unless-stopped
+    ports:
+      - 9093:9093
+    volumes:
+      - /mnt/cpool/alertmanager/:/etc/alertmanager/
+    networks: ["traefik_network"]
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - 8089:8080
+    networks: ["traefik_network"]
 
 networks:
   traefik_network:

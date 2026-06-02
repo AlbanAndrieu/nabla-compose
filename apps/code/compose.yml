@@ -18,6 +18,9 @@ services:
       - /mnt/cpool/drawio/:/drawio
       - /mnt/cpool/compose/:/compose
       - /mnt/cpool/traefik/:/traefik
+      - /mnt/cpool/prometheus/:/prometheus
+      - /mnt/cpool/grafana/:/grafana         
+      - /mnt/cpool/litellm/:/litellm         
       - /mnt/cpool/code/config:/config
       - /mnt/cpool/compose/nabla-compose/:/config/workspace
     ports:
