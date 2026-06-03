@@ -1,30 +1,28 @@
 services:
   litellm:
-    build:
-      context: .
-      args:
-        target: runtime
-    image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
+    # image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
+    image: ghcr.io/berriai/litellm:main-stable # ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: unless-stopped
-    user: "568:568" # TrueNAS apps user        
-    #########################################
-    ## Uncomment these lines to start proxy with a config.yaml file ##
+    # user: "568:568" # TrueNAS apps user        
     volumes:
-      - /mnt/cpool/litellm/:/app/
+      # - /mnt/cpool/litellm/:/app/
+      - /mnt/cpool/litellm/config.yaml:/app/config.yaml
     command:
-      - "--config=/app/config.yaml  --detailed_debug"
-    ##############################################
+      - "--config=/app/config.yaml"
+      # - "--port=4000"
+      - "--detailed_debug"  
     ports:
-      - "4000:4000" # Map the container port to the host, change the host port if necessary
-    environment:
-      # DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
-      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+      - "4000:4000"
     env_file:
-      # - /mnt/cpool/litellm/.env # Load local .env file
-      - /mnt/cpool/litellm/.env.secrets
-    # depends_on:
-    #   - db  # Indicates that this service depends on the 'db' service, ensuring 'db' starts first
+      - /mnt/cpool/litellm/.env.secrets      
+    environment:
+      # - LITELLM_MASTER_KEY=sk_XXX
+      # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
+      - UI_USERNAME=nabla 
+      # - UI_PASSWORD=XXX 
+      - STORE_MODEL_IN_DB="True" # allows adding models to proxy via UI
+
     healthcheck: # Defines the health check configuration for the container
       test:
         - CMD-SHELL
@@ -33,5 +31,3 @@ services:
       timeout: 10s # Health check command times out after 10 seconds
       retries: 3 # Retry up to 3 times if health check fails
       start_period: 40s # Wait 40 seconds after container start before beginning health checks
-    # networks:
-    #   - intranet

@@ -17,15 +17,12 @@ services:
       - INSTALL4J_ADD_VM_PARAMS=-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
 
     networks: ["traefik_network"]
-    labels:
-      - "traefik.enable=true"
-      # Registry (services network)
-      - "traefik.http.routers.nexus.rule=Host(`nexus.int.albandrieu.com`)"
-      - "traefik.http.routers.nexus.entrypoints=websecure"
-      - "traefik.http.routers.nexus.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.nexus.service=nexus"
-      # Service definition
-      # - "traefik.http.services.nexus.loadbalancer.server.port=8081"
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.nexus.rule=Host(`nexus.int.albandrieu.com`)"
+    #  - "traefik.http.routers.nexus.entrypoints=websecure"
+    #  - "traefik.http.routers.nexus.tls.certresolver=letsencrypt"
+    #  - "traefik.http.routers.nexus.service=nexus"
 
 networks:
   traefik_network:

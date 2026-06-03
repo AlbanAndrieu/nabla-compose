@@ -23,12 +23,12 @@ services:
     ports:
       - '4949:3000' # host:container
     environment:
-      # - UID=1000
-      # - GID=1000        
+      - UID=568
+      - GID=568        
       - SERVER_IP=${SERVER_IP:-82.66.4.247} # public IP for DNS records
       - LAN_IP=${LAN_IP:-172.17.0.24} # private IP for proxy targets
       # If using the optional docker-proxy above, set DOCKER_HOST and remove the socket mount:
-      # - DOCKER_HOST=tcp://docker-proxy:2375
+      - DOCKER_HOST=tcp://172.17.0.24:2375
     volumes:
       - /mnt/cpool/autoxpose:/app/packages/backend/data
       # Comment this mount if using docker-proxy

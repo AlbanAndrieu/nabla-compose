@@ -2,6 +2,8 @@
 services:
   nginx:
     image: nginx:1-alpine
+    container_name: nginx
+    restart: unless-stopped    
     environment:
       UID: 1000
       GID: 1000
@@ -19,4 +21,19 @@ services:
         /docker-entrypoint.sh nginx -g 'daemon off;'
     labels:
       - autoxpose.enable=true # or 'auto' for automatic exposure
-      - autoxpose.subdomain=nginx # recommended
+      - autoxpose.subdomain=hello # recommended
+      - autoxpose.domain=hello.albandrieu.com
+      - autoxpose.name=hello
+      - autoxpose.scheme=http
+      - autoxpose.port=8099
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello.rule=Host(`hello.int.albandrieu.com`)"
+      - "traefik.http.routers.hello.entrypoints=websecure"
+      - "traefik.http.routers.hello.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.hello.service=hello"
+      - "traefik.http.services.hello.loadbalancer.server.scheme=http"      
+    networks: ["traefik_network"]      
+
+networks:
+  traefik_network:
+    external: true

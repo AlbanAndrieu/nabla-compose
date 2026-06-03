@@ -21,16 +21,12 @@ services:
       - /mnt/cpool/prometheus/config:/etc/prometheus
       - /mnt/cpool/prometheus/data:/prometheus
     networks: ["traefik_network"]
-
-    labels:
-      - "traefik.enable=true"
-      # Registry (services network)
-      - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
-      - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
-      - "traefik.http.routers.prometheus-svc.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.prometheus-svc.service=prometheus"
-      # Service definition
-      # - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
+    #  - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
+    #  - "traefik.http.routers.prometheus-svc.tls.certresolver=letsencrypt"
+    #  - "traefik.http.routers.prometheus-svc.service=prometheus"
 
   node-exporter:
     image: quay.io/prometheus/node-exporter:latest
