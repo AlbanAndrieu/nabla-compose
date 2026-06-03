@@ -98,7 +98,7 @@ services:
       # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
       # - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
     env_file:
-      - /mnt/cpool/traefik/.env.secrets      
+      - /mnt/cpool/traefik/.env.secrets
     environment:
       PIHOLE_URL: http://172.17.0.24:20720
       SKIP_TLS_VERIFY: "true"
@@ -117,6 +117,8 @@ services:
       - 8000:8000/tcp
     volumes:
       - /mnt/cpool/traefik/ddns:/updater/data
+    env_file:
+      - /mnt/cpool/traefik/.env.secrets      
     environment:
       - CONFIG=
       - PERIOD=5m
@@ -142,6 +144,40 @@ services:
       - LOG_CALLER=hidden
       - SHOUTRRR_ADDRESSES=
 
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:1
+    # Prefer "1" or "1.x.y" in production.
+    #
+    # - "1" tracks the latest stable release whose major version is 1
+    # - "1.x.y" pins one specific stable version
+    # - "latest" moves to each new stable release and may pick up breaking
+    #   changes in a future major release, so it is not recommended in production
+    # - "edge" tracks the latest unreleased development build
+    network_mode: host
+    # Optional. This bypasses network isolation and makes IPv6 easier.
+    # See "Use IPv6 without sharing the host network".
+    restart: always
+    # Restart the updater after reboot
+    # user: "1000:1000"
+    # Run the updater with specific user and group IDs (in that order).
+    # You can change the two numbers based on your need.
+    read_only: true
+    # Make the container filesystem read-only (optional but recommended)
+    cap_drop: [all]
+    # Drop all Linux capabilities (optional but recommended)
+    security_opt: [no-new-privileges:true]
+    # Another protection to restrict superuser privileges (optional but recommended)
+    env_file:
+      - /mnt/cpool/traefik/.env.secrets    
+    environment:
+      # - CLOUDFLARE_API_TOKEN=cfat_XXX
+        # Your Cloudflare API token
+      - DOMAINS=toto.albandrieu.com,www.toto.albandrieu.com
+        # Your domains (separated by commas)
+      - PROXIED=false
+        # Leaning toward using Cloudflare's proxy for these domains (optional)
+        # Existing DNS records in Cloudflare keep their current proxy statuses
+
   # ddns:
   #   image: timothyjmiller/cloudflare-ddns:latest
   #   container_name: ddns
@@ -153,20 +189,22 @@ services:
   #   volumes:
   #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
-  # dnsupdater:
-  #   image: yfrickx/traefik-cloudflare-updater:latest
-  #   restart: unless-stopped
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   env_file:    
-  #     - /mnt/cpool/traefik/.env.secrets
-  #   environment:
-  #     - TARGET_DOMAIN=albandrieu.com
-  #     - DOMAIN1=albandrieu.com
-  #     - DOMAIN1_ZONE_ID=015XXX
-  #     - DOMAIN2=albanandrieu.com
-  #     - DOMAIN2_ZONE_ID=227XXX
-  #     - EXCLUDED_DOMAINS=static.albandrieu.com,test.albanandrieu.com
+  dnsupdater:
+    # image: yfrickx/traefik-cloudflare-updater:latest
+    image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:latest
+    container_name: dnsupdater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file:    
+      - /mnt/cpool/traefik/.env.secrets
+    environment:
+      - TARGET_DOMAIN=albandrieu.com
+      - DOMAIN1=albandrieu.com
+      # - DOMAIN1_ZONE_ID=015XXX
+      - DOMAIN2=albanandrieu.com
+      # - DOMAIN2_ZONE_ID=227XXX
+      - EXCLUDED_DOMAINS=static.albandrieu.com,test.albanandrieu.com
 
   # traeflare:
   #   image: ghcr.io/m4tt72/traeflare:main

@@ -9,7 +9,7 @@ services:
       - /mnt/cpool/code/.env.secrets
     environment:
       - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
+      - PGID=${PGID:-568}
       - TZ=Europe/Paris
       - PASSWORD=${CODE_PASSWORD}
     volumes:

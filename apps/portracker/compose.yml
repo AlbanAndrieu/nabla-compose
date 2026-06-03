@@ -21,3 +21,5 @@ services:
     environment:
       # Optional: For enhanced TrueNAS features
       - TRUENAS_API_KEY=${TRUENAS_API_KEY}
+      # - ENABLE_AUTH=true
+      # - SESSION_SECRET=your-random-secret-here-change-this
