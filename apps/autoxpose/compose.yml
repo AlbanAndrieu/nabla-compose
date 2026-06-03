@@ -19,17 +19,22 @@ services:
     image: mostafawahied/autoxpose:latest
     container_name: autoxpose
     restart: unless-stopped
+    user: "568:568" # TrueNAS apps user      
     ports:
       - '4949:3000' # host:container
     environment:
+      # - UID=1000
+      # - GID=1000        
       - SERVER_IP=${SERVER_IP:-82.66.4.247} # public IP for DNS records
       - LAN_IP=${LAN_IP:-172.17.0.24} # private IP for proxy targets
       # If using the optional docker-proxy above, set DOCKER_HOST and remove the socket mount:
       # - DOCKER_HOST=tcp://docker-proxy:2375
     volumes:
-      - autoxpose-data:/app/packages/backend/data
+      - /mnt/cpool/autoxpose:/app/packages/backend/data
       # Comment this mount if using docker-proxy
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # depends_on:
+    #   - docker-proxy
 
 volumes:
   autoxpose-data:

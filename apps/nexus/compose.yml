@@ -4,14 +4,15 @@ services:
     container_name: nexus
     image: sonatype/nexus3:3.92.3-alpine # 3.87.1-01
     restart: unless-stopped
-    user: "568:568" # TrueNAS apps user
-    expose: ["8081"]
-
+    user: "1002:1002" # TrueNAS nexus user
+    ports:
+      - "8081:8081"
+      
     volumes:
       - /mnt/cpool/nexus3:/nexus-data
     env_file:
       # - /mnt/cpool/nexus/.env
-      - /mnt/cpool/nexus/.env.secrets
+      - /mnt/cpool/nexus3/.env.secrets
     environment:
       - INSTALL4J_ADD_VM_PARAMS=-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
 
@@ -19,12 +20,12 @@ services:
     labels:
       - "traefik.enable=true"
       # Registry (services network)
-      - "traefik.http.routers.nexus.rule=Host(`nexus.albandrieu.com`)"
+      - "traefik.http.routers.nexus.rule=Host(`nexus.int.albandrieu.com`)"
       - "traefik.http.routers.nexus.entrypoints=websecure"
-      - "traefik.http.routers.nexus.tls.certresolver=cloudflare"
+      - "traefik.http.routers.nexus.tls.certresolver=letsencrypt"
       - "traefik.http.routers.nexus.service=nexus"
       # Service definition
-      - "traefik.http.services.nexus.loadbalancer.server.port=8081"
+      # - "traefik.http.services.nexus.loadbalancer.server.port=8081"
 
 networks:
   traefik_network:
