@@ -14,9 +14,10 @@ services:
       - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
       - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN}
     volumes:
-      - /mnt/tank/Apps/Garage/meta:/var/lib/garage/meta
-      - /mnt/tank/Apps/Garage/data:/var/lib/garage/data
-    expose: ["3900", "3903"]
+      - /mnt/cpool/garage/meta:/var/lib/garage/meta
+      - /mnt/cpool/garage/data:/var/lib/garage/data
+    ports:
+      - "3900:3900"
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
@@ -40,7 +41,8 @@ services:
     configs:
       - source: garage_config
         target: /etc/garage.toml
-    expose: ["3909"]
+    ports:
+      - "3909:3909"
     environment:
       API_BASE_URL: "http://garage:3903"
       API_ADMIN_KEY: ${GARAGE_ADMIN_TOKEN}
