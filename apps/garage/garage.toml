@@ -19,13 +19,13 @@ compression_level = 3
 
 # ===== RPC CONFIGURATION =====
 rpc_bind_addr = "[::]:3901"
-rpc_public_addr = "garage:3901"
+rpc_public_addr = "172.17.0.24:3901"
 
 # ===== S3 API CONFIGURATION =====
 [s3_api]
 s3_region = "us-east-1"
 api_bind_addr = "[::]:3900"
-root_domain = ".s3.albandrieu.com"
+root_domain = ".s3.int.albandrieu.com"
 
 # ===== ADMIN API =====
 [admin]
