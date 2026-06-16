@@ -18,6 +18,7 @@ regexes = [
     '''#nosec''',
     '''allow:gitleaks''',
     '''password-reset-XXX''',
+    '''123456789abcdef''',
     ]
 paths = [
     '''gitleaks.toml''',

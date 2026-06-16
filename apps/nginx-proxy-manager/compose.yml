@@ -1,0 +1,13 @@
+services:
+  app:
+    image: "jc21/nginx-proxy-manager:2.15.0"
+    restart: unless-stopped
+    environment:
+      TZ: "Europe/Paris"
+    ports:
+      - "30020:80"
+      - "30021:81"
+      - "30022:443"
+    volumes:
+      - /mnt/cpool/npm/:/data
+      - ./letsencrypt:/etc/letsencrypt

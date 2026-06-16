@@ -7,8 +7,8 @@ remote_state {
   }
 
   config = {
-    endpoints                   = { s3 = "https://s3.nas.svc.h.albandrieu.com" }
-    bucket                      = "tfstate-truenas-apps"
+    endpoints                   = { s3 = "https://s3.albandrieu.com" }
+    bucket                      = "tfstate-nabla-compose"
     key                         = "${replace(path_relative_to_include(), "infrastructure/", "")}/tfstate.json"
     region                      = "us-east-1"
     use_lockfile                = true

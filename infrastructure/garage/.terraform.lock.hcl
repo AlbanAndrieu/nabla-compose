@@ -1,0 +1,41 @@
+# This file is maintained automatically by "tofu init".
+# Manual edits may be lost in future updates.
+
+provider "registry.opentofu.org/1password/onepassword" {
+  version     = "3.2.1"
+  constraints = "3.2.1"
+  hashes = [
+    "h1:hZrcwOpBicojsJA33Iv5ZvY/3rB4pf9WAuwrRWE4W5k=",
+    "zh:56c142b07295608de4ef2b7915684578b384bc2b47519c6811e93184945cd161",
+    "zh:785b52b0c7055deb249843063327bb25cbc952fb560681d2a84c4e32283a6eae",
+    "zh:8622fa665dabeb753443a5bb8495857e65827c5ac24bc002cfcb15213712b141",
+    "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
+    "zh:b40068bfcff2b5cccd219852fcb9dc45594cad5df2bca41b1f95473e5d9d0d68",
+    "zh:d2d0191eccb20dbab553d7faabcd6fc34568aa9532264b6ecd71d7211752f21b",
+    "zh:d7073f3d2e84fc6051915c390b7ca580d7cfa8647caa116cf295e9d43dbb2fac",
+    "zh:dae5b257dd8b3ced1318ecf6cb730326deb85b538c46da5d378771281c3621d3",
+  ]
+}
+
+provider "registry.terraform.io/jkossis/garage" {
+  version     = "1.0.4"
+  constraints = "1.0.4"
+  hashes = [
+    "h1:tghO0vrj58elQmk9fMiEEh4LN+ydl919jCG93wqnHPw=",
+    "zh:13dfcdad73b71b951b12db99d8929d4195ce3df196be84758de22482e507939f",
+    "zh:2f07fa62d89f48f41a5e706605b41942dbb48b544b633498e535608b13c9a4d5",
+    "zh:3ee15e436d51fbbf8c2f86f4dbec038f26c62537e2cf912594b716a3fdb5c6d5",
+    "zh:57e275aa1edc3366baaada9dc234936b1d4528a8c3961a6889291455c42e4a2f",
+    "zh:65ee5620f4128ebf1908187183c29704970065fccf770d54f1af25da9096bc1b",
+    "zh:6c8d31704c0b41fc695d67e940ed5179558e03bf4949d299c58c196c84b13cc5",
+    "zh:874bd6f1acedda982de1bbdb0e80fd8ef3897a0bf8762cba7513c9f1da2174f2",
+    "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
+    "zh:97b0bd7daf5bbbcd44e683be355a6e88a8981692089a523875fc0e4084ad3372",
+    "zh:97c5b950c0e8797d791acd2271f18f35b3fd02b075c50e78bae682f0a8773e61",
+    "zh:b47803de22642123e8d956ceef4e2f82e6d7f2f0510287108255dfd3e43c612c",
+    "zh:b69501804c4d0ca69952180b430597e401a5e774a350f539b90576cd3eb2ef69",
+    "zh:dc609ac332c161500a683f78892b588405619c1b5235c1043e35db9ed3d6a619",
+    "zh:e120dcfb37ef988273934676ca11ca545b1535843e4e87ba3c187315fb8aced8",
+    "zh:f8303c72c46069efa36d443da25567cad5248fc31d74ac37f78a7350f85abdd2",
+  ]
+}

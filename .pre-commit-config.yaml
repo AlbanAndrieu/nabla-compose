@@ -192,7 +192,7 @@ repos:
     -   id: pyupgrade
         name: "🐍 python · Py Upgrade"
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.15
+    rev: v0.15.17
     hooks:
     -   id: ruff-format
         name: "🐍 python · Format with Ruff"
@@ -222,7 +222,7 @@ repos:
     # This helps ensure cross-compatibility with people who don't wish to use uv
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.11.18
+    rev: 0.11.21
     hooks:
     -   id: uv-sync
         name: "⚡️ uv · Sync dependencies with uv"
@@ -306,7 +306,7 @@ repos:
 
     ### SQL ###
 -   repo: https://github.com/sqlfluff/sqlfluff
-    rev: 4.2.1
+    rev: 4.2.2
     hooks:
     -   id: sqlfluff-fix
         name: "📊 SQL · Attempts to fix rule violations."
@@ -358,7 +358,7 @@ repos:
 
     ### Javascript & Web Tools ###
 -   repo: https://github.com/biomejs/pre-commit
-    rev: "v2.4.16"
+    rev: "v2.5.0"
     hooks:
     -   id: biome-check
         name: "🟨 javascript · Lint, format, and safe fixes with Biome"
@@ -427,7 +427,7 @@ repos:
 
     ### Data & Config Validation ###
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.2
+    rev: 0.37.3
     hooks:
     -   id: check-github-workflows
         name: "🧩 github-actions · Validate gh workflow files"
