@@ -21,7 +21,7 @@ include:
   # - path: pgwatch/docker/compose.pgadmin.yml
   - path: compose.redis.yml
   - path: compose.clickhouse.yml
-  - path: compose.ntopng.yml
+  # - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
   - path: compose.tool.yml
   # - path: compose.prowler.yml # TODO, consuming too much ressources

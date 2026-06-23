@@ -38,7 +38,7 @@ services:
         "--interface",
         "tcp://*:5556c",
         "-w",
-        "4000",
+        "4000", # WARNING port 4000 is alos used by litellm
         "-F",
         "clickhouse",
         "--disable-login",
