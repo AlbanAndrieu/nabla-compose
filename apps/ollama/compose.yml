@@ -1,0 +1,24 @@
+---
+services:
+  code-server:
+    image: lscr.io/ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # env_file:
+    #   - /mnt/cpool/ollama/.env
+    #   - /mnt/cpool/ollama/.env.secrets
+    environment:
+      - TZ=Europe/Paris
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_MAX_LOADED_MODELS=1
+    volumes:
+      - /mnt/cpool/ollama/:/root/.ollama
+    ports:
+      - 30068:30068
+    # security_opt:
+    #   - apparmor=unconfined
+
+# with CPU 8
+# memory 32768
+# GPU  Passthrough available (non-NVIDIA) GPUs

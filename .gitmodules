@@ -25,3 +25,6 @@
 [submodule "sentry"]
 	path = sentry
 	url = git@github.com:AlbanAndrieu/sentry.git
+[submodule "pgwatch"]
+	path = pgwatch
+	url = https://github.com/AlbanAndrieu/pgwatch
