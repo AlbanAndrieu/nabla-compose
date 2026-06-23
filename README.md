@@ -1,7 +1,7 @@
 ```bash
 git submodule add -f git@github.com:AlbanAndrieu/my-temporal-dockercompose.git temporal
-git submodule add -f https://github.com/cybertec-postgresql/pgwatch pgwatch
-git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
+git submodule add -f https://github.com/AlbanAndrieu/pgwatch pgwatch
+# git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
 git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive
 git submodule add -f git@github.com:stanfrbd/cyberbro.git
 # https://github.com/getsentry/self-hosted.git

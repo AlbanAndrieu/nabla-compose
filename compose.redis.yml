@@ -5,7 +5,7 @@ services:
     image: redis:7-alpine
     # image: registry.community.greenbone.net/community/redis-server
     container_name: redis
-    restart: on-failure
+    restart: unless-stopped
     volumes:
       - redis_socket_vol:/run/redis/
     # Unix socket only (port 0); required for depends_on condition: service_healthy (e.g. Prowler).
