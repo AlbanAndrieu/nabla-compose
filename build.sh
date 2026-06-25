@@ -59,11 +59,13 @@ if [ "$HOSTNAME" = albandrieu ]; then
 
   docker compose -f docker-compose-${HOSTNAME}.yml pull --ignore-pull-failures
   # DOCKER_BUILDKIT=1 docker compose pull 2>&1|  tee pull.log
+  
+  docker compose -f apps/openclaw/compose.yml up -d --build
 
   docker pull registry.community.greenbone.net/community/gsa:stable
   docker pull registry.community.greenbone.net/community/openvas-scanner:stable
 
-  echo "docker compose --env-file .env --env-file .env.secrets -f compose.monitoring.yml  up --pull=never --no-build -d"
+  echo "docker compose --env-file .env --env-file .env.secrets -f compose.monitoring.yml up --pull=never --no-build -d"
   echo "docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up --pull=never --no-build -d --force-recreate --remove-orphans"
 
   # docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up --pull=never --no-build -d

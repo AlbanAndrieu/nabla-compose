@@ -1,0 +1,19 @@
+---
+services:
+  openclaw-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openclaw-sandbox:bookworm-slim
+    container_name: openclaw-sandbox
+    restart: unless-stopped
+
+    volumes:
+      - /home/albandrieu/.openclaw/workspace/skills:/workspace/skills
+      - /home/albandrieu/.config/vdirsyncer:/home/sandbox/.config/vdirsyncer:ro
+      - /home/albandrieu/.vdirsyncer:/home/sandbox/.vdirsyncer
+      - /home/albandrieu/.config/khal:/home/sandbox/.config/khal:ro
+      - /home/albandrieu/.calendars:/home/sandbox/.calendars
+
+    working_dir: /home/sandbox
+    command: sleep infinity
