@@ -15,11 +15,11 @@ services:
     ports:
       - "4000:4000"
     env_file:
-      - /mnt/cpool/litellm/.env.secrets      
+      - /mnt/cpool/litellm/.env.secrets
     environment:
       # - LITELLM_MASTER_KEY=sk_XXX
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
-      - UI_USERNAME=nabla 
+      # - UI_USERNAME=nabla 
       # - UI_PASSWORD=XXX 
       - STORE_MODEL_IN_DB="True" # allows adding models to proxy via UI
 

@@ -7,6 +7,7 @@ services:
   garage:
     container_name: garage
     image: dxflrs/garage:v2.3.0
+    restart: unless-stopped
     configs:
       - source: garage_config
         target: /etc/garage.toml
@@ -20,7 +21,8 @@ services:
       - /mnt/cpool/garage/data:/var/lib/garage/data
     ports:
       - "3900:3900"
-      - "3903:3903" # admin API
+      - "3901:3901"   # RPC Garage obligatoire
+      - "3903:3903"   # Admin API      
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"

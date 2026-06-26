@@ -30,3 +30,4 @@ root_domain = ".s3.int.albandrieu.com"
 # ===== ADMIN API =====
 [admin]
 api_bind_addr = "[::]:3903"
+# admin_token = "55XX"
