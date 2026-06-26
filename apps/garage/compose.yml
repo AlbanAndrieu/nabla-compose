@@ -19,6 +19,7 @@ services:
     volumes:
       - /mnt/cpool/garage/meta:/var/lib/garage/meta
       - /mnt/cpool/garage/data:/var/lib/garage/data
+      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro      
     ports:
       - "3900:3900"
       - "3901:3901"   # RPC Garage obligatoire
@@ -39,7 +40,7 @@ services:
       - "traefik.http.routers.garage-admin.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-admin.service=garage-admin"
       - "traefik.http.services.garage-admin.loadbalancer.server.scheme=http"      
-      # - "traefik.http.services.garage-admin.loadbalancer.server.port=3903"
+      - "traefik.http.services.garage-admin.loadbalancer.server.port=3903"
 
   webui:
     container_name: garage-webui
@@ -50,13 +51,13 @@ services:
         target: /etc/garage.toml
     ports:
       - "3909:3909"
-    env_file:
-      - /mnt/cpool/garage/.env.secrets
+    volumes:
+      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro           
     environment:
       API_BASE_URL: "http://172.17.0.24:3903"
-      API_ADMIN_KEY: ${GARAGE_ADMIN_TOKEN}
+      API_ADMIN_KEY: "${GARAGE_ADMIN_TOKEN}"
       S3_ENDPOINT_URL: "http://172.17.0.24:3900"
-      AUTH_USER_PASS: ${GARAGE_WEBUI_ADMIN_PASS}
+      # AUTH_USER_PASS: "${GARAGE_WEBUI_ADMIN_PASS}"
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
