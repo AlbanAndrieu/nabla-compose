@@ -6,16 +6,15 @@ services:
     restart: unless-stopped
     # user: "568:568" # TrueNAS apps user        
     volumes:
-      # - /mnt/cpool/litellm/:/app/
-      - /mnt/cpool/litellm/config.yaml:/app/config.yaml
+      - ./config.yaml:/app/config.yaml
+      # - /mnt/cpool/litellm/config.yaml:/app/config.yaml
     command:
       - "--config=/app/config.yaml"
-      # - "--port=4000"
       - "--detailed_debug"  
     ports:
       - "4000:4000"
-    env_file:
-      - /mnt/cpool/litellm/.env.secrets
+    # env_file:
+    #  - /mnt/cpool/litellm/.env.secrets
     environment:
       # - LITELLM_MASTER_KEY=sk_XXX
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
