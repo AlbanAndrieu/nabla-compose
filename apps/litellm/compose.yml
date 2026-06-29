@@ -12,14 +12,16 @@ services:
       - "--config=/app/config.yaml"
       - "--detailed_debug"  
     ports:
-      - "4000:4000"
-    # env_file:
+      - "4000:4000"    
+    env_file:
+      - .env
     #  - /mnt/cpool/litellm/.env.secrets
     environment:
       # - LITELLM_MASTER_KEY=sk_XXX
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
       # - UI_USERNAME=nabla 
-      # - UI_PASSWORD=XXX 
+      # - UI_PASSWORD=XXX
+      # - REDIS_URL=redis://:XXX@172.17.0.24:30059
       - STORE_MODEL_IN_DB="True" # allows adding models to proxy via UI
 
     healthcheck: # Defines the health check configuration for the container

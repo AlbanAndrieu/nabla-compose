@@ -1,4 +1,8 @@
 ---
+secrets:
+  litellm_api_key:
+    file: ./secrets/litellm_api_key
+
 services:
   prometheus:
     image: prom/prometheus:${PROMETHEUS_IMG:-latest}
@@ -14,11 +18,14 @@ services:
       - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090" # 30104
+    secrets:
+      - source: litellm_api_key
+        target: litellm_api_key
+        mode: 0444
     volumes:
-      # - type: bind
-      #   source: ../../temporal/deployment/prometheus/config.yml
-      #   target: /etc/prometheus/prometheus.yml
-      - /mnt/cpool/prometheus/config:/etc/prometheus
+      - type: bind
+        source: ./prometheus.yml
+        target: /etc/prometheus/prometheus.yml
       - /mnt/cpool/prometheus/data:/prometheus
     networks: ["traefik_network"]
     #labels:
