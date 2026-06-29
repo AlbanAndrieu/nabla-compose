@@ -28,3 +28,6 @@
 [submodule "pgwatch"]
 	path = pgwatch
 	url = https://github.com/AlbanAndrieu/pgwatch
+[submodule "langfuse"]
+	path = langfuse
+	url = git@github.com:AlbanAndrieu/langfuse.git

@@ -17,6 +17,9 @@ opentofu = "latest"
 op = "latest"
 # terraform = "latest"
 terragrunt = "0.97.0"
+sops = "latest"
+docker-compose = "latest"
+1password = "latest"
 
 [env]
 # Utiliser le nom du projet dérivé du répertoire courant

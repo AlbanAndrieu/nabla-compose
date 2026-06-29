@@ -1,7 +1,0 @@
-[tools]
-task = "latest"
-yamlfmt = "latest"
-actionlint = "latest"
-opentofu = "latest"
-op = "latest"
-terragrunt = "0.97.0"
