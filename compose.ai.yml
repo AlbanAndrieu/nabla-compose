@@ -15,8 +15,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - intranet  
-      
+      - intranet
+
   # https://localai.io/installation/docker/
   # See https://localai.io/basics/getting_started/
   # cd ~/w/follow/LocalAGI

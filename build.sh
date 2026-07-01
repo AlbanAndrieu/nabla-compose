@@ -59,7 +59,7 @@ if [ "$HOSTNAME" = albandrieu ]; then
 
   docker compose -f docker-compose-${HOSTNAME}.yml pull --ignore-pull-failures
   # DOCKER_BUILDKIT=1 docker compose pull 2>&1|  tee pull.log
-  
+
   docker compose -f apps/openclaw/compose.yml up -d --build
 
   docker pull registry.community.greenbone.net/community/gsa:stable

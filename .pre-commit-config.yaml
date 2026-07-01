@@ -184,74 +184,8 @@ repos:
     -   id: add-trailing-comma
         name: "🤖 comma · Add trailing comma"
 
-    # --------------------------- 🔍 Code Quality Tools -------------------------- #
-
-    ### Python Tools ###
--   repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.2
-    hooks:
-    -   id: pyupgrade
-        name: "🐍 python · Py Upgrade"
--   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.17
-    hooks:
-    -   id: ruff-format
-        name: "🐍 python · Format with Ruff"
-
-    -   id: ruff
-        name: "🐍 python · Lint and perform unsafe auto-fixes with Ruff"
-        args: [--unsafe-fixes]
-
-    -   id: ruff-check
-        name: "🐍 python · Check with Ruff"
-        args: [--fix]
-
-    # - repo: https://github.com/RobertCraigie/pyright-python
-    #   rev: v1.1.406
-    #   hooks:
-    #     - id: pyright
-    #       name: "🐍 python · Check types"
-
--   repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.25
-    hooks:
-    -   id: validate-pyproject
-        name: "🐍 python · Validate pyproject.toml"
-        additional_dependencies: ["validate-pyproject-schema-store[all]"]
-
     # ----------------------------- ⚡️ uv Build Tools ---------------------------- #
     # This helps ensure cross-compatibility with people who don't wish to use uv
--   repo: https://github.com/astral-sh/uv-pre-commit
-    # uv version.
-    rev: 0.11.21
-    hooks:
-    -   id: uv-sync
-        name: "⚡️ uv · Sync dependencies with uv"
-    -   id: uv-lock
-        name: "⚡️ uv · Update dependency lockfile"
-    -   id: uv-lock
-        name: "⚡️ uv · Upgrade via uv sync --upgrade"
-        alias: deps
-        args: ["--upgrade"]
-        stages: [manual]
-    -   id: uv-export
-        name: "⚡️ uv · Export dependencies to requirements.txt"
-        args:
-        -   "--no-dev"
-        -   "--no-emit-package"
-        -   ansible-core
-        -   "--no-emit-package"
-        -   resolvelib
-        -   "--no-emit-package"
-        -   ruamel-yaml-clib
-        -   "--no-emit-package"
-        -   tomli
-        -   "--no-emit-package"
-        -   typing-extensions
-        -   "--no-emit-project"
-        -   "--no-hashes"
-        -   "-o"
-        -   ".config/requirements-lock.txt"
 
     ### Shell ###
 -   repo: https://github.com/scop/pre-commit-shfmt
@@ -359,7 +293,7 @@ repos:
 
     ### Javascript & Web Tools ###
 -   repo: https://github.com/biomejs/pre-commit
-    rev: "v2.5.0"
+    rev: "v2.5.1"
     hooks:
     -   id: biome-check
         name: "🟨 javascript · Lint, format, and safe fixes with Biome"
@@ -428,7 +362,7 @@ repos:
 
     ### Data & Config Validation ###
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.3
+    rev: 0.37.4
     hooks:
     -   id: check-github-workflows
         name: "🧩 github-actions · Validate gh workflow files"

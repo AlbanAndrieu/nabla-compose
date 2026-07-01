@@ -22,5 +22,5 @@ services:
       # - "traefik.http.routers.drawio.tls.certresolver=cloudflare"
       - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
       - "traefik.http.routers.drawio.service=drawio"
-      - "traefik.http.services.drawio.loadbalancer.server.scheme=http"      
+      - "traefik.http.services.drawio.loadbalancer.server.scheme=http"
       # - "traefik.http.services.drawio.loadbalancer.server.port=9443"

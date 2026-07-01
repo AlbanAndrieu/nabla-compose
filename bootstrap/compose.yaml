@@ -9,7 +9,7 @@ configs:
 secrets:
   1pw_token:
     file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
-    
+
 volumes:
   data: {}
 
@@ -36,7 +36,7 @@ services:
       # SECRET_PROVIDER_ACCESS_TOKEN_FILE: /run/secrets/1pw_token
       SECRET_PROVIDER_CONNECT_HOST: http://172.17.0.24:8097
       SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN}
-      
+
     healthcheck:
       test: [CMD, /doco-cd, healthcheck]
       start_period: 15s

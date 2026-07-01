@@ -8,7 +8,7 @@ services:
     build:
       context: ./sentry/clickhouse
       args:
-        BASE_IMAGE: "altinity/clickhouse-server:25.3.6.10034.altinitystable"
+        BASE_IMAGE: "altinity/clickhouse-server:25.3.6.10034.altinitystable" # clickhouse 26.x has issue with langfuse keep using 25.8
     restart: unless-stopped
     pull_policy: never
     ulimits:

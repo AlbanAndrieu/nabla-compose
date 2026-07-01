@@ -14,6 +14,7 @@ model_list:
       request_timeout: 900
       temperature: 0
       num_ctx: 4096
+
   # open commit model
   #- model_name: llama3.1
   #  litellm_params:
@@ -21,18 +22,21 @@ model_list:
   #    api_base: "http://172.17.0.24:30068"
   #    request_timeout: 900
   #    num_ctx: 2048
+
   - model_name: llama3.8b
     litellm_params:
       model: "ollama_chat/llama3:8b"
       api_base: "http://172.17.0.24:30068"
       request_timeout: 900
       num_ctx: 2048
+
   - model_name: deepseek-coder-v2
     litellm_params:
       model: "ollama/deepseek-coder-v2:16b-lite-base-q2_K"
       api_base: "http://172.17.0.24:30068"
       request_timeout: 300
       num_ctx: 2048
+
   - model_name: gemma3
     litellm_params:
       model: "ollama_chat/gemma3"
@@ -40,6 +44,33 @@ model_list:
       request_timeout: 900
       num_ctx: 2048
       keep_alive: "30m"
+
+  # - model_name: qwen
+  #   litellm_params:
+  #     model: ollama_chat/qwen3.5:2b
+  #     api_base: http://ollama:11434
+  #     num_ctx: 4096
+  #     temperature: 1.0
+  #     top_p: 0.95
+  #     extra_body:
+  #       top_k: 20
+  #       presence_penalty: 1.5
+
+  # texte only
+  - model_name: qwen
+    litellm_params:
+      model: ollama_chat/qwen3:4b
+      api_base: http://ollama:11434
+      extra_body:
+        num_ctx: 4096
+        temperature: 0.6
+        top_p: 0.9
+        repeat_penalty: 1.1
+        num_predict: 1024
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
   # reactive resume
   - model_name: rr-json
     litellm_params:
@@ -72,8 +103,8 @@ litellm_settings:
     host: redis
     port: 6379
   request_timeout: 600
-  num_retries: 2
-  stream: true
+  num_retries: 1
+  # stream: true
   drop_params: true
   # set_verbose: true
   callbacks: ["prometheus"]

@@ -23,7 +23,7 @@ services:
       # - OLLAMA_API_KEY=XXX
     volumes:
       - /mnt/cpool/ollama/:/root/.ollama
-      - /mnt/cpool/model/ollama/:/mnt/cpool/model/ollama/   
+      - /mnt/cpool/model/ollama/:/mnt/cpool/model/ollama/
     ports:
       - 30068:30068
     # security_opt:

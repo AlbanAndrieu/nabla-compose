@@ -19,11 +19,11 @@ services:
     volumes:
       - /mnt/cpool/garage/meta:/var/lib/garage/meta
       - /mnt/cpool/garage/data:/var/lib/garage/data
-      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro      
+      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     ports:
       - "3900:3900"
       - "3901:3901"   # RPC Garage obligatoire
-      - "3903:3903"   # Admin API      
+      - "3903:3903"   # Admin API
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
@@ -32,14 +32,14 @@ services:
       - "traefik.http.routers.garage-s3.entrypoints=websecure"
       - "traefik.http.routers.garage-s3.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-s3.service=garage-s3"
-      - "traefik.http.services.garage-s3.loadbalancer.server.scheme=http"         
+      - "traefik.http.services.garage-s3.loadbalancer.server.scheme=http"
       # - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
       # Admin API
       - "traefik.http.routers.garage-admin.rule=Host(`garage-admin.int.albandrieu.com`)"
       - "traefik.http.routers.garage-admin.entrypoints=websecure"
       - "traefik.http.routers.garage-admin.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-admin.service=garage-admin"
-      - "traefik.http.services.garage-admin.loadbalancer.server.scheme=http"      
+      - "traefik.http.services.garage-admin.loadbalancer.server.scheme=http"
       - "traefik.http.services.garage-admin.loadbalancer.server.port=3903"
 
   webui:
@@ -52,7 +52,7 @@ services:
     ports:
       - "3909:3909"
     volumes:
-      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro           
+      - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     environment:
       API_BASE_URL: "http://172.17.0.24:3903"
       API_ADMIN_KEY: "${GARAGE_ADMIN_TOKEN}"
@@ -65,7 +65,7 @@ services:
       - "traefik.http.routers.garage-webui.entrypoints=websecure"
       - "traefik.http.routers.garage-webui.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-webui.service=garage-webui"
-      - "traefik.http.services.garage-webui.loadbalancer.server.scheme=http"           
+      - "traefik.http.services.garage-webui.loadbalancer.server.scheme=http"
       # - "traefik.http.services.garage-webui.loadbalancer.server.port=3909"
 
 networks:

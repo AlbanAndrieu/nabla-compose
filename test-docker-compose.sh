@@ -1,8 +1,9 @@
-#!/bin/bash
-# Test script for Docker Compose setup
-# Usage: ./test-docker-compose.sh
+#!/usr/bin/env bash
+# shellcheck shell=bash
 
-set -e
+set -euo pipefail
+
+# Test script for Docker Compose setup
 
 echo "======================================"
 echo "Docker Compose Validation Test"

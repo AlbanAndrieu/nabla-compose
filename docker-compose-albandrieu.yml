@@ -6,7 +6,7 @@ configs:
         reference: main
         interval: 3600
 
-# https://doco.cd/latest/External-Secrets/  
+# https://doco.cd/latest/External-Secrets/
 secrets:
   1pw_token:
     file: /root/.doco-cd/1pw_token
@@ -34,7 +34,10 @@ include:
   # - path: temporal/compose-services.yml
   # - path: openvas/docker-compose-openvas.yml
   # - path: compose.fixinventory.yaml
-
+  # - path:
+  #     - langfuse/docker-compose.yml
+  #     - docker-compose-langfuse.override.yml
+            
 # BELOW use systemd
 # - path: reactive/compose.yml
 # - path: litellm/compose.yml

@@ -1,0 +1,86 @@
+---
+services:
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.10.2 # latest or main
+    container_name: open-webui
+    restart: unless-stopped
+    volumes:
+      - open-webui:/app/backend/data
+      - ./data:/app/backend/data/import:ro      
+    depends_on:
+      - ollama
+    ports:
+      - ${OPEN_WEBUI_PORT-31028}:8080
+    environment:
+      - TZ=Europe/Paris
+      - DEFAULT_LOCALE=en-US
+      # - OLLAMA_BASE_URL=http://ollama:${OLLAMA_PORT:-11434}
+      # - OLLAMA_BASE_URLS=http://ollama:${OLLAMA_PORT:-11434}
+      - OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - ENABLE_OPENAI_API=true
+      - ENABLE_OLLAMA_API=false # To use litellm
+      - ENABLE_API_KEY=true
+      - ENABLE_API_KEY_AUTH=true
+      - DEFAULT_MODELS=qwen # qwen3.5:2b
+      - DEFAULT_PINNED_MODELS=qwen # qwen3.5:2b
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - WEBUI_ADMIN_NAME=${WEBUI_ADMIN_NAME:-Nabla}
+      - WEBUI_ADMIN_EMAIL=${WEBUI_ADMIN_EMAIL:-alban.andrieu@free.fr}
+      - WEBUI_ADMIN_PASSWORD=${WEBUI_ADMIN_PASSWORD:-ChooseAVeryStrongPassword}
+      - ENABLE_DIRECT_CONNECTIONS=false
+      - ENABLE_SIGNUP=false
+      - ENABLE_ADMIN_EXPORT=false
+      - ENABLE_COMMUNITY_SHARING=false
+      - ENABLE_PERSISTENT_CONFIG=false
+      - ENABLE_DIRECT_CONNECTIONS=false
+      - ENABLE_FORWARD_USER_INFO_HEADERS=true
+      # - RAG_EMBEDDING_ENGINE=sentence_transformers
+      # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2     
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_EMBEDDING_MODEL=embedding
+      - RAG_OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - ENV=dev
+      - WEBUI_NAME=Nabla
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: pipelines
+    restart: unless-stopped
+    volumes:
+      - pipelines:/app/pipelines
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 9099:9099
+    # depends_on:
+    #   - langfuse-web
+
+  # See https://github.com/open-webui/oikb
+  # oikb:
+  #   image: ghcr.io/open-webui/oikb:latest
+  #   environment:
+  #     - OPEN_WEBUI_URL=http://open-webui:8080
+  #     - OPEN_WEBUI_API_KEY=${OPEN_WEBUI_API_KEY}
+  #     - OIKB_API_KEY=${OIKB_API_KEY}
+  #     - LOG_FORMAT=json
+  #   volumes:
+  #     - ./.oikb.yaml:/app/.oikb.yaml:ro
+  #   command: daemon
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - open-webui
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+  #     interval: 30s
+  #     timeout: 5s
+      
+volumes:
+  open-webui: {}
+  pipelines: {}

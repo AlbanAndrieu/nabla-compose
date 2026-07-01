@@ -3,7 +3,7 @@ services:
   nginx:
     image: nginx:1-alpine
     container_name: nginx
-    restart: unless-stopped    
+    restart: unless-stopped
     environment:
       UID: 1000
       GID: 1000
@@ -31,8 +31,8 @@ services:
       - "traefik.http.routers.hello.entrypoints=websecure"
       - "traefik.http.routers.hello.tls.certresolver=letsencrypt"
       - "traefik.http.routers.hello.service=hello"
-      - "traefik.http.services.hello.loadbalancer.server.scheme=http"      
-    networks: ["traefik_network"]      
+      - "traefik.http.services.hello.loadbalancer.server.scheme=http"
+    networks: ["traefik_network"]
 
 networks:
   traefik_network:

@@ -45,7 +45,7 @@ services:
       - SYS_TIME
       # Optional, if Pi-hole should get some more processing time
       - SYS_NICE
-      
+
 #   unbound:
 #     image: mvance/unbound-rpi:1.13.0
 #     hostname: unbound

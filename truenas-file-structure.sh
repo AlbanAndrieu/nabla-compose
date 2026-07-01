@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+
+set -euo pipefail
 
 # See https://raw.githubusercontent.com/serversathome/ServersatHome/refs/heads/main/truenas-file-structure.sh
 

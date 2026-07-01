@@ -12,4 +12,3 @@ formatter:
   disable_alias_key_correction: true
   scan_folded_as_literal: true
   trim_trailing_whitespace: true
-

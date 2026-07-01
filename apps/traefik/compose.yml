@@ -8,7 +8,7 @@ services:
       - /mnt/cpool/traefik/.env
       - /mnt/cpool/traefik/.env.secrets
     environment:
-      - TZ=Europe/Paris 
+      - TZ=Europe/Paris
     security_opt:
       - no-new-privileges:true
 
@@ -67,15 +67,15 @@ services:
       - "--metrics.prometheus.addserviceslabels=true"
 
     ports:
-      - "80:80" # Traefik 
-      - "443:443" # Traefik    
+      - "80:80" # Traefik
+      - "443:443" # Traefik
       - "8080:8080"
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/localtime:/etc/localtime:ro
-      - /mnt/cpool/traefik/:/etc/traefik/  
-      # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro     
+      - /mnt/cpool/traefik/:/etc/traefik/
+      # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro
 
     networks: ["traefik_network"]
     labels:
@@ -111,14 +111,14 @@ services:
   ddns-updater:
     image: ghcr.io/qdm12/ddns-updater
     container_name: ddns-updater
-    restart: unless-stopped    
+    restart: unless-stopped
     network_mode: bridge
     ports:
       - 8000:8000/tcp
     volumes:
       - /mnt/cpool/traefik/ddns:/updater/data
     env_file:
-      - /mnt/cpool/traefik/.env.secrets      
+      - /mnt/cpool/traefik/.env.secrets
     environment:
       - CONFIG=
       - PERIOD=5m
@@ -168,7 +168,7 @@ services:
     security_opt: [no-new-privileges:true]
     # Another protection to restrict superuser privileges (optional but recommended)
     env_file:
-      - /mnt/cpool/traefik/.env.secrets    
+      - /mnt/cpool/traefik/.env.secrets
     environment:
       # - CLOUDFLARE_API_TOKEN=cfat_XXX
         # Your Cloudflare API token
@@ -181,7 +181,7 @@ services:
   # ddns:
   #   image: timothyjmiller/cloudflare-ddns:latest
   #   container_name: ddns
-  #   restart: unless-stopped    
+  #   restart: unless-stopped
   #   # network_mode: 'host'
   #   environment:
   #     - PUID=1000
@@ -196,7 +196,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    env_file:    
+    env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
       - TARGET_DOMAIN=albandrieu.com
@@ -209,7 +209,7 @@ services:
   # traeflare:
   #   image: ghcr.io/m4tt72/traeflare:main
   #   container_name: traeflare
-  #   env_file:    
+  #   env_file:
   #     - /mnt/cpool/traefik/.env.secrets
   #   environment:
   #     - TRAEFIK_API_URL=http://172.17.0.24:8080
@@ -224,8 +224,8 @@ networks:
     name: traefik_network
     # driver: bridge
     external: true
-  ix-dozzle_default: 
-    external: true 
+  ix-dozzle_default:
+    external: true
 
 volumes:
   acme: {}

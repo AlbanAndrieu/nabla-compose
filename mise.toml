@@ -26,7 +26,7 @@ docker-compose = "latest"
 PROJECT_NAME = "{{ config_root | basename }}"
 
 # Database connection (must be set in environment or mise.local.toml)
-DATABASE_URL = { required = "Set DATABASE_URL to your PostgreSQL connection string (e.g., postgres://user:pass@localhost/dbname)" } #nosec allow:gitleaks
+# DATABASE_URL = { required = "Set DATABASE_URL to your PostgreSQL connection string (e.g., postgres://user:pass@localhost/dbname)" } #nosec allow:gitleaks
 
 # Feature flags (must be explicitly configured)
 # ENABLE_BETA_FEATURES = { required = true }

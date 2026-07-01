@@ -29,4 +29,3 @@ scrape_configs:
     authorization:
       type: Bearer
       credentials_file: /run/secrets/litellm_api_key
-      
