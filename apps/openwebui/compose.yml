@@ -5,8 +5,9 @@ services:
     container_name: open-webui
     restart: unless-stopped
     volumes:
-      - open-webui:/app/backend/data
-      - ./data:/app/backend/data/import:ro
+      # - open-webui:/app/backend/data
+      - /mnt/cpool/openwebui/data:/app/backend/data
+      # - ./data:/app/backend/data/import:ro
     depends_on:
       - ollama
     ports:
@@ -16,7 +17,7 @@ services:
       - DEFAULT_LOCALE=en-US
       # - OLLAMA_BASE_URL=http://ollama:${OLLAMA_PORT:-11434}
       # - OLLAMA_BASE_URLS=http://ollama:${OLLAMA_PORT:-11434}
-      - OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
       - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENABLE_OPENAI_API=true
       - ENABLE_OLLAMA_API=false # To use litellm
@@ -39,7 +40,7 @@ services:
       # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_EMBEDDING_MODEL=embedding
-      - RAG_OPENAI_API_BASE_URL=http://litellm:4000/v1
+      - RAG_OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
       - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
@@ -81,5 +82,5 @@ services:
   #     timeout: 5s
 
 volumes:
-  open-webui: {}
+  # open-webui: {}
   pipelines: {}
