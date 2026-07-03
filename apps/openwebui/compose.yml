@@ -1,13 +1,12 @@
 ---
 services:
-
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.10.2 # latest or main
     container_name: open-webui
     restart: unless-stopped
     volumes:
       - open-webui:/app/backend/data
-      - ./data:/app/backend/data/import:ro      
+      - ./data:/app/backend/data/import:ro
     depends_on:
       - ollama
     ports:
@@ -37,7 +36,7 @@ services:
       - ENABLE_DIRECT_CONNECTIONS=false
       - ENABLE_FORWARD_USER_INFO_HEADERS=true
       # - RAG_EMBEDDING_ENGINE=sentence_transformers
-      # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2     
+      # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_EMBEDDING_MODEL=embedding
       - RAG_OPENAI_API_BASE_URL=http://litellm:4000/v1
@@ -80,7 +79,7 @@ services:
   #     test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
   #     interval: 30s
   #     timeout: 5s
-      
+
 volumes:
   open-webui: {}
   pipelines: {}

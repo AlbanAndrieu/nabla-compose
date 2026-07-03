@@ -1,4 +1,3 @@
----
 fail_fast: true
 minimum_pre_commit_version: 4.2.0
 exclude: |
@@ -293,7 +292,7 @@ repos:
 
     ### Javascript & Web Tools ###
 -   repo: https://github.com/biomejs/pre-commit
-    rev: "v2.5.1"
+    rev: "v2.5.2"
     hooks:
     -   id: biome-check
         name: "🟨 javascript · Lint, format, and safe fixes with Biome"
