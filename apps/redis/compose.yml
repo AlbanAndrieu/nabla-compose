@@ -11,7 +11,7 @@ services:
       --requirepass ${REDIS_AUTH:-myredissecret}
       --maxmemory-policy noeviction
     ports:
-      - 127.0.0.1:30059:6379
+      - 30059:6379
     volumes:
       - /mnt/cpool/redis:/data
     healthcheck:
