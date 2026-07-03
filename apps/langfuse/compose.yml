@@ -88,66 +88,24 @@ services:
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-}
 
-  clickhouse:
-    image: docker.io/clickhouse/clickhouse-server
-    restart: always
-    user: "101:101"
-    environment:
-      CLICKHOUSE_DB: default
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse} # CHANGEME
-    volumes:
-      - langfuse_clickhouse_data:/var/lib/clickhouse
-      - langfuse_clickhouse_logs:/var/log/clickhouse-server
-    ports:
-      - 127.0.0.1:8123:8123
-      - 127.0.0.1:9000:9000
-    healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 1s
-
-  minio:
-    image: cgr.dev/chainguard/minio
-    restart: always
-    entrypoint: sh
-    # create the 'langfuse' bucket before starting the service
-    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret} # CHANGEME
-    ports:
-      - 9090:9000
-      - 127.0.0.1:9091:9001
-    volumes:
-      - langfuse_minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 1s
-      timeout: 5s
-      retries: 5
-      start_period: 1s
-
-  postgres:
-    image: docker.io/postgres:${POSTGRES_VERSION:-17}
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres} # CHANGEME
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      TZ: UTC
-      PGTZ: UTC
-    ports:
-      - 127.0.0.1:5432:5432
-    volumes:
-      - langfuse_postgres_data:/var/lib/postgresql/data
+  # postgres:
+  #   image: docker.io/postgres:${POSTGRES_VERSION:-17}
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 3s
+  #     timeout: 3s
+  #     retries: 10
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres} # CHANGEME
+  #     POSTGRES_DB: ${POSTGRES_DB:-postgres}
+  #     TZ: UTC
+  #     PGTZ: UTC
+  #   ports:
+  #     - 127.0.0.1:5432:5432
+  #   volumes:
+  #     - langfuse_postgres_data:/var/lib/postgresql/data
 
 volumes:
   langfuse_postgres_data:
