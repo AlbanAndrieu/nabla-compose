@@ -34,9 +34,8 @@ include:
   # - path: temporal/compose-services.yml
   # - path: openvas/docker-compose-openvas.yml
   # - path: compose.fixinventory.yaml
-  - path:
-      #     - langfuse/docker-compose.yml
-      - docker-compose.override.yml
+  - path: langfuse/docker-compose.yml
+  - path: docker-compose.override.yml
 
 # BELOW use systemd
 # - path: reactive/compose.yml

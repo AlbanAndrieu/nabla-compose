@@ -3,24 +3,6 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:25.8
 
-  # langfuse-web:
-  #   environment:
-  #     LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
-  #     LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
-  #     LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
-  #     LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
-  #     LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
-  #     LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
-  #
-  # langfuse-worker:
-  #   environment:
-  #     LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
-  #     LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
-  #     LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
-  #     LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
-  #     LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
-  #     LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
-
   litellm:
     # image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
     image: ghcr.io/berriai/litellm:main-stable # ghcr.io/berriai/litellm:main-stable

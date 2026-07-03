@@ -1,0 +1,22 @@
+---
+services:
+  redis:
+    image: docker.io/redis:8.8.0
+    # image: redis:7-alpine
+    # image: registry.community.greenbone.net/community/redis-server
+    container_name: redis
+    restart: unless-stopped
+    # CHANGEME: row below to secure redis password
+    command: >
+      --requirepass ${REDIS_AUTH:-myredissecret}
+      --maxmemory-policy noeviction
+    ports:
+      - 127.0.0.1:30059:6379
+    volumes:
+      - /mnt/cpool/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
