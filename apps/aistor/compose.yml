@@ -1,0 +1,27 @@
+---
+services:
+  aistor:
+    image: quay.io/minio/aistor/minio:latest
+    container_name: aistor
+    restart: unless-stopped
+    user: "568:568" # TrueNAS apps user
+    # create the 'langfuse' bucket before starting the service
+    # command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    command: server --console-address ":9001" --license /minio.license
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret} # CHANGEME
+      HOME: /tmp
+    ports:
+      # S3 API, pour Langfuse
+      - "9002:9000"
+      # Console admin
+      - "9091:9001"
+    volumes:
+      - /mnt/cpool/aistor:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
