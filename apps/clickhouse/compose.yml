@@ -3,14 +3,15 @@ services:
   clickhouse:
     image: docker.io/clickhouse/clickhouse-server
     restart: unless-stopped
-    # user: "101:101"
+    user: "568:568" # TrueNAS apps user
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse} # CHANGEME
     volumes:
-      - langfuse_clickhouse_data:/var/lib/clickhouse
-      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+      - /mnt/cpool/clickhouse/:/var/lib/clickhouse
+      # - /mnt/cpool/clickhouse/logs:/var/log/clickhouse-server
+      - /mnt/cpool/logs/clickhouse-server/:/var/log/clickhouse-server
     ports:
       - 8123:8123
       - 9000:9000
