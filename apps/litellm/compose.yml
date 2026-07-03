@@ -8,18 +8,32 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml
       # - /mnt/cpool/litellm/config.yaml:/app/config.yaml
+    command:
+      - "--config"
+      - "/app/config.yaml"
+      - "--port"
+      - "4000"
+      # - "--use_v2_migration_resolver"
+      # - "--detailed_debug"  
     ports:
       - "4000:4000"
     env_file:
       - .env
     #  - /mnt/cpool/litellm/.env.secrets
     environment:
-      # - LITELLM_MASTER_KEY=sk_XXX
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
-      # - UI_USERNAME=nabla
-      # - UI_PASSWORD=XXX
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+      LANGFUSE_OTEL_HOST: http://172.17.0.24:3000
       # - REDIS_URL=redis://:XXX@172.17.0.24:30059
-      - STORE_MODEL_IN_DB="True" # allows adding models to proxy via UI
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      UI_USERNAME: ${UI_USERNAME}
+      UI_PASSWORD: ${UI_PASSWORD}      
+      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+      HEALTH_CHECK_TIMEOUT: 120 # For cold start of qwen
+      LITELLM_HEALTH_CHECK_TIMEOUT: 120
+      LITELLM_LOG: INFO
 
     healthcheck: # Defines the health check configuration for the container
       test:
@@ -29,10 +43,4 @@ services:
       timeout: 10s # Health check command times out after 10 seconds
       retries: 3 # Retry up to 3 times if health check fails
       start_period: 40s # Wait 40 seconds after container start before beginning health checks
-    command:
-      - "--config"
-      - "/app/config.yaml"
-      - "--port"
-      - "4000"
-      - "--use_v2_migration_resolver"
-      # - "--detailed_debug"
+

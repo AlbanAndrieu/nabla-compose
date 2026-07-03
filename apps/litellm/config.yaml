@@ -7,6 +7,7 @@ model_list:
   #    api_base: "http://172.17.0.57:11434"
   #    request_timeout: 300
   #    num_ctx: 4096
+
   - model_name: llama3.2
     litellm_params:
       model: "ollama_chat/llama3.2:3b"
@@ -37,14 +38,6 @@ model_list:
       request_timeout: 300
       num_ctx: 2048
 
-  - model_name: gemma3
-    litellm_params:
-      model: "ollama_chat/gemma3"
-      api_base: "http://172.17.0.24:30068"
-      request_timeout: 900
-      num_ctx: 2048
-      keep_alive: "30m"
-
   # - model_name: qwen
   #   litellm_params:
   #     model: ollama_chat/qwen3.5:2b
@@ -56,11 +49,12 @@ model_list:
   #       top_k: 20
   #       presence_penalty: 1.5
 
-  # texte only
+  # texte only for opneweb ui
   - model_name: qwen
     litellm_params:
       model: ollama_chat/qwen3:4b
-      api_base: http://ollama:11434
+      api_base: http://172.17.0.57:11434 # using RTX 2060
+      # api_base: "http://172.17.0.24:30068"
       extra_body:
         num_ctx: 4096
         temperature: 0.6
@@ -70,11 +64,27 @@ model_list:
     model_info:
       mode: chat
       supports_function_calling: true
+      
+  # for opneweb ui chromadb 
+  - model_name: embedding
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: "http://172.17.0.24:30068"
+    model_info:
+      mode: embedding
+
+  - model_name: gemma3
+    litellm_params:
+      model: "ollama_chat/gemma3"
+      api_base: "http://172.17.0.24:30068"
+      request_timeout: 900
+      num_ctx: 2048
+      keep_alive: "30m"
 
   # reactive resume
   - model_name: rr-json
     litellm_params:
-      model: "ollama/qwen2.5:3b"
+      model: "ollama_chat/qwen2.5:3b" #:14b
       api_base: "http://172.17.0.24:30068"
       temperature: 0
       num_ctx: 8192
@@ -84,6 +94,17 @@ general_settings:
   # database_url: "postgresql://<user>:<password>@<host>:<port>/<dbname>"
   # database_url: postgresql://nabla:XXX@172.17.0.24:5432/litellm
   # disable_cache_on_db_queries: true
+  # store_model_in_db: false # change to true or fix : Invalid proxy server token passed ... not found in db
+  store_model_in_db: true
+  custom_headers:
+    forward_headers:
+      - X-OpenWebUI-User-Name
+      - X-OpenWebUI-User-Id
+      - X-OpenWebUI-User-Email
+      - X-OpenWebUI-User-Role
+      - X-OpenWebUI-Chat-Id
+      - X-OpenWebUI-Session
+      - X-Session-Id
   user_header_mappings:
     - header_name: X-OpenWebUI-User-Id
       litellm_user_role: internal_user
@@ -96,6 +117,7 @@ litellm_settings:
     - {"gpt-4o": ["gpt-4.1-mini"]}
     - {"llama3.2": ["gpt-4.1-mini"]}
     - {"gemma3": ["gpt-4.1-mini"]}
+    - {"qwen: ["llama3.2"]}
   default_fallbacks: ["llama3.2"]
   cache: true
   cache_params:
@@ -107,7 +129,20 @@ litellm_settings:
   # stream: true
   drop_params: true
   # set_verbose: true
-  callbacks: ["prometheus"]
+  callbacks:
+    - langfuse_otel
+    - prometheus
+  success_callback: ["langfuse_otel"]
+  failure_callback: ["langfuse_otel"]
+  turn_off_message_logging: false
+  langfuse_default_tags:
+    - openwebui
+    - thiga-ai
+    - local-ollama
+    - qwen
+    - rag
+    - assistant-thiga-solution-architect
+    - prompt-v1
   prometheus_initialize_budget_metrics: true
 router_settings:
   routing_strategy: simple-shuffle
