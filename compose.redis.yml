@@ -2,12 +2,16 @@
 # Shared Redis on `intranet` (no password). Sentry/Snuba use REDIS_HOST=redis; Prowler uses VALKEY_HOST=redis.
 services:
   redis-server:
-    image: redis:7-alpine
+    # image: docker.io/redis:7-alpine
+    image: docker.io/redis:8.8.0
     # image: registry.community.greenbone.net/community/redis-server
     container_name: redis
     restart: unless-stopped
     volumes:
       - redis_socket_vol:/run/redis/
+    command: >
+      --requirepass ${REDIS_AUTH:-myredissecret}
+      --maxmemory-policy noeviction      
     # Unix socket only (port 0); required for depends_on condition: service_healthy (e.g. Prowler).
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

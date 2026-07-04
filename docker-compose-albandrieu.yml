@@ -20,7 +20,7 @@ include:
   # - path: pgwatch/docker/compose.pgwatch.yml
   # - path: pgwatch/docker/compose.pgadmin.yml
   - path: compose.redis.yml
-  - path: compose.clickhouse.yml
+  # - path: compose.clickhouse.yml
   # - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
   - path: compose.tool.yml
@@ -34,7 +34,7 @@ include:
   # - path: temporal/compose-services.yml
   # - path: openvas/docker-compose-openvas.yml
   # - path: compose.fixinventory.yaml
-  - path: langfuse/docker-compose.yml
+  # - path: langfuse/docker-compose.yml
   - path: docker-compose.override.yml
 
 # BELOW use systemd

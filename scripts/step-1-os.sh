@@ -1,5 +1,5 @@
 #!/bin/bash
-case "${OSTYP}E" in
+case "${OSTYPE}" in
 linux*) export SYSTEM=LINUX;;
 darwin*) export SYSTEM=OSX;;
 win*) export SYSTEM=Windows;;
