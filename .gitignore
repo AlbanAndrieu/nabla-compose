@@ -6,6 +6,8 @@ env/scripts/jenkins/tls.lua
 *.csv
 *.ipynb_checkpoints
 data/*
+# netalertx is data
+netalertx/*
 models
 portracker-data/
 stirling-data/

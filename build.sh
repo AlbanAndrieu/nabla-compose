@@ -64,8 +64,11 @@ if [ "$HOSTNAME" = albandrieu ]; then
 
   docker pull registry.community.greenbone.net/community/gsa:stable
   docker pull registry.community.greenbone.net/community/openvas-scanner:stable
+  
+  docker compose --env-file .env --env-file .env.secrets -f compose.helper.yml up --pull=never --no-build -d
 
   echo "docker compose --env-file .env --env-file .env.secrets -f compose.monitoring.yml up --pull=never --no-build -d"
+  echo "docker compose --env-file .env --env-file .env.secrets -f compose.tools.yml up --pull=never --no-build -d"
   echo "docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up --pull=never --no-build -d --force-recreate --remove-orphans"
 
   # docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up --pull=never --no-build -d

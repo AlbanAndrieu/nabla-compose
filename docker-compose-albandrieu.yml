@@ -23,7 +23,8 @@ include:
   # - path: compose.clickhouse.yml
   # - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
-  - path: compose.tool.yml
+  # - path: compose.tool.yml
+  - path: compose.helper.yml
   # - path: compose.prowler.yml # TODO, consuming too much ressources
   - path: compose.security.yml
   # - path: compose.truenas.yml #nosec allow:gitleaks

@@ -74,7 +74,7 @@ services:
       - ./pgwatch/grafana/prometheus_datasource.yml:/etc/grafana/provisioning/datasources/prometheus_datasource.yml
       - ./pgwatch/grafana/postgres/v12:/var/lib/grafana/dashboards/postgres
       - ./pgwatch/grafana/prometheus/v12:/var/lib/grafana/dashboards/prometheus
-      - ./pgwatch/grafana/temporal_dashboard_provider.yml:/etc/grafana/provisioning/dashboards/temporal_dashboard_provider.yml:ro
+      # - ./pgwatch/grafana/temporal_dashboard_provider.yml:/etc/grafana/provisioning/dashboards/temporal_dashboard_provider.yml:ro
       - ./temporal/deployment/grafana/dashboards:/var/lib/grafana/dashboards/temporal:ro
       - ./temporal/deployment/grafana/provisioning/datasources/all.yml:/etc/grafana/provisioning/datasources/temporal_datasources.yml:ro
       - ./temporal/deployment/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
@@ -86,18 +86,18 @@ services:
     networks:
       - intranet
 
-  pyroscope:
-    image: grafana/pyroscope:latest
-    container_name: pyroscope
-    restart: unless-stopped
-    ports:
-      # open port to access frontend
-      - "4040:4040"
-    command:
-      # run pyroscope in server mode
-      - "server"
-    networks:
-      - intranet
+#  pyroscope:
+#    image: grafana/pyroscope:latest
+#    container_name: pyroscope
+#    restart: unless-stopped
+#    ports:
+#      # open port to access frontend
+#      - "4040:4040"
+#    command:
+#      # run pyroscope in server mode
+#      - "server"
+#    networks:
+#      - intranet
 
   # https://github.com/githubexporter/github-exporter
   github-exporter:

@@ -1,0 +1,12 @@
+---
+services:
+  pyroscope:
+    image: grafana/pyroscope:latest
+    container_name: pyroscope
+    restart: unless-stopped
+    ports:
+      # open port to access frontend
+      - "4040:4040"
+    command:
+      # run pyroscope in server mode
+      - "server"
