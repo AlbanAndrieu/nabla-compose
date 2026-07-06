@@ -1,7 +1,8 @@
 services:
   litellm:
     # image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
-    image: ghcr.io/berriai/litellm:main-stable # ghcr.io/berriai/litellm:main-stable
+    # image: ghcr.io/berriai/litellm:main-stable
+    image: ghcr.io/berriai/litellm:v1.84.8-stable
     container_name: litellm
     restart: unless-stopped
     # user: "568:568" # TrueNAS apps user
@@ -14,7 +15,7 @@ services:
       - "--port"
       - "4000"
       # - "--use_v2_migration_resolver"
-      # - "--detailed_debug"  
+      # - "--detailed_debug"
     ports:
       - "4000:4000"
     env_file:
@@ -29,7 +30,7 @@ services:
       # - REDIS_URL=redis://:XXX@172.17.0.24:30059
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       UI_USERNAME: ${UI_USERNAME}
-      UI_PASSWORD: ${UI_PASSWORD}      
+      UI_PASSWORD: ${UI_PASSWORD}
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
       HEALTH_CHECK_TIMEOUT: 120 # For cold start of qwen
       LITELLM_HEALTH_CHECK_TIMEOUT: 120
@@ -43,4 +44,3 @@ services:
       timeout: 10s # Health check command times out after 10 seconds
       retries: 3 # Retry up to 3 times if health check fails
       start_period: 40s # Wait 40 seconds after container start before beginning health checks
-

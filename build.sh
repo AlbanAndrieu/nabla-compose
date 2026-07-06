@@ -10,15 +10,15 @@ docker buildx version
 if [ "$HOSTNAME" = albandrieu ]; then
   printf '%s\n' "on the albandrieu host"
 
-  echo "killall gpg-agent"
-  echo "gpg-agent --daemon"
+  mkdir -p ./netalertx/{db,config}
+  echo "sudo chown -R 20211:20211 ./netalertx"
 
   echo "docker stop $(docker ps -q)"
   echo "docker rm -f $(docker ps -aq)"
 
-  docker buildx inspect nablabuilder
-
-  echo "docker buildx use nablabuilder"
+  # docker buildx inspect nablabuilder
+  #
+  # echo "docker buildx use nablabuilder"
 
   docker buildx ls
 

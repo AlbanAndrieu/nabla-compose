@@ -29,7 +29,7 @@ include:
   # - path: compose.truenas.yml #nosec allow:gitleaks
   # - path: anything-llm/docker/docker-compose.yml
   # - path: sentry/docker-compose.yml
-  - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
+  # - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
   # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
   # - path: temporal/compose-services.yml
   # - path: openvas/docker-compose-openvas.yml
