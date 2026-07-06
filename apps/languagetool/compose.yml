@@ -1,6 +1,5 @@
 ---
 services:
-  litellm:
   languagetool:
     image: erikvl87/languagetool
     container_name: languagetool
