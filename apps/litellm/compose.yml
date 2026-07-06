@@ -1,8 +1,9 @@
+---
 services:
   litellm:
     # image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
     # image: ghcr.io/berriai/litellm:main-stable
-    image: ghcr.io/berriai/litellm:v1.84.8-stable
+    image: ghcr.io/berriai/litellm:main-stable # v1.84.8-stable
     container_name: litellm
     restart: unless-stopped
     # user: "568:568" # TrueNAS apps user

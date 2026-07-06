@@ -96,6 +96,7 @@ general_settings:
   # disable_cache_on_db_queries: true
   # store_model_in_db: false # change to true or fix : Invalid proxy server token passed ... not found in db
   store_model_in_db: true
+  store_prompts_in_spend_logs: true
   custom_headers:
     forward_headers:
       - X-OpenWebUI-User-Name
@@ -122,8 +123,9 @@ litellm_settings:
   cache: true
   cache_params:
     type: redis
-    host: redis
-    port: 6379
+    redis_url: os.environ/REDIS_URL
+    # host: redis
+    # port: 6379
   request_timeout: 600
   num_retries: 1
   # stream: true
@@ -143,6 +145,7 @@ litellm_settings:
     - rag
     - assistant-thiga-solution-architect
     - prompt-v1
+    - truenas
   prometheus_initialize_budget_metrics: true
 router_settings:
   routing_strategy: simple-shuffle

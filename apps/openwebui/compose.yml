@@ -15,16 +15,16 @@ services:
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
-      # - OLLAMA_BASE_URL=http://ollama:${OLLAMA_PORT:-11434}
-      # - OLLAMA_BASE_URLS=http://ollama:${OLLAMA_PORT:-11434}
       - OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
       - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENABLE_OPENAI_API=true
-      - ENABLE_OLLAMA_API=false # To use litellm
+       # To use litellm
+      - ENABLE_OLLAMA_API=false
       - ENABLE_API_KEY=true
       - ENABLE_API_KEY_AUTH=true
-      - DEFAULT_MODELS=qwen # qwen3.5:2b
-      - DEFAULT_PINNED_MODELS=qwen # qwen3.5:2b
+      # qwen3.5:2b
+      - DEFAULT_MODELS=qwen 
+      - DEFAULT_PINNED_MODELS=qwen
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
       - WEBUI_ADMIN_NAME=${WEBUI_ADMIN_NAME:-Nabla}
       - WEBUI_ADMIN_EMAIL=${WEBUI_ADMIN_EMAIL:-alban.andrieu@free.fr}
