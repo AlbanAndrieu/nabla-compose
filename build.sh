@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -xv
+set -xv
 
 export DOCKER_CLIENT_TIMEOUT=240
 export COMPOSE_HTTP_TIMEOUT=2000
