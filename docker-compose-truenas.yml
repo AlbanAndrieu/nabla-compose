@@ -3,8 +3,11 @@ configs:
   poll-config.yml:
     content: |
       - url: https://github.com/albanandrieu/nabla-compose.git
-        reference: main
+        reference: master
         interval: 3600
+        deployments:
+          - path: vaultwarden/compose.yml
+          - path: garage/compose.yml
 
 # https://doco.cd/latest/External-Secrets/
 secrets:

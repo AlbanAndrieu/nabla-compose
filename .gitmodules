@@ -1,33 +1,30 @@
 [submodule "temporal"]
 	path = temporal
-	url = git@github.com:AlbanAndrieu/my-temporal-dockercompose.git
+	url = https://github.com/AlbanAndrieu/my-temporal-dockercompose.git
 [submodule "open-resume"]
 	path = open-resume
 	url = https://github.com/xitanggg/open-resume.git
-[submodule "cyberbro"]
-	path = cyberbro
-	url = git@github.com:stanfrbd/cyberbro.git
 [submodule "plumber-platform"]
 	path = plumber-platform
 	url = https://github.com/AlbanAndrieu/platform.git
 [submodule "litellm"]
 	path = litellm
-	url = git@github.com:AlbanAndrieu/litellm.git
+	url = https://github.com/AlbanAndrieu/litellm.git
 [submodule "reactive"]
 	path = reactive
 	url = https://github.com/AlbanAndrieu/reactive-resume.git
 [submodule "n8n"]
 	path = n8n
-	url = git@github.com:AlbanAndrieu/n8n-hosting.git
+	url = https://github.com/AlbanAndrieu/n8n-hosting.git
 [submodule "anything-llm"]
 	path = anything-llm
 	url = https://github.com/AlbanAndrieu/anything-llm
 [submodule "sentry"]
 	path = sentry
-	url = git@github.com:AlbanAndrieu/sentry.git
+	url = https://github.com/AlbanAndrieu/sentry.git
 [submodule "pgwatch"]
 	path = pgwatch
 	url = https://github.com/AlbanAndrieu/pgwatch
 [submodule "langfuse"]
 	path = langfuse
-	url = git@github.com:AlbanAndrieu/langfuse.git
+	url = https://github.com/AlbanAndrieu/langfuse.git
