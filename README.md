@@ -1,16 +1,16 @@
 ```bash
-git submodule add -f git@github.com:AlbanAndrieu/my-temporal-dockercompose.git temporal
+git submodule add -f https://github.com/AlbanAndrieu/my-temporal-dockercompose.git temporal
 git submodule add -f https://github.com/AlbanAndrieu/pgwatch pgwatch
 # git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
 git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive
-git submodule add -f git@github.com:stanfrbd/cyberbro.git
+git submodule add -f https://github.com/AlbanAndrieu/cyberbro
 # https://github.com/getsentry/self-hosted.git
-git submodule add -f git@github.com:AlbanAndrieu/sentry.git
+git submodule add -f https://github.com/AlbanAndrieu/sentry.git
 git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
-git submodule add -f git@github.com:AlbanAndrieu/litellm.git
-git submodule add -f git@github.com:AlbanAndrieu/n8n-hosting.git n8n
+git submodule add -f https://github.com/AlbanAndrieu/litellm.git
+git submodule add -f https://github.com/AlbanAndrieu/n8n-hosting.git n8n
 git submodule add -f https://github.com/AlbanAndrieu/anything-llm
-git submodule add -f git@github.com:AlbanAndrieu/langfuse.git
+git submodule add -f https://github.com/AlbanAndrieu/langfuse
 
 git pull origin master --allow-unrelated-histories
 git pull && git submodule init && git submodule update && git submodule status
