@@ -1,9 +1,6 @@
 [submodule "temporal"]
 	path = temporal
 	url = https://github.com/AlbanAndrieu/my-temporal-dockercompose.git
-[submodule "open-resume"]
-	path = open-resume
-	url = https://github.com/xitanggg/open-resume.git
 [submodule "plumber-platform"]
 	path = plumber-platform
 	url = https://github.com/AlbanAndrieu/platform.git
