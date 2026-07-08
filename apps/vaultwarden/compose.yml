@@ -2,8 +2,8 @@
 configs:
   poll-config.yml:
     content: |
-      - url: https://github.com/albandrieu/nabla-compose.git
-        reference: main
+      - url: https://github.com/albanandrieu/nabla-compose.git
+        reference: master
         interval: 3600
 
 # https://doco.cd/latest/External-Secrets/

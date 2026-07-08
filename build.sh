@@ -79,11 +79,14 @@ if [ "$HOSTNAME" = albandrieu ]; then
   echo "./build-litellm.sh"
 elif [ "$HOSTNAME" = truenas ]; then
   printf '%s\n' "on the truenas host"
+  
+  docker compose --env-file .env -f docker-compose-${HOSTNAME}.yml up -d --force-recreate doco-cd
 
   # docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml up --pull=never --no-build -d
 
 else
   printf '%s\n' "uh-oh, not on albandrieu or truenas"
+  
 fi
 
 exit 0
