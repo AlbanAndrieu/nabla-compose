@@ -12,9 +12,36 @@ secrets:
     # file: /root/.doco-cd/1pw_token
     file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
 
-# kics-scan ignore
 services:
-  app:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      DOMAIN: "https://vaultwarden.albandrieu.com/"
+      SIGNUPS_ALLOWED: "false"
+      INVITATIONS_ALLOWED: "false"
+      ADMIN_TOKEN: "${VAULTWARDEN_ADMIN_TOKEN}"
+    volumes:
+      # - ./vw-data/:/data/
+      - /mnt/cpool/vaultwarden/vw-data/:/data/
+    ports:
+      - 30032:80
+
+  bitwarden-cli:
+    image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
+    restart: unless-stopped
+    environment:
+      BW_HOST: "https://vaultwarden.albandrieu.com/"
+      BW_CLIENTID: "${BW_CLIENTID}"
+      BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
+      BW_PASSWORD: "${BW_PASSWORD}"
+    expose:
+      - "8087"
+    depends_on:
+      - vaultwarden
+
+  doco-cd:
     container_name: doco-cd
     # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
     image: ghcr.io/kimdre/doco-cd:latest
@@ -24,7 +51,7 @@ services:
       - "9120:9120" # Prometheus metrics
     # For all available environment variables and explanations, see https://doco.cd/latest/App-Settings/
 
-    secrets: ["1pw_token"]
+    # secrets: ["1pw_token"]
     configs:
       - source: poll-config.yml
         target: /poll-config.yml
@@ -51,7 +78,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # The data volume (left side) can also be replaced with a bind mount to a local directory, for example:
       # - ./data:/data
-      - data:/data
+      - /mnt/cpool/vaultwarden/doco-data:/data
+      - ./secret-store.yml:/secret-store.yml:ro
 
     cap_drop:
       - ALL
@@ -62,13 +90,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  data: {}
-
-networks:
-  intranet:
-    external: true
-    name: intranet
-  # proxy:
-  #   external: true

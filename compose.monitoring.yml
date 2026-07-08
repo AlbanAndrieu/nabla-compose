@@ -62,7 +62,8 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: true
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/postgres/1-global-db-overview.json
-      GF_INSTALL_PLUGINS: marcusolsson-treemap-panel,grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel,grafana-assistant-app
+      GF_INSTALL_PLUGINS: marcusolsson-treemap-panel,grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel
+      # GF_INSTALL_PLUGINS: grafana-assistant-app
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
     ports:
       - "${GRAFANA_PORT:-3009}:3000"
@@ -86,18 +87,18 @@ services:
     networks:
       - intranet
 
-#  pyroscope:
-#    image: grafana/pyroscope:latest
-#    container_name: pyroscope
-#    restart: unless-stopped
-#    ports:
-#      # open port to access frontend
-#      - "4040:4040"
-#    command:
-#      # run pyroscope in server mode
-#      - "server"
-#    networks:
-#      - intranet
+  #  pyroscope:
+  #    image: grafana/pyroscope:latest
+  #    container_name: pyroscope
+  #    restart: unless-stopped
+  #    ports:
+  #      # open port to access frontend
+  #      - "4040:4040"
+  #    command:
+  #      # run pyroscope in server mode
+  #      - "server"
+  #    networks:
+  #      - intranet
 
   # https://github.com/githubexporter/github-exporter
   github-exporter:

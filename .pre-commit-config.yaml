@@ -1,3 +1,4 @@
+---
 fail_fast: true
 minimum_pre_commit_version: 4.2.0
 exclude: |
@@ -418,6 +419,8 @@ repos:
         exclude: >
           (?x)^(
             public/assets/fontawesome-free-7.1.0-web/.*|
+            apps/vaultwarden/compose.yml|
+            apps/vaultwarden/secret-store.yml|
           )$
 
 -   repo: https://github.com/zricethezav/gitleaks

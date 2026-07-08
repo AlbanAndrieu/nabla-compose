@@ -7,14 +7,23 @@ services:
     # image: registry.community.greenbone.net/community/redis-server
     container_name: redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     volumes:
       - redis_socket_vol:/run/redis/
+    environment:
+      REDIS_AUTH: ${REDIS_AUTH:-myredissecret}
     command: >
       --requirepass ${REDIS_AUTH:-myredissecret}
-      --maxmemory-policy noeviction      
+      --maxmemory-policy noeviction
     # Unix socket only (port 0); required for depends_on condition: service_healthy (e.g. Prowler).
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          'redis-cli -a "$${REDIS_AUTH:-myredissecret}" ping | grep PONG',
+        ]
       # test: ["CMD", "redis-cli", "-s", "/run/redis/redis.sock", "ping"]
       # test: ["CMD-SHELL", "redis-cli -a \"$$JOBS_REDIS_PASSWORD\" ping"]
       interval: 10s
@@ -22,7 +31,9 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - intranet
+      intranet:
+        aliases:
+          - redis
 
 networks:
   intranet:

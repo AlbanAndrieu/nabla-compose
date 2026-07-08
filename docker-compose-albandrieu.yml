@@ -1,16 +1,4 @@
 ---
-configs:
-  poll-config.yml:
-    content: |
-      - url: https://github.com/albandrieu/nabla-compose.git
-        reference: main
-        interval: 3600
-
-# https://doco.cd/latest/External-Secrets/
-secrets:
-  1pw_token:
-    file: /root/.doco-cd/1pw_token
-
 # PostgreSQL: only pgwatch/docker/compose.postgres.yml defines the `postgres` service for this
 # project. Do not add another `postgres` service in included fragments; use depends_on / env only.
 include:
@@ -44,10 +32,6 @@ include:
 
 # cd temporal
 # docker compose -f compose-postgres.yml -f compose-services.yml up --detach
-
-volumes:
-  data: {}
-  op_data: {}
 
 networks:
   intranet:
