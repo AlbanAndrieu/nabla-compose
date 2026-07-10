@@ -1,0 +1,13 @@
+---
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "30109:5678"
+    environment:
+      N8N_HOST: n8n.albandrieu.com
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://n8n.albandrieu.com/
+      WEBHOOK_URL: https://n8n.albandrieu.com/
+      N8N_PUBLIC_API_DISABLED: "false"

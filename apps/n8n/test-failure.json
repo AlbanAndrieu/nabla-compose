@@ -1,0 +1,87 @@
+{
+  "name": "test-failure",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "470f5b6b-7619-40ef-9aba-8287a7a40944",
+      "name": "When clicking ‘Execute workflow’",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "throw new Error('OPENCLAW_AUTO_HEAL_TEST');"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1b705f9c-d4b2-45a4-a9a9-02cd9baea322",
+      "name": "Code in JavaScript",
+      "notes": "🛠 AI AUTO-FIX: Changed jsCode to return $input.all();"
+    },
+    {
+      "parameters": {
+        "path": "71931f9d-09e8-4c1b-9968-c43a8b3752ca",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -160
+      ],
+      "id": "e8ce7b07-f632-40c2-85ae-82ff4bc6e72c",
+      "name": "Webhook",
+      "webhookId": "71931f9d-09e8-4c1b-9968-c43a8b3752ca"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "VPJ2qRYEzcKNr447",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1e461a4a-efc5-461b-a7a9-93507334419b",
+  "meta": {
+    "instanceId": "153df0f6a304819e82dac93c9573d635794566a4289dc25bb33d32de324357d8"
+  },
+  "nodeGroups": [],
+  "id": "WNEsSzmUQyL3sD37",
+  "tags": []
+}

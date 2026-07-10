@@ -1,0 +1,664 @@
+{
+  "name": "Auto-heal failing workflows with Azure OpenAI, n8n API, and Slack alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {}
+      },
+      "id": "793dfa7b-0834-4390-9928-fa0c49fae284",
+      "name": "Azure OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "position": [
+        1808,
+        1024
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "UbqXWrnJEPqFj1Vw",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "7b31c623-aa39-440a-b6af-3415be6be14d",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [
+        1184,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.workflow.id }}",
+              "operation": "notEqual",
+              "value2": "={{ $workflow.id }}"
+            }
+          ]
+        }
+      },
+      "id": "7b79e4ff-71bb-4564-83eb-839efb915f3c",
+      "name": "Filter: Ignore Self",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        1424,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "=http://127.0.0.1:30109/api/v1/workflows/{{ $json.workflow.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "XXX"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fd852042-fee2-4fcc-aebe-a9b28976b15d",
+      "name": "Get Workflow JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1648,
+        800
+      ],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\"You are an n8n Senior Engineer.\n\nCONTEXT:\n\nFailed Node: {{ $node[\"On Workflow Error\"].json.workflow.name }}\n\nError: {{ $node[\"On Workflow Error\"].json.execution.error.message }}\n\nWorkflow JSON: {{ JSON.stringify($node[\"Get Workflow JSON\"].json) }}\n\nTASK:\n\nDecide if this is a 'RETRY' (network/timeout) or a 'FIX' (logic/wrong param).\n\nIf 'FIX', identify the specific parameter name in the failed node that caused the error.\n\nProvide the corrected value for that parameter.\n\nWhen patching an n8n Code node:\n\n- Return valid n8n Code node JavaScript.\n- In \"Run Once for All Items\" mode, use:\n  return $input.all();\n\n- Never use:\n  return {};\n  return items;\n\n- Preserve the existing node mode and n8n runtime syntax.\n- Modify only the failing parameter.\n- Do not replace the entire code with placeholder comments.\n\nReturn the result in the structured format.\"",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "51495c09-3b5e-4558-b592-27e5b422683d",
+      "name": "Diagnose Error",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1872,
+        800
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsonSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"state\": { \"type\": \"string\", \"enum\": [\"RETRY\", \"FIX\"] },\n    \"diagnosis\": { \"type\": \"string\" },\n    \"patch\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"parameterName\": { \"type\": \"string\" },\n        \"newValue\": { \"type\": \"string\" }\n      }\n    }\n  }\n}"
+      },
+      "id": "09a3eac9-e134-4b98-95f3-afb086371ede",
+      "name": "Decision Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        2016,
+        1008
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "62c120fd-2211-45aa-885d-ba90ddadabbd",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.output.state }}",
+                    "rightValue": "RETRY"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "f012633d-d102-4286-a595-6699bb09ee8b",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.output.state }}",
+                    "rightValue": "FIX"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "3d411619-4d35-41af-980c-c36c15de839a",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "",
+                    "rightValue": ""
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "906b3411-7672-480b-a17e-0b2d3842e5ea",
+      "name": "Determine Action",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        2256,
+        784
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "id": "5cb32bf9-95ab-41ed-9cc4-8a1c86d1ea96",
+      "name": "Cool Down",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        2496,
+        768
+      ],
+      "webhookId": "e749e04b-cff6-4fc3-bf83-44ac84a428ca",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the data from previous nodes using  to avoid undefined errors\nconst workflowData = $node[\"Get Workflow JSON\"].json;\nconst aiResponse = $node[\"Diagnose Error\"].json.output;\nconst errorData = $node[\"On Workflow Error\"].json;\n\n// 2. Clone the workflow to avoid mutating original data unexpectedly\nlet updatedWorkflow = JSON.parse(JSON.stringify(workflowData));\n\n// 3. Safety Check: Ensure the AI actually provided a patch\nif (aiResponse && aiResponse.patch && aiResponse.patch.parameterName) {\n  const targetNodeName = errorData.execution.lastNodeExecuted;\n  const paramToFix = aiResponse.patch.parameterName;\n  const newValue = aiResponse.patch.newValue;\n\n  let safeNewValue = newValue;\n  \n  // Safety normalization for n8n Code nodes\n  if (\n    paramToFix === 'jsCode' &&\n    typeof safeNewValue === 'string'\n  ) {\n    safeNewValue = safeNewValue\n      .replace(/\\breturn\\s+items\\s*;/g, 'return $input.all();')\n      .replace(/\\breturn\\s+\\{\\s*\\}\\s*;/g, 'return $input.all();');\n  }\n    \n  // 4. Loop through nodes and apply the fix\n  let found = false;\n  for (let node of updatedWorkflow.nodes) {\n    if (node.name === targetNodeName) {\n      // Initialize parameters if for some reason they don't exist\n      node.parameters = node.parameters || {};\n      node.parameters[paramToFix] = safeNewValue;\n      \n      // Add a note so you can see the fix in the UI\n      node.notes = `🛠 AI AUTO-FIX: Changed ${paramToFix} to ${safeNewValue}`;\n      found = true;\n      break;\n    }\n  }\n}\n\n// 5. Return the result in the standard n8n format\nreturn {\n  json: {\n    workflowJSON: updatedWorkflow, // This will be used in the PUT body\n    diagnosis: aiResponse.diagnosis,\n    fixedParam: aiResponse.patch ? aiResponse.patch.parameterName : 'none',\n    success: true\n  }\n};"
+      },
+      "id": "5e74b4be-630d-4df0-b700-8ddfaea758d8",
+      "name": "Generate Patch JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3152,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://172.17.0.24:30109/api/v1/executions/{{$node[\"On Workflow Error\"].json.execution.id}}/retry",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "your_api_key"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95c7ba49-dbd9-43c3-aa7f-33b9c55ff011",
+      "name": "Retry Execution",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2720,
+        768
+      ],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://127.0.0.1:30109/api/v1/workflows/{{ $node[\"On Workflow Error\"].json.workflow.id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "XXX"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: $json.workflowJSON.name,\n  nodes: $json.workflowJSON.nodes,\n  connections: $json.workflowJSON.connections,\n  settings: {\n    executionOrder: $json.workflowJSON.settings?.executionOrder ?? 'v1',\n    errorWorkflow: $json.workflowJSON.settings?.errorWorkflow\n  }\n}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "9367f82e-8469-4970-8af4-53a8c87e42c7",
+      "name": "Update Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3376,
+        944
+      ],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C03NVRHGHGU",
+          "mode": "list",
+          "cachedResultName": "général"
+        },
+        "text": "=✅ I successfully patched the workflow! Diagnosis: {{ $node[\"Generate Patch JSON\"].json.diagnosis }}\n\nWorkflow: {{ $json.body.name }}\nWorkflow ID: {{ $json.body.id }}\nParameter: {{ $('Generate Patch JSON').item.json.fixedParam }}\nDiagnosis: {{ $('Generate Patch JSON').item.json.diagnosis }}\nVersion: {{ $json.body.versionId }}\n",
+        "otherOptions": {}
+      },
+      "id": "6eab371c-f9de-4ef8-8f90-efa4c2151592",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        3824,
+        880
+      ],
+      "webhookId": "48426074-b0bb-4cbb-9ada-0cf9c2f4491c",
+      "typeVersion": 2.1,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "6LOJNEPjXfJnSmAX",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "C09L70CVDL3",
+          "cachedResultName": "alerting-channel"
+        },
+        "text": "=⚠️ Manual Action Required\nWorkflow: {{ $node[\"On Workflow Error\"].json.workflow.name }}\nFailed Node: {{ $node[\"On Workflow Error\"].json.execution.lastNodeExecuted }}\nAI Diagnosis: {{ $node[\"Diagnose Error\"].json.output.diagnosis }}\nLink: https://n8n.tdwebsites.in/workflow/{{ $node[\"On Workflow Error\"].json.workflow.id}}/execution/{{ $node[\"On Workflow Error\"].json.execution.id }})",
+        "otherOptions": {}
+      },
+      "id": "2a6ccfb9-e39e-4cf0-9c54-6ad6542fcf27",
+      "name": "Notify Manual Fix",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        2512,
+        1024
+      ],
+      "webhookId": "48426074-b0bb-4cbb-9ada-0cf9c2f4491c",
+      "typeVersion": 2.1,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "6LOJNEPjXfJnSmAX",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "The error trigger responds with failure in any workflow, then AI analyzes the failure context against the workflow's structure. It determines if the error is a temporary timeout (Retry) or a logic error requiring a parameter change (Fix)",
+        "height": 528,
+        "width": 1040,
+        "color": 7
+      },
+      "id": "b93bd359-1f04-463e-94b2-23cd4afa8e2d",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1104,
+        656
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "The Switch node directs traffic based on the AI's verdict. If a retry is needed, the Wait node pauses execution to allow the external service time to recover. And it automatically retries the workflow",
+        "height": 336,
+        "width": 752,
+        "color": 7
+      },
+      "id": "51ca98b8-4cca-4421-a411-50f95bfe0d5a",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2192,
+        624
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "The JavaScript node injects the AI's corrected value into the workflow JSON. The n8n API then updates the workflow live and notifies Slack of the successful repair.",
+        "height": 448,
+        "width": 868,
+        "color": 7
+      },
+      "id": "507f3d24-1b03-42e6-9eae-4763355a17c2",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3072,
+        816
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nIf the AI cannot determine a fix or the error is marked as \"MANUAL,\" the system skips auto-correction and sends a detailed diagnostic report to Slack for human review.",
+        "height": 352,
+        "width": 272,
+        "color": 7
+      },
+      "id": "453800c4-bf94-40fd-9427-ca8f6110927f",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2432,
+        976
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Workflow Overview\n\n### How it Works:\n\nThis workflow acts as a global error handler for your n8n instance. When a node fails in any connected workflow, the Error Trigger captures the event. It filters out self-loops to prevent recursion. The system then fetches the original workflow’s JSON and passes it to an AI Agent. The AI diagnoses if the failure was a transient network error (RETRY) or a configuration mistake (FIX). Based on this, it either waits and retries the execution or uses a Code Node to dynamically patch the JSON and update the workflow via the n8n API.\n\n### Setup Required:\n\nGlobal Error Workflow: Set this workflow as the \"Error Workflow\" in your other workflows' settings.\n\nn8n API Credentials: Create an API Key in n8n and link it to the HTTP Request nodes.\n\nAzure OpenAI: Configure the Azure Open AI credentials.\n\nSlack: Connect your Slack account and update the Channel IDs to receive real-time repair notifications.",
+        "height": 496,
+        "width": 528
+      },
+      "id": "87339878-8d67-407f-a3fa-a4b23731ee51",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        368,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "781c74a4-1af9-4468-b68b-9bc4e47dac87",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "45786005-c1f5-4067-ab85-0dec4e904509",
+              "leftValue": "={{ $json.body.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3584,
+        944
+      ],
+      "id": "eb00f740-17df-4fd0-b5bf-b1a2bbb79d4b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C03NVRHGHGU",
+          "mode": "list",
+          "cachedResultName": "général"
+        },
+        "text": "=I did not patched the workflow! Diagnosis: {{ $node[\"Generate Patch JSON\"].json.diagnosis }}\n\n",
+        "otherOptions": {}
+      },
+      "id": "86f17f55-6eb2-4456-96f2-f18d7a408f0d",
+      "name": "Notify Manual",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        3808,
+        1104
+      ],
+      "webhookId": "48426074-b0bb-4cbb-9ada-0cf9c2f4491c",
+      "typeVersion": 2.1,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "6LOJNEPjXfJnSmAX",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cool Down": {
+      "main": [
+        [
+          {
+            "node": "Retry Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Diagnose Error": {
+      "main": [
+        [
+          {
+            "node": "Determine Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Diagnose Error",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Workflow": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Action": {
+      "main": [
+        [
+          {
+            "node": "Cool Down",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Patch JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Manual Fix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "Diagnose Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Filter: Ignore Self",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Ignore Self": {
+      "main": [
+        [
+          {
+            "node": "Get Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Patch JSON": {
+      "main": [
+        [
+          {
+            "node": "Update Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Diagnose Error",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "05f0f0cf-3347-4c34-a5fb-5ac4cbd750d7",
+  "meta": {
+    "templateId": "13791",
+    "instanceId": "153df0f6a304819e82dac93c9573d635794566a4289dc25bb33d32de324357d8"
+  },
+  "nodeGroups": [],
+  "id": "VPJ2qRYEzcKNr447",
+  "tags": []
+}
