@@ -2,12 +2,32 @@
 services:
   n8n:
     image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped    
     ports:
       - "30109:5678"
     environment:
+      DOMAIN_NAME: albandrieu.com
+      SUBDOMAIN: n8n
+      WEBHOOK_TUNNEL_URL: "https://n8n.albandrieu.com"
       N8N_HOST: n8n.albandrieu.com
-      N8N_PORT: "5678"
+      N8N_PORT: 5678
       N8N_PROTOCOL: https
-      N8N_EDITOR_BASE_URL: https://n8n.albandrieu.com/
+      N8N_RUNNERS_ENABLED: true
+
+      QUEUE_HEALTH_CHECK_ACTIVE: true
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+
+      N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL: true
+      N8N_PUBLIC_API_DISABLED: false
+      # N8N_PUBLIC_API_SWAGGERUI_DISABLED: true
+      N8N_DIAGNOSTICS_ENABLED: false
+      N8N_VERSION_NOTIFICATIONS_ENABLED: false
+      N8N_METRICS: true
       WEBHOOK_URL: https://n8n.albandrieu.com/
-      N8N_PUBLIC_API_DISABLED: "false"
+      N8N_PROXY_HOPS: 1
+
+      N8N_INTERNAL_API_KEY: ${N8N_API_KEY}
+      DB_POSTGRESDB_USER: ${N8N_POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${N8N_POSTGRES_PASSWORD}
+      N8N_REDIS_PASSWORD: ${REDIS_AUTH}

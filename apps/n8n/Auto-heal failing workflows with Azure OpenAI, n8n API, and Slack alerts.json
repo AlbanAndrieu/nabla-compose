@@ -56,13 +56,11 @@
     {
       "parameters": {
         "url": "=http://127.0.0.1:30109/api/v1/workflows/{{ $json.workflow.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "X-N8N-API-KEY",
-              "value": "XXX"
-            },
             {
               "name": "Accept",
               "value": "application/json"
@@ -78,7 +76,13 @@
         1648,
         800
       ],
-      "typeVersion": 4.1
+      "typeVersion": 4.1,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2rUa2GRpwAdle59Y",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
@@ -225,13 +229,11 @@
       "parameters": {
         "method": "POST",
         "url": "=http://172.17.0.24:30109/api/v1/executions/{{$node[\"On Workflow Error\"].json.execution.id}}/retry",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "X-N8N-API-KEY",
-              "value": "your_api_key"
-            },
             {
               "name": "Accept",
               "value": "application/json"
@@ -247,19 +249,23 @@
         2720,
         768
       ],
-      "typeVersion": 4.1
+      "typeVersion": 4.1,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2rUa2GRpwAdle59Y",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PUT",
         "url": "=http://127.0.0.1:30109/api/v1/workflows/{{ $node[\"On Workflow Error\"].json.workflow.id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "X-N8N-API-KEY",
-              "value": "XXX"
-            },
             {
               "name": "Accept",
               "value": "application/json"
@@ -290,7 +296,13 @@
         3376,
         944
       ],
-      "typeVersion": 4.1
+      "typeVersion": 4.1,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2rUa2GRpwAdle59Y",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
@@ -435,7 +447,7 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict",
+            "typeValidation": "loose",
             "version": 3
           },
           "conditions": [
@@ -453,7 +465,7 @@
               "leftValue": "={{ $json.body.id }}",
               "rightValue": "",
               "operator": {
-                "type": "object",
+                "type": "string",
                 "operation": "exists",
                 "singleValue": true
               }
@@ -461,6 +473,7 @@
           ],
           "combinator": "and"
         },
+        "looseTypeValidation": true,
         "options": {}
       },
       "type": "n8n-nodes-base.if",
@@ -653,7 +666,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "05f0f0cf-3347-4c34-a5fb-5ac4cbd750d7",
+  "versionId": "ecfca7f7-2a43-4e65-81ec-21a92ec78719",
   "meta": {
     "templateId": "13791",
     "instanceId": "153df0f6a304819e82dac93c9573d635794566a4289dc25bb33d32de324357d8"

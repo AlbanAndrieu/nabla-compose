@@ -1,16 +1,8 @@
----
-working_dir: ./apps
-auto_discover: true
-
-auto_discover_opts:
-  depth: 1
-  delete: true
+name: nabla
 
 external_secrets:
-  TRAEFIK_CF_DNS_API_TOKEN: op://Automation/Cloudflare API Token/password
-  GARAGE_RPC_SECRET: op://Automation/Garage RPC Secret/password
-  GARAGE_ADMIN_TOKEN: op://Automation/Garage Admin Token/password
-  GARAGE_WEBUI_ADMIN_PASS: op://Automation/Garage WebUI/htpasswd
-  DOZZLE_ADMIN_USERNAME: op://Automation/Dozzle/username
-  DOZZLE_ADMIN_PASSWORD: op://Automation/Dozzle/htpasswd
-  TRAEFIK_DASHBOARD_BASIC_AUTH: op://Automation/Traefik Dashboard/htpasswd
+  N8N_API_KEY:
+    store_ref: bitwarden-login
+    remote_ref:
+      key: N8N_INTERNAL_API_KEY
+      property: password
