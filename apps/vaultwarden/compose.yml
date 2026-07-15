@@ -29,25 +29,51 @@ services:
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
+      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.vaultwarden.service=vaultwarden"
+      - "traefik.http.services.vaultwarden.loadbalancer.server.scheme=http"
+    networks:
+      - default
+      - traefik_network
+      - secrets-backend
 
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
+    container_name: bitwarden-api
     restart: unless-stopped
+    init: true
     user: "568:568" # TrueNAS apps user
     environment:
       BW_HOST: "https://vaultwarden.albandrieu.com"
+      # BW_HOST: http://172.17.0.24:30032
       BW_CLIENTID: "${BW_CLIENTID}"
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
       BW_PASSWORD: "${BW_PASSWORD}"
     volumes:
       - /mnt/cpool/vaultwarden/bw-data/:/data/      
-    expose:
-      - "8087"
+    # extra_hosts:
+      # - "vaultwarden.albandrieu.com:172.17.0.24"      
+      # - "vaultwarden.albandrieu.com:172.17.0.1"
+    ports:
+      - 8087:8087
     depends_on:
       - vaultwarden
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8087/status >/dev/null 2>&1 || wget -qO- http://127.0.0.1:8087/list/object/items >/dev/null 2>&1"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8087/status"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 45s
+    networks:
+      - default
+      - secrets-backend
+
+networks:
+  secrets-backend:
+    external: true
+  traefik_network:
+    external: true    
