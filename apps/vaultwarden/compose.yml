@@ -24,6 +24,17 @@ services:
       INVITATIONS_ALLOWED: "false"
       WEBSOCKET_ENABLED: "true"
       ADMIN_TOKEN: "${VAULTWARDEN_ADMIN_TOKEN}"
+      SMTP_HOST: "smtp.gmail.com"
+      SMTP_PORT: "587"
+      SMTP_SECURITY: "starttls"
+
+      SMTP_FROM: "alban.andrieu@gmail.com"
+      SMTP_FROM_NAME: "Vaultwarden Alban Andrieu"
+
+      SMTP_USERNAME: "${VAULTWARDEN_SMTP_USERNAME}"
+      SMTP_PASSWORD: "${VAULTWARDEN_SMTP_PASSWORD}"
+
+      HELO_NAME: "vaultwarden.albandrieu.com"      
     volumes:
       # - ./vw-data/:/data/
       - /mnt/cpool/vaultwarden/vw-data/:/data/
@@ -59,7 +70,8 @@ services:
       # - "vaultwarden.albandrieu.com:172.17.0.24"      
       # - "vaultwarden.albandrieu.com:172.17.0.1"
     ports:
-      - 8087:8087
+      # - 8087:8087
+      - 8087
     depends_on:
       - vaultwarden
     healthcheck:
