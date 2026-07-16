@@ -4,5 +4,17 @@ external_secrets:
   N8N_API_KEY:
     store_ref: bitwarden-login
     remote_ref:
-      key: N8N_INTERNAL_API_KEY
+      key: 35a491f4-e4cd-454b-8d2e-7a2d37ccc2e5 # gitleaks:allow
+      property: password
+
+  POSTGRES_USER:
+    store_ref: bitwarden-login
+    remote_ref:
+      key: "3f238179-3a96-4c04-8684-9600a07ac9c0" # gitleaks:allow
+      property: username
+
+  POSTGRES_PASSWORD:
+    store_ref: bitwarden-login
+    remote_ref:
+      key: "3f238179-3a96-4c04-8684-9600a07ac9c0" # gitleaks:allow
       property: password

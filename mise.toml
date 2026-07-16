@@ -22,6 +22,8 @@ docker-compose = "latest"
 1password = "latest"
 
 [env]
+_.file = "secrets-enc.yaml"
+
 # Utiliser le nom du projet dérivé du répertoire courant
 PROJECT_NAME = "{{ config_root | basename }}"
 

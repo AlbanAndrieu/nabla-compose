@@ -6,8 +6,10 @@ configs:
         reference: master
         interval: 3600
         deployments:
-          - path: vaultwarden/compose.yml
-          - path: garage/compose.yml
+          - name: vaultwarden
+            compose_file: vaultwarden/compose.yml
+          - name: garage
+            compose_file: garage/compose.yml
 
 # https://doco.cd/latest/External-Secrets/
 secrets:
@@ -17,11 +19,10 @@ secrets:
 
 # kics-scan ignore
 services:
-
   doco-cd:
     # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
     image: ghcr.io/kimdre/doco-cd:latest
-    container_name: doco-cd    
+    container_name: doco-cd
     restart: unless-stopped
     # user: "568:568" # TrueNAS apps user
     ports:
@@ -50,8 +51,8 @@ services:
       DOCKER_HOST: tcp://172.17.0.24:2375
 
     depends_on: []
-    #depends_on:
-      # op-connect-api
+    # depends_on:
+    #  op-connect-api
     #  bitwarden-api:
     #    condition: service_healthy
 
@@ -73,9 +74,15 @@ services:
       timeout: 5s
       retries: 3
 
+    networks:
+      - default
+      - secrets-backend
+
 networks:
   intranet:
     external: true
     name: intranet
   # proxy:
   #   external: true
+  secrets-backend:
+    external: true

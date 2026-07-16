@@ -1,4 +1,74 @@
 ---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albanandrieu/nabla-compose.git
+        reference: master
+        interval: 3600
+
+# https://doco.cd/latest/External-Secrets/
+# secrets:
+#   1pw_token:
+#     # file: /root/.doco-cd/1pw_token
+#     file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
+
+# kics-scan ignore
+services:
+  doco-cd:
+    # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
+    image: ghcr.io/kimdre/doco-cd:latest
+    container_name: doco-cd
+    restart: unless-stopped
+    # user: "568:568" # TrueNAS apps user
+    ports:
+      - "30080:80" # Webhook endpoint
+      - "9120:9120" # Prometheus metrics
+    # For all available environment variables and explanations, see https://doco.cd/latest/App-Settings/
+
+    # secrets: ["1pw_token"]
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      GIT_ACCESS_TOKEN: "${GITHUB_ACCESS_TOKEN_READ_ONLY}"
+      # https://doco.cd/latest/External-Secrets/1Password-Connect/
+      # SECRET_PROVIDER: 1password
+      # SECRET_PROVIDER_CONNECT_HOST: http://172.17.0.24:8097
+      # SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN} # /run/secrets/1pw_token
+      # GIT_ACCESS_TOKEN: xxx
+      SECRET_PROVIDER: webhook
+      SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
+      # <<: *poll-config  # Uncomment this line to use the poll configuration from above (the `x-poll-config` section).
+      # DOCKER_HOST: tcp://172.17.0.24:2375
+
+    depends_on: []
+    # depends_on:
+    #  op-connect-api
+    #  bitwarden-api:
+    #    condition: service_healthy
+
+    volumes:
+      # Comment this mount if using docker-proxy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # The data volume (left side) can also be replaced with a bind mount to a local directory, for example:
+      # - ./data:/data
+      - /mnt/cpool/dococd/:/data
+      - ./secret-store.yml:/secret-store.yml:ro
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 # PostgreSQL: only pgwatch/docker/compose.postgres.yml defines the `postgres` service for this
 # project. Do not add another `postgres` service in included fragments; use depends_on / env only.
 include:

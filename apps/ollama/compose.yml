@@ -20,15 +20,44 @@ services:
       - OLLAMA_MODELS=/mnt/cpool/model/ollama/
       - OLLAMA_GPU_OVERHEAD=268435456
       - OLLAMA_KV_CACHE_TYPE=q8_0
-      # - OLLAMA_API_KEY=XXX
+      # - OLLAMA_API_KEY=${OLLAMA_API_KEY} # <-- Place your API key in .env or .env.secrets.
+    # --- Healthcheck (enable manually, see OLLAMA docs for readiness path)
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:30068/health" ]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 20s
     volumes:
       - /mnt/cpool/ollama/:/root/.ollama
       - /mnt/cpool/model/ollama/:/mnt/cpool/model/ollama/
     ports:
       - 30068:30068
-    # security_opt:
-    #   - apparmor=unconfined
-
+    #  --- Traefik/Autoxpose Labels
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.ollama.rule=Host(`ollama.int.albandrieu.com`)"
+    #   - "traefik.http.routers.ollama.entrypoints=websecure"
+    #   - "traefik.http.routers.ollama.tls.certresolver=letsencrypt"
+    #   - "traefik.http.routers.ollama.service=ollama"
+    #   - "traefik.http.services.ollama.loadbalancer.server.scheme=http"
+    #   - autoxpose.enable=true
+    #   - autoxpose.subdomain=ollama
+    #   - autoxpose.port=30068
+    #   - autoxpose.domain=ollama.albandrieu.com
+    #   - autoxpose.scheme=http
+    #  --- Prometheus metrics
+    #   (If the service exposes a metrics endpoint, add -- expose, env, etc)
+    #   - prometheus.scrape=true
+    #   - prometheus.port=30068
+    # logging:
+    #   driver: "json-file"
+    #   options:
+    #     max-size: "10m"
+    #     max-file: "3"
+    #   (Uncomment to enable logging rotation)
+    #  security_opt:
+    #    - apparmor=unconfined
 # with CPU 8
 # memory 32768
 # GPU Passthrough available (non-NVIDIA) GPUs on truenas
