@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  sentry-web:
+    image: getsentry/sentry:latest
+    container_name: sentry-web
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    environment:
+      SENTRY_SECRET_KEY: "your_sentry_secret_key_here"  # TODO: Replace for prod
+      SENTRY_REDIS_HOST: redis
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_USER: postgres
+      SENTRY_DB_PASSWORD: postgres
+      SENTRY_DB_NAME: sentry
+      # For ClickHouse
+      SENTRY_CLICKHOUSE_HOST: clickhouse
+      SENTRY_CLICKHOUSE_PORT: 8123
+      SENTRY_CLICKHOUSE_USER: clickhouse
+      SENTRY_CLICKHOUSE_PASSWORD: clickhouse
+      # Add SENTRY_FILESTORE_* for Minio if you wish
+    ports:
+      - 9005:9000
+    restart: unless-stopped
+    networks:
+      - default
+
+  sentry-worker:
+    image: getsentry/sentry:latest
+    container_name: sentry-worker
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    command: run worker
+    environment:
+      SENTRY_SECRET_KEY: "your_sentry_secret_key_here"
+      SENTRY_REDIS_HOST: redis
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_USER: postgres
+      SENTRY_DB_PASSWORD: postgres
+      SENTRY_DB_NAME: sentry
+      SENTRY_CLICKHOUSE_HOST: clickhouse
+      SENTRY_CLICKHOUSE_PORT: 8123
+      SENTRY_CLICKHOUSE_USER: clickhouse
+      SENTRY_CLICKHOUSE_PASSWORD: clickhouse
+    restart: unless-stopped
+    networks:
+      - default
+
+  sentry-cron:
+    image: getsentry/sentry:latest
+    container_name: sentry-cron
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    command: run cron
+    environment:
+      SENTRY_SECRET_KEY: "your_sentry_secret_key_here"
+      SENTRY_REDIS_HOST: redis
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_USER: postgres
+      SENTRY_DB_PASSWORD: postgres
+      SENTRY_DB_NAME: sentry
+      SENTRY_CLICKHOUSE_HOST: clickhouse
+      SENTRY_CLICKHOUSE_PORT: 8123
+      SENTRY_CLICKHOUSE_USER: clickhouse
+      SENTRY_CLICKHOUSE_PASSWORD: clickhouse
+    restart: unless-stopped
+    networks:
+      - default
+
+  sentry-redis:
+    image: redis:6-alpine
+    container_name: sentry-redis
+    restart: unless-stopped
+    volumes:
+      - sentry_redis_data:/data
+
+  sentry-postgres:
+    image: postgres:14-alpine
+    container_name: sentry-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sentry
+    volumes:
+      - sentry_postgres_data:/var/lib/postgresql/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: sentry-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - sentry_clickhouse_data:/var/lib/clickhouse
+
+networks:
+  default:
+    external: true
+    name: traefik_network
+
+volumes:
+  sentry_redis_data:
+  sentry_postgres_data:
+  sentry_clickhouse_data:

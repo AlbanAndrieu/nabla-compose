@@ -18,14 +18,75 @@ alerting:
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
+  - 'rules/prometheus.rules.yml'
+  - 'rules/node-exporter.rules.yml'
+  - 'rules/cadvisor.rules.yml'
+  - 'rules/traefik.rules.yml'
+  - 'rules/minio.rules.yml'
+  - 'rules/redis.rules.yml'
 
 scrape_configs:
+  # Prometheus self monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['172.17.0.24:9100']
+
+  # cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['172.17.0.24:8080']
+
+  # Traefik
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['172.17.0.24:8082']
+    metrics_path: /metrics
+
+  # Minio
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['172.17.0.24:9000']
+    metrics_path: /minio/prometheus/metrics
+
+  # n8n
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['172.17.0.24:5678']
+    metrics_path: /metrics
+
+  # litellm
   - job_name: "litellm"
     metrics_path: /metrics
     static_configs:
-      - targets: ["172.17.0.24:4000"] # Assuming Litellm exposes metrics at port 4000
+      - targets: ["172.17.0.24:4000"]
     authorization:
       type: Bearer
       credentials_file: /run/secrets/litellm_api_key
+
+  # Redis Exporter
+  - job_name: 'redis_exporter'
+    static_configs:
+      - targets: ['172.17.0.24:9121']
+
+  # ClickHouse Exporter
+  - job_name: 'clickhouse_exporter'
+    static_configs:
+      - targets: ['172.17.0.24:9116']
+
+  # Postgres Exporter
+  - job_name: 'postgres_exporter'
+    static_configs:
+      - targets: ['172.17.0.24:9187']
+
+  # OpenRAG
+  - job_name: 'openrag-backend'
+    static_configs:
+      - targets: ['172.17.0.24:8000']
+  - job_name: 'openrag-frontend'
+    static_configs:
+      - targets: ['172.17.0.24:3000']

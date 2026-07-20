@@ -23,7 +23,7 @@ services:
       - ENABLE_API_KEY=true
       - ENABLE_API_KEY_AUTH=true
       # qwen3.5:2b
-      - DEFAULT_MODELS=qwen 
+      - DEFAULT_MODELS=qwen
       - DEFAULT_PINNED_MODELS=qwen
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
       - WEBUI_ADMIN_NAME=${WEBUI_ADMIN_NAME:-Nabla}

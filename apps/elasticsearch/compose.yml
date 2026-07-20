@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.io/elasticsearch:8.14.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - traefik_network
+    restart: unless-stopped
+
+  kibana:
+    image: docker.io/kibana:8.14.0
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - traefik_network
+    restart: unless-stopped
+
+volumes:
+  esdata:
+
+networks:
+  traefik_network:
+    external: true

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  langflow:
+    image: docker.io/langflowai/openrag-langflow:latest
+    container_name: langflow
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./flows:/app/flows:U,z
+      - ./langflow-data:/app/langflow-data:U,z
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - ES_USER=elastic
+      - ES_PASS=${ELASTIC_PASSWORD:-changeme}
+      - LANGFLOW_DEACTIVATE_TRACING=
+      # Add more envs from the openrag compose as needed
+    networks:
+      - traefik_network
+    restart: unless-stopped
+
+networks:
+  traefik_network:
+    external: true

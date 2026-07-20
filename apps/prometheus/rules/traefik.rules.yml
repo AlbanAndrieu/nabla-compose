@@ -1,0 +1,12 @@
+# Traefik alert rules (from awesome-prometheus-alerts)
+groups:
+- name: Traefik
+  rules:
+    - alert: TraefikServiceDown
+      expr: count(traefik_service_server_up) by (service) == 0
+      for: 0m
+      labels: {severity: critical}
+      annotations:
+        summary: Traefik service down
+        description: "All Traefik services are down."
+# ... (add more Traefik error rules from awesome-prometheus-alerts)

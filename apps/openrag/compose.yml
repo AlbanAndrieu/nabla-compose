@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  openrag-backend:
+    image: docker.io/langflowai/openrag-backend:latest
+    container_name: openrag-backend
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - ES_USER=elastic
+      - ES_PASS=${ELASTIC_PASSWORD:-changeme}
+      - LANGFLOW_URL=http://langflow:7860
+      # Add any other required envs from the openrag reference compose here
+      - ENVIRONMENT=production
+    depends_on:
+      - elasticsearch
+      - langflow
+    volumes:
+      - ./openrag-documents:/app/openrag-documents:U,z
+      - ./keys:/app/keys:U,z
+      - ./flows:/app/flows:U,z
+      - ./flows/backup:/app/flows/backup:U,z
+      - ./config:/app/config:U,z
+      - ./data:/app/data:U,z
+    networks:
+      - traefik_network
+    restart: unless-stopped
+
+  openrag-frontend:
+    image: docker.io/langflowai/openrag-frontend:latest
+    container_name: openrag-frontend
+    environment:
+      - OPENRAG_BACKEND_HOST=openrag-backend
+    depends_on:
+      - openrag-backend
+    ports:
+      - "3000:3000"
+    networks:
+      - traefik_network
+    restart: unless-stopped
+
+networks:
+  traefik_network:
+    external: true

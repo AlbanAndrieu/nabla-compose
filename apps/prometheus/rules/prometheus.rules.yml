@@ -1,0 +1,19 @@
+# Prometheus self-monitoring alert rules (from awesome-prometheus-alerts)
+groups:
+- name: PrometheusSelfMonitoring
+  rules:
+    - alert: PrometheusJobMissing
+      expr: absent(up{job="prometheus"})
+      for: 0m
+      labels: {severity: warning}
+      annotations:
+        summary: Prometheus job missing
+        description: "A Prometheus job has disappeared."
+    - alert: PrometheusTargetMissing
+      expr: up == 0 unless on(job) (sum by (job) (up) == 0)
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: Prometheus target missing
+        description: "A Prometheus target has disappeared."
+# ... (trimmed for brevity, you should add additional relevant rules from awesome-prometheus-alerts)

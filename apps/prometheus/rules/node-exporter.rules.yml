@@ -1,0 +1,12 @@
+# Node Exporter alert rules (from awesome-prometheus-alerts)
+groups:
+- name: NodeExporter
+  rules:
+    - alert: HostOutOfMemory
+      expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < .10)
+      for: 2m
+      labels: {severity: warning}
+      annotations:
+        summary: Host out of memory
+        description: "Node memory is filling up (< 10% left)"
+# ... (add more node-exporter warnings/critical rules from awesome-prometheus-alerts)

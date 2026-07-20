@@ -67,9 +67,9 @@ services:
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
       BW_PASSWORD: "${BW_PASSWORD}"
     volumes:
-      - /mnt/cpool/vaultwarden/bw-data/:/data/      
+      - /mnt/cpool/vaultwarden/bw-data/:/data/
     # extra_hosts:
-      # - "vaultwarden.albandrieu.com:172.17.0.24"      
+      # - "vaultwarden.albandrieu.com:172.17.0.24"
       # - "vaultwarden.albandrieu.com:172.17.0.1"
     ports:
       # - 8087:8087
@@ -90,4 +90,4 @@ networks:
   secrets-backend:
     external: true
   traefik_network:
-    external: true    
+    external: true

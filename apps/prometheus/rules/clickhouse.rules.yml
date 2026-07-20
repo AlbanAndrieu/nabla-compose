@@ -1,0 +1,11 @@
+# ClickHouse Exporter alert rules (basic template)
+groups:
+- name: ClickHouseExporter
+  rules:
+    - alert: ClickHouseDown
+      expr: clickhouse_up == 0
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: ClickHouse down
+        description: ClickHouse instance is not responding to metrics scrape.

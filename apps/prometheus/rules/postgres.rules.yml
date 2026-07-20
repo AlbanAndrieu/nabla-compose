@@ -1,0 +1,11 @@
+# Postgres Exporter alert rules (basic template)
+groups:
+- name: PostgresExporter
+  rules:
+    - alert: PostgresDown
+      expr: pg_up == 0
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: Postgres down
+        description: Postgres exporter cannot reach the Postgres DB.

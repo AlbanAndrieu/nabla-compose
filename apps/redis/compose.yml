@@ -20,3 +20,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis_exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ${REDIS_AUTH:-myredissecret}
+    ports:
+      - 9121:9121
+    depends_on:
+      - redis
+    networks:
+      - default

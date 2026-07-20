@@ -1,0 +1,12 @@
+# cAdvisor alert rules (from awesome-prometheus-alerts)
+groups:
+- name: GoogleCadvisor
+  rules:
+    - alert: ContainerKilled
+      expr: time() - container_last_seen > 60
+      for: 0m
+      labels: {severity: warning}
+      annotations:
+        summary: Container killed
+        description: "A container has disappeared."
+# ... (add more cAdvisor rules from awesome-prometheus-alerts)

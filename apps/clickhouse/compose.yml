@@ -21,3 +21,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 1s
+
+  clickhouse_exporter:
+    image: altinity/clickhouse-exporter:latest
+    container_name: clickhouse_exporter
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_URL: http://clickhouse:8123/
+    ports:
+      - 9116:9116
+    networks:
+      - default

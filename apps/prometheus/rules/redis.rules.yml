@@ -1,0 +1,12 @@
+# Redis Exporter alert rules (from awesome-prometheus-alerts)
+groups:
+- name: RedisExporter
+  rules:
+    - alert: RedisDown
+      expr: redis_up == 0
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: Redis down
+        description: "Redis instance is down."
+# ... (add more Redis exporter rules from awesome-prometheus-alerts)

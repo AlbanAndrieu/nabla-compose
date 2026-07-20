@@ -64,8 +64,8 @@ model_list:
     model_info:
       mode: chat
       supports_function_calling: true
-      
-  # for opneweb ui chromadb 
+
+  # for opneweb ui chromadb
   - model_name: embedding
     litellm_params:
       model: ollama/nomic-embed-text

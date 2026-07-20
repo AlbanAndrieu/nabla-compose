@@ -70,6 +70,7 @@ services:
       - "80:80" # Traefik
       - "443:443" # Traefik
       - "8080:8080"
+      - "8082:8082" # Prometheus metrics
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

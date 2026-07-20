@@ -1,9 +1,8 @@
 ---
 name: docker-compose-orchestration
-description: >-
-  Container orchestration with Docker Compose for multi-container applications,
-  networking, volumes, and production deployment
+description: Container orchestration with Docker Compose for multi-container applications, networking, volumes, and production deployment
 ---
+
 # Docker Compose Orchestration
 
 A comprehensive skill for orchestrating multi-container applications using Docker Compose. This skill enables rapid development, deployment, and management of containerized applications with service definitions, networking strategies, volume management, health checks, and production-ready configurations.
