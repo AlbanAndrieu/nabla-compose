@@ -24,6 +24,8 @@ rule_files:
   - 'rules/traefik.rules.yml'
   - 'rules/minio.rules.yml'
   - 'rules/redis.rules.yml'
+  - 'rules/pihole.rules.yml'
+  - 'rules/pfsense.rules.yml'
 
 scrape_configs:
   # Prometheus self monitoring
