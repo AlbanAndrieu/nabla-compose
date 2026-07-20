@@ -34,7 +34,8 @@ services:
       SMTP_USERNAME: "${VAULTWARDEN_SMTP_USERNAME}"
       SMTP_PASSWORD: "${VAULTWARDEN_SMTP_PASSWORD}"
 
-      HELO_NAME: "vaultwarden.albandrieu.com"      
+      HELO_NAME: "vaultwarden.albandrieu.com"
+      IP_HEADER: "X-Forwarded-For"
     volumes:
       # - ./vw-data/:/data/
       - /mnt/cpool/vaultwarden/vw-data/:/data/
@@ -47,6 +48,7 @@ services:
       - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
       - "traefik.http.routers.vaultwarden.service=vaultwarden"
       - "traefik.http.services.vaultwarden.loadbalancer.server.scheme=http"
+      - "traefik.http.middlewares.security.headers.customResponseHeaders.Referrer-Policy=same-origin"
     networks:
       - default
       - traefik_network
