@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@v42.0.6
+        uses: renovatebot/github-action@v46.0.0
         with:
           docker-cmd-file: .github/renovate-entrypoint.sh
           docker-user: root
