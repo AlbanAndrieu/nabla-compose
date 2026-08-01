@@ -28,7 +28,7 @@ services:
         source: ./prometheus.yml
         target: /etc/prometheus/prometheus.yml
       - /mnt/cpool/prometheus/data:/prometheus
-    networks: ["traefik_network"]
+    # networks: ["traefik_network"]
     #labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
@@ -53,25 +53,23 @@ services:
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
       - 9100:9100
-    networks: ["traefik_network"]
+    # networks: ["traefik_network"]
 
-  pfsense-exporter:
-    image: b4bz/pfsense-exporter:latest
-    container_name: pfsense-exporter
-    environment:
-      - PFHOST=https://172.17.0.1
-      - PFUSER=${PFUSER:-pfsense_api_user}   # À mettre à jour/securiser via .env ou vaultwarden
-      - PFPASS=${PFPASS:-pfsense_api_password}  # Idem
-      - PFPORT=10443
-      - VERIFY_TLS=false
-    ports:
-      - "9567:9567"
-    networks:
-      - traefik_network
-    restart: unless-stopped
-    
-services:
-    
+#  pfsense-exporter:
+#    image: ghcr.io/pfrest/pfsense_exporter:latest
+#    container_name: pfsense-exporter
+#    environment:
+#      - PFHOST=https://172.17.0.1
+#      - PFUSER=${PFUSER:-pfsense_api_user}   # À mettre à jour/securiser via .env ou vaultwarden
+#      - PFPASS=${PFPASS:-pfsense_api_password}  # Idem
+#      - PFPORT=10443
+#      - VERIFY_TLS=false
+#    ports:
+#      - "9567:9567"
+#    networks:
+#      - traefik_network
+#    restart: unless-stopped
+
   alertmanager:
     network_mode: bridge
     image: prom/alertmanager
@@ -80,7 +78,7 @@ services:
       - 9093:9093
     volumes:
       - /mnt/cpool/alertmanager/:/etc/alertmanager/
-    networks: ["traefik_network"]
+    # networks: ["traefik_network"]
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
@@ -96,7 +94,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     ports:
       - 8089:8080
-    networks: ["traefik_network"]
+    # networks: ["traefik_network"]
 
 networks:
   traefik_network:
