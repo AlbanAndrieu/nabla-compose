@@ -1,0 +1,36 @@
+# Pi-hole Exporter alert rules (awesome-prometheus-alerts)
+groups:
+- name: PiHole
+  rules:
+    - alert: PiHoleDown
+      expr: pihole_up == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: Pi-hole exporter unreachable
+        description: Your Pi-hole is not reporting to Prometheus.
+    - alert: PiHoleNoBlocklists
+      expr: pihole_gravity_count == 0
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: Pi-hole blocklists empty
+        description: Your Pi-hole does not appear to be using any blocklists and will not block any ads/malware.
+    - alert: PiHoleAdsBlockedTooLow
+      expr: sum(rate(pihole_ads_blocked_today[5m])) < 10
+      for: 0m
+      labels:
+        severity: info
+      annotations:
+        summary: Pi-hole blocking below normal
+        description: Pi-hole appears to be blocking fewer ads than usual (daily < 10).
+    - alert: PiHoleQueryCountHigh
+      expr: sum(rate(pihole_dns_queries_today[5m])) > 10000
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: Pi-hole DNS queries very high
+        description: Pi-hole is seeing an abnormally high rate of DNS queries. This could indicate malware or a misconfiguration.

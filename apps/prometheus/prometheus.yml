@@ -1,94 +1,24 @@
-# Sample config for Prometheus.
+# ------------ EXPORTERS & SERVICES - À AJOUTER pour observabilité complète -----------------
+# scrutiny - metrics HTTP natif sur port web (ex :8080)
+- job_name: 'scrutiny'
+  static_configs:
+    - targets: ['172.17.0.24:8080']
+  metrics_path: /metrics
 
-global:
-  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
-  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
-  # scrape_timeout is set to the global default (10s).
+# telegraf - nécessite activations outputs.prometheus_client sur port 9273
+- job_name: 'telegraf'
+  static_configs:
+    - targets: ['172.17.0.24:9273']
 
-  # Attach these labels to any time series or alerts when communicating with
-  # external systems (federation, remote storage, Alertmanager).
-  external_labels:
-      monitor: 'nabla'
+# nginx - nécessite activation stub_status + exporter officiel (port 9113)
+- job_name: 'nginx'
+  static_configs:
+    - targets: ['172.17.0.24:9113']
 
-# Alertmanager configuration
-alerting:
-  alertmanagers:
-  - static_configs:
-    - targets: ['localhost:9093']
+# vaultwarden - nécessite déployer vaultwarden_exporter (port 9586, exporter non-officiel)
+- job_name: 'vaultwarden'
+  static_configs:
+    - targets: ['172.17.0.24:9586']
 
-# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
-rule_files:
-  - 'rules/prometheus.rules.yml'
-  - 'rules/node-exporter.rules.yml'
-  - 'rules/cadvisor.rules.yml'
-  - 'rules/traefik.rules.yml'
-  - 'rules/minio.rules.yml'
-  - 'rules/redis.rules.yml'
-  - 'rules/pihole.rules.yml'
-  - 'rules/pfsense.rules.yml'
-
-scrape_configs:
-  # Prometheus self monitoring
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-
-  # Node Exporter
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['172.17.0.24:9100']
-
-  # cAdvisor
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['172.17.0.24:8080']
-
-  # Traefik
-  - job_name: 'traefik'
-    static_configs:
-      - targets: ['172.17.0.24:8082']
-    metrics_path: /metrics
-
-  # Minio
-  - job_name: 'minio'
-    static_configs:
-      - targets: ['172.17.0.24:9000']
-    metrics_path: /minio/prometheus/metrics
-
-  # n8n
-  - job_name: 'n8n'
-    static_configs:
-      - targets: ['172.17.0.24:5678']
-    metrics_path: /metrics
-
-  # litellm
-  - job_name: "litellm"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["172.17.0.24:4000"]
-    authorization:
-      type: Bearer
-      credentials_file: /run/secrets/litellm_api_key
-
-  # Redis Exporter
-  - job_name: 'redis_exporter'
-    static_configs:
-      - targets: ['172.17.0.24:9121']
-
-  # ClickHouse Exporter
-  - job_name: 'clickhouse_exporter'
-    static_configs:
-      - targets: ['172.17.0.24:9116']
-
-  # Postgres Exporter
-  - job_name: 'postgres_exporter'
-    static_configs:
-      - targets: ['172.17.0.24:9187']
-
-  # OpenRAG
-  - job_name: 'openrag-backend'
-    static_configs:
-      - targets: ['172.17.0.24:8000']
-  - job_name: 'openrag-frontend'
-    static_configs:
-      - targets: ['172.17.0.24:3000']
+# netalertx, ollama, langflow - pas de metrics exploitable à date
+# Ajouter ici si une version ultérieure permet l'exposition Prometheus ou exporter.

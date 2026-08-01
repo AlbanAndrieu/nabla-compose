@@ -54,3 +54,17 @@ services:
 #       - 172.17.0.24:53:53/udp
 #       - 172.17.0.24:53:53/tcp
 # #    volumes: [...]
+
+  pihole-exporter:
+    image: ekofr/pihole-exporter:latest
+    container_name: pihole-exporter
+    environment:
+      - PIHOLE_HOSTNAME=172.17.0.24
+      - PIHOLE_PORT=20720
+      - PIHOLE_PASSWORD=${PIHOLE_PASSWORD:-yourpiholepassword} # À mettre à jour dans .env/secrets
+    ports:
+      - "9617:9617"
+    networks:
+      - traefik_network
+    restart: unless-stopped
+

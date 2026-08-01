@@ -3,6 +3,21 @@ services:
   languagetool:
     image: erikvl87/languagetool
     container_name: languagetool
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/v2/check" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.languagetool.rule=Host(`languagetool.int.albandrieu.com`)"
+      - "traefik.http.routers.languagetool.entrypoints=websecure"
+      - "traefik.http.routers.languagetool.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.languagetool.service=languagetool"
+      - "traefik.http.services.languagetool.loadbalancer.server.scheme=http"
+      - prometheus.scrape=true
+      - prometheus.port=8010
     restart: unless-stopped
     ports:
       - 8010:8010 # Using default port from the image

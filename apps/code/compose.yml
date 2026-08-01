@@ -3,6 +3,12 @@ services:
   code-server:
     image: lscr.io/linuxserver/code-server:latest
     container_name: code
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:8443/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
     env_file:
       - /mnt/cpool/code/.env
@@ -26,4 +32,13 @@ services:
     ports:
       - 8443:8443
     security_opt:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.code.rule=Host(`code.int.albandrieu.com`)"
+      - "traefik.http.routers.code.entrypoints=websecure"
+      - "traefik.http.routers.code.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.code.service=code"
+      - "traefik.http.services.code.loadbalancer.server.scheme=https"
+      - prometheus.scrape=true
+      - prometheus.port=8443
       - apparmor=unconfined

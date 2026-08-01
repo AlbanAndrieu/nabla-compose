@@ -55,6 +55,23 @@ services:
       - 9100:9100
     networks: ["traefik_network"]
 
+  pfsense-exporter:
+    image: b4bz/pfsense-exporter:latest
+    container_name: pfsense-exporter
+    environment:
+      - PFHOST=https://172.17.0.1
+      - PFUSER=${PFUSER:-pfsense_api_user}   # À mettre à jour/securiser via .env ou vaultwarden
+      - PFPASS=${PFPASS:-pfsense_api_password}  # Idem
+      - PFPORT=10443
+      - VERIFY_TLS=false
+    ports:
+      - "9567:9567"
+    networks:
+      - traefik_network
+    restart: unless-stopped
+    
+services:
+    
   alertmanager:
     network_mode: bridge
     image: prom/alertmanager
