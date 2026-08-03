@@ -41,14 +41,14 @@ services:
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
-      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
-      - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.vaultwarden.service=vaultwarden"
-      - "traefik.http.services.vaultwarden.loadbalancer.server.scheme=http"
-      - "traefik.http.middlewares.security.headers.customResponseHeaders.Referrer-Policy=same-origin"
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
+    #  - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+    #  - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
+    #  - "traefik.http.routers.vaultwarden.service=vaultwarden"
+    #  - "traefik.http.services.vaultwarden.loadbalancer.server.scheme=http"
+    #  - "traefik.http.middlewares.security.headers.customResponseHeaders.Referrer-Policy=same-origin"
     networks:
       - default
       - traefik_network

@@ -55,21 +55,6 @@ services:
       - 9100:9100
     # networks: ["traefik_network"]
 
-#  pfsense-exporter:
-#    image: ghcr.io/pfrest/pfsense_exporter:latest
-#    container_name: pfsense-exporter
-#    environment:
-#      - PFHOST=https://172.17.0.1
-#      - PFUSER=${PFUSER:-pfsense_api_user}   # À mettre à jour/securiser via .env ou vaultwarden
-#      - PFPASS=${PFPASS:-pfsense_api_password}  # Idem
-#      - PFPORT=10443
-#      - VERIFY_TLS=false
-#    ports:
-#      - "9567:9567"
-#    networks:
-#      - traefik_network
-#    restart: unless-stopped
-
   alertmanager:
     network_mode: bridge
     image: prom/alertmanager
@@ -95,6 +80,16 @@ services:
     ports:
       - 8089:8080
     # networks: ["traefik_network"]
+
+  pfsense-exporter:
+    network_mode: bridge  
+    image: ghcr.io/pfrest/pfsense_exporter:latest
+    container_name: pfsense-exporter
+    restart: unless-stopped    
+    volumes:
+      - ./secrets/exporter.config.yml:/pfsense_exporter/config.yml:ro
+    ports:
+      - "9945:9945"
 
 networks:
   traefik_network:

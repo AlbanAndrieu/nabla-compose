@@ -1,24 +1,34 @@
-# ------------ EXPORTERS & SERVICES - À AJOUTER pour observabilité complète -----------------
-# scrutiny - metrics HTTP natif sur port web (ex :8080)
-- job_name: 'scrutiny'
-  static_configs:
-    - targets: ['172.17.0.24:8080']
-  metrics_path: /metrics
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
 
-# telegraf - nécessite activations outputs.prometheus_client sur port 9273
-- job_name: 'telegraf'
-  static_configs:
-    - targets: ['172.17.0.24:9273']
-
-# nginx - nécessite activation stub_status + exporter officiel (port 9113)
-- job_name: 'nginx'
-  static_configs:
-    - targets: ['172.17.0.24:9113']
-
-# vaultwarden - nécessite déployer vaultwarden_exporter (port 9586, exporter non-officiel)
-- job_name: 'vaultwarden'
-  static_configs:
-    - targets: ['172.17.0.24:9586']
-
-# netalertx, ollama, langflow - pas de metrics exploitable à date
-# Ajouter ici si une version ultérieure permet l'exposition Prometheus ou exporter.
+scrape_configs:
+  - job_name: 'scrutiny'
+    static_configs:
+      - targets: ['172.17.0.24:8080']
+    metrics_path: /metrics
+  #- job_name: 'telegraf'
+  #  static_configs:
+  #    - targets: ['172.17.0.24:9273']
+  #- job_name: 'nginx'
+  #  static_configs:
+  #    - targets: ['172.17.0.24:8099']
+  #- job_name: 'vaultwarden'
+  #  static_configs:
+  #    - targets: ['172.17.0.24:30032'] # or 32779
+  # netalertx, ollama, langflow - pas de metrics exploitable à date
+  # Ajouter ici si une version ultérieure permet l'exposition Prometheus ou exporter.
+  - job_name: 'pfsense_exporter'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+        - '172.17.0.1:10443'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: __address__
+        replacement: '172.17.0.24:9945'   # Adapter si ton exporter n'est pas accessible en tant que pfsense_exporter:9945
+      - source_labels: [__param_target]
+        target_label: instance

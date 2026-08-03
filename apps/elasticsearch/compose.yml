@@ -13,7 +13,8 @@ services:
       - "9200:9200"
       - "9300:9300"
     volumes:
-      - esdata:/usr/share/elasticsearch/data
+      # - esdata:/usr/share/elasticsearch/data
+      - /mnt/cpool/elasticsearch/data:/usr/share/elasticsearch/data
     ulimits:
       memlock:
         soft: -1
@@ -35,8 +36,8 @@ services:
       - traefik_network
     restart: unless-stopped
 
-volumes:
-  esdata:
+# volumes:
+#   esdata:
 
 networks:
   traefik_network:

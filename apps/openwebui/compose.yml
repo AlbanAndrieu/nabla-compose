@@ -1,7 +1,7 @@
 ---
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.10.2 # latest or main
+    image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: open-webui
     restart: unless-stopped
     volumes:
@@ -11,7 +11,7 @@ services:
     # depends_on:
     #   - ollama
     ports:
-      - ${OPEN_WEBUI_PORT-31028}:8080
+      - ${OPEN_WEBUI_PORT-31028}:8080         
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
@@ -44,6 +44,7 @@ services:
       - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
+      - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albandrieu.com
     extra_hosts:
       - host.docker.internal:host-gateway
 

@@ -1,5 +1,4 @@
-version: '3.8'
-
+---
 services:
   opensearch:
     image: docker.io/langflowai/openrag-opensearch:${OPENRAG_VERSION:-latest}
@@ -7,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-opensearch
+    env_file:
+      - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env        
     environment:
       - discovery.type=single-node
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
@@ -18,10 +19,12 @@ services:
       - "${OPENSEARCH_PORT:-9200}:9200"
       - "${OPENSEARCH_PERF_PORT:-9600}:9600"
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
+      # - opensearch-data:/usr/share/opensearch/data
+      - /mnt/cpool/opensearch/data:/usr/share/opensearch/data
     stop_grace_period: 2m
     healthcheck:
-      test: ["CMD-SHELL", "curl -ku admin:$${OPENSEARCH_PASSWORD} 'https://localhost:9200/_cluster/health' -s | grep -qE '\"status\":\"(green|yellow)\"'"]
+      # test: ["CMD-SHELL", "curl -ku admin:$${OPENSEARCH_PASSWORD} 'https://localhost:9200/_cluster/health' -s | grep -qE '\"status\":\"(green|yellow)\"'"]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error --insecure --user \"admin:$${OPENSEARCH_INITIAL_ADMIN_PASSWORD}\" https://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
       interval: 15s
       timeout: 10s
       retries: 20
@@ -40,5 +43,5 @@ services:
     ports:
       - "${OPENSEARCH_DASHBOARDS_PORT:-5601}:5601"
 
-volumes:
-  opensearch-data:
+#volumes:
+#  opensearch-data:
