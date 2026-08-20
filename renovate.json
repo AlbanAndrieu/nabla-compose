@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "renovate"],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "groupName": "docker images",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": false
+    }
+  ]
+}

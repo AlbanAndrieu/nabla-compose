@@ -1,0 +1,47 @@
+---
+name: Compose Validate
+
+on:
+  pull_request:
+    paths:
+      - "**/compose*.yml"
+      - "**/compose*.yaml"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - ".github/workflows/compose-validate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "**/compose*.yml"
+      - "**/compose*.yaml"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Validate standalone Compose files
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              ./.github/workflows/*|./anything-llm/*|./langfuse/*|./litellm/*|./n8n/*|./pgwatch/*|./plumber-platform/*|./reactive/*|./sentry/*|./temporal/*)
+                continue
+                ;;
+            esac
+            echo "::group::Validating ${file}"
+            docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution
+            echo "::endgroup::"
+          done < <(find . -type f \( -name 'compose.yml' -o -name 'compose.yaml' -o -name 'compose.*.yml' -o -name 'compose.*.yaml' -o -name 'docker-compose.yml' -o -name 'docker-compose.yaml' -o -name 'docker-compose.*.yml' -o -name 'docker-compose.*.yaml' \) -print0)
