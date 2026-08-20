@@ -3,20 +3,20 @@ name: Lint using super-linter
 
 on: [pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint using super-linter
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      statuses: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Super-linter
         uses: super-linter/super-linter@v8.3.2
@@ -26,3 +26,4 @@ jobs:
           IGNORE_GITIGNORED_FILES: true
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_PYTHON_ISORT: false
+          FILTER_REGEX_EXCLUDE: ^(anything-llm|langfuse|litellm|n8n|pgwatch|plumber-platform|reactive|sentry|temporal)/
