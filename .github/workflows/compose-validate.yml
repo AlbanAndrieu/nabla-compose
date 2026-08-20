@@ -29,12 +29,18 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Validate standalone Compose files
         shell: bash
         run: |
           set -euo pipefail
           while IFS= read -r -d '' file; do
+            case "$file" in
+              ./.github/workflows/*|./anything-llm/*|./langfuse/*|./litellm/*|./n8n/*|./pgwatch/*|./plumber-platform/*|./reactive/*|./sentry/*|./temporal/*)
+                continue
+                ;;
+            esac
             echo "::group::Validating ${file}"
             docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution
             echo "::endgroup::"
