@@ -1,0 +1,139 @@
+---
+# Central security overrides for services included by docker-compose.yml.
+# Docker Engine access is mediated by socket proxies; the proxies are never
+# published on a host port and live on internal-only networks.
+services:
+  docker-socket-proxy-cd:
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    container_name: docker-socket-proxy-cd
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: warning
+      POST: 1
+      BUILD: 1
+      COMMIT: 1
+      CONFIGS: 1
+      CONTAINERS: 1
+      DISTRIBUTION: 1
+      EVENTS: 1
+      EXEC: 1
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      NODES: 1
+      PLUGINS: 1
+      SERVICES: 1
+      SESSION: 1
+      SWARM: 1
+      SYSTEM: 1
+      TASKS: 1
+      VERSION: 1
+      VOLUMES: 1
+      AUTH: 0
+      SECRETS: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-cd
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  docker-socket-proxy-ro:
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    container_name: docker-socket-proxy-ro
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: warning
+      POST: 0
+      CONTAINERS: 1
+      EVENTS: 1
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      SYSTEM: 1
+      VERSION: 1
+      VOLUMES: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-observe
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  doco-cd:
+    image: ghcr.io/kimdre/doco-cd:v0.106.0
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy-cd:2375
+    volumes: !reset
+      - /mnt/cpool/dococd/:/data
+      - ./secret-store.yml:/secret-store.yml:ro
+    networks:
+      - intranet
+      - docker-cd
+    depends_on:
+      docker-socket-proxy-cd:
+        condition: service_started
+
+  telegraf:
+    image: telegraf:1.39.2
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy-ro:2375
+    volumes: !reset
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - intranet
+      - docker-observe
+    depends_on:
+      docker-socket-proxy-ro:
+        condition: service_started
+
+  dozzle-agent:
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy-ro:2375
+    volumes: !reset []
+    networks:
+      - intranet
+      - docker-observe
+    depends_on:
+      docker-socket-proxy-ro:
+        condition: service_started
+
+  portracker:
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy-ro:2375
+    volumes: !reset
+      - ./portracker-data:/data
+    networks:
+      - intranet
+      - docker-observe
+    depends_on:
+      docker-socket-proxy-ro:
+        condition: service_started
+
+  grafana:
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+
+networks:
+  docker-cd:
+    internal: true
+  docker-observe:
+    internal: true
