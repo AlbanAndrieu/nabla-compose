@@ -6,31 +6,60 @@ configs:
         reference: master
         interval: 3600
 
+# https://doco.cd/latest/External-Secrets/
+# secrets:
+#   1pw_token:
+#     # file: /root/.doco-cd/1pw_token
+#     file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
+
 # kics-scan ignore
 services:
   doco-cd:
+    # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
     image: ghcr.io/kimdre/doco-cd:latest
     container_name: doco-cd
     restart: unless-stopped
+    # user: "568:568" # TrueNAS apps user
     ports:
-      - "30080:80"
-      - "9120:9120"
+      - "30080:80" # Webhook endpoint
+      - "9120:9120" # Prometheus metrics
+    # For all available environment variables and explanations, see https://doco.cd/latest/App-Settings/
+
+    # secrets: ["1pw_token"]
     configs:
       - source: poll-config.yml
         target: /poll-config.yml
+
     environment:
       TZ: Europe/Paris
       LOG_LEVEL: info
       POLL_CONFIG_FILE: /poll-config.yml
       GIT_ACCESS_TOKEN: "${GITHUB_ACCESS_TOKEN_READ_ONLY}"
+      # https://doco.cd/latest/External-Secrets/1Password-Connect/
+      # SECRET_PROVIDER: 1password
+      # SECRET_PROVIDER_CONNECT_HOST: http://172.17.0.24:8097
+      # SECRET_PROVIDER_CONNECT_TOKEN: ${SECRET_PROVIDER_CONNECT_TOKEN} # /run/secrets/1pw_token
+      # GIT_ACCESS_TOKEN: xxx
       SECRET_PROVIDER: webhook
       SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
+      # <<: *poll-config  # Uncomment this line to use the poll configuration from above (the `x-poll-config` section).
+      # DOCKER_HOST: tcp://172.17.0.24:2375
+
+    depends_on: []
+    # depends_on:
+    #  op-connect-api
+    #  bitwarden-api:
+    #    condition: service_healthy
+
     volumes:
+      # Replaced by compose.hardening.yml when the root stack is used.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/dococd/:/data
       - ./secret-store.yml:/secret-store.yml:ro
+
     cap_drop:
       - ALL
+
     healthcheck:
       test: [CMD, /doco-cd, healthcheck]
       start_period: 15s
@@ -42,17 +71,41 @@ services:
 # project. Do not add another `postgres` service in included fragments; use depends_on / env only.
 include:
   - path: pgwatch/docker/compose.postgres.yml
+  # - path: pgwatch/docker/compose.pgpool.yml
   - path: pgwatch/docker/compose.pgbouncer.yml
+  # - path: pgwatch/docker/compose.pgwatch.yml
+  # - path: pgwatch/docker/compose.pgadmin.yml
   - path: compose.redis.yml
+  # - path: compose.clickhouse.yml
+  # - path: compose.ntopng.yml
   - path: compose.monitoring.yml # Prometheus + Grafana
+  # - path: compose.tool.yml
   - path: compose.helper.yml
+  # - path: compose.prowler.yml # TODO, consuming too much ressources
   - path: compose.security.yml
+  # - path: compose.truenas.yml #nosec allow:gitleaks
+  # - path: anything-llm/docker/docker-compose.yml
+  # - path: sentry/docker-compose.yml
+  # - path: plumber-platform/compose.local.yml # port 3001 with anythingllm conflict
+  # - path: n8n/docker-compose/withPostgresAndWorker/docker-compose.yml
+  # - path: temporal/compose-services.yml
+  # - path: openvas/docker-compose-openvas.yml
+  # - path: compose.fixinventory.yaml
+  # - path: langfuse/docker-compose.yml
   - path: docker-compose.override.yml
-  # Security overrides MUST be last so raw Docker socket mounts and permissive
-  # defaults from included fragments are replaced centrally.
+  # Keep hardening last so it can reset unsafe socket mounts and permissive defaults.
   - path: compose.hardening.yml
+
+# BELOW use systemd
+# - path: reactive/compose.yml
+# - path: litellm/compose.yml
+
+# cd temporal
+# docker compose -f compose-postgres.yml -f compose-services.yml up --detach
 
 networks:
   intranet:
     external: true
     name: intranet
+  # proxy:
+  #   external: true
