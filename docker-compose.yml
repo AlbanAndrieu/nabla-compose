@@ -1,1 +1,79 @@
-docker-compose-albandrieu.yml
+---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albanandrieu/nabla-compose.git
+        reference: master
+        interval: 3600
+
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      INFO: 1
+      NETWORKS: 1
+      PING: 1
+      SERVICES: 1
+      TASKS: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  doco-cd:
+    image: ghcr.io/kimdre/doco-cd:0.85.1
+    container_name: doco-cd
+    restart: unless-stopped
+    ports:
+      - "30080:80"
+      - "9120:9120"
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      GIT_ACCESS_TOKEN: "${GITHUB_ACCESS_TOKEN_READ_ONLY}"
+      SECRET_PROVIDER: webhook
+      SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    depends_on:
+      - docker-socket-proxy
+    volumes:
+      - /mnt/cpool/dococd/:/data
+      - ./secret-store.yml:/secret-store.yml:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+include:
+  - path: pgwatch/docker/compose.postgres.yml
+  - path: pgwatch/docker/compose.pgbouncer.yml
+  - path: compose.redis.yml
+  - path: compose.monitoring.yml
+  - path: compose.helper.yml
+  - path: compose.security.yml
+  - path: docker-compose.override.yml
+
+networks:
+  intranet:
+    external: true
+    name: intranet
