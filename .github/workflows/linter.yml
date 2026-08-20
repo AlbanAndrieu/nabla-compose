@@ -1,20 +1,17 @@
 ---
-name: Lint using super-linter
+name: Super-Linter (manual)
 
 on:
-  # Manual fallback only; MegaLinter is the canonical CI orchestrator.
   workflow_dispatch:
 
 permissions:
   contents: read
-  statuses: write
-  pull-requests: write
-  issues: write
 
 jobs:
   lint:
-    name: Lint using super-linter
+    name: Super-Linter diagnostic
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -22,11 +19,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Super-linter v8.7.0 passes an option unsupported by its bundled JSCPD.
-      - name: JSCPD
-        run: npx --yes jscpd@4.0.8 --config .jscpd.json .
-
-      - name: Super-linter
+      - name: Super-Linter
         uses: super-linter/super-linter@4ce20838b8ab83717e78138c5b3a1407148e0918 # v8.7.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,4 +33,4 @@ jobs:
           VALIDATE_PYTHON_BLACK: false
           VALIDATE_PYTHON_ISORT: false
           FILTER_REGEX_EXCLUDE: >-
-            (megalinter-reports/|anything-llm/|langfuse/|litellm/|n8n/|pgwatch/|plumber-platform/|reactive/|sentry/|temporal/|(^|/)docker-compose\.yml$|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
+            (megalinter-reports/|anything-llm/|langfuse/|litellm/|n8n/|pgwatch/|plumber-platform/|reactive/|sentry/|temporal/|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
