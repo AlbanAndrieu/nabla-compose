@@ -9,26 +9,25 @@ on:
       - "**/docker-compose*.yml"
       - "**/docker-compose*.yaml"
       - ".github/workflows/compose-validate.yml"
-  push:
-    branches: [master]
-    paths:
-      - "**/compose*.yml"
-      - "**/compose*.yaml"
-      - "**/docker-compose*.yml"
-      - "**/docker-compose*.yaml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: compose-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           submodules: recursive
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Validate standalone Compose files
