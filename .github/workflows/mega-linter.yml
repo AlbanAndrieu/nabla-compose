@@ -8,10 +8,21 @@ on:
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened]
+    paths:
+      - ".mega-linter.yml"
+      - ".github/workflows/**"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/*.json"
+      - "**/*.json5"
+      - "**/*.sh"
+      - "**/Dockerfile*"
+      - "Makefile"
+      - "Taskfile.yml"
   workflow_dispatch:
 
 concurrency:
-  group: mega-linter-${{ github.ref }}
+  group: mega-linter-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +30,7 @@ jobs:
     if: github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]'
     name: MegaLinter
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
