@@ -1,1 +1,58 @@
-docker-compose-albandrieu.yml
+---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albanandrieu/nabla-compose.git
+        reference: master
+        interval: 3600
+
+# kics-scan ignore
+services:
+  doco-cd:
+    image: ghcr.io/kimdre/doco-cd:latest
+    container_name: doco-cd
+    restart: unless-stopped
+    ports:
+      - "30080:80"
+      - "9120:9120"
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      GIT_ACCESS_TOKEN: "${GITHUB_ACCESS_TOKEN_READ_ONLY}"
+      SECRET_PROVIDER: webhook
+      SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/cpool/dococd/:/data
+      - ./secret-store.yml:/secret-store.yml:ro
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+# PostgreSQL: only pgwatch/docker/compose.postgres.yml defines the `postgres` service for this
+# project. Do not add another `postgres` service in included fragments; use depends_on / env only.
+include:
+  - path: pgwatch/docker/compose.postgres.yml
+  - path: pgwatch/docker/compose.pgbouncer.yml
+  - path: compose.redis.yml
+  - path: compose.monitoring.yml # Prometheus + Grafana
+  - path: compose.helper.yml
+  - path: compose.security.yml
+  - path: docker-compose.override.yml
+  # Security overrides MUST be last so raw Docker socket mounts and permissive
+  # defaults from included fragments are replaced centrally.
+  - path: compose.hardening.yml
+
+networks:
+  intranet:
+    external: true
+    name: intranet
