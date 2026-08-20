@@ -128,7 +128,7 @@ services:
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SECURITY_COOKIE_SECURE: "true"
+      # Enable GF_SECURITY_COOKIE_SECURE only when Grafana is served through HTTPS.
       GF_SECURITY_COOKIE_SAMESITE: strict
       GF_SECURITY_DISABLE_GRAVATAR: "true"
 
