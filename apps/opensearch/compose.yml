@@ -43,5 +43,5 @@ services:
     ports:
       - "${OPENSEARCH_DASHBOARDS_PORT:-5601}:5601"
 
-#volumes:
-#  opensearch-data:
+# volumes:
+#   opensearch-data:
