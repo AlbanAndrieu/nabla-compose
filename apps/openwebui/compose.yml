@@ -11,7 +11,7 @@ services:
     # depends_on:
     #   - ollama
     ports:
-      - ${OPEN_WEBUI_PORT-31028}:8080         
+      - ${OPEN_WEBUI_PORT-31028}:8080
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
