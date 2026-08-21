@@ -1,0 +1,15 @@
+---
+description: Docker Compose-specific guidance for Nabla services
+globs:
+  - "**/compose*.yml"
+  - "**/compose*.yaml"
+  - "**/docker-compose*.yml"
+  - "**/docker-compose*.yaml"
+alwaysApply: false
+---
+
+# Compose
+
+Follow `AGENTS.md`. For non-trivial Compose work, use `.agents/skills/docker-compose-orchestration/SKILL.md`.
+
+Prefer modern Compose Specification syntax, preserve existing service/network/volume semantics, keep secrets out of YAML, and validate only changed Compose files without starting the stack.

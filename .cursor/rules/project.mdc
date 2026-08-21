@@ -1,0 +1,10 @@
+---
+description: Canonical Nabla homelab repository instructions
+alwaysApply: true
+---
+
+# Repository instructions
+
+Use `AGENTS.md` as the canonical repository-wide instructions. Do not duplicate or override it here.
+
+Load additional scoped rules or `.agents/skills/` only when relevant to the current task.
