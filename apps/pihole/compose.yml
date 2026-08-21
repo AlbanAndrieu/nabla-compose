@@ -46,14 +46,14 @@ services:
       # Optional, if Pi-hole should get some more processing time
       - SYS_NICE
 
-#   unbound:
-#     image: mvance/unbound-rpi:1.13.0
-#     hostname: unbound
-#     restart: unless-stopped
-#     ports:
-#       - 172.17.0.24:53:53/udp
-#       - 172.17.0.24:53:53/tcp
-# #    volumes: [...]
+  #   unbound:
+  #     image: mvance/unbound-rpi:1.13.0
+  #     hostname: unbound
+  #     restart: unless-stopped
+  #     ports:
+  #       - 172.17.0.24:53:53/udp
+  #       - 172.17.0.24:53:53/tcp
+  # #    volumes: [...]
 
   pihole-exporter:
     image: ekofr/pihole-exporter:latest
