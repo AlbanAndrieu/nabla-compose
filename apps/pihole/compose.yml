@@ -67,4 +67,3 @@ services:
     networks:
       - traefik_network
     restart: unless-stopped
-
