@@ -18,7 +18,7 @@ services:
       - OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
       - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENABLE_OPENAI_API=true
-       # To use litellm
+      # To use litellm
       - ENABLE_OLLAMA_API=false
       - ENABLE_API_KEY=true
       - ENABLE_API_KEY_AUTH=true
