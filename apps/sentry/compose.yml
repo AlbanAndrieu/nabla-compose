@@ -8,7 +8,7 @@ services:
     environment:
       # SENTRY_SECRET_KEY: "XXX"
       SENTRY_REDIS_HOST: 172.17.0.24
-      SENTRY_REDIS_PORT: 30059      
+      SENTRY_REDIS_PORT: 30059
       # SENTRY_REDIS_PASSWORD: XXX
       # SENTRY_REDIS_URL: "redis://default:XXX@172.17.0.24:30059/0"
       SENTRY_POSTGRES_HOST: 172.17.0.24
@@ -34,7 +34,7 @@ services:
     container_name: sentry-worker
     command: run worker
     env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env    
+      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env
     environment:
       # SENTRY_SECRET_KEY: "XXX"
       SENTRY_REDIS_HOST: 172.17.0.24
@@ -60,7 +60,7 @@ services:
     container_name: sentry-cron
     command: run cron
     env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env    
+      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env
     environment:
       # SENTRY_SECRET_KEY: "XXX"
       SENTRY_REDIS_HOST: 172.17.0.24
