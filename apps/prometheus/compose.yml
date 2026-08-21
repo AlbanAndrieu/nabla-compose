@@ -82,10 +82,10 @@ services:
     # networks: ["traefik_network"]
 
   pfsense-exporter:
-    network_mode: bridge  
+    network_mode: bridge
     image: ghcr.io/pfrest/pfsense_exporter:latest
     container_name: pfsense-exporter
-    restart: unless-stopped    
+    restart: unless-stopped
     volumes:
       - ./secrets/exporter.config.yml:/pfsense_exporter/config.yml:ro
     ports:
