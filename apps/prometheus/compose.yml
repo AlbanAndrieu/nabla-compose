@@ -22,19 +22,19 @@ services:
     secrets:
       - source: litellm_api_key
         target: litellm_api_key
-        mode: 0444
+        mode: "0444"
     volumes:
       - type: bind
         source: ./prometheus.yml
         target: /etc/prometheus/prometheus.yml
       - /mnt/cpool/prometheus/data:/prometheus
     # networks: ["traefik_network"]
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
-    #  - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
-    #  - "traefik.http.routers.prometheus-svc.tls.certresolver=letsencrypt"
-    #  - "traefik.http.routers.prometheus-svc.service=prometheus"
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
+    #   - "traefik.http.routers.prometheus-svc.entrypoints=websecure"
+    #   - "traefik.http.routers.prometheus-svc.tls.certresolver=letsencrypt"
+    #   - "traefik.http.routers.prometheus-svc.service=prometheus"
 
   node-exporter:
     network_mode: bridge
@@ -46,9 +46,9 @@ services:
       - /:/rootfs:ro
       - /:/host:ro,rslave
     command:
-      - '--path.rootfs=/host'
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
+      - "--path.rootfs=/host"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
       - --collector.filesystem.ignored-mount-points
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
@@ -65,8 +65,8 @@ services:
       - /mnt/cpool/alertmanager/:/etc/alertmanager/
     # networks: ["traefik_network"]
     command:
-      - '--config.file=/etc/alertmanager/config.yml'
-      - '--storage.path=/alertmanager'
+      - "--config.file=/etc/alertmanager/config.yml"
+      - "--storage.path=/alertmanager"
 
   cadvisor:
     network_mode: bridge
