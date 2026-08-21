@@ -115,3 +115,12 @@ repos:
     hooks:
       - id: gitleaks
         name: "🔒 security · Detect secrets"
+
+  - repo: local
+    hooks:
+      - id: compose-config-pre-push
+        name: "🐳 compose · Validate changed files before push"
+        language: system
+        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
+        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
+        stages: [pre-push]
