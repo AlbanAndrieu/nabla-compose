@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-opensearch
     env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env        
+      - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
     environment:
       - discovery.type=single-node
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
