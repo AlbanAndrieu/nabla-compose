@@ -6,17 +6,17 @@ set -euo pipefail
 # review and commit those changes, then run this gate again before pushing.
 
 ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT"
+cd "${ROOT}"
 
 BASE_REF="${QUALITY_BASE_REF:-origin/master}"
-if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+if ! git rev-parse --verify "${BASE_REF}" >/dev/null 2>&1; then
     BASE_REF="HEAD~1"
 fi
 
 echo "🔧 Running repository formatters and linters on branch changes..."
 pre-commit run \
     --hook-stage pre-commit \
-    --from-ref "$BASE_REF" \
+    --from-ref "${BASE_REF}" \
     --to-ref HEAD \
     --show-diff-on-failure
 
