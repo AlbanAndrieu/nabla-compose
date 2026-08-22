@@ -10,6 +10,12 @@ variable "truenas_url" {
   default     = ""
 }
 
+variable "truenas_username" {
+  description = "TrueNAS service-account username that owns the API key. Required by the modern auth flow and recommended on TrueNAS 26+."
+  type        = string
+  default     = ""
+}
+
 variable "truenas_api_key" {
   description = "API key used by the TrueNAS OpenTofu provider."
   type        = string
