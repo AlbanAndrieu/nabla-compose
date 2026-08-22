@@ -2,7 +2,7 @@ terraform {
   required_providers {
     truenas = {
       source  = "PjSalty/truenas"
-      version = "~> 1.10"
+      version = "~> 1.10.0"
     }
   }
 }
