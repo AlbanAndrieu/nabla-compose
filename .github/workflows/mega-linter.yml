@@ -33,6 +33,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      issues: write
+      pull-requests: write
       security-events: write
     steps:
       - name: Checkout code
@@ -50,68 +52,49 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Render MegaLinter errors
+      - name: Publish MegaLinter job summary
         if: always()
         shell: bash
+        env:
+          MEGALINTER_OUTCOME: ${{ steps.ml.outcome }}
         run: |
           set -euo pipefail
           report="megalinter-reports/megalinter-report.md"
-          sarif="megalinter-reports/megalinter-report.sarif"
 
-          if [[ -f "$report" ]]; then
-            {
-              echo "## 🔎 MegaLinter report"
-              echo
-              cat "$report"
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## 🧹 MegaLinter"
+            echo
+            if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
+              echo "> ✅ All enabled MegaLinter checks passed."
+            else
+              echo "> ❌ MegaLinter found issues. See the table below, PR report, and Code Scanning annotations."
+            fi
+            echo
 
-          if [[ -f "$sarif" ]]; then
-            python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
+            if [[ -f "${report}" ]]; then
+              cat "${report}"
+            else
+              echo "MegaLinter did not produce its Markdown report."
+            fi
 
-          sarif = Path("megalinter-reports/megalinter-report.sarif")
-          data = json.loads(sarif.read_text(encoding="utf-8"))
-          count = 0
-          for run in data.get("runs", []):
-              tool = run.get("tool", {}).get("driver", {}).get("name", "MegaLinter")
-              rules = {r.get("id"): r for r in run.get("tool", {}).get("driver", {}).get("rules", [])}
-              for result in run.get("results", []):
-                  level = result.get("level", "error")
-                  if level not in {"error", "warning"}:
-                      continue
-                  message = result.get("message", {}).get("text", "Lint issue").replace("\n", " ")
-                  rule_id = result.get("ruleId", "")
-                  rule = rules.get(rule_id, {})
-                  locations = result.get("locations", [])
-                  location = locations[0].get("physicalLocation", {}) if locations else {}
-                  artifact = location.get("artifactLocation", {}).get("uri", "")
-                  region = location.get("region", {})
-                  line = region.get("startLine")
-                  column = region.get("startColumn")
-                  command = "warning" if level == "warning" else "error"
-                  props = []
-                  if artifact:
-                      props.append(f"file={artifact}")
-                  if line:
-                      props.append(f"line={line}")
-                  if column:
-                      props.append(f"col={column}")
-                  title = f"{tool}: {rule_id}" if rule_id else tool
-                  title = title.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                  text = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                  meta = ",".join(props + [f"title={title}"])
-                  print(f"::{command} {meta}::{text}")
-                  count += 1
-          print(f"Rendered {count} MegaLinter annotation(s)")
-          PY
-          fi
+            echo
+            echo "### GitHub reporting"
+            echo "- SARIF findings are uploaded to **Code Scanning** when available."
+            echo "- The full raw MegaLinter output is attached as a workflow artifact."
+            echo "- MegaLinter also maintains a summary comment on pull requests."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload MegaLinter SARIF to GitHub Code Scanning
+        if: always() && hashFiles('megalinter-reports/megalinter-report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: megalinter-reports/megalinter-report.sarif
+          category: megalinter
+          wait-for-processing: true
 
       - name: Archive MegaLinter reports
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MegaLinter reports
           path: |
@@ -124,5 +107,5 @@ jobs:
         if: steps.ml.outcome == 'failure'
         shell: bash
         run: |
-          echo "::error title=MegaLinter failed::Open the job summary and annotations for actionable lint errors."
+          echo "::error title=MegaLinter failed::See the PR summary, Code Scanning findings, and MegaLinter artifact for details."
           exit 1
