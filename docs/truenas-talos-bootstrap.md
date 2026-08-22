@@ -88,7 +88,7 @@ Do not export `k8s` expecting clients to traverse every child dataset: NFS treat
 
 ## 4. Create the read-only MCP identity
 
-`truenas/truenas-mcp` does not currently expose a server-side `--read-only` flag. Read-only enforcement must therefore come from TrueNAS RBAC.
+`truenas/truenas-mcp` is currently a Research Preview and does not expose a server-side `--read-only` flag. Read-only enforcement must therefore come from TrueNAS RBAC.
 
 Create a dedicated service identity rather than using `root` or `truenas_admin`:
 
@@ -127,11 +127,14 @@ Cursor discovers project-local MCP servers from `.cursor/mcp.json`. Approve `tru
 
 Do **not** reuse the read-only MCP key for OpenTofu writes.
 
-Use a second TrueNAS service account/API key for Terragrunt. During this first experiment it needs enough privileges to create:
+Use a second TrueNAS service account/API key for Terragrunt. For the current test surface, create a dedicated custom privilege with the minimum roles needed by the provider:
 
-- VMs;
-- VM devices;
-- zvols.
+- `READONLY_ADMIN` — inspect the existing system and resource state;
+- `VM_WRITE` — create/update the three VMs;
+- `VM_DEVICE_WRITE` — attach VirtIO disks, NICs and the optional CDROM;
+- `DATASET_WRITE` — create the backing zvols through the dataset API.
+
+Do not grant `FULL_ADMIN` unless a provider operation is proven to require a capability outside this role set. If the plan/apply reports a permission error, add only the role required by the failing JSON-RPC method and document the reason.
 
 Keep the API key outside Git and inject it through the environment/secret manager:
 
