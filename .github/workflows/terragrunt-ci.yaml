@@ -3,7 +3,6 @@
 name: Terragrunt CI
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   pull_request:
@@ -16,12 +15,16 @@ on:
 jobs:
   plan:
     runs-on: infra-runners
+    permissions:
+      contents: read
     outputs:
       drift_detected: ${{ steps.plan.outputs.drift_detected }}
       plan_output: ${{ steps.plan.outputs.plan_output }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup mise
         run: mise install
@@ -62,20 +65,18 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     needs: plan
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Generate Token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
-        id: app-token
         with:
-          app-id: "${{ secrets.BOT_APP_ID }}"
-          private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
+          persist-credentials: false
 
       - name: Create PR comment
         env:
-          GITHUB_TOKEN: "${{ steps.app-token.outputs.token }}"
+          GH_TOKEN: "${{ github.token }}"
           PLAN_OUTPUT: "${{ needs.plan.outputs.plan_output }}"
           DRIFT_DETECTED: "${{ needs.plan.outputs.drift_detected }}"
           STATUS: "${{ needs.plan.outputs.drift_detected == 'true' && '⚠️ Changes detected' || '✅ No changes' }}"
