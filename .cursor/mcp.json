@@ -1,13 +1,13 @@
 {
-  "mcpServers": {
-    "truenas-readonly": {
-      "type": "stdio",
-      "command": "truenas-mcp",
-      "env": {
-        "TRUENAS_URL": "${env:TRUENAS_URL}",
-        "TRUENAS_API_KEY": "${env:TRUENAS_MCP_API_KEY}",
-        "TRUENAS_MCP_DEBUG": "0"
-      }
-    }
-  }
+	"mcpServers": {
+		"truenas-readonly": {
+			"type": "stdio",
+			"command": "truenas-mcp",
+			"env": {
+				"TRUENAS_URL": "${env:TRUENAS_URL}",
+				"TRUENAS_API_KEY": "${env:TRUENAS_MCP_API_KEY}",
+				"TRUENAS_MCP_DEBUG": "0"
+			}
+		}
+	}
 }
