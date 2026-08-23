@@ -15,18 +15,18 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 case "$(uname -m)" in
-  x86_64)
-    RUNNER_ARCH="x64"
-    DEFAULT_SHA256="04cf0be1aff4c3ec3554466c39124ca250e3effd8873bb7e8d68535aa9505d5d"
-    ;;
-  aarch64 | arm64)
-    RUNNER_ARCH="arm64"
-    DEFAULT_SHA256="58b758e420b87093fbd4bfddd368074960053e2f1388f01848c82624b90f27d1"
-    ;;
-  *)
-    echo "Unsupported architecture: $(uname -m)" >&2
-    exit 1
-    ;;
+x86_64)
+  RUNNER_ARCH="x64"
+  DEFAULT_SHA256="04cf0be1aff4c3ec3554466c39124ca250e3effd8873bb7e8d68535aa9505d5d"
+  ;;
+aarch64 | arm64)
+  RUNNER_ARCH="arm64"
+  DEFAULT_SHA256="58b758e420b87093fbd4bfddd368074960053e2f1388f01848c82624b90f27d1"
+  ;;
+*)
+  echo "Unsupported architecture: $(uname -m)" >&2
+  exit 1
+  ;;
 esac
 
 if [[ "${RUNNER_VERSION}" != "2.336.0" && -z "${RUNNER_SHA256:-}" ]]; then
