@@ -2,7 +2,7 @@
 
 config {
   call_module_type = "local"
-  force = false
+  force            = false
 }
 
 plugin "terraform" {
@@ -17,9 +17,9 @@ plugin "terraform" {
 # }
 
 plugin "aws" {
-    enabled = true
-    version = "0.44.0"
-    source  = "github.com/terraform-linters/tflint-ruleset-aws"
+  enabled = true
+  version = "0.44.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }
 
 # plugin "google" {
@@ -31,7 +31,6 @@ plugin "aws" {
 rule "terraform_required_providers" {
   enabled = false
 }
-
 
 tflint {
   required_version = ">= 0.54"
