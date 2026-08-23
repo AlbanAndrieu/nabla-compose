@@ -23,11 +23,11 @@ resource "truenas_vm" "talos" {
   vcpus                 = 1
   cores                 = each.value.cores
   threads               = 1
-  bootloader             = "UEFI"
-  autostart              = false
+  bootloader            = "UEFI"
+  autostart             = false
   ensure_display_device = false
-  time                   = "UTC"
-  cpu_mode               = "HOST-PASSTHROUGH"
+  time                  = "UTC"
+  cpu_mode              = "HOST-PASSTHROUGH"
 }
 
 resource "truenas_vm_device" "talos_disk" {
