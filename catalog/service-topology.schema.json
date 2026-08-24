@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AlbanAndrieu/nabla-compose/catalog/service-topology.schema.json",
+  "title": "Nabla declared service topology",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "nodes", "relations"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string", "minLength": 1},
+    "nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "relations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relation"}
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind", "category"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "category": {"type": "string", "minLength": 1},
+        "sourcePath": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "format": "uri"},
+        "description": {"type": "string"}
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "type", "strength", "evidence"],
+      "properties": {
+        "source": {"$ref": "#/$defs/identifier"},
+        "target": {"$ref": "#/$defs/identifier"},
+        "type": {
+          "enum": [
+            "dependsOn",
+            "consumesApi",
+            "providesApi",
+            "partOf",
+            "routesTo",
+            "observedBy",
+            "storesIn",
+            "authenticatesVia",
+            "exposedBy",
+            "automates"
+          ]
+        },
+        "strength": {"enum": ["required", "optional"]},
+        "description": {"type": "string"},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
