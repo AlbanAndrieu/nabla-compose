@@ -9,6 +9,9 @@ services:
       name: Ollama
       kind: model-runtime
       category: ai
+      runtime:
+        provider: truenas-app
+        containerService: ollama
       relations:
         - target: traefik
           type: exposedBy
