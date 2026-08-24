@@ -11,6 +11,9 @@ services:
       name: LiteLLM
       kind: gateway
       category: ai
+      runtime:
+        provider: truenas-app
+        containerService: litellm
       relations:
         - target: ollama
           type: routesTo
