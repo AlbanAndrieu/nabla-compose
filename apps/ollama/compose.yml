@@ -4,6 +4,24 @@ services:
     image: docker.io/ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
+    x-nabla:
+      id: ollama
+      name: Ollama
+      kind: model-runtime
+      category: ai
+      relations:
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik routes the internal Ollama endpoint.
+          evidence:
+            - apps/ollama/compose.yml:traefik.http.routers.ollama
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Ollama is marked for Prometheus scraping.
+          evidence:
+            - apps/ollama/compose.yml:prometheus.scrape
     env_file:
       - /mnt/cpool/ollama/.env
     #  - /mnt/cpool/ollama/.env.secrets
