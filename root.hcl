@@ -7,10 +7,10 @@ remote_state {
   }
 
   config = {
-    endpoints                   = { s3 = "https://s3.int.albandrieu.com" }
-    bucket                      = "opentofu-state" # tfstate-nabla-compose
-    key                         = "${replace(path_relative_to_include(), "infrastructure/", "")}/tfstate.json"
-    region                      = "us-east-1"
+    endpoints = { s3 = "https://s3.int.albandrieu.com" }
+    bucket    = "opentofu-state" # tfstate-nabla-compose
+    key       = "${replace(path_relative_to_include(), "infrastructure/", "")}/tfstate.json"
+    region    = "us-east-1"
 
     use_lockfile                = true
     skip_credentials_validation = true
