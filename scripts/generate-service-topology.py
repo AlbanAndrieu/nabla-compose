@@ -35,7 +35,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def tracked_compose_paths() -> list[Path]:
-    """Return existing tracked Compose files; deleted paths in PR merge refs are ignored."""
+    """Return existing tracked Compose files; deleted PR paths are ignored."""
     result = subprocess.run(
         ["git", "ls-files", "*.yml", "*.yaml"],
         cwd=ROOT,
@@ -65,7 +65,9 @@ def optional_text(metadata: dict[str, Any], key: str) -> str | None:
     return value.strip()
 
 
-def topology_node(metadata: dict[str, Any], source_path: str, context: str) -> dict[str, Any]:
+def topology_node(
+    metadata: dict[str, Any], source_path: str, context: str
+) -> dict[str, Any]:
     node: dict[str, Any] = {
         "id": require_identifier(metadata.get("id"), f"{context}.id"),
         "name": optional_text(metadata, "name"),
@@ -82,7 +84,9 @@ def topology_node(metadata: dict[str, Any], source_path: str, context: str) -> d
     return node
 
 
-def runtime_binding(metadata: dict[str, Any], context: str) -> dict[str, Any] | None:
+def runtime_binding(
+    metadata: dict[str, Any], context: str
+) -> dict[str, Any] | None:
     raw_runtime = metadata.get("runtime")
     if raw_runtime is None:
         return None
@@ -90,18 +94,28 @@ def runtime_binding(metadata: dict[str, Any], context: str) -> dict[str, Any] | 
         fail(f"{context}.runtime must be a mapping")
     provider = optional_text(raw_runtime, "provider")
     if provider not in RUNTIME_PROVIDERS:
-        fail(f"{context}.runtime.provider must be one of: {', '.join(sorted(RUNTIME_PROVIDERS))}")
+        supported = ", ".join(sorted(RUNTIME_PROVIDERS))
+        fail(f"{context}.runtime.provider must be one of: {supported}")
     binding: dict[str, Any] = {"provider": provider}
     for key in ("appId", "containerService"):
         value = optional_text(raw_runtime, key)
         if value is not None:
             binding[key] = value
-    if provider == "truenas-app" and not (binding.get("appId") or binding.get("containerService")):
-        fail(f"{context}.runtime requires appId or containerService for provider truenas-app")
+    if provider == "truenas-app" and not (
+        binding.get("appId") or binding.get("containerService")
+    ):
+        fail(
+            f"{context}.runtime requires appId or containerService for provider truenas-app"
+        )
     return binding
 
 
-def declared_service(metadata: dict[str, Any], source_path: str, compose_service: str, context: str) -> dict[str, Any]:
+def declared_service(
+    metadata: dict[str, Any],
+    source_path: str,
+    compose_service: str,
+    context: str,
+) -> dict[str, Any]:
     node = topology_node(metadata, source_path, context)
     service: dict[str, Any] = {
         "id": node["id"],
@@ -120,7 +134,13 @@ def declared_service(metadata: dict[str, Any], source_path: str, compose_service
     return service
 
 
-def topology_relation(metadata: dict[str, Any], source: str, source_path: str, relation_index: int, context: str) -> dict[str, Any]:
+def topology_relation(
+    metadata: dict[str, Any],
+    source: str,
+    source_path: str,
+    relation_index: int,
+    context: str,
+) -> dict[str, Any]:
     target = require_identifier(metadata.get("target"), f"{context}.target")
     relation_type = optional_text(metadata, "type")
     strength = optional_text(metadata, "strength")
@@ -128,33 +148,51 @@ def topology_relation(metadata: dict[str, Any], source: str, source_path: str, r
         fail(f"{context}.type is required")
     if strength not in {"required", "optional"}:
         fail(f"{context}.strength must be required or optional")
+
     raw_evidence = metadata.get("evidence")
     if raw_evidence is None:
         evidence = [f"{source_path}:x-nabla.relations[{relation_index}]"]
-    elif isinstance(raw_evidence, list) and raw_evidence and all(isinstance(item, str) and item.strip() for item in raw_evidence):
+    elif (
+        isinstance(raw_evidence, list)
+        and raw_evidence
+        and all(isinstance(item, str) and item.strip() for item in raw_evidence)
+    ):
         evidence = [item.strip() for item in raw_evidence]
     else:
         fail(f"{context}.evidence must be a non-empty list of strings")
+
+    # Preserve the established generated wire order. This prevents the generator
+    # from rewriting semantically identical topology merely because a relation
+    # moved from the transitional static catalog into Compose x-nabla metadata.
     relation: dict[str, Any] = {
         "source": source,
         "target": target,
         "type": relation_type,
         "strength": strength,
-        "evidence": evidence,
     }
     description = optional_text(metadata, "description")
     if description is not None:
         relation["description"] = description
+    relation["evidence"] = evidence
     return relation
 
 
-def add_unique(target: dict[Any, dict[str, Any]], key: Any, value: dict[str, Any], context: str, label: str) -> None:
+def add_unique(
+    target: dict[Any, dict[str, Any]],
+    key: Any,
+    value: dict[str, Any],
+    context: str,
+    label: str,
+) -> None:
     if key in target:
         fail(f"duplicate {label} {key!r} from {context}")
     target[key] = value
 
 
-def load_static_topology(nodes: dict[str, dict[str, Any]], relations: dict[tuple[str, str, str], dict[str, Any]]) -> None:
+def load_static_topology(
+    nodes: dict[str, dict[str, Any]],
+    relations: dict[tuple[str, str, str], dict[str, Any]],
+) -> None:
     data = read_json(STATIC_TOPOLOGY)
     raw_nodes = data.get("nodes", [])
     raw_relations = data.get("relations", [])
@@ -168,15 +206,29 @@ def load_static_topology(nodes: dict[str, dict[str, Any]], relations: dict[tuple
     for index, relation in enumerate(raw_relations):
         if not isinstance(relation, dict):
             fail(f"static relation {index} must be an object")
-        source = require_identifier(relation.get("source"), f"static relation {index}.source")
-        target = require_identifier(relation.get("target"), f"static relation {index}.target")
+        source = require_identifier(
+            relation.get("source"), f"static relation {index}.source"
+        )
+        target = require_identifier(
+            relation.get("target"), f"static relation {index}.target"
+        )
         relation_type = relation.get("type")
         if not isinstance(relation_type, str) or not relation_type:
             fail(f"static relation {index}.type is required")
-        add_unique(relations, (source, target, relation_type), dict(relation), f"static relation {index}", "topology relation")
+        add_unique(
+            relations,
+            (source, target, relation_type),
+            dict(relation),
+            f"static relation {index}",
+            "topology relation",
+        )
 
 
-def load_compose_extensions(nodes: dict[str, dict[str, Any]], relations: dict[tuple[str, str, str], dict[str, Any]], services: dict[str, dict[str, Any]]) -> None:
+def load_compose_extensions(
+    nodes: dict[str, dict[str, Any]],
+    relations: dict[tuple[str, str, str], dict[str, Any]],
+    services: dict[str, dict[str, Any]],
+) -> None:
     for relative_path in tracked_compose_paths():
         document = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
         if document is None:
@@ -184,6 +236,7 @@ def load_compose_extensions(nodes: dict[str, dict[str, Any]], relations: dict[tu
         if not isinstance(document, dict):
             fail(f"{relative_path} must contain a YAML mapping")
         source_path = relative_path.as_posix()
+
         top_extension = document.get("x-nabla")
         if top_extension is not None:
             if not isinstance(top_extension, dict):
@@ -197,33 +250,56 @@ def load_compose_extensions(nodes: dict[str, dict[str, Any]], relations: dict[tu
                 context = f"{source_path}:x-nabla.nodes[{index}]"
                 node = topology_node(metadata, source_path, context)
                 add_unique(nodes, node["id"], node, context, "topology node")
+
         compose_services = document.get("services", {})
         if not isinstance(compose_services, dict):
             fail(f"{source_path}: services must be a mapping")
         for service_name, service_config in compose_services.items():
-            if not isinstance(service_config, dict) or service_config.get("x-nabla") is None:
+            if not isinstance(service_config, dict):
                 continue
-            extension = service_config["x-nabla"]
+            extension = service_config.get("x-nabla")
+            if extension is None:
+                continue
             if not isinstance(extension, dict):
                 fail(f"{source_path}:{service_name}.x-nabla must be a mapping")
             context = f"{source_path}:{service_name}.x-nabla"
             node = topology_node(extension, source_path, context)
             add_unique(nodes, node["id"], node, context, "topology node")
-            service = declared_service(extension, source_path, str(service_name), context)
-            add_unique(services, service["id"], service, context, "declared service")
+            service = declared_service(
+                extension, source_path, str(service_name), context
+            )
+            add_unique(
+                services, service["id"], service, context, "declared service"
+            )
             raw_relations = extension.get("relations", [])
             if not isinstance(raw_relations, list):
                 fail(f"{context}.relations must be a list")
             for index, metadata in enumerate(raw_relations):
                 if not isinstance(metadata, dict):
                     fail(f"{context}.relations[{index}] must be a mapping")
-                relation = topology_relation(metadata, node["id"], source_path, index, f"{context}.relations[{index}]")
+                relation = topology_relation(
+                    metadata,
+                    node["id"],
+                    source_path,
+                    index,
+                    f"{context}.relations[{index}]",
+                )
                 key = (relation["source"], relation["target"], relation["type"])
-                add_unique(relations, key, relation, f"{context}.relations[{index}]", "topology relation")
+                add_unique(
+                    relations,
+                    key,
+                    relation,
+                    f"{context}.relations[{index}]",
+                    "topology relation",
+                )
 
 
-def catalog_revision(services: dict[str, dict[str, Any]], nodes: dict[str, dict[str, Any]], relations: dict[tuple[str, str, str], dict[str, Any]]) -> str:
-    """Bind the service inventory to the exact topology structure generated in this pass."""
+def catalog_revision(
+    services: dict[str, dict[str, Any]],
+    nodes: dict[str, dict[str, Any]],
+    relations: dict[tuple[str, str, str], dict[str, Any]],
+) -> str:
+    """Bind service inventory to the exact topology structure generated in this pass."""
     material = {
         "services": sorted(services),
         "nodes": sorted(nodes),
@@ -239,10 +315,15 @@ def generate_catalog() -> tuple[dict[str, Any], dict[str, Any]]:
     services: dict[str, dict[str, Any]] = {}
     load_static_topology(nodes, relations)
     load_compose_extensions(nodes, relations, services)
+
     known_nodes = set(nodes)
     for relation in relations.values():
         if relation["source"] not in known_nodes or relation["target"] not in known_nodes:
-            fail(f"topology relation references an unknown node: {relation['source']} -> {relation['target']}")
+            fail(
+                "topology relation references an unknown node: "
+                f"{relation['source']} -> {relation['target']}"
+            )
+
     topology = {
         "$schema": "./service-topology.schema.json",
         "version": 1,
@@ -269,13 +350,20 @@ def check_output(path: Path, expected: str) -> bool:
     current = path.read_text(encoding="utf-8") if path.exists() else ""
     if current == expected:
         return True
-    print(f"{path.relative_to(ROOT)} is stale; run python scripts/generate-service-topology.py", file=sys.stderr)
+    print(
+        f"{path.relative_to(ROOT)} is stale; run python scripts/generate-service-topology.py",
+        file=sys.stderr,
+    )
     return False
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="fail if generated inventory or topology is stale")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail if generated inventory or topology is stale",
+    )
     args = parser.parse_args()
     try:
         topology, services = generate_catalog()
@@ -285,7 +373,9 @@ def main() -> int:
         print(f"service catalog generation failed: {exc}", file=sys.stderr)
         return 1
     if args.check:
-        if not check_output(OUTPUT_TOPOLOGY, expected_topology) or not check_output(OUTPUT_SERVICES, expected_services):
+        if not check_output(OUTPUT_TOPOLOGY, expected_topology) or not check_output(
+            OUTPUT_SERVICES, expected_services
+        ):
             return 1
         print("declared service catalog and topology are synchronized")
         return 0
