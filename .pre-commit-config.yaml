@@ -118,6 +118,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: service-topology-sync
+        name: "🕸️ catalog · Generate service topology"
+        language: python
+        entry: python scripts/generate-service-topology.py
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: '^(catalog/service-topology(?:\.static)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
+
       - id: quality-gate-pre-push
         name: "✅ quality · Run repository quality gate before push"
         language: system
