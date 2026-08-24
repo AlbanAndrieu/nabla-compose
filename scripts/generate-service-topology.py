@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generate the declared service topology from Compose ``x-nabla`` metadata."""
+"""Generate declared service inventory and topology from Compose ``x-nabla`` metadata."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -16,8 +17,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 STATIC_TOPOLOGY = ROOT / "catalog" / "service-topology.static.json"
 OUTPUT_TOPOLOGY = ROOT / "catalog" / "service-topology.json"
+OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml$")
+RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 
 
 def fail(message: str) -> None:
@@ -34,7 +37,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def tracked_compose_paths() -> list[Path]:
-    """Return tracked Compose YAML files without traversing caches or submodules."""
+    """Return existing tracked Compose YAML files without traversing caches or submodules."""
     result = subprocess.run(
         ["git", "ls-files", "*.yml", "*.yaml"],
         cwd=ROOT,
@@ -42,12 +45,16 @@ def tracked_compose_paths() -> list[Path]:
         capture_output=True,
         text=True,
     )
-    paths = [Path(line) for line in result.stdout.splitlines() if COMPOSE_PATH_RE.search(line)]
+    paths = [
+        Path(line)
+        for line in result.stdout.splitlines()
+        if COMPOSE_PATH_RE.search(line) and (ROOT / line).is_file()
+    ]
     return sorted(paths)
 
 
 def require_identifier(value: object, context: str) -> str:
-    """Validate a stable topology identifier."""
+    """Validate a stable catalog identifier."""
     if not isinstance(value, str) or not IDENTIFIER_RE.fullmatch(value):
         fail(f"{context} must be a lowercase kebab-case identifier")
     return value
@@ -80,6 +87,63 @@ def topology_node(metadata: dict[str, Any], source_path: str, context: str) -> d
         if value is not None:
             node[key] = value
     return node
+
+
+def runtime_binding(metadata: dict[str, Any], context: str) -> dict[str, Any] | None:
+    """Normalize an optional runtime binding without inferring deployment identity."""
+    raw_runtime = metadata.get("runtime")
+    if raw_runtime is None:
+        return None
+    if not isinstance(raw_runtime, dict):
+        fail(f"{context}.runtime must be a mapping")
+
+    provider = optional_text(raw_runtime, "provider")
+    if provider not in RUNTIME_PROVIDERS:
+        supported = ", ".join(sorted(RUNTIME_PROVIDERS))
+        fail(f"{context}.runtime.provider must be one of: {supported}")
+
+    binding: dict[str, Any] = {"provider": provider}
+    for source_key, output_key in (
+        ("appId", "appId"),
+        ("containerService", "containerService"),
+    ):
+        value = optional_text(raw_runtime, source_key)
+        if value is not None:
+            binding[output_key] = value
+
+    if provider == "truenas-app" and not (
+        binding.get("appId") or binding.get("containerService")
+    ):
+        fail(
+            f"{context}.runtime requires appId or containerService for provider truenas-app"
+        )
+    return binding
+
+
+def declared_service(
+    metadata: dict[str, Any],
+    *,
+    source_path: str,
+    compose_service: str,
+    context: str,
+) -> dict[str, Any]:
+    """Normalize one service-local x-nabla extension into the declared inventory."""
+    node = topology_node(metadata, source_path, context)
+    service = {
+        "id": node["id"],
+        "name": node["name"],
+        "kind": node["kind"],
+        "category": node["category"],
+        "sourcePath": node["sourcePath"],
+        "composeService": compose_service,
+    }
+    for key in ("url", "description"):
+        if key in node:
+            service[key] = node[key]
+    runtime = runtime_binding(metadata, context)
+    if runtime is not None:
+        service["runtime"] = runtime
+    return service
 
 
 def topology_relation(
@@ -130,6 +194,16 @@ def add_node(nodes: dict[str, dict[str, Any]], node: dict[str, Any], context: st
     nodes[node_id] = node
 
 
+def add_service(
+    services: dict[str, dict[str, Any]], service: dict[str, Any], context: str
+) -> None:
+    """Add one declared service while rejecting duplicate stable IDs."""
+    service_id = service["id"]
+    if service_id in services:
+        fail(f"duplicate declared service {service_id!r} from {context}")
+    services[service_id] = service
+
+
 def add_relation(
     relations: dict[tuple[str, str, str], dict[str, Any]],
     relation: dict[str, Any],
@@ -146,7 +220,7 @@ def load_static_topology(
     nodes: dict[str, dict[str, Any]],
     relations: dict[tuple[str, str, str], dict[str, Any]],
 ) -> None:
-    """Load relations not yet migrated into service-local x-nabla metadata."""
+    """Load relationships not yet migrated into service-local x-nabla metadata."""
     data = read_json(STATIC_TOPOLOGY)
     raw_nodes = data.get("nodes", [])
     raw_relations = data.get("relations", [])
@@ -168,8 +242,9 @@ def load_static_topology(
 def load_compose_extensions(
     nodes: dict[str, dict[str, Any]],
     relations: dict[tuple[str, str, str], dict[str, Any]],
+    services: dict[str, dict[str, Any]],
 ) -> None:
-    """Collect top-level logical nodes and service-local x-nabla metadata."""
+    """Collect logical topology nodes and service-local declared inventory metadata."""
     for relative_path in tracked_compose_paths():
         absolute_path = ROOT / relative_path
         document = yaml.safe_load(absolute_path.read_text(encoding="utf-8"))
@@ -196,13 +271,13 @@ def load_compose_extensions(
                 )
                 add_node(nodes, node, f"{source_path}:x-nabla.nodes[{index}]")
 
-        services = document.get("services", {})
-        if not isinstance(services, dict):
+        compose_services = document.get("services", {})
+        if not isinstance(compose_services, dict):
             fail(f"{source_path}: services must be a mapping")
-        for service_name, service in services.items():
-            if not isinstance(service, dict):
+        for service_name, service_config in compose_services.items():
+            if not isinstance(service_config, dict):
                 continue
-            extension = service.get("x-nabla")
+            extension = service_config.get("x-nabla")
             if extension is None:
                 continue
             if not isinstance(extension, dict):
@@ -210,6 +285,16 @@ def load_compose_extensions(
             context = f"{source_path}:{service_name}.x-nabla"
             node = topology_node(extension, source_path, context)
             add_node(nodes, node, context)
+            add_service(
+                services,
+                declared_service(
+                    extension,
+                    source_path=source_path,
+                    compose_service=str(service_name),
+                    context=context,
+                ),
+                context,
+            )
 
             raw_relations = extension.get("relations", [])
             if not isinstance(raw_relations, list):
@@ -227,12 +312,28 @@ def load_compose_extensions(
                 add_relation(relations, relation, f"{context}.relations[{index}]")
 
 
-def generate_topology() -> dict[str, Any]:
-    """Build and validate the complete deterministic topology payload."""
+def catalog_revision(
+    services: dict[str, dict[str, Any]],
+    nodes: dict[str, dict[str, Any]],
+    relations: dict[tuple[str, str, str], dict[str, Any]],
+) -> str:
+    """Return a deterministic structural revision shared by inventory and topology."""
+    material = {
+        "services": sorted(services),
+        "nodes": sorted(nodes),
+        "relations": [list(key) for key in sorted(relations)],
+    }
+    canonical = json.dumps(material, separators=(",", ":"), sort_keys=True)
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def generate_catalog() -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build and validate both deterministic declared contracts in one pass."""
     nodes: dict[str, dict[str, Any]] = {}
     relations: dict[tuple[str, str, str], dict[str, Any]] = {}
+    services: dict[str, dict[str, Any]] = {}
     load_static_topology(nodes, relations)
-    load_compose_extensions(nodes, relations)
+    load_compose_extensions(nodes, relations, services)
 
     known_nodes = set(nodes)
     for relation in relations.values():
@@ -242,50 +343,72 @@ def generate_topology() -> dict[str, Any]:
                 f"{relation['source']} -> {relation['target']}"
             )
 
-    return {
+    revision = catalog_revision(services, nodes, relations)
+    topology = {
         "$schema": "./service-topology.schema.json",
         "version": 1,
+        "catalogRevision": revision,
         "name": "Nabla homelab declared topology",
         "nodes": [nodes[node_id] for node_id in sorted(nodes)],
         "relations": [relations[key] for key in sorted(relations)],
     }
+    service_catalog = {
+        "$schema": "./services.schema.json",
+        "version": 1,
+        "catalogRevision": revision,
+        "name": "Nabla homelab declared services",
+        "services": [services[service_id] for service_id in sorted(services)],
+    }
+    return topology, service_catalog
 
 
-def rendered_topology() -> str:
-    """Return Biome-compatible deterministic JSON output."""
-    return json.dumps(generate_topology(), indent=2, ensure_ascii=False) + "\n"
+def render_json(payload: dict[str, Any]) -> str:
+    """Return deterministic JSON output."""
+    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
+def check_output(path: Path, expected: str) -> bool:
+    """Return whether one generated artifact matches the checked-in copy."""
+    current = path.read_text(encoding="utf-8") if path.exists() else ""
+    if current == expected:
+        return True
+    print(
+        f"{path.relative_to(ROOT)} is stale; run python scripts/generate-service-topology.py",
+        file=sys.stderr,
+    )
+    return False
 
 
 def main() -> int:
-    """Write the generated file or verify that the checked-in artifact is current."""
+    """Write both generated files or verify checked-in artifacts are current."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--check",
         action="store_true",
-        help="fail if catalog/service-topology.json differs from generated output",
+        help="fail if generated service inventory or topology differs from checked-in output",
     )
     args = parser.parse_args()
 
     try:
-        expected = rendered_topology()
+        topology, services = generate_catalog()
+        expected_topology = render_json(topology)
+        expected_services = render_json(services)
     except (OSError, subprocess.CalledProcessError, ValueError, yaml.YAMLError) as exc:
-        print(f"service-topology generation failed: {exc}", file=sys.stderr)
+        print(f"service catalog generation failed: {exc}", file=sys.stderr)
         return 1
 
     if args.check:
-        current = OUTPUT_TOPOLOGY.read_text(encoding="utf-8") if OUTPUT_TOPOLOGY.exists() else ""
-        if current != expected:
-            print(
-                "catalog/service-topology.json is stale; run "
-                "python scripts/generate-service-topology.py",
-                file=sys.stderr,
-            )
+        topology_ok = check_output(OUTPUT_TOPOLOGY, expected_topology)
+        services_ok = check_output(OUTPUT_SERVICES, expected_services)
+        if not topology_ok or not services_ok:
             return 1
-        print("service topology is synchronized")
+        print("declared service catalog and topology are synchronized")
         return 0
 
-    OUTPUT_TOPOLOGY.write_text(expected, encoding="utf-8")
+    OUTPUT_TOPOLOGY.write_text(expected_topology, encoding="utf-8")
+    OUTPUT_SERVICES.write_text(expected_services, encoding="utf-8")
     print(f"wrote {OUTPUT_TOPOLOGY.relative_to(ROOT)}")
+    print(f"wrote {OUTPUT_SERVICES.relative_to(ROOT)}")
     return 0
 
 
