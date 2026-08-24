@@ -4,7 +4,13 @@
   "title": "Nabla declared service catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "catalogRevision", "topologyVersion", "name", "services"],
+  "required": [
+    "version",
+    "catalogRevision",
+    "topologyVersion",
+    "name",
+    "services"
+  ],
   "properties": {
     "$schema": { "type": "string" },
     "version": { "type": "integer", "minimum": 1 },
@@ -37,7 +43,14 @@
     "service": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "kind", "category", "sourcePath", "composeService"],
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "category",
+        "sourcePath",
+        "composeService"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/identifier" },
         "name": { "type": "string", "minLength": 1 },
