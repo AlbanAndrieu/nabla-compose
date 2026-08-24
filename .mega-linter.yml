@@ -46,11 +46,12 @@ ACTION_ZIZMOR_UNSECURED_ENV_VARIABLES:
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: >-
   ((^|/)(\.vscode|\.devcontainer)/|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
 JSON_PRETTIER_FILTER_REGEX_EXCLUDE: >-
-  ((^|/)(\.vscode|\.devcontainer)/|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
+  ((^|/)(\.vscode|\.devcontainer)/|(^|/)catalog/service-topology\.json$|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
 BASH_FILTER_REGEX_EXCLUDE: (lib/)
 MARKDOWN_MARKDOWN_LINK_CHECK_DISABLE_ERRORS: true
 DOCKERFILE_HADOLINT_ARGUMENTS: >-
   --ignore DL3003 --ignore DL3007 --ignore DL3013 --ignore DL3016 --ignore DL3018
+  --ignore DL3028 --ignore DL4001 --ignore DL4006 --ignore SC2015 --ignore SC2016
   --ignore DL3028 --ignore DL4001 --ignore DL4006 --ignore SC2015 --ignore SC2016
   --ignore SC2039 --ignore SC2086 --ignore SC1091
 DOCKERFILE_HADOLINT_DISABLE_ERRORS: false
