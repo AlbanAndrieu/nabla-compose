@@ -3,6 +3,39 @@ services:
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
+    x-nabla:
+      id: n8n
+      name: n8n
+      kind: workflow
+      category: automation
+      runtime:
+        provider: truenas-app
+        containerService: n8n
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: n8n is configured with PostgreSQL credentials for workflow persistence.
+          evidence:
+            - apps/n8n/compose.yml:DB_POSTGRESDB_USER
+        - target: redis
+          type: dependsOn
+          strength: optional
+          description: n8n is configured with Redis credentials for queue-backed execution.
+          evidence:
+            - apps/n8n/compose.yml:N8N_REDIS_PASSWORD
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik routes HTTPS traffic to n8n.
+          evidence:
+            - apps/n8n/compose.yml:traefik.http.routers.n8n
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: n8n exposes metrics for Prometheus scraping.
+          evidence:
+            - apps/n8n/compose.yml:prometheus.scrape
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5678/healthz" ]
