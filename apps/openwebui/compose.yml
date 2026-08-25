@@ -1,9 +1,46 @@
 ---
+x-nabla:
+  nodes:
+    - id: searxng
+      name: SearXNG
+      kind: search
+      category: ai
+      description: Optional metasearch backend consumed by Open WebUI web-search tooling.
+    - id: open-terminal
+      name: Open Terminal
+      kind: tool-service
+      category: ai
+      description: Optional agent terminal API consumed by Open WebUI tools.
+
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: open-webui
     restart: unless-stopped
+    x-nabla:
+      id: openwebui
+      name: Open WebUI
+      kind: application
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: open-webui
+      relations:
+        - target: litellm
+          type: consumesApi
+          strength: required
+          description: Open WebUI sends chat and RAG OpenAI-compatible requests through LiteLLM.
+          evidence:
+            - apps/openwebui/compose.yml:OPENAI_API_BASE_URL
+            - apps/openwebui/compose.yml:RAG_OPENAI_API_BASE_URL
+        - target: searxng
+          type: consumesApi
+          strength: optional
+          description: Open WebUI can delegate web search to the SearXNG integration.
+        - target: open-terminal
+          type: consumesApi
+          strength: optional
+          description: Open WebUI agents can invoke the Open Terminal tool API.
     volumes:
       # - open-webui:/app/backend/data
       - /mnt/cpool/openwebui/data:/app/backend/data
@@ -44,7 +81,7 @@ services:
       - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
-      - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albandrieu.com
+      - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -52,6 +89,14 @@ services:
     image: ghcr.io/open-webui/pipelines:main
     container_name: pipelines
     restart: unless-stopped
+    x-nabla:
+      id: openwebui-pipelines
+      name: Open WebUI Pipelines
+      kind: service
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: pipelines
     volumes:
       - pipelines:/app/pipelines
     extra_hosts:

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.albanandrieu.com/schemas/nabla-services.schema.json",
+  "title": "Nabla declared service catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "catalogRevision",
+    "topologyVersion",
+    "name",
+    "services"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "catalogRevision": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "topologyVersion": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/service" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["truenas-app", "logical", "external", "host"]
+        },
+        "appId": { "type": "string", "minLength": 1 },
+        "containerService": { "type": "string", "minLength": 1 }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "category",
+        "sourcePath",
+        "composeService"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "sourcePath": { "type": "string", "minLength": 1 },
+        "composeService": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "runtime": { "$ref": "#/$defs/runtime" }
+      }
+    }
+  }
+}

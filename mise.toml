@@ -40,6 +40,14 @@ AWS_PROFILE = "eks"
 init = "bash ./scripts/run-install.sh"
 build = "npm run build"
 
+[tasks.hooks]
+description = "Install pre-commit, commit-msg and pre-push Git hooks"
+run = "pre-commit install"
+
+[tasks.quality]
+description = "Run the same quality gate enforced by the pre-push hook"
+run = "bash scripts/quality-gate.sh"
+
 [tasks.install]
 description = "Install all poetry dependencies"
 alias = "i"

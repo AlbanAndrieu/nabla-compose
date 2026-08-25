@@ -6,6 +6,40 @@ services:
     image: ghcr.io/berriai/litellm:main-stable # v1.84.8-stable
     container_name: litellm
     restart: unless-stopped
+    x-nabla:
+      id: litellm
+      name: LiteLLM
+      kind: gateway
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: litellm
+      relations:
+        - target: ollama
+          type: routesTo
+          strength: required
+          description: LiteLLM routes local model and embedding requests to Ollama runtimes.
+          evidence:
+            - apps/litellm/config.yaml:model_list
+        - target: langfuse
+          type: observedBy
+          strength: optional
+          description: LiteLLM exports LLM telemetry to Langfuse through its OpenTelemetry callback.
+          evidence:
+            - apps/litellm/compose.yml:LANGFUSE_OTEL_HOST
+            - apps/litellm/config.yaml:langfuse_otel
+        - target: redis
+          type: dependsOn
+          strength: optional
+          description: LiteLLM can use Redis for its response cache.
+          evidence:
+            - apps/litellm/config.yaml:cache_params.redis_url
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: LiteLLM enables its Prometheus callback and budget metrics.
+          evidence:
+            - apps/litellm/config.yaml:callbacks.prometheus
     # user: "568:568" # TrueNAS apps user
     volumes:
       - ./config.yaml:/app/config.yaml

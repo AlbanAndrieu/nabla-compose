@@ -1,0 +1,57 @@
+{
+  "$schema": "./services.schema.json",
+  "version": 1,
+  "catalogRevision": "sha256:e791fdf3bff952def99d5df9beea2e448b160eb8079d5857b64641539c8b9f67",
+  "topologyVersion": 1,
+  "name": "Nabla homelab declared services",
+  "services": [
+    {
+      "id": "litellm",
+      "name": "LiteLLM",
+      "kind": "gateway",
+      "category": "ai",
+      "sourcePath": "apps/litellm/compose.yml",
+      "composeService": "litellm",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "litellm"
+      }
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "kind": "model-runtime",
+      "category": "ai",
+      "sourcePath": "apps/ollama/compose.yml",
+      "composeService": "ollama",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "ollama"
+      }
+    },
+    {
+      "id": "openwebui",
+      "name": "Open WebUI",
+      "kind": "application",
+      "category": "ai",
+      "sourcePath": "apps/openwebui/compose.yml",
+      "composeService": "open-webui",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "open-webui"
+      }
+    },
+    {
+      "id": "openwebui-pipelines",
+      "name": "Open WebUI Pipelines",
+      "kind": "service",
+      "category": "ai",
+      "sourcePath": "apps/openwebui/compose.yml",
+      "composeService": "pipelines",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pipelines"
+      }
+    }
+  ]
+}

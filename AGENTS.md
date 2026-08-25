@@ -2,6 +2,16 @@
 
 Keep context small and changes scoped.
 
+## Repository bootstrap
+
+Git hook configuration is versioned, but Git does not install repository hooks automatically after clone. On a new checkout, run:
+
+```bash
+mise run hooks
+```
+
+This installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI remains the authoritative enforcement layer because local hooks can be absent or explicitly bypassed.
+
 ## Before editing
 
 1. Inspect `git status`, the task, and only relevant files.
@@ -42,7 +52,7 @@ Before every `git push`:
 5. Verify `git status --short` is empty.
 6. Only then run `git push`.
 
-The repository also installs `quality-gate-pre-push`, which invokes the same gate automatically as a final safety net.
+When `mise run hooks` has been run, `quality-gate-pre-push` invokes the same gate automatically as a final local safety net.
 
 Never bypass repository hooks with `git push --no-verify`. Never weaken or disable formatter, lint, security, or validation rules merely to make a push or CI build pass.
 
