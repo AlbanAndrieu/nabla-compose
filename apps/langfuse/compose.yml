@@ -28,6 +28,44 @@ services:
           strength: required
           description: The background worker is a runtime component of the Langfuse platform.
     restart: always
+    x-nabla:
+      id: langfuse-worker
+      name: Langfuse Worker
+      kind: worker
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-worker
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The worker is a runtime workload of the logical Langfuse platform.
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Langfuse Worker stores transactional application data in PostgreSQL.
+          evidence:
+            - apps/langfuse/compose.yml:DATABASE_URL
+        - target: clickhouse
+          type: dependsOn
+          strength: required
+          description: Langfuse Worker stores analytical event data in ClickHouse.
+          evidence:
+            - apps/langfuse/compose.yml:CLICKHOUSE_URL
+        - target: minio
+          type: storesIn
+          strength: required
+          description: Langfuse Worker uses S3-compatible object storage for event, media and export data.
+          evidence:
+            - apps/langfuse/compose.yml:LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT
+            - apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT
+        - target: redis
+          type: dependsOn
+          strength: required
+          description: Langfuse Worker uses Redis for queues and asynchronous processing.
+          evidence:
+            - apps/langfuse/compose.yml:REDIS_HOST
     # depends_on: &langfuse-depends-on
     #   postgres:
     #     condition: service_healthy
@@ -106,6 +144,43 @@ services:
           strength: required
           description: The web application is the interactive runtime component of the Langfuse platform.
     restart: always
+    x-nabla:
+      id: langfuse-web
+      name: Langfuse Web
+      kind: application
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-web
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The web application is a runtime workload of the logical Langfuse platform.
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Langfuse Web stores transactional application data in PostgreSQL.
+          evidence:
+            - apps/langfuse/compose.yml:DATABASE_URL
+        - target: clickhouse
+          type: dependsOn
+          strength: required
+          description: Langfuse Web reads and writes analytical event data in ClickHouse.
+          evidence:
+            - apps/langfuse/compose.yml:CLICKHOUSE_URL
+        - target: minio
+          type: storesIn
+          strength: required
+          description: Langfuse Web uses S3-compatible object storage for media and exports.
+          evidence:
+            - apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT
+        - target: redis
+          type: dependsOn
+          strength: required
+          description: Langfuse Web uses Redis-backed queues and shared asynchronous state.
+          evidence:
+            - apps/langfuse/compose.yml:REDIS_HOST
     # depends_on: *langfuse-depends-on
     ports:
       - 3000:3000
