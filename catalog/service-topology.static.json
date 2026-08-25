@@ -3,13 +3,6 @@
   "name": "Nabla homelab static topology extensions",
   "nodes": [
     {
-      "id": "langfuse",
-      "name": "Langfuse",
-      "kind": "observability",
-      "category": "ai",
-      "sourcePath": "apps/langfuse/compose.yml"
-    },
-    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
