@@ -1,10 +1,22 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:e791fdf3bff952def99d5df9beea2e448b160eb8079d5857b64641539c8b9f67",
+  "catalogRevision": "sha256:5748c9de08c05b5e9ccc89a0725367a2b3ac49709d9e0597a5b126124fe5b090",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
+    {
+      "id": "langflow",
+      "name": "Langflow",
+      "kind": "workflow",
+      "category": "ai",
+      "sourcePath": "apps/langflow/compose.yml",
+      "composeService": "langflow",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langflow"
+      }
+    },
     {
       "id": "litellm",
       "name": "LiteLLM",
@@ -18,6 +30,18 @@
       }
     },
     {
+      "id": "n8n",
+      "name": "n8n",
+      "kind": "workflow",
+      "category": "automation",
+      "sourcePath": "apps/n8n/compose.yml",
+      "composeService": "n8n",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "n8n"
+      }
+    },
+    {
       "id": "ollama",
       "name": "Ollama",
       "kind": "model-runtime",
@@ -27,6 +51,30 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ollama"
+      }
+    },
+    {
+      "id": "openrag-backend",
+      "name": "OpenRAG Backend",
+      "kind": "service",
+      "category": "ai",
+      "sourcePath": "apps/openrag/compose.yml",
+      "composeService": "openrag-backend",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openrag-backend"
+      }
+    },
+    {
+      "id": "openrag-frontend",
+      "name": "OpenRAG Frontend",
+      "kind": "application",
+      "category": "ai",
+      "sourcePath": "apps/openrag/compose.yml",
+      "composeService": "openrag-frontend",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openrag-frontend"
       }
     },
     {
