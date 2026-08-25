@@ -3,13 +3,6 @@
   "name": "Nabla homelab static topology extensions",
   "nodes": [
     {
-      "id": "langfuse",
-      "name": "Langfuse",
-      "kind": "observability",
-      "category": "ai",
-      "sourcePath": "apps/langfuse/compose.yml"
-    },
-    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
@@ -56,41 +49,5 @@
       "category": "network"
     }
   ],
-  "relations": [
-    {
-      "source": "langfuse",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Langfuse stores transactional application data in PostgreSQL.",
-      "evidence": ["apps/langfuse/compose.yml:DATABASE_URL"]
-    },
-    {
-      "source": "langfuse",
-      "target": "clickhouse",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Langfuse stores analytical event data in ClickHouse.",
-      "evidence": ["apps/langfuse/compose.yml:CLICKHOUSE_URL"]
-    },
-    {
-      "source": "langfuse",
-      "target": "minio",
-      "type": "storesIn",
-      "strength": "required",
-      "description": "Langfuse uses S3-compatible object storage for event, media and export data.",
-      "evidence": [
-        "apps/langfuse/compose.yml:LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT",
-        "apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT"
-      ]
-    },
-    {
-      "source": "langfuse",
-      "target": "redis",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Langfuse uses Redis for queues and asynchronous processing.",
-      "evidence": ["apps/langfuse/compose.yml:REDIS_HOST"]
-    }
-  ]
+  "relations": []
 }
