@@ -11,6 +11,7 @@ git submodule add -f https://github.com/AlbanAndrieu/litellm.git
 git submodule add -f https://github.com/AlbanAndrieu/n8n-hosting.git n8n
 git submodule add -f https://github.com/AlbanAndrieu/anything-llm
 git submodule add -f https://github.com/AlbanAndrieu/langfuse
+git submodule add -f https://github.com/AlbanAndrieu/fastapi-sample
 
 git pull origin master --allow-unrelated-histories
 git pull && git submodule init && git submodule update && git submodule status

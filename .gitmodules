@@ -25,3 +25,6 @@
 [submodule "langfuse"]
 	path = langfuse
 	url = https://github.com/AlbanAndrieu/langfuse.git
+[submodule "fastapi-sample"]
+	path = fastapi-sample
+	url = https://github.com/AlbanAndrieu/fastapi-sample
