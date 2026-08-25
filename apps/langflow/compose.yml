@@ -4,6 +4,21 @@ services:
   langflow:
     image: docker.io/langflowai/openrag-langflow:latest
     container_name: langflow
+    x-nabla:
+      id: langflow
+      name: Langflow
+      kind: workflow
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langflow
+      relations:
+        - target: elasticsearch
+          type: dependsOn
+          strength: required
+          description: The OpenRAG Langflow runtime accesses Elasticsearch.
+          evidence:
+            - apps/langflow/compose.yml:ES_HOST
     ports:
       - "7860:7860"
     volumes:
