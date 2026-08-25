@@ -9,11 +9,24 @@ x-nabla:
       name: Langfuse
       kind: observability
       category: ai
-      description: Logical Langfuse observability platform composed of web and worker workloads.
+      description: Logical Langfuse observability platform composed of web and worker runtimes.
 
 services:
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
+    x-nabla:
+      id: langfuse-worker
+      name: Langfuse Worker
+      kind: worker
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-worker
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The background worker is a runtime component of the Langfuse platform.
     restart: always
     x-nabla:
       id: langfuse-worker
@@ -117,6 +130,19 @@ services:
 
   langfuse-web:
     image: docker.io/langfuse/langfuse:3
+    x-nabla:
+      id: langfuse-web
+      name: Langfuse Web
+      kind: application
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-web
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The web application is the interactive runtime component of the Langfuse platform.
     restart: always
     x-nabla:
       id: langfuse-web

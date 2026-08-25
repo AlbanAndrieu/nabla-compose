@@ -29,6 +29,21 @@
       "name": "Langfuse",
       "kind": "observability",
       "category": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "description": "Logical Langfuse observability platform composed of web and worker runtimes."
+    },
+    {
+      "id": "langfuse-web",
+      "name": "Langfuse Web",
+      "kind": "application",
+      "category": "ai",
+      "sourcePath": "apps/langfuse/compose.yml"
+    },
+    {
+      "id": "langfuse-worker",
+      "name": "Langfuse Worker",
+      "kind": "worker",
+      "category": "ai",
       "sourcePath": "apps/langfuse/compose.yml"
     },
     {
@@ -179,6 +194,26 @@
       "description": "Langfuse uses Redis for queues and asynchronous processing.",
       "evidence": [
         "apps/langfuse/compose.yml:REDIS_HOST"
+      ]
+    },
+    {
+      "source": "langfuse-web",
+      "target": "langfuse",
+      "type": "partOf",
+      "strength": "required",
+      "description": "The web application is the interactive runtime component of the Langfuse platform.",
+      "evidence": [
+        "apps/langfuse/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "langfuse-worker",
+      "target": "langfuse",
+      "type": "partOf",
+      "strength": "required",
+      "description": "The background worker is a runtime component of the Langfuse platform.",
+      "evidence": [
+        "apps/langfuse/compose.yml:x-nabla.relations[0]"
       ]
     },
     {
