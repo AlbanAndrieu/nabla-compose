@@ -10,34 +10,6 @@
       "sourcePath": "apps/langfuse/compose.yml"
     },
     {
-      "id": "openrag-backend",
-      "name": "OpenRAG Backend",
-      "kind": "service",
-      "category": "ai",
-      "sourcePath": "apps/openrag/compose.yml"
-    },
-    {
-      "id": "openrag-frontend",
-      "name": "OpenRAG Frontend",
-      "kind": "application",
-      "category": "ai",
-      "sourcePath": "apps/openrag/compose.yml"
-    },
-    {
-      "id": "langflow",
-      "name": "Langflow",
-      "kind": "workflow",
-      "category": "ai",
-      "sourcePath": "apps/langflow/compose.yml"
-    },
-    {
-      "id": "n8n",
-      "name": "n8n",
-      "kind": "workflow",
-      "category": "automation",
-      "sourcePath": "apps/n8n/compose.yml"
-    },
-    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
@@ -86,38 +58,6 @@
   ],
   "relations": [
     {
-      "source": "openrag-frontend",
-      "target": "openrag-backend",
-      "type": "consumesApi",
-      "strength": "required",
-      "description": "The OpenRAG frontend talks to the OpenRAG backend.",
-      "evidence": ["apps/openrag/compose.yml:OPENRAG_BACKEND_HOST"]
-    },
-    {
-      "source": "openrag-backend",
-      "target": "langflow",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "OpenRAG backend invokes the Langflow service.",
-      "evidence": ["apps/openrag/compose.yml:LANGFLOW_URL"]
-    },
-    {
-      "source": "openrag-backend",
-      "target": "elasticsearch",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "OpenRAG backend stores and retrieves indexed content through Elasticsearch.",
-      "evidence": ["apps/openrag/compose.yml:ES_HOST"]
-    },
-    {
-      "source": "langflow",
-      "target": "elasticsearch",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "The OpenRAG Langflow runtime accesses Elasticsearch.",
-      "evidence": ["apps/langflow/compose.yml:ES_HOST"]
-    },
-    {
       "source": "langfuse",
       "target": "postgresql",
       "type": "dependsOn",
@@ -151,38 +91,6 @@
       "strength": "required",
       "description": "Langfuse uses Redis for queues and asynchronous processing.",
       "evidence": ["apps/langfuse/compose.yml:REDIS_HOST"]
-    },
-    {
-      "source": "n8n",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "n8n is configured with PostgreSQL credentials for workflow persistence.",
-      "evidence": ["apps/n8n/compose.yml:DB_POSTGRESDB_USER"]
-    },
-    {
-      "source": "n8n",
-      "target": "redis",
-      "type": "dependsOn",
-      "strength": "optional",
-      "description": "n8n is configured with Redis credentials for queue-backed execution.",
-      "evidence": ["apps/n8n/compose.yml:N8N_REDIS_PASSWORD"]
-    },
-    {
-      "source": "n8n",
-      "target": "traefik",
-      "type": "exposedBy",
-      "strength": "optional",
-      "description": "Traefik routes HTTPS traffic to n8n.",
-      "evidence": ["apps/n8n/compose.yml:traefik.http.routers.n8n"]
-    },
-    {
-      "source": "n8n",
-      "target": "prometheus",
-      "type": "observedBy",
-      "strength": "optional",
-      "description": "n8n exposes metrics for Prometheus scraping.",
-      "evidence": ["apps/n8n/compose.yml:prometheus.scrape"]
     }
   ]
 }
