@@ -3,9 +3,30 @@
 # In addition, we recommend to restrict inbound traffic on the host to langfuse-web (port 3000) and minio (port 9090) only.
 # All other components are bound to localhost (127.0.0.1) to only accept connections from the local machine.
 # External connections from other machines will not be able to reach these services directly.
+x-nabla:
+  nodes:
+    - id: langfuse
+      name: Langfuse
+      kind: observability
+      category: ai
+      description: Logical Langfuse observability platform composed of web and worker runtimes.
+
 services:
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
+    x-nabla:
+      id: langfuse-worker
+      name: Langfuse Worker
+      kind: worker
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-worker
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The background worker is a runtime component of the Langfuse platform.
     restart: always
     # depends_on: &langfuse-depends-on
     #   postgres:
@@ -71,6 +92,19 @@ services:
 
   langfuse-web:
     image: docker.io/langfuse/langfuse:3
+    x-nabla:
+      id: langfuse-web
+      name: Langfuse Web
+      kind: application
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: langfuse-web
+      relations:
+        - target: langfuse
+          type: partOf
+          strength: required
+          description: The web application is the interactive runtime component of the Langfuse platform.
     restart: always
     # depends_on: *langfuse-depends-on
     ports:
