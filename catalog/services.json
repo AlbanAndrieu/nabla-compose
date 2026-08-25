@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:5748c9de08c05b5e9ccc89a0725367a2b3ac49709d9e0597a5b126124fe5b090",
+  "catalogRevision": "sha256:7be0ec1646728b206d6728b198b72b1a0ed33534a396f8ed964aff77ef859b5b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -15,6 +15,30 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "langflow"
+      }
+    },
+    {
+      "id": "langfuse-web",
+      "name": "Langfuse Web",
+      "kind": "application",
+      "category": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-web",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langfuse-web"
+      }
+    },
+    {
+      "id": "langfuse-worker",
+      "name": "Langfuse Worker",
+      "kind": "worker",
+      "category": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-worker",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langfuse-worker"
       }
     },
     {
