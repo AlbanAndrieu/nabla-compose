@@ -4,6 +4,27 @@ services:
   openrag-backend:
     image: docker.io/langflowai/openrag-backend:latest
     container_name: openrag-backend
+    x-nabla:
+      id: openrag-backend
+      name: OpenRAG Backend
+      kind: service
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: openrag-backend
+      relations:
+        - target: langflow
+          type: dependsOn
+          strength: required
+          description: OpenRAG backend invokes the Langflow service.
+          evidence:
+            - apps/openrag/compose.yml:LANGFLOW_URL
+        - target: elasticsearch
+          type: dependsOn
+          strength: required
+          description: OpenRAG backend stores and retrieves indexed content through Elasticsearch.
+          evidence:
+            - apps/openrag/compose.yml:ES_HOST
     environment:
       - ES_HOST=elasticsearch
       - ES_PORT=9200
@@ -29,6 +50,21 @@ services:
   openrag-frontend:
     image: docker.io/langflowai/openrag-frontend:latest
     container_name: openrag-frontend
+    x-nabla:
+      id: openrag-frontend
+      name: OpenRAG Frontend
+      kind: application
+      category: ai
+      runtime:
+        provider: truenas-app
+        containerService: openrag-frontend
+      relations:
+        - target: openrag-backend
+          type: consumesApi
+          strength: required
+          description: The OpenRAG frontend talks to the OpenRAG backend.
+          evidence:
+            - apps/openrag/compose.yml:OPENRAG_BACKEND_HOST
     environment:
       - OPENRAG_BACKEND_HOST=openrag-backend
     depends_on:
