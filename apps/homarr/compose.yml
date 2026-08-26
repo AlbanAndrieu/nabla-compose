@@ -52,6 +52,48 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  homarr-sync:
+    image: docker.io/library/python:3.13-alpine
+    container_name: homarr-sync
+    x-nabla:
+      id: homarr-sync
+      name: Homarr Reconciler
+      kind: configuration-reconciler
+      category: operations
+      description: Non-destructively reconciles generated Nabla applications through the Homarr API.
+      runtime:
+        provider: truenas-app
+        containerService: homarr-sync
+      relations:
+        - target: homarr
+          type: consumesApi
+          strength: required
+          description: Reconciles generated application desired state through the Homarr OpenAPI endpoints.
+          evidence:
+            - apps/homarr/sync.py:/api/apps
+    restart: "no"
+    depends_on:
+      - homarr
+    environment:
+      HOMARR_BASE_URL: http://homarr:7575
+      HOMARR_API_KEY: ${HOMARR_API_KEY:-}
+      HOMARR_MANIFEST: /config/nabla/apps.json
+      HOMARR_SYNC_STATE: /state/homarr-map.json
+      HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
+    command:
+      - python
+      - /opt/nabla/sync.py
+    volumes:
+      - ./generated:/config/nabla:ro
+      - ./sync.py:/opt/nabla/sync.py:ro
+      - /mnt/cpool/homarr-sync:/state
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   intranet:
     external: true

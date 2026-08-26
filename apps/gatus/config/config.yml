@@ -1,2 +1,429 @@
 ---
-endpoints: []
+endpoints:
+- name: Aistor
+  group: aistor
+  interval: 60s
+  url: tcp://172.17.0.24:9002
+  conditions:
+  - '[CONNECTED] == true'
+- name: Grafana Alloy
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:12345
+  conditions:
+  - '[CONNECTED] == true'
+- name: Autoxpose
+  group: autoxpose
+  interval: 60s
+  url: tcp://172.17.0.24:4949
+  conditions:
+  - '[CONNECTED] == true'
+- name: Bichon
+  group: bichon
+  interval: 60s
+  url: tcp://172.17.0.24:15630
+  conditions:
+  - '[CONNECTED] == true'
+- name: ClickHouse
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:8123
+  conditions:
+  - '[CONNECTED] == true'
+- name: ClickHouse Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9116
+  conditions:
+  - '[CONNECTED] == true'
+- name: Code Server
+  group: code
+  interval: 60s
+  url: tcp://172.17.0.24:8443
+  conditions:
+  - '[CONNECTED] == true'
+- name: CrowdSec
+  group: security
+  interval: 60s
+  url: tcp://172.17.0.24:6060
+  conditions:
+  - '[CONNECTED] == true'
+- name: Docker API
+  group: infrastructure
+  interval: 60s
+  url: tcp://docker-socket-proxy:2375
+  conditions:
+  - '[CONNECTED] == true'
+- name: Dockhand
+  group: dockhand
+  interval: 60s
+  url: tcp://172.17.0.24:3050
+  conditions:
+  - '[CONNECTED] == true'
+- name: Dozzle
+  group: dozzle
+  interval: 60s
+  url: tcp://172.17.0.24:8888
+  conditions:
+  - '[CONNECTED] == true'
+- name: Drawio
+  group: drawio
+  interval: 60s
+  url: tcp://172.17.0.24:9080
+  conditions:
+  - '[CONNECTED] == true'
+- name: Elasticsearch
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:9200
+  conditions:
+  - '[CONNECTED] == true'
+- name: Garage
+  group: garage
+  interval: 60s
+  url: tcp://172.17.0.24:3900
+  conditions:
+  - '[CONNECTED] == true'
+- name: Webui
+  group: garage
+  interval: 60s
+  url: tcp://172.17.0.24:3909
+  conditions:
+  - '[CONNECTED] == true'
+- name: Gatus
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:8085
+  conditions:
+  - '[CONNECTED] == true'
+- name: Grafana
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:3010
+  conditions:
+  - '[CONNECTED] == true'
+- name: Graylog
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9000
+  conditions:
+  - '[CONNECTED] == true'
+- name: pfSense HAProxy Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9101
+  conditions:
+  - '[CONNECTED] == true'
+- name: Homarr
+  group: operations
+  interval: 60s
+  url: tcp://172.17.0.24:7575
+  conditions:
+  - '[CONNECTED] == true'
+- name: Home Assistant
+  group: home-automation
+  interval: 60s
+  url: https://homeassistant.albanandrieu.com
+  conditions:
+  - '[STATUS] >= 200'
+  - '[STATUS] < 400'
+- name: Kibana
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:5601
+  conditions:
+  - '[CONNECTED] == true'
+- name: Langflow
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:7860
+  conditions:
+  - '[CONNECTED] == true'
+- name: Langfuse Web
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:3000
+  conditions:
+  - '[CONNECTED] == true'
+- name: Languagetool
+  group: languagetool
+  interval: 60s
+  url: tcp://172.17.0.24:8010
+  conditions:
+  - '[CONNECTED] == true'
+- name: LiteLLM
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:4000
+  conditions:
+  - '[CONNECTED] == true'
+- name: Loki
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:3100
+  conditions:
+  - '[CONNECTED] == true'
+- name: Mimir
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9009
+  conditions:
+  - '[CONNECTED] == true'
+- name: MinIO
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:9002
+  conditions:
+  - '[CONNECTED] == true'
+- name: n8n
+  group: automation
+  interval: 60s
+  url: tcp://172.17.0.24:30109
+  conditions:
+  - '[CONNECTED] == true'
+- name: Nexus
+  group: nexus
+  interval: 60s
+  url: tcp://172.17.0.24:8081
+  conditions:
+  - '[CONNECTED] == true'
+- name: Nginx
+  group: nginx
+  interval: 60s
+  url: tcp://172.17.0.24:8099
+  conditions:
+  - '[CONNECTED] == true'
+- name: App
+  group: nginx-proxy-manager
+  interval: 60s
+  url: tcp://172.17.0.24:30020
+  conditions:
+  - '[CONNECTED] == true'
+- name: ntopng
+  group: network
+  interval: 60s
+  url: tcp://172.17.0.24:3000
+  conditions:
+  - '[CONNECTED] == true'
+- name: Obsidian
+  group: productivity
+  interval: 60s
+  url: tcp://172.17.0.24:3002
+  conditions:
+  - '[CONNECTED] == true'
+- name: Ollama
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:30068
+  conditions:
+  - '[CONNECTED] == true'
+- name: Op Connect Api
+  group: opconnect
+  interval: 60s
+  url: tcp://172.17.0.24:8097
+  conditions:
+  - '[CONNECTED] == true'
+- name: Op Connect Sync
+  group: opconnect
+  interval: 60s
+  url: tcp://172.17.0.24:8098
+  conditions:
+  - '[CONNECTED] == true'
+- name: Openhands
+  group: openhands
+  interval: 60s
+  url: tcp://172.17.0.24:3010
+  conditions:
+  - '[CONNECTED] == true'
+- name: OpenRAG Frontend
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:3000
+  conditions:
+  - '[CONNECTED] == true'
+- name: OpenSearch
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:9200
+  conditions:
+  - '[CONNECTED] == true'
+- name: OpenSearch Dashboards
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:5601
+  conditions:
+  - '[CONNECTED] == true'
+- name: OpenSearch Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9114
+  conditions:
+  - '[CONNECTED] == true'
+- name: OpenSearch Security Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9115
+  conditions:
+  - '[CONNECTED] == true'
+- name: Open WebUI
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:31028
+  conditions:
+  - '[CONNECTED] == true'
+- name: Open WebUI Pipelines
+  group: ai
+  interval: 60s
+  url: tcp://172.17.0.24:9099
+  conditions:
+  - '[CONNECTED] == true'
+- name: pfSense
+  group: network
+  interval: 60s
+  url: tcp://172.17.0.1:10443
+  conditions:
+  - '[CONNECTED] == true'
+- name: pfSense Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9945
+  conditions:
+  - '[CONNECTED] == true'
+- name: Pihole
+  group: pihole
+  interval: 60s
+  url: tcp://172.17.0.24:53
+  conditions:
+  - '[CONNECTED] == true'
+- name: Pihole Exporter
+  group: pihole
+  interval: 60s
+  url: tcp://172.17.0.24:9617
+  conditions:
+  - '[CONNECTED] == true'
+- name: Portracker
+  group: portracker
+  interval: 60s
+  url: tcp://172.17.0.24:4999
+  conditions:
+  - '[CONNECTED] == true'
+- name: Postgres Exporter
+  group: postgres
+  interval: 60s
+  url: tcp://172.17.0.24:9187
+  conditions:
+  - '[CONNECTED] == true'
+- name: PostgreSQL
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:5432
+  conditions:
+  - '[CONNECTED] == true'
+- name: Prometheus
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9090
+  conditions:
+  - '[CONNECTED] == true'
+- name: Alertmanager
+  group: prometheus
+  interval: 60s
+  url: tcp://172.17.0.24:9093
+  conditions:
+  - '[CONNECTED] == true'
+- name: Cadvisor
+  group: prometheus
+  interval: 60s
+  url: tcp://172.17.0.24:8089
+  conditions:
+  - '[CONNECTED] == true'
+- name: Node Exporter
+  group: prometheus
+  interval: 60s
+  url: tcp://172.17.0.24:9100
+  conditions:
+  - '[CONNECTED] == true'
+- name: Pyroscope
+  group: pyroscope
+  interval: 60s
+  url: tcp://172.17.0.24:4040
+  conditions:
+  - '[CONNECTED] == true'
+- name: Redis
+  group: data
+  interval: 60s
+  url: tcp://172.17.0.24:30059
+  conditions:
+  - '[CONNECTED] == true'
+- name: Redis Exporter
+  group: redis
+  interval: 60s
+  url: tcp://172.17.0.24:9121
+  conditions:
+  - '[CONNECTED] == true'
+- name: Sentry Web
+  group: sentry
+  interval: 60s
+  url: tcp://172.17.0.24:9005
+  conditions:
+  - '[CONNECTED] == true'
+- name: SonarQube
+  group: development
+  interval: 60s
+  url: tcp://172.17.0.24:9001
+  conditions:
+  - '[CONNECTED] == true'
+- name: Squid
+  group: squid
+  interval: 60s
+  url: tcp://172.17.0.24:3128
+  conditions:
+  - '[CONNECTED] == true'
+- name: Sybase Exporter
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:9113
+  conditions:
+  - '[CONNECTED] == true'
+- name: Tempo
+  group: observability
+  interval: 60s
+  url: tcp://172.17.0.24:3200
+  conditions:
+  - '[CONNECTED] == true'
+- name: Traefik
+  group: traefik
+  interval: 60s
+  url: tcp://172.17.0.24:80
+  conditions:
+  - '[CONNECTED] == true'
+- name: Ddns Updater
+  group: traefik
+  interval: 60s
+  url: tcp://172.17.0.24:8000
+  conditions:
+  - '[CONNECTED] == true'
+- name: TrueNAS
+  group: infrastructure
+  interval: 60s
+  url: tcp://172.17.0.24:443
+  conditions:
+  - '[CONNECTED] == true'
+- name: Vaultwarden
+  group: vaultwarden
+  interval: 60s
+  url: tcp://172.17.0.24:30032
+  conditions:
+  - '[CONNECTED] == true'
+- name: Wazuh Manager
+  group: security
+  interval: 60s
+  url: tcp://172.17.0.24:1514
+  conditions:
+  - '[CONNECTED] == true'
+- name: Wordpress
+  group: wordpress
+  interval: 60s
+  url: tcp://172.17.0.24:8088
+  conditions:
+  - '[CONNECTED] == true'
