@@ -1,1 +1,711 @@
-[]
+[
+  {
+    "type": "port",
+    "name": "Aistor",
+    "description": "Nabla generated monitor: aistor",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9002
+  },
+  {
+    "type": "port",
+    "name": "Grafana Alloy",
+    "description": "Nabla generated monitor: alloy",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 12345
+  },
+  {
+    "type": "port",
+    "name": "Autoxpose",
+    "description": "Nabla generated monitor: autoxpose",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 4949
+  },
+  {
+    "type": "port",
+    "name": "Bichon",
+    "description": "Nabla generated monitor: bichon",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 15630
+  },
+  {
+    "type": "port",
+    "name": "ClickHouse",
+    "description": "Nabla generated monitor: clickhouse",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8123
+  },
+  {
+    "type": "port",
+    "name": "ClickHouse Exporter",
+    "description": "Nabla generated monitor: clickhouse-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9116
+  },
+  {
+    "type": "port",
+    "name": "Code Server",
+    "description": "Nabla generated monitor: code-code-server",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8443
+  },
+  {
+    "type": "port",
+    "name": "CrowdSec",
+    "description": "Nabla generated monitor: crowdsec",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 6060
+  },
+  {
+    "type": "port",
+    "name": "Docker API",
+    "description": "Read-only Docker socket proxy used by Homarr and automation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "docker-socket-proxy",
+    "port": 2375
+  },
+  {
+    "type": "port",
+    "name": "Dockhand",
+    "description": "Nabla generated monitor: dockhand",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3050
+  },
+  {
+    "type": "port",
+    "name": "Dozzle",
+    "description": "Nabla generated monitor: dozzle",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8888
+  },
+  {
+    "type": "port",
+    "name": "Drawio",
+    "description": "Nabla generated monitor: drawio",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9080
+  },
+  {
+    "type": "port",
+    "name": "Elasticsearch",
+    "description": "Nabla generated monitor: elasticsearch",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9200
+  },
+  {
+    "type": "port",
+    "name": "Garage",
+    "description": "Nabla generated monitor: garage",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3900
+  },
+  {
+    "type": "port",
+    "name": "Webui",
+    "description": "Nabla generated monitor: garage-webui",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3909
+  },
+  {
+    "type": "port",
+    "name": "Gatus",
+    "description": "Declarative status monitoring generated from Nabla Compose services.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8085
+  },
+  {
+    "type": "port",
+    "name": "Grafana",
+    "description": "Nabla generated monitor: grafana",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3010
+  },
+  {
+    "type": "port",
+    "name": "Graylog",
+    "description": "Nabla generated monitor: graylog",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9000
+  },
+  {
+    "type": "port",
+    "name": "pfSense HAProxy Exporter",
+    "description": "Nabla generated monitor: haproxy-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9101
+  },
+  {
+    "type": "port",
+    "name": "Homarr",
+    "description": "Homelab application dashboard generated from the Nabla service inventory.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 7575
+  },
+  {
+    "type": "http",
+    "name": "Home Assistant",
+    "description": "Home Assistant routed through Traefik.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "https://homeassistant.albanandrieu.com"
+  },
+  {
+    "type": "port",
+    "name": "Kibana",
+    "description": "Nabla generated monitor: kibana",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5601
+  },
+  {
+    "type": "port",
+    "name": "Langflow",
+    "description": "Nabla generated monitor: langflow",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 7860
+  },
+  {
+    "type": "port",
+    "name": "Langfuse Web",
+    "description": "Nabla generated monitor: langfuse-web",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3000
+  },
+  {
+    "type": "port",
+    "name": "Languagetool",
+    "description": "Nabla generated monitor: languagetool",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8010
+  },
+  {
+    "type": "port",
+    "name": "LiteLLM",
+    "description": "Nabla generated monitor: litellm",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 4000
+  },
+  {
+    "type": "port",
+    "name": "Loki",
+    "description": "Nabla generated monitor: loki",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3100
+  },
+  {
+    "type": "port",
+    "name": "Mimir",
+    "description": "Nabla generated monitor: mimir",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9009
+  },
+  {
+    "type": "port",
+    "name": "MinIO",
+    "description": "Nabla generated monitor: minio",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9002
+  },
+  {
+    "type": "port",
+    "name": "n8n",
+    "description": "Nabla generated monitor: n8n",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30109
+  },
+  {
+    "type": "port",
+    "name": "Nexus",
+    "description": "Nabla generated monitor: nexus",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8081
+  },
+  {
+    "type": "port",
+    "name": "Nginx",
+    "description": "Nabla generated monitor: nginx",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8099
+  },
+  {
+    "type": "port",
+    "name": "App",
+    "description": "Nabla generated monitor: nginx-proxy-manager-app",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30020
+  },
+  {
+    "type": "port",
+    "name": "ntopng",
+    "description": "Host-network ntopng web service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3000
+  },
+  {
+    "type": "port",
+    "name": "Obsidian",
+    "description": "Nabla generated monitor: obsidian",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3002
+  },
+  {
+    "type": "port",
+    "name": "Ollama",
+    "description": "Nabla generated monitor: ollama",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30068
+  },
+  {
+    "type": "port",
+    "name": "Op Connect Api",
+    "description": "Nabla generated monitor: opconnect-op-connect-api",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8097
+  },
+  {
+    "type": "port",
+    "name": "Op Connect Sync",
+    "description": "Nabla generated monitor: opconnect-op-connect-sync",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8098
+  },
+  {
+    "type": "port",
+    "name": "Openhands",
+    "description": "Nabla generated monitor: openhands",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3010
+  },
+  {
+    "type": "port",
+    "name": "OpenRAG Frontend",
+    "description": "Nabla generated monitor: openrag-frontend",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3000
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch",
+    "description": "Nabla generated monitor: opensearch",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9200
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Dashboards",
+    "description": "Nabla generated monitor: opensearch-dashboards",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5601
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Exporter",
+    "description": "Nabla generated monitor: opensearch-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9114
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Security Exporter",
+    "description": "Nabla generated monitor: opensearch-security-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9115
+  },
+  {
+    "type": "port",
+    "name": "Open WebUI",
+    "description": "Nabla generated monitor: openwebui",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31028
+  },
+  {
+    "type": "port",
+    "name": "Open WebUI Pipelines",
+    "description": "Nabla generated monitor: openwebui-pipelines",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9099
+  },
+  {
+    "type": "port",
+    "name": "pfSense",
+    "description": "pfSense endpoint already consumed by the Prometheus exporter.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.1",
+    "port": 10443
+  },
+  {
+    "type": "port",
+    "name": "pfSense Exporter",
+    "description": "Nabla generated monitor: pfsense-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9945
+  },
+  {
+    "type": "port",
+    "name": "Pihole",
+    "description": "Nabla generated monitor: pihole",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 53
+  },
+  {
+    "type": "port",
+    "name": "Pihole Exporter",
+    "description": "Nabla generated monitor: pihole-pihole-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9617
+  },
+  {
+    "type": "port",
+    "name": "Portracker",
+    "description": "Nabla generated monitor: portracker",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 4999
+  },
+  {
+    "type": "port",
+    "name": "Postgres Exporter",
+    "description": "Nabla generated monitor: postgres-postgres-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9187
+  },
+  {
+    "type": "port",
+    "name": "PostgreSQL",
+    "description": "Shared PostgreSQL service consumed by application stacks.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5432
+  },
+  {
+    "type": "port",
+    "name": "Prometheus",
+    "description": "Nabla generated monitor: prometheus",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9090
+  },
+  {
+    "type": "port",
+    "name": "Alertmanager",
+    "description": "Nabla generated monitor: prometheus-alertmanager",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9093
+  },
+  {
+    "type": "port",
+    "name": "Cadvisor",
+    "description": "Nabla generated monitor: prometheus-cadvisor",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8089
+  },
+  {
+    "type": "port",
+    "name": "Node Exporter",
+    "description": "Nabla generated monitor: prometheus-node-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9100
+  },
+  {
+    "type": "port",
+    "name": "Pyroscope",
+    "description": "Nabla generated monitor: pyroscope",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 4040
+  },
+  {
+    "type": "port",
+    "name": "Redis",
+    "description": "Nabla generated monitor: redis",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30059
+  },
+  {
+    "type": "port",
+    "name": "Redis Exporter",
+    "description": "Nabla generated monitor: redis-redis-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9121
+  },
+  {
+    "type": "port",
+    "name": "Sentry Web",
+    "description": "Nabla generated monitor: sentry-sentry-web",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9005
+  },
+  {
+    "type": "port",
+    "name": "SonarQube",
+    "description": "Nabla generated monitor: sonarqube",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9001
+  },
+  {
+    "type": "port",
+    "name": "Squid",
+    "description": "Nabla generated monitor: squid",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3128
+  },
+  {
+    "type": "port",
+    "name": "Sybase Exporter",
+    "description": "Nabla generated monitor: sybase-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9113
+  },
+  {
+    "type": "port",
+    "name": "Tempo",
+    "description": "Nabla generated monitor: tempo",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3200
+  },
+  {
+    "type": "port",
+    "name": "Traefik",
+    "description": "Nabla generated monitor: traefik",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 80
+  },
+  {
+    "type": "port",
+    "name": "Ddns Updater",
+    "description": "Nabla generated monitor: traefik-ddns-updater",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8000
+  },
+  {
+    "type": "port",
+    "name": "TrueNAS",
+    "description": "TrueNAS HTTPS management endpoint.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 443
+  },
+  {
+    "type": "port",
+    "name": "Vaultwarden",
+    "description": "Nabla generated monitor: vaultwarden",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30032
+  },
+  {
+    "type": "port",
+    "name": "Wazuh Manager",
+    "description": "Nabla generated monitor: wazuh-manager",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 1514
+  },
+  {
+    "type": "port",
+    "name": "Wordpress",
+    "description": "Nabla generated monitor: wordpress",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8088
+  }
+]

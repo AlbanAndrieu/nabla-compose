@@ -6,5 +6,908 @@
     "port": 2375,
     "network": "intranet"
   },
-  "applications": []
+  "applications": [
+    {
+      "id": "aistor",
+      "name": "Aistor",
+      "group": "aistor",
+      "sourcePath": "apps/aistor/compose.yml",
+      "composeService": "aistor",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9091",
+      "syncEligible": true
+    },
+    {
+      "id": "alloy",
+      "name": "Grafana Alloy",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "alloy",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "autokuma",
+      "name": "AutoKuma",
+      "group": "observability",
+      "sourcePath": "apps/autokuma/compose.yml",
+      "composeService": "autokuma",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance."
+    },
+    {
+      "id": "autoxpose",
+      "name": "Autoxpose",
+      "group": "autoxpose",
+      "sourcePath": "apps/autoxpose/compose.yml",
+      "composeService": "autoxpose",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:4949",
+      "syncEligible": true
+    },
+    {
+      "id": "bichon",
+      "name": "Bichon",
+      "group": "bichon",
+      "sourcePath": "apps/bichon/compose.yml",
+      "composeService": "bichon",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "clickhouse",
+      "name": "ClickHouse",
+      "group": "data",
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "composeService": "clickhouse",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "clickhouse-exporter",
+      "name": "ClickHouse Exporter",
+      "group": "observability",
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "composeService": "clickhouse_exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "code-code-server",
+      "name": "Code Server",
+      "group": "code",
+      "sourcePath": "apps/code/compose.yml",
+      "composeService": "code-server",
+      "dockerManaged": true,
+      "href": "https://code.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "crowdsec",
+      "name": "CrowdSec",
+      "group": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "composeService": "crowdsec",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "group": "infrastructure",
+      "sourcePath": "catalog/service-consumers.static.yml",
+      "composeService": null,
+      "dockerManaged": false,
+      "href": "http://172.17.0.24:3050",
+      "syncEligible": true,
+      "description": "Docker workloads on the TrueNAS host, managed through Dockhand.",
+      "icon": "🐳"
+    },
+    {
+      "id": "dockhand",
+      "name": "Dockhand",
+      "group": "dockhand",
+      "sourcePath": "apps/dockhand/compose.yml",
+      "composeService": "dockhand",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3050",
+      "syncEligible": true
+    },
+    {
+      "id": "dozzle",
+      "name": "Dozzle",
+      "group": "dozzle",
+      "sourcePath": "apps/dozzle/compose.yml",
+      "composeService": "dozzle",
+      "dockerManaged": true,
+      "href": "https://dozzle.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "drawio",
+      "name": "Drawio",
+      "group": "drawio",
+      "sourcePath": "apps/drawio/compose.yml",
+      "composeService": "drawio",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9080",
+      "syncEligible": true
+    },
+    {
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "group": "data",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "elasticsearch",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "garage",
+      "name": "Garage",
+      "group": "garage",
+      "sourcePath": "apps/garage/compose.yml",
+      "composeService": "garage",
+      "dockerManaged": true,
+      "href": "https://s3.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "garage-webui",
+      "name": "Webui",
+      "group": "garage",
+      "sourcePath": "apps/garage/compose.yml",
+      "composeService": "webui",
+      "dockerManaged": true,
+      "href": "https://garage.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "gatus",
+      "name": "Gatus",
+      "group": "observability",
+      "sourcePath": "apps/gatus/compose.yml",
+      "composeService": "gatus",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8085",
+      "syncEligible": true,
+      "description": "Declarative status monitoring generated from Nabla Compose services."
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "grafana",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3010",
+      "syncEligible": true
+    },
+    {
+      "id": "graylog",
+      "name": "Graylog",
+      "group": "observability",
+      "sourcePath": "apps/graylog/compose.yml",
+      "composeService": "graylog",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9000",
+      "syncEligible": true
+    },
+    {
+      "id": "graylog-mongodb",
+      "name": "Graylog MongoDB",
+      "group": "data",
+      "sourcePath": "apps/graylog/compose.yml",
+      "composeService": "mongo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "haproxy-exporter",
+      "name": "pfSense HAProxy Exporter",
+      "group": "observability",
+      "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "composeService": "haproxy-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "homarr",
+      "name": "Homarr",
+      "group": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "composeService": "homarr",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:7575",
+      "syncEligible": true,
+      "description": "Homelab application dashboard generated from the Nabla service inventory."
+    },
+    {
+      "id": "homarr-sync",
+      "name": "Homarr Reconciler",
+      "group": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "composeService": "homarr-sync",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API."
+    },
+    {
+      "id": "homeassistant",
+      "name": "Homeassistant",
+      "group": "homeassistant",
+      "sourcePath": "apps/homeassistant/compose.yml",
+      "composeService": "homeassistant",
+      "dockerManaged": true,
+      "href": "https://homeassistant.albanandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "kibana",
+      "name": "Kibana",
+      "group": "observability",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "kibana",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5601",
+      "syncEligible": true
+    },
+    {
+      "id": "langflow",
+      "name": "Langflow",
+      "group": "ai",
+      "sourcePath": "apps/langflow/compose.yml",
+      "composeService": "langflow",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:7860",
+      "syncEligible": true
+    },
+    {
+      "id": "langfuse-web",
+      "name": "Langfuse Web",
+      "group": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-web",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3000",
+      "syncEligible": true
+    },
+    {
+      "id": "langfuse-worker",
+      "name": "Langfuse Worker",
+      "group": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-worker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "languagetool",
+      "name": "Languagetool",
+      "group": "languagetool",
+      "sourcePath": "apps/languagetool/compose.yml",
+      "composeService": "languagetool",
+      "dockerManaged": true,
+      "href": "https://languagetool.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "litellm",
+      "name": "LiteLLM",
+      "group": "ai",
+      "sourcePath": "apps/litellm/compose.yml",
+      "composeService": "litellm",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "loki",
+      "name": "Loki",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "loki",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "mimir",
+      "name": "Mimir",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "mimir",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "minio",
+      "name": "MinIO",
+      "group": "data",
+      "sourcePath": "apps/minio/compose.yml",
+      "composeService": "minio",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9091",
+      "syncEligible": true
+    },
+    {
+      "id": "n8n",
+      "name": "n8n",
+      "group": "automation",
+      "sourcePath": "apps/n8n/compose.yml",
+      "composeService": "n8n",
+      "dockerManaged": true,
+      "href": "https://n8n.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "nexus",
+      "name": "Nexus",
+      "group": "nexus",
+      "sourcePath": "apps/nexus/compose.yml",
+      "composeService": "nexus",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8081",
+      "syncEligible": true
+    },
+    {
+      "id": "nginx",
+      "name": "Nginx",
+      "group": "nginx",
+      "sourcePath": "apps/nginx/compose.yml",
+      "composeService": "nginx",
+      "dockerManaged": true,
+      "href": "https://hello.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "nginx-proxy-manager-app",
+      "name": "App",
+      "group": "nginx-proxy-manager",
+      "sourcePath": "apps/nginx-proxy-manager/compose.yml",
+      "composeService": "app",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30020",
+      "syncEligible": true
+    },
+    {
+      "id": "npmplus",
+      "name": "Npmplus",
+      "group": "npmplus",
+      "sourcePath": "apps/npmplus/compose.yml",
+      "composeService": "npmplus",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "ntopng",
+      "name": "ntopng",
+      "group": "network",
+      "sourcePath": "apps/ntopng/compose.yml",
+      "composeService": "ntopng",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3000",
+      "syncEligible": true,
+      "description": "Network traffic visibility on the host-network ntopng service."
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "group": "productivity",
+      "sourcePath": "apps/obsidian/compose.yml",
+      "composeService": "obsidian",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3002",
+      "syncEligible": true
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "group": "ai",
+      "sourcePath": "apps/ollama/compose.yml",
+      "composeService": "ollama",
+      "dockerManaged": true,
+      "href": "https://ollama.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "opconnect-op-connect-api",
+      "name": "Op Connect Api",
+      "group": "opconnect",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-api",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8097",
+      "syncEligible": true
+    },
+    {
+      "id": "opconnect-op-connect-sync",
+      "name": "Op Connect Sync",
+      "group": "opconnect",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-sync",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8098",
+      "syncEligible": true
+    },
+    {
+      "id": "openclaw-openclaw-sandbox",
+      "name": "Openclaw Sandbox",
+      "group": "openclaw",
+      "sourcePath": "apps/openclaw/compose.yml",
+      "composeService": "openclaw-sandbox",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "openhands",
+      "name": "Openhands",
+      "group": "openhands",
+      "sourcePath": "apps/openhands/compose.yml",
+      "composeService": "openhands",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3010",
+      "syncEligible": true
+    },
+    {
+      "id": "openrag-backend",
+      "name": "OpenRAG Backend",
+      "group": "ai",
+      "sourcePath": "apps/openrag/compose.yml",
+      "composeService": "openrag-backend",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "openrag-frontend",
+      "name": "OpenRAG Frontend",
+      "group": "ai",
+      "sourcePath": "apps/openrag/compose.yml",
+      "composeService": "openrag-frontend",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3000",
+      "syncEligible": true
+    },
+    {
+      "id": "opensearch",
+      "name": "OpenSearch",
+      "group": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-dashboards",
+      "name": "OpenSearch Dashboards",
+      "group": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "dashboards",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5601",
+      "syncEligible": true
+    },
+    {
+      "id": "opensearch-exporter",
+      "name": "OpenSearch Exporter",
+      "group": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-security",
+      "name": "OpenSearch Security",
+      "group": "security",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch-security",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-security-exporter",
+      "name": "OpenSearch Security Exporter",
+      "group": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-security-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "openwebui",
+      "name": "Open WebUI",
+      "group": "ai",
+      "sourcePath": "apps/openwebui/compose.yml",
+      "composeService": "open-webui",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31028",
+      "syncEligible": true
+    },
+    {
+      "id": "openwebui-pipelines",
+      "name": "Open WebUI Pipelines",
+      "group": "ai",
+      "sourcePath": "apps/openwebui/compose.yml",
+      "composeService": "pipelines",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "pfsense",
+      "name": "pfSense",
+      "group": "network",
+      "sourcePath": "catalog/service-consumers.static.yml",
+      "composeService": null,
+      "dockerManaged": false,
+      "href": "https://172.17.0.1:10443",
+      "syncEligible": true,
+      "description": "Homelab firewall and edge gateway.",
+      "icon": "🔥"
+    },
+    {
+      "id": "pfsense-exporter",
+      "name": "pfSense Exporter",
+      "group": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "pfsense-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "pihole",
+      "name": "Pihole",
+      "group": "network",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:20720/admin/",
+      "syncEligible": true,
+      "description": "Pi-hole DNS filtering and administration."
+    },
+    {
+      "id": "pihole-pihole-exporter",
+      "name": "Pihole Exporter",
+      "group": "pihole",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "portracker",
+      "name": "Portracker",
+      "group": "portracker",
+      "sourcePath": "apps/portracker/compose.yml",
+      "composeService": "portracker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "postgres-postgres-exporter",
+      "name": "Postgres Exporter",
+      "group": "postgres",
+      "sourcePath": "apps/postgres/compose.yml",
+      "composeService": "postgres_exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "group": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "prometheus",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9090",
+      "syncEligible": true
+    },
+    {
+      "id": "prometheus-alertmanager",
+      "name": "Alertmanager",
+      "group": "prometheus",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "alertmanager",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "prometheus-cadvisor",
+      "name": "Cadvisor",
+      "group": "prometheus",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "cadvisor",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8089",
+      "syncEligible": true
+    },
+    {
+      "id": "prometheus-node-exporter",
+      "name": "Node Exporter",
+      "group": "prometheus",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "node-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "pyroscope",
+      "name": "Pyroscope",
+      "group": "pyroscope",
+      "sourcePath": "apps/pyroscope/compose.yml",
+      "composeService": "pyroscope",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:4040",
+      "syncEligible": true
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "group": "data",
+      "sourcePath": "apps/redis/compose.yml",
+      "composeService": "redis",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "redis-redis-exporter",
+      "name": "Redis Exporter",
+      "group": "redis",
+      "sourcePath": "apps/redis/compose.yml",
+      "composeService": "redis_exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-cron",
+      "name": "Sentry Cron",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-cron",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-web",
+      "name": "Sentry Web",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-web",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-worker",
+      "name": "Sentry Worker",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-worker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sonarqube",
+      "name": "SonarQube",
+      "group": "development",
+      "sourcePath": "apps/sonarqube/compose.yml",
+      "composeService": "sonarqube",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9001",
+      "syncEligible": true
+    },
+    {
+      "id": "squid",
+      "name": "Squid",
+      "group": "squid",
+      "sourcePath": "apps/squid/compose.yml",
+      "composeService": "squid",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "suricata",
+      "name": "Suricata",
+      "group": "security",
+      "sourcePath": "apps/suricata/compose.yml",
+      "composeService": "suricata",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sybase-exporter",
+      "name": "Sybase Exporter",
+      "group": "observability",
+      "sourcePath": "apps/sybase-exporter/compose.yml",
+      "composeService": "sybase-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "tempo",
+      "name": "Tempo",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "tempo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik",
+      "name": "Traefik",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "traefik",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:80",
+      "syncEligible": true
+    },
+    {
+      "id": "traefik-cloudflare-ddns",
+      "name": "Cloudflare Ddns",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "cloudflare-ddns",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik-ddns-updater",
+      "name": "Ddns Updater",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "ddns-updater",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik-dnsupdater",
+      "name": "Dnsupdater",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "dnsupdater",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik-pihole-dns-sync",
+      "name": "Pihole Dns Sync",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "pihole-dns-sync",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "truenas",
+      "name": "TrueNAS",
+      "group": "infrastructure",
+      "sourcePath": "catalog/service-consumers.static.yml",
+      "composeService": null,
+      "dockerManaged": false,
+      "href": "https://172.17.0.24",
+      "syncEligible": true,
+      "description": "TrueNAS SCALE storage and application host.",
+      "icon": "💾"
+    },
+    {
+      "id": "vaultwarden",
+      "name": "Vaultwarden",
+      "group": "vaultwarden",
+      "sourcePath": "apps/vaultwarden/compose.yml",
+      "composeService": "vaultwarden",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30032",
+      "syncEligible": true
+    },
+    {
+      "id": "vaultwarden-bitwarden-api",
+      "name": "Bitwarden Api",
+      "group": "vaultwarden",
+      "sourcePath": "apps/vaultwarden/compose.yml",
+      "composeService": "bitwarden-api",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-dashboard",
+      "name": "Wazuh Dashboard",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.dashboard",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-forwarder",
+      "name": "Wazuh OpenSearch Forwarder",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh-forwarder",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-indexer",
+      "name": "Wazuh Indexer",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.indexer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-manager",
+      "name": "Wazuh Manager",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.manager",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wordpress",
+      "name": "Wordpress",
+      "group": "wordpress",
+      "sourcePath": "apps/wordpress/compose.yml",
+      "composeService": "wordpress",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8088",
+      "syncEligible": true
+    },
+    {
+      "id": "wordpress-wordpress-initdb",
+      "name": "Wordpress Initdb",
+      "group": "wordpress",
+      "sourcePath": "apps/wordpress/compose.yml",
+      "composeService": "wordpress-initdb",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    }
+  ]
 }
