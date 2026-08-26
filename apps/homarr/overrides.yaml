@@ -1,0 +1,31 @@
+---
+version: 1
+monitorInterval: 60s
+autokumaInterval: 60
+
+# Homarr-only infrastructure cards that are not represented by a standalone
+# Compose service. Keep these URLs explicit: do not infer management UIs from
+# monitoring targets.
+infrastructure:
+  - id: truenas
+    name: TrueNAS
+    url: https://172.17.0.24
+    category: infrastructure
+    description: TrueNAS host and application platform
+    managedBy: nabla-compose
+  - id: docker
+    name: Docker / TrueNAS Apps
+    url: https://172.17.0.24
+    category: infrastructure
+    description: Container runtime hosted by TrueNAS
+    managedBy: nabla-compose
+  - id: pfsense
+    name: pfSense
+    url: https://172.17.0.1
+    category: network
+    description: Firewall, routing, HAProxy and CrowdSec integration
+    managedBy: nabla-compose
+
+# Per-service overrides keyed by the generated service id. Use this only where
+# Compose/x-nabla cannot express a reliable navigation URL or probe target.
+services: {}

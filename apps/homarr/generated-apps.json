@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "generatedFrom": "apps/**/compose*.yml",
+  "appsHost": "172.17.0.24",
+  "apps": []
+}
