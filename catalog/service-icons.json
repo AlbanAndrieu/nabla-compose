@@ -3,6 +3,7 @@
   "icons": {
     "clickhouse": "⚡",
     "elasticsearch": "🔎",
+    "kibana": "📊",
     "langflow": "🔗",
     "langfuse": "📈",
     "langfuse-web": "🖥️",
