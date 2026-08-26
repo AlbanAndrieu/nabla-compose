@@ -8,6 +8,11 @@ output "talos_vm_status" {
   value       = { for name, vm in truenas_vm.talos : name => vm.status }
 }
 
+output "talos_vm_macs" {
+  description = "Deterministic Talos VM MAC addresses for DHCP reservations."
+  value       = { for name in keys(truenas_vm.talos) : name => var.talos_vms[name].mac }
+}
+
 output "talos_zvol_ids" {
   description = "Zvol identifiers backing the Talos test VMs."
   value       = { for name, disk in truenas_zvol.talos_disk : name => disk.id }
@@ -28,6 +33,7 @@ output "talos_bootstrap_inventory" {
       id     = vm.id
       role   = startswith(lower(name), "taloscp") ? "controlplane" : "worker"
       bridge = var.vm_bridge
+      mac    = var.talos_vms[name].mac
       disk   = "/dev/zvol/${var.truenas_pool}/${var.talos_zvol_parent}/${name}-disk0"
     }
   }
