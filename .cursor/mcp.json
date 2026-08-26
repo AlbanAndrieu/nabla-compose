@@ -8,6 +8,31 @@
         "TRUENAS_API_KEY": "${env:TRUENAS_MCP_API_KEY}",
         "TRUENAS_MCP_DEBUG": "0"
       }
+    },
+    "homarr": {
+      "type": "http",
+      "url": "${env:HOMARR_MCP_URL}",
+      "headers": {
+        "ApiKey": "${env:HOMARR_API_KEY}"
+      }
+    },
+    "gatus": {
+      "type": "http",
+      "url": "${env:GATUS_MCP_URL}"
+    },
+    "uptime-kuma": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@davidfuchs/mcp-uptime-kuma"],
+      "env": {
+        "UPTIME_KUMA_URL": "${env:UPTIME_KUMA_URL}",
+        "UPTIME_KUMA_USERNAME": "${env:UPTIME_KUMA_USERNAME}",
+        "UPTIME_KUMA_PASSWORD": "${env:UPTIME_KUMA_PASSWORD}"
+      }
+    },
+    "fastapi-sample": {
+      "type": "http",
+      "url": "https://fastapi-sample.fastapicloud.dev/mcp"
     }
   }
 }
