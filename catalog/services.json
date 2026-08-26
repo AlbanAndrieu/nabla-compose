@@ -1,10 +1,36 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:0e952531332bdeeaa06c4abd984059632aa85f906e24ca16c0b99c0c231b1c11",
+  "catalogRevision": "sha256:245373bdf9e8f45fa3d676c494fa14e920623a70829c2ee382ab9e7055dcdf30",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
+    {
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "kind": "search",
+      "category": "data",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "elasticsearch",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "elasticsearch"
+      },
+      "icon": "🔎"
+    },
+    {
+      "id": "kibana",
+      "name": "Kibana",
+      "kind": "dashboard",
+      "category": "observability",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "kibana",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "kibana"
+      },
+      "icon": "📊"
+    },
     {
       "id": "langflow",
       "name": "Langflow",
@@ -134,6 +160,19 @@
         "containerService": "pipelines"
       },
       "icon": "🔧"
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "kind": "cache",
+      "category": "data",
+      "sourcePath": "apps/redis/compose.yml",
+      "composeService": "redis",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "redis"
+      },
+      "icon": "🔴"
     }
   ]
 }
