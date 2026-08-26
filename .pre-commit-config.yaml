@@ -95,6 +95,13 @@ repos:
         additional_dependencies: ["prettier@3.4.2"]
         exclude: '^(\.pre-commit-config\.yaml|apps/n8n/.*)$'
 
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        name: "✨ yaml · Lint YAML"
+        args: [-c, .yamllint.yml]
+
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.38.0
     hooks:
