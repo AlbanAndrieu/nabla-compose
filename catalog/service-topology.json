@@ -4,6 +4,14 @@
   "name": "Nabla homelab declared topology",
   "nodes": [
     {
+      "id": "alloy",
+      "name": "Grafana Alloy",
+      "kind": "telemetry-collector",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "icon": "🧬"
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -12,12 +20,52 @@
       "icon": "⚡"
     },
     {
+      "id": "crowdsec",
+      "name": "CrowdSec",
+      "kind": "security-agent",
+      "category": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "icon": "🛡️"
+    },
+    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
       "category": "data",
       "sourcePath": "apps/elasticsearch/compose.yml",
       "icon": "🔎"
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "kind": "observability-ui",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "icon": "📈"
+    },
+    {
+      "id": "graylog",
+      "name": "Graylog",
+      "kind": "log-management",
+      "category": "observability",
+      "sourcePath": "apps/graylog/compose.yml",
+      "icon": "🪵"
+    },
+    {
+      "id": "graylog-mongodb",
+      "name": "Graylog MongoDB",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/graylog/compose.yml",
+      "icon": "🍃"
+    },
+    {
+      "id": "haproxy-exporter",
+      "name": "pfSense HAProxy Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "icon": "⚖️"
     },
     {
       "id": "langflow",
@@ -61,6 +109,22 @@
       "icon": "🧠"
     },
     {
+      "id": "loki",
+      "name": "Loki",
+      "kind": "log-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "icon": "🧾"
+    },
+    {
+      "id": "mimir",
+      "name": "Mimir",
+      "kind": "metrics-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "icon": "📐"
+    },
+    {
       "id": "minio",
       "name": "MinIO",
       "kind": "object-storage",
@@ -75,6 +139,22 @@
       "category": "automation",
       "sourcePath": "apps/n8n/compose.yml",
       "icon": "⚙️"
+    },
+    {
+      "id": "ntopng",
+      "name": "ntopng",
+      "kind": "network-observability",
+      "category": "network",
+      "sourcePath": "apps/ntopng/compose.yml",
+      "icon": "🌐"
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "apps/obsidian/compose.yml",
+      "icon": "💎"
     },
     {
       "id": "ollama",
@@ -110,6 +190,46 @@
       "icon": "🔍"
     },
     {
+      "id": "opensearch",
+      "name": "OpenSearch",
+      "kind": "search",
+      "category": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "icon": "🔎"
+    },
+    {
+      "id": "opensearch-dashboards",
+      "name": "OpenSearch Dashboards",
+      "kind": "application",
+      "category": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "icon": "📊"
+    },
+    {
+      "id": "opensearch-exporter",
+      "name": "OpenSearch Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "icon": "📡"
+    },
+    {
+      "id": "opensearch-security",
+      "name": "OpenSearch Security",
+      "kind": "search",
+      "category": "security",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "icon": "🛡️"
+    },
+    {
+      "id": "opensearch-security-exporter",
+      "name": "OpenSearch Security Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "icon": "📡"
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "kind": "application",
@@ -126,6 +246,23 @@
       "icon": "🔧"
     },
     {
+      "id": "pfsense",
+      "name": "pfSense",
+      "kind": "firewall",
+      "category": "network",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "description": "External pfSense firewall providing CrowdSec LAPI, HAProxy and firewall telemetry.",
+      "icon": "🔥"
+    },
+    {
+      "id": "pfsense-exporter",
+      "name": "pfSense Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "icon": "📡"
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
@@ -137,6 +274,7 @@
       "name": "Prometheus",
       "kind": "observability",
       "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
       "icon": "📊"
     },
     {
@@ -157,14 +295,248 @@
       "icon": "🌐"
     },
     {
+      "id": "sonarqube",
+      "name": "SonarQube",
+      "kind": "code-quality",
+      "category": "development",
+      "sourcePath": "apps/sonarqube/compose.yml",
+      "icon": "🧹"
+    },
+    {
+      "id": "suricata",
+      "name": "Suricata",
+      "kind": "ids",
+      "category": "security",
+      "sourcePath": "apps/suricata/compose.yml",
+      "icon": "🦈"
+    },
+    {
+      "id": "sybase",
+      "name": "SAP Sybase ASE",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/sybase-exporter/compose.yml",
+      "description": "External Sybase ASE database monitored through FreeTDS.",
+      "icon": "🗄️"
+    },
+    {
+      "id": "sybase-exporter",
+      "name": "Sybase Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/sybase-exporter/compose.yml",
+      "icon": "📡"
+    },
+    {
+      "id": "tempo",
+      "name": "Tempo",
+      "kind": "trace-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "icon": "⏱️"
+    },
+    {
       "id": "traefik",
       "name": "Traefik",
       "kind": "edge",
       "category": "network",
       "icon": "🚦"
+    },
+    {
+      "id": "wazuh",
+      "name": "Wazuh",
+      "kind": "security-platform",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "description": "Logical Wazuh security platform composed of manager, indexer, dashboard and forwarding workloads.",
+      "icon": "🛡️"
+    },
+    {
+      "id": "wazuh-dashboard",
+      "name": "Wazuh Dashboard",
+      "kind": "application",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "icon": "🖥️"
+    },
+    {
+      "id": "wazuh-forwarder",
+      "name": "Wazuh OpenSearch Forwarder",
+      "kind": "telemetry-forwarder",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "icon": "🔁"
+    },
+    {
+      "id": "wazuh-indexer",
+      "name": "Wazuh Indexer",
+      "kind": "search",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "icon": "🗂️"
+    },
+    {
+      "id": "wazuh-manager",
+      "name": "Wazuh Manager",
+      "kind": "security-manager",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "icon": "🛡️"
     }
   ],
   "relations": [
+    {
+      "source": "alloy",
+      "target": "loki",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Alloy forwards collected security logs to Loki.",
+      "evidence": [
+        "apps/grafana/config/alloy.alloy:loki.write"
+      ]
+    },
+    {
+      "source": "alloy",
+      "target": "mimir",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Alloy remote-writes collected OTLP metrics to Mimir.",
+      "evidence": [
+        "apps/grafana/config/alloy.alloy:prometheus.remote_write"
+      ]
+    },
+    {
+      "source": "alloy",
+      "target": "pfsense",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "Alloy tails pfSense log files when they are mounted on the TrueNAS host.",
+      "evidence": [
+        "apps/grafana/compose.yml:PFSENSE_LOG_DIR"
+      ]
+    },
+    {
+      "source": "alloy",
+      "target": "suricata",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "Alloy tails Suricata JSON logs when available.",
+      "evidence": [
+        "apps/grafana/compose.yml:SURICATA_LOG_DIR"
+      ]
+    },
+    {
+      "source": "alloy",
+      "target": "tempo",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Alloy forwards collected OTLP traces to Tempo.",
+      "evidence": [
+        "apps/grafana/config/alloy.alloy:otelcol.exporter.otlp"
+      ]
+    },
+    {
+      "source": "crowdsec",
+      "target": "pfsense",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "CrowdSec uses the pfSense CrowdSec Local API instead of running its own LAPI.",
+      "evidence": [
+        "apps/crowdsec/compose.yml:PFSENSE_CROWDSEC_LAPI_URL"
+      ]
+    },
+    {
+      "source": "crowdsec",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes CrowdSec metrics.",
+      "evidence": [
+        "apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT",
+        "apps/prometheus/prometheus.yml:job_name=crowdsec"
+      ]
+    },
+    {
+      "source": "crowdsec",
+      "target": "suricata",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "CrowdSec can enrich decisions from Suricata event logs.",
+      "evidence": [
+        "apps/crowdsec/compose.yml:SURICATA_LOG_DIR",
+        "apps/crowdsec/acquis.d/security.yaml"
+      ]
+    },
+    {
+      "source": "grafana",
+      "target": "loki",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Grafana queries Loki for logs.",
+      "evidence": [
+        "apps/grafana/config/grafana-datasources.yml"
+      ]
+    },
+    {
+      "source": "grafana",
+      "target": "mimir",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Grafana queries Mimir for metrics.",
+      "evidence": [
+        "apps/grafana/config/grafana-datasources.yml"
+      ]
+    },
+    {
+      "source": "grafana",
+      "target": "tempo",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Grafana queries Tempo for distributed traces.",
+      "evidence": [
+        "apps/grafana/config/grafana-datasources.yml"
+      ]
+    },
+    {
+      "source": "graylog",
+      "target": "graylog-mongodb",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Graylog stores application configuration and metadata in MongoDB.",
+      "evidence": [
+        "apps/graylog/compose.yml:GRAYLOG_MONGODB_URI"
+      ]
+    },
+    {
+      "source": "graylog",
+      "target": "opensearch-security",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Graylog stores log indices in the shared OpenSearch 2.x security cluster.",
+      "evidence": [
+        "apps/graylog/compose.yml:GRAYLOG_ELASTICSEARCH_HOSTS"
+      ]
+    },
+    {
+      "source": "haproxy-exporter",
+      "target": "pfsense",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter scrapes the HAProxy statistics endpoint exposed by pfSense.",
+      "evidence": [
+        "apps/haproxy-exporter/compose.yml:PFSENSE_HAPROXY_SCRAPE_URI"
+      ]
+    },
+    {
+      "source": "haproxy-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes HAProxy metrics from this exporter.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=haproxy"
+      ]
+    },
     {
       "source": "langflow",
       "target": "elasticsearch",
@@ -358,6 +730,16 @@
       ]
     },
     {
+      "source": "ntopng",
+      "target": "clickhouse",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "ntopng stores historical flow data in the existing ClickHouse service.",
+      "evidence": [
+        "apps/ntopng/compose.yml:CLICKHOUSE_HOST"
+      ]
+    },
+    {
       "source": "ollama",
       "target": "prometheus",
       "type": "observedBy",
@@ -408,6 +790,56 @@
       ]
     },
     {
+      "source": "opensearch-dashboards",
+      "target": "opensearch",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "OpenSearch Dashboards queries the OpenRAG OpenSearch cluster.",
+      "evidence": [
+        "apps/opensearch/compose.yml:OPENSEARCH_HOSTS"
+      ]
+    },
+    {
+      "source": "opensearch-exporter",
+      "target": "opensearch",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter collects metrics from the OpenRAG OpenSearch service.",
+      "evidence": [
+        "apps/opensearch-exporter/compose.yml:OPENSEARCH_EXPORTER_URI"
+      ]
+    },
+    {
+      "source": "opensearch-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes metrics from the OpenSearch exporter.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=opensearch"
+      ]
+    },
+    {
+      "source": "opensearch-security-exporter",
+      "target": "opensearch-security",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter collects metrics from the shared OpenSearch 2.x security cluster.",
+      "evidence": [
+        "apps/opensearch-exporter/compose.yml:opensearch-security:9200"
+      ]
+    },
+    {
+      "source": "opensearch-security-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes metrics from the OpenSearch Security exporter.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=opensearch-security"
+      ]
+    },
+    {
       "source": "openwebui",
       "target": "litellm",
       "type": "consumesApi",
@@ -436,6 +868,176 @@
       "description": "Open WebUI can delegate web search to the SearXNG integration.",
       "evidence": [
         "apps/openwebui/compose.yml:x-nabla.relations[1]"
+      ]
+    },
+    {
+      "source": "pfsense-exporter",
+      "target": "pfsense",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter queries pfSense for firewall and system metrics.",
+      "evidence": [
+        "apps/prometheus/compose.yml:exporter.config.yml"
+      ]
+    },
+    {
+      "source": "pfsense-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "required",
+      "description": "Prometheus scrapes the pfSense exporter.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=pfsense_exporter"
+      ]
+    },
+    {
+      "source": "prometheus",
+      "target": "mimir",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Prometheus remote-writes collected metrics to Mimir for durable storage.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:remote_write"
+      ]
+    },
+    {
+      "source": "sonarqube",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "SonarQube persists application state in the existing PostgreSQL service.",
+      "evidence": [
+        "apps/sonarqube/compose.yml:SONAR_JDBC_URL"
+      ]
+    },
+    {
+      "source": "suricata",
+      "target": "alloy",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Grafana Alloy tails Suricata JSON logs for Loki ingestion.",
+      "evidence": [
+        "apps/grafana/config/alloy.alloy:loki.source.file"
+      ]
+    },
+    {
+      "source": "suricata",
+      "target": "crowdsec",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "CrowdSec consumes Suricata event logs for behavioral decisions.",
+      "evidence": [
+        "apps/crowdsec/acquis.d/security.yaml"
+      ]
+    },
+    {
+      "source": "sybase-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes Sybase database metrics from this exporter.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=sybase"
+      ]
+    },
+    {
+      "source": "sybase-exporter",
+      "target": "sybase",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter queries Sybase ASE through the FreeTDS driver.",
+      "evidence": [
+        "apps/sybase-exporter/compose.yml:SYBASE_DATA_SOURCE_NAME"
+      ]
+    },
+    {
+      "source": "wazuh-dashboard",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "Wazuh Dashboard is a runtime workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "wazuh-dashboard",
+      "target": "wazuh-indexer",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Wazuh Dashboard queries security data from Wazuh Indexer.",
+      "evidence": [
+        "apps/wazuh/config/wazuh_dashboard/opensearch_dashboards.yml"
+      ]
+    },
+    {
+      "source": "wazuh-dashboard",
+      "target": "wazuh-manager",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Wazuh Dashboard consumes the Wazuh Manager API.",
+      "evidence": [
+        "apps/wazuh/compose.yml:WAZUH_API_URL"
+      ]
+    },
+    {
+      "source": "wazuh-forwarder",
+      "target": "opensearch-security",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "The forwarder replicates Wazuh alerts into the shared OpenSearch 2.x security cluster.",
+      "evidence": [
+        "apps/wazuh/config/logstash/wazuh-opensearch.conf"
+      ]
+    },
+    {
+      "source": "wazuh-forwarder",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "The forwarder is an integration workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "wazuh-forwarder",
+      "target": "wazuh-manager",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "The forwarder reads Wazuh alert files produced by Wazuh Manager.",
+      "evidence": [
+        "apps/wazuh/compose.yml:wazuh_logs"
+      ]
+    },
+    {
+      "source": "wazuh-indexer",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "Wazuh Indexer is a runtime workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "wazuh-manager",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "Wazuh Manager is a runtime workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "wazuh-manager",
+      "target": "wazuh-indexer",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Wazuh Manager indexes security events in the Wazuh Indexer.",
+      "evidence": [
+        "apps/wazuh/compose.yml:INDEXER_URL"
       ]
     }
   ]
