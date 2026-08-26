@@ -12,6 +12,14 @@
       "icon": "🧬"
     },
     {
+      "id": "autokuma",
+      "name": "AutoKuma",
+      "kind": "monitoring-controller",
+      "category": "observability",
+      "sourcePath": "apps/autokuma/compose.yml",
+      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance."
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -36,12 +44,29 @@
       "icon": "🛡️"
     },
     {
+      "id": "docker",
+      "name": "Docker",
+      "kind": "container-runtime",
+      "category": "infrastructure",
+      "sourcePath": "apps/homarr/compose.yml",
+      "description": "Docker engine hosting the TrueNAS Compose workloads."
+    },
+    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
       "category": "data",
       "sourcePath": "apps/elasticsearch/compose.yml",
       "icon": "🔎"
+    },
+    {
+      "id": "gatus",
+      "name": "Gatus",
+      "kind": "status-monitor",
+      "category": "observability",
+      "sourcePath": "apps/gatus/compose.yml",
+      "url": "http://172.17.0.24:8085",
+      "description": "Declarative status monitoring generated from Nabla Compose services."
     },
     {
       "id": "grafana",
@@ -74,6 +99,23 @@
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
       "icon": "⚖️"
+    },
+    {
+      "id": "homarr",
+      "name": "Homarr",
+      "kind": "dashboard",
+      "category": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "url": "http://172.17.0.24:7575",
+      "description": "Homelab application dashboard generated from the Nabla service inventory."
+    },
+    {
+      "id": "homarr-sync",
+      "name": "Homarr Reconciler",
+      "kind": "configuration-reconciler",
+      "category": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API."
     },
     {
       "id": "kibana",
@@ -359,6 +401,22 @@
       "icon": "🚦"
     },
     {
+      "id": "truenas",
+      "name": "TrueNAS",
+      "kind": "storage-platform",
+      "category": "infrastructure",
+      "sourcePath": "apps/homarr/compose.yml",
+      "description": "TrueNAS SCALE storage and application host."
+    },
+    {
+      "id": "uptime-kuma",
+      "name": "Uptime Kuma",
+      "kind": "uptime-monitor",
+      "category": "observability",
+      "sourcePath": "apps/autokuma/compose.yml",
+      "description": "Existing Uptime Kuma instance reconciled by AutoKuma."
+    },
+    {
       "id": "wazuh",
       "name": "Wazuh",
       "kind": "security-platform",
@@ -449,6 +507,16 @@
       "description": "Alloy forwards collected OTLP traces to Tempo.",
       "evidence": [
         "apps/grafana/config/alloy.alloy:otelcol.exporter.otlp"
+      ]
+    },
+    {
+      "source": "autokuma",
+      "target": "uptime-kuma",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
+      "evidence": [
+        "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
       ]
     },
     {
@@ -571,6 +639,26 @@
       "description": "Prometheus scrapes HAProxy metrics from this exporter.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=haproxy"
+      ]
+    },
+    {
+      "source": "homarr",
+      "target": "docker",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Homarr discovers and manages containers through the read-only Docker socket proxy.",
+      "evidence": [
+        "apps/homarr/compose.yml:DOCKER_HOSTNAMES"
+      ]
+    },
+    {
+      "source": "homarr-sync",
+      "target": "homarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Reconciles generated application desired state through the Homarr OpenAPI endpoints.",
+      "evidence": [
+        "apps/homarr/sync.py:/api/apps"
       ]
     },
     {

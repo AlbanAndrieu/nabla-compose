@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:f89cbfaaceb42cef7bcdd91d2069e599c4994b2dad23be4d44a3122f54f7419a",
+  "catalogRevision": "sha256:14c6ff5e80dbf8bddcfbad337e2a6f628e6b58683abbb5c6b2ddaca3f7af731b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -17,6 +17,19 @@
         "containerService": "alloy"
       },
       "icon": "🧬"
+    },
+    {
+      "id": "autokuma",
+      "name": "AutoKuma",
+      "kind": "monitoring-controller",
+      "category": "observability",
+      "sourcePath": "apps/autokuma/compose.yml",
+      "composeService": "autokuma",
+      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "autokuma"
+      }
     },
     {
       "id": "clickhouse",
@@ -71,6 +84,20 @@
       "icon": "🔎"
     },
     {
+      "id": "gatus",
+      "name": "Gatus",
+      "kind": "status-monitor",
+      "category": "observability",
+      "sourcePath": "apps/gatus/compose.yml",
+      "composeService": "gatus",
+      "url": "http://172.17.0.24:8085",
+      "description": "Declarative status monitoring generated from Nabla Compose services.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "gatus"
+      }
+    },
+    {
       "id": "grafana",
       "name": "Grafana",
       "kind": "observability-ui",
@@ -121,6 +148,33 @@
         "containerService": "haproxy-exporter"
       },
       "icon": "⚖️"
+    },
+    {
+      "id": "homarr",
+      "name": "Homarr",
+      "kind": "dashboard",
+      "category": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "composeService": "homarr",
+      "url": "http://172.17.0.24:7575",
+      "description": "Homelab application dashboard generated from the Nabla service inventory.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homarr"
+      }
+    },
+    {
+      "id": "homarr-sync",
+      "name": "Homarr Reconciler",
+      "kind": "configuration-reconciler",
+      "category": "operations",
+      "sourcePath": "apps/homarr/compose.yml",
+      "composeService": "homarr-sync",
+      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homarr-sync"
+      }
     },
     {
       "id": "kibana",
