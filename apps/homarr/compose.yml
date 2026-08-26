@@ -80,6 +80,10 @@ services:
       HOMARR_MANIFEST: /config/nabla/apps.json
       HOMARR_SYNC_STATE: /state/homarr-map.json
       HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
+      HOMARR_BOARD_ENABLED: ${HOMARR_BOARD_ENABLED:-true}
+      HOMARR_BOARD_NAME: ${HOMARR_BOARD_NAME:-Nabla}
+      HOMARR_BOARD_COLUMNS: ${HOMARR_BOARD_COLUMNS:-12}
+      HOMARR_BOARD_PUBLIC: ${HOMARR_BOARD_PUBLIC:-false}
     command:
       - python
       - /opt/nabla/sync.py
