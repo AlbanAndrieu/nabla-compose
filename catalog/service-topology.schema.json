@@ -34,7 +34,8 @@
         "category": { "type": "string", "minLength": 1 },
         "sourcePath": { "type": "string", "minLength": 1 },
         "url": { "type": "string", "format": "uri" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "icon": { "type": "string", "minLength": 1 }
       }
     },
     "relation": {
