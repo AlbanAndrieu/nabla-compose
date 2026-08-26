@@ -42,7 +42,7 @@ build = "npm run build"
 
 [tasks.hooks]
 description = "Install pre-commit, commit-msg and pre-push Git hooks"
-run = "pre-commit install"
+run = "pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg --hook-type pre-push"
 
 [tasks.quality]
 description = "Run the same quality gate enforced by the pre-push hook"
