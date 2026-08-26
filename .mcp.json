@@ -23,7 +23,7 @@
     "uptime-kuma": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@davidfuchs/mcp-uptime-kuma"],
+      "args": ["-y", "@davidfuchs/mcp-uptime-kuma@0.11.9"],
       "env": {
         "UPTIME_KUMA_URL": "${UPTIME_KUMA_URL}",
         "UPTIME_KUMA_USERNAME": "${UPTIME_KUMA_USERNAME}",
