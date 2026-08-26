@@ -66,6 +66,12 @@
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
       "icon": "⚖️"
+      "id": "kibana",
+      "name": "Kibana",
+      "kind": "dashboard",
+      "category": "observability",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "icon": "📊"
     },
     {
       "id": "langflow",
@@ -535,6 +541,13 @@
       "description": "Prometheus scrapes HAProxy metrics from this exporter.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=haproxy"
+      "source": "kibana",
+      "target": "elasticsearch",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
+      "evidence": [
+        "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
       ]
     },
     {

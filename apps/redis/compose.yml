@@ -5,6 +5,14 @@ services:
     # image: redis:7-alpine
     # image: registry.community.greenbone.net/community/redis-server
     container_name: redis
+    x-nabla:
+      id: redis
+      name: Redis
+      kind: cache
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: redis
     restart: unless-stopped
     # CHANGEME: row below to secure redis password
     command: >
