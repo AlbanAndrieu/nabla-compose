@@ -50,6 +50,23 @@ python scripts/generate-service-topology.py --check
 
 Review both generated files and ensure all relation targets resolve to known nodes.
 
+## Dashboard and monitoring consumers
+
+Homarr, Heimdall, Gatus, Uptime Kuma/AutoKuma and future portals or status pages are consumers of the Nabla catalog, not independent service inventories.
+
+When implementing or updating one of these integrations:
+
+- derive identity, name, category, URL, description and icon from `x-nabla` / `catalog/services.json`;
+- use stable `x-nabla.id` values as reconciliation identifiers;
+- do not make a Homarr board, Heimdall database/export, Gatus YAML file, Uptime Kuma database, AutoKuma file or Docker label the authoritative service definition;
+- do not infer a health endpoint merely from a dashboard `url`;
+- add validated `x-nabla` monitoring metadata before generating health-monitor definitions;
+- keep credentials and API tokens in runtime secret/environment providers, never in catalog metadata or generated consumer files;
+- make generated consumer artifacts deterministic and include them in the quality gate when they become repository-managed outputs;
+- avoid destructive synchronization by default; deletion from a consumer requires an explicit reconciliation policy.
+
+See `docs/service-catalog-consumers.md` for the current Homarr, Heimdall, Gatus and Uptime Kuma integration strategy and MCP choices.
+
 ## Validation
 
 Validate each changed Compose file with:
@@ -64,4 +81,4 @@ Before publishing, run the repository quality gate:
 bash scripts/quality-gate.sh
 ```
 
-A new application is not complete until its Compose configuration, `x-nabla` catalog metadata, generated contracts, and dependency graph are synchronized.
+A new application is not complete until its Compose configuration, `x-nabla` catalog metadata, generated contracts, dependency graph and any repository-managed consumer artifacts are synchronized.
