@@ -12,9 +12,11 @@ on:
       - "apps/*/compose.yaml"
       - "apps/*/docker-compose.yml"
       - "apps/*/docker-compose.yaml"
+      - "apps/homarr/sync.py"
       - "apps/homarr/generated/apps.json"
       - "apps/gatus/config/config.yml"
       - "apps/autokuma/static/generated-monitors.json"
+      - "tests/test_homarr_sync.py"
   workflow_dispatch:
 
 permissions:
@@ -43,6 +45,9 @@ jobs:
 
       - name: Install generator dependencies
         run: python -m pip install --disable-pip-version-check PyYAML==6.0.3
+
+      - name: Run Homarr reconciler unit tests
+        run: python -m unittest tests.test_homarr_sync -v
 
       - name: Generate consumer configurations
         run: python scripts/generate-service-consumers.py
