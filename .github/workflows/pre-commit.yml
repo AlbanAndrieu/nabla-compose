@@ -14,6 +14,7 @@ on:
       - "**/*.json"
       - "**/*.json5"
       - "**/*.sh"
+      - "**/*.py"
       - "**/*.hcl"
       - "**/*.tofu"
       - "**/Dockerfile*"
@@ -44,8 +45,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install pre-commit
-        run: python -m pip install --disable-pip-version-check pre-commit
+      - name: Install pre-commit and generator dependencies
+        run: python -m pip install --disable-pip-version-check pre-commit PyYAML==6.0.3
 
       - name: Cache pre-commit environments
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -59,6 +60,22 @@ jobs:
           pre-commit run service-topology-sync --all-files --show-diff-on-failure
           python -m json.tool catalog/services.json >/dev/null
           python -m json.tool catalog/service-topology.json >/dev/null
+
+      - name: Generate service consumer configs
+        if: github.event_name == 'pull_request'
+        run: python scripts/generate-service-consumers.py
+
+      - name: Archive generated service consumer configs
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: service-consumer-configs
+          path: |
+            apps/homarr/generated-apps.json
+            apps/gatus/generated-endpoints.yaml
+            apps/autokuma/static/generated.json
+            apps/service-consumers-report.json
+          retention-days: 1
 
       - name: Run repository quality gate on PR changes
         if: github.event_name == 'pull_request'
