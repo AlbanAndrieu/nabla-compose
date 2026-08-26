@@ -1,34 +1,61 @@
+---
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+remote_write:
+  - url: http://172.17.0.24:9009/api/v1/push
+
 scrape_configs:
-  - job_name: 'scrutiny'
+  - job_name: scrutiny
     static_configs:
-      - targets: ['172.17.0.24:8080']
-    metrics_path: /metrics
-  #- job_name: 'telegraf'
-  #  static_configs:
-  #    - targets: ['172.17.0.24:9273']
-  #- job_name: 'nginx'
-  #  static_configs:
-  #    - targets: ['172.17.0.24:8099']
-  #- job_name: 'vaultwarden'
-  #  static_configs:
-  #    - targets: ['172.17.0.24:30032'] # or 32779
-  # netalertx, ollama, langflow - pas de metrics exploitable à date
-  # Ajouter ici si une version ultérieure permet l'exposition Prometheus ou exporter.
-  - job_name: 'pfsense_exporter'
+      - targets:
+          - 172.17.0.24:8080
+
+  - job_name: pfsense_exporter
     metrics_path: /metrics
     scrape_interval: 15s
     static_configs:
       - targets:
-        - '172.17.0.1:10443'
+          - 172.17.0.1:10443
     relabel_configs:
-      - source_labels: [__address__]
+      - source_labels:
+          - __address__
         target_label: __param_target
-      - source_labels: [__param_target]
+      - source_labels:
+          - __param_target
         target_label: __address__
-        replacement: '172.17.0.24:9945'   # Adapter si ton exporter n'est pas accessible en tant que pfsense_exporter:9945
-      - source_labels: [__param_target]
+        replacement: 172.17.0.24:9945
+      - source_labels:
+          - __param_target
         target_label: instance
+
+  - job_name: crowdsec
+    static_configs:
+      - targets:
+          - 172.17.0.24:6060
+
+  - job_name: haproxy
+    static_configs:
+      - targets:
+          - 172.17.0.24:9101
+
+  - job_name: sybase
+    static_configs:
+      - targets:
+          - 172.17.0.24:9113
+
+  - job_name: clickhouse
+    static_configs:
+      - targets:
+          - 172.17.0.24:9116
+
+  - job_name: opensearch
+    static_configs:
+      - targets:
+          - 172.17.0.24:9114
+
+  - job_name: opensearch-security
+    static_configs:
+      - targets:
+          - 172.17.0.24:9115

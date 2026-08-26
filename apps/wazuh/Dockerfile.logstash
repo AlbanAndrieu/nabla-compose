@@ -1,0 +1,4 @@
+FROM docker.io/library/logstash:8.19.20
+LABEL name="nabla-wazuh-logstash" \
+      version="8.19.20"
+RUN bin/logstash-plugin install logstash-output-opensearch

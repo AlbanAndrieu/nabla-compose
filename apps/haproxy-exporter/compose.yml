@@ -1,0 +1,31 @@
+---
+services:
+  haproxy-exporter:
+    image: quay.io/prometheus/haproxy-exporter:v0.15.0
+    container_name: haproxy-exporter
+    restart: unless-stopped
+    x-nabla:
+      id: haproxy-exporter
+      name: pfSense HAProxy Exporter
+      kind: metrics-exporter
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: haproxy-exporter
+      relations:
+        - target: pfsense
+          type: consumesApi
+          strength: required
+          description: The exporter scrapes the HAProxy statistics endpoint exposed by pfSense.
+          evidence:
+            - apps/haproxy-exporter/compose.yml:PFSENSE_HAPROXY_SCRAPE_URI
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes HAProxy metrics from this exporter.
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=haproxy
+    command:
+      - --haproxy.scrape-uri=${PFSENSE_HAPROXY_SCRAPE_URI}
+    ports:
+      - "${HAPROXY_EXPORTER_PORT:-9101}:9101"

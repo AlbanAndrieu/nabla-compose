@@ -1,0 +1,62 @@
+logging {
+  level = "info"
+}
+
+loki.source.file "security" {
+  targets = [
+    {
+      __path__ = "/var/log/pfsense/*.log",
+      job      = "pfsense",
+    },
+    {
+      __path__ = "/var/log/suricata/*.json",
+      job      = "suricata",
+    },
+  ]
+  forward_to = [loki.write.default.receiver]
+
+  file_match {
+    enabled = true
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4319"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4320"
+  }
+
+  output {
+    metrics = [otelcol.exporter.prometheus.mimir.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.prometheus "mimir" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9009/api/v1/push"
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}

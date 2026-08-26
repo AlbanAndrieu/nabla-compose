@@ -18,6 +18,7 @@ This explicitly installs the configured `pre-commit`, `commit-msg`, and `pre-pus
 2. Prefer targeted search (`rg`, `git diff`, `git ls-files`) over recursive repository reads.
 3. Do not inspect submodules, generated files, caches, reports, lockfiles, or vendored trees unless the task requires them.
 4. Reuse existing Compose patterns and CI conventions; do not introduce a new tool when an existing one covers the check.
+5. When adding, renaming, removing, or materially reconnecting a Compose service, read `.agents/skills/nabla-service-catalog/SKILL.md` and keep its `x-nabla` metadata and generated catalog contracts synchronized.
 
 ## Validation
 

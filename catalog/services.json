@@ -6,6 +6,82 @@
   "name": "Nabla homelab declared services",
   "services": [
     {
+      "id": "alloy",
+      "name": "Grafana Alloy",
+      "kind": "telemetry-collector",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "alloy",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alloy"
+      },
+      "icon": "🧬"
+    },
+    {
+      "id": "crowdsec",
+      "name": "CrowdSec",
+      "kind": "security-agent",
+      "category": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "composeService": "crowdsec",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "crowdsec"
+      },
+      "icon": "🛡️"
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "kind": "observability-ui",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "grafana",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "grafana"
+      },
+      "icon": "📈"
+    },
+    {
+      "id": "graylog",
+      "name": "Graylog",
+      "kind": "log-management",
+      "category": "observability",
+      "sourcePath": "apps/graylog/compose.yml",
+      "composeService": "graylog",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "graylog"
+      },
+      "icon": "🪵"
+    },
+    {
+      "id": "graylog-mongodb",
+      "name": "Graylog MongoDB",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/graylog/compose.yml",
+      "composeService": "mongo",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mongo"
+      },
+      "icon": "🍃"
+    },
+    {
+      "id": "haproxy-exporter",
+      "name": "pfSense HAProxy Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "composeService": "haproxy-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "haproxy-exporter"
+      },
+      "icon": "⚖️"
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
@@ -84,6 +160,32 @@
       "icon": "🧠"
     },
     {
+      "id": "loki",
+      "name": "Loki",
+      "kind": "log-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "loki",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "loki"
+      },
+      "icon": "🧾"
+    },
+    {
+      "id": "mimir",
+      "name": "Mimir",
+      "kind": "metrics-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "mimir",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mimir"
+      },
+      "icon": "📐"
+    },
+    {
       "id": "n8n",
       "name": "n8n",
       "kind": "workflow",
@@ -95,6 +197,32 @@
         "containerService": "n8n"
       },
       "icon": "⚙️"
+    },
+    {
+      "id": "ntopng",
+      "name": "ntopng",
+      "kind": "network-observability",
+      "category": "network",
+      "sourcePath": "apps/ntopng/compose.yml",
+      "composeService": "ntopng",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "ntopng"
+      },
+      "icon": "🌐"
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "apps/obsidian/compose.yml",
+      "composeService": "obsidian",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "obsidian"
+      },
+      "icon": "💎"
     },
     {
       "id": "ollama",
@@ -136,6 +264,71 @@
       "icon": "🔍"
     },
     {
+      "id": "opensearch",
+      "name": "OpenSearch",
+      "kind": "search",
+      "category": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch"
+      },
+      "icon": "🔎"
+    },
+    {
+      "id": "opensearch-dashboards",
+      "name": "OpenSearch Dashboards",
+      "kind": "application",
+      "category": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "dashboards",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dashboards"
+      },
+      "icon": "📊"
+    },
+    {
+      "id": "opensearch-exporter",
+      "name": "OpenSearch Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-exporter"
+      },
+      "icon": "📡"
+    },
+    {
+      "id": "opensearch-security",
+      "name": "OpenSearch Security",
+      "kind": "search",
+      "category": "security",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch-security",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-security"
+      },
+      "icon": "🛡️"
+    },
+    {
+      "id": "opensearch-security-exporter",
+      "name": "OpenSearch Security Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-security-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-security-exporter"
+      },
+      "icon": "📡"
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "kind": "application",
@@ -162,6 +355,134 @@
       "icon": "🔧"
     },
     {
+      "id": "pfsense-exporter",
+      "name": "pfSense Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "pfsense-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pfsense-exporter"
+      },
+      "icon": "📡"
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "kind": "observability",
+      "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "prometheus",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prometheus"
+      },
+      "icon": "📊"
+    },
+    {
+      "id": "sonarqube",
+      "name": "SonarQube",
+      "kind": "code-quality",
+      "category": "development",
+      "sourcePath": "apps/sonarqube/compose.yml",
+      "composeService": "sonarqube",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sonarqube"
+      },
+      "icon": "🧹"
+    },
+    {
+      "id": "suricata",
+      "name": "Suricata",
+      "kind": "ids",
+      "category": "security",
+      "sourcePath": "apps/suricata/compose.yml",
+      "composeService": "suricata",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "suricata"
+      },
+      "icon": "🦈"
+    },
+    {
+      "id": "sybase-exporter",
+      "name": "Sybase Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/sybase-exporter/compose.yml",
+      "composeService": "sybase-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sybase-exporter"
+      },
+      "icon": "📡"
+    },
+    {
+      "id": "tempo",
+      "name": "Tempo",
+      "kind": "trace-store",
+      "category": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "tempo",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "tempo"
+      },
+      "icon": "⏱️"
+    },
+    {
+      "id": "wazuh-dashboard",
+      "name": "Wazuh Dashboard",
+      "kind": "application",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.dashboard",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.dashboard"
+      },
+      "icon": "🖥️"
+    },
+    {
+      "id": "wazuh-forwarder",
+      "name": "Wazuh OpenSearch Forwarder",
+      "kind": "telemetry-forwarder",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh-forwarder",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh-forwarder"
+      },
+      "icon": "🔁"
+    },
+    {
+      "id": "wazuh-indexer",
+      "name": "Wazuh Indexer",
+      "kind": "search",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.indexer",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.indexer"
+      },
+      "icon": "🗂️"
+    },
+    {
+      "id": "wazuh-manager",
+      "name": "Wazuh Manager",
+      "kind": "security-manager",
+      "category": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.manager",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.manager"
+      },
+      "icon": "🛡️"
       "id": "redis",
       "name": "Redis",
       "kind": "cache",

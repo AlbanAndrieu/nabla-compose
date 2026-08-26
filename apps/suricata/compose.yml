@@ -1,0 +1,42 @@
+---
+services:
+  suricata:
+    image: jasonish/suricata:8.0.6
+    container_name: suricata
+    restart: unless-stopped
+    x-nabla:
+      id: suricata
+      name: Suricata
+      kind: ids
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: suricata
+      relations:
+        - target: crowdsec
+          type: observedBy
+          strength: optional
+          description: CrowdSec consumes Suricata event logs for behavioral decisions.
+          evidence:
+            - apps/crowdsec/acquis.d/security.yaml
+        - target: alloy
+          type: observedBy
+          strength: optional
+          description: Grafana Alloy tails Suricata JSON logs for Loki ingestion.
+          evidence:
+            - apps/grafana/config/alloy.alloy:loki.source.file
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    environment:
+      ENABLE_CRON: "yes"
+      PGID: ${PGID:-568}
+      PUID: ${PUID:-568}
+      SURICATA_OPTIONS: -i ${SURICATA_INTERFACE:-eth0}
+      TZ: ${TZ:-Europe/Paris}
+    volumes:
+      - /mnt/cpool/suricata/etc:/etc/suricata
+      - /mnt/cpool/suricata/log:/var/log/suricata
+      - /mnt/cpool/suricata/lib:/var/lib/suricata

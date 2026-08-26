@@ -9,6 +9,21 @@ services:
     image: prom/prometheus:${PROMETHEUS_IMG:-latest}
     container_name: prometheus
     restart: unless-stopped
+    x-nabla:
+      id: prometheus
+      name: Prometheus
+      kind: observability
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: prometheus
+      relations:
+        - target: mimir
+          type: storesIn
+          strength: required
+          description: Prometheus remote-writes collected metrics to Mimir for durable storage.
+          evidence:
+            - apps/prometheus/prometheus.yml:remote_write
     user: "568:568" # TrueNAS apps user
     environment:
       - TZ=Europe/Paris
@@ -86,6 +101,27 @@ services:
     image: ghcr.io/pfrest/pfsense_exporter:latest
     container_name: pfsense-exporter
     restart: unless-stopped
+    x-nabla:
+      id: pfsense-exporter
+      name: pfSense Exporter
+      kind: metrics-exporter
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: pfsense-exporter
+      relations:
+        - target: pfsense
+          type: consumesApi
+          strength: required
+          description: The exporter queries pfSense for firewall and system metrics.
+          evidence:
+            - apps/prometheus/compose.yml:exporter.config.yml
+        - target: prometheus
+          type: observedBy
+          strength: required
+          description: Prometheus scrapes the pfSense exporter.
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=pfsense_exporter
     volumes:
       - ./secrets/exporter.config.yml:/pfsense_exporter/config.yml:ro
     ports:

@@ -1,0 +1,69 @@
+---
+x-nabla:
+  nodes:
+    - id: pfsense
+      name: pfSense
+      kind: firewall
+      category: network
+      description: External pfSense firewall providing CrowdSec LAPI, HAProxy and firewall telemetry.
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.7.8
+    container_name: crowdsec
+    restart: unless-stopped
+    x-nabla:
+      id: crowdsec
+      name: CrowdSec
+      kind: security-agent
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: crowdsec
+      relations:
+        - target: pfsense
+          type: consumesApi
+          strength: required
+          description: CrowdSec uses the pfSense CrowdSec Local API instead of running its own LAPI.
+          evidence:
+            - apps/crowdsec/compose.yml:PFSENSE_CROWDSEC_LAPI_URL
+        - target: suricata
+          type: dependsOn
+          strength: optional
+          description: CrowdSec can enrich decisions from Suricata event logs.
+          evidence:
+            - apps/crowdsec/compose.yml:SURICATA_LOG_DIR
+            - apps/crowdsec/acquis.d/security.yaml
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes CrowdSec metrics.
+          evidence:
+            - apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT
+            - apps/prometheus/prometheus.yml:job_name=crowdsec
+    environment:
+      AGENT_PASSWORD: ${PFSENSE_CROWDSEC_AGENT_PASSWORD}
+      AGENT_USERNAME: ${PFSENSE_CROWDSEC_AGENT_USERNAME}
+      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
+      DISABLE_LOCAL_API: "true"
+      LOCAL_API_URL: ${PFSENSE_CROWDSEC_LAPI_URL}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "${CROWDSEC_METRICS_PORT:-6060}:6060"
+    volumes:
+      - crowdsec_config:/etc/crowdsec
+      - crowdsec_data:/var/lib/crowdsec/data
+      - ./acquis.d:/etc/crowdsec/acquis.d:ro
+      - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
+      - type: bind
+        source: ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}
+        target: /logs/pfsense
+        read_only: true
+      - type: bind
+        source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
+        target: /logs/suricata
+        read_only: true
+
+volumes:
+  crowdsec_config:
+  crowdsec_data:

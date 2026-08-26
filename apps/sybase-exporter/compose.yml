@@ -1,0 +1,46 @@
+---
+x-nabla:
+  nodes:
+    - id: sybase
+      name: SAP Sybase ASE
+      kind: database
+      category: data
+      description: External Sybase ASE database monitored through FreeTDS.
+
+services:
+  sybase-exporter:
+    image: ncabatoff/dbms_exporter:latest
+    container_name: sybase-exporter
+    restart: unless-stopped
+    x-nabla:
+      id: sybase-exporter
+      name: Sybase Exporter
+      kind: metrics-exporter
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: sybase-exporter
+      relations:
+        - target: sybase
+          type: consumesApi
+          strength: required
+          description: The exporter queries Sybase ASE through the FreeTDS driver.
+          evidence:
+            - apps/sybase-exporter/compose.yml:SYBASE_DATA_SOURCE_NAME
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes Sybase database metrics from this exporter.
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=sybase
+    environment:
+      DATA_SOURCE_NAME: ${SYBASE_DATA_SOURCE_NAME}
+    command:
+      - -driver
+      - sybase
+      - -queryfile
+      - /etc/dbms_exporter/sybase.yaml
+    ports:
+      - "${SYBASE_EXPORTER_PORT:-9113}:9113"
+    volumes:
+      - ./sybase.yaml:/etc/dbms_exporter/sybase.yaml:ro

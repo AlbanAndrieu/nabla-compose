@@ -1,0 +1,10 @@
+---
+filenames:
+  - /logs/pfsense/*.log
+labels:
+  type: syslog
+---
+filenames:
+  - /logs/suricata/eve.json
+labels:
+  type: suricata
