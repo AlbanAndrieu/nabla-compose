@@ -1,0 +1,16 @@
+---
+services:
+  obsidian:
+    image: lscr.io/linuxserver/obsidian:1.13.7
+    container_name: obsidian
+    restart: unless-stopped
+    environment:
+      PGID: ${PGID:-568}
+      PUID: ${PUID:-568}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "${OBSIDIAN_HTTP_PORT:-3002}:3000"
+      - "${OBSIDIAN_HTTPS_PORT:-3003}:3001"
+    shm_size: 1gb
+    volumes:
+      - /mnt/cpool/obsidian:/config

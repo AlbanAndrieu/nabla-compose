@@ -1,0 +1,26 @@
+---
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.7.8
+    container_name: crowdsec
+    restart: unless-stopped
+    environment:
+      AGENT_PASSWORD: ${PFSENSE_CROWDSEC_AGENT_PASSWORD}
+      AGENT_USERNAME: ${PFSENSE_CROWDSEC_AGENT_USERNAME}
+      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
+      DISABLE_LOCAL_API: "true"
+      LOCAL_API_URL: ${PFSENSE_CROWDSEC_LAPI_URL}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "${CROWDSEC_METRICS_PORT:-6060}:6060"
+    volumes:
+      - crowdsec_config:/etc/crowdsec
+      - crowdsec_data:/var/lib/crowdsec/data
+      - ./acquis.d:/etc/crowdsec/acquis.d:ro
+      - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
+      - ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}:/logs/pfsense:ro
+      - ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}:/logs/suricata:ro
+
+volumes:
+  crowdsec_config:
+  crowdsec_data:

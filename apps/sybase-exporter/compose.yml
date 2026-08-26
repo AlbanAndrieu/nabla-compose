@@ -1,0 +1,17 @@
+---
+services:
+  sybase-exporter:
+    image: ncabatoff/dbms_exporter:latest
+    container_name: sybase-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: ${SYBASE_DATA_SOURCE_NAME}
+    command:
+      - -driver
+      - sybase
+      - -queryfile
+      - /etc/dbms_exporter/sybase.yaml
+    ports:
+      - "${SYBASE_EXPORTER_PORT:-9113}:9113"
+    volumes:
+      - ./sybase.yaml:/etc/dbms_exporter/sybase.yaml:ro

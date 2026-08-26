@@ -1,0 +1,10 @@
+---
+services:
+  haproxy-exporter:
+    image: quay.io/prometheus/haproxy-exporter:v0.15.0
+    container_name: haproxy-exporter
+    restart: unless-stopped
+    command:
+      - --haproxy.scrape-uri=${PFSENSE_HAPROXY_SCRAPE_URI}
+    ports:
+      - "${HAPROXY_EXPORTER_PORT:-9101}:9101"

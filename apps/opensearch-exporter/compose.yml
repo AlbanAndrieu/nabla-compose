@@ -1,0 +1,31 @@
+---
+services:
+  opensearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0
+    container_name: opensearch-exporter
+    restart: unless-stopped
+    command:
+      - --es.uri=${OPENSEARCH_EXPORTER_URI}
+      - --es.ssl-skip-verify
+      - --es.all
+      - --es.indices
+    ports:
+      - "${OPENSEARCH_EXPORTER_PORT:-9114}:9114"
+
+  opensearch-security-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0
+    container_name: opensearch-security-exporter
+    restart: unless-stopped
+    command:
+      - --es.uri=http://opensearch-security:9200
+      - --es.all
+      - --es.indices
+    ports:
+      - "${OPENSEARCH_SECURITY_EXPORTER_PORT:-9115}:9114"
+    networks:
+      - security
+
+networks:
+  security:
+    external: true
+    name: nabla-security
