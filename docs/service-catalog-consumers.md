@@ -9,7 +9,7 @@ apps/**/compose.yml x-nabla
 catalog/services.json + service-topology.json
           |
           +--> Homarr apps / boards
-          +--> Heimdall item export
+          +--> Heimdall item REST/import format
           +--> Gatus endpoint YAML
           +--> AutoKuma monitor definitions --> Uptime Kuma
 ```
@@ -34,7 +34,7 @@ This is already sufficient to generate dashboard/bookmark entries. It is not suf
 | Consumer | Native declarative/config surface | Programmatic API | MCP | Recommended Nabla integration |
 | --- | --- | --- | --- | --- |
 | Homarr | Apps are stored by Homarr; Docker discovery can create apps | OpenAPI + tRPC with API-key auth | Native MCP, 50+ tools | Sync catalog apps through Homarr API/MCP; use Docker discovery only as enrichment |
-| Heimdall | Item import/export through the UI | No supported dynamic application CRUD API at time of review | No credible LinuxServer-Heimdall-specific MCP found | Generate an importable item export; never mutate Heimdall SQLite directly |
+| Heimdall | Item import/export through the UI | `GET api/item` / `POST api/item` item REST path exists, but no general supported automation API | No credible LinuxServer-Heimdall-specific MCP found | Generate the documented item payload; never mutate Heimdall SQLite directly |
 | Gatus | Native YAML endpoint configuration | Self-hosted status APIs; Gatus.io also exposes an external API | Community `adambenhassen/gatus-mcp` | Generate a dedicated YAML fragment from explicit monitoring metadata |
 | Uptime Kuma | UI/database driven | Internal Socket.IO API; not a stable public CRUD contract | Community `@davidfuchs/mcp-uptime-kuma` for v2 | Generate AutoKuma file/label definitions; use MCP for operator interactions, not as source of truth |
 
@@ -69,15 +69,37 @@ For Homarr v2 prefer `/api/mcp`.
 
 ## Heimdall
 
-LinuxServer Heimdall supports item backup/import/export, including tag data in recent releases. A supported API to dynamically add applications/URLs is still an upstream feature request, so the integration should not rely on undocumented Laravel routes or direct SQLite writes.
+LinuxServer Heimdall 2.8.x has a concrete item round-trip through `ItemRestController`. The export path is `GET api/item`; the import path posts item payloads to `api/item`.
 
-Recommended output is an import artifact generated from the catalog:
+The current exported item structure is:
 
-```text
-id/name/url/icon/category -> Heimdall item export
+```json
+{
+  "title": "Grafana",
+  "colour": "#f46800",
+  "url": "https://grafana.example.internal",
+  "description": "Observability dashboard",
+  "appid": "...",
+  "appdescription": "...",
+  "tags": ["Observability"]
+}
 ```
 
-The exact export serializer should be implemented against a sample export produced by the deployed Heimdall version. Do not guess its private database schema.
+The exported keys are exactly `title`, `colour`, `url`, `description`, `appid`, `appdescription` and `tags`. Tags are exported by title, excluding the root/default dashboard tag. On import, an existing tag with the same title is reused and a missing tag is created, so tag reconciliation is idempotent by title. Empty/omitted tags fall back to the root dashboard.
+
+Recommended initial mapping:
+
+| Nabla | Heimdall |
+| --- | --- |
+| `name` | `title` |
+| `url` | `url` |
+| `description` | `description` |
+| `category` | one entry in `tags` |
+| icon/app catalog match | `appid` / `appdescription` where a matching Heimdall app exists |
+
+`colour`, `appid` and `appdescription` need a Heimdall-specific mapping/default policy; they should not be invented in `x-nabla` merely for one consumer.
+
+Although this item REST path makes deterministic import possible, Heimdall still does not expose a broad supported dynamic application-management API comparable to Homarr. Keep synchronization conservative and do not directly manipulate `/config/www/app.sqlite`.
 
 No MCP entry is added for Heimdall. Projects named "Heimdall MCP" found during research refer to unrelated security/AI products rather than the LinuxServer application dashboard.
 
@@ -129,7 +151,7 @@ labels:
 
 For this repository, generated AutoKuma file definitions are preferable to manually adding labels to every application Compose file because they keep monitoring policy in one generated consumer artifact while `x-nabla` remains authoritative.
 
-The selected MCP is `@davidfuchs/mcp-uptime-kuma`, which targets Uptime Kuma v2 and supports monitor, heartbeat, notification, tag, maintenance and status-page operations. It is write-capable, including monitor deletion. The repository forces `UPTIME_KUMA_INCLUDE_SECRETS=false` so read operations keep credentials redacted by default.
+The selected MCP is `@davidfuchs/mcp-uptime-kuma`, pinned to `0.11.9` in the project configs. It targets Uptime Kuma v2 and supports monitor, heartbeat, notification, tag, maintenance and status-page operations. It is write-capable, including monitor deletion. The repository forces `UPTIME_KUMA_INCLUDE_SECRETS=false` so read operations keep credentials redacted by default.
 
 Required environment variables:
 
@@ -244,6 +266,7 @@ The root `.mcp.json` and `.cursor/mcp.json` require or use:
 
 - Homarr API: https://homarr.dev/docs/management/api/
 - Homarr MCP: https://homarr.dev/docs/management/mcp/
+- Heimdall item round-trip: https://github.com/linuxserver/Heimdall/pull/1567
 - Gatus endpoints: https://gatus.io/docs/endpoints
 - Gatus repository/configuration: https://github.com/TwiN/gatus
 - Gatus MCP: https://github.com/adambenhassen/gatus-mcp
