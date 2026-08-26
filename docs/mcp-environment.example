@@ -1,8 +1,11 @@
 # Copy values into your local shell, mise.local.toml, direnv, or secret manager.
 # Never commit real credentials.
 
-TRUENAS_URL=https://truenas.example.internal
+# @profanter-dev/truenas-mcp expects host[:port], without an https:// prefix.
+TRUENAS_MCP_HOST=truenas.example.internal:443
 TRUENAS_MCP_API_KEY=
+# Keep false when the TrueNAS certificate is trusted. Set true only for a self-signed lab certificate you intentionally accept.
+TRUENAS_MCP_INSECURE=false
 
 # Stable Homarr currently uses /api/mcp/mcp; Homarr v2 prefers /api/mcp.
 HOMARR_MCP_URL=https://homarr.example.internal/api/mcp/mcp
