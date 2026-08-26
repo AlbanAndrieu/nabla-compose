@@ -1,0 +1,58 @@
+---
+x-nabla:
+  nodes:
+    - id: docker
+      name: Docker
+      kind: container-runtime
+      category: infrastructure
+      description: Docker engine hosting the TrueNAS Compose workloads.
+    - id: truenas
+      name: TrueNAS
+      kind: storage-platform
+      category: infrastructure
+      description: TrueNAS SCALE storage and application host.
+
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:v1.72.0
+    container_name: homarr
+    x-nabla:
+      id: homarr
+      name: Homarr
+      kind: dashboard
+      category: operations
+      url: http://172.17.0.24:7575
+      description: Homelab application dashboard generated from the Nabla service inventory.
+      runtime:
+        provider: truenas-app
+        containerService: homarr
+      relations:
+        - target: docker
+          type: consumesApi
+          strength: optional
+          description: Homarr discovers and manages containers through the read-only Docker socket proxy.
+          evidence:
+            - apps/homarr/compose.yml:DOCKER_HOSTNAMES
+    restart: unless-stopped
+    environment:
+      SECRET_ENCRYPTION_KEY: ${HOMARR_SECRET_ENCRYPTION_KEY:?set HOMARR_SECRET_ENCRYPTION_KEY}
+      PUID: ${PUID:-568}
+      PGID: ${PGID:-568}
+      DOCKER_HOSTNAMES: docker-socket-proxy
+      DOCKER_PORTS: "2375"
+    ports:
+      - 7575:7575
+    volumes:
+      - /mnt/cpool/homarr:/appdata
+      - ./generated:/config/nabla:ro
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  intranet:
+    external: true
+    name: intranet

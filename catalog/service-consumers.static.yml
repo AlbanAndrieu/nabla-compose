@@ -1,0 +1,86 @@
+---
+version: 1
+defaults:
+  host: 172.17.0.24
+  interval: 60s
+
+homarr:
+  docker:
+    hostname: docker-socket-proxy
+    port: 2375
+    network: intranet
+  extras:
+    - id: docker
+      name: Docker
+      category: infrastructure
+      url: http://172.17.0.24:3050
+      description: Docker workloads on the TrueNAS host, managed through Dockhand.
+      icon: 🐳
+    - id: pfsense
+      name: pfSense
+      category: network
+      url: https://172.17.0.1:10443
+      description: Homelab firewall and edge gateway.
+      icon: 🔥
+    - id: truenas
+      name: TrueNAS
+      category: infrastructure
+      url: https://172.17.0.24
+      description: TrueNAS SCALE storage and application host.
+      icon: 💾
+  overrides:
+    - id: pihole
+      url: http://172.17.0.24:20720/admin/
+      category: network
+      description: Pi-hole DNS filtering and administration.
+    - id: ntopng
+      url: http://172.17.0.24:3000
+      category: network
+      description: Network traffic visibility on the host-network ntopng service.
+
+monitoring:
+  extras:
+    - id: docker
+      name: Docker API
+      category: infrastructure
+      type: port
+      host: docker-socket-proxy
+      port: 2375
+      description: Read-only Docker socket proxy used by Homarr and automation.
+    - id: pfsense
+      name: pfSense
+      category: network
+      type: port
+      host: 172.17.0.1
+      port: 10443
+      description: pfSense endpoint already consumed by the Prometheus exporter.
+    - id: truenas
+      name: TrueNAS
+      category: infrastructure
+      type: port
+      host: 172.17.0.24
+      port: 443
+      description: TrueNAS HTTPS management endpoint.
+    - id: postgresql
+      name: PostgreSQL
+      category: data
+      type: port
+      host: 172.17.0.24
+      port: 5432
+      description: Shared PostgreSQL service consumed by application stacks.
+    - id: ntopng
+      name: ntopng
+      category: network
+      type: port
+      host: 172.17.0.24
+      port: 3000
+      description: Host-network ntopng web service.
+    - id: homeassistant
+      name: Home Assistant
+      category: home-automation
+      type: http
+      target: https://homeassistant.albanandrieu.com
+      description: Home Assistant routed through Traefik.
+      conditions:
+        - "[STATUS] >= 200"
+        - "[STATUS] < 400"

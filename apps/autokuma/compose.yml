@@ -1,0 +1,54 @@
+---
+x-nabla:
+  nodes:
+    - id: uptime-kuma
+      name: Uptime Kuma
+      kind: uptime-monitor
+      category: observability
+      description: Existing Uptime Kuma instance reconciled by AutoKuma.
+
+services:
+  autokuma:
+    image: ghcr.io/bigboot/autokuma:2.0.0
+    container_name: autokuma
+    x-nabla:
+      id: autokuma
+      name: AutoKuma
+      kind: monitoring-controller
+      category: observability
+      description: Declarative monitor reconciler for the existing Uptime Kuma instance.
+      runtime:
+        provider: truenas-app
+        containerService: autokuma
+      relations:
+        - target: uptime-kuma
+          type: consumesApi
+          strength: required
+          description: AutoKuma reconciles generated monitors into Uptime Kuma.
+          evidence:
+            - apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL
+    restart: unless-stopped
+    environment:
+      AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:?set UPTIME_KUMA_URL}
+      AUTOKUMA__KUMA__USERNAME: ${UPTIME_KUMA_USERNAME:-}
+      AUTOKUMA__KUMA__PASSWORD: ${UPTIME_KUMA_PASSWORD:-}
+      AUTOKUMA__KUMA__AUTH_TOKEN: ${UPTIME_KUMA_JWT_TOKEN:-}
+      AUTOKUMA__STATIC_MONITORS: /config/static
+      AUTOKUMA__FILES__ENABLED: "true"
+      AUTOKUMA__DOCKER__ENABLED: "false"
+      AUTOKUMA__ON_DELETE: keep
+      AUTOKUMA__TAG_NAME: Nabla
+    volumes:
+      - /mnt/cpool/autokuma:/data
+      - ./static:/config/static:ro
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  intranet:
+    external: true
+    name: intranet
