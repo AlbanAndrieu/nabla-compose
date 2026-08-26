@@ -3,24 +3,10 @@
   "name": "Nabla homelab static topology extensions",
   "nodes": [
     {
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml"
-    },
-    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
       "category": "data"
-    },
-    {
-      "id": "redis",
-      "name": "Redis",
-      "kind": "cache",
-      "category": "data",
-      "sourcePath": "apps/redis/compose.yml"
     },
     {
       "id": "clickhouse",
