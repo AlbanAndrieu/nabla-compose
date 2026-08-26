@@ -42,6 +42,7 @@ SECRETS_FILE="${OUTPUT_DIR}/secrets.yaml"
 CONTROL_PLANE_FILE="${OUTPUT_DIR}/controlplane.yaml"
 WORKER_FILE="${OUTPUT_DIR}/worker.yaml"
 TALOSCONFIG_FILE="${OUTPUT_DIR}/talosconfig"
+MANIFEST_FILE="${OUTPUT_DIR}/generation.env"
 GENERATED_FILES=("${CONTROL_PLANE_FILE}" "${WORKER_FILE}" "${TALOSCONFIG_FILE}")
 
 existing_config=false
@@ -88,6 +89,13 @@ printf '⚙️  Generating Talos machine configurations in %s...\n' "${OUTPUT_DI
 talosctl "${GEN_ARGS[@]}"
 chmod 600 "${GENERATED_FILES[@]}"
 
+printf '%s=%s\n' \
+  TALOS_CLUSTER_NAME "${CLUSTER_NAME}" \
+  TALOS_CONTROL_PLANE_ENDPOINT "${ENDPOINT}" \
+  TALOS_VERSION "${TALOS_VERSION}" \
+  TALOS_INSTALL_DISK "${INSTALL_DISK}" >"${MANIFEST_FILE}"
+chmod 600 "${MANIFEST_FILE}"
+
 printf '✅ Validating generated control-plane configuration...\n'
 talosctl validate --config "${CONTROL_PLANE_FILE}" --mode metal --strict
 printf '✅ Validating generated worker configuration...\n'
@@ -101,6 +109,7 @@ Endpoint:      ${ENDPOINT}
 Talos version: ${TALOS_VERSION}
 Install disk:  ${INSTALL_DISK}
 Output:        ${OUTPUT_DIR}
+Manifest:      ${MANIFEST_FILE}
 
 No node was contacted and no configuration was applied.
 Before any apply-config, boot each VM into Talos maintenance mode and verify the target disk, for example:
