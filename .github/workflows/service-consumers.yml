@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: service-consumers-${{ github.event.pull_request.number || github.ref }}
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          persist-credentials: false
+          persist-credentials: true
           fetch-depth: 0
 
       - name: Setup Python
@@ -47,24 +47,27 @@ jobs:
       - name: Generate consumer configurations
         run: python scripts/generate-service-consumers.py
 
-      - name: Archive generated configurations
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: service-consumer-configs
-          path: |
-            apps/homarr/generated/apps.json
-            apps/gatus/config/config.yml
+      - name: Commit canonical generated configurations
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          git add \
+            apps/homarr/generated/apps.json \
+            apps/gatus/config/config.yml \
             apps/autokuma/static/generated-monitors.json
-          retention-days: 3
-          if-no-files-found: error
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(consumers): regenerate Homarr Gatus and AutoKuma outputs'
+          git push origin "HEAD:${HEAD_REF}"
 
       - name: Verify generated configurations are committed
         shell: bash
         run: |
           set -euo pipefail
           git diff --check
-          git diff --exit-code -- \
-            apps/homarr/generated/apps.json \
-            apps/gatus/config/config.yml \
-            apps/autokuma/static/generated-monitors.json
