@@ -4,14 +4,11 @@ umask 077
 
 ROOT="$(git rev-parse --show-toplevel)"
 OUTPUT_DIR="${TALOS_OUTPUT_DIR:-${ROOT}/.talos/generated}"
-CLUSTER_NAME="${TALOS_CLUSTER_NAME:-nabla-talos}"
-INSTALL_DISK="${TALOS_INSTALL_DISK:-/dev/vda}"
+REQUESTED_CLUSTER="${TALOS_CLUSTER_NAME:-}"
+REQUESTED_INSTALL_DISK="${TALOS_INSTALL_DISK:-}"
 ALLOW_APPLY="${TALOS_APPLY_CONFIG:-false}"
 DISK_VERIFIED="${TALOS_DISK_VERIFIED:-false}"
 CONFIRM_CLUSTER="${TALOS_CONFIRM_CLUSTER:-}"
-
-CONTROL_PLANE_CONFIG="${OUTPUT_DIR}/controlplane.yaml"
-WORKER_CONFIG="${OUTPUT_DIR}/worker.yaml"
 
 control_planes=()
 workers=()
@@ -34,7 +31,7 @@ queries disks from each node in maintenance mode without applying configuration.
 To permit apply-config, all of these must be set deliberately:
   TALOS_APPLY_CONFIG=true
   TALOS_DISK_VERIFIED=true
-  TALOS_CONFIRM_CLUSTER=<exact TALOS_CLUSTER_NAME>
+  TALOS_CONFIRM_CLUSTER=<cluster name recorded during generation>
 
 This script never runs `talosctl bootstrap`.
 EOF
@@ -49,6 +46,13 @@ is_ipv4() {
     [[ "${octet}" =~ ^[0-9]{1,3}$ ]] || return 1
     ((10#${octet} <= 255)) || return 1
   done
+}
+
+manifest_value() {
+  local key="$1" line
+  line="$(grep -m1 "^${key}=" "${MANIFEST_FILE}" || true)"
+  [[ -n "${line}" ]] || die "generation manifest is missing ${key}"
+  printf '%s\n' "${line#*=}"
 }
 
 while (($# > 0)); do
@@ -74,13 +78,43 @@ while (($# > 0)); do
 done
 
 command -v talosctl >/dev/null 2>&1 || die "talosctl is required"
+
+if [[ "${OUTPUT_DIR}" != /* ]]; then
+  OUTPUT_DIR="${ROOT}/${OUTPUT_DIR}"
+fi
+case "${OUTPUT_DIR}" in
+  "${ROOT}/.talos" | "${ROOT}/.talos/"*) ;;
+  *) die "TALOS_OUTPUT_DIR must stay below ${ROOT}/.talos" ;;
+esac
+
+CONTROL_PLANE_CONFIG="${OUTPUT_DIR}/controlplane.yaml"
+WORKER_CONFIG="${OUTPUT_DIR}/worker.yaml"
+MANIFEST_FILE="${OUTPUT_DIR}/generation.env"
+
 [[ -f "${CONTROL_PLANE_CONFIG}" ]] || die "missing ${CONTROL_PLANE_CONFIG}; run scripts/talos/generate-config.sh first"
 [[ -f "${WORKER_CONFIG}" ]] || die "missing ${WORKER_CONFIG}; run scripts/talos/generate-config.sh first"
-[[ "${INSTALL_DISK}" == /dev/* ]] || die "TALOS_INSTALL_DISK must be an absolute /dev path"
+[[ -f "${MANIFEST_FILE}" ]] || die "missing ${MANIFEST_FILE}; regenerate configs before apply"
+
+CLUSTER_NAME="$(manifest_value TALOS_CLUSTER_NAME)"
+INSTALL_DISK="$(manifest_value TALOS_INSTALL_DISK)"
+TALOS_VERSION="$(manifest_value TALOS_VERSION)"
+CONTROL_PLANE_ENDPOINT="$(manifest_value TALOS_CONTROL_PLANE_ENDPOINT)"
+
+[[ "${CLUSTER_NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || die "invalid cluster name in generation manifest"
+[[ "${INSTALL_DISK}" == /dev/* ]] || die "invalid install disk in generation manifest"
+[[ "${TALOS_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid Talos version in generation manifest"
+[[ "${CONTROL_PLANE_ENDPOINT}" =~ ^https://[^[:space:]]+:6443$ ]] || die "invalid control-plane endpoint in generation manifest"
 [[ "${ALLOW_APPLY}" == "true" || "${ALLOW_APPLY}" == "false" ]] || die "TALOS_APPLY_CONFIG must be true or false"
 [[ "${DISK_VERIFIED}" == "true" || "${DISK_VERIFIED}" == "false" ]] || die "TALOS_DISK_VERIFIED must be true or false"
-((${#control_planes[@]} > 0)) || die "at least one --control-plane node is required"
 
+if [[ -n "${REQUESTED_CLUSTER}" && "${REQUESTED_CLUSTER}" != "${CLUSTER_NAME}" ]]; then
+  die "TALOS_CLUSTER_NAME does not match the generated cluster ${CLUSTER_NAME}"
+fi
+if [[ -n "${REQUESTED_INSTALL_DISK}" && "${REQUESTED_INSTALL_DISK}" != "${INSTALL_DISK}" ]]; then
+  die "TALOS_INSTALL_DISK does not match the generated install disk ${INSTALL_DISK}"
+fi
+
+((${#control_planes[@]} > 0)) || die "at least one --control-plane node is required"
 all_nodes=("${control_planes[@]}" "${workers[@]}")
 declare -A seen_nodes=()
 for node in "${all_nodes[@]}"; do
@@ -101,8 +135,12 @@ done
 
 cat <<EOF
 
-Expected install disk from generated configuration: ${INSTALL_DISK}
-Verify the output above against the TrueNAS zvol-backed VirtIO disk before enabling writes.
+Generated cluster: ${CLUSTER_NAME}
+Talos version:     ${TALOS_VERSION}
+API endpoint:      ${CONTROL_PLANE_ENDPOINT}
+Expected disk:     ${INSTALL_DISK}
+
+Verify the disk output above against the TrueNAS zvol-backed VirtIO disk before enabling writes.
 EOF
 
 if [[ "${ALLOW_APPLY}" != "true" ]]; then
