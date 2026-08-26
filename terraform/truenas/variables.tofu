@@ -51,6 +51,11 @@ variable "talos_zvol_parent" {
   description = "Existing dataset path, relative to the pool, that will contain Talos VM zvols."
   type        = string
   default     = "k8s/talos-vms"
+
+  validation {
+    condition     = length(trimspace(var.talos_zvol_parent)) > 0 && !startswith(var.talos_zvol_parent, "/") && !endswith(var.talos_zvol_parent, "/")
+    error_message = "talos_zvol_parent must be a non-empty pool-relative dataset path without leading or trailing slashes."
+  }
 }
 
 variable "vm_bridge" {
@@ -63,6 +68,11 @@ variable "talos_iso_path" {
   description = "Optional TrueNAS-local Talos ISO path. Leave empty to create VMs without a CDROM device."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.talos_iso_path == "" || startswith(var.talos_iso_path, "/")
+    error_message = "talos_iso_path must be empty or an absolute TrueNAS-local path."
+  }
 }
 
 variable "talos_vms" {
@@ -89,5 +99,23 @@ variable "talos_vms" {
       cores         = 2
       disk_size_gib = 32
     }
+  }
+
+  validation {
+    condition     = length(var.talos_vms) > 0
+    error_message = "talos_vms must declare at least one VM."
+  }
+
+  validation {
+    condition     = alltrue([for name in keys(var.talos_vms) : can(regex("^[A-Za-z0-9]+$", name))])
+    error_message = "Talos VM names must contain only letters and digits; hyphens and underscores are not allowed by the current TrueNAS VM naming constraint."
+  }
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.talos_vms) :
+      vm.memory_mib >= 2048 && vm.cores >= 1 && vm.disk_size_gib >= 16
+    ])
+    error_message = "Each Talos VM must have at least 2048 MiB RAM, 1 CPU core, and a 16 GiB disk."
   }
 }
