@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:7be0ec1646728b206d6728b198b72b1a0ed33534a396f8ed964aff77ef859b5b",
+  "catalogRevision": "sha256:0e952531332bdeeaa06c4abd984059632aa85f906e24ca16c0b99c0c231b1c11",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -15,7 +15,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "langflow"
-      }
+      },
+      "icon": "🔗"
     },
     {
       "id": "langfuse-web",
@@ -27,7 +28,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "langfuse-web"
-      }
+      },
+      "icon": "🖥️"
     },
     {
       "id": "langfuse-worker",
@@ -39,7 +41,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "langfuse-worker"
-      }
+      },
+      "icon": "⚙️"
     },
     {
       "id": "litellm",
@@ -51,7 +54,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "litellm"
-      }
+      },
+      "icon": "🧠"
     },
     {
       "id": "n8n",
@@ -63,7 +67,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "n8n"
-      }
+      },
+      "icon": "⚙️"
     },
     {
       "id": "ollama",
@@ -75,7 +80,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ollama"
-      }
+      },
+      "icon": "🦙"
     },
     {
       "id": "openrag-backend",
@@ -87,7 +93,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "openrag-backend"
-      }
+      },
+      "icon": "📚"
     },
     {
       "id": "openrag-frontend",
@@ -99,7 +106,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "openrag-frontend"
-      }
+      },
+      "icon": "🔍"
     },
     {
       "id": "openwebui",
@@ -111,7 +119,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "open-webui"
-      }
+      },
+      "icon": "💬"
     },
     {
       "id": "openwebui-pipelines",
@@ -123,7 +132,8 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "pipelines"
-      }
+      },
+      "icon": "🔧"
     }
   ]
 }
