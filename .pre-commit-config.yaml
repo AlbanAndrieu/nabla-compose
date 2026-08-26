@@ -95,6 +95,13 @@ repos:
         additional_dependencies: ["prettier@3.4.2"]
         exclude: '^(\.pre-commit-config\.yaml|apps/n8n/.*)$'
 
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        name: "✨ yaml · Lint YAML"
+        args: [-c, .yamllint.yml]
+
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.38.0
     hooks:
@@ -124,7 +131,14 @@ repos:
         entry: python scripts/generate-service-topology.py
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
+
+      - id: compose-config
+        name: "🐳 compose · Validate Compose configuration"
+        language: system
+        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
+        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
+        stages: [pre-commit]
 
       - id: quality-gate-pre-push
         name: "✅ quality · Run repository quality gate before push"
@@ -132,11 +146,4 @@ repos:
         entry: bash scripts/quality-gate.sh
         pass_filenames: false
         always_run: true
-        stages: [pre-push]
-
-      - id: compose-config-pre-push
-        name: "🐳 compose · Validate changed files before push"
-        language: system
-        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
         stages: [pre-push]

@@ -16,6 +16,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC_TOPOLOGY = ROOT / "catalog" / "service-topology.static.json"
+ICON_CATALOG = ROOT / "catalog" / "service-icons.json"
 OUTPUT_TOPOLOGY = ROOT / "catalog" / "service-topology.json"
 OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -161,9 +162,6 @@ def topology_relation(
     else:
         fail(f"{context}.evidence must be a non-empty list of strings")
 
-    # Preserve the established generated wire order. This prevents the generator
-    # from rewriting semantically identical topology merely because a relation
-    # moved from the transitional static catalog into Compose x-nabla metadata.
     relation: dict[str, Any] = {
         "source": source,
         "target": target,
@@ -294,16 +292,42 @@ def load_compose_extensions(
                 )
 
 
+def apply_service_icons(
+    nodes: dict[str, dict[str, Any]], services: dict[str, dict[str, Any]]
+) -> None:
+    """Apply presentation metadata from the catalog overlay to generated contracts."""
+    data = read_json(ICON_CATALOG)
+    raw_icons = data.get("icons")
+    if data.get("version") != 1 or not isinstance(raw_icons, dict):
+        fail("catalog/service-icons.json must contain version 1 and an icons mapping")
+
+    unknown_ids: list[str] = []
+    for raw_id, raw_icon in raw_icons.items():
+        service_id = require_identifier(raw_id, "service icon id")
+        if not isinstance(raw_icon, str) or not raw_icon.strip():
+            fail(f"service icon {service_id!r} must be a non-empty string")
+        if service_id not in nodes:
+            unknown_ids.append(service_id)
+            continue
+        icon = raw_icon.strip()
+        nodes[service_id]["icon"] = icon
+        if service_id in services:
+            services[service_id]["icon"] = icon
+
+    if unknown_ids:
+        fail("service icon catalog references unknown nodes: " + ", ".join(sorted(unknown_ids)))
+
+
 def catalog_revision(
     services: dict[str, dict[str, Any]],
     nodes: dict[str, dict[str, Any]],
     relations: dict[tuple[str, str, str], dict[str, Any]],
 ) -> str:
-    """Bind service inventory to the exact topology structure generated in this pass."""
+    """Hash the complete generated catalog so metadata changes get a new revision."""
     material = {
-        "services": sorted(services),
-        "nodes": sorted(nodes),
-        "relations": [list(key) for key in sorted(relations)],
+        "services": [services[key] for key in sorted(services)],
+        "nodes": [nodes[key] for key in sorted(nodes)],
+        "relations": [relations[key] for key in sorted(relations)],
     }
     canonical = json.dumps(material, separators=(",", ":"), sort_keys=True)
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -315,6 +339,7 @@ def generate_catalog() -> tuple[dict[str, Any], dict[str, Any]]:
     services: dict[str, dict[str, Any]] = {}
     load_static_topology(nodes, relations)
     load_compose_extensions(nodes, relations, services)
+    apply_service_icons(nodes, services)
 
     known_nodes = set(nodes)
     for relation in relations.values():

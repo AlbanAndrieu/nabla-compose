@@ -8,21 +8,24 @@
       "name": "ClickHouse",
       "kind": "database",
       "category": "data",
-      "sourcePath": "apps/clickhouse/compose.yml"
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "icon": "⚡"
     },
     {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
       "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml"
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "icon": "🔎"
     },
     {
       "id": "langflow",
       "name": "Langflow",
       "kind": "workflow",
       "category": "ai",
-      "sourcePath": "apps/langflow/compose.yml"
+      "sourcePath": "apps/langflow/compose.yml",
+      "icon": "🔗"
     },
     {
       "id": "langfuse",
@@ -30,49 +33,56 @@
       "kind": "observability",
       "category": "ai",
       "sourcePath": "apps/langfuse/compose.yml",
-      "description": "Logical Langfuse observability platform composed of web and worker runtimes."
+      "description": "Logical Langfuse observability platform composed of web and worker workloads.",
+      "icon": "📈"
     },
     {
       "id": "langfuse-web",
       "name": "Langfuse Web",
       "kind": "application",
       "category": "ai",
-      "sourcePath": "apps/langfuse/compose.yml"
+      "sourcePath": "apps/langfuse/compose.yml",
+      "icon": "🖥️"
     },
     {
       "id": "langfuse-worker",
       "name": "Langfuse Worker",
       "kind": "worker",
       "category": "ai",
-      "sourcePath": "apps/langfuse/compose.yml"
+      "sourcePath": "apps/langfuse/compose.yml",
+      "icon": "⚙️"
     },
     {
       "id": "litellm",
       "name": "LiteLLM",
       "kind": "gateway",
       "category": "ai",
-      "sourcePath": "apps/litellm/compose.yml"
+      "sourcePath": "apps/litellm/compose.yml",
+      "icon": "🧠"
     },
     {
       "id": "minio",
       "name": "MinIO",
       "kind": "object-storage",
       "category": "data",
-      "sourcePath": "apps/minio/compose.yml"
+      "sourcePath": "apps/minio/compose.yml",
+      "icon": "🪣"
     },
     {
       "id": "n8n",
       "name": "n8n",
       "kind": "workflow",
       "category": "automation",
-      "sourcePath": "apps/n8n/compose.yml"
+      "sourcePath": "apps/n8n/compose.yml",
+      "icon": "⚙️"
     },
     {
       "id": "ollama",
       "name": "Ollama",
       "kind": "model-runtime",
       "category": "ai",
-      "sourcePath": "apps/ollama/compose.yml"
+      "sourcePath": "apps/ollama/compose.yml",
+      "icon": "🦙"
     },
     {
       "id": "open-terminal",
@@ -80,54 +90,62 @@
       "kind": "tool-service",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
-      "description": "Optional agent terminal API consumed by Open WebUI tools."
+      "description": "Optional agent terminal API consumed by Open WebUI tools.",
+      "icon": "⌨️"
     },
     {
       "id": "openrag-backend",
       "name": "OpenRAG Backend",
       "kind": "service",
       "category": "ai",
-      "sourcePath": "apps/openrag/compose.yml"
+      "sourcePath": "apps/openrag/compose.yml",
+      "icon": "📚"
     },
     {
       "id": "openrag-frontend",
       "name": "OpenRAG Frontend",
       "kind": "application",
       "category": "ai",
-      "sourcePath": "apps/openrag/compose.yml"
+      "sourcePath": "apps/openrag/compose.yml",
+      "icon": "🔍"
     },
     {
       "id": "openwebui",
       "name": "Open WebUI",
       "kind": "application",
       "category": "ai",
-      "sourcePath": "apps/openwebui/compose.yml"
+      "sourcePath": "apps/openwebui/compose.yml",
+      "icon": "💬"
     },
     {
       "id": "openwebui-pipelines",
       "name": "Open WebUI Pipelines",
       "kind": "service",
       "category": "ai",
-      "sourcePath": "apps/openwebui/compose.yml"
+      "sourcePath": "apps/openwebui/compose.yml",
+      "icon": "🔧"
     },
     {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
-      "category": "data"
+      "category": "data",
+      "icon": "🐘"
     },
     {
       "id": "prometheus",
       "name": "Prometheus",
       "kind": "observability",
-      "category": "observability"
+      "category": "observability",
+      "icon": "📊"
     },
     {
       "id": "redis",
       "name": "Redis",
       "kind": "cache",
       "category": "data",
-      "sourcePath": "apps/redis/compose.yml"
+      "sourcePath": "apps/redis/compose.yml",
+      "icon": "🔴"
     },
     {
       "id": "searxng",
@@ -135,13 +153,15 @@
       "kind": "search",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
-      "description": "Optional metasearch backend consumed by Open WebUI web-search tooling."
+      "description": "Optional metasearch backend consumed by Open WebUI web-search tooling.",
+      "icon": "🌐"
     },
     {
       "id": "traefik",
       "name": "Traefik",
       "kind": "edge",
-      "category": "network"
+      "category": "network",
+      "icon": "🚦"
     }
   ],
   "relations": [
@@ -156,44 +176,13 @@
       ]
     },
     {
-      "source": "langfuse",
+      "source": "langfuse-web",
       "target": "clickhouse",
       "type": "dependsOn",
       "strength": "required",
-      "description": "Langfuse stores analytical event data in ClickHouse.",
+      "description": "Langfuse Web reads and writes analytical event data in ClickHouse.",
       "evidence": [
         "apps/langfuse/compose.yml:CLICKHOUSE_URL"
-      ]
-    },
-    {
-      "source": "langfuse",
-      "target": "minio",
-      "type": "storesIn",
-      "strength": "required",
-      "description": "Langfuse uses S3-compatible object storage for event, media and export data.",
-      "evidence": [
-        "apps/langfuse/compose.yml:LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT",
-        "apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT"
-      ]
-    },
-    {
-      "source": "langfuse",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Langfuse stores transactional application data in PostgreSQL.",
-      "evidence": [
-        "apps/langfuse/compose.yml:DATABASE_URL"
-      ]
-    },
-    {
-      "source": "langfuse",
-      "target": "redis",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Langfuse uses Redis for queues and asynchronous processing.",
-      "evidence": [
-        "apps/langfuse/compose.yml:REDIS_HOST"
       ]
     },
     {
@@ -201,9 +190,49 @@
       "target": "langfuse",
       "type": "partOf",
       "strength": "required",
-      "description": "The web application is the interactive runtime component of the Langfuse platform.",
+      "description": "The web application is a runtime workload of the logical Langfuse platform.",
       "evidence": [
         "apps/langfuse/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "langfuse-web",
+      "target": "minio",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Langfuse Web uses S3-compatible object storage for media and exports.",
+      "evidence": [
+        "apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT"
+      ]
+    },
+    {
+      "source": "langfuse-web",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Langfuse Web stores transactional application data in PostgreSQL.",
+      "evidence": [
+        "apps/langfuse/compose.yml:DATABASE_URL"
+      ]
+    },
+    {
+      "source": "langfuse-web",
+      "target": "redis",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Langfuse Web uses Redis-backed queues and shared asynchronous state.",
+      "evidence": [
+        "apps/langfuse/compose.yml:REDIS_HOST"
+      ]
+    },
+    {
+      "source": "langfuse-worker",
+      "target": "clickhouse",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Langfuse Worker stores analytical event data in ClickHouse.",
+      "evidence": [
+        "apps/langfuse/compose.yml:CLICKHOUSE_URL"
       ]
     },
     {
@@ -211,9 +240,40 @@
       "target": "langfuse",
       "type": "partOf",
       "strength": "required",
-      "description": "The background worker is a runtime component of the Langfuse platform.",
+      "description": "The worker is a runtime workload of the logical Langfuse platform.",
       "evidence": [
         "apps/langfuse/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "langfuse-worker",
+      "target": "minio",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Langfuse Worker uses S3-compatible object storage for event, media and export data.",
+      "evidence": [
+        "apps/langfuse/compose.yml:LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT",
+        "apps/langfuse/compose.yml:LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT"
+      ]
+    },
+    {
+      "source": "langfuse-worker",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Langfuse Worker stores transactional application data in PostgreSQL.",
+      "evidence": [
+        "apps/langfuse/compose.yml:DATABASE_URL"
+      ]
+    },
+    {
+      "source": "langfuse-worker",
+      "target": "redis",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Langfuse Worker uses Redis for queues and asynchronous processing.",
+      "evidence": [
+        "apps/langfuse/compose.yml:REDIS_HOST"
       ]
     },
     {

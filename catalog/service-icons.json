@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "icons": {
+    "clickhouse": "⚡",
+    "elasticsearch": "🔎",
+    "langflow": "🔗",
+    "langfuse": "📈",
+    "langfuse-web": "🖥️",
+    "langfuse-worker": "⚙️",
+    "litellm": "🧠",
+    "minio": "🪣",
+    "n8n": "⚙️",
+    "ollama": "🦙",
+    "open-terminal": "⌨️",
+    "openrag-backend": "📚",
+    "openrag-frontend": "🔍",
+    "openwebui": "💬",
+    "openwebui-pipelines": "🔧",
+    "postgresql": "🐘",
+    "prometheus": "📊",
+    "redis": "🔴",
+    "searxng": "🌐",
+    "traefik": "🚦"
+  }
+}

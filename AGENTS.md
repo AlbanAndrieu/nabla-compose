@@ -10,7 +10,7 @@ Git hook configuration is versioned, but Git does not install repository hooks a
 mise run hooks
 ```
 
-This installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI remains the authoritative enforcement layer because local hooks can be absent or explicitly bypassed.
+This explicitly installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI remains the authoritative enforcement layer because local hooks can be absent or explicitly bypassed.
 
 ## Before editing
 
@@ -23,38 +23,40 @@ This installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. C
 
 For a focused change, run the closest relevant formatter/linter first.
 
-Before considering a substantial change complete, run the repository quality gate:
+Before considering a substantial change complete, and always before publishing repository changes, run:
 
 ```bash
 bash scripts/quality-gate.sh
 ```
 
-The gate runs the repository pre-commit policy against the branch diff. This includes the configured safe formatters and base linters such as Biome, Prettier, shell checks, GitHub workflow validation, Hadolint, Gitleaks, and filesystem/config validation where applicable.
+The gate validates files touched by the branch **and** staged, unstaged, or untracked working-tree files. It invokes the repository `pre-commit` stage, including safe formatters and base linters such as Biome, Prettier, shell checks, YAML parsing, GitHub workflow validation, Hadolint, Gitleaks, catalog generation, and Compose configuration validation where applicable.
 
-For Compose changes, the installed pre-push hook additionally validates changed Compose files with:
+Compose files are validated during the normal `pre-commit` stage with:
 
 ```bash
 docker compose config --quiet --no-interpolate --no-env-resolution
 ```
 
-Do not start the homelab stack in order to validate configuration. Do not run MegaLinter locally unless diagnosing a CI-specific failure.
+This means Compose/YAML failures must be caught at commit time and again by the pre-push quality gate before CI. Do not start the homelab stack in order to validate configuration. Do not run MegaLinter locally unless diagnosing a CI-specific failure.
 
-## Mandatory agent push policy
+## Mandatory agent publish policy
 
-Agents must never push immediately after changing files.
+Agents must never publish changes immediately after editing files.
 
-Before every `git push`:
+Before every `git push`, GitHub API file update, or other remote repository mutation:
 
-1. Run `bash scripts/quality-gate.sh`.
-2. Fix every formatter, linter, pre-commit, workflow, configuration, or security-check failure caused by the change.
+1. Run `bash scripts/quality-gate.sh` from a local checkout whenever shell access is available.
+2. Fix every formatter, linter, YAML, Compose, workflow, configuration, generated-file, or security-check failure caused by the change.
 3. If the gate modifies files, review and commit those changes.
 4. Run `bash scripts/quality-gate.sh` again until it exits successfully with a clean working tree.
 5. Verify `git status --short` is empty.
-6. Only then run `git push`.
+6. Only then publish the changes.
 
-When `mise run hooks` has been run, `quality-gate-pre-push` invokes the same gate automatically as a final local safety net.
+When `mise run hooks` has been run, the normal Git `pre-commit` hook validates the commit and `quality-gate-pre-push` invokes the full gate automatically before push.
 
-Never bypass repository hooks with `git push --no-verify`. Never weaken or disable formatter, lint, security, or validation rules merely to make a push or CI build pass.
+An API-only agent must not silently treat remote API writes as a way to bypass local hooks. If its runtime cannot obtain or execute a checkout, it must explicitly report that limitation, reproduce the closest deterministic validations available, keep the remote patch minimal, and inspect the resulting CI immediately. It must never claim that the local quality gate passed when it was not executed.
+
+Never bypass repository hooks with `git push --no-verify`. Never weaken or disable formatter, lint, security, YAML, Compose, or validation rules merely to make a push or CI build pass.
 
 ## Changes
 
