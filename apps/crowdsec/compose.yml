@@ -55,8 +55,14 @@ services:
       - crowdsec_data:/var/lib/crowdsec/data
       - ./acquis.d:/etc/crowdsec/acquis.d:ro
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
-      - ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}:/logs/pfsense:ro
-      - ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}:/logs/suricata:ro
+      - type: bind
+        source: ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}
+        target: /logs/pfsense
+        read_only: true
+      - type: bind
+        source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
+        target: /logs/suricata
+        read_only: true
 
 volumes:
   crowdsec_config:

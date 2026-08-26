@@ -164,7 +164,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.logstash
-    image: nabla/wazuh-logstash:8.19.19
+    image: nabla/wazuh-logstash:8.19.20
     container_name: wazuh-forwarder
     restart: unless-stopped
     x-nabla:

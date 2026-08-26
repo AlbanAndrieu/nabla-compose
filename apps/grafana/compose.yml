@@ -159,8 +159,14 @@ services:
     volumes:
       - ./config/alloy.alloy:/etc/alloy/config.alloy:ro
       - /mnt/cpool/alloy:/var/lib/alloy/data
-      - ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}:/var/log/pfsense:ro
-      - ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}:/var/log/suricata:ro
+      - type: bind
+        source: ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}
+        target: /var/log/pfsense
+        read_only: true
+      - type: bind
+        source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
+        target: /var/log/suricata
+        read_only: true
     depends_on:
       - loki
       - mimir
