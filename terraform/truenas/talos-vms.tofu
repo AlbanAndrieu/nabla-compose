@@ -51,6 +51,7 @@ resource "truenas_vm_device" "talos_nic" {
   attributes = {
     type       = "VIRTIO"
     nic_attach = var.vm_bridge
+    mac        = each.value.mac
   }
 }
 
