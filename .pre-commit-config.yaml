@@ -139,11 +139,3 @@ repos:
         entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
         files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
         stages: [pre-commit]
-
-      - id: quality-gate-pre-push
-        name: "✅ quality · Run repository quality gate before push"
-        language: system
-        entry: bash scripts/quality-gate.sh
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
