@@ -60,6 +60,7 @@
         "composeService": { "type": "string", "minLength": 1 },
         "url": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
+        "icon": { "type": "string", "minLength": 1 },
         "runtime": { "$ref": "#/$defs/runtime" }
       }
     }
