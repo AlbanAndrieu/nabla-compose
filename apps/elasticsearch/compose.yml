@@ -2,6 +2,14 @@ services:
   elasticsearch:
     image: docker.io/elasticsearch:8.14.0
     container_name: elasticsearch
+    x-nabla:
+      id: elasticsearch
+      name: Elasticsearch
+      kind: search
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: elasticsearch
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
@@ -24,6 +32,21 @@ services:
   kibana:
     image: docker.io/kibana:8.14.0
     container_name: kibana
+    x-nabla:
+      id: kibana
+      name: Kibana
+      kind: dashboard
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: kibana
+      relations:
+        - target: elasticsearch
+          type: dependsOn
+          strength: required
+          description: Kibana queries Elasticsearch for indexed data and saved objects.
+          evidence:
+            - apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS
     depends_on:
       - elasticsearch
     environment:
