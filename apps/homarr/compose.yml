@@ -6,11 +6,6 @@ x-nabla:
       kind: container-runtime
       category: infrastructure
       description: Docker engine hosting the TrueNAS Compose workloads.
-    - id: pfsense
-      name: pfSense
-      kind: firewall
-      category: network
-      description: Homelab firewall and edge gateway.
     - id: truenas
       name: TrueNAS
       kind: storage-platform
