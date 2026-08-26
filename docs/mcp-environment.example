@@ -1,0 +1,19 @@
+# Copy values into your local shell, mise.local.toml, direnv, or secret manager.
+# Never commit real credentials.
+
+TRUENAS_URL=https://truenas.example.internal
+TRUENAS_MCP_API_KEY=
+
+# Stable Homarr currently uses /api/mcp/mcp; Homarr v2 prefers /api/mcp.
+HOMARR_MCP_URL=https://homarr.example.internal/api/mcp/mcp
+HOMARR_API_KEY=
+
+# URL of a separately deployed adambenhassen/gatus-mcp server.
+GATUS_MCP_URL=http://127.0.0.1:3000/mcp
+
+UPTIME_KUMA_URL=https://uptime.example.internal
+UPTIME_KUMA_USERNAME=
+UPTIME_KUMA_PASSWORD=
+
+# Optional override for root .mcp.json; Cursor currently points directly to production.
+FASTAPI_SAMPLE_MCP_URL=https://fastapi-sample.fastapicloud.dev/mcp
