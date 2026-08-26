@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconcile generated Nabla applications into Homarr without deleting user apps."""
+"""Reconcile generated Nabla applications and dashboard into Homarr."""
 
 from __future__ import annotations
 
@@ -23,6 +23,20 @@ DEFAULT_ICON = os.getenv(
     "HOMARR_DEFAULT_ICON_URL",
     "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/svg/homarr.svg",
 )
+BOARD_SYNC_ENABLED = os.getenv("HOMARR_BOARD_ENABLED", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+BOARD_NAME = os.getenv("HOMARR_BOARD_NAME", "Nabla").strip() or "Nabla"
+BOARD_COLUMN_COUNT = int(os.getenv("HOMARR_BOARD_COLUMNS", "12"))
+BOARD_PUBLIC = os.getenv("HOMARR_BOARD_PUBLIC", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 
 def log(message: str) -> None:
@@ -46,9 +60,13 @@ def request_json(method: str, path: str, payload: object | None = None) -> Any:
             body = response.read()
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Homarr API {method} {path} returned {exc.code}: {body[:400]}") from exc
+        raise RuntimeError(
+            f"Homarr API {method} {path} returned {exc.code}: {body[:400]}"
+        ) from exc
     except URLError as exc:
-        raise RuntimeError(f"Homarr API {method} {path} unavailable: {exc.reason}") from exc
+        raise RuntimeError(
+            f"Homarr API {method} {path} unavailable: {exc.reason}"
+        ) from exc
     if not body:
         return None
     return json.loads(body.decode("utf-8"))
@@ -63,7 +81,10 @@ def load_json(path: Path, fallback: object) -> Any:
 def save_state(state: dict[str, str]) -> None:
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     temporary = STATE_PATH.with_suffix(".tmp")
-    temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.write_text(
+        json.dumps(state, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     temporary.replace(STATE_PATH)
 
 
@@ -109,7 +130,8 @@ def find_existing(
     exact = [
         app
         for app in apps
-        if app.get("name") == desired.get("name") and app.get("href") == desired.get("href")
+        if app.get("name") == desired.get("name")
+        and app.get("href") == desired.get("href")
     ]
     if len(exact) == 1:
         return exact[0]
@@ -126,6 +148,127 @@ def differs(existing: dict[str, Any], desired: dict[str, Any]) -> bool:
             return True
     existing_ping = existing.get("pingUrl") or ""
     return existing_ping != desired.get("pingUrl", "")
+
+
+def board_state_key() -> str:
+    return f"__board__:{BOARD_NAME.casefold()}"
+
+
+def board_item_state_key(nabla_id: str) -> str:
+    return f"__board_item__:{BOARD_NAME.casefold()}:{nabla_id}"
+
+
+def find_board(boards: list[dict[str, Any]]) -> dict[str, Any] | None:
+    matches = [
+        board
+        for board in boards
+        if str(board.get("name", "")).casefold() == BOARD_NAME.casefold()
+    ]
+    if len(matches) > 1:
+        raise RuntimeError(f"multiple Homarr boards are named {BOARD_NAME!r}")
+    return matches[0] if matches else None
+
+
+def reconcile_board(
+    state: dict[str, str],
+    desired_items: list[dict[str, Any]],
+) -> tuple[bool, int]:
+    """Create/populate the managed Nabla board without deleting user content."""
+    if not BOARD_SYNC_ENABLED:
+        log("Homarr board reconciliation is disabled")
+        return False, 0
+    if not 1 <= BOARD_COLUMN_COUNT <= 24:
+        raise ValueError("HOMARR_BOARD_COLUMNS must be between 1 and 24")
+
+    raw_boards = request_json("GET", "/api/boards")
+    if not isinstance(raw_boards, list):
+        raise RuntimeError("Homarr /api/boards did not return an array")
+    boards = [board for board in raw_boards if isinstance(board, dict)]
+    existing = find_board(boards)
+    state_key = board_state_key()
+    mapped_board_id = state.get(state_key)
+    created_board = False
+
+    if existing is None:
+        if mapped_board_id:
+            log(
+                f"managed board {BOARD_NAME!r} is missing; refusing to recreate it "
+                "automatically after an external deletion"
+            )
+            return False, 0
+        if DRY_RUN:
+            log(
+                f"would create Homarr board {BOARD_NAME!r} "
+                f"with {BOARD_COLUMN_COUNT} columns"
+            )
+            return False, 0
+        result = request_json(
+            "POST",
+            "/api/boards",
+            {
+                "name": BOARD_NAME,
+                "columnCount": BOARD_COLUMN_COUNT,
+                "isPublic": BOARD_PUBLIC,
+            },
+        )
+        if not isinstance(result, dict) or not result.get("boardId"):
+            raise RuntimeError("Homarr did not return boardId while creating board")
+        board_id = str(result["boardId"])
+        state[state_key] = board_id
+        created_board = True
+        log(f"created Homarr board {BOARD_NAME!r} as {board_id}")
+    else:
+        board_id = str(existing.get("id", ""))
+        if not board_id:
+            raise RuntimeError(f"Homarr board {BOARD_NAME!r} has no id")
+        if not mapped_board_id:
+            log(
+                f"board {BOARD_NAME!r} already exists but is not managed by Nabla; "
+                "leaving it unchanged to avoid duplicate items"
+            )
+            return False, 0
+        if mapped_board_id != board_id:
+            log(
+                f"managed board mapping points to {mapped_board_id}, but Homarr "
+                f"reports {board_id}; leaving the replacement board unchanged"
+            )
+            return False, 0
+
+    added = 0
+    for item in desired_items:
+        nabla_id = str(item["id"])
+        homarr_app_id = state.get(nabla_id)
+        if not homarr_app_id:
+            log(f"skipping board item {nabla_id}: Homarr app id is unavailable")
+            continue
+        item_state_key = board_item_state_key(nabla_id)
+        if state.get(item_state_key):
+            continue
+        if DRY_RUN:
+            log(
+                f"would add {nabla_id} / {homarr_app_id} "
+                f"to board {BOARD_NAME!r}"
+            )
+            continue
+        result = request_json(
+            "POST",
+            "/api/boards/items",
+            {
+                "boardId": board_id,
+                "kind": "app",
+                "options": {"appId": homarr_app_id},
+                "integrationIds": [],
+            },
+        )
+        if not isinstance(result, dict) or not result.get("itemId"):
+            raise RuntimeError(
+                f"Homarr did not return itemId while adding {nabla_id} to board"
+            )
+        state[item_state_key] = str(result["itemId"])
+        added += 1
+        log(f"added {nabla_id} to Homarr board {BOARD_NAME!r}")
+
+    return created_board, added
 
 
 def main() -> int:
@@ -180,13 +323,16 @@ def main() -> int:
         updated += 1
         log(f"updated {nabla_id} / {homarr_id}")
 
+    board_created, board_items_added = reconcile_board(state, desired_items)
+
     if not DRY_RUN:
         save_state(state)
     log(
         f"reconciliation complete: desired={len(desired_items)} created={created} "
-        f"updated={updated} unchanged={unchanged} dry_run={DRY_RUN}"
+        f"updated={updated} unchanged={unchanged} board_created={board_created} "
+        f"board_items_added={board_items_added} dry_run={DRY_RUN}"
     )
-    log("no Homarr applications were deleted")
+    log("no Homarr applications, boards or board items were deleted")
     return 0
 
 
