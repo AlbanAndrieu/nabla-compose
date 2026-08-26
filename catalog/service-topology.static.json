@@ -9,20 +9,6 @@
       "category": "data"
     },
     {
-      "id": "clickhouse",
-      "name": "ClickHouse",
-      "kind": "database",
-      "category": "data",
-      "sourcePath": "apps/clickhouse/compose.yml"
-    },
-    {
-      "id": "minio",
-      "name": "MinIO",
-      "kind": "object-storage",
-      "category": "data",
-      "sourcePath": "apps/minio/compose.yml"
-    },
-    {
       "id": "traefik",
       "name": "Traefik",
       "kind": "edge",
