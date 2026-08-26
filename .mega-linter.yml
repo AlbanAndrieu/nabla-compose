@@ -47,6 +47,7 @@ JSON_JSONLINT_FILTER_REGEX_EXCLUDE: >-
   ((^|/)(\.vscode|\.devcontainer)/|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
 JSON_PRETTIER_FILTER_REGEX_EXCLUDE: >-
   ((^|/)(\.vscode|\.devcontainer)/|(^|/)catalog/service-topology\.json$|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
+YAML_PRETTIER_FILTER_REGEX_EXCLUDE: (^|/)apps/gatus/config/config\.yml$
 BASH_FILTER_REGEX_EXCLUDE: (lib/)
 MARKDOWN_MARKDOWN_LINK_CHECK_DISABLE_ERRORS: true
 DOCKERFILE_HADOLINT_ARGUMENTS: >-

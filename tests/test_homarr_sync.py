@@ -109,6 +109,7 @@ class HomarrSyncTests(unittest.TestCase):
 
         with (
             patch.object(homarr_sync, "API_KEY", "test-api-key"),
+            patch.object(homarr_sync, "BOARD_SYNC_ENABLED", False),
             patch.object(homarr_sync, "load_json", side_effect=fake_load_json),
             patch.object(homarr_sync, "wait_for_homarr", return_value=existing_apps.copy()),
             patch.object(homarr_sync, "request_json", request_json),
@@ -148,7 +149,157 @@ class HomarrSyncTests(unittest.TestCase):
             saved_state,
             {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"},
         )
-        self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
+        self.assertFalse(
+            any(args[0] == "DELETE" for args, _ in request_json.call_args_list)
+        )
+
+    def test_reconcile_board_creates_and_populates_once(self) -> None:
+        state = {
+            "grafana": "homarr-grafana",
+            "pfsense": "homarr-pfsense",
+        }
+        desired_items = [
+            {
+                "id": "grafana",
+                "name": "Grafana",
+                "href": "https://grafana.example.test",
+                "syncEligible": True,
+            },
+            {
+                "id": "pfsense",
+                "name": "pfSense",
+                "href": "https://pfsense.example.test",
+                "syncEligible": True,
+            },
+        ]
+        request_json = Mock()
+        request_json.side_effect = [
+            [],
+            {"boardId": "board-nabla"},
+            {"itemId": "item-grafana"},
+            {"itemId": "item-pfsense"},
+        ]
+
+        with (
+            patch.object(homarr_sync, "BOARD_SYNC_ENABLED", True),
+            patch.object(homarr_sync, "BOARD_NAME", "Nabla"),
+            patch.object(homarr_sync, "BOARD_COLUMN_COUNT", 12),
+            patch.object(homarr_sync, "BOARD_PUBLIC", False),
+            patch.object(homarr_sync, "DRY_RUN", False),
+            patch.object(homarr_sync, "request_json", request_json),
+        ):
+            created, added = homarr_sync.reconcile_board(state, desired_items)
+
+        self.assertTrue(created)
+        self.assertEqual(added, 2)
+        self.assertEqual(state["__board__:nabla"], "board-nabla")
+        self.assertEqual(
+            state["__board_item__:nabla:grafana"],
+            "item-grafana",
+        )
+        self.assertEqual(
+            state["__board_item__:nabla:pfsense"],
+            "item-pfsense",
+        )
+        self.assertEqual(
+            request_json.call_args_list,
+            [
+                call("GET", "/api/boards"),
+                call(
+                    "POST",
+                    "/api/boards",
+                    {"name": "Nabla", "columnCount": 12, "isPublic": False},
+                ),
+                call(
+                    "POST",
+                    "/api/boards/items",
+                    {
+                        "boardId": "board-nabla",
+                        "kind": "app",
+                        "options": {"appId": "homarr-grafana"},
+                        "integrationIds": [],
+                    },
+                ),
+                call(
+                    "POST",
+                    "/api/boards/items",
+                    {
+                        "boardId": "board-nabla",
+                        "kind": "app",
+                        "options": {"appId": "homarr-pfsense"},
+                        "integrationIds": [],
+                    },
+                ),
+            ],
+        )
+
+        second_request = Mock(return_value=[{"id": "board-nabla", "name": "Nabla"}])
+        with (
+            patch.object(homarr_sync, "BOARD_SYNC_ENABLED", True),
+            patch.object(homarr_sync, "BOARD_NAME", "Nabla"),
+            patch.object(homarr_sync, "DRY_RUN", False),
+            patch.object(homarr_sync, "request_json", second_request),
+        ):
+            created_again, added_again = homarr_sync.reconcile_board(
+                state,
+                desired_items,
+            )
+
+        self.assertFalse(created_again)
+        self.assertEqual(added_again, 0)
+        second_request.assert_called_once_with("GET", "/api/boards")
+
+    def test_reconcile_board_leaves_unmanaged_existing_board_untouched(self) -> None:
+        state = {"grafana": "homarr-grafana"}
+        desired_items = [
+            {
+                "id": "grafana",
+                "name": "Grafana",
+                "href": "https://grafana.example.test",
+                "syncEligible": True,
+            }
+        ]
+        request_json = Mock(return_value=[{"id": "user-board", "name": "Nabla"}])
+
+        with (
+            patch.object(homarr_sync, "BOARD_SYNC_ENABLED", True),
+            patch.object(homarr_sync, "BOARD_NAME", "Nabla"),
+            patch.object(homarr_sync, "DRY_RUN", False),
+            patch.object(homarr_sync, "request_json", request_json),
+        ):
+            created, added = homarr_sync.reconcile_board(state, desired_items)
+
+        self.assertFalse(created)
+        self.assertEqual(added, 0)
+        self.assertNotIn("__board__:nabla", state)
+        request_json.assert_called_once_with("GET", "/api/boards")
+
+    def test_reconcile_board_refuses_to_recreate_deleted_managed_board(self) -> None:
+        state = {
+            "grafana": "homarr-grafana",
+            "__board__:nabla": "deleted-board",
+        }
+        desired_items = [
+            {
+                "id": "grafana",
+                "name": "Grafana",
+                "href": "https://grafana.example.test",
+                "syncEligible": True,
+            }
+        ]
+        request_json = Mock(return_value=[])
+
+        with (
+            patch.object(homarr_sync, "BOARD_SYNC_ENABLED", True),
+            patch.object(homarr_sync, "BOARD_NAME", "Nabla"),
+            patch.object(homarr_sync, "DRY_RUN", False),
+            patch.object(homarr_sync, "request_json", request_json),
+        ):
+            created, added = homarr_sync.reconcile_board(state, desired_items)
+
+        self.assertFalse(created)
+        self.assertEqual(added, 0)
+        request_json.assert_called_once_with("GET", "/api/boards")
 
 
 if __name__ == "__main__":
