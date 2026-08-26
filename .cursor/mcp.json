@@ -27,7 +27,8 @@
       "env": {
         "UPTIME_KUMA_URL": "${env:UPTIME_KUMA_URL}",
         "UPTIME_KUMA_USERNAME": "${env:UPTIME_KUMA_USERNAME}",
-        "UPTIME_KUMA_PASSWORD": "${env:UPTIME_KUMA_PASSWORD}"
+        "UPTIME_KUMA_PASSWORD": "${env:UPTIME_KUMA_PASSWORD}",
+        "UPTIME_KUMA_INCLUDE_SECRETS": "false"
       }
     },
     "fastapi-sample": {
