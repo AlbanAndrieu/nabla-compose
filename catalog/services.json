@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:245373bdf9e8f45fa3d676c494fa14e920623a70829c2ee382ab9e7055dcdf30",
+  "catalogRevision": "sha256:f89cbfaaceb42cef7bcdd91d2069e599c4994b2dad23be4d44a3122f54f7419a",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -19,6 +19,32 @@
       "icon": "🧬"
     },
     {
+      "id": "clickhouse",
+      "name": "ClickHouse",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "composeService": "clickhouse",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "clickhouse"
+      },
+      "icon": "⚡"
+    },
+    {
+      "id": "clickhouse-exporter",
+      "name": "ClickHouse Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "composeService": "clickhouse_exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "clickhouse_exporter"
+      },
+      "icon": "📡"
+    },
+    {
       "id": "crowdsec",
       "name": "CrowdSec",
       "kind": "security-agent",
@@ -30,6 +56,19 @@
         "containerService": "crowdsec"
       },
       "icon": "🛡️"
+    },
+    {
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "kind": "search",
+      "category": "data",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "elasticsearch",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "elasticsearch"
+      },
+      "icon": "🔎"
     },
     {
       "id": "grafana",
@@ -82,17 +121,6 @@
         "containerService": "haproxy-exporter"
       },
       "icon": "⚖️"
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "elasticsearch",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "elasticsearch"
-      },
-      "icon": "🔎"
     },
     {
       "id": "kibana",
@@ -184,6 +212,19 @@
         "containerService": "mimir"
       },
       "icon": "📐"
+    },
+    {
+      "id": "minio",
+      "name": "MinIO",
+      "kind": "object-storage",
+      "category": "data",
+      "sourcePath": "apps/minio/compose.yml",
+      "composeService": "minio",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "minio"
+      },
+      "icon": "🪣"
     },
     {
       "id": "n8n",
@@ -381,6 +422,19 @@
       "icon": "📊"
     },
     {
+      "id": "redis",
+      "name": "Redis",
+      "kind": "cache",
+      "category": "data",
+      "sourcePath": "apps/redis/compose.yml",
+      "composeService": "redis",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "redis"
+      },
+      "icon": "🔴"
+    },
+    {
       "id": "sonarqube",
       "name": "SonarQube",
       "kind": "code-quality",
@@ -483,17 +537,6 @@
         "containerService": "wazuh.manager"
       },
       "icon": "🛡️"
-      "id": "redis",
-      "name": "Redis",
-      "kind": "cache",
-      "category": "data",
-      "sourcePath": "apps/redis/compose.yml",
-      "composeService": "redis",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "redis"
-      },
-      "icon": "🔴"
     }
   ]
 }

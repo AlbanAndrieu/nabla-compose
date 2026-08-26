@@ -7,18 +7,6 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 
-# TEMPORARY: emit canonical generated catalog contracts so the broken generated
-# files on master can be repaired from the repository generator output.
-python scripts/generate-service-topology.py
-echo "CATALOG_SERVICES_B64_BEGIN"
-base64 -w0 catalog/services.json
-echo
-echo "CATALOG_SERVICES_B64_END"
-echo "CATALOG_TOPOLOGY_B64_BEGIN"
-base64 -w0 catalog/service-topology.json
-echo
-echo "CATALOG_TOPOLOGY_B64_END"
-
 if ! command -v pre-commit >/dev/null 2>&1; then
   echo "❌ pre-commit is required. Run 'mise run hooks' first."
   exit 1

@@ -53,6 +53,13 @@ jobs:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
+      - name: Validate generated service catalog contracts
+        if: github.event_name == 'pull_request'
+        run: |
+          pre-commit run service-topology-sync --all-files --show-diff-on-failure
+          python -m json.tool catalog/services.json >/dev/null
+          python -m json.tool catalog/service-topology.json >/dev/null
+
       - name: Run repository quality gate on PR changes
         if: github.event_name == 'pull_request'
         env:
