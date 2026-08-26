@@ -42,6 +42,21 @@ SECRETS_FILE="${OUTPUT_DIR}/secrets.yaml"
 CONTROL_PLANE_FILE="${OUTPUT_DIR}/controlplane.yaml"
 WORKER_FILE="${OUTPUT_DIR}/worker.yaml"
 TALOSCONFIG_FILE="${OUTPUT_DIR}/talosconfig"
+GENERATED_FILES=("${CONTROL_PLANE_FILE}" "${WORKER_FILE}" "${TALOSCONFIG_FILE}")
+
+existing_config=false
+for generated_file in "${GENERATED_FILES[@]}"; do
+  if [[ -e "${generated_file}" ]]; then
+    existing_config=true
+    if [[ "${OVERWRITE}" != "true" ]]; then
+      fail "${generated_file} already exists; set TALOS_OVERWRITE=true to regenerate configs with the existing secrets"
+    fi
+  fi
+done
+
+if [[ "${existing_config}" == "true" && ! -f "${SECRETS_FILE}" ]]; then
+  fail "generated configs exist but secrets.yaml is missing; restore the original cluster secrets instead of generating a new PKI"
+fi
 
 if [[ ! -f "${SECRETS_FILE}" ]]; then
   printf '🔐 Generating Talos %s cluster secrets...\n' "${TALOS_VERSION}"
@@ -52,12 +67,6 @@ if [[ ! -f "${SECRETS_FILE}" ]]; then
 else
   printf '🔐 Reusing existing cluster secrets: %s\n' "${SECRETS_FILE}"
 fi
-
-for generated_file in "${CONTROL_PLANE_FILE}" "${WORKER_FILE}" "${TALOSCONFIG_FILE}"; do
-  if [[ -e "${generated_file}" && "${OVERWRITE}" != "true" ]]; then
-    fail "${generated_file} already exists; set TALOS_OVERWRITE=true to regenerate configs with the existing secrets"
-  fi
-done
 
 GEN_ARGS=(
   gen config
@@ -77,7 +86,7 @@ fi
 
 printf '⚙️  Generating Talos machine configurations in %s...\n' "${OUTPUT_DIR}"
 talosctl "${GEN_ARGS[@]}"
-chmod 600 "${CONTROL_PLANE_FILE}" "${WORKER_FILE}" "${TALOSCONFIG_FILE}"
+chmod 600 "${GENERATED_FILES[@]}"
 
 printf '✅ Validating generated control-plane configuration...\n'
 talosctl validate --config "${CONTROL_PLANE_FILE}" --mode metal --strict
