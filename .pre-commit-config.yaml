@@ -37,7 +37,7 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: check-merge-conflict
-      - id: check-added-large-files
+      - id: check-added-large_files
         args: [--maxkb=123]
         exclude: >-
           ^(package-lock\.json|npm-shrinkwrap\.json|poetry\.lock|Pipfile\.lock|yarn\.lock|sbom\.json|pnpm-lock\.yaml|trivy-sbom\.json)$
@@ -62,7 +62,7 @@ repos:
         name: "🐚 shell · Lint shell scripts"
         args: [-x]
         exclude: >-
-          ^(mvnw|biscuitcutter\.sh|hooks|tests/.*|docs/Makefile|\.envrc|scripts/run-wicked\.sh|build\.sh)$
+          ^(mvnw|biscuitcutter\.sh|hooks|tests/.*|docs/Makefile|\.envrc|scripts/run-wicked\.sh|build\.sh)$'
 
   - repo: https://github.com/openstack/bashate
     rev: 2.1.1
@@ -124,7 +124,7 @@ repos:
         entry: python scripts/generate-service-topology.py
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
 
       - id: quality-gate-pre-push
         name: "✅ quality · Run repository quality gate before push"
