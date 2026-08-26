@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "Nabla Homarr reconciliation manifest",
+  "dockerIntegration": {
+    "hostname": "docker-socket-proxy",
+    "port": 2375,
+    "network": "intranet"
+  },
+  "applications": []
+}
