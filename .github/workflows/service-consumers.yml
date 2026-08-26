@@ -47,6 +47,18 @@ jobs:
       - name: Generate consumer configurations
         run: python scripts/generate-service-consumers.py
 
+      - name: Archive generated configurations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: service-consumer-configs
+          path: |
+            apps/homarr/generated/apps.json
+            apps/gatus/config/config.yml
+            apps/autokuma/static/generated-monitors.json
+          retention-days: 3
+          if-no-files-found: error
+
       - name: Verify generated configurations are committed
         shell: bash
         run: |
