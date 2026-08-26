@@ -1,5 +1,4 @@
 ---
-# Temporary CI trigger for canonical service catalog regeneration; remove before merge.
 services:
   clickhouse:
     image: docker.io/clickhouse/clickhouse-server:25.8 # clickhouse 26.x has issue with langfuse keep using 25.8
