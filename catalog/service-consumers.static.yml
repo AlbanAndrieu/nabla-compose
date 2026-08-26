@@ -19,7 +19,7 @@ homarr:
     - id: pfsense
       name: pfSense
       category: network
-      url: https://172.17.0.1
+      url: https://172.17.0.1:10443
       description: Homelab firewall and edge gateway.
       icon: 🔥
     - id: truenas
@@ -28,6 +28,15 @@ homarr:
       url: https://172.17.0.24
       description: TrueNAS SCALE storage and application host.
       icon: 💾
+  overrides:
+    - id: pihole
+      url: http://172.17.0.24:20720/admin/
+      category: network
+      description: Pi-hole DNS filtering and administration.
+    - id: ntopng
+      url: http://172.17.0.24:3000
+      category: network
+      description: Network traffic visibility on the host-network ntopng service.
 
 monitoring:
   extras:
@@ -52,3 +61,26 @@ monitoring:
       host: 172.17.0.24
       port: 443
       description: TrueNAS HTTPS management endpoint.
+    - id: postgresql
+      name: PostgreSQL
+      category: data
+      type: port
+      host: 172.17.0.24
+      port: 5432
+      description: Shared PostgreSQL service consumed by application stacks.
+    - id: ntopng
+      name: ntopng
+      category: network
+      type: port
+      host: 172.17.0.24
+      port: 3000
+      description: Host-network ntopng web service.
+    - id: homeassistant
+      name: Home Assistant
+      category: home-automation
+      type: http
+      target: https://homeassistant.albanandrieu.com
+      description: Home Assistant routed through Traefik.
+      conditions:
+        - "[STATUS] >= 200"
+        - "[STATUS] < 400"
