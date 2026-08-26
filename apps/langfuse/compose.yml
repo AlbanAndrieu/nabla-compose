@@ -27,20 +27,6 @@ services:
         - target: langfuse
           type: partOf
           strength: required
-          description: The background worker is a runtime component of the Langfuse platform.
-    restart: always
-    x-nabla:
-      id: langfuse-worker
-      name: Langfuse Worker
-      kind: worker
-      category: ai
-      runtime:
-        provider: truenas-app
-        containerService: langfuse-worker
-      relations:
-        - target: langfuse
-          type: partOf
-          strength: required
           description: The worker is a runtime workload of the logical Langfuse platform.
         - target: postgresql
           type: dependsOn
@@ -131,20 +117,6 @@ services:
 
   langfuse-web:
     image: docker.io/langfuse/langfuse:3
-    restart: always
-    x-nabla:
-      id: langfuse-web
-      name: Langfuse Web
-      kind: application
-      category: ai
-      runtime:
-        provider: truenas-app
-        containerService: langfuse-web
-      relations:
-        - target: langfuse
-          type: partOf
-          strength: required
-          description: The web application is the interactive runtime component of the Langfuse platform.
     restart: always
     x-nabla:
       id: langfuse-web
