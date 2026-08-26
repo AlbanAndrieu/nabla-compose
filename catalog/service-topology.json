@@ -20,6 +20,14 @@
       "icon": "🔎"
     },
     {
+      "id": "kibana",
+      "name": "Kibana",
+      "kind": "dashboard",
+      "category": "observability",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "icon": "📊"
+    },
+    {
       "id": "langflow",
       "name": "Langflow",
       "kind": "workflow",
@@ -165,6 +173,16 @@
     }
   ],
   "relations": [
+    {
+      "source": "kibana",
+      "target": "elasticsearch",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
+      "evidence": [
+        "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
+      ]
+    },
     {
       "source": "langflow",
       "target": "elasticsearch",
