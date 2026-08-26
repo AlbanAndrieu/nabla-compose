@@ -3,6 +3,7 @@
   "icons": {
     "alloy": "🧬",
     "clickhouse": "⚡",
+    "clickhouse-exporter": "📡",
     "crowdsec": "🛡️",
     "elasticsearch": "🔎",
     "grafana": "📈",
