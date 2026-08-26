@@ -1,0 +1,31 @@
+---
+services:
+  gatus:
+    image: ghcr.io/twin/gatus:v5.36.0
+    container_name: gatus
+    x-nabla:
+      id: gatus
+      name: Gatus
+      kind: status-monitor
+      category: observability
+      url: http://172.17.0.24:8085
+      description: Declarative status monitoring generated from Nabla Compose services.
+      runtime:
+        provider: truenas-app
+        containerService: gatus
+    restart: unless-stopped
+    ports:
+      - 8085:8080
+    volumes:
+      - ./config:/config:ro
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  intranet:
+    external: true
+    name: intranet
