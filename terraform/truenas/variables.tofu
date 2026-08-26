@@ -76,11 +76,12 @@ variable "talos_iso_path" {
 }
 
 variable "talos_vms" {
-  description = "Minimal Talos test VMs. TrueNAS VM names cannot contain hyphens or underscores."
+  description = "Minimal Talos test VMs with deterministic locally administered MAC addresses for DHCP reservations."
   type = map(object({
     memory_mib    = number
     cores         = number
     disk_size_gib = number
+    mac            = string
   }))
 
   default = {
@@ -88,16 +89,19 @@ variable "talos_vms" {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
+      mac            = "02:00:00:00:10:01"
     }
     taloswk01 = {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
+      mac            = "02:00:00:00:20:01"
     }
     taloswk02 = {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
+      mac            = "02:00:00:00:20:02"
     }
   }
 
@@ -117,5 +121,18 @@ variable "talos_vms" {
       vm.memory_mib >= 2048 && vm.cores >= 1 && vm.disk_size_gib >= 16
     ])
     error_message = "Each Talos VM must have at least 2048 MiB RAM, 1 CPU core, and a 16 GiB disk."
+  }
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.talos_vms) :
+      can(regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$", vm.mac)) && startswith(lower(vm.mac), "02:")
+    ])
+    error_message = "Each Talos VM MAC must use colon notation and the locally administered unicast 02: prefix."
+  }
+
+  validation {
+    condition     = length(distinct([for vm in values(var.talos_vms) : lower(vm.mac)])) == length(var.talos_vms)
+    error_message = "Talos VM MAC addresses must be unique."
   }
 }
