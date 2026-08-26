@@ -4,6 +4,14 @@ services:
     image: lscr.io/linuxserver/obsidian:1.13.7
     container_name: obsidian
     restart: unless-stopped
+    x-nabla:
+      id: obsidian
+      name: Obsidian
+      kind: application
+      category: productivity
+      runtime:
+        provider: truenas-app
+        containerService: obsidian
     environment:
       PGID: ${PGID:-568}
       PUID: ${PUID:-568}

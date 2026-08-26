@@ -8,6 +8,14 @@ services:
       args:
         BASE_IMAGE: docker.io/langflowai/openrag-opensearch:${OPENRAG_VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-opensearch
+    x-nabla:
+      id: opensearch
+      name: OpenSearch
+      kind: search
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: opensearch
     env_file:
       - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
     environment:
@@ -40,6 +48,14 @@ services:
     container_name: opensearch-security
     hostname: opensearch-security
     restart: unless-stopped
+    x-nabla:
+      id: opensearch-security
+      name: OpenSearch Security
+      kind: search
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: opensearch-security
     environment:
       DISABLE_INSTALL_DEMO_CONFIG: "true"
       DISABLE_SECURITY_PLUGIN: "true"
@@ -65,6 +81,21 @@ services:
   dashboards:
     image: docker.io/opensearchproject/opensearch-dashboards:3.6.0
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-dashboards
+    x-nabla:
+      id: opensearch-dashboards
+      name: OpenSearch Dashboards
+      kind: application
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: dashboards
+      relations:
+        - target: opensearch
+          type: dependsOn
+          strength: required
+          description: OpenSearch Dashboards queries the OpenRAG OpenSearch cluster.
+          evidence:
+            - apps/opensearch/compose.yml:OPENSEARCH_HOSTS
     depends_on:
       - opensearch
     environment:

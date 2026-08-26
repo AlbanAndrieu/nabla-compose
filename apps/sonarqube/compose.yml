@@ -4,6 +4,21 @@ services:
     image: sonarqube:26.8.0.126808-community
     container_name: sonarqube
     restart: unless-stopped
+    x-nabla:
+      id: sonarqube
+      name: SonarQube
+      kind: code-quality
+      category: development
+      runtime:
+        provider: truenas-app
+        containerService: sonarqube
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: SonarQube persists application state in the existing PostgreSQL service.
+          evidence:
+            - apps/sonarqube/compose.yml:SONAR_JDBC_URL
     environment:
       SONAR_JDBC_PASSWORD: ${SONAR_JDBC_PASSWORD}
       SONAR_JDBC_URL: ${SONAR_JDBC_URL:-jdbc:postgresql://172.17.0.24:5432/sonarqube}

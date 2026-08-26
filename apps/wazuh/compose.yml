@@ -1,10 +1,37 @@
 ---
+x-nabla:
+  nodes:
+    - id: wazuh
+      name: Wazuh
+      kind: security-platform
+      category: security
+      description: Logical Wazuh security platform composed of manager, indexer, dashboard and forwarding workloads.
+
 services:
   wazuh.manager:
     image: wazuh/wazuh-manager:4.14.7
     container_name: wazuh-manager
     hostname: wazuh.manager
     restart: unless-stopped
+    x-nabla:
+      id: wazuh-manager
+      name: Wazuh Manager
+      kind: security-manager
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: wazuh.manager
+      relations:
+        - target: wazuh
+          type: partOf
+          strength: required
+          description: Wazuh Manager is a runtime workload of the Wazuh security platform.
+        - target: wazuh-indexer
+          type: dependsOn
+          strength: required
+          description: Wazuh Manager indexes security events in the Wazuh Indexer.
+          evidence:
+            - apps/wazuh/compose.yml:INDEXER_URL
     ulimits:
       memlock:
         soft: -1
@@ -48,6 +75,19 @@ services:
     container_name: wazuh-indexer
     hostname: wazuh.indexer
     restart: unless-stopped
+    x-nabla:
+      id: wazuh-indexer
+      name: Wazuh Indexer
+      kind: search
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: wazuh.indexer
+      relations:
+        - target: wazuh
+          type: partOf
+          strength: required
+          description: Wazuh Indexer is a runtime workload of the Wazuh security platform.
     environment:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
     ulimits:
@@ -74,6 +114,31 @@ services:
     container_name: wazuh-dashboard
     hostname: wazuh.dashboard
     restart: unless-stopped
+    x-nabla:
+      id: wazuh-dashboard
+      name: Wazuh Dashboard
+      kind: application
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: wazuh.dashboard
+      relations:
+        - target: wazuh
+          type: partOf
+          strength: required
+          description: Wazuh Dashboard is a runtime workload of the Wazuh security platform.
+        - target: wazuh-manager
+          type: consumesApi
+          strength: required
+          description: Wazuh Dashboard consumes the Wazuh Manager API.
+          evidence:
+            - apps/wazuh/compose.yml:WAZUH_API_URL
+        - target: wazuh-indexer
+          type: dependsOn
+          strength: required
+          description: Wazuh Dashboard queries security data from Wazuh Indexer.
+          evidence:
+            - apps/wazuh/config/wazuh_dashboard/opensearch_dashboards.yml
     depends_on:
       - wazuh.indexer
       - wazuh.manager
@@ -102,6 +167,31 @@ services:
     image: nabla/wazuh-logstash:8.19.19
     container_name: wazuh-forwarder
     restart: unless-stopped
+    x-nabla:
+      id: wazuh-forwarder
+      name: Wazuh OpenSearch Forwarder
+      kind: telemetry-forwarder
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: wazuh-forwarder
+      relations:
+        - target: wazuh
+          type: partOf
+          strength: required
+          description: The forwarder is an integration workload of the Wazuh security platform.
+        - target: wazuh-manager
+          type: dependsOn
+          strength: required
+          description: The forwarder reads Wazuh alert files produced by Wazuh Manager.
+          evidence:
+            - apps/wazuh/compose.yml:wazuh_logs
+        - target: opensearch-security
+          type: storesIn
+          strength: required
+          description: The forwarder replicates Wazuh alerts into the shared OpenSearch 2.x security cluster.
+          evidence:
+            - apps/wazuh/config/logstash/wazuh-opensearch.conf
     user: "0:0"
     volumes:
       - wazuh_logs:/var/ossec/logs:ro

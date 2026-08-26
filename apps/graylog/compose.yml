@@ -4,6 +4,14 @@ services:
     image: docker.io/mongo:6.0.5-jammy
     container_name: mongodb
     restart: unless-stopped
+    x-nabla:
+      id: graylog-mongodb
+      name: Graylog MongoDB
+      kind: database
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: mongo
     volumes:
       - mongo_data:/data/db
     networks:
@@ -13,6 +21,27 @@ services:
     image: docker.io/graylog/graylog:6.3.15
     container_name: graylog
     restart: unless-stopped
+    x-nabla:
+      id: graylog
+      name: Graylog
+      kind: log-management
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: graylog
+      relations:
+        - target: graylog-mongodb
+          type: dependsOn
+          strength: required
+          description: Graylog stores application configuration and metadata in MongoDB.
+          evidence:
+            - apps/graylog/compose.yml:GRAYLOG_MONGODB_URI
+        - target: opensearch-security
+          type: storesIn
+          strength: required
+          description: Graylog stores log indices in the shared OpenSearch 2.x security cluster.
+          evidence:
+            - apps/graylog/compose.yml:GRAYLOG_ELASTICSEARCH_HOSTS
     env_file:
       - /mnt/cpool/graylog/.env.secrets
     environment:

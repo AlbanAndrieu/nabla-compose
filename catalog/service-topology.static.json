@@ -37,12 +37,6 @@
       "sourcePath": "apps/minio/compose.yml"
     },
     {
-      "id": "prometheus",
-      "name": "Prometheus",
-      "kind": "observability",
-      "category": "observability"
-    },
-    {
       "id": "traefik",
       "name": "Traefik",
       "kind": "edge",

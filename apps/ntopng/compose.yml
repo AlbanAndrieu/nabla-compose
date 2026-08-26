@@ -4,6 +4,21 @@ services:
     image: ntop/ntopng:latest
     container_name: ntopng
     restart: unless-stopped
+    x-nabla:
+      id: ntopng
+      name: ntopng
+      kind: network-observability
+      category: network
+      runtime:
+        provider: truenas-app
+        containerService: ntopng
+      relations:
+        - target: clickhouse
+          type: storesIn
+          strength: required
+          description: ntopng stores historical flow data in the existing ClickHouse service.
+          evidence:
+            - apps/ntopng/compose.yml:CLICKHOUSE_HOST
     network_mode: host
     cap_add:
       - NET_ADMIN
