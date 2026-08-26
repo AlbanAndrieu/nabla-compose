@@ -2,11 +2,12 @@
   "mcpServers": {
     "truenas-readonly": {
       "type": "stdio",
-      "command": "truenas-mcp",
+      "command": "npx",
+      "args": ["-y", "@profanter-dev/truenas-mcp@1.0.6"],
       "env": {
-        "TRUENAS_URL": "${TRUENAS_URL}",
+        "TRUENAS_HOST": "${TRUENAS_MCP_HOST}",
         "TRUENAS_API_KEY": "${TRUENAS_MCP_API_KEY}",
-        "TRUENAS_MCP_DEBUG": "0"
+        "TRUENAS_INSECURE": "${TRUENAS_MCP_INSECURE:-false}"
       }
     },
     "homarr": {
