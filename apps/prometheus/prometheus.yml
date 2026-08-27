@@ -46,9 +46,10 @@ scrape_configs:
           - 172.17.0.24:9113
 
   - job_name: clickhouse
+    metrics_path: /metrics
     static_configs:
       - targets:
-          - 172.17.0.24:9116
+          - 172.17.0.24:9363
 
   - job_name: opensearch
     static_configs:
