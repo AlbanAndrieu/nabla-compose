@@ -345,9 +345,9 @@ test-pytest-poetry:
     # KEYCLOAK_CLIENT_SECRET: ""
     # BELOW is needed as we do not use jm-ubuntu but python:3.10
   before_script:
-    - !reference [.install-pip3, script]
-    - !reference [.install-pipenv, script]
-    - !reference [.pipenv-install, script]
+# - !reference [.install-pip3, script]
+# - !reference [.install-pipenv, script]
+# - !reference [.pipenv-install, script]
   script:
     - python3 -m pip install --user ${DEFAULT_PYTEST_PACKAGES}
     - python3 -m pip install --user redis arel
@@ -502,7 +502,7 @@ code_quality:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - !reference [.default_rules, rules]
+    # - !reference [.default_rules, rules]
 
 train-commit-activated:
   stage: train

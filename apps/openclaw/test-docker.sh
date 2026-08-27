@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 docker exec -it openclaw-sandbox python3 -c "
 import feedparser
 import jsonschema

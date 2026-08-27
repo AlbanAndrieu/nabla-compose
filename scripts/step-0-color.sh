@@ -1,6 +1,6 @@
 #!/bin/bash
 NO_COLOR=${NO_COLOR:-false}
-if [ "$NO_COLOR"   == "false" ];then
+if [ "${NO_COLOR}" == "false" ]; then
   export bold="\033[01m"
   export underline="\033[04m"
   export blink="\033[05m"
@@ -12,12 +12,12 @@ if [ "$NO_COLOR"   == "false" ];then
   export magenta="\033[35m"
   export cyan="\033[36m"
   export ltgray="\033[37m"
-  if [ "$(uname -s)" == "Linux" ];then
+  if [ "$(uname -s)" == "Linux" ]; then
     export double_arrow='\xC2\xBB'
     export head_skull='\xE2\x98\xA0'
     export happy_smiley='\xE2\x98\xBA'
     export reverse_exclamation='\xC2\xA1'
     export circle='\xD2\x89'
-fi
+  fi
 fi
 export NC="\033[0m"
