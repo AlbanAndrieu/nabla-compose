@@ -1,5 +1,11 @@
 ---
 endpoints:
+- name: 2FAuth
+  group: security
+  interval: 60s
+  url: tcp://172.17.0.24:30081
+  conditions:
+  - '[CONNECTED] == true'
 - name: Aistor
   group: aistor
   interval: 60s
@@ -401,12 +407,6 @@ endpoints:
   group: infrastructure
   interval: 60s
   url: tcp://172.17.0.24:443
-  conditions:
-  - '[CONNECTED] == true'
-- name: 2FAuth
-  group: security
-  interval: 60s
-  url: tcp://172.17.0.24:30081
   conditions:
   - '[CONNECTED] == true'
 - name: Vaultwarden

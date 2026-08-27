@@ -4,6 +4,14 @@
   "name": "Nabla homelab declared topology",
   "nodes": [
     {
+      "id": "2fauth",
+      "name": "2FAuth",
+      "kind": "security-app",
+      "category": "security",
+      "sourcePath": "apps/2fauth/compose.yml",
+      "icon": "🔐"
+    },
+    {
       "id": "alloy",
       "name": "Grafana Alloy",
       "kind": "telemetry-collector",
@@ -399,14 +407,6 @@
       "category": "infrastructure",
       "sourcePath": "apps/homarr/compose.yml",
       "description": "TrueNAS SCALE storage and application host."
-    },
-    {
-      "id": "twofactor-auth",
-      "name": "2FAuth",
-      "kind": "security-app",
-      "category": "security",
-      "sourcePath": "apps/twofactor-auth/compose.yml",
-      "icon": "🔐"
     },
     {
       "id": "uptime-kuma",
