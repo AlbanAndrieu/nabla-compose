@@ -1,5 +1,11 @@
 ---
 endpoints:
+- name: 2FAuth
+  group: security
+  interval: 60s
+  url: tcp://172.17.0.24:30081
+  conditions:
+  - '[CONNECTED] == true'
 - name: Aistor
   group: aistor
   interval: 60s
@@ -28,12 +34,6 @@ endpoints:
   group: data
   interval: 60s
   url: tcp://172.17.0.24:8123
-  conditions:
-  - '[CONNECTED] == true'
-- name: ClickHouse Exporter
-  group: observability
-  interval: 60s
-  url: tcp://172.17.0.24:9116
   conditions:
   - '[CONNECTED] == true'
 - name: Code Server

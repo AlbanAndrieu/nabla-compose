@@ -1,0 +1,41 @@
+---
+services:
+  2fauth:
+    image: docker.io/2fauth/2fauth:8.0.1
+    container_name: 2fauth
+    restart: unless-stopped
+    user: "${TWOFAUTH_UID:-568}:${TWOFAUTH_GID:-568}"
+    x-nabla:
+      id: 2fauth
+      name: 2FAuth
+      kind: security-app
+      category: security
+      runtime:
+        provider: truenas-app
+        containerService: 2fauth
+    environment:
+      APP_ENV: ${TWOFAUTH_APP_ENV:-local}
+      APP_KEY: ${TWOFAUTH_APP_KEY}
+      APP_NAME: ${TWOFAUTH_APP_NAME:-2FAuth}
+      APP_URL: ${TWOFAUTH_APP_URL:-https://2fauth.albandrieu.com/}
+      APP_TIMEZONE: ${TZ:-Europe/Paris}
+      SITE_OWNER: ${TWOFAUTH_SITE_OWNER:-alban.andrieu@free.fr}
+      AUTHENTICATION_GUARD: ${TWOFAUTH_AUTHENTICATION_GUARD:-web-guard}
+      AUTH_PROXY_HEADER_FOR_USER: ${TWOFAUTH_AUTH_PROXY_HEADER_FOR_USER:-}
+      AUTH_PROXY_HEADER_FOR_EMAIL: ${TWOFAUTH_AUTH_PROXY_HEADER_FOR_EMAIL:-}
+      TRUSTED_PROXIES: ${TWOFAUTH_TRUSTED_PROXIES:-}
+      WEBAUTHN_USER_VERIFICATION: ${TWOFAUTH_WEBAUTHN_USER_VERIFICATION:-preferred}
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /srv/database/database.sqlite
+    ports:
+      - "${TWOFAUTH_PORT:-30081}:8000"
+    volumes:
+      - "${TWOFAUTH_DATA_PATH:-/mnt/cpool/2fauth}:/2fauth"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/up || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

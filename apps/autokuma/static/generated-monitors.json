@@ -1,6 +1,16 @@
 [
   {
     "type": "port",
+    "name": "2FAuth",
+    "description": "Nabla generated monitor: 2fauth",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30081
+  },
+  {
+    "type": "port",
     "name": "Aistor",
     "description": "Nabla generated monitor: aistor",
     "interval": 60,
@@ -48,16 +58,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8123
-  },
-  {
-    "type": "port",
-    "name": "ClickHouse Exporter",
-    "description": "Nabla generated monitor: clickhouse-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9116
   },
   {
     "type": "port",

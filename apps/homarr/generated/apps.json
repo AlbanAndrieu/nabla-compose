@@ -8,6 +8,16 @@
   },
   "applications": [
     {
+      "id": "2fauth",
+      "name": "2FAuth",
+      "group": "security",
+      "sourcePath": "apps/2fauth/compose.yml",
+      "composeService": "2fauth",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "aistor",
       "name": "Aistor",
       "group": "aistor",
@@ -64,16 +74,6 @@
       "group": "data",
       "sourcePath": "apps/clickhouse/compose.yml",
       "composeService": "clickhouse",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "clickhouse-exporter",
-      "name": "ClickHouse Exporter",
-      "group": "observability",
-      "sourcePath": "apps/clickhouse/compose.yml",
-      "composeService": "clickhouse_exporter",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false

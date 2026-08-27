@@ -10,6 +10,14 @@ services:
       runtime:
         provider: truenas-app
         containerService: clickhouse
+      relations:
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes the native ClickHouse Prometheus endpoint.
+          evidence:
+            - apps/clickhouse/config/prometheus.xml
+            - apps/prometheus/prometheus.yml:job_name=clickhouse
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     environment:
@@ -20,48 +28,14 @@ services:
       - /mnt/cpool/clickhouse/:/var/lib/clickhouse
       # - /mnt/cpool/clickhouse/logs:/var/log/clickhouse-server
       - /mnt/cpool/logs/clickhouse-server/:/var/log/clickhouse-server
+      - ./config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
     ports:
       - 8123:8123
       - 9000:9000
+      - 9363:9363
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 1s
-
-  clickhouse_exporter:
-    image: altinity/clickhouse-exporter:latest
-    container_name: clickhouse_exporter
-    x-nabla:
-      id: clickhouse-exporter
-      name: ClickHouse Exporter
-      kind: metrics-exporter
-      category: observability
-      runtime:
-        provider: truenas-app
-        containerService: clickhouse_exporter
-      relations:
-        - target: clickhouse
-          type: consumesApi
-          strength: required
-          description: The exporter collects metrics from the local ClickHouse service.
-          evidence:
-            - apps/clickhouse/compose.yml:CLICKHOUSE_URL
-        - target: prometheus
-          type: observedBy
-          strength: optional
-          description: Prometheus scrapes metrics exposed by the ClickHouse exporter.
-          evidence:
-            - apps/prometheus/prometheus.yml:job_name=clickhouse
-    restart: unless-stopped
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
-      CLICKHOUSE_URL: http://clickhouse:8123/
-    ports:
-      - 9116:9116
-    depends_on:
-      - clickhouse
-    networks:
-      - default

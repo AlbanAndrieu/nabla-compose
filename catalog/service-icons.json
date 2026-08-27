@@ -1,9 +1,9 @@
 {
   "version": 1,
   "icons": {
+    "2fauth": "🔐",
     "alloy": "🧬",
     "clickhouse": "⚡",
-    "clickhouse-exporter": "📡",
     "crowdsec": "🛡️",
     "elasticsearch": "🔎",
     "grafana": "📈",

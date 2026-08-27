@@ -4,6 +4,14 @@
   "name": "Nabla homelab declared topology",
   "nodes": [
     {
+      "id": "2fauth",
+      "name": "2FAuth",
+      "kind": "security-app",
+      "category": "security",
+      "sourcePath": "apps/2fauth/compose.yml",
+      "icon": "🔐"
+    },
+    {
       "id": "alloy",
       "name": "Grafana Alloy",
       "kind": "telemetry-collector",
@@ -26,14 +34,6 @@
       "category": "data",
       "sourcePath": "apps/clickhouse/compose.yml",
       "icon": "⚡"
-    },
-    {
-      "id": "clickhouse-exporter",
-      "name": "ClickHouse Exporter",
-      "kind": "metrics-exporter",
-      "category": "observability",
-      "sourcePath": "apps/clickhouse/compose.yml",
-      "icon": "📡"
     },
     {
       "id": "crowdsec",
@@ -520,22 +520,13 @@
       ]
     },
     {
-      "source": "clickhouse-exporter",
-      "target": "clickhouse",
-      "type": "consumesApi",
-      "strength": "required",
-      "description": "The exporter collects metrics from the local ClickHouse service.",
-      "evidence": [
-        "apps/clickhouse/compose.yml:CLICKHOUSE_URL"
-      ]
-    },
-    {
-      "source": "clickhouse-exporter",
+      "source": "clickhouse",
       "target": "prometheus",
       "type": "observedBy",
       "strength": "optional",
-      "description": "Prometheus scrapes metrics exposed by the ClickHouse exporter.",
+      "description": "Prometheus scrapes the native ClickHouse Prometheus endpoint.",
       "evidence": [
+        "apps/clickhouse/config/prometheus.xml",
         "apps/prometheus/prometheus.yml:job_name=clickhouse"
       ]
     },

@@ -1,10 +1,23 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:14c6ff5e80dbf8bddcfbad337e2a6f628e6b58683abbb5c6b2ddaca3f7af731b",
+  "catalogRevision": "sha256:9c5afe2561ac84a740163a14817420c387325af011f954f9a7d3487ff472d2cc",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
+    {
+      "id": "2fauth",
+      "name": "2FAuth",
+      "kind": "security-app",
+      "category": "security",
+      "sourcePath": "apps/2fauth/compose.yml",
+      "composeService": "2fauth",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "2fauth"
+      },
+      "icon": "🔐"
+    },
     {
       "id": "alloy",
       "name": "Grafana Alloy",
@@ -43,19 +56,6 @@
         "containerService": "clickhouse"
       },
       "icon": "⚡"
-    },
-    {
-      "id": "clickhouse-exporter",
-      "name": "ClickHouse Exporter",
-      "kind": "metrics-exporter",
-      "category": "observability",
-      "sourcePath": "apps/clickhouse/compose.yml",
-      "composeService": "clickhouse_exporter",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "clickhouse_exporter"
-      },
-      "icon": "📡"
     },
     {
       "id": "crowdsec",
