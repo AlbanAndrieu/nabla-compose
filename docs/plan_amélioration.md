@@ -2,6 +2,8 @@
 
 > Ce plan est issu d’un audit global du projet. Il priorise les axes d’amélioration par impact et détaille les actions concrètes à mener.
 
+> La roadmap opérationnelle consolidée pour la migration des anciennes applications TrueNAS, des secrets et de l'identité est maintenant maintenue dans [`docs/homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md).
+
 ## Table des matières
 - [1. Gestion des secrets](#1-gestion-des-secrets)
 - [2. Fichiers d'environnement](#2-fichiers-denvironnement)
@@ -10,7 +12,7 @@
 - [5. Healthchecks](#5-healthchecks)
 - [6. Modularité et volumes](#6-modularité-et-volumes)
 - [7. Labels Traefik et Prometheus](#7-labels-traefik-et-prometheus)
-- [8. CI/CD et tests automatiques](#8-ci-cd-et-tests-automatiques)
+- [8. CI/CD et tests automatiques](#8-cicd-et-tests-automatiques)
 - [9. Permissions et montages](#9-permissions-et-montages)
 - [10. Actions prioritaires (par impact)](#10-actions-prioritaires-par-impact)
 
