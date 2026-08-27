@@ -1,6 +1,7 @@
 {
   "version": 1,
   "icons": {
+    "2fauth": "🔐",
     "alloy": "🧬",
     "clickhouse": "⚡",
     "crowdsec": "🛡️",
@@ -44,7 +45,6 @@
     "sybase-exporter": "📡",
     "tempo": "⏱️",
     "traefik": "🚦",
-    "twofactor-auth": "🔐",
     "wazuh": "🛡️",
     "wazuh-dashboard": "🖥️",
     "wazuh-forwarder": "🔁",
