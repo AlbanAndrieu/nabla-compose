@@ -69,16 +69,6 @@
       "syncEligible": false
     },
     {
-      "id": "clickhouse-exporter",
-      "name": "ClickHouse Exporter",
-      "group": "observability",
-      "sourcePath": "apps/clickhouse/compose.yml",
-      "composeService": "clickhouse_exporter",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "code-code-server",
       "name": "Code Server",
       "group": "code",
@@ -828,6 +818,16 @@
       "syncEligible": true,
       "description": "TrueNAS SCALE storage and application host.",
       "icon": "💾"
+    },
+    {
+      "id": "twofactor-auth",
+      "name": "2FAuth",
+      "group": "security",
+      "sourcePath": "apps/twofactor-auth/compose.yml",
+      "composeService": "twofactor-auth",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "vaultwarden",

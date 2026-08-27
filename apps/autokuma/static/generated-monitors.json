@@ -51,16 +51,6 @@
   },
   {
     "type": "port",
-    "name": "ClickHouse Exporter",
-    "description": "Nabla generated monitor: clickhouse-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9116
-  },
-  {
-    "type": "port",
     "name": "Code Server",
     "description": "Nabla generated monitor: code-code-server",
     "interval": 60,
@@ -677,6 +667,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 443
+  },
+  {
+    "type": "port",
+    "name": "2FAuth",
+    "description": "Nabla generated monitor: twofactor-auth",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30081
   },
   {
     "type": "port",

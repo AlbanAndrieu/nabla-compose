@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:14c6ff5e80dbf8bddcfbad337e2a6f628e6b58683abbb5c6b2ddaca3f7af731b",
+  "catalogRevision": "sha256:623f10e8eab99e730db6d30445b7f92c224bd3f51597dff905ee1ddaa8ebd32b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -43,19 +43,6 @@
         "containerService": "clickhouse"
       },
       "icon": "⚡"
-    },
-    {
-      "id": "clickhouse-exporter",
-      "name": "ClickHouse Exporter",
-      "kind": "metrics-exporter",
-      "category": "observability",
-      "sourcePath": "apps/clickhouse/compose.yml",
-      "composeService": "clickhouse_exporter",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "clickhouse_exporter"
-      },
-      "icon": "📡"
     },
     {
       "id": "crowdsec",
@@ -539,6 +526,19 @@
         "containerService": "tempo"
       },
       "icon": "⏱️"
+    },
+    {
+      "id": "twofactor-auth",
+      "name": "2FAuth",
+      "kind": "security-app",
+      "category": "security",
+      "sourcePath": "apps/twofactor-auth/compose.yml",
+      "composeService": "twofactor-auth",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "twofactor-auth"
+      },
+      "icon": "🔐"
     },
     {
       "id": "wazuh-dashboard",
