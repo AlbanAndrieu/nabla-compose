@@ -99,7 +99,7 @@ endpoints:
 - name: Grafana
   group: observability
   interval: 60s
-  url: tcp://172.17.0.24:3010
+  url: tcp://172.17.0.24:30037
   conditions:
   - '[CONNECTED] == true'
 - name: Graylog
