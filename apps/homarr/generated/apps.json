@@ -188,7 +188,7 @@
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "grafana",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:3010",
+      "href": "http://172.17.0.24:30037",
       "syncEligible": true
     },
     {
