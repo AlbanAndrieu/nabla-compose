@@ -3,7 +3,6 @@
   "icons": {
     "alloy": "🧬",
     "clickhouse": "⚡",
-    "clickhouse-exporter": "📡",
     "crowdsec": "🛡️",
     "elasticsearch": "🔎",
     "grafana": "📈",
@@ -45,6 +44,7 @@
     "sybase-exporter": "📡",
     "tempo": "⏱️",
     "traefik": "🚦",
+    "twofactor-auth": "🔐",
     "wazuh": "🛡️",
     "wazuh-dashboard": "🖥️",
     "wazuh-forwarder": "🔁",
