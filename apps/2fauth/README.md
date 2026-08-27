@@ -17,6 +17,7 @@ The migration intentionally keeps the current application settings:
 - authentication guard: `web-guard`
 - WebAuthn user verification: `preferred` unless the current TrueNAS value is confirmed otherwise
 - persistent container path: `/2fauth`
+- current storage type: TrueNAS ixVolume
 - health endpoint: `/up`
 - SQLite database: `/srv/database/database.sqlite`
 
