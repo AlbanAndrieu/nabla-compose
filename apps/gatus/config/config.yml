@@ -45,7 +45,7 @@ endpoints:
 - name: CrowdSec
   group: security
   interval: 60s
-  url: tcp://172.17.0.24:6060
+  url: tcp://172.17.0.24:8080
   conditions:
   - '[CONNECTED] == true'
 - name: Docker API

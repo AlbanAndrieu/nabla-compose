@@ -329,10 +329,14 @@ Useful lookups include:
 ```bash
 bw get item '<item UUID or unique name>'
 bw get password '<unique item name>'
-bw get notes '<item UUID>'
+bw get item '<item UUID>' | jq -r '.login.password'
 ```
 
+For the homelab, keep the first migration in the `TrueNAS` folder identified by `44a92b83-2762-4fa5-a238-f84396fd26f9`. This folder organizes items but does not restrict access; use a dedicated organization collection and automation account for Doco-CD. The import and `.env` rendering procedure is maintained in [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md#secrets-roadmap--vaultwarden-first-hashicorp-vault-second).
+
 Do **not** use `bws` for this integration: `bws` is the Bitwarden Secrets Manager CLI and Vaultwarden does not implement that service.
+
+The optional local MCP declared in `.mcp.json` wraps these same `bw` client flows. Keep it local over stdio; do not expose it on the LAN or use the MCP server's Bitwarden Public API administration tools against Vaultwarden.
 
 ### 8.4 Doco-CD target configuration
 
@@ -463,6 +467,7 @@ Only then proceed with Talos machine configuration, `talosctl bootstrap`, CNI, d
 - Doco-CD external secrets: https://doco.cd/latest/External-Secrets/
 - Doco-CD Bitwarden Vault / Vaultwarden integration: https://doco.cd/latest/External-Secrets/Bitwarden-Vault-Vaultwarden/
 - Doco-CD Bitwarden REST API sidecar: https://github.com/kimdre/bitwarden-rest-api-server
+- Official Bitwarden MCP server: https://github.com/bitwarden/mcp-server
 
 ### Platform bootstrap
 

@@ -18,5 +18,9 @@ UPTIME_KUMA_URL=https://uptime.example.internal
 UPTIME_KUMA_USERNAME=
 UPTIME_KUMA_PASSWORD=
 
+# Optional local-only Bitwarden MCP. Configure bw against Vaultwarden first,
+# then export the short-lived token returned by `bw unlock --raw`.
+BW_SESSION=
+
 # Optional override for root .mcp.json; Cursor currently points directly to production.
 FASTAPI_SAMPLE_MCP_URL=https://fastapi-sample.fastapicloud.dev/mcp

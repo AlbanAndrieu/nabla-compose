@@ -34,6 +34,15 @@ jobs:
         run: |
           set -euo pipefail
           while IFS= read -r -d '' file; do
+            # The repository-root docker-compose.yml is an aggregate development
+            # entrypoint that includes files from git submodules (for example
+            # pgwatch/). CI intentionally validates repository-owned standalone
+            # Compose files without cloning every optional submodule.
+            if [[ "$file" == "./docker-compose.yml" ]]; then
+              echo "Skipping ${file}: aggregate Compose requires initialized git submodules"
+              continue
+            fi
+
             echo "::group::Validating ${file}"
             docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution
             echo "::endgroup::"

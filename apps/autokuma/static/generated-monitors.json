@@ -77,7 +77,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 6060
+    "port": 8080
   },
   {
     "type": "port",

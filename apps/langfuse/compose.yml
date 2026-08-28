@@ -14,7 +14,8 @@ x-nabla:
 services:
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
-    x-nabla-worker:
+    restart: always
+    x-nabla:
       id: langfuse-worker
       name: Langfuse Worker
       kind: worker
@@ -26,7 +27,7 @@ services:
         - target: langfuse
           type: partOf
           strength: required
-          description: The background worker is a runtime component of the Langfuse platform.
+          description: The worker is a runtime workload of the logical Langfuse platform.
         - target: postgresql
           type: dependsOn
           strength: required
@@ -52,7 +53,15 @@ services:
           description: Langfuse Worker uses Redis for queues and asynchronous processing.
           evidence:
             - apps/langfuse/compose.yml:REDIS_HOST
-    restart: always
+    # depends_on: &langfuse-depends-on
+    #   postgres:
+    #     condition: service_healthy
+    #   minio:
+    #     condition: service_healthy
+    #   redis:
+    #     condition: service_healthy
+    #   clickhouse:
+    #     condition: service_healthy
     ports:
       - 127.0.0.1:3030:3030
     environment: &langfuse-worker-env
@@ -108,7 +117,8 @@ services:
 
   langfuse-web:
     image: docker.io/langfuse/langfuse:3
-    x-nabla-web:
+    restart: always
+    x-nabla:
       id: langfuse-web
       name: Langfuse Web
       kind: application
@@ -120,7 +130,7 @@ services:
         - target: langfuse
           type: partOf
           strength: required
-          description: The web application is the interactive runtime component of the Langfuse platform.
+          description: The web application is a runtime workload of the logical Langfuse platform.
         - target: postgresql
           type: dependsOn
           strength: required
@@ -145,7 +155,7 @@ services:
           description: Langfuse Web uses Redis-backed queues and shared asynchronous state.
           evidence:
             - apps/langfuse/compose.yml:REDIS_HOST
-    restart: always
+    # depends_on: *langfuse-depends-on
     ports:
       - 3000:3000
     environment:
@@ -161,5 +171,32 @@ services:
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-}
 
-# ...
-# (other commented sections for databases/volumes remain unchanged)
+  # postgres:
+  #   image: docker.io/postgres:${POSTGRES_VERSION:-17}
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 3s
+  #     timeout: 3s
+  #     retries: 10
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres} # CHANGEME
+  #     POSTGRES_DB: ${POSTGRES_DB:-postgres}
+  #     TZ: UTC
+  #     PGTZ: UTC
+  #   ports:
+  #     - 127.0.0.1:5432:5432
+  #   volumes:
+  #     - langfuse_postgres_data:/var/lib/postgresql/data
+# volumes:
+#   langfuse_postgres_data:
+#     driver: local
+#   langfuse_clickhouse_data:
+#     driver: local
+#   langfuse_clickhouse_logs:
+#     driver: local
+#   langfuse_minio_data:
+#     driver: local
+#   langfuse_redis_data:
+#     driver: local

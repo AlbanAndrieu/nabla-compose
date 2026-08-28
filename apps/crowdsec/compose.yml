@@ -5,7 +5,7 @@ x-nabla:
       name: pfSense
       kind: firewall
       category: network
-      description: External pfSense firewall providing CrowdSec LAPI, HAProxy and firewall telemetry.
+      description: External pfSense firewall running the lightweight CrowdSec remediation component.
 
 services:
   crowdsec:
@@ -22,11 +22,12 @@ services:
         containerService: crowdsec
       relations:
         - target: pfsense
-          type: consumesApi
+          type: providesApi
           strength: required
-          description: CrowdSec uses the pfSense CrowdSec Local API instead of running its own LAPI.
+          description: CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.
           evidence:
-            - apps/crowdsec/compose.yml:PFSENSE_CROWDSEC_LAPI_URL
+            - apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT
+            - apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY
         - target: suricata
           type: dependsOn
           strength: optional
@@ -42,13 +43,11 @@ services:
             - apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT
             - apps/prometheus/prometheus.yml:job_name=crowdsec
     environment:
-      AGENT_PASSWORD: ${PFSENSE_CROWDSEC_AGENT_PASSWORD}
-      AGENT_USERNAME: ${PFSENSE_CROWDSEC_AGENT_USERNAME}
+      BOUNCER_KEY_pfsense_firewall: ${CROWDSEC_PFSENSE_BOUNCER_KEY}
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
-      DISABLE_LOCAL_API: "true"
-      LOCAL_API_URL: ${PFSENSE_CROWDSEC_LAPI_URL}
       TZ: ${TZ:-Europe/Paris}
     ports:
+      - "${CROWDSEC_LAPI_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_LAPI_PORT:-8080}:8080"
       - "${CROWDSEC_METRICS_PORT:-6060}:6060"
     volumes:
       - crowdsec_config:/etc/crowdsec

@@ -4,6 +4,15 @@ This roadmap consolidates the remaining migration from legacy/native TrueNAS App
 
 The goal is not merely to make containers start. A migration is complete only when data, runtime health, monitoring, rollback, secrets, and authentication are all controlled deliberately.
 
+## Restart point — 2026-08-28
+
+- Working pull request: `AlbanAndrieu/nabla-compose#59`, branch `feat/crowdsec-central-lapi`.
+- Baseline commit `9d7374d3a269e09f7c76b10c9a08dd0fd8cf3e4f` passed Compose Validate, Service Consumers, Pre-commit and MegaLinter.
+- Public PR CI must remain on `ubuntu-latest` without private homelab access or `infra-runners`.
+- TrueNAS remains on `26.0.0-BETA.3`; Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
+- Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
+- Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
+
 ## Target principles
 
 1. `apps/**/compose.yml` is the deployment source of truth.
@@ -330,6 +339,17 @@ For every application:
 
 Create a secret inventory by variable name and consumer only. Never commit values.
 
+The current sources must be treated as migration inputs, not as competing long-term sources of truth:
+
+| Current source | Immediate treatment | End state |
+| --- | --- | --- |
+| `nabla/env/home/pass/` shell exports protected by git-crypt | Keep read-only during migration; inventory export names without decrypting values into reports | Remove secret values after import, verification and rotation |
+| Shell environment loaded by `.bashrc` | Use only as the in-memory input to the one-time importer | Remove secret-file sourcing from `.bashrc` |
+| Per-service `.env` files on TrueNAS | Keep root-restricted as a deployment compatibility layer | Generate from Vaultwarden, then replace with direct Doco-CD resolution where practical |
+| Vaultwarden | Make the interim source of truth | Retain for human secrets; migrate machine secrets to Vault later |
+
+The `AlbanAndrieu/nabla` repository is already private. Keep it private while the git-crypt migration is in progress. `AlbanAndrieu/nabla-compose` may remain public only because it must contain references, manifests and item UUIDs, never secret values. Repository privacy is defense in depth, not a substitute for rotating anything that has ever appeared in Git history, CI output or a container definition.
+
 Classify secrets into:
 
 - application encryption keys (for example 2FAuth `APP_KEY`, Reactive Resume encryption secret);
@@ -362,19 +382,86 @@ Suggested item naming:
 
 `nabla/<environment>/<application>/<secret-name>`
 
+For the existing TrueNAS migration, use the Vaultwarden folder named `TrueNAS` with the stable identifier:
+
+```text
+BW_FOLDER_ID=44a92b83-2762-4fa5-a238-f84396fd26f9
+```
+
+Store one secret per login item. The item name is the environment variable name during the first migration, `login.username` records that same variable name, and `login.password` contains the value. Notes may contain provenance but never the secret. Consequently, retrieve the example with `.login.password`, not `.notes`:
+
+```bash
+bw get item N8N_INTERNAL_API_KEY |
+  jq -r '.login.password'
+```
+
+A Vaultwarden folder is an organizational label, not an authorization boundary. Before granting an unattended deployment or an AI client access, place the required items in a dedicated organization collection and give a dedicated automation account access only to that collection. Do not give the primary personal account to Doco-CD or an MCP client.
+
 Operational pattern:
 
 1. configure CLI against the Vaultwarden server with `bw config server ...`;
 2. authenticate/unlock interactively or with an approved machine-safe mechanism;
 3. `bw sync` before reads;
 4. fetch only required fields/items;
-5. render short-lived `0600` env/secret files outside the Git working tree;
+5. render root-restricted `0600` env/secret files outside the Git working tree;
 6. start the target Compose service;
 7. remove transient cleartext files when no longer required.
 
 Prefer Docker secret/file inputs when an application supports them. Environment variables are acceptable for the interim phase but remain visible to privileged host/container inspection.
 
-Add a future helper such as `scripts/render-secrets-from-bitwarden.sh` only after naming conventions and error handling are stable. The helper must fail closed when an item is missing or ambiguous.
+The repository now provides two fail-closed helpers and a value-free example manifest:
+
+```bash
+export BW_FOLDER_ID="44a92b83-2762-4fa5-a238-f84396fd26f9"
+export BW_SESSION="$(bw unlock --raw)"
+
+# Preview create/update operations. Values come from the already loaded shell.
+scripts/secrets/import_env_to_vaultwarden.py \
+  --manifest docs/vaultwarden-secrets.example.tsv \
+  --dry-run
+
+# Perform the import only after reviewing the preview.
+scripts/secrets/import_env_to_vaultwarden.py \
+  --manifest docs/vaultwarden-secrets.example.tsv
+
+# Render the compatibility .env beside a TrueNAS service, outside this checkout.
+scripts/secrets/render_vaultwarden_env.py \
+  --manifest docs/vaultwarden-secrets.example.tsv \
+  --output /mnt/cpool/apps/n8n/.env \
+  --force
+```
+
+The importer never sources files from `env/home/pass/`; sourcing would execute arbitrary shell code. First load the existing trusted exports through the current shell, then give the importer a manifest containing variable names only. Both helpers require an exact item name within the configured folder, never print values and fail on missing or ambiguous items. The renderer refuses to write inside the Git checkout and rejects multiline values, which must use Docker secret files instead.
+
+Treat every generated `.env` as a local materialization cache, not another editable source of truth. Use a root-owned parent directory with mode `0700`, keep the file at `0600`, and run Compose with an explicit `--env-file`. Environment variables remain visible to privileged host users and through container inspection; prefer application `_FILE` or Docker Compose `secrets:` inputs when supported.
+
+### S1.1 — local Bitwarden MCP
+
+The official `@bitwarden/mcp-server` is pinned in `.mcp.json` and uses the local Bitwarden CLI session. Configure `bw` against Vaultwarden before starting the MCP client:
+
+```bash
+bw config server https://vaultwarden.example.com
+bw login
+export BW_SESSION="$(bw unlock --raw)"
+```
+
+Use only the CLI-backed vault-management tools with Vaultwarden. The MCP server's Bitwarden Public API organization-administration tools are not compatible with Vaultwarden's client-API-only implementation.
+
+The MCP server must remain local over stdio and must never be exposed as a network service. It can read, create, modify and delete vault items, and it does not enforce `BW_FOLDER_ID`; use a dedicated restricted account/collection, keep approval for writes, and lock/expire the session after the task. A repository MCP declaration does not connect a remote ChatGPT session or transmit credentials by itself.
+
+### S1.2 — migration sequence and rollback
+
+1. Snapshot the git-crypt repository and each TrueNAS `.env`; record hashes and permissions without copying values into the roadmap.
+2. Generate a manifest of variable names and map each variable to exactly one service and Vaultwarden item.
+3. Import from the already loaded shell with `--dry-run`, then import for real.
+4. Read each item back by UUID and compare values locally without printing them.
+5. Generate one service `.env`, restart only that service, and validate functional health rather than container state alone.
+6. Keep the previous `.env` available as a root-only rollback file until the service passes its validation window.
+7. Migrate Doco-CD from `1password` to the Vaultwarden webhook provider and remove persistent `.env` files service by service where supported.
+8. Rotate migratable credentials, then remove corresponding exports and `.bashrc` includes. Preserve non-rotatable encryption keys until data decryption has been proven.
+9. Remove the git-crypt secret payloads only after all consumers have passed verification; retain a separately encrypted offline recovery snapshot for break-glass use.
+
+Do not delete, rotate or rewrite all sources in one operation. Roll back a failed service by restoring its previous root-only `.env` and Compose revision; do not copy secret values back into Git.
 
 ### S2 — secret rotation and repository cleanup
 
@@ -383,6 +470,15 @@ Add a future helper such as `scripts/render-secrets-from-bitwarden.sh` only afte
 - rotate credentials that may previously have been exposed in Git/logs;
 - add CI checks preventing new cleartext secrets;
 - document break-glass recovery separately from normal automation.
+
+Completion criteria:
+
+- [ ] every variable under `env/home/pass/` has one owner, consumer and rotation classification;
+- [ ] every migrated item is in the `TrueNAS` folder and, for automation, a restricted collection;
+- [ ] each generated TrueNAS `.env` is outside Git, root-owned and mode `0600`;
+- [ ] `.bashrc` no longer sources migrated secret files;
+- [ ] CI and secret scanners contain no plaintext or decrypted artifacts;
+- [ ] legacy git-crypt files are removed only after runtime verification and rotation decisions.
 
 ### S3 — HashiCorp Vault
 
