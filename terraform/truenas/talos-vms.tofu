@@ -9,9 +9,11 @@ resource "truenas_zvol" "talos_disk" {
   name         = "${var.talos_zvol_parent}/${each.key}-disk0"
   volsize      = each.value.disk_size_gib * 1024 * 1024 * 1024
   volblocksize = "16K"
-  sparse       = true
   compression  = "LZ4"
   comments     = "Talos test disk managed by OpenTofu/Terragrunt"
+
+  # PjSalty/truenas 2.4.1 does not expose the TrueNAS `sparse` zvol option.
+  # Keep the provider/API default until the provider schema supports it again.
 }
 
 resource "truenas_vm" "talos" {
