@@ -14,7 +14,7 @@ x-nabla:
 services:
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
-    x-nabla-worker:
+    x-nabla:
       id: langfuse-worker
       name: Langfuse Worker
       kind: worker
@@ -108,7 +108,7 @@ services:
 
   langfuse-web:
     image: docker.io/langfuse/langfuse:3
-    x-nabla-web:
+    x-nabla:
       id: langfuse-web
       name: Langfuse Web
       kind: application
