@@ -81,7 +81,7 @@ variable "talos_vms" {
     memory_mib    = number
     cores         = number
     disk_size_gib = number
-    mac            = string
+    mac           = string
   }))
 
   default = {
@@ -89,19 +89,19 @@ variable "talos_vms" {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
-      mac            = "02:00:00:00:10:01"
+      mac           = "02:00:00:00:10:01"
     }
     taloswk01 = {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
-      mac            = "02:00:00:00:20:01"
+      mac           = "02:00:00:00:20:01"
     }
     taloswk02 = {
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
-      mac            = "02:00:00:00:20:02"
+      mac           = "02:00:00:00:20:02"
     }
   }
 
