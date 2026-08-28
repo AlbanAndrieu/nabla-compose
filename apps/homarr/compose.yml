@@ -10,6 +10,7 @@ x-nabla:
       name: TrueNAS
       kind: storage-platform
       category: infrastructure
+      url: https://truenas.albandrieu.com:7000
       description: TrueNAS SCALE storage and application host.
 
 services:

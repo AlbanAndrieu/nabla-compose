@@ -676,7 +676,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 443
+    "port": 7000
   },
   {
     "type": "port",

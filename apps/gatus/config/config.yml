@@ -406,7 +406,7 @@ endpoints:
 - name: TrueNAS
   group: infrastructure
   interval: 60s
-  url: tcp://172.17.0.24:443
+  url: tcp://172.17.0.24:7000
   conditions:
   - '[CONNECTED] == true'
 - name: Vaultwarden
