@@ -80,7 +80,11 @@ jobs:
             echo
             echo "### GitHub reporting"
             echo "- SARIF findings are uploaded to **Code Scanning** when available."
-            echo "- The full raw MegaLinter output is attached as a workflow artifact."
+            if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
+              echo "- Raw reports are not archived for successful runs; the job summary and PR report remain available."
+            else
+              echo "- The full raw MegaLinter output is attached as a short-lived workflow artifact."
+            fi
             echo "- MegaLinter also maintains a summary comment on pull requests."
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -92,8 +96,8 @@ jobs:
           category: megalinter
           wait-for-processing: true
 
-      - name: Archive MegaLinter reports
-        if: always()
+      - name: Archive MegaLinter reports on failure
+        if: steps.ml.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MegaLinter reports
