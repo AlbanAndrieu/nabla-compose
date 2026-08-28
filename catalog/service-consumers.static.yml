@@ -25,7 +25,7 @@ homarr:
     - id: truenas
       name: TrueNAS
       category: infrastructure
-      url: https://172.17.0.24
+      url: https://172.17.0.24:7000
       description: TrueNAS SCALE storage and application host.
       icon: 💾
   overrides:
@@ -59,7 +59,7 @@ monitoring:
       category: infrastructure
       type: port
       host: 172.17.0.24
-      port: 443
+      port: 7000
       description: TrueNAS HTTPS management endpoint.
     - id: postgresql
       name: PostgreSQL
