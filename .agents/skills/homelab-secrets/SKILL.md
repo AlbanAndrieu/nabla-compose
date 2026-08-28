@@ -29,18 +29,18 @@ TrueNAS
 44a92b83-2762-4fa5-a238-f84396fd26f9
 ```
 
-All automated item lookups must be scoped to this folder. Do not rely only on globally unique item names.
+The repository CLI importer and renderer scope operator-driven lookups to this personal folder. Unattended Doco-CD access must use a dedicated account restricted to an organization collection; follow `docs/vaultwarden-truenas-dococd-account.md`. Do not rely only on globally unique item names.
 
 ## Existing sources during migration
 
-Do not discard the current secret estate before parity is proven:
+Do not discard the current secret estate:
 
 - private `AlbanAndrieu/nabla` repository `env/home/pass/**`, encrypted with `git-crypt`;
 - environment variables already loaded from those files by `.bashrc`;
 - local per-service `.env` files on TrueNAS;
 - existing Doco-CD/Vaultwarden mappings.
 
-Treat them as **legacy/staging sources**, not the future source of truth.
+Treat the shell environment and manually maintained `.env` files as migration inputs. Retain the encrypted git-crypt files as a permanent secondary recovery source even after Vaultwarden becomes the runtime source of truth.
 
 Prefer importing from the already-exported process environment rather than parsing or automatically sourcing shell files:
 
@@ -59,7 +59,7 @@ A migration may continue only when:
 2. migration-critical values are identified;
 3. preserve-versus-rotate policy is explicit;
 4. the current value has been recovered without printing/committing it;
-5. the value is stored in the Vaultwarden `TrueNAS` folder or explicitly classified as bootstrap;
+5. the value is stored in the operator `TrueNAS` folder, or in the restricted Doco-CD collection, or explicitly classified as bootstrap;
 6. the target Compose variable name is known;
 7. the secret can be rendered/injected without editing tracked files;
 8. rollback can restore the original value when preservation is required.
@@ -79,7 +79,7 @@ Two patterns are supported during transition:
 - a single-secret login item using `login.password`, such as `N8N_INTERNAL_API_KEY`;
 - one app item with hidden custom fields, such as `nabla/prod/karakeep`.
 
-The manifest is authoritative for representation and mapping. The folder is authoritative for homelab scope.
+The manifest is authoritative for representation and mapping. The personal folder scopes operator tooling; a restricted organization collection scopes unattended access.
 
 If a secret is stored in `login.password`, retrieve it with `bw get password ...`; `bw get notes ...` only retrieves the notes field.
 
@@ -138,7 +138,7 @@ Typical examples include 2FAuth `APP_KEY`, authentication/session secrets, encry
 
 `rotation: rotatable` means rotate **after** migration, not during storage/runtime cutover.
 
-## Legacy git-crypt retirement
+## Permanent git-crypt recovery copy
 
 For each secret currently in `AlbanAndrieu/nabla/env/home/pass/**`:
 
@@ -146,11 +146,11 @@ For each secret currently in `AlbanAndrieu/nabla/env/home/pass/**`:
 2. add manifest metadata;
 3. import from the current environment to Vaultwarden;
 4. render back and validate the consumer;
-5. stop loading it automatically from `.bashrc` when no longer needed interactively;
-6. retain the encrypted legacy copy only through the agreed rollback period;
-7. delete/rotate later according to policy and exposure history.
+5. optionally stop loading it automatically from `.bashrc` when no longer needed interactively;
+6. retain and periodically verify the encrypted git-crypt copy indefinitely;
+7. rotate the live credential later according to policy and exposure history, then update both Vaultwarden and the encrypted recovery copy deliberately.
 
-A private repository plus `git-crypt` is useful defense in depth, but is not a replacement for a purpose-built secret store and does not remove values from long-lived shell environments.
+A private repository plus `git-crypt` is useful defense in depth and a recovery layer, but is not the runtime source of truth and does not remove values from long-lived shell environments. Migration tooling and roadmaps must never schedule automatic deletion of these files.
 
 ## Official Bitwarden MCP
 
@@ -171,7 +171,7 @@ Repository MCP configs reference `BW_SESSION` from the local environment and nev
 7. snapshot/copy data;
 8. perform cutover;
 9. validate functional health and restart persistence;
-10. retain original secret source and rollback path through observation period.
+10. retain the git-crypt recovery source permanently and keep the service rollback path through its observation period.
 
 Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and `.agents/skills/nabla-service-catalog/SKILL.md` when Compose/catalog metadata changes.
 
@@ -183,7 +183,7 @@ Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and 
 - Never silently regenerate a migration-critical key.
 - Never automatically execute legacy shell secret files from migration tooling.
 - Never expose Vaultwarden automation, Bitwarden MCP, Bitwarden adapter, Docker socket or docker-socket-proxy publicly.
-- Prefer exact folder-scoped item identifiers/names and fail on ambiguity.
+- Prefer exact folder- or collection-scoped item identifiers/names and fail on ambiguity.
 - Treat secrets seen in Git history or public logs as compromised and rotate them when the application permits.
 
 ## Long-term direction

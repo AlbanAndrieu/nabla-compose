@@ -13,6 +13,8 @@ ID:   44a92b83-2762-4fa5-a238-f84396fd26f9
 
 `config/secrets/manifest.json` records this folder and all managed item/field mappings. The tools fail closed if the configured folder ID resolves to another folder name.
 
+This folder ID belongs to the operator's personal vault and is not a shareable authorization boundary. Unattended Doco-CD access uses a dedicated Vaultwarden account and a restricted organization collection; see `docs/vaultwarden-truenas-dococd-account.md`.
+
 Vaultwarden is the transitional **source of truth** for homelab secrets. HashiCorp Vault remains the later target for machine credentials, leases and dynamic secrets.
 
 ## Existing secret sources are migration inputs, not throw-away work
@@ -43,7 +45,7 @@ git-crypt shell exports / existing TrueNAS .env
  ephemeral 0600       optional cache 0600
 ```
 
-Do **not** delete or stop loading an old secret until the Vaultwarden value has been rendered back and the consuming service has been validated.
+Do **not** delete the git-crypt copy. After the Vaultwarden value has been rendered back and the consumer validated, automatic `.bashrc` loading may be disabled for service-only values, but the encrypted recovery source remains.
 
 ## Trust layers
 
@@ -209,9 +211,9 @@ The renderer:
 - enforces `0600` files;
 - single-quotes dotenv values so Docker Compose does not interpolate `$VAR` or `${VAR}` inside secrets.
 
-## Git-crypt retirement plan
+## Permanent git-crypt recovery copy
 
-The private `AlbanAndrieu/nabla` repository is already private and `env/home/pass/**` is additionally protected with `git-crypt`. Keep it during migration as defense in depth and rollback material.
+The private `AlbanAndrieu/nabla` repository is already private and `env/home/pass/**` is additionally protected with `git-crypt`. Keep it indefinitely as defense in depth and encrypted recovery material.
 
 For each secret:
 
@@ -219,11 +221,11 @@ For each secret:
 2. add metadata to this manifest;
 3. import it to the Vaultwarden `TrueNAS` folder;
 4. render it back and compare functionally through the consuming service;
-5. remove that variable from automatic `.bashrc` loading when no longer required interactively;
-6. remove the old git-crypt copy only after an observation/rollback period;
-7. rotate it later if its policy is `rotatable` or if exposure history requires rotation.
+5. optionally remove that variable from automatic `.bashrc` loading when no longer required interactively;
+6. retain and periodically verify the git-crypt copy indefinitely;
+7. rotate the live value later if its policy is `rotatable` or exposure history requires rotation, then update Vaultwarden and the encrypted recovery copy deliberately.
 
-Keeping a repository private is useful defense in depth but is **not** a substitute for removing live secrets from Git history and long-lived shell environments.
+Keeping a repository private is useful defense in depth but is **not** a substitute for removing live secrets from long-lived shell environments or rotating a value that was exposed. Migration automation must never delete the git-crypt files.
 
 ## Doco-CD compatibility
 

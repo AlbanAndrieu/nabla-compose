@@ -27,11 +27,12 @@ Current implemented direction:
 - metadata-only `config/secrets/manifest.json`;
 - `scripts/secrets/import_env_to_bitwarden.py` imports already-exported environment variables, dry-run by default;
 - `scripts/secrets/render_from_bitwarden.py` renders `0600` env files either under `/run/nabla-secrets` or an exact service `.env` path;
-- private `AlbanAndrieu/nabla/env/home/pass/**` git-crypt files remain legacy import/rollback sources during migration;
+- private `AlbanAndrieu/nabla/env/home/pass/**` git-crypt files remain a permanent encrypted recovery source;
 - TrueNAS service-local `.env` files become generated runtime caches, not sources of truth;
 - existing Doco-CD `bitwarden-api` sidecar remains temporarily for compatibility;
 - official local `@bitwarden/mcp-server@2026.7.0` is configured in `.mcp.json` and `.cursor/mcp.json` using `BW_SESSION` from the local environment;
 - detailed plan: `docs/secrets-migration-roadmap.md`;
+- dedicated TrueNAS/Doco-CD account runbook: `docs/vaultwarden-truenas-dococd-account.md`;
 - operational reference: `config/secrets/README.md`;
 - agent workflow: `.agents/skills/homelab-secrets/SKILL.md`.
 
@@ -68,7 +69,7 @@ For an existing exact item, require explicit `--update-existing`.
 5. Expand `manifest.json` by inventorying secret names from the legacy environment without exposing values.
 6. Migrate migration-critical secrets before corresponding application cutovers: 2FAuth APP_KEY, OpenTerminal API key, Karakeep session/Meilisearch keys, Reactive Resume auth/encryption/DB/Redis credentials.
 7. After each Vaultwarden migration, render the target `.env`, restart the consumer and validate functional runtime before retiring the old shell export.
-8. Stop auto-loading service-only secrets from `.bashrc` progressively; retain git-crypt copies only through the rollback period.
+8. Stop auto-loading service-only secrets from `.bashrc` progressively when practical; retain git-crypt copies indefinitely and verify recovery decryption periodically.
 9. Keep the small Vaultwarden bootstrap set outside Vaultwarden in a root-restricted local file/dataset.
 10. Later: retire the Doco-CD Bitwarden API sidecar, bootstrap Keycloak/GitHub SSO, then migrate machine secrets to HashiCorp Vault.
 
