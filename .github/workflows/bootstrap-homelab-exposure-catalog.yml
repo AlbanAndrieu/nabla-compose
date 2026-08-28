@@ -1,0 +1,79 @@
+---
+name: Bootstrap homelab exposure catalog
+
+on:
+  push:
+    branches:
+      - feat/homelab-exposure-catalog-source
+    paths:
+      - .github/workflows/bootstrap-homelab-exposure-catalog.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Import current presentation and exposure contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/AlbanAndrieu/fastapi-sample/master/nabla/api/data/homelab-services.json \
+            -o catalog/homelab-services.json
+          curl -fsSL https://raw.githubusercontent.com/AlbanAndrieu/fastapi-sample/master/nabla/api/data/homelab-exposure-overrides.json \
+            -o catalog/homelab-exposure-overrides.json
+
+      - name: Validate canonical TrueNAS and Homarr contracts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          services = json.loads(Path("catalog/homelab-services.json").read_text())
+          rows = services["services"]
+          homarr = next(row for row in rows if row["name"] == "Homarr")
+          assert homarr["internalHost"] == "172.17.0.24"
+          assert homarr["internalPort"] == 30100
+          assert homarr["internalSecure"] is False
+          assert homarr["tunnelUrl"] == "https://homarr.albandrieu.com"
+
+          overrides = json.loads(Path("catalog/homelab-exposure-overrides.json").read_text())
+          truenas = next(row for row in overrides["services"] if row["name"] == "TrueNAS")
+          assert truenas["external"] is True
+          assert truenas["tunnelUrl"] == "https://truenas.albandrieu.com:7000"
+          PY
+
+      - name: Document ownership
+        shell: bash
+        run: |
+          cat > catalog/HOMELAB-EXPOSURE.md <<'EOF'
+          # Homelab presentation and exposure catalog
+
+          `nabla-compose` owns the homelab presentation/exposure contract consumed by FastAPI Sample and security-policy dashboards.
+
+          - `homelab-services.json` describes internal/public endpoints and presentation metadata.
+          - `homelab-exposure-overrides.json` records explicit security-policy exceptions and exposure intent.
+          - `service-topology.json` remains the authoritative dependency graph used to derive service criticality tiers.
+
+          Do not maintain a second authoritative copy in `fastapi-sample`. Consumers may cache the remote contract, but changes to endpoint ownership, external exposure, tunnel policy or internal service addresses must originate here.
+
+          TrueNAS and Homarr are intentionally distinct:
+
+          - TrueNAS management/API: `https://truenas.albandrieu.com:7000` externally, `172.17.0.24:7000` on the host.
+          - Homarr native app: `http://172.17.0.24:30100/` internally and `https://homarr.albandrieu.com/` externally.
+          EOF
+
+      - name: Commit catalog and remove helper
+        shell: bash
+        run: |
+          rm .github/workflows/bootstrap-homelab-exposure-catalog.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(catalog): own homelab exposure metadata"
+          git push origin HEAD
