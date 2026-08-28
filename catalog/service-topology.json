@@ -309,7 +309,7 @@
       "kind": "firewall",
       "category": "network",
       "sourcePath": "apps/crowdsec/compose.yml",
-      "description": "External pfSense firewall providing CrowdSec LAPI, HAProxy and firewall telemetry.",
+      "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
       "icon": "🔥"
     },
     {
@@ -533,11 +533,12 @@
     {
       "source": "crowdsec",
       "target": "pfsense",
-      "type": "consumesApi",
+      "type": "providesApi",
       "strength": "required",
-      "description": "CrowdSec uses the pfSense CrowdSec Local API instead of running its own LAPI.",
+      "description": "CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.",
       "evidence": [
-        "apps/crowdsec/compose.yml:PFSENSE_CROWDSEC_LAPI_URL"
+        "apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT",
+        "apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY"
       ]
     },
     {
