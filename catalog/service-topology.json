@@ -687,7 +687,7 @@
       "target": "langfuse",
       "type": "partOf",
       "strength": "required",
-      "description": "The web application is a runtime workload of the logical Langfuse platform.",
+      "description": "The web application is the interactive runtime component of the Langfuse platform.",
       "evidence": [
         "apps/langfuse/compose.yml:x-nabla.relations[0]"
       ]
@@ -737,7 +737,7 @@
       "target": "langfuse",
       "type": "partOf",
       "strength": "required",
-      "description": "The worker is a runtime workload of the logical Langfuse platform.",
+      "description": "The background worker is a runtime component of the Langfuse platform.",
       "evidence": [
         "apps/langfuse/compose.yml:x-nabla.relations[0]"
       ]

@@ -140,7 +140,7 @@ endpoints:
   conditions:
   - '[CONNECTED] == true'
 - name: Langfuse Web
-  group: langfuse
+  group: ai
   interval: 60s
   url: tcp://172.17.0.24:3000
   conditions:

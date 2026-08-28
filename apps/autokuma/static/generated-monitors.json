@@ -231,7 +231,7 @@
   {
     "type": "port",
     "name": "Langfuse Web",
-    "description": "Nabla generated monitor: langfuse-langfuse-web",
+    "description": "Nabla generated monitor: langfuse-web",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
