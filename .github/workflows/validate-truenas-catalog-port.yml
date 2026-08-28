@@ -1,0 +1,66 @@
+---
+name: Validate TrueNAS catalog port
+
+on:
+  push:
+    branches:
+      - fix/truenas-catalog-port-7000
+    paths:
+      - .github/workflows/validate-truenas-catalog-port.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Install generator dependency
+        run: python -m pip install --disable-pip-version-check pyyaml
+
+      - name: Regenerate catalog and consumers
+        run: |
+          python scripts/generate-service-topology.py
+          python scripts/generate-service-consumers.py
+          python scripts/generate-service-topology.py --check
+          python scripts/generate-service-consumers.py --check
+
+      - name: Assert TrueNAS port 7000 contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+
+          topology = json.loads(Path("catalog/service-topology.json").read_text())
+          truenas = next(node for node in topology["nodes"] if node["id"] == "truenas")
+          assert truenas["url"] == "https://truenas.albandrieu.com:7000"
+
+          static = yaml.safe_load(Path("catalog/service-consumers.static.yml").read_text())
+          homarr = next(item for item in static["homarr"]["extras"] if item["id"] == "truenas")
+          monitor = next(item for item in static["monitoring"]["extras"] if item["id"] == "truenas")
+          assert homarr["url"] == "https://172.17.0.24:7000"
+          assert monitor["port"] == 7000
+          PY
+
+      - name: Commit generated artifacts
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/service-topology.json catalog/services.json \
+            apps/homarr/generated/apps.json apps/gatus/config/config.yml \
+            apps/autokuma/static/generated-monitors.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(catalog): regenerate TrueNAS port 7000 consumers"
+          git push origin HEAD
