@@ -1,0 +1,47 @@
+{
+  "services": [
+    {
+      "name": "TrueNAS",
+      "external": true,
+      "tunnelUrl": "https://truenas.albandrieu.com:7000",
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. This is not a Cloudflare Tunnel; keep the direct exposure visible as security debt and restrict the WAN rule to this listener only."
+    },
+    {
+      "name": "pfSense",
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "The pfSense administration UI is LAN/VPN-only. TCP 10443 may be reachable from trusted internal networks but any reachability from FastAPI Cloud or the public Internet is configuration drift and must fail the sickz exposure policy."
+    },
+    {
+      "name": "Home",
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "home.albandrieu.com:10443 aliases the pfSense administration UI and is LAN/VPN-only. External reachability must be treated as a security failure."
+    },
+    {
+      "name": "Garage",
+      "external": true,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "garage.int.albandrieu.com is intentionally published directly through Traefik with Let's Encrypt rather than Cloudflare. Keep this visible as an orange security-debt warning until migrated behind Cloudflare."
+    },
+    {
+      "name": "Bichon",
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "Bichon must stay private. Any public DNS or Cloudflare Tunnel entry is configuration drift and must be reported by sickz."
+    },
+    {
+      "name": "n8n",
+      "external": true,
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true,
+      "securityException": "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth."
+    }
+  ]
+}
