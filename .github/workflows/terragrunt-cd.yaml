@@ -62,9 +62,11 @@ jobs:
           mise exec -- terragrunt --version
 
       - name: Terragrunt init
+        working-directory: infrastructure/truenas
         shell: bash
-        run: mise exec -- terragrunt run --all -- init -upgrade
+        run: mise exec -- terragrunt init -upgrade
 
       - name: Terragrunt apply
+        working-directory: infrastructure/truenas
         shell: bash
-        run: mise exec -- terragrunt run --all -- apply -auto-approve
+        run: mise exec -- terragrunt apply -auto-approve
