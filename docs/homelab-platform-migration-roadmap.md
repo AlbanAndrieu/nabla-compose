@@ -1,32 +1,242 @@
 # Homelab platform migration roadmap
 
-This roadmap consolidates the remaining migration from legacy/native TrueNAS Apps and ixVolumes to repository-managed Docker Compose services with explicit datasets under `/mnt/cpool`, then layers secrets management and centralized identity on top.
+This roadmap drives the remaining migration from legacy/native TrueNAS Apps and ixVolumes to repository-managed Docker Compose services with explicit datasets below `/mnt/cpool`.
 
-The goal is not merely to make containers start. A migration is complete only when data, runtime health, monitoring, rollback, secrets, and authentication are all controlled deliberately.
+The execution model is now **secrets first**. Application storage/runtime migrations must not begin until the secrets required to preserve the current installation have been inventoried and placed behind an explicit secret source or bootstrap boundary.
+
+A migration is complete only when secrets, data, runtime health, monitoring, rollback and authentication are all controlled deliberately.
+
+## Program priorities
+
+Execute the program in this order:
+
+1. **P0 — secrets foundation:** Vaultwarden + official Bitwarden CLI (`bw`), metadata-only inventory, secure rendering and bootstrap separation;
+2. **P1 — runtime observability:** preserve TrueNAS runtime evidence and add a Docker Compose observer to FastAPI Sample;
+3. **P2 — validate existing Compose foundations:** especially NPMplus before any Nginx Proxy Manager cutover;
+4. **P3 — migrate native TrueNAS applications and ixVolumes to `/mnt/cpool`** in bounded waves;
+5. **P4 — centralize human identity with Keycloak brokering GitHub**;
+6. **P5 — move machine/application secrets from Vaultwarden to HashiCorp Vault** once Compose migrations are stable;
+7. **P6 — adopt Kubernetes-native secret/auth flows** after Talos/Kubernetes is production-ready.
+
+Secrets are therefore no longer a parallel cleanup task. They are a prerequisite for application cutover.
 
 ## Target principles
 
 1. `apps/**/compose.yml` is the deployment source of truth.
 2. Durable application data lives in explicit datasets below `/mnt/cpool` rather than opaque TrueNAS ixVolumes.
-3. Existing application secrets are preserved during cutover and are never committed to Git.
-4. `x-nabla`, generated catalogs, Homarr, Gatus and AutoKuma remain synchronized with the deployed service.
-5. A `RUNNING` container is not sufficient evidence of a successful migration; functional health must pass.
-6. Native TrueNAS Apps remain stopped but recoverable until the Compose replacement has passed its acceptance tests.
-7. Do not expose the Docker socket or docker-socket-proxy to the public Internet.
+3. Existing application encryption/signing/session secrets are preserved during storage/runtime cutover unless a documented rotation procedure is executed separately.
+4. Secret values are never committed to Git; tracked files contain names, references and policy only.
+5. `x-nabla`, generated catalogs, Homarr, Gatus and AutoKuma remain synchronized with the deployed service.
+6. A `RUNNING` container is not sufficient evidence of success; functional health must pass.
+7. Native TrueNAS Apps remain stopped but recoverable until the Compose replacement has passed acceptance tests.
+8. Do not expose the Docker socket, docker-socket-proxy or secret-management endpoints to the public Internet.
+9. Do not combine a storage migration, application major upgrade, database major upgrade and secret rotation in the same cutover unless unavoidable and explicitly tested.
 
-## Migration lifecycle
+## Migration lifecycle and hard gates
 
-Use the following state machine for every legacy application:
+Use this state machine for every legacy application:
 
-`inventory -> compose-ready -> backup-ready -> data-migrated -> runtime-validated -> cutover-complete -> native-retired`
+`inventory -> secrets-ready -> compose-ready -> backup-ready -> data-migrated -> runtime-validated -> cutover-complete -> native-retired`
 
-A service must not advance to `native-retired` until rollback has been tested or is demonstrably possible.
+A service cannot move beyond `inventory` until the **Secrets Gate** passes.
 
-## P0 — inventory and runtime observability
+### Secrets Gate
 
-Before migrating more applications, create a repeatable inventory from both design-time and runtime sources.
+Before creating or executing a cutover plan:
 
-### Design-time sources
+- every required secret variable is named;
+- migration-critical secrets are identified;
+- the current value has been recovered from TrueNAS/current runtime without printing or committing it;
+- the secret is either stored in Vaultwarden or explicitly classified as a bootstrap secret;
+- the target Compose variable name is known;
+- the target can render/inject the value without editing tracked files;
+- rollback can restore the exact old value when preservation is required.
+
+### Data Gate
+
+Before copying or reusing storage:
+
+- source ixVolume/host path is identified;
+- target `/mnt/cpool` dataset is defined;
+- snapshot/backup exists;
+- UID/GID and ACL semantics are recorded;
+- database major version and `PGDATA` layout are known when raw database storage is involved.
+
+### Runtime Gate
+
+Before retiring the native app:
+
+- direct application-level health succeeds;
+- application data survives restart;
+- dependencies are healthy;
+- Gatus/AutoKuma/catalog evidence is coherent;
+- `/api/homelab/health` is checked;
+- `/sickz` is checked when external exposure is relevant;
+- observer limitations are documented instead of being hidden through false metadata.
+
+---
+
+# P0 — secrets foundation
+
+## P0.1 Bootstrap secrets versus workload secrets
+
+Avoid a circular dependency where Vaultwarden needs Vaultwarden in order to start.
+
+Two secret classes are mandatory:
+
+### Bootstrap secrets
+
+Minimal credentials required before Vaultwarden can serve workload secrets. These remain outside Git in a root-restricted host file/dataset or equivalent break-glass mechanism.
+
+Current bootstrap names are tracked in `config/secrets/manifest.json`, including:
+
+- `VAULTWARDEN_ADMIN_TOKEN`;
+- `VAULTWARDEN_SMTP_USERNAME`;
+- `VAULTWARDEN_SMTP_PASSWORD`;
+- legacy Doco-CD adapter credentials (`BW_CLIENTID`, `BW_CLIENTSECRET`, `BW_PASSWORD`) while that adapter still exists.
+
+Bootstrap secret values must **not** be stored in the same Vaultwarden instance as their only source.
+
+### Workload secrets
+
+Application/database/API credentials fetched from Vaultwarden after it is running and unlocked.
+
+The interim flow is:
+
+```text
+root-restricted bootstrap secrets
+        -> Vaultwarden
+        -> official Bitwarden CLI (`bw`)
+        -> metadata-only manifest
+        -> short-lived /run/nabla-secrets/<app>.env (0600)
+        -> docker compose --env-file ...
+```
+
+## P0.2 Repository secret inventory
+
+The canonical metadata file is:
+
+```text
+config/secrets/manifest.json
+```
+
+It contains **no values**. It records:
+
+- application identifier;
+- exact Vaultwarden item name;
+- exact custom-field name;
+- target Compose environment variable;
+- whether the secret is migration-critical;
+- whether rotation must be deferred (`preserve`) or can be performed later (`rotatable`).
+
+Initial tracked workloads:
+
+- 2FAuth;
+- OpenTerminal;
+- Karakeep;
+- Reactive Resume.
+
+Add new applications to this manifest during inventory, before implementing their Compose cutover.
+
+## P0.3 Official `bw` renderer
+
+Use:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py --check
+```
+
+Then configure/unlock the CLI:
+
+```bash
+bw config server https://vaultwarden.albandrieu.com
+bw login
+export BW_SESSION="$(bw unlock --raw)"
+```
+
+Render a single workload:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py --app 2fauth
+```
+
+Deploy with the resulting ephemeral env file:
+
+```bash
+docker compose \
+  --env-file /run/nabla-secrets/2fauth.env \
+  --project-directory apps/2fauth \
+  -f apps/2fauth/compose.yml \
+  up -d
+```
+
+The renderer deliberately:
+
+- verifies the configured Vaultwarden server;
+- requires an unlocked `BW_SESSION`;
+- synchronizes before reads;
+- requires an exact unique item name;
+- requires exact unique custom fields;
+- fails closed on missing/empty/ambiguous data;
+- rejects multiline/NUL secrets for dotenv output;
+- never prints secret values;
+- writes atomically;
+- creates output directories as `0700` and files as `0600`;
+- single-quotes values so Docker Compose does not interpolate `$VAR`/`${VAR}` inside secrets.
+
+See `config/secrets/README.md`.
+
+## P0.4 Secret migration order
+
+Move secrets into Vaultwarden **before** the corresponding application cutover in this order:
+
+1. 2FAuth `APP_KEY`;
+2. OpenTerminal `OPEN_TERMINAL_API_KEY`;
+3. Karakeep `NEXTAUTH_SECRET` and Meilisearch master key;
+4. Karakeep OpenAI API key;
+5. Reactive Resume DB password, auth secret, encryption secret and Redis password;
+6. FreshRSS credentials after inventory;
+7. shared PostgreSQL roles/passwords after database inventory;
+8. TrueNAS MCP/OpenTofu service-account API keys;
+9. NPM/NPMplus migration credentials/certificate-related secrets as discovered;
+10. Keycloak client secrets when the IdP phase begins.
+
+Do not rotate `preserve` secrets as part of storage migration. Rotation is a separate post-migration change.
+
+## P0.5 Existing Bitwarden API sidecar
+
+`apps/vaultwarden/compose.yml` still contains `bitwarden-api` (`ghcr.io/kimdre/bitwarden-rest-api-server`) for legacy Doco-CD compatibility.
+
+New application migrations must prefer the official `bw` renderer.
+
+Do **not** remove the adapter until all current Doco-CD consumers have been inventoried and migrated. Its removal is a later cleanup gate:
+
+1. identify every Doco-CD `external_secrets` consumer;
+2. prove a direct `bw` or future Vault workflow for each;
+3. remove Doco-CD dependency on the sidecar;
+4. remove `BW_CLIENTID`, `BW_CLIENTSECRET`, `BW_PASSWORD` bootstrap requirements;
+5. remove the sidecar and its network exposure.
+
+## P0.6 Secret hygiene / CI
+
+Required follow-up:
+
+- keep generated secret files outside the repository;
+- ignore any local fallback secret-render directories;
+- validate `config/secrets/manifest.json` in CI;
+- run `tests/test_secrets_renderer.py` in the normal test suite;
+- keep Gitleaks/secretlint active;
+- audit Git history before declaring a credential safe;
+- rotate any credential known to have appeared in Git, logs, tickets or public build output;
+- maintain a separate break-glass recovery document that contains procedures but no live values.
+
+---
+
+# P1 — runtime inventory and observability
+
+Before migrating more applications, maintain a repeatable inventory from design-time and runtime sources.
+
+## Design-time sources
 
 - `apps/**/compose.yml`
 - `catalog/services.json`
@@ -34,8 +244,9 @@ Before migrating more applications, create a repeatable inventory from both desi
 - `apps/homarr/generated/apps.json`
 - `apps/gatus/config/config.yml`
 - `apps/autokuma/static/generated-monitors.json`
+- `config/secrets/manifest.json`
 
-### FastAPI Sample runtime sources
+## FastAPI Sample runtime sources
 
 Base URL: `https://fastapi-sample.fastapicloud.dev`
 
@@ -52,22 +263,24 @@ Base URL: `https://fastapi-sample.fastapicloud.dev`
 
 Use `.agents/skills/homelab-runtime-status/SKILL.md` whenever validating a service at runtime.
 
-### Known runtime limitation to fix
+## Known runtime limitation
 
-`/api/homelab/runtime` currently observes TrueNAS Apps through the TrueNAS API (`app.query`). Standalone Docker Compose services can therefore become healthy while appearing `declared_only` after the native app is removed.
+`/api/homelab/runtime` currently observes TrueNAS Apps through the TrueNAS API (`app.query`). A standalone Compose service can therefore be healthy while appearing `declared_only` after its native app disappears.
 
-P0 follow-up in `fastapi-sample`:
+P1 follow-up in `fastapi-sample`:
 
 - add a runtime provider for repository-managed Docker Compose workloads;
-- prefer a sanitized read-only runtime agent/relay on the LAN or an equivalent authenticated mechanism;
+- use a sanitized read-only runtime agent/relay on the LAN or equivalent authenticated mechanism;
 - reuse `docker-socket-proxy` only on trusted networks;
 - never publish the Docker socket/proxy directly;
 - preserve the distinction between `truenas-app` and `docker-compose` runtime providers;
-- update `/api/homelab/status` so successful Compose cutovers become `in_sync` rather than `declared_only`.
+- update `/api/homelab/status` so successful Compose cutovers become `in_sync`.
 
-## Dataset convention
+---
 
-Use one top-level dataset per application/system and sub-datasets when components have different durability or backup characteristics:
+# Dataset convention
+
+Use one top-level dataset per application/system and sub-datasets where components have different durability/backup characteristics:
 
 ```text
 /mnt/cpool/
@@ -92,75 +305,122 @@ Use one top-level dataset per application/system and sub-datasets when component
 └── vault/
 ```
 
-Prefer dedicated datasets over unrelated applications sharing the same database directory.
+Prefer dedicated datasets over unrelated applications sharing one database directory.
 
-## Application migration queue
+---
 
-### Completed/prepared foundations
+# P2 — validate existing Compose foundations
 
-#### ClickHouse
+## ClickHouse
+
+Already prepared:
 
 - external `altinity/clickhouse-exporter` removed;
-- native ClickHouse Prometheus endpoint on `9363` used instead;
-- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade.
+- native ClickHouse Prometheus endpoint on `9363` used instead.
 
-#### Grafana
+Keep runtime verification in Gatus/Prometheus after upgrades.
 
-Compose target must preserve:
+## Grafana
+
+Compose target preserves:
 
 - UID/GID `568:568`;
 - host port `30037`;
 - `/mnt/cpool/grafana/data -> /var/lib/grafana`;
-- `/mnt/cpool/grafana/plugin -> /var/lib/grafana/plugins`;
-- current dashboards, data sources and plugin compatibility.
+- `/mnt/cpool/grafana/plugin -> /var/lib/grafana/plugins`.
 
-Retire legacy plugins only after dashboard replacement is validated.
+Retire legacy plugins only after dashboards/data sources are validated.
 
-#### 2FAuth
+## NPMplus hard prerequisite
 
-Compose target exists under `apps/2fauth`.
+`apps/npmplus/compose.yml` already uses `/mnt/cpool/npmplus` with:
 
-Remaining migration work:
+- UI `30360`;
+- HTTP `30361`;
+- HTTPS `30362`.
 
-- recover the exact existing `APP_KEY`;
-- identify the TrueNAS ixVolume backing `/2fauth`;
-- snapshot the ixVolume;
-- stop the native app;
-- copy the complete `/2fauth` content into `/mnt/cpool/2fauth`;
-- set ownership for `568:568`;
-- keep port `30081`, timezone `Europe/Paris`, existing URL and authentication settings;
-- validate `/up`, login, OTP entries, icons and WebAuthn;
-- only then retire the native app.
+The native Nginx Proxy Manager must **not** be migrated until NPMplus works independently under Docker Compose.
 
-### Wave 1 — low-risk host-path cutovers
+Hard gate:
 
-#### OpenTerminal
+1. `docker compose config` succeeds;
+2. container starts without restart loop;
+3. UI responds on `30360`;
+4. HTTP listener responds on `30361`;
+5. HTTPS listener responds on `30362`;
+6. admin login succeeds;
+7. temporary proxy host to a disposable upstream works;
+8. HTTP and HTTPS proxying pass end-to-end;
+9. configuration survives restart;
+10. certificates survive restart;
+11. Homarr/Gatus/AutoKuma/runtime evidence agrees with direct functional tests.
+
+If this gate fails, keep native Nginx Proxy Manager unchanged.
+
+---
+
+# P3 — TrueNAS native application migration waves
+
+## Wave 1 — low-risk / existing host paths
+
+### OpenTerminal
+
+Secrets Gate first:
+
+- store the exact current `OPEN_TERMINAL_API_KEY` in Vaultwarden item `nabla/prod/open-terminal`;
+- verify rendering to `OPEN_TERMINAL_API_KEY`.
 
 Target:
 
 - `apps/open-terminal/compose.yml`;
-- image baseline matching the current TrueNAS app;
+- image matching current TrueNAS app before upgrades;
 - UID/GID `568:568`;
 - port `30377`;
 - `/mnt/cpool/openterminal -> /home/user`;
-- preserve `OPEN_TERMINAL_API_KEY` as an injected secret;
 - healthcheck `/health`.
 
-Acceptance gate:
+Acceptance:
 
 - health endpoint responds;
-- authenticated terminal API request succeeds;
+- authenticated API request succeeds;
 - filesystem changes survive restart;
-- no privilege escalation is enabled unless explicitly required.
+- no privilege escalation unless explicitly required.
 
-### Wave 2 — ixVolume application migrations
+## Wave 2 — ixVolume migrations
 
-#### Karakeep
+### 2FAuth
 
-Current TrueNAS data is split across two ixVolumes. Target:
+Secrets Gate first:
+
+- recover the exact existing `APP_KEY`;
+- store it as `APP_KEY` in `nabla/prod/2fauth`;
+- render it to `TWOFAUTH_APP_KEY`;
+- do **not** regenerate it.
+
+Storage/runtime work:
+
+- identify TrueNAS ixVolume backing `/2fauth`;
+- snapshot it;
+- stop native app;
+- copy complete `/2fauth` into `/mnt/cpool/2fauth`;
+- set ownership `568:568`;
+- keep port `30081`, timezone `Europe/Paris`, existing URL and auth settings;
+- validate `/up`, login, OTP entries, icons and WebAuthn;
+- retire native app only after restart persistence succeeds.
+
+### Karakeep
+
+Secrets Gate first:
+
+- existing `NEXTAUTH_SECRET` -> Vaultwarden `NEXTAUTH_SECRET`;
+- existing Meilisearch master key -> `MEILI_MASTER_KEY`;
+- current OpenAI API key -> `OPENAI_API_KEY`;
+- render to the `KARAKEEP_*` target variables in `config/secrets/manifest.json`.
+
+Current TrueNAS data uses two ixVolumes. Target:
 
 ```text
-/mnt/cpool/karakeep/data       -> /data
+/mnt/cpool/karakeep/data        -> /data
 /mnt/cpool/karakeep/meilisearch -> /meili_data
 ```
 
@@ -168,33 +428,32 @@ Preserve:
 
 - port `30147`;
 - timezone `Europe/Paris`;
-- existing `NEXTAUTH_SECRET`;
-- existing Meilisearch master key;
 - `OPENAI_BASE_URL`;
-- `OPENAI_API_KEY`;
 - `INFERENCE_TEXT_MODEL=gpt-4.1-mini`;
 - `INFERENCE_IMAGE_MODEL=gpt-4.1`.
 
 Review before carrying forward:
 
-- `OPENAI_API_VERSION=2023-05-15` — keep only if the configured OpenAI-compatible endpoint requires it;
-- `PAPERLESS_OCR_LANGUAGES` — migrate to the Karakeep-native OCR setting only after confirming desired semantics;
-- `PAPERLESS_GMAIL_OAUTH_CLIENT_ID` and `PAPERLESS_GMAIL_OAUTH_CLIENT_SECRET` — treat as legacy/unrelated until an actual Karakeep dependency is proven.
+- `OPENAI_API_VERSION=2023-05-15` only if the configured endpoint requires it;
+- `PAPERLESS_OCR_LANGUAGES` should become a Karakeep-native OCR setting only after semantics are confirmed;
+- `PAPERLESS_GMAIL_OAUTH_CLIENT_ID/SECRET` remain legacy/unrelated until a real Karakeep dependency is proven.
 
-Migration sequence:
+Migration:
 
-1. identify both ixVolume datasets;
+1. identify both ixVolumes;
 2. snapshot both;
 3. stop native Karakeep;
-4. copy complete Karakeep data and Meilisearch data separately;
-5. preserve ownership/permissions;
+4. copy Karakeep and Meilisearch data separately;
+5. preserve permissions;
 6. launch Karakeep + Meilisearch + browser service together;
-7. validate `/api/health`, login, existing bookmarks, assets, full-text search, crawling/screenshots, AI tagging and OCR;
+7. validate `/api/health`, login, bookmarks, assets, search, crawling/screenshots, AI tagging and OCR;
 8. keep native app stopped for rollback until accepted.
 
-#### FreshRSS
+### FreshRSS
 
-Inventory before implementation:
+Secrets Gate cannot pass until inventory determines the current DB/auth configuration.
+
+Inventory:
 
 - current port;
 - UID/GID;
@@ -204,7 +463,7 @@ Inventory before implementation:
 - database/user/password;
 - FreshRSS base URL;
 - cron settings;
-- current data and database storage types;
+- current data/database storage types;
 - additional environment variables.
 
 Preferred target:
@@ -214,205 +473,117 @@ Preferred target:
 /mnt/cpool/freshrss/postgres   # only if PostgreSQL is used
 ```
 
-Do not choose or upgrade the PostgreSQL major version as part of the storage cutover unless explicitly planned and tested.
+Do not upgrade the PostgreSQL major version during the storage cutover unless separately planned/tested.
 
-### Wave 3 — application plus database migrations
+## Wave 3 — application plus database
 
-#### Reactive Resume
+### Reactive Resume
 
-Target configuration:
+Secrets Gate first. Preserve exactly:
 
-- image matching the current TrueNAS release before any application upgrade;
+- DB password;
+- current Secret Key / `AUTH_SECRET`;
+- `REACTIVE_RESUME_ENCRYPTION_SECRET`;
+- Redis password;
+- Redis username (currently empty).
+
+Vaultwarden item: `nabla/prod/reactive-resume`.
+
+Target:
+
+- image matching current TrueNAS release before upgrades;
 - port `30393`;
 - timezone `Europe/Paris`;
 - `/mnt/cpool/reactive/data -> /app/data`;
 - `/mnt/cpool/reactive/postgres` for PostgreSQL 18;
 - base URL `https://reactive.albandrieu.com/`;
-- database name/user `reactive_resume` unless the installed instance proves otherwise;
-- external Redis at `172.17.0.24:30059`.
+- database name/user `reactive_resume` unless runtime proves otherwise;
+- external Redis `172.17.0.24:30059`;
+- `REACTIVE_RESUME_FLAG_ALLOW_UNSAFE_AI_BASE_URL=true` only while required.
 
-Preserve without regeneration during cutover:
+Before reusing PostgreSQL storage directly, verify major/minor version, image and `PGDATA`. Use logical dump/restore if anything differs.
 
-- database password;
-- `AUTH_SECRET` / current Secret Key;
-- `REACTIVE_RESUME_ENCRYPTION_SECRET`;
-- Redis password;
-- Redis username value (currently empty);
-- `REACTIVE_RESUME_FLAG_ALLOW_UNSAFE_AI_BASE_URL=true` only while still required.
-
-Before reusing `/mnt/cpool/reactive/postgres` directly, verify PostgreSQL major/minor version, `PGDATA` layout and image compatibility. If there is any mismatch, use logical dump/restore instead of copying/reusing the data directory.
-
-Acceptance gate:
+Acceptance:
 
 - `/api/health` passes;
 - login works;
-- existing resumes open and export correctly;
-- uploaded assets are present;
-- database survives restart;
-- Redis-backed jobs/features work;
-- encryption-dependent data remains readable.
+- existing resumes open/export;
+- assets are present;
+- DB survives restart;
+- Redis-backed features work;
+- encrypted data remains readable.
 
-#### Shared PostgreSQL
+### Shared PostgreSQL
 
-Current `apps/postgres/compose.yml` contains only `postgres_exporter`; therefore this migration must start with discovery, not with replacing the exporter.
+Current `apps/postgres/compose.yml` contains only `postgres_exporter`. Start with discovery.
 
-Inventory:
+Secrets Gate inventory:
+
+- roles/users;
+- password ownership/consumers;
+- applications depending on each credential.
+
+Database inventory:
 
 - exact PostgreSQL version;
-- databases and owners;
-- extensions (`pgvector` included);
-- roles/grants;
+- databases/owners;
+- extensions including pgvector;
+- grants;
 - port;
-- current storage mode/path;
-- applications depending on it.
+- storage mode/path.
 
-Preferred migration method:
+Preferred migration:
 
-- use `pg_dump`/`pg_dumpall` plus restore for major-version or layout changes;
-- only reuse a raw `PGDATA` directory when the image, major version and directory layout are known-compatible;
-- move the durable target to `/mnt/cpool/postgres`;
-- reconnect `postgres_exporter` only after database health is green.
+- `pg_dump`/`pg_dumpall` + restore for major/layout changes;
+- raw `PGDATA` reuse only with known-compatible image, major version and layout;
+- durable target `/mnt/cpool/postgres`;
+- reconnect `postgres_exporter` only after DB health is green.
 
-Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
+Migrate shared PostgreSQL after app-local PostgreSQL migrations to keep blast radius bounded.
 
-### Wave 4 — reverse proxy migration
+## Wave 4 — reverse proxy
 
-#### Nginx Proxy Manager -> NPMplus
+### Native Nginx Proxy Manager -> NPMplus
 
-`apps/npmplus/compose.yml` already exists and uses `/mnt/cpool/npmplus` with host networking and dedicated UI/HTTP/HTTPS ports.
+Only start after the P2 NPMplus hard gate is green.
 
-The native Nginx Proxy Manager must **not** be migrated until NPMplus itself is proven functional on Docker Compose.
+Then:
 
-Hard pre-migration gate for NPMplus:
-
-1. `docker compose config` succeeds;
-2. container starts without restart loop;
-3. UI responds on port `30360`;
-4. HTTP listener responds on `30361`;
-5. HTTPS listener responds on `30362`;
-6. admin login succeeds;
-7. create a temporary proxy host to a disposable/test upstream;
-8. verify HTTP and HTTPS proxying end-to-end;
-9. persist a configuration change and restart NPMplus;
-10. verify certificates/configuration survive restart;
-11. verify Homarr/Gatus/AutoKuma/runtime status agrees with the direct functional tests.
-
-Only after this gate is green:
-
-- inventory native Nginx Proxy Manager `/data` and `/etc/letsencrypt` storage;
-- snapshot the native storage;
+- inventory native `/data` and `/etc/letsencrypt`;
+- inventory admin/account and any provider/API credentials without committing values;
+- snapshot native storage;
 - export/list proxy hosts, streams, access lists, users, custom locations and certificates;
-- use NPMplus's documented migration path from original Nginx Proxy Manager;
-- keep the native instance stopped but intact until all important proxy routes and ACME renewals are validated.
+- use the NPMplus migration path from original NPM;
+- keep native instance stopped but intact until all important routes and ACME renewals are validated;
+- never run both instances on conflicting listener ports.
 
-Do not run both instances on conflicting ports.
+---
 
-## Common cutover checklist
+# Common cutover checklist
 
 For every application:
 
-1. capture `/api/homelab/status`, `/api/homelab/runtime` and `/api/homelab/health` before the change;
-2. record current TrueNAS app version, port, UID/GID, secrets and storage mapping;
-3. snapshot every source dataset/ixVolume;
-4. validate target Compose with repository CI;
-5. stop the native app before copying mutable data;
-6. migrate data preserving ownership and permissions;
-7. start Compose;
-8. execute an application-specific functional test, not just a TCP check;
-9. validate Gatus/AutoKuma/Homarr/catalog outputs;
-10. capture runtime endpoints again and compare;
-11. test one restart/reboot persistence cycle;
-12. keep rollback artifacts until the service has operated successfully through an agreed observation period.
+1. pass the Secrets Gate;
+2. capture `/api/homelab/status`, `/api/homelab/runtime` and `/api/homelab/health`;
+3. record current TrueNAS version, port, UID/GID and storage mapping;
+4. pass the Data Gate;
+5. validate target Compose in CI;
+6. stop native app before copying mutable data;
+7. migrate data preserving ownership/ACLs;
+8. render secrets just-in-time from Vaultwarden;
+9. start Compose;
+10. execute application-specific functional tests;
+11. validate Gatus/AutoKuma/Homarr/catalog outputs;
+12. capture runtime endpoints again and compare;
+13. perform one restart/reboot persistence test;
+14. keep rollback artifacts through an observation period;
+15. rotate only `rotatable` secrets in a later, independent change if desired.
 
-## Secrets roadmap — Vaultwarden first, HashiCorp Vault second
+---
 
-### S0 — secret inventory
+# P4 — identity: GitHub -> Keycloak -> homelab
 
-Create a secret inventory by variable name and consumer only. Never commit values.
-
-Classify secrets into:
-
-- application encryption keys (for example 2FAuth `APP_KEY`, Reactive Resume encryption secret);
-- database credentials;
-- API keys;
-- OAuth/OIDC client secrets;
-- infrastructure credentials;
-- CI/CD credentials.
-
-Mark whether each secret is migration-critical and whether rotating it would invalidate existing encrypted data.
-
-### S1 — Vaultwarden as interim source of truth
-
-Use the existing Vaultwarden deployment and the official Bitwarden CLI (`bw`) as the initial automation interface.
-
-Important constraint: Vaultwarden is Bitwarden-client compatible but does not implement the full Bitwarden Public API. Automation should therefore use normal Bitwarden client/CLI flows rather than assume Public API parity.
-
-Suggested organization:
-
-```text
-Nabla Homelab
-├── infrastructure
-├── databases
-├── applications
-├── observability
-└── identity
-```
-
-Suggested item naming:
-
-`nabla/<environment>/<application>/<secret-name>`
-
-Operational pattern:
-
-1. configure CLI against the Vaultwarden server with `bw config server ...`;
-2. authenticate/unlock interactively or with an approved machine-safe mechanism;
-3. `bw sync` before reads;
-4. fetch only required fields/items;
-5. render short-lived `0600` env/secret files outside the Git working tree;
-6. start the target Compose service;
-7. remove transient cleartext files when no longer required.
-
-Prefer Docker secret/file inputs when an application supports them. Environment variables are acceptable for the interim phase but remain visible to privileged host/container inspection.
-
-Add a future helper such as `scripts/render-secrets-from-bitwarden.sh` only after naming conventions and error handling are stable. The helper must fail closed when an item is missing or ambiguous.
-
-### S2 — secret rotation and repository cleanup
-
-- remove committed/example values that look production-like;
-- ensure `.env`, rendered secret files and backup exports are ignored;
-- rotate credentials that may previously have been exposed in Git/logs;
-- add CI checks preventing new cleartext secrets;
-- document break-glass recovery separately from normal automation.
-
-### S3 — HashiCorp Vault
-
-Deploy Vault only after the application migration and Vaultwarden workflows are stable.
-
-Initial target:
-
-- persistent storage below `/mnt/cpool/vault`;
-- KV v2 at a predictable path such as `kv/homelab/<app>`;
-- narrowly scoped policies per application/service class;
-- audit logging enabled;
-- recovery/unseal material stored offline and separately from the normal secrets store.
-
-Migration from Vaultwarden to Vault should stream values item-by-item (`bw get ... -> vault kv put ...`) rather than create a long-lived plaintext bulk export.
-
-Human authentication target: Keycloak OIDC.
-
-Machine authentication progression:
-
-1. AppRole for standalone Compose workloads where necessary;
-2. GitHub Actions OIDC/JWT for CI where practical;
-3. Kubernetes auth once Talos/Kubernetes becomes the workload platform.
-
-Avoid making Vault's GitHub-PAT auth method the primary human login. It requires a GitHub personal access token rather than performing a GitHub OAuth flow. Prefer Keycloak OIDC for humans once the IdP is available.
-
-## Identity roadmap — GitHub -> Keycloak -> homelab services
-
-### I0 — architecture decision
-
-Target identity flow:
+Target flow:
 
 ```text
 GitHub
@@ -424,9 +595,9 @@ GitHub
 
 Keycloak has a built-in GitHub social identity provider.
 
-Start with a GitHub OAuth App for login-only SSO because it is simpler and sufficient when downstream services only need Keycloak identity. Move to a GitHub App only if refreshable GitHub user tokens or GitHub API access through the broker becomes a real requirement.
+Start with a GitHub OAuth App for login-only SSO. Move to a GitHub App only if refreshable GitHub tokens/API access through the broker becomes necessary.
 
-### I1 — Keycloak bootstrap
+## Keycloak bootstrap
 
 Target storage:
 
@@ -435,82 +606,97 @@ Target storage:
 └── postgres/
 ```
 
-Use a dedicated PostgreSQL database/container initially rather than coupling Keycloak availability to the shared homelab PostgreSQL migration.
+Use a dedicated PostgreSQL database/container initially rather than coupling Keycloak availability to shared PostgreSQL migration.
 
-Bootstrap controls:
+Controls:
 
-- dedicated realm such as `nabla`;
-- local break-glass Keycloak administrator not dependent on GitHub;
-- GitHub identity provider configured with the exact Keycloak redirect URI;
+- realm such as `nabla`;
+- local break-glass admin independent of GitHub;
+- GitHub IdP with exact redirect URI;
 - least-privilege GitHub scopes;
-- explicit user allowlist or organization/team policy before allowing automatic first-login access;
-- MFA policy decided in Keycloak rather than assuming GitHub MFA state is sufficient for every service.
+- explicit allowlist/org/team policy before automatic access;
+- MFA policy in Keycloak;
+- client secrets stored through the secret foundation, never tracked in Compose.
 
-### I2 — service onboarding
+Service classes:
 
-Classify services into:
+1. native OIDC -> direct Keycloak integration;
+2. proxy-auth capable -> authenticated reverse-proxy pattern;
+3. neither -> retain local auth until safe integration exists.
 
-1. native OIDC clients — integrate directly with Keycloak;
-2. proxy-auth capable services — use an authenticated reverse-proxy pattern;
-3. services with neither — keep local authentication until a safe integration exists.
-
-Prioritize administrative surfaces first only when break-glass access is proven. Suggested early candidates include Vault and Grafana; each application must be checked for its current supported OIDC flow before implementation.
-
-Do not make Keycloak mandatory for NPMplus administration until NPMplus itself is stable and an independent recovery path exists.
-
-### I3 — authorization model
-
-Define Keycloak groups/roles independently from GitHub repository permissions, for example:
+Suggested authorization roles:
 
 - `homelab-admin`;
 - `homelab-operator`;
 - `observability-admin`;
 - `read-only`.
 
-GitHub identity proves who the user is; Keycloak remains the place where homelab authorization is mapped.
+GitHub proves identity; Keycloak owns homelab authorization mapping.
 
-Later, optionally map GitHub organization/team information into Keycloak after verifying the required GitHub scopes and token behavior.
+---
 
-### I4 — Vault integration
+# P5 — HashiCorp Vault
 
-Once Keycloak is stable:
+Vault is the long-term machine/application secret system **after** Vaultwarden workflows and application migrations are stable.
 
-- enable Vault OIDC/JWT auth;
-- configure Keycloak discovery URL, client ID and client secret;
-- map Keycloak groups/claims to Vault roles/policies;
-- support both Vault UI and CLI redirect URIs;
-- keep a non-OIDC break-glass Vault recovery path.
+Initial target:
 
-## Execution order
+- persistent storage below `/mnt/cpool/vault`;
+- KV v2 such as `kv/homelab/<app>`;
+- narrow policies per service/class;
+- audit logging;
+- recovery/unseal material offline and separate from normal secrets.
 
-Recommended program order:
+Migration from Vaultwarden should stream values item-by-item rather than produce a long-lived plaintext bulk export.
 
-1. P0 runtime-observability gap and inventory automation;
-2. validate NPMplus current Compose deployment without migrating native NPM;
-3. OpenTerminal;
-4. complete Grafana and 2FAuth cutovers;
-5. Karakeep;
-6. FreshRSS;
-7. Reactive Resume;
-8. shared PostgreSQL;
-9. native Nginx Proxy Manager -> proven NPMplus;
-10. Vaultwarden/Bitwarden CLI secret normalization in parallel with waves 3-9;
-11. Keycloak GitHub SSO bootstrap;
-12. HashiCorp Vault and Keycloak OIDC integration;
-13. Talos/Kubernetes-specific workload auth after the cluster is production-ready.
+Human auth target: Keycloak OIDC.
 
-## Definition of done
+Machine auth progression:
 
-The TrueNAS native application migration is complete when:
+1. AppRole for standalone Compose workloads where necessary;
+2. GitHub Actions OIDC/JWT for CI where practical;
+3. Kubernetes auth after Talos/Kubernetes becomes the workload platform.
+
+Do not make Vault's GitHub-PAT auth method the primary human login; prefer Keycloak OIDC.
+
+---
+
+# Final execution order
+
+1. land/test `config/secrets/manifest.json` + `scripts/secrets/render_from_bitwarden.py`;
+2. create Vaultwarden items/custom fields for known migration-critical secrets;
+3. prove render/deploy flow on one low-risk workload;
+4. inventory and shrink the Vaultwarden/bootstrap/legacy-sidecar trust boundary;
+5. add Docker Compose runtime observation to FastAPI Sample;
+6. validate NPMplus independently;
+7. migrate OpenTerminal;
+8. complete 2FAuth and Grafana cutovers;
+9. migrate Karakeep;
+10. inventory/migrate FreshRSS;
+11. migrate Reactive Resume;
+12. migrate shared PostgreSQL;
+13. migrate native Nginx Proxy Manager only to proven NPMplus;
+14. bootstrap Keycloak with GitHub identity;
+15. move machine/application secrets from Vaultwarden to HashiCorp Vault;
+16. use Keycloak OIDC for Vault human access;
+17. adopt Kubernetes auth/external-secret patterns after Talos is production-ready;
+18. remove the legacy Bitwarden API sidecar once Doco-CD no longer requires it.
+
+# Definition of done
+
+The TrueNAS-native migration program is complete when:
 
 - no required application depends on opaque ixVolume-only state;
 - all migrated durable data is in explicitly named `/mnt/cpool` datasets;
-- every migrated application is declared under `apps/**` with synchronized `x-nabla` metadata;
-- runtime status can observe both remaining native TrueNAS Apps and migrated Docker Compose workloads;
-- Gatus/AutoKuma verify functional health where possible;
-- Homarr reflects the canonical service inventory;
-- native applications have been retired only after rollback-safe validation;
-- production secrets no longer live in ad-hoc `.env` files or TrueNAS UI-only private fields;
-- Vaultwarden provides the interim secret source of truth;
+- every migrated app is declared under `apps/**` with synchronized `x-nabla` metadata;
+- runtime status observes both remaining native apps and migrated Compose workloads;
+- functional health is checked by Gatus/AutoKuma where possible;
+- Homarr reflects canonical inventory;
+- native apps are retired only after rollback-safe validation;
+- every production secret has an owner, consumer, source and rotation/preservation policy;
+- migration-critical secrets are no longer trapped only inside TrueNAS private UI fields;
+- Vaultwarden is the functioning interim secret source through the official `bw` workflow;
+- bootstrap secrets are minimized and explicitly separated;
+- the legacy Bitwarden API adapter is removed when no longer required;
 - Keycloak provides the central human identity layer backed by GitHub;
-- HashiCorp Vault becomes the long-term machine/application secret system with Keycloak OIDC for human access.
+- HashiCorp Vault becomes the long-term machine/application secret system with Keycloak OIDC for humans.
