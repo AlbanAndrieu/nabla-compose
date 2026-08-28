@@ -68,7 +68,9 @@ def validate_manifest(data: dict[str, Any]) -> None:
             if not isinstance(secret, dict):
                 raise SecretsError(f"{app}: secret entries must be objects")
             if forbidden_keys.intersection(secret):
-                raise SecretsError(f"{app}: secret metadata contains a forbidden value-bearing key")
+                raise SecretsError(
+                    f"{app}: secret metadata contains a forbidden value-bearing key"
+                )
 
             env_name = secret.get("env")
             field = secret.get("field")
@@ -76,11 +78,15 @@ def validate_manifest(data: dict[str, Any]) -> None:
             rotation = secret.get("rotation", "rotatable")
 
             if not isinstance(env_name, str) or not ENV_NAME_RE.fullmatch(env_name):
-                raise SecretsError(f"{app}: invalid environment variable name: {env_name!r}")
+                raise SecretsError(
+                    f"{app}: invalid environment variable name: {env_name!r}"
+                )
             if env_name in app_env_names:
                 raise SecretsError(f"{app}: duplicate environment variable: {env_name}")
             if env_name in env_names:
-                raise SecretsError(f"environment variable mapped by multiple apps: {env_name}")
+                raise SecretsError(
+                    f"environment variable mapped by multiple apps: {env_name}"
+                )
             app_env_names.add(env_name)
             env_names.add(env_name)
 
@@ -89,7 +95,9 @@ def validate_manifest(data: dict[str, Any]) -> None:
             if source == "field" and (not isinstance(field, str) or not field):
                 raise SecretsError(f"{app}/{env_name}: field is required")
             if rotation not in ALLOWED_ROTATION:
-                raise SecretsError(f"{app}/{env_name}: invalid rotation policy: {rotation}")
+                raise SecretsError(
+                    f"{app}/{env_name}: invalid rotation policy: {rotation}"
+                )
 
 
 class BitwardenClient:
@@ -103,8 +111,9 @@ class BitwardenClient:
 
     def _run(self, *args: str, with_session: bool = False) -> str:
         command = ["bw", *args]
+        child_env = os.environ.copy()
         if with_session:
-            command.extend(["--session", self.session])
+            child_env["BW_SESSION"] = self.session
 
         try:
             result = subprocess.run(
@@ -112,6 +121,7 @@ class BitwardenClient:
                 check=True,
                 capture_output=True,
                 text=True,
+                env=child_env,
             )
         except FileNotFoundError as exc:
             raise SecretsError("Bitwarden CLI `bw` was not found in PATH") from exc
@@ -130,7 +140,7 @@ class BitwardenClient:
                 f"expected {self.server}, got {configured_server or '<unset>'}"
             )
 
-        status = json.loads(self._run("status"))
+        status = json.loads(self._run("status", with_session=True))
         if status.get("status") != "unlocked":
             raise SecretsError("Bitwarden vault is not unlocked")
 
