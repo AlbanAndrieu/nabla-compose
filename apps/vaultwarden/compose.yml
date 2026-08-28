@@ -1,17 +1,4 @@
 ---
-configs:
-  poll-config.yml:
-    content: |
-      - url: https://github.com/albanandrieu/nabla-compose.git
-        reference: master
-        interval: 3600
-
-# https://doco.cd/latest/External-Secrets/
-secrets:
-  1pw_token:
-    # file: /root/.doco-cd/1pw_token
-    file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
-
 services:
   vaultwarden:
     image: vaultwarden/server:latest
@@ -27,33 +14,24 @@ services:
       SMTP_HOST: "smtp.gmail.com"
       SMTP_PORT: "587"
       SMTP_SECURITY: "starttls"
-
       SMTP_FROM: "alban.andrieu@gmail.com"
       SMTP_FROM_NAME: "Vaultwarden Alban Andrieu"
-
       SMTP_USERNAME: "${VAULTWARDEN_SMTP_USERNAME}"
       SMTP_PASSWORD: "${VAULTWARDEN_SMTP_PASSWORD}"
-
       HELO_NAME: "vaultwarden.albandrieu.com"
       IP_HEADER: "X-Forwarded-For"
     volumes:
-      # - ./vw-data/:/data/
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
-    #  - "traefik.http.routers.vaultwarden.entrypoints=websecure"
-    #  - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
-    #  - "traefik.http.routers.vaultwarden.service=vaultwarden"
-    #  - "traefik.http.services.vaultwarden.loadbalancer.server.scheme=http"
-    #  - "traefik.http.middlewares.security.headers.customResponseHeaders.Referrer-Policy=same-origin"
     networks:
       - default
       - traefik_network
       - secrets-backend
 
+  # Optional Doco-CD Vault Management API bridge. Human/operator access uses
+  # the official Bitwarden Password Manager CLI (`bw`) against Vaultwarden.
+  # These BW_* values are bootstrap secrets and must remain outside Git.
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
@@ -62,17 +40,12 @@ services:
     user: "568:568" # TrueNAS apps user
     environment:
       BW_HOST: "https://vaultwarden.albandrieu.com"
-      # BW_HOST: http://172.17.0.24:30032
       BW_CLIENTID: "${BW_CLIENTID}"
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
       BW_PASSWORD: "${BW_PASSWORD}"
     volumes:
       - /mnt/cpool/vaultwarden/bw-data/:/data/
-    # extra_hosts:
-      # - "vaultwarden.albandrieu.com:172.17.0.24"
-      # - "vaultwarden.albandrieu.com:172.17.0.1"
     ports:
-      # - 8087:8087
       - 8087
     depends_on:
       - vaultwarden
