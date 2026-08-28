@@ -32,7 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup OpenTofu
@@ -40,6 +39,10 @@ jobs:
         with:
           tofu_version: 1.12.5
           tofu_wrapper: false
+
+      - name: Check OpenTofu formatting
+        shell: bash
+        run: tofu fmt -check -recursive terraform
 
       - name: Install Terragrunt
         shell: bash
@@ -70,9 +73,9 @@ jobs:
           tofu version
           terragrunt --version
 
-      - name: Check OpenTofu formatting
+      - name: Check Terragrunt HCL formatting
         shell: bash
-        run: tofu fmt -check -recursive terraform
+        run: terragrunt hcl fmt --check --diff
 
       - name: Initialize TrueNAS module without backend
         working-directory: terraform/truenas
@@ -83,10 +86,6 @@ jobs:
         working-directory: terraform/truenas
         shell: bash
         run: tofu validate -no-color
-
-      - name: Check Terragrunt HCL formatting
-        shell: bash
-        run: terragrunt hcl fmt --check --diff
 
       - name: Publish static-check summary
         if: always()
@@ -99,7 +98,7 @@ jobs:
             echo "It does **not** load homelab credentials, contact the internal state backend, or run a real Terragrunt plan."
             echo
             echo "- OpenTofu: \`fmt -check\`"
-            echo "- TrueNAS module: \`init -backend=false\` + \`validate\`"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
+            echo "- TrueNAS module: \`init -backend=false\` + \`validate\`"
             echo "- Real plans/applies remain trusted manual operations on the private runner."
           } >> "${GITHUB_STEP_SUMMARY}"
