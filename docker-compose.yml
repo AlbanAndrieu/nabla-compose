@@ -64,8 +64,6 @@ services:
       retries: 3
 
 include:
-  - path: pgwatch/docker/compose.postgres.yml
-  - path: pgwatch/docker/compose.pgbouncer.yml
   - path: compose.redis.yml
   - path: compose.monitoring.yml
   - path: compose.helper.yml

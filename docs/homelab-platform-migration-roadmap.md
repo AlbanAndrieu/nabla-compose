@@ -13,6 +13,20 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
 
+## P0 hard gate — secrets-first migration
+
+Before continuing broad native-App-to-Compose cutovers, treat the Vaultwarden migration foundation as a P0 gate:
+
+- use `docs/secrets-migration-roadmap.md` as the detailed execution plan;
+- inventory secret variable names and consumers without committing values;
+- keep existing git-crypt shell exports and root-restricted TrueNAS `.env` files as temporary migration inputs only;
+- make Vaultwarden the interim source of truth for human-managed homelab secrets;
+- validate one canary service end-to-end before expanding the migration;
+- preserve migration-critical encryption keys exactly until their dependent data has been verified;
+- keep machine-secret migration to HashiCorp Vault as the later Kubernetes-oriented target.
+
+This gate complements the current CrowdSec, TrueNAS/Talos and service-migration work; it must not roll those already-merged changes back.
+
 ## Target principles
 
 1. `apps/**/compose.yml` is the deployment source of truth.

@@ -41,7 +41,7 @@ services:
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
-    #labels:
+    # labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
     #  - "traefik.http.routers.vaultwarden.entrypoints=websecure"
@@ -54,6 +54,10 @@ services:
       - traefik_network
       - secrets-backend
 
+  # Legacy Doco-CD compatibility adapter. Do not add new consumers here.
+  # New Compose migrations use the official `bw` CLI renderer documented in
+  # config/secrets/README.md. Remove this service only after Doco-CD no longer
+  # depends on its Vault Management API compatibility endpoint.
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
@@ -69,8 +73,8 @@ services:
     volumes:
       - /mnt/cpool/vaultwarden/bw-data/:/data/
     # extra_hosts:
-      # - "vaultwarden.albandrieu.com:172.17.0.24"
-      # - "vaultwarden.albandrieu.com:172.17.0.1"
+    # - "vaultwarden.albandrieu.com:172.17.0.24"
+    # - "vaultwarden.albandrieu.com:172.17.0.1"
     ports:
       # - 8087:8087
       - 8087

@@ -37,7 +37,8 @@
       "command": "npx",
       "args": ["-y", "@bitwarden/mcp-server@2026.7.0"],
       "env": {
-        "BW_SESSION": "${BW_SESSION}"
+        "BW_SESSION": "${BW_SESSION}",
+        "BW_CLI_PATH": "${BW_CLI_PATH:-bw}"
       }
     },
     "fastapi-sample": {

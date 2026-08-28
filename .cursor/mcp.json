@@ -10,6 +10,15 @@
         "TRUENAS_INSECURE": "${env:TRUENAS_MCP_INSECURE}"
       }
     },
+    "bitwarden": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@bitwarden/mcp-server@2026.7.0"],
+      "env": {
+        "BW_SESSION": "${env:BW_SESSION}",
+        "BW_CLI_PATH": "${env:BW_CLI_PATH}"
+      }
+    },
     "homarr": {
       "type": "http",
       "url": "${env:HOMARR_MCP_URL}",
