@@ -1,90 +1,80 @@
 # Plan approfondi d'amélioration - nabla-compose
 
-> Ce plan est issu d’un audit global du projet. Il priorise les axes d’amélioration par impact et détaille les actions concrètes à mener.
+> La roadmap consolidée et priorisée est désormais [`docs/homelab-platform-migration-roadmap.md`](homelab-platform-migration-roadmap.md). Ce fichier conserve les axes historiques, mais la roadmap consolidée fait foi pour l'ordre d'exécution.
 
-> La roadmap opérationnelle consolidée pour la migration des anciennes applications TrueNAS, des secrets et de l'identité est maintenant maintenue dans [`docs/homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md).
+## Priorité actuelle
 
-## Table des matières
-- [1. Gestion des secrets](#1-gestion-des-secrets)
-- [2. Fichiers d'environnement](#2-fichiers-denvironnement)
-- [3. Réseau et sécurité](#3-réseau-et-sécurité)
-- [4. Monitoring et logs](#4-monitoring-et-logs)
-- [5. Healthchecks](#5-healthchecks)
-- [6. Modularité et volumes](#6-modularité-et-volumes)
-- [7. Labels Traefik et Prometheus](#7-labels-traefik-et-prometheus)
-- [8. CI/CD et tests automatiques](#8-cicd-et-tests-automatiques)
-- [9. Permissions et montages](#9-permissions-et-montages)
-- [10. Actions prioritaires (par impact)](#10-actions-prioritaires-par-impact)
+La gestion des secrets est **P0** et précède les nouvelles migrations d'applications TrueNAS natives.
 
----
+Avant qu'un service contenant des mots de passe, API keys, clés de chiffrement ou secrets OAuth passe en `compose-ready` :
 
-## 1. Gestion des secrets
-- Centraliser la gestion des secrets (utiliser `secrets:` Docker Compose partout).
-- Stocker secrets dans un gestionnaire (Vaultwarden, Hashicorp Vault) ou des fichiers sécurisés.
-- Utiliser des montages read-only pour les secrets.
+1. inventorier ses variables sans stocker leur valeur dans Git ;
+2. ajouter leurs références dans `config/secrets/bitwarden-map.json` ou documenter explicitement leur statut de bootstrap secret ;
+3. valider le manifest avec `python scripts/validate_secret_manifest.py` ;
+4. migrer/récupérer les valeurs via Vaultwarden et le CLI officiel Bitwarden `bw` ;
+5. préserver les clés de chiffrement pendant le cutover quand une rotation casserait les données existantes ;
+6. supprimer l'ancien export shell ou `.env` seulement après validation du nouveau chemin.
 
-## 2. Fichiers d'environnement
-- Factoriser fichiers `env_file` pour éviter la redondance.
-- Documenter chaque variable par service.
-- Générer des exemples `.env` pour nouveaux utilisateurs.
+La trajectoire cible est :
 
-## 3. Réseau et sécurité
-- Uniformiser l’usage du réseau `intranet`.
-- Restreindre les ports à localhost où possible (`127.0.0.1:<port>`).
-- Ajouter et documenter des règles Traefik pour les APIs/admin.
+`exports shell/gitcrypt -> Vaultwarden + bw -> Keycloak OIDC -> HashiCorp Vault`
 
-## 4. Monitoring et logs
-- Généraliser le driver de logs `json-file` + options de rotation (`max-size`, `max-file`).
-- Monter les logs critiques en read-only.
-- Activer les métriques Prometheus sur tous les endpoints compatibles.
+## Axes historiques
 
-## 5. Healthchecks
-- Ajouter systématiquement des healthchecks sur les services critiques.
-- Utiliser des tests HTTP, commandes ou socket pour vérifier l’état.
+### Gestion des secrets
 
-## 6. Modularité et volumes
-- Harmoniser et externaliser les volumes partagés (`/mnt/cpool/`).
-- Documenter la fonction de chaque volume.
-- Grouper les volumes par usage (ex : tous les volumes data / code / configs).
+- Centraliser les secrets dans Vaultwarden en première étape.
+- Utiliser `bw` pour les opérations humaines et le bridge `bitwarden-api` uniquement pour l'automatisation Doco-CD qui en dépend.
+- Garder les bootstrap secrets minimaux hors Git dans des fichiers root-only `0600`.
+- Migrer ensuite vers HashiCorp Vault KV v2 avec politiques et authentification adaptées aux workloads.
 
-## 7. Labels Traefik et Prometheus
-- Synchroniser les labels Traefik sur tous les services exposés.
-- Standardiser la configuration Prometheus pour chaque micro-service.
-- Documenter la structure de l’intranet et des sous-domaines.
+### Fichiers d'environnement
 
-## 8. CI/CD et tests automatiques
-- Ajouter des checks de sécurité (grype, trivy), de bonnes pratiques Docker et tests qualité dans `.gitlab-ci.yml`.
-- Vérifier que tous les fragments Compose sont valides (`docker compose config`).
-- Renforcer les hooks pre-commit.
+- Ne pas considérer les `.env` persistants comme source de vérité des secrets.
+- Les `.env` générés depuis un gestionnaire de secrets doivent être éphémères, `0600` et hors du working tree.
+- Documenter chaque variable non secrète et chaque référence secrète par service.
 
-## 9. Permissions et montages
-- Monter tous les secrets et données sensibles en read-only.
-- Vérifier les permissions des volumes data.
+### Réseau et sécurité
 
----
+- Uniformiser l'usage du réseau `intranet` lorsque pertinent.
+- Restreindre les ports à localhost ou aux réseaux nécessaires.
+- Ne jamais publier Docker socket/docker-socket-proxy sur Internet.
 
-## 10. Actions prioritaires (par impact)
+### Monitoring et logs
 
-### Améliorations peu impactantes (à faire en premier)
-- Harmoniser les labels Traefik et Prometheus sur les fragments Compose (ajout/correction).
-- Ajouter des healthchecks de base (HTTP ou commande simple) sur les services critiques.
-- Sécuriser les montages des secrets en read-only.
-- Documenter et factoriser les variables d’environnement.
+- Généraliser la rotation des logs.
+- Maintenir les métriques Prometheus sur les services compatibles.
+- Utiliser les endpoints FastAPI Sample documentés dans le skill `homelab-runtime-status` pour distinguer runtime, santé et exposition.
 
-### Améliorations intermédiaires
-- Uniformiser l’ajout des services au réseau `intranet`.
-- Centraliser la gestion des logs et ajouter log rotation.
-- Factoriser les volumes partagés.
-- Mettre à jour les scripts automation pour valider les configs.
+### Healthchecks
 
-### Améliorations structurantes
-- Migrer la gestion des secrets vers Docker secrets ou un gestionnaire tiers.
-- Réviser l’arborescence des volumes et configs.
-- Refondre la documentation des fragments Compose.
-- Ajouter des outils CI/CD avancés (Grype, Trivy, reload automatique des fragments).
+- Ajouter des healthchecks fonctionnels aux services critiques.
+- Ne pas déduire qu'un service est fonctionnel uniquement parce que son conteneur est `RUNNING`.
 
----
+### Modularité et volumes
 
-> Ce plan doit être suivi, en commençant par les actions les moins disruptives pour garantir la stabilité des déploiements. Chaque changement sera justifié et documenté.
+- Migrer les ixVolumes TrueNAS vers des datasets explicites sous `/mnt/cpool/<service>`.
+- Séparer les sous-datasets lorsque les composants ont des cycles de sauvegarde différents.
 
----
+### CI/CD et tests automatiques
+
+- Maintenir Compose Validate, Pre-commit, MegaLinter et Service Consumers.
+- Valider automatiquement le manifest de références de secrets sans donner à CI accès à Vaultwarden.
+- Continuer Gitleaks/Trivy/secret scanning pour empêcher la réintroduction de valeurs sensibles.
+
+### Permissions et montages
+
+- Utiliser les UID/GID attendus par les applications migrées.
+- Restreindre les fichiers temporaires contenant des secrets à `0600`.
+- Monter les secrets en fichier read-only lorsque l'application le supporte.
+
+## Ordre d'exécution
+
+1. P0 secrets Vaultwarden/Bitwarden CLI et inventaire.
+2. P1 observation runtime Docker Compose dans FastAPI Sample.
+3. Migration des applications TrueNAS natives vers Compose + `/mnt/cpool`.
+4. Validation de NPMplus avant migration Nginx Proxy Manager.
+5. Keycloak comme IdP avec GitHub comme broker d'identité.
+6. HashiCorp Vault comme gestionnaire de secrets machine/humain à long terme.
+
+Voir [`docs/homelab-platform-migration-roadmap.md`](homelab-platform-migration-roadmap.md) pour les critères de cutover et l'ordre détaillé des services.
