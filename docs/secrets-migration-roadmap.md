@@ -30,7 +30,7 @@ This is useful defense in depth but has limitations:
 - rotation and per-service auditing are manual;
 - deleting a current file does not erase values from Git history or existing clones.
 
-Do not delete these files during initial migration. Treat them as a **legacy import/rollback source** until Vaultwarden parity has been verified.
+Do not delete these files. Treat them as a **permanent encrypted recovery source** while Vaultwarden becomes the operational source of truth. Periodically verify that an authorized recovery environment can still decrypt them.
 
 ### TrueNAS service `.env`
 
@@ -105,7 +105,7 @@ For a git-crypt file not normally loaded, source it manually in a trusted shell 
 
 ## P0.4 — Vaultwarden item organization
 
-All homelab workload items belong in folder `TrueNAS`.
+Items managed by the operator import/render workflow belong in the personal folder `TrueNAS`. Items required by unattended Doco-CD additionally belong to the restricted organization collection `TrueNAS / Doco-CD` and are accessed through its dedicated account. See `docs/vaultwarden-truenas-dococd-account.md`.
 
 Both patterns are acceptable during transition:
 
@@ -210,16 +210,16 @@ Inventory and migrate:
 
 Do not make remote CI depend directly on a LAN-only Vaultwarden unless connectivity and trust boundaries are explicitly designed.
 
-### Wave D — retire legacy sources
+### Wave D — reduce runtime exposure and retain recovery sources
 
 For each successfully migrated secret:
 
 1. stop sourcing it automatically from `.bashrc` if no interactive workflow needs it;
 2. remove duplicated manual TrueNAS `.env` values and replace with generated materialization;
-3. keep the git-crypt legacy value only through the rollback period;
-4. rotate rotatable secrets if exposure history warrants it;
-5. remove old encrypted files/variables after the observation period;
-6. review Git history/clones separately—file deletion is not history erasure.
+3. keep the encrypted git-crypt value indefinitely as the secondary recovery copy;
+4. verify recovery decryption periodically without printing values;
+5. rotate rotatable live secrets if exposure history warrants it, updating the encrypted recovery copy deliberately;
+6. review Git history/clones separately—repository privacy and encryption do not make an exposed historical value safe.
 
 ## P0.7 — official Bitwarden MCP
 
@@ -266,7 +266,7 @@ Avoid long-lived plaintext bulk exports during the transition.
 
 P0 is complete when:
 
-- Vaultwarden `TrueNAS` folder is the canonical source for homelab workload secrets;
+- Vaultwarden `TrueNAS` folder is the operator scope and the restricted `TrueNAS / Doco-CD` collection is the unattended deployment scope;
 - every migration-critical application secret is represented in the manifest;
 - import tooling can migrate already-exported legacy environment variables without printing them;
 - renderer can create both ephemeral and service-local `0600` env files;
@@ -276,4 +276,4 @@ P0 is complete when:
 - bootstrap secrets are minimized and documented separately;
 - Doco-CD sidecar consumers have an explicit retirement inventory;
 - official local Bitwarden MCP is documented/configured but never network-exposed;
-- Git-crypt remains only as temporary rollback/legacy storage for secrets not yet migrated.
+- git-crypt remains a permanent encrypted secondary recovery source; no automated cleanup removes it.

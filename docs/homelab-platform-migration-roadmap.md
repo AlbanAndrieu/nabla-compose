@@ -19,7 +19,7 @@ Before continuing broad native-App-to-Compose cutovers, treat the Vaultwarden mi
 
 - use `docs/secrets-migration-roadmap.md` as the detailed execution plan;
 - inventory secret variable names and consumers without committing values;
-- keep existing git-crypt shell exports and root-restricted TrueNAS `.env` files as temporary migration inputs only;
+- keep existing git-crypt shell exports as a permanent encrypted recovery source; root-restricted TrueNAS `.env` files remain temporary runtime inputs;
 - make Vaultwarden the interim source of truth for human-managed homelab secrets;
 - validate one canary service end-to-end before expanding the migration;
 - preserve migration-critical encryption keys exactly until their dependent data has been verified;
@@ -357,12 +357,12 @@ The current sources must be treated as migration inputs, not as competing long-t
 
 | Current source | Immediate treatment | End state |
 | --- | --- | --- |
-| `nabla/env/home/pass/` shell exports protected by git-crypt | Keep read-only during migration; inventory export names without decrypting values into reports | Remove secret values after import, verification and rotation |
+| `nabla/env/home/pass/` shell exports protected by git-crypt | Keep read-only during migration; inventory export names without decrypting values into reports | Retain indefinitely as an encrypted secondary recovery source |
 | Shell environment loaded by `.bashrc` | Use only as the in-memory input to the one-time importer | Remove secret-file sourcing from `.bashrc` |
 | Per-service `.env` files on TrueNAS | Keep root-restricted as a deployment compatibility layer | Generate from Vaultwarden, then replace with direct Doco-CD resolution where practical |
 | Vaultwarden | Make the interim source of truth | Retain for human secrets; migrate machine secrets to Vault later |
 
-The `AlbanAndrieu/nabla` repository is already private. Keep it private while the git-crypt migration is in progress. `AlbanAndrieu/nabla-compose` may remain public only because it must contain references, manifests and item UUIDs, never secret values. Repository privacy is defense in depth, not a substitute for rotating anything that has ever appeared in Git history, CI output or a container definition.
+The `AlbanAndrieu/nabla` repository is already private and must remain private while it retains the git-crypt recovery source. `AlbanAndrieu/nabla-compose` may remain public only because it must contain references, manifests and item UUIDs, never secret values. Repository privacy is defense in depth, not a substitute for rotating anything that has ever appeared in Git history, CI output or a container definition.
 
 Classify secrets into:
 
@@ -472,8 +472,8 @@ The MCP server must remain local over stdio and must never be exposed as a netwo
 5. Generate one service `.env`, restart only that service, and validate functional health rather than container state alone.
 6. Keep the previous `.env` available as a root-only rollback file until the service passes its validation window.
 7. Migrate Doco-CD from `1password` to the Vaultwarden webhook provider and remove persistent `.env` files service by service where supported.
-8. Rotate migratable credentials, then remove corresponding exports and `.bashrc` includes. Preserve non-rotatable encryption keys until data decryption has been proven.
-9. Remove the git-crypt secret payloads only after all consumers have passed verification; retain a separately encrypted offline recovery snapshot for break-glass use.
+8. Rotate migratable live credentials when required, then optionally remove corresponding `.bashrc` includes. Preserve non-rotatable encryption keys exactly until data decryption has been proven.
+9. Retain the git-crypt secret payloads indefinitely as the encrypted secondary recovery source; test authorized decryption periodically and never automate their deletion.
 
 Do not delete, rotate or rewrite all sources in one operation. Roll back a failed service by restoring its previous root-only `.env` and Compose revision; do not copy secret values back into Git.
 
@@ -492,7 +492,7 @@ Completion criteria:
 - [ ] each generated TrueNAS `.env` is outside Git, root-owned and mode `0600`;
 - [ ] `.bashrc` no longer sources migrated secret files;
 - [ ] CI and secret scanners contain no plaintext or decrypted artifacts;
-- [ ] legacy git-crypt files are removed only after runtime verification and rotation decisions.
+- [ ] git-crypt files are retained, remain decryptable by the authorized recovery process, and are never removed by migration automation.
 
 ### S3 — HashiCorp Vault
 
