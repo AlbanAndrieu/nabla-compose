@@ -7,7 +7,7 @@ Current lab baseline:
 - TrueNAS SCALE: `26.0.0-BETA.3`;
 - OpenTofu/Terragrunt: existing `nabla-compose` stack;
 - TrueNAS provider: `PjSalty/truenas ~> 2.4`;
-- local AI inspection: official `truenas/truenas-mcp` MCP server;
+- local AI inspection: read-only `@profanter-dev/truenas-mcp@1.0.6`, using the TrueNAS 25.10+/26 `/api/current` JSON-RPC endpoint;
 - transitional secret source: existing Vaultwarden deployment, consumed by Doco-CD through the Bitwarden Vault Management API sidecar;
 - future Kubernetes secret manager: Vault or OpenBao, to be evaluated only after the first cluster exists.
 
@@ -120,7 +120,7 @@ When the manual TrueNAS preparation is complete, create **separate identities fo
 
 ### 5.1 MCP read-only identity
 
-`truenas/truenas-mcp` is currently a Research Preview and does not expose a server-side `--read-only` flag. Read-only enforcement must therefore come from TrueNAS RBAC.
+The repository currently selects `@profanter-dev/truenas-mcp@1.0.6` for local AI inspection. It targets TrueNAS SCALE 25.10+, connects to the `/api/current` JSON-RPC 2.0 API and exposes no mutating MCP tools. Read-only enforcement must still come from a dedicated TrueNAS identity and RBAC rather than from reusing an infrastructure-write credential.
 
 Create a dedicated service identity rather than using `root` or `truenas_admin`:
 
@@ -132,23 +132,19 @@ Create a dedicated service identity rather than using `root` or `truenas_admin`:
 6. Create a user-linked API key for this account.
 7. Store the API key outside Git.
 
-The repository contains `.cursor/mcp.json` and expects:
+The repository contains `.mcp.json` and `.cursor/mcp.json` and expects:
 
 ```bash
-export TRUENAS_URL='https://truenas.example.internal'
+export TRUENAS_MCP_HOST='truenas.example.internal:443'
 export TRUENAS_MCP_API_KEY='...read-only key...'
+export TRUENAS_MCP_INSECURE=false
 ```
 
-If TrueNAS uses a private/self-signed CA, prefer trusting that CA locally rather than disabling TLS verification.
+`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. If TrueNAS uses a private/self-signed CA, prefer trusting that CA locally rather than disabling TLS verification.
 
-Install the local MCP binary, for example:
+The selected MCP currently authenticates with `auth.login_with_api_key`, which is deprecated in TrueNAS 26. Reassess it before TrueNAS 27 or replace it with an MCP/wrapper built on the modern `truenas/api_client`/SCRAM path. The official `truenas/truenas-mcp` Research Preview is not selected for this TrueNAS 26 configuration because its current transport still targets the legacy `/websocket` DDP-style connection.
 
-```bash
-go install github.com/truenas/truenas-mcp/cmd/truenas-mcp@latest
-command -v truenas-mcp
-```
-
-Cursor can then use `truenas-readonly` to inspect pools, datasets, interfaces, alerts and VMs without receiving write permissions from TrueNAS.
+Cursor and other local agents can use `truenas-readonly` to inspect pools, datasets, interfaces, alerts and VMs without receiving infrastructure write credentials.
 
 ### 5.2 OpenTofu/Terragrunt identity
 
@@ -235,6 +231,8 @@ terragrunt apply
 ```
 
 This allows create/update operations while retaining provider-level protection against deletion.
+
+The repository CD workflow follows the same trust boundary: `.github/workflows/terragrunt-cd.yaml` is manual-dispatch only, runs on the private `infra-runners` label, requires explicit apply confirmation, and is scoped to `infrastructure/truenas`. It intentionally has no scheduled or push-triggered `apply`. The runner must inject the required TrueNAS/state credentials through the trusted secret boundary; secret values must not be committed to the repository.
 
 The default test nodes are intentionally small:
 
@@ -456,7 +454,9 @@ Only then proceed with Talos machine configuration, `talosctl bootstrap`, CNI, d
 
 - `PjSalty/terraform-provider-truenas`: https://github.com/PjSalty/terraform-provider-truenas
 - Provider registry documentation: https://registry.terraform.io/providers/PjSalty/truenas/latest/docs
-- Official TrueNAS MCP: https://github.com/truenas/truenas-mcp
+- Selected read-only MCP: https://www.npmjs.com/package/@profanter-dev/truenas-mcp
+- Native TrueNAS Python client: https://github.com/truenas/api_client
+- Official TrueNAS MCP Research Preview (not selected for this TrueNAS 26 configuration): https://github.com/truenas/truenas-mcp
 
 ### Vaultwarden / Bitwarden / Doco-CD
 

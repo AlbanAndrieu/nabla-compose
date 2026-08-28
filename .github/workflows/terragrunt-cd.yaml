@@ -1,50 +1,122 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Terragrunt CD
-permissions: { contents: read }
+
+permissions:
+  contents: read
 
 on:
-  workflow_dispatch: {}
-  schedule: [{cron: '0 0 * * *'}] # Every day at midnight
-  push:
-    branches: ["main"]
-    paths:
-      - root.hcl
-      - infrastructure/**
-      - terraform/**
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Trusted TrueNAS Terragrunt operation"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+      confirm_apply:
+        description: "Required confirmation when operation=apply"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: terragrunt-cd-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   TG_NON_INTERACTIVE: "true"
+  TERRAGRUNT_VERSION: "0.97.0"
+  TRUENAS_ENABLED: "true"
+  TRUENAS_DESTROY_PROTECTION: "true"
+  TRUENAS_INSECURE_SKIP_VERIFY: "false"
 
 jobs:
-  apply:
+  truenas:
     runs-on: infra-runners
     environment: TrueNAS
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup mise
-        run: mise install
-
-      - name: Load Secrets
-        uses: ./.github/actions/load-secrets
         with:
-          op-connect-host: ${{ secrets.OP_CONNECT_HOST }}
-          op-connect-token: ${{ secrets.OP_CONNECT_TOKEN }}
+          persist-credentials: false
 
-      - name: Terragrunt Init
-        run: terragrunt run --all -- init -upgrade
-        env:
-          OP_CONNECT_HOST: ${{ secrets.OP_CONNECT_HOST }}
-          OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
 
-      - name: Terragrunt Apply
-        run: terragrunt run --all -- apply -auto-approve
+      - name: Install Terragrunt
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}"
+          curl --fail --location --silent --show-error \
+            "${base_url}/terragrunt_linux_amd64" \
+            --output "${RUNNER_TEMP}/terragrunt_linux_amd64"
+          curl --fail --location --silent --show-error \
+            "${base_url}/SHA256SUMS" \
+            --output "${RUNNER_TEMP}/terragrunt_SHA256SUMS"
+          grep ' terragrunt_linux_amd64$' "${RUNNER_TEMP}/terragrunt_SHA256SUMS" \
+            > "${RUNNER_TEMP}/terragrunt_SHA256SUMS_linux_amd64"
+          (
+            cd "${RUNNER_TEMP}"
+            sha256sum --check terragrunt_SHA256SUMS_linux_amd64
+          )
+
+          install_dir="${RUNNER_TEMP}/bin"
+          mkdir -p "${install_dir}"
+          install -m 0755 "${RUNNER_TEMP}/terragrunt_linux_amd64" "${install_dir}/terragrunt"
+          printf '%s\n' "${install_dir}" >> "${GITHUB_PATH}"
+
+      - name: Validate trusted runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL; do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("${name}")
+            fi
+          done
+
+          if ((${#missing[@]} > 0)); then
+            printf 'Missing required runner environment variables: %s\n' "${missing[*]}" >&2
+            echo "Inject them through the trusted runner/secret boundary; do not commit values to the repository." >&2
+            exit 1
+          fi
+
+          tofu version
+          terragrunt --version
+
+      - name: Reject unconfirmed apply
+        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply != true }}
+        shell: bash
+        run: |
+          echo "Refusing Terragrunt apply without confirm_apply=true." >&2
+          exit 1
+
+      - name: Terragrunt init
+        working-directory: infrastructure/truenas
+        shell: bash
+        run: terragrunt init -upgrade
+
+      - name: Terragrunt plan
+        if: ${{ inputs.operation == 'plan' }}
+        working-directory: infrastructure/truenas
+        shell: bash
         env:
-          OP_CONNECT_HOST: ${{ secrets.OP_CONNECT_HOST }}
-          OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
+          TRUENAS_READ_ONLY: "true"
+        run: terragrunt plan
+
+      - name: Terragrunt apply
+        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply }}
+        working-directory: infrastructure/truenas
+        shell: bash
+        env:
+          TRUENAS_READ_ONLY: "false"
+        run: terragrunt apply -auto-approve
