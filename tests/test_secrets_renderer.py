@@ -6,6 +6,7 @@ import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE_PATH = Path(__file__).parents[1] / "scripts" / "secrets" / "render_from_bitwarden.py"
 SPEC = importlib.util.spec_from_file_location("render_from_bitwarden", MODULE_PATH)
@@ -90,7 +91,10 @@ class SecretsRendererTests(unittest.TestCase):
                 output_dir=output_dir,
             )
 
-            self.assertEqual(target.read_text(encoding="utf-8").splitlines()[-1], "EXAMPLE_TOKEN='abc$123'")
+            self.assertEqual(
+                target.read_text(encoding="utf-8").splitlines()[-1],
+                "EXAMPLE_TOKEN='abc$123'",
+            )
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(output_dir.stat().st_mode), 0o700)
 
@@ -102,6 +106,22 @@ class SecretsRendererTests(unittest.TestCase):
 
         with self.assertRaises(renderer.SecretsError):
             renderer.extract_secret(item, {"env": "TOKEN", "field": "TOKEN"})
+
+    @mock.patch.object(renderer.subprocess, "run")
+    def test_bw_session_is_passed_in_environment_not_argv(self, run: mock.Mock) -> None:
+        run.return_value.stdout = "ok\n"
+        client = renderer.BitwardenClient(
+            session="session-secret",
+            server="https://vaultwarden.example.test",
+        )
+
+        client._run("sync", with_session=True)
+
+        command = run.call_args.args[0]
+        child_env = run.call_args.kwargs["env"]
+        self.assertEqual(command, ["bw", "sync"])
+        self.assertNotIn("session-secret", command)
+        self.assertEqual(child_env["BW_SESSION"], "session-secret")
 
 
 if __name__ == "__main__":
