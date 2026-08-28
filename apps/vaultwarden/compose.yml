@@ -41,7 +41,7 @@ services:
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
-    #labels:
+    # labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
     #  - "traefik.http.routers.vaultwarden.entrypoints=websecure"
