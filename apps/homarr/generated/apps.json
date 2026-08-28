@@ -824,7 +824,7 @@
       "sourcePath": "catalog/service-consumers.static.yml",
       "composeService": null,
       "dockerManaged": false,
-      "href": "https://172.17.0.24",
+      "href": "https://172.17.0.24:7000",
       "syncEligible": true,
       "description": "TrueNAS SCALE storage and application host.",
       "icon": "💾"
