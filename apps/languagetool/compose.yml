@@ -4,11 +4,17 @@ services:
     image: erikvl87/languagetool
     container_name: languagetool
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8010/v2/check" ]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "http://localhost:8010/v2/check?language=en-US&text=healthcheck",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 60s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.languagetool.rule=Host(`languagetool.int.albandrieu.com`)"
