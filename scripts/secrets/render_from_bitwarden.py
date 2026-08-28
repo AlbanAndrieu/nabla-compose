@@ -34,6 +34,16 @@ def validate_manifest(data: dict[str, Any]) -> None:
     if not isinstance(server, str) or not server.startswith("https://"):
         raise SecretsError("manifest server must be an https URL")
 
+    folder = data.get("folder")
+    if not isinstance(folder, dict):
+        raise SecretsError("manifest folder must be an object")
+    folder_name = folder.get("name")
+    folder_id = folder.get("id")
+    if not isinstance(folder_name, str) or not folder_name.strip():
+        raise SecretsError("manifest folder.name must be a non-empty string")
+    if not isinstance(folder_id, str) or not folder_id.strip():
+        raise SecretsError("manifest folder.id must be a non-empty string")
+
     items = data.get("items")
     if not isinstance(items, list) or not items:
         raise SecretsError("manifest items must be a non-empty list")
@@ -58,8 +68,8 @@ def validate_manifest(data: dict[str, Any]) -> None:
             raise SecretsError(f"duplicate app identifier: {app}")
         apps.add(app)
 
-        if not isinstance(item_name, str) or not item_name.startswith("nabla/"):
-            raise SecretsError(f"{app}: item must use the nabla/... naming convention")
+        if not isinstance(item_name, str) or not item_name.strip():
+            raise SecretsError(f"{app}: item must be a non-empty Vaultwarden item name")
         if not isinstance(secrets, list) or not secrets:
             raise SecretsError(f"{app}: secrets must be a non-empty list")
 
@@ -73,6 +83,7 @@ def validate_manifest(data: dict[str, Any]) -> None:
                 )
 
             env_name = secret.get("env")
+            import_env = secret.get("importEnv", env_name)
             field = secret.get("field")
             source = secret.get("source", "field")
             rotation = secret.get("rotation", "rotatable")
@@ -80,6 +91,10 @@ def validate_manifest(data: dict[str, Any]) -> None:
             if not isinstance(env_name, str) or not ENV_NAME_RE.fullmatch(env_name):
                 raise SecretsError(
                     f"{app}: invalid environment variable name: {env_name!r}"
+                )
+            if not isinstance(import_env, str) or not ENV_NAME_RE.fullmatch(import_env):
+                raise SecretsError(
+                    f"{app}/{env_name}: invalid importEnv name: {import_env!r}"
                 )
             if env_name in app_env_names:
                 raise SecretsError(f"{app}: duplicate environment variable: {env_name}")
@@ -109,7 +124,12 @@ class BitwardenClient:
         self.session = session
         self.server = server.rstrip("/")
 
-    def _run(self, *args: str, with_session: bool = False) -> str:
+    def _run(
+        self,
+        *args: str,
+        with_session: bool = False,
+        input_text: str | None = None,
+    ) -> str:
         command = ["bw", *args]
         child_env = os.environ.copy()
         if with_session:
@@ -122,6 +142,7 @@ class BitwardenClient:
                 capture_output=True,
                 text=True,
                 env=child_env,
+                input=input_text,
             )
         except FileNotFoundError as exc:
             raise SecretsError("Bitwarden CLI `bw` was not found in PATH") from exc
@@ -146,16 +167,44 @@ class BitwardenClient:
 
         self._run("sync", with_session=True)
 
-    def get_exact_item(self, name: str) -> dict[str, Any]:
-        raw = self._run("list", "items", "--search", name, with_session=True)
+    def verify_folder(self, folder_id: str, expected_name: str) -> None:
+        raw = self._run("list", "folders", with_session=True)
         matches = [
-            item
-            for item in json.loads(raw)
-            if isinstance(item, dict) and item.get("name") == name
+            folder
+            for folder in json.loads(raw)
+            if isinstance(folder, dict) and folder.get("id") == folder_id
         ]
         if len(matches) != 1:
             raise SecretsError(
-                f"expected exactly one Vaultwarden item named {name!r}, found {len(matches)}"
+                f"expected Vaultwarden folder id {folder_id!r}, found {len(matches)}"
+            )
+        actual_name = matches[0].get("name")
+        if actual_name != expected_name:
+            raise SecretsError(
+                f"Vaultwarden folder mismatch: expected {expected_name!r}, got {actual_name!r}"
+            )
+
+    def get_exact_item(self, name: str, folder_id: str) -> dict[str, Any]:
+        raw = self._run(
+            "list",
+            "items",
+            "--search",
+            name,
+            "--folderid",
+            folder_id,
+            with_session=True,
+        )
+        matches = [
+            item
+            for item in json.loads(raw)
+            if isinstance(item, dict)
+            and item.get("name") == name
+            and item.get("folderId") == folder_id
+        ]
+        if len(matches) != 1:
+            raise SecretsError(
+                f"expected exactly one Vaultwarden item named {name!r} in the TrueNAS folder, "
+                f"found {len(matches)}"
             )
         return matches[0]
 
@@ -195,19 +244,18 @@ def dotenv_literal(value: str) -> str:
     return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-def render_app(
+def write_env_file(
     *,
     app_spec: dict[str, Any],
     item: dict[str, Any],
-    output_dir: Path,
+    target: Path,
 ) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(output_dir, 0o700)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(target.parent, 0o700)
 
-    target = output_dir / f"{app_spec['app']}.env"
     lines = [
         "# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py",
-        "# Ephemeral: do not commit or back up this file.",
+        "# Runtime materialization: do not commit this file.",
     ]
     for spec in app_spec["secrets"]:
         value = extract_secret(item, spec)
@@ -217,7 +265,7 @@ def render_app(
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{app_spec['app']}.",
         suffix=".tmp",
-        dir=output_dir,
+        dir=target.parent,
         text=True,
     )
     try:
@@ -234,8 +282,20 @@ def render_app(
         except FileNotFoundError:
             pass
         raise
-
     return target
+
+
+def render_app(
+    *,
+    app_spec: dict[str, Any],
+    item: dict[str, Any],
+    output_dir: Path,
+) -> Path:
+    return write_env_file(
+        app_spec=app_spec,
+        item=item,
+        target=output_dir / f"{app_spec['app']}.env",
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -259,6 +319,11 @@ def parse_args() -> argparse.Namespace:
         help="ephemeral output directory (default: /run/nabla-secrets)",
     )
     parser.add_argument(
+        "--output-file",
+        type=Path,
+        help="write one selected app to an exact path, for example a TrueNAS service .env",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="validate manifest only; do not contact Vaultwarden",
@@ -279,18 +344,33 @@ def main() -> int:
     unknown = sorted(requested - known)
     if unknown:
         raise SecretsError(f"unknown app(s): {', '.join(unknown)}")
+    if args.output_file and len(requested) != 1:
+        raise SecretsError("--output-file requires exactly one --app")
 
+    folder = manifest["folder"]
     client = BitwardenClient(
         session=os.environ.get("BW_SESSION", ""),
         server=manifest["server"],
     )
     client.verify()
+    client.verify_folder(folder["id"], folder["name"])
 
     for app_spec in manifest["items"]:
         if app_spec["app"] not in requested:
             continue
-        item = client.get_exact_item(app_spec["item"])
-        target = render_app(app_spec=app_spec, item=item, output_dir=args.output_dir)
+        item = client.get_exact_item(app_spec["item"], folder["id"])
+        if args.output_file:
+            target = write_env_file(
+                app_spec=app_spec,
+                item=item,
+                target=args.output_file,
+            )
+        else:
+            target = render_app(
+                app_spec=app_spec,
+                item=item,
+                output_dir=args.output_dir,
+            )
         print(f"rendered {app_spec['app']} -> {target}")
 
     return 0
