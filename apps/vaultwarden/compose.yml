@@ -1,17 +1,4 @@
 ---
-configs:
-  poll-config.yml:
-    content: |
-      - url: https://github.com/albanandrieu/nabla-compose.git
-        reference: master
-        interval: 3600
-
-# https://doco.cd/latest/External-Secrets/
-secrets:
-  1pw_token:
-    # file: /root/.doco-cd/1pw_token
-    file: /mnt/cpool/home/albandrieu/.doco-cd/1pw_token
-
 services:
   vaultwarden:
     image: vaultwarden/server:latest
@@ -23,6 +10,8 @@ services:
       SIGNUPS_ALLOWED: "false"
       INVITATIONS_ALLOWED: "false"
       WEBSOCKET_ENABLED: "true"
+      # Bootstrap secrets: keep outside Git until the long-term machine-secret
+      # bootstrap is available.
       ADMIN_TOKEN: "${VAULTWARDEN_ADMIN_TOKEN}"
       SMTP_HOST: "smtp.gmail.com"
       SMTP_PORT: "587"
@@ -37,7 +26,6 @@ services:
       HELO_NAME: "vaultwarden.albandrieu.com"
       IP_HEADER: "X-Forwarded-For"
     volumes:
-      # - ./vw-data/:/data/
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
       - 30032:80
@@ -58,6 +46,8 @@ services:
   # New Compose migrations use the official `bw` CLI renderer documented in
   # config/secrets/README.md. Remove this service only after Doco-CD no longer
   # depends on its Vault Management API compatibility endpoint.
+  # BW_CLIENTID/BW_CLIENTSECRET/BW_PASSWORD are bootstrap secrets and cannot be
+  # fetched from the same Vaultwarden session they are required to unlock.
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
@@ -66,18 +56,13 @@ services:
     user: "568:568" # TrueNAS apps user
     environment:
       BW_HOST: "https://vaultwarden.albandrieu.com"
-      # BW_HOST: http://172.17.0.24:30032
       BW_CLIENTID: "${BW_CLIENTID}"
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
       BW_PASSWORD: "${BW_PASSWORD}"
     volumes:
       - /mnt/cpool/vaultwarden/bw-data/:/data/
-    # extra_hosts:
-    # - "vaultwarden.albandrieu.com:172.17.0.24"
-    # - "vaultwarden.albandrieu.com:172.17.0.1"
-    ports:
-      # - 8087:8087
-      - 8087
+    expose:
+      - "8087"
     depends_on:
       - vaultwarden
     healthcheck:
