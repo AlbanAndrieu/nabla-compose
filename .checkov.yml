@@ -1,5 +1,5 @@
 ---
-branch: main
+branch: master
 # check:
 # - CKV_DOCKER_1
 compact: true
@@ -16,7 +16,7 @@ framework:
   - all
 # skip-download: true
 # quiet: true
-repo-id: https://gitlab.com/jusmundi-group/proof-of-concept/fastapi-sample/
+repo-id: AlbanAndrieu/nabla-compose
 # skip-check:
 # - CKV_DOCKER_3
 # - CKV_DOCKER_2
