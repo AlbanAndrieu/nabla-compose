@@ -78,7 +78,7 @@ jobs:
           set -euo pipefail
           sarif="megalinter-reports/megalinter-report.sarif"
 
-          if [[ -f "${sarif}" ]] && jq -e '.runs | type == "array" and length > 0' "${sarif}" >/dev/null 2>&1; then
+          if [[ -f "${sarif}" ]] && jq -e '(.runs | type == "array") and ((.runs | length) > 0)' "${sarif}" >/dev/null 2>&1; then
             echo "has_runs=true" >> "${GITHUB_OUTPUT}"
           else
             echo "has_runs=false" >> "${GITHUB_OUTPUT}"
