@@ -15,11 +15,41 @@ Before changing storage or stopping a native application, inspect:
 
 - `config/secrets/manifest.json`;
 - `config/secrets/README.md`;
+- `docs/secrets-migration-roadmap.md`;
 - `docs/homelab-platform-migration-roadmap.md`.
 
-If the application is missing from the manifest, inventory its secret **names and semantics** before implementing its cutover.
+If the application is missing from the manifest, inventory its secret **names and semantics** before implementing its cutover. Never place a live value in tracked metadata.
 
-Never place a live value in the manifest.
+## Canonical Vaultwarden scope
+
+Homelab workload secrets belong in the Vaultwarden folder:
+
+```text
+TrueNAS
+44a92b83-2762-4fa5-a238-f84396fd26f9
+```
+
+All automated item lookups must be scoped to this folder. Do not rely only on globally unique item names.
+
+## Existing sources during migration
+
+Do not discard the current secret estate before parity is proven:
+
+- private `AlbanAndrieu/nabla` repository `env/home/pass/**`, encrypted with `git-crypt`;
+- environment variables already loaded from those files by `.bashrc`;
+- local per-service `.env` files on TrueNAS;
+- existing Doco-CD/Vaultwarden mappings.
+
+Treat them as **legacy/staging sources**, not the future source of truth.
+
+Prefer importing from the already-exported process environment rather than parsing or automatically sourcing shell files:
+
+```bash
+python scripts/secrets/import_env_to_bitwarden.py --app <app>
+python scripts/secrets/import_env_to_bitwarden.py --app <app> --apply
+```
+
+Dry-run is the default. The importer never prints values and refuses to overwrite an existing exact item unless `--update-existing` is explicit.
 
 ## Secrets Gate
 
@@ -29,7 +59,7 @@ A migration may continue only when:
 2. migration-critical values are identified;
 3. preserve-versus-rotate policy is explicit;
 4. the current value has been recovered without printing/committing it;
-5. the value is stored in Vaultwarden or explicitly classified as bootstrap;
+5. the value is stored in the Vaultwarden `TrueNAS` folder or explicitly classified as bootstrap;
 6. the target Compose variable name is known;
 7. the secret can be rendered/injected without editing tracked files;
 8. rollback can restore the original value when preservation is required.
@@ -38,32 +68,27 @@ A migration may continue only when:
 
 Vaultwarden cannot fetch the credentials required to start itself.
 
-Keep the minimum Vaultwarden bootstrap set outside Git in a root-restricted host file/dataset or equivalent break-glass mechanism. `config/secrets/manifest.json` tracks bootstrap variable names only.
+Keep the minimum Vaultwarden bootstrap set outside Git in a root-restricted host file/dataset (`0600`) or equivalent break-glass mechanism. `config/secrets/manifest.json` tracks bootstrap variable names only.
 
-The existing `bitwarden-api` container is a **legacy Doco-CD compatibility adapter**. Do not create new consumers of that sidecar. New Compose migrations use the official Bitwarden Password Manager CLI (`bw`) renderer.
-
-Remove the adapter only after every Doco-CD dependency has a proven replacement.
+The existing `bitwarden-api` container is a **legacy Doco-CD compatibility adapter**. Do not create new consumers of that sidecar. Remove it only after every Doco-CD dependency has a proven replacement.
 
 ## Vaultwarden item convention
 
-Use one exact item name per application during the transition:
+Two patterns are supported during transition:
 
-```text
-nabla/prod/<app>
-```
+- a single-secret login item using `login.password`, such as `N8N_INTERNAL_API_KEY`;
+- one app item with hidden custom fields, such as `nabla/prod/karakeep`.
 
-Store secret values as uniquely named custom fields described by `config/secrets/manifest.json`.
+The manifest is authoritative for representation and mapping. The folder is authoritative for homelab scope.
 
-The renderer intentionally fails on duplicate item names or duplicate/missing fields.
+If a secret is stored in `login.password`, retrieve it with `bw get password ...`; `bw get notes ...` only retrieves the notes field.
 
-## Validate metadata
+## Validate metadata and tests
 
 ```bash
 python scripts/secrets/render_from_bitwarden.py --check
 python -m unittest discover -s tests -p test_secrets_renderer.py -v
 ```
-
-These checks are also wired into pre-commit when the secret foundation changes.
 
 ## Configure and unlock Bitwarden CLI
 
@@ -71,11 +96,10 @@ These checks are also wired into pre-commit when the secret foundation changes.
 bw config server https://vaultwarden.albandrieu.com
 bw login
 export BW_SESSION="$(bw unlock --raw)"
+bw sync --session "$BW_SESSION"
 ```
 
-Do not commit or log `BW_SESSION`.
-
-When finished:
+Do not commit or log `BW_SESSION`. When finished:
 
 ```bash
 bw lock
@@ -84,7 +108,7 @@ unset BW_SESSION
 
 ## Render for Compose
 
-Example:
+Preferred ephemeral path:
 
 ```bash
 python scripts/secrets/render_from_bitwarden.py --app 2fauth
@@ -96,36 +120,58 @@ docker compose \
   up -d
 ```
 
-Generated files are ephemeral and must remain outside Git and backups.
+A service-local TrueNAS `.env` is acceptable as a reproducible **runtime cache** when tooling expects it:
 
-The renderer sets `/run/nabla-secrets` to `0700`, files to `0600`, writes atomically and never prints values.
+```bash
+python scripts/secrets/render_from_bitwarden.py \
+  --app 2fauth \
+  --output-file /path/to/apps/2fauth/.env
+```
+
+Generated files must be ignored by Git, mode `0600`, and reproducible from Vaultwarden. Prefer `/run/nabla-secrets` or `/mnt/cpool/secrets/runtime` when no service-local `.env` is required.
 
 ## Preservation policy
 
 `rotation: preserve` means the exact current value must survive the migration unless a separately tested application-specific rotation procedure is executed.
 
-Typical examples:
+Typical examples include 2FAuth `APP_KEY`, authentication/session secrets, encryption keys, Meilisearch master keys tied to existing data, and database passwords coupled to existing roles.
 
-- 2FAuth `APP_KEY`;
-- application authentication/session secrets;
-- encryption keys;
-- Meilisearch master key when migrating an existing search index;
-- database passwords coupled to an existing database role.
+`rotation: rotatable` means rotate **after** migration, not during storage/runtime cutover.
 
-`rotation: rotatable` means the secret may be rotated **after** migration. Do not combine optional rotation with storage/runtime cutover.
+## Legacy git-crypt retirement
+
+For each secret currently in `AlbanAndrieu/nabla/env/home/pass/**`:
+
+1. identify the exported variable;
+2. add manifest metadata;
+3. import from the current environment to Vaultwarden;
+4. render back and validate the consumer;
+5. stop loading it automatically from `.bashrc` when no longer needed interactively;
+6. retain the encrypted legacy copy only through the agreed rollback period;
+7. delete/rotate later according to policy and exposure history.
+
+A private repository plus `git-crypt` is useful defense in depth, but is not a replacement for a purpose-built secret store and does not remove values from long-lived shell environments.
+
+## Official Bitwarden MCP
+
+Prefer `@bitwarden/mcp-server` over third-party Vaultwarden MCP wrappers.
+
+It must run **locally over stdio only**. Never expose it as a network service. With Vaultwarden, use its Bitwarden CLI/Vault Management capabilities; do not assume the official Bitwarden Public API administration tools are compatible with Vaultwarden.
+
+Repository MCP configs reference `BW_SESSION` from the local environment and never store the token.
 
 ## TrueNAS migration workflow
 
-1. inspect the native TrueNAS configuration and runtime;
-2. record secret names only in notes/Git;
-3. recover the actual values privately;
-4. create/update the exact Vaultwarden item/custom fields;
-5. run the renderer for the target app;
-6. validate Compose with the rendered env file without exposing values;
+1. inspect native TrueNAS configuration/runtime;
+2. record secret names only;
+3. recover actual values privately;
+4. import/create Vaultwarden items in `TrueNAS`;
+5. render the target app environment;
+6. validate Compose without exposing values;
 7. snapshot/copy data;
-8. perform the cutover;
+8. perform cutover;
 9. validate functional health and restart persistence;
-10. retain the original secret values and native rollback path through the observation period.
+10. retain original secret source and rollback path through observation period.
 
 Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and `.agents/skills/nabla-service-catalog/SKILL.md` when Compose/catalog metadata changes.
 
@@ -135,19 +181,17 @@ Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and 
 - Never commit generated env files, vault exports or `BW_SESSION`.
 - Never make Vaultwarden depend on itself for its only bootstrap credentials.
 - Never silently regenerate a migration-critical key.
-- Never treat a redacted UI value as recoverable unless the original value can actually be retrieved.
-- Never expose Vaultwarden automation, Bitwarden adapter, Docker socket or docker-socket-proxy publicly for convenience.
-- Prefer exact item identifiers/names and fail on ambiguity.
-- Treat secrets seen in Git history or public logs as compromised and rotate them after migration if the application permits rotation.
+- Never automatically execute legacy shell secret files from migration tooling.
+- Never expose Vaultwarden automation, Bitwarden MCP, Bitwarden adapter, Docker socket or docker-socket-proxy publicly.
+- Prefer exact folder-scoped item identifiers/names and fail on ambiguity.
+- Treat secrets seen in Git history or public logs as compromised and rotate them when the application permits.
 
 ## Long-term direction
 
-Vaultwarden + `bw` is the interim secret source for Compose migrations.
-
-After application migrations stabilize:
+Vaultwarden + `bw` is the interim secret source for Compose migrations. After application migrations stabilize:
 
 - deploy HashiCorp Vault;
-- stream values from Vaultwarden into Vault without long-lived plaintext exports;
+- stream values item-by-item without long-lived plaintext bulk exports;
 - use Keycloak OIDC for human Vault login;
 - use AppRole/JWT for standalone workloads and CI;
 - use Kubernetes auth after Talos/Kubernetes becomes the workload platform.
