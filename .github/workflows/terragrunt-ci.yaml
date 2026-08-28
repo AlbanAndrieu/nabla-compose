@@ -48,17 +48,21 @@ jobs:
           base_url="https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}"
           curl --fail --location --silent --show-error \
             "${base_url}/terragrunt_linux_amd64" \
-            --output /tmp/terragrunt_linux_amd64
+            --output "${RUNNER_TEMP}/terragrunt_linux_amd64"
           curl --fail --location --silent --show-error \
             "${base_url}/SHA256SUMS" \
-            --output /tmp/terragrunt_SHA256SUMS
-          grep ' terragrunt_linux_amd64$' /tmp/terragrunt_SHA256SUMS \
-            > /tmp/terragrunt_SHA256SUMS_linux_amd64
+            --output "${RUNNER_TEMP}/terragrunt_SHA256SUMS"
+          grep ' terragrunt_linux_amd64$' "${RUNNER_TEMP}/terragrunt_SHA256SUMS" \
+            > "${RUNNER_TEMP}/terragrunt_SHA256SUMS_linux_amd64"
           (
-            cd /tmp
+            cd "${RUNNER_TEMP}"
             sha256sum --check terragrunt_SHA256SUMS_linux_amd64
           )
-          sudo install -m 0755 /tmp/terragrunt_linux_amd64 /usr/local/bin/terragrunt
+
+          install_dir="${RUNNER_TEMP}/bin"
+          mkdir -p "${install_dir}"
+          install -m 0755 "${RUNNER_TEMP}/terragrunt_linux_amd64" "${install_dir}/terragrunt"
+          printf '%s\n' "${install_dir}" >> "${GITHUB_PATH}"
 
       - name: Tool versions
         shell: bash
@@ -69,6 +73,16 @@ jobs:
       - name: Check OpenTofu formatting
         shell: bash
         run: tofu fmt -check -recursive terraform
+
+      - name: Initialize TrueNAS module without backend
+        working-directory: terraform/truenas
+        shell: bash
+        run: tofu init -backend=false -input=false
+
+      - name: Validate TrueNAS OpenTofu module
+        working-directory: terraform/truenas
+        shell: bash
+        run: tofu validate -no-color
 
       - name: Check Terragrunt HCL formatting
         shell: bash
@@ -85,6 +99,7 @@ jobs:
             echo "It does **not** load homelab credentials, contact the internal state backend, or run a real Terragrunt plan."
             echo
             echo "- OpenTofu: \`fmt -check\`"
+            echo "- TrueNAS module: \`init -backend=false\` + \`validate\`"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
-            echo "- Real plans remain a trusted/manual operation until a private isolated runner is explicitly enabled."
+            echo "- Real plans/applies remain trusted manual operations on the private runner."
           } >> "${GITHUB_STEP_SUMMARY}"
