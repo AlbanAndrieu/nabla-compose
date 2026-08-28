@@ -73,8 +73,8 @@ services:
     volumes:
       - /mnt/cpool/vaultwarden/bw-data/:/data/
     # extra_hosts:
-      # - "vaultwarden.albandrieu.com:172.17.0.24"
-      # - "vaultwarden.albandrieu.com:172.17.0.1"
+    # - "vaultwarden.albandrieu.com:172.17.0.24"
+    # - "vaultwarden.albandrieu.com:172.17.0.1"
     ports:
       # - 8087:8087
       - 8087
