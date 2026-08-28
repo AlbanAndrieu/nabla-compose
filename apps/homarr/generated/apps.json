@@ -274,9 +274,9 @@
       "syncEligible": true
     },
     {
-      "id": "langfuse-web",
+      "id": "langfuse-langfuse-web",
       "name": "Langfuse Web",
-      "group": "ai",
+      "group": "langfuse",
       "sourcePath": "apps/langfuse/compose.yml",
       "composeService": "langfuse-web",
       "dockerManaged": true,
@@ -284,9 +284,9 @@
       "syncEligible": true
     },
     {
-      "id": "langfuse-worker",
+      "id": "langfuse-langfuse-worker",
       "name": "Langfuse Worker",
-      "group": "ai",
+      "group": "langfuse",
       "sourcePath": "apps/langfuse/compose.yml",
       "composeService": "langfuse-worker",
       "dockerManaged": true,
