@@ -1,7 +1,7 @@
 min_version = "2024.9.5"
 
 [tools]
-python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+python = "{{ get_env(name='PYTHON_VERSION', default='3.13') }}"
 ruff = "latest"
 awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
@@ -15,30 +15,18 @@ yamlfmt = "latest"
 actionlint = "latest"
 opentofu = "latest"
 op = "latest"
-# terraform = "latest"
 terragrunt = "0.97.0"
 sops = "latest"
 docker-compose = "latest"
 1password = "latest"
 
 [env]
-_.file = "secrets-enc.yaml"
-
-# Utiliser le nom du projet dérivé du répertoire courant
+# Keep repository-wide mise environment value-free. Runtime credentials belong
+# in the shell, mise.local.toml, or the repository secret rendering contract.
 PROJECT_NAME = "{{ config_root | basename }}"
-
-# Database connection (must be set in environment or mise.local.toml)
-# DATABASE_URL = { required = "Set DATABASE_URL to your PostgreSQL connection string (e.g., postgres://user:pass@localhost/dbname)" } #nosec allow:gitleaks
-
-# Feature flags (must be explicitly configured)
-# ENABLE_BETA_FEATURES = { required = true }
-
-AWS_REGION = { required = "Set to your AWS region (e.g., us-east-1, eu-west-1)" }
-AWS_PROFILE = "eks"
 
 [tasks]
 init = "bash ./scripts/run-install.sh"
-build = "npm run build"
 
 [tasks.hooks]
 description = "Install canonical pre-commit, commit-msg and pre-push Git hooks"
@@ -51,26 +39,10 @@ pre-commit install --config .pre-commit-pre-push.yaml --install-hooks --hook-typ
 description = "Run the canonical publication quality gate"
 run = "bash scripts/quality-gate.sh"
 
-[tasks.install]
-description = "Install all poetry dependencies"
-alias = "i"
-run = "poetry install --with format,test,extra,open_telemetry,api,deployment,influxdb,panda,temporal,utils,webui"
-
-[tasks.run]
-description = "Lunch app"
-run = "python app.py"
-
-[tasks.test]
-description = "Run tests"
-run = "pytest tests/"
-
-[tasks.lint]
-description = "Lint code"
-run = "ruff src/"
-
 [tasks.info]
-description = "Project infos"
+description = "Show repository tooling context"
 run = '''
-echo "Project : $PROJECT_NAME"
-echo "Virtuel environnment : $VIRTUAL_ENV"
+echo "Project: $PROJECT_NAME"
+echo "Python: $(python --version 2>&1)"
+echo "Pre-commit: $(pre-commit --version 2>&1)"
 '''
