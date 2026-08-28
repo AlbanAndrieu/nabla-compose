@@ -1,0 +1,55 @@
+---
+name: PR59 Sync Generated
+
+on:
+  push:
+    branches:
+      - feat/crowdsec-central-lapi
+    paths:
+      - .github/workflows/pr59-sync-generated.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: feat/crowdsec-central-lapi
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
+        with:
+          python-version: "3.13"
+
+      - name: Install generator dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3
+
+      - name: Regenerate canonical contracts
+        run: |
+          set -euo pipefail
+          python scripts/generate-service-topology.py
+          python scripts/generate-service-consumers.py
+
+      - name: Commit generated outputs
+        run: |
+          set -euo pipefail
+          git add \
+            catalog/services.json \
+            catalog/service-topology.json \
+            apps/homarr/generated/apps.json \
+            apps/gatus/config/config.yml \
+            apps/autokuma/static/generated-monitors.json
+          if git diff --cached --quiet; then
+            echo "Generated outputs already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(catalog): sync generated contracts"
+          git push
