@@ -1,50 +1,70 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Terragrunt CD
-permissions: { contents: read }
+
+permissions:
+  contents: read
 
 on:
-  workflow_dispatch: {}
-  schedule: [{cron: '0 0 * * *'}] # Every day at midnight
-  push:
-    branches: ["main"]
-    paths:
-      - root.hcl
-      - infrastructure/**
-      - terraform/**
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Confirm the trusted TrueNAS Terragrunt apply"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: terragrunt-cd-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   TG_NON_INTERACTIVE: "true"
+  TRUENAS_ENABLED: "true"
+  TRUENAS_READ_ONLY: "false"
+  TRUENAS_DESTROY_PROTECTION: "true"
+  TRUENAS_INSECURE_SKIP_VERIFY: "false"
 
 jobs:
   apply:
+    if: ${{ inputs.confirm_apply }}
     runs-on: infra-runners
     environment: TrueNAS
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup mise
-        run: mise install
-
-      - name: Load Secrets
-        uses: ./.github/actions/load-secrets
         with:
-          op-connect-host: ${{ secrets.OP_CONNECT_HOST }}
-          op-connect-token: ${{ secrets.OP_CONNECT_TOKEN }}
+          persist-credentials: false
 
-      - name: Terragrunt Init
-        run: terragrunt run --all -- init -upgrade
-        env:
-          OP_CONNECT_HOST: ${{ secrets.OP_CONNECT_HOST }}
-          OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
+      - name: Setup infrastructure tools
+        shell: bash
+        run: mise install opentofu terragrunt
 
-      - name: Terragrunt Apply
-        run: terragrunt run --all -- apply -auto-approve
-        env:
-          OP_CONNECT_HOST: ${{ secrets.OP_CONNECT_HOST }}
-          OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
+      - name: Validate trusted runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL; do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("${name}")
+            fi
+          done
+
+          if ((${#missing[@]} > 0)); then
+            printf 'Missing required runner environment variables: %s\n' "${missing[*]}" >&2
+            echo "Inject them through the trusted runner/secret boundary; do not commit values to the repository." >&2
+            exit 1
+          fi
+
+          mise exec -- opentofu version
+          mise exec -- terragrunt --version
+
+      - name: Terragrunt init
+        shell: bash
+        run: mise exec -- terragrunt run --all -- init -upgrade
+
+      - name: Terragrunt apply
+        shell: bash
+        run: mise exec -- terragrunt run --all -- apply -auto-approve
