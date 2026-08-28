@@ -8,8 +8,16 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: "Trusted TrueNAS Terragrunt operation"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
       confirm_apply:
-        description: "Confirm the trusted TrueNAS Terragrunt apply"
+        description: "Required confirmation when operation=apply"
         required: true
         default: false
         type: boolean
@@ -22,13 +30,11 @@ env:
   TG_NON_INTERACTIVE: "true"
   TERRAGRUNT_VERSION: "0.97.0"
   TRUENAS_ENABLED: "true"
-  TRUENAS_READ_ONLY: "false"
   TRUENAS_DESTROY_PROTECTION: "true"
   TRUENAS_INSECURE_SKIP_VERIFY: "false"
 
 jobs:
-  apply:
-    if: ${{ inputs.confirm_apply }}
+  truenas:
     runs-on: infra-runners
     environment: TrueNAS
     timeout-minutes: 30
@@ -83,12 +89,30 @@ jobs:
           tofu version
           terragrunt --version
 
+      - name: Reject unconfirmed apply
+        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply != true }}
+        shell: bash
+        run: |
+          echo "Refusing Terragrunt apply without confirm_apply=true." >&2
+          exit 1
+
       - name: Terragrunt init
         working-directory: infrastructure/truenas
         shell: bash
         run: terragrunt init -upgrade
 
-      - name: Terragrunt apply
+      - name: Terragrunt plan
+        if: ${{ inputs.operation == 'plan' }}
         working-directory: infrastructure/truenas
         shell: bash
+        env:
+          TRUENAS_READ_ONLY: "true"
+        run: terragrunt plan
+
+      - name: Terragrunt apply
+        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply }}
+        working-directory: infrastructure/truenas
+        shell: bash
+        env:
+          TRUENAS_READ_ONLY: "false"
         run: terragrunt apply -auto-approve
