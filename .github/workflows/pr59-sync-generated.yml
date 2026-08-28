@@ -1,5 +1,6 @@
 ---
 name: PR59 Sync Generated
+# Temporary one-shot workflow; remove after generated contracts are committed.
 
 on:
   push:
