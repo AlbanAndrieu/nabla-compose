@@ -31,7 +31,7 @@ output "talos_bootstrap_inventory" {
   value = {
     for name, vm in truenas_vm.talos : name => {
       id     = vm.id
-      role   = startswith(lower(name), "taloscp") ? "controlplane" : "worker"
+      role   = lower(trimspace(var.talos_vms[name].role))
       bridge = var.vm_bridge
       mac    = var.talos_vms[name].mac
       disk   = "/dev/zvol/${var.truenas_pool}/${var.talos_zvol_parent}/${name}-disk0"
