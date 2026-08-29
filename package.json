@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "description": "Homelab Docker Compose and infrastructure-as-code automation",
+  "scripts": {
+    "semantic-release": "echo \"Release publishing is owned by GitHub Actions\""
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.3.1",
