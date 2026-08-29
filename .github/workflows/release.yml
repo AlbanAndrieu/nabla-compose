@@ -46,22 +46,6 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install release tooling outside the repository
-        shell: bash
-        run: |
-          set -euo pipefail
-          RELEASE_TOOLS_DIR="${RUNNER_TEMP}/semantic-release"
-          mkdir -p "${RELEASE_TOOLS_DIR}"
-          npm install \
-            --prefix "${RELEASE_TOOLS_DIR}" \
-            --no-save \
-            --ignore-scripts \
-            semantic-release@25.0.8 \
-            @semantic-release/changelog@6.0.3 \
-            @semantic-release/git@10.0.1
-          echo "${RELEASE_TOOLS_DIR}/node_modules/.bin" >> "${GITHUB_PATH}"
-          echo "NODE_PATH=${RELEASE_TOOLS_DIR}/node_modules" >> "${GITHUB_ENV}"
-
       - name: Configure authenticated git access
         env:
           GH_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
@@ -88,4 +72,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: semantic-release
+        shell: bash
+        run: |
+          npx --yes \
+            --package semantic-release@25.0.8 \
+            --package @semantic-release/changelog@6.0.3 \
+            --package @semantic-release/git@10.0.1 \
+            semantic-release
