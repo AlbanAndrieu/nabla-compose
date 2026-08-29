@@ -1,0 +1,7 @@
+# Minimal Talos Image Factory schematic for the TrueNAS/KVM bootstrap.
+# Keep storage extensions out of the base image until the selected CSI path is
+# validated against the pinned Talos release.
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/qemu-guest-agent
