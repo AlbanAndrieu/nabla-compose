@@ -1,12 +1,8 @@
 {
-	"name": "nabla-site-python",
-	"version": "1.0.0",
+	"name": "nabla-compose",
+	"version": "0.0.1",
 	"private": true,
-	"scripts": {
-		"deploy": "uv run pywrangler deploy",
-		"dev": "uv run pywrangler dev",
-		"start": "uv run pywrangler dev"
-	},
+	"description": "Homelab Docker Compose and infrastructure-as-code automation",
 	"devDependencies": {
 		"@commitlint/cli": "^20.4.1",
 		"@commitlint/config-conventional": "^20.3.1",
@@ -20,11 +16,5 @@
 		"@vercel/analytics": "^1.6.1",
 		"lodash-es": "^4.17.22",
 		"vercel": "^50.10.0"
-	},
-	"config": {
-		"commitizen": {
-			"path": "./node_modules/cz-emoji-conventional",
-			"useGitmojis": true
-		}
 	}
 }
