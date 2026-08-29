@@ -1,19 +1,5 @@
-## 1.2.4 (2026-01-02)
+# Changelog
 
-### Fix
+All notable changes to `nabla-compose` are recorded here by semantic-release from Conventional Commits.
 
-- update
-- Update requirements.txt
-- add requirements.txt
-- uv
-- vercel
-- Add wrangler
-- Add wrangler
-- Add wrangler
-- Add api
-- Rename .python-version-direnv for vercel
-- Add dot files
-- Add github actions
-- Add github actions
-- Vercel sample
-- Add github actions
+The first automated GitHub release is bootstrapped as `0.0.1`.
