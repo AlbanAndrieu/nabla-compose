@@ -77,10 +77,10 @@ jobs:
         shell: bash
         run: terragrunt hcl fmt --check --diff
 
-      - name: Initialize TrueNAS module without backend
+      - name: Initialize TrueNAS module with committed provider lock
         working-directory: terraform/truenas
         shell: bash
-        run: tofu init -backend=false -input=false
+        run: tofu init -backend=false -input=false -lockfile=readonly
 
       - name: Validate TrueNAS OpenTofu module
         working-directory: terraform/truenas
@@ -99,6 +99,7 @@ jobs:
             echo
             echo "- OpenTofu: \`fmt -check\`"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
-            echo "- TrueNAS module: \`init -backend=false\` + \`validate\`"
+            echo "- TrueNAS provider: committed dependency lock enforced read-only"
+            echo "- TrueNAS module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
             echo "- Real plans/applies remain trusted manual operations on the private runner."
           } >> "${GITHUB_STEP_SUMMARY}"
