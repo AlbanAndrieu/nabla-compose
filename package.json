@@ -1,20 +1,20 @@
 {
-	"name": "nabla-compose",
-	"version": "0.0.1",
-	"private": true,
-	"description": "Homelab Docker Compose and infrastructure-as-code automation",
-	"devDependencies": {
-		"@commitlint/cli": "^20.4.1",
-		"@commitlint/config-conventional": "^20.3.1",
-		"commitlint": "^20.3.1",
-		"cz-conventional-changelog": "^3.3.0",
-		"opencommit": "^3.3.9",
-		"wrangler": "^4.61.0"
-	},
-	"dependencies": {
-		"@bitwarden/cli": "^2026.6.0",
-		"@vercel/analytics": "^1.6.1",
-		"lodash-es": "^4.17.22",
-		"vercel": "^50.10.0"
-	}
+  "name": "nabla-compose",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Homelab Docker Compose and infrastructure-as-code automation",
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.3.1",
+    "commitlint": "^20.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "opencommit": "^3.3.9",
+    "wrangler": "^4.61.0"
+  },
+  "dependencies": {
+    "@bitwarden/cli": "^2026.6.0",
+    "@vercel/analytics": "^1.6.1",
+    "lodash-es": "^4.17.22",
+    "vercel": "^50.10.0"
+  }
 }
