@@ -11,7 +11,7 @@ config/talos/VERSION
 config/talos/image-factory.yaml
 ```
 
-`VERSION` pins the Talos release. The schematic stays intentionally small and currently adds only `siderolabs/qemu-guest-agent` for the KVM-based TrueNAS VM environment.
+`VERSION` pins the Talos release. The schematic stays intentionally small and currently adds only `siderolabs/qemu-guest-agent` for the KVM-based TrueNAS VM environment. Treat guest-agent shutdown/reporting as an optional integration benefit until the corresponding TrueNAS VM guest-agent channel is validated at runtime; cluster bootstrap must not depend on it.
 
 Do not embed machine configuration, cluster secrets, certificates, tokens, API keys, or bootstrap credentials into the Image Factory schematic. The schematic ID is content-addressed and should be treated as public repository metadata.
 
@@ -77,7 +77,9 @@ Validate that:
 - the node receives the expected address on the VM bridge;
 - the node can reach the TrueNAS host over the intended Kubernetes storage network.
 
-Only then bind `machine.install.disk` to the observed Talos device and generate cluster credentials/configuration locally. Do not commit generated Talos PKI, `talosconfig`, machine secrets, or rendered machine configurations containing secrets to this public repository.
+Only then bind `machine.install.disk` to the observed Talos device and generate cluster credentials/configuration locally.
+
+Use `generated/talos/` for local rendered Talos material. The directory is tracked only through an allowlisted `.gitignore`; everything else below it is ignored. Do not override that protection or commit Talos PKI, `talosconfig`, machine secrets, or rendered machine configurations containing secrets to this public repository.
 
 ## Storage extensions and democratic-csi
 
@@ -92,7 +94,7 @@ NFS-backed provisioning can be evaluated independently and does not require baki
 After one control-plane VM boots reliably from the pinned model:
 
 1. record the observed disk and network device contract;
-2. generate Talos machine configurations outside Git;
+2. generate Talos machine configurations under ignored `generated/talos/`;
 3. bootstrap the single control-plane node first;
 4. add the two workers;
 5. validate Kubernetes networking and DNS;
