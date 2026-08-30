@@ -1,0 +1,80 @@
+name: Semantic Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: semantic-release-master
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version, changelog and GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create dedicated release App token
+        id: release_app_token
+        if: env.RELEASE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ env.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+
+      - name: Configure authenticated git access
+        env:
+          GH_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: gh auth setup-git
+
+      - name: Bootstrap the 0.0.x release line
+        env:
+          GH_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git tag --list | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            exit 0
+          fi
+
+          BASELINE="$(git rev-parse HEAD^1)"
+          git tag 0.0.0 "${BASELINE}"
+          git push origin refs/tags/0.0.0
+
+      - name: Normalize npm lock metadata
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release_app_token.outputs.token || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          npx --yes \
+            --package semantic-release@25.0.8 \
+            --package @semantic-release/changelog@6.0.3 \
+            --package @semantic-release/git@10.0.1 \
+            semantic-release

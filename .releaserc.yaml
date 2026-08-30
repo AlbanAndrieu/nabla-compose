@@ -1,30 +1,27 @@
+branches:
+  - master
+
+tagFormat: "${version}"
+
 plugins:
-  # GitLab support
-  - "@semantic-release/gitlab"
-  # analyses the Git commits
-  - "@semantic-release/commit-analyzer"
-  # generates the release note from the Git commit messages
+  - - "@semantic-release/commit-analyzer"
+    - releaseRules:
+        - type: feature
+          release: minor
+        - type: chore
+          scope: release
+          release: patch
+        - type: ci
+          scope: release
+          release: patch
   - "@semantic-release/release-notes-generator"
-  # generates the CHANGELOG.md file
   - "@semantic-release/changelog"
-  # emulates bumpversion (replaces 'version' in pyproject.toml)
-  - - semantic-release-replace-plugin
-    - replacements:
-        - files:
-            - pyproject.toml
-          from:
-            - ^version *= *"\d+\.\d+\.\d+"
-          to: 'version = "${nextRelease.version}"'
-          countMatches: true
-  # git commit/push modified files
+  - - "@semantic-release/npm"
+    - npmPublish: false
   - - "@semantic-release/git"
     - assets:
         - "CHANGELOG.md"
-        - "pyproject.toml"
-      # the commit MUST trigger a pipeline on tag (to perform publish jobs)
-      # can be skipped on prod branch
-      message: "chore(release): ${nextRelease.version} [skip ci on prod]"
-branches:
-  # - main
-  - master
-tagFormat: "${version}"
+        - "package.json"
+        - "package-lock.json"
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+  - "@semantic-release/github"
