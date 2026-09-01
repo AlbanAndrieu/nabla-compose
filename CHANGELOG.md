@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.1.0...0.1.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **garage:** make Traefik ingress topology authoritative ([#75](https://github.com/AlbanAndrieu/nabla-compose/issues/75)) ([6c08a81](https://github.com/AlbanAndrieu/nabla-compose/commit/6c08a81467a3f483651d53212cf0297bb8afa38e))
+
 # [0.1.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.0.1...0.1.0) (2026-09-01)
 
 
