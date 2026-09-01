@@ -122,7 +122,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/traefik/:/etc/traefik/
       # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
-      - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
+      # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
@@ -195,10 +195,27 @@ services:
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
+      # - CLOUDFLARE_API_TOKEN=cfat_XXX
+        # Your Cloudflare API token
       - DOMAINS=toto.albandrieu.com,www.toto.albandrieu.com
+        # Your domains (separated by commas)
       - PROXIED=false
+        # Leaning toward using Cloudflare's proxy for these domains (optional)
+        # Existing DNS records in Cloudflare keep their current proxy statuses
+
+  # ddns:
+  #   image: timothyjmiller/cloudflare-ddns:latest
+  #   container_name: ddns
+  #   restart: unless-stopped
+  #   # network_mode: 'host'
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #   volumes:
+  #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
   dnsupdater:
+    # image: yfrickx/traefik-cloudflare-updater:latest
     image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:latest
     container_name: dnsupdater
     restart: unless-stopped
@@ -209,12 +226,28 @@ services:
     environment:
       - TARGET_DOMAIN=albandrieu.com
       - DOMAIN1=albandrieu.com
+      # - DOMAIN1_ZONE_ID=015XXX
       - DOMAIN2=albanandrieu.com
+      # - DOMAIN2_ZONE_ID=227XXX
       - EXCLUDED_DOMAINS=static.albandrieu.com,test.albanandrieu.com
+
+  # traeflare:
+  #   image: ghcr.io/m4tt72/traeflare:main
+  #   container_name: traeflare
+  #   env_file:
+  #     - /mnt/cpool/traefik/.env.secrets
+  #   environment:
+  #     - TRAEFIK_API_URL=http://172.17.0.24:8080
+  #     - PROXIED=false
+  #     - DOMAIN_NAME=albandrieu.com
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - traefik
 
 networks:
   traefik_network:
     name: traefik_network
+    # driver: bridge
     external: true
   ix-dozzle_default:
     external: true
