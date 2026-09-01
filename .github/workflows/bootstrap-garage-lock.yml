@@ -1,0 +1,40 @@
+---
+name: Bootstrap Garage Provider Lock
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/bootstrap-garage-lock.yml"
+  workflow_dispatch:
+
+jobs:
+  lock:
+    name: Generate Garage provider lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
+
+      - name: Generate Linux amd64 provider lock
+        working-directory: terraform/garage
+        shell: bash
+        run: |
+          set -euo pipefail
+          tofu providers lock -platform=linux_amd64
+          sha256sum .terraform.lock.hcl
+          printf 'LOCKFILE_B64='
+          base64 -w0 .terraform.lock.hcl
+          printf '\n'
