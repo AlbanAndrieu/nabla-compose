@@ -37,6 +37,27 @@ For an observed external source:
 
 FastAPI Sample may expose sanitized service-state badges for these layers and may enrich an observed IP with RDAP/ASN/cloud-prefix metadata, but repository automation must not mutate firewall aliases from that telemetry.
 
+## P1 — source-IP enrichment contract
+
+Add a shared, read-only enrichment contract so FastAPI Sample and infrastructure diagnostics can explain an observed WAN source address without turning reputation data into firewall policy.
+
+For an address such as `52.1.10.241`, collect when available:
+
+- RDAP/WHOIS registered network owner and allocation;
+- BGP origin ASN and routed prefix;
+- organization/ASN name and country metadata;
+- reverse DNS/PTR hostname;
+- cloud-provider ownership from published prefix feeds;
+- cloud service/region only when the provider publishes that mapping;
+- observation timestamp, enrichment timestamp, data sources, and a confidence level.
+
+Operational requirements:
+
+- FastAPI Sample may also expose its currently observed outbound public IP using a bounded, cached external echo probe so it can be correlated with pfSense states/captures.
+- Cache all external lookups and use strict timeouts/rate limits; an enrichment provider outage must never break `/healthz`, `/sickz`, or homelab health.
+- Keep source-IP enrichment informational. Do not automatically create/update `FASTAPI_CLOUD_EGRESS` or any other pfSense alias from the observed IP, ASN, provider, or prefix.
+- A cloud-provider match proves network ownership, not workload identity. Correlate with synchronized application requests plus PF/HAProxy/IDS evidence before attributing the source to the current FastAPI Cloud deployment.
+
 ## P1 — cross-repository observability contract
 
 FastAPI Sample is the external read-only observer and `nabla-compose` is the infrastructure/deployment source of truth. Keep these responsibilities separate:
