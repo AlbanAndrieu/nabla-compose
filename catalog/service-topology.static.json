@@ -7,12 +7,6 @@
       "name": "PostgreSQL",
       "kind": "database",
       "category": "data"
-    },
-    {
-      "id": "traefik",
-      "name": "Traefik",
-      "kind": "edge",
-      "category": "network"
     }
   ],
   "relations": []
