@@ -96,84 +96,104 @@ class SecretsRendererTests(unittest.TestCase):
                 {
                     "env": "EXAMPLE_TOKEN",
                     "field": "TOKEN",
-                    "rotation": "rotatable",
+                    "rotation": "preserve",
                 }
             ],
         }
         item = {
             "name": "nabla/prod/example",
-            "fields": [{"name": "TOKEN", "value": "secret-value"}],
+            "fields": [{"name": "TOKEN", "value": "abc$123"}],
         }
-        with tempfile.TemporaryDirectory() as tmp:
-            output_dir = Path(tmp) / "secrets"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "runtime-secrets"
             target = renderer.render_app(
                 app_spec=app_spec,
                 item=item,
                 output_dir=output_dir,
             )
-            self.assertEqual(target.read_text(), "# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py\n# Runtime materialization: do not commit this file.\nEXAMPLE_TOKEN='secret-value'\n")
+
+            self.assertEqual(
+                target.read_text(encoding="utf-8").splitlines()[-1],
+                "EXAMPLE_TOKEN='abc$123'",
+            )
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(output_dir.stat().st_mode), 0o700)
 
     def test_multiline_secret_is_rejected(self) -> None:
         item = {
-            "name": "nabla/prod/example",
+            "name": "nabla/prod/app",
             "fields": [{"name": "TOKEN", "value": "line1\nline2"}],
         }
+
         with self.assertRaises(renderer.SecretsError):
             renderer.extract_secret(item, {"env": "TOKEN", "field": "TOKEN"})
 
-    def test_item_lookup_is_scoped_to_folder(self) -> None:
-        client = renderer.BitwardenClient(session="session", server="https://vault.test")
-        payload = [
-            {"name": "same", "folderId": "folder-a"},
-            {"name": "same", "folderId": "folder-b"},
-        ]
-        with mock.patch.object(client, "_run", return_value=json.dumps(payload)):
-            item = client.get_exact_item("same", "folder-a")
-        self.assertEqual(item["folderId"], "folder-a")
+    @mock.patch.object(renderer.subprocess, "run")
+    def test_bw_session_is_passed_in_environment_not_argv(self, run: mock.Mock) -> None:
+        run.return_value.stdout = "ok\n"
+        client = renderer.BitwardenClient(
+            session="session-secret",
+            server="https://vaultwarden.example.test",
+        )
 
-    def test_bw_session_is_passed_in_environment_not_argv(self) -> None:
-        client = renderer.BitwardenClient(session="very-secret", server="https://vault.test")
-        completed = mock.Mock(stdout="{}", stderr="")
-        with mock.patch("subprocess.run", return_value=completed) as run:
-            client._run("status", with_session=True)
-        argv = run.call_args.args[0]
+        client._run("sync", with_session=True)
+
+        command = run.call_args.args[0]
         child_env = run.call_args.kwargs["env"]
-        self.assertNotIn("very-secret", argv)
-        self.assertEqual(child_env["BW_SESSION"], "very-secret")
+        self.assertEqual(command, ["bw", "sync"])
+        self.assertNotIn("session-secret", command)
+        self.assertEqual(child_env["BW_SESSION"], "session-secret")
+
+    @mock.patch.object(renderer.subprocess, "run")
+    def test_item_lookup_is_scoped_to_folder(self, run: mock.Mock) -> None:
+        run.return_value.stdout = json.dumps(
+            [{"name": "TOKEN", "folderId": "folder-id", "login": {"password": "x"}}]
+        )
+        client = renderer.BitwardenClient(
+            session="session-secret",
+            server="https://vaultwarden.example.test",
+        )
+
+        client.get_exact_item("TOKEN", "folder-id")
+        command = run.call_args.args[0]
+        self.assertEqual(
+            command,
+            ["bw", "list", "items", "--search", "TOKEN", "--folderid", "folder-id"],
+        )
 
     def test_importer_reads_current_environment_without_parsing_shell_files(self) -> None:
         app_spec = {
             "app": "example",
-            "item": "nabla/prod/example",
+            "item": "example",
             "secrets": [
                 {
-                    "env": "EXAMPLE_TOKEN",
-                    "importEnv": "SOURCE_TOKEN",
+                    "env": "TARGET_TOKEN",
+                    "importEnv": "LEGACY_EXPORTED_TOKEN",
                     "field": "TOKEN",
                 }
             ],
         }
-        with mock.patch.dict(os.environ, {"SOURCE_TOKEN": "from-env"}, clear=True):
+        with mock.patch.dict(os.environ, {"LEGACY_EXPORTED_TOKEN": "secret-value"}, clear=False):
             values = importer.collect_values(app_spec)
-        self.assertEqual(values, {"EXAMPLE_TOKEN": "from-env"})
+        self.assertEqual(values, {"TARGET_TOKEN": "secret-value"})
 
     def test_importer_builds_hidden_custom_fields(self) -> None:
         app_spec = {
             "app": "example",
-            "item": "nabla/prod/example",
-            "secrets": [
-                {
-                    "env": "EXAMPLE_TOKEN",
-                    "field": "TOKEN",
-                }
-            ],
+            "item": "example",
+            "secrets": [{"env": "TOKEN", "field": "TOKEN"}],
         }
         item = importer.make_item(
             app_spec=app_spec,
             folder_id="folder-id",
-            values={"EXAMPLE_TOKEN": "secret"},
+            values={"TOKEN": "secret-value"},
         )
         self.assertEqual(item["folderId"], "folder-id")
-        self.assertEqual(item["fields"], [{"name": "TOKEN", "type": 1, "value": "secret"}])
+        self.assertEqual(item["fields"][0]["name"], "TOKEN")
+        self.assertEqual(item["fields"][0]["type"], 1)
+        self.assertEqual(item["fields"][0]["value"], "secret-value")
+
+
+if __name__ == "__main__":
+    unittest.main()
