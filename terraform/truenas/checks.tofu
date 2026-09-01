@@ -20,7 +20,10 @@ check "write_safety" {
 
 check "talos_control_plane" {
   assert {
-    condition     = !var.enabled || length([for name in keys(var.talos_vms) : name if startswith(lower(name), "taloscp")]) >= 1
-    error_message = "The enabled Talos test topology must include at least one control-plane VM named with the taloscp prefix."
+    condition = !var.enabled || length([
+      for vm in values(var.talos_vms) : vm
+      if lower(trimspace(vm.role)) == "controlplane"
+    ]) >= 1
+    error_message = "The enabled Talos topology must include at least one VM with role=controlplane."
   }
 }

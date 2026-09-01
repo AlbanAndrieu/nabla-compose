@@ -37,7 +37,14 @@ class SecretsRendererTests(unittest.TestCase):
         )
         self.assertEqual(
             {item["app"] for item in manifest["items"]},
-            {"n8n", "2fauth", "open-terminal", "karakeep", "reactive-resume"},
+            {
+                "infrastructure-bootstrap",
+                "n8n",
+                "2fauth",
+                "open-terminal",
+                "karakeep",
+                "reactive-resume",
+            },
         )
         serialized = json.dumps(manifest)
         self.assertNotIn('"value"', serialized)

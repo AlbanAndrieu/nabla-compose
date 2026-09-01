@@ -76,8 +76,9 @@ variable "talos_iso_path" {
 }
 
 variable "talos_vms" {
-  description = "Minimal Talos test VMs with deterministic locally administered MAC addresses for DHCP reservations."
+  description = "Minimal Talos test VMs with explicit cluster roles and deterministic locally administered MAC addresses for DHCP reservations."
   type = map(object({
+    role          = string
     memory_mib    = number
     cores         = number
     disk_size_gib = number
@@ -86,18 +87,21 @@ variable "talos_vms" {
 
   default = {
     taloscp01 = {
+      role          = "controlplane"
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
       mac           = "02:00:00:00:10:01"
     }
     taloswk01 = {
+      role          = "worker"
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
       mac           = "02:00:00:00:20:01"
     }
     taloswk02 = {
+      role          = "worker"
       memory_mib    = 4096
       cores         = 2
       disk_size_gib = 32
@@ -113,6 +117,14 @@ variable "talos_vms" {
   validation {
     condition     = alltrue([for name in keys(var.talos_vms) : can(regex("^[A-Za-z0-9]+$", name))])
     error_message = "Talos VM names must contain only letters and digits; hyphens and underscores are not allowed by the current TrueNAS VM naming constraint."
+  }
+
+  validation {
+    condition = alltrue([
+      for vm in values(var.talos_vms) :
+      contains(["controlplane", "worker"], lower(trimspace(vm.role)))
+    ])
+    error_message = "Each Talos VM role must be either controlplane or worker."
   }
 
   validation {
