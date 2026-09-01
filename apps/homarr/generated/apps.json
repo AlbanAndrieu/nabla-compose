@@ -153,22 +153,24 @@
     {
       "id": "garage",
       "name": "Garage",
-      "group": "garage",
+      "group": "data",
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "garage",
       "dockerManaged": true,
       "href": "https://s3.int.albandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "S3-compatible object storage exposed through Traefik on TrueNAS."
     },
     {
       "id": "garage-webui",
-      "name": "Webui",
-      "group": "garage",
+      "name": "Garage WebUI",
+      "group": "data",
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "webui",
       "dockerManaged": true,
       "href": "https://garage.int.albandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Web administration UI for Garage object storage."
     },
     {
       "id": "gatus",
@@ -770,12 +772,13 @@
     {
       "id": "traefik",
       "name": "Traefik",
-      "group": "traefik",
+      "group": "network",
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "traefik",
       "dockerManaged": true,
       "href": "http://172.17.0.24:80",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services."
     },
     {
       "id": "traefik-cloudflare-ddns",

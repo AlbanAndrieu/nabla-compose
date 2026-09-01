@@ -1,9 +1,34 @@
 ---
+x-nabla:
+  nodes:
+    - id: pfsense-haproxy
+      name: pfSense HAProxy
+      kind: reverse-proxy
+      category: network
+      description: pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.
+
 services:
   traefik:
     image: docker.io/traefik:v3.7.0
     container_name: traefik
     restart: unless-stopped
+    x-nabla:
+      id: traefik
+      name: Traefik
+      kind: edge
+      category: network
+      description: Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.
+      runtime:
+        provider: truenas-app
+        containerService: traefik
+      relations:
+        - target: pfsense-haproxy
+          type: exposedBy
+          strength: required
+          description: pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.
+          evidence:
+            - "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl"
+            - "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
     env_file:
       - /mnt/cpool/traefik/.env
       - /mnt/cpool/traefik/.env.secrets
@@ -152,7 +177,7 @@ services:
     # - "1" tracks the latest stable release whose major version is 1
     # - "1.x.y" pins one specific stable version
     # - "latest" moves to each new stable release and may pick up breaking
-    #   changes in a future major release, so it is not recommended in production
+    #   changes in a future major version, so it is not recommended in production
     # - "edge" tracks the latest unreleased development build
     network_mode: host
     # Optional. This bypasses network isolation and makes IPv6 easier.
@@ -167,12 +192,12 @@ services:
     cap_drop: [all]
     # Drop all Linux capabilities (optional but recommended)
     security_opt: [no-new-privileges:true]
-    # Another protection to restrict superuser privileges (optional but recommended)
+    # Another protection to restrict superuser privileges
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
       # - CLOUDFLARE_API_TOKEN=cfat_XXX
-        # Your Cloudflare API token
+      # Your Cloudflare API token
       - DOMAINS=toto.albandrieu.com,www.toto.albandrieu.com
         # Your domains (separated by commas)
       - PROXIED=false

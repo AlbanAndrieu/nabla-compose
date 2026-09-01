@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:61c7257c4cf77385aa8c648411821fd9873bea60f05104294261a01853ebebde",
+  "catalogRevision": "sha256:3ce1cb8f0691d296045e5312a8bfc20c4f32d07c667c27408c45a3c313734965",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -82,6 +82,36 @@
         "containerService": "elasticsearch"
       },
       "icon": "🔎"
+    },
+    {
+      "id": "garage",
+      "name": "Garage",
+      "kind": "object-storage",
+      "category": "data",
+      "sourcePath": "apps/garage/compose.yml",
+      "composeService": "garage",
+      "url": "https://s3.int.albandrieu.com",
+      "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "garage"
+      },
+      "icon": "🪣"
+    },
+    {
+      "id": "garage-webui",
+      "name": "Garage WebUI",
+      "kind": "application",
+      "category": "data",
+      "sourcePath": "apps/garage/compose.yml",
+      "composeService": "webui",
+      "url": "https://garage.int.albandrieu.com",
+      "description": "Web administration UI for Garage object storage.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "webui"
+      },
+      "icon": "🖥️"
     },
     {
       "id": "gatus",
@@ -539,6 +569,20 @@
         "containerService": "tempo"
       },
       "icon": "⏱️"
+    },
+    {
+      "id": "traefik",
+      "name": "Traefik",
+      "kind": "edge",
+      "category": "network",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "traefik",
+      "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "traefik"
+      },
+      "icon": "🚦"
     },
     {
       "id": "wazuh-dashboard",

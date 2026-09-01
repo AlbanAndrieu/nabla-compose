@@ -132,7 +132,7 @@
   {
     "type": "port",
     "name": "Garage",
-    "description": "Nabla generated monitor: garage",
+    "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -141,8 +141,8 @@
   },
   {
     "type": "port",
-    "name": "Webui",
-    "description": "Nabla generated monitor: garage-webui",
+    "name": "Garage WebUI",
+    "description": "Web administration UI for Garage object storage.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -651,7 +651,7 @@
   {
     "type": "port",
     "name": "Traefik",
-    "description": "Nabla generated monitor: traefik",
+    "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

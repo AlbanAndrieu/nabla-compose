@@ -60,6 +60,26 @@
       "icon": "🔎"
     },
     {
+      "id": "garage",
+      "name": "Garage",
+      "kind": "object-storage",
+      "category": "data",
+      "sourcePath": "apps/garage/compose.yml",
+      "url": "https://s3.int.albandrieu.com",
+      "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
+      "icon": "🪣"
+    },
+    {
+      "id": "garage-webui",
+      "name": "Garage WebUI",
+      "kind": "application",
+      "category": "data",
+      "sourcePath": "apps/garage/compose.yml",
+      "url": "https://garage.int.albandrieu.com",
+      "description": "Web administration UI for Garage object storage.",
+      "icon": "🖥️"
+    },
+    {
       "id": "gatus",
       "name": "Gatus",
       "kind": "status-monitor",
@@ -321,6 +341,15 @@
       "icon": "📡"
     },
     {
+      "id": "pfsense-haproxy",
+      "name": "pfSense HAProxy",
+      "kind": "reverse-proxy",
+      "category": "network",
+      "sourcePath": "apps/traefik/compose.yml",
+      "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.",
+      "icon": "⚖️"
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
@@ -398,6 +427,8 @@
       "name": "Traefik",
       "kind": "edge",
       "category": "network",
+      "sourcePath": "apps/traefik/compose.yml",
+      "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
       "icon": "🚦"
     },
     {
@@ -562,6 +593,39 @@
       "evidence": [
         "apps/crowdsec/compose.yml:SURICATA_LOG_DIR",
         "apps/crowdsec/acquis.d/security.yaml"
+      ]
+    },
+    {
+      "source": "garage",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik routes the S3 hostname and bucket subdomains to the Garage S3 API.",
+      "evidence": [
+        "apps/garage/compose.yml:traefik.http.routers.garage-s3.rule",
+        "apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port"
+      ]
+    },
+    {
+      "source": "garage-webui",
+      "target": "garage",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Garage WebUI uses the Garage Admin API and S3 API.",
+      "evidence": [
+        "apps/garage/compose.yml:API_BASE_URL",
+        "apps/garage/compose.yml:S3_ENDPOINT_URL"
+      ]
+    },
+    {
+      "source": "garage-webui",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik routes garage.int.albandrieu.com to Garage WebUI.",
+      "evidence": [
+        "apps/garage/compose.yml:traefik.http.routers.garage-webui.rule",
+        "apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port"
       ]
     },
     {
@@ -1075,6 +1139,17 @@
       "description": "The exporter queries Sybase ASE through the FreeTDS driver.",
       "evidence": [
         "apps/sybase-exporter/compose.yml:SYBASE_DATA_SOURCE_NAME"
+      ]
+    },
+    {
+      "source": "traefik",
+      "target": "pfsense-haproxy",
+      "type": "exposedBy",
+      "strength": "required",
+      "description": "pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.",
+      "evidence": [
+        "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl",
+        "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
       ]
     },
     {
