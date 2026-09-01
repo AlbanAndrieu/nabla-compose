@@ -31,7 +31,7 @@ services:
         target: /etc/garage.toml
     env_file:
       - /mnt/cpool/garage/.env.secrets
-    #environment:
+    # environment:
     #  - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
     #  - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN}
     volumes:
