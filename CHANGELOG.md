@@ -1,3 +1,10 @@
+# [0.1.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.0.1...0.1.0) (2026-09-01)
+
+
+### Features
+
+* **infra:** stabilize Garage, TrueNAS and Talos bootstrap ([#73](https://github.com/AlbanAndrieu/nabla-compose/issues/73)) ([8233a78](https://github.com/AlbanAndrieu/nabla-compose/commit/8233a78850166de4e3ccdf2eb92ae6ca3fa2921b))
+
 ## [0.0.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.0.0...0.0.1) (2026-08-30)
 
 
