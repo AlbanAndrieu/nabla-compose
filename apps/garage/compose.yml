@@ -8,6 +8,24 @@ services:
     container_name: garage
     image: dxflrs/garage:v2.3.0
     restart: unless-stopped
+    x-nabla:
+      id: garage
+      name: Garage
+      kind: object-storage
+      category: data
+      url: https://s3.int.albandrieu.com
+      description: S3-compatible object storage exposed through Traefik on TrueNAS.
+      runtime:
+        provider: truenas-app
+        containerService: garage
+      relations:
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik routes the S3 hostname and bucket subdomains to the Garage S3 API.
+          evidence:
+            - apps/garage/compose.yml:traefik.http.routers.garage-s3.rule
+            - apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port
     configs:
       - source: garage_config
         target: /etc/garage.toml
@@ -33,7 +51,7 @@ services:
       - "traefik.http.routers.garage-s3.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-s3.service=garage-s3"
       - "traefik.http.services.garage-s3.loadbalancer.server.scheme=http"
-      # - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
+      - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
       # Admin API
       - "traefik.http.routers.garage-admin.rule=Host(`garage-admin.int.albandrieu.com`)"
       - "traefik.http.routers.garage-admin.entrypoints=websecure"
@@ -46,6 +64,31 @@ services:
     container_name: garage-webui
     image: khairul169/garage-webui:1.1.0
     restart: unless-stopped
+    x-nabla:
+      id: garage-webui
+      name: Garage WebUI
+      kind: application
+      category: data
+      url: https://garage.int.albandrieu.com
+      description: Web administration UI for Garage object storage.
+      runtime:
+        provider: truenas-app
+        containerService: webui
+      relations:
+        - target: garage
+          type: consumesApi
+          strength: required
+          description: Garage WebUI uses the Garage Admin API and S3 API.
+          evidence:
+            - apps/garage/compose.yml:API_BASE_URL
+            - apps/garage/compose.yml:S3_ENDPOINT_URL
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik routes garage.int.albandrieu.com to Garage WebUI.
+          evidence:
+            - apps/garage/compose.yml:traefik.http.routers.garage-webui.rule
+            - apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port
     configs:
       - source: garage_config
         target: /etc/garage.toml
@@ -66,7 +109,7 @@ services:
       - "traefik.http.routers.garage-webui.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-webui.service=garage-webui"
       - "traefik.http.services.garage-webui.loadbalancer.server.scheme=http"
-      # - "traefik.http.services.garage-webui.loadbalancer.server.port=3909"
+      - "traefik.http.services.garage-webui.loadbalancer.server.port=3909"
 
 networks:
   traefik_network:
