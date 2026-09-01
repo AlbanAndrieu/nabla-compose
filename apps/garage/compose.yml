@@ -40,8 +40,8 @@ services:
       - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     ports:
       - "3900:3900"
-      - "3901:3901"   # RPC Garage obligatoire
-      - "3903:3903"   # Admin API
+      - "3901:3901" # RPC Garage obligatoire
+      - "3903:3903" # Admin API
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
