@@ -66,7 +66,7 @@
     {
       "name": "Domain Watchdog",
       "icons": ["fas fa-globe"],
-      "description": "Domain monitoring service",
+      "description": "Network-wide domain monitoring service",
       "internalHost": "172.17.0.24",
       "internalPort": 30317,
       "internalSecure": false,
@@ -840,7 +840,7 @@
       "description": "Garage service",
       "internalHost": "172.17.0.24",
       "internalPort": 3909,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://garage.int.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/garage.png",
