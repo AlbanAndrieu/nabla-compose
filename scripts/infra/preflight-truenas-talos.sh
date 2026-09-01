@@ -1,10 +1,11 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 mode="${1:-plan}"
 case "${mode}" in
   plan | apply) ;;
   *)
-    echo "usage: bash scripts/infra/preflight-truenas-talos.sh [plan|apply]" >&2
+    echo "usage: $0 [plan|apply]" >&2
     exit 2
     ;;
 esac
