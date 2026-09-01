@@ -33,6 +33,24 @@
 - Restreindre les ports à localhost où possible (`127.0.0.1:<port>`).
 - Ajouter et documenter des règles Traefik pour les APIs/admin.
 
+### Topologie autoritative de l’ingress direct
+
+Le chemin public `*.int.albandrieu.com` doit être représenté par les mêmes sources que le runtime et ne doit plus être reconstruit à la main par les consommateurs :
+
+`Internet -> pfSense -> HAProxy -> Traefik :443 sur TrueNAS -> service Docker`
+
+État et suivi :
+
+- [x] déclarer Traefik en `x-nabla` comme reverse proxy Docker hébergé sur TrueNAS ;
+- [x] déclarer Garage S3 et Garage WebUI en `x-nabla`, avec leurs relations `exposedBy` vers Traefik ;
+- [x] ajouter un nœud logique `pfsense-haproxy` à la topologie autoritative ;
+- [x] documenter la preuve TLS observée : HAProxy termine TLS sur le WAN `:443`, puis ré-établit TLS vers `172.17.0.24:443` avec `ssl verify none` avant Traefik ;
+- [x] rendre explicites les ports backend Traefik Garage S3 `3900` et Garage WebUI `3909` ;
+- [ ] ajouter à terme une vérification read-only de dérive entre la topologie déclarée et la configuration HAProxy pfSense observée par API/export généré ;
+- [ ] distinguer dans les consommateurs les relations de dépendance fonctionnelle des chemins d’exposition (`HAProxy`, `Traefik`, `Cloudflare Tunnel`, DNS-only, LAN/VPN-only).
+
+Les métadonnées `x-nabla` restent déclaratives : elles ne modifient ni l’ordre de démarrage Docker Compose ni le routage runtime.
+
 ## 4. Monitoring et logs
 - Généraliser le driver de logs `json-file` + options de rotation (`max-size`, `max-file`).
 - Monter les logs critiques en read-only.
