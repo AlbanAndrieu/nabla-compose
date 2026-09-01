@@ -69,3 +69,21 @@ FastAPI Sample is the external read-only observer and `nabla-compose` is the inf
 - HAProxy backend health must not be treated as proof that pfSense/Snort/pfBlockerNG/CrowdSec will accept a specific source.
 
 The broad WAN Easy Rule removal remains a hardening task even while current TrueNAS health is green.
+
+## P4 — optional HAProxy → Traefik TLS backend verification
+
+Very low priority. The current direct Garage ingress has now been proven as:
+
+`client HTTPS -> HAProxy TLS termination -> TLS re-encryption -> Traefik :443 -> Garage`
+
+HAProxy currently encrypts the backend hop to Traefik, but backend certificate verification should remain deferred until the TrueNAS-hosted Traefik certificate lifecycle is understood and proven stable.
+
+Before changing `verify none`, first determine from the deployed TrueNAS/Traefik configuration:
+
+- which certificate Traefik presents on the internal `:443` listener;
+- whether that certificate is stable across TrueNAS App/container upgrades and redeployments;
+- whether it chains to a CA that pfSense/HAProxy can trust cleanly;
+- whether SNI/server-name verification can be configured without coupling HAProxy to a fragile container-generated certificate;
+- whether TrueNAS or the current Traefik deployment provides an authoritative, maintainable mechanism for certificate rotation.
+
+Only if those points are proven should HAProxy backend verification be hardened from encrypted-but-unverified TLS to verified TLS. Do not switch to TLS passthrough merely to avoid certificate-management uncertainty; passthrough is a separate architectural choice that would remove HAProxy HTTP/L7 inspection on this path.
