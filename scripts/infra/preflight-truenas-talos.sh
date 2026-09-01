@@ -69,7 +69,7 @@ check_endpoint() {
 printf '🔎 TrueNAS/Talos infrastructure preflight (%s)\n' "${mode}"
 printf 'Secrets are checked for presence only; values are never printed.\n\n'
 
-for command in curl tofu terragrunt; do
+for command in curl jq tofu terragrunt; do
   require_command "${command}"
 done
 
@@ -111,6 +111,7 @@ printf '\n📦 Repository inputs\n'
 for file in \
   config/talos/VERSION \
   config/talos/image-factory.yaml \
+  terraform/garage/.terraform.lock.hcl \
   terraform/truenas/.terraform.lock.hcl \
   infrastructure/garage/terragrunt.hcl \
   infrastructure/truenas/terragrunt.hcl; do
