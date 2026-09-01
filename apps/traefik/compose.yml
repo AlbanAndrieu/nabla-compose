@@ -122,7 +122,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/traefik/:/etc/traefik/
       # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
-      # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
+      # - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
@@ -181,17 +181,18 @@ services:
     # - "edge" tracks the latest unreleased development build
     network_mode: host
     # Optional. This bypasses network isolation and makes IPv6 easier.
+    # See "Use IPv6 without sharing the host network".
     restart: always
     # Restart the updater after reboot
     # user: "1000:1000"
-    # Run the updater with specific user and group IDs (in that order)
+    # Run the updater with specific user and group IDs (in that order).
     # You can change the two numbers based on your need.
     read_only: true
     # Make the container filesystem read-only (optional but recommended)
     cap_drop: [all]
     # Drop all Linux capabilities (optional but recommended)
     security_opt: [no-new-privileges:true]
-    # Another protection to restrict superuser privileges
+    # Another protection to restrict superuser privileges (optional but recommended)
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
