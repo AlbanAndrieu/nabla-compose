@@ -1,9 +1,34 @@
 ---
+x-nabla:
+  nodes:
+    - id: pfsense-haproxy
+      name: pfSense HAProxy
+      kind: reverse-proxy
+      category: network
+      description: pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.
+
 services:
   traefik:
     image: docker.io/traefik:v3.7.0
     container_name: traefik
     restart: unless-stopped
+    x-nabla:
+      id: traefik
+      name: Traefik
+      kind: edge
+      category: network
+      description: Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.
+      runtime:
+        provider: truenas-app
+        containerService: traefik
+      relations:
+        - target: pfsense-haproxy
+          type: exposedBy
+          strength: required
+          description: pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.
+          evidence:
+            - "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl"
+            - "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
     env_file:
       - /mnt/cpool/traefik/.env
       - /mnt/cpool/traefik/.env.secrets
@@ -97,7 +122,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/traefik/:/etc/traefik/
       # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
-      # - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
+      - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
@@ -156,42 +181,24 @@ services:
     # - "edge" tracks the latest unreleased development build
     network_mode: host
     # Optional. This bypasses network isolation and makes IPv6 easier.
-    # See "Use IPv6 without sharing the host network".
     restart: always
     # Restart the updater after reboot
     # user: "1000:1000"
-    # Run the updater with specific user and group IDs (in that order).
+    # Run the updater with specific user and group IDs (in that order)
     # You can change the two numbers based on your need.
     read_only: true
     # Make the container filesystem read-only (optional but recommended)
     cap_drop: [all]
     # Drop all Linux capabilities (optional but recommended)
     security_opt: [no-new-privileges:true]
-    # Another protection to restrict superuser privileges (optional but recommended)
+    # Another protection to restrict superuser privileges
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
-      # - CLOUDFLARE_API_TOKEN=cfat_XXX
-        # Your Cloudflare API token
       - DOMAINS=toto.albandrieu.com,www.toto.albandrieu.com
-        # Your domains (separated by commas)
       - PROXIED=false
-        # Leaning toward using Cloudflare's proxy for these domains (optional)
-        # Existing DNS records in Cloudflare keep their current proxy statuses
-
-  # ddns:
-  #   image: timothyjmiller/cloudflare-ddns:latest
-  #   container_name: ddns
-  #   restart: unless-stopped
-  #   # network_mode: 'host'
-  #   environment:
-  #     - PUID=1000
-  #     - PGID=1000
-  #   volumes:
-  #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
   dnsupdater:
-    # image: yfrickx/traefik-cloudflare-updater:latest
     image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:latest
     container_name: dnsupdater
     restart: unless-stopped
@@ -202,28 +209,12 @@ services:
     environment:
       - TARGET_DOMAIN=albandrieu.com
       - DOMAIN1=albandrieu.com
-      # - DOMAIN1_ZONE_ID=015XXX
       - DOMAIN2=albanandrieu.com
-      # - DOMAIN2_ZONE_ID=227XXX
       - EXCLUDED_DOMAINS=static.albandrieu.com,test.albanandrieu.com
-
-  # traeflare:
-  #   image: ghcr.io/m4tt72/traeflare:main
-  #   container_name: traeflare
-  #   env_file:
-  #     - /mnt/cpool/traefik/.env.secrets
-  #   environment:
-  #     - TRAEFIK_API_URL=http://172.17.0.24:8080
-  #     - PROXIED=false
-  #     - DOMAIN_NAME=albandrieu.com
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - traefik
 
 networks:
   traefik_network:
     name: traefik_network
-    # driver: bridge
     external: true
   ix-dozzle_default:
     external: true
