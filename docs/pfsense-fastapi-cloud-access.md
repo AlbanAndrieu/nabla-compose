@@ -35,6 +35,8 @@ FastAPI Sample uses two different pfSense API credentials. Both pfSense user obj
 
 API keys themselves cannot be used for webConfigurator or SSH authentication. Harden the service users by keeping them out of the `admins` group and withholding `WebCfg - All pages`, `page-all`, shell access and every unnecessary privilege.
 
+The production FastAPI Cloud environment was migrated to the split identities on 2026-09-02. The generic `PFSENSE_API_KEY` has been removed and must not be reintroduced as the normal configuration.
+
 ### Posture identity
 
 pfSense user:
@@ -124,7 +126,7 @@ FastAPI Sample uses this identity only to read:
 GET /api/v2/diagnostics/table?id=snort2c
 ```
 
-No write privilege is required. `PFSENSE_API_KEY` is a legacy shared-key fallback only; after FastAPI Sample has deployed support for `PFSENSE_SECURITY_API_KEY` and both dedicated identities have been validated, remove `PFSENSE_API_KEY` from FastAPI Cloud.
+No write privilege is required. FastAPI Sample still contains temporary migration/rollback compatibility for the historical generic key, but production intentionally no longer sets `PFSENSE_API_KEY`. Do not collapse the two dedicated identities back into one shared secret.
 
 `PFSENSE_SECURITY_PATH_MODE=shared_wan` documents that the security observer reaches pfSense through the same WAN `:10443` path that Snort/PF may block. A transport failure on this path is a telemetry blind spot, not proof that Snort caused the failure.
 
