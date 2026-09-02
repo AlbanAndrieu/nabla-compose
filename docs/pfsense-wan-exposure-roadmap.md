@@ -37,6 +37,101 @@ For an observed external source:
 
 FastAPI Sample may expose sanitized service-state badges for these layers and may enrich an observed IP with RDAP/ASN/cloud-prefix metadata, but repository automation must not mutate firewall aliases from that telemetry.
 
+### Proven Snort -> `snort2c` -> PF block on the TrueNAS path
+
+A controlled A/B test on 2026-09-02 established Snort/PF as the cause of the intermittent FastAPI Cloud -> TrueNAS failure.
+
+Terminology used in this incident:
+
+- `82.66.4.247` — **homelab WAN endpoint / pfSense WAN public IPv4**. This is the public address that accepts the intentional `:7000` listener before HAProxy forwards to TrueNAS.
+- `34.200.20.162` — **observed FastAPI Cloud egress/source IPv4** during the failing test. Earlier requests were observed from other cloud addresses (`52.1.10.241`, `54.164.107.133`), so this address must not be treated as a stable FastAPI Cloud contract.
+- `172.17.0.24` — internal TrueNAS address behind HAProxy.
+
+TCP establishment must complete before TLS can begin:
+
+```text
+FastAPI Cloud                         pfSense / HAProxy
+34.200.20.162                         82.66.4.247:7000
+      |                                      |
+      | SYN                                  |
+      |------------------------------------->|  request to open TCP
+      |                                      |
+      | SYN,ACK                              |
+      |<-------------------------------------|  listener accepts TCP
+      |                                      |
+      | ACK                                  |
+      |------------------------------------->|  TCP established
+      |                                      |
+      | TLS ClientHello ...                  |
+      |------------------------------------->|  TLS starts only now
+```
+
+Interpretation:
+
+- `SYN` — request to establish a TCP connection.
+- `SYN,ACK` — destination accepted the TCP connection.
+- `ACK` — client confirms the connection; TCP is established.
+- `RST` — connection was explicitly refused/reset.
+- repeated `SYN` packets without `SYN,ACK` or `RST` usually indicate a silent firewall/filter drop before TLS.
+
+With Snort WAN enabled in Legacy Mode, `Block Offenders` enabled, `Kill States` enabled, and `Which IP to Block = BOTH`, the observed cloud source became a member of `snort2c`:
+
+```sh
+pfctl -t snort2c -T test 34.200.20.162
+# 1/1 addresses match.
+```
+
+PF also had explicit bidirectional rules generated for the table:
+
+```text
+block drop log quick from <snort2c> to any
+block drop log quick from any to <snort2c>
+```
+
+At that point the WAN capture showed only repeated inbound `SYN` packets from `34.200.20.162` to `82.66.4.247:7000`, with no `SYN,ACK` response. HAProxy and TLS were therefore never reached.
+
+Snort alerts immediately preceding the block were HTTP Inspect preprocessor events on the same flow:
+
+```text
+[120:3]  (http_inspect) NO CONTENT-LENGTH OR TRANSFER-ENCODING IN HTTP RESPONSE
+[120:18] (http_inspect) PROTOCOL-OTHER HTTP server response before client request
+```
+
+The WAN Snort configuration included `7000` in the `http_inspect_server` port list even though the public `82.66.4.247:7000` hop carries TLS to HAProxy. HTTP Inspect runs before HAProxy terminates TLS and therefore cannot reliably parse the encrypted application stream as clear-text HTTP. These alerts are consequently consistent with false-positive protocol classification on this path.
+
+The causal A/B test was:
+
+1. stop **Snort WAN only**;
+2. delete only the observed cloud source from `snort2c`:
+
+   ```sh
+   pfctl -t snort2c -T delete 34.200.20.162
+   ```
+
+3. capture the same flow again.
+
+Immediately afterwards the capture showed `SYN -> SYN,ACK -> ACK`, followed by bidirectional application data and clean TCP close packets. The FastAPI Cloud -> `82.66.4.247:7000` path therefore recovered as soon as the Snort-generated PF block was removed.
+
+Operational conclusion:
+
+```text
+Snort HTTP Inspect false positive on TLS :7000
+        -> Block Offenders
+        -> observed cloud source inserted in snort2c
+        -> PF block/drop rules
+        -> Kill States / subsequent SYN silently dropped
+        -> HAProxy and TrueNAS no longer reached
+```
+
+Remediation target:
+
+- keep Snort enabled, but remove `7000` from the WAN **HTTP Inspect** server-port list;
+- optionally add `7000` to the Snort SSL/TLS preprocessor port list if that preprocessor is enabled and supported by the deployed Snort package;
+- do not suppress all `120:*` alerts globally merely to hide the symptom;
+- do not add rotating FastAPI Cloud/AWS egress addresses to a permanent Snort Pass List;
+- after changing preprocessors, clear only the test source from `snort2c`, restart Snort WAN, and repeat the `SYN -> SYN,ACK -> ACK` plus `/api/homelab/status` validation;
+- retain `Block Offenders` and `Kill States` only after the false-positive protocol classification is corrected and validated.
+
 ## P1 — source-IP enrichment contract
 
 Add a shared, read-only enrichment contract so FastAPI Sample and infrastructure diagnostics can explain an observed WAN source address without turning reputation data into firewall policy.
