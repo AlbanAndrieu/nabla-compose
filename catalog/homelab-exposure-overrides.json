@@ -6,21 +6,21 @@
       "tunnelUrl": "https://truenas.albandrieu.com:7000",
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. This is not a Cloudflare Tunnel; keep the direct exposure visible as security debt and restrict the WAN rule to this listener only."
+      "securityException": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately."
     },
     {
       "name": "pfSense",
       "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "The pfSense administration UI is LAN/VPN-only. TCP 10443 may be reachable from trusted internal networks but any reachability from FastAPI Cloud or the public Internet is configuration drift and must fail the sickz exposure policy."
+      "securityException": "The pfSense administration/API listener on 10443 is not generally public, but FastAPI Cloud currently requires direct WAN access and has no user-controlled static egress/tunnel. Treat this as a trusted-source-only security exception: use dedicated least-privilege API identities, global REST API read-only mode, TLS verification, and independent negative Internet reachability tests."
     },
     {
       "name": "Home",
       "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "home.albandrieu.com:10443 aliases the pfSense administration UI and is LAN/VPN-only. External reachability must be treated as a security failure."
+      "securityException": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. FastAPI Cloud and approved administration sources require access, while generic untrusted Internet origins must remain blocked; this source-aware exception cannot be represented by a single global reachable boolean."
     },
     {
       "name": "Garage",

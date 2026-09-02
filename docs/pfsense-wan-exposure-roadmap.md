@@ -4,23 +4,28 @@ This roadmap tracks the remaining pfSense WAN-policy work that affects the `nabl
 
 ## P0 — replace the broad WAN Easy Rule
 
-The current broad pfSense Easy Rule must be removed and replaced with explicit listener/source policy. Evidence collected on 2026-09-02 showed the observed FastAPI Cloud source `52.1.10.241` establishing states to both the intended TrueNAS HAProxy listener on `82.66.4.247:7000` and the pfSense administration listener on `82.66.4.247:10443`.
+The current broad pfSense Easy Rule must be removed and replaced with explicit listener/source policy. Evidence collected on 2026-09-02 showed observed FastAPI Cloud sources establishing states to both the intended TrueNAS HAProxy listener on `82.66.4.247:7000` and the pfSense administration/API listener on `82.66.4.247:10443`.
 
-Target policy:
+FastAPI Cloud currently requires both listeners and the deployment does not provide a user-controlled static egress gateway or outbound tunnel. The target is therefore **source-aware**, not a global public/private boolean:
 
-- `10443/tcp` — pfSense administration is reachable only from trusted LAN/VPN administration paths and explicitly approved office aliases; an Internet/FastAPI Cloud connection is a failure.
-- `7000/tcp` — keep the dedicated HAProxy -> TrueNAS path only for explicitly approved source aliases once stable FastAPI Cloud egress addresses/CIDRs have been verified. Do not treat one observed AWS address as a permanent FastAPI Cloud contract and do not allow an entire AWS allocation as a shortcut.
+- `7000/tcp` — TrueNAS via pfSense HAProxy must remain reachable from the FastAPI Cloud production runtime and any explicitly approved administration source. Generic untrusted Internet origins must remain denied.
+- `10443/tcp` — pfSense REST API/administration must remain reachable from the FastAPI Cloud production runtime and explicitly approved administration sources because FastAPI Sample needs read-only posture and security telemetry. Generic untrusted Internet origins must remain denied.
 - `9922/tcp` and `22/tcp` — external SSH reachability remains forbidden.
 - `443/tcp` and every other intentional public listener must have an explicit service/rule owner rather than inheriting a generic WAN pass.
-- Prefer named pfSense aliases such as `FASTAPI_CLOUD_EGRESS`, `TRUSTED_WORK_EGRESS`, and `TRUSTED_ADMIN_EGRESS` over duplicated literal addresses.
+- Prefer named pfSense aliases for stable office/VPN/DDNS administration sources. Do **not** automatically populate an alias from the currently observed FastAPI Cloud egress IP, and do not allow an entire AWS allocation as a shortcut.
+
+FastAPI Cloud egress addresses observed during the investigation included `52.1.10.241`, `54.164.107.133`, and `34.200.20.162`. These observations prove only where a particular request originated; they are not a stable FastAPI Cloud egress contract.
+
+Until the platform offers a user-controlled stable network identity, direct WAN access from FastAPI Cloud to `7000` and `10443` remains an explicitly tracked security exception. Compensating controls are mandatory: verified TLS, dedicated least-privilege API identities, global pfSense REST API read-only mode during steady state, Snort/PF monitoring, and independent negative reachability tests.
 
 Acceptance tests after the Easy Rule is replaced:
 
-1. FastAPI Sample can still reach the intentional TrueNAS `:7000` endpoint from an approved source.
-2. FastAPI Cloud and another generic Internet vantage point cannot establish TCP `10443`.
-3. `/sickz` reports the reviewed public-port policy consistently with pfSense.
-4. The HAProxy TrueNAS backend remains `UP`, `L7OK`, and HTTP `200`.
-5. No broad WAN pass remains that makes the explicit management/source rules ineffective.
+1. FastAPI Cloud can still reach the intentional TrueNAS `:7000` endpoint and complete the required TLS/HTTPS/WebSocket/API path.
+2. FastAPI Cloud can still reach pfSense `:10443` and authenticate with the dedicated GET-only posture/security identities.
+3. An independent untrusted Internet vantage point cannot establish the intended application path to `:7000` or `:10443`; an HTTP `401`/`403` from that vantage still proves the listener is network-reachable and does not satisfy an L3/L4 source-restriction requirement.
+4. `/sickz` reports both `7000` and `10443` as `trusted_sources_only`, expected reachable from the FastAPI Cloud vantage, with a default-deny/negative-probe requirement for other origins.
+5. The HAProxy TrueNAS backend remains `UP`, `L7OK`, and HTTP `200`.
+6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
 
 ## P1 — security-engine attribution
 
