@@ -31,7 +31,11 @@ If an office source has a stable public IPv4 or a controlled DDNS FQDN, use a na
 
 ## Dedicated pfSense API identities
 
-FastAPI Sample uses two different pfSense API credentials.
+FastAPI Sample uses two different pfSense API credentials. Both pfSense user objects must remain **enabled**. Do not check `This user cannot login`: pfREST validates that the API-key owner is an enabled user, so disabling the user also invalidates API-key authentication.
+
+API keys themselves cannot be used for webConfigurator or SSH authentication. Harden the service users by keeping them out of the `admins` group and withholding `WebCfg - All pages`, `page-all`, shell access and every unnecessary privilege.
+
+The production FastAPI Cloud environment was migrated to the split identities on 2026-09-02. The generic `PFSENSE_API_KEY` has been removed and must not be reintroduced as the normal configuration.
 
 ### Posture identity
 
@@ -55,10 +59,15 @@ REST API - /api/v2/services/dns_resolver/settings GET
 The corresponding FastAPI Cloud environment is:
 
 ```text
-PFSENSE_POSTURE_API_URL=https://home.albandrieu.com:10443
+PFSENSE_API_URL=https://home.albandrieu.com:10443
+PFSENSE_API_VERIFY_SSL=true
+
 PFSENSE_POSTURE_API_KEY=<dedicated posture key>
+PFSENSE_POSTURE_API_URL=https://home.albandrieu.com:10443
 PFSENSE_POSTURE_API_VERIFY_SSL=true
 ```
+
+`PFSENSE_POSTURE_API_URL` and `PFSENSE_POSTURE_API_VERIFY_SSL` are optional when they are identical to the shared `PFSENSE_API_URL` / `PFSENSE_API_VERIFY_SSL` transport settings.
 
 Do not store the password or API key in this repository.
 
@@ -76,22 +85,48 @@ The `403` on `snort2c` is intentional. It proves the posture identity does not h
 
 ### Security/Snort identity
 
-FastAPI Sample uses a separate credential:
+pfSense user:
 
 ```text
-PFSENSE_API_URL=https://home.albandrieu.com:10443
-PFSENSE_API_KEY=<dedicated snort2c key>
-PFSENSE_API_VERIFY_SSL=true
-PFSENSE_SECURITY_PATH_MODE=shared_wan
+fastapi-pfsense-security
 ```
 
-Its target privilege is only:
+Purpose: read-only attribution of an observed FastAPI Cloud egress block to the `snort2c` PF table.
+
+Its only required REST API privilege is:
 
 ```text
 REST API - /api/v2/diagnostics/table GET
 ```
 
-FastAPI Sample uses that privilege only to read the `snort2c` PF table and correlate it with the runtime's observed public egress IP. No write privilege is required.
+The target FastAPI Cloud environment is:
+
+```text
+PFSENSE_SECURITY_API_KEY=<dedicated snort2c key>
+PFSENSE_SECURITY_PATH_MODE=shared_wan
+```
+
+The security observer reuses these shared transport values by default:
+
+```text
+PFSENSE_API_URL=https://home.albandrieu.com:10443
+PFSENSE_API_VERIFY_SSL=true
+```
+
+It can be separated later with:
+
+```text
+PFSENSE_SECURITY_API_URL=https://home.albandrieu.com:10443
+PFSENSE_SECURITY_API_VERIFY_SSL=true
+```
+
+FastAPI Sample uses this identity only to read:
+
+```text
+GET /api/v2/diagnostics/table?id=snort2c
+```
+
+No write privilege is required. FastAPI Sample still contains temporary migration/rollback compatibility for the historical generic key, but production intentionally no longer sets `PFSENSE_API_KEY`. Do not collapse the two dedicated identities back into one shared secret.
 
 `PFSENSE_SECURITY_PATH_MODE=shared_wan` documents that the security observer reaches pfSense through the same WAN `:10443` path that Snort/PF may block. A transport failure on this path is a telemetry blind spot, not proof that Snort caused the failure.
 
@@ -121,9 +156,11 @@ Normal FastAPI Sample health and Snort telemetry require GET requests only, so g
 
 ## Validation
 
-Positive posture validation from the FastAPI Cloud runtime or an equivalent approved source:
+For ad-hoc shell validation, use a temporary shell variable. `PFSENSE_POSTURE_KEY` below is intentionally **not** the FastAPI Cloud variable name; the application variable is `PFSENSE_POSTURE_API_KEY`.
 
 ```sh
+export PFSENSE_POSTURE_KEY='<temporary local copy of posture key>'
+
 for path in \
   /api/v2/system/version \
   /api/v2/system/dns \
@@ -151,6 +188,26 @@ curl -sS \
 ```
 
 Expected: `403`.
+
+Security identity validation:
+
+```sh
+export PFSENSE_SECURITY_KEY='<temporary local copy of security key>'
+
+curl --fail-with-body -sS \
+  -o /dev/null \
+  -w '%{http_code}\n' \
+  -H "X-API-Key: ${PFSENSE_SECURITY_KEY}" \
+  'https://home.albandrieu.com:10443/api/v2/diagnostics/table?id=snort2c'
+```
+
+Expected: `200`.
+
+Then remove the temporary shell values:
+
+```sh
+unset PFSENSE_POSTURE_KEY PFSENSE_SECURITY_KEY
+```
 
 Network-policy validation must use at least two vantage points:
 
