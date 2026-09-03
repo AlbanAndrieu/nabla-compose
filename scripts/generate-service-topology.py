@@ -148,6 +148,27 @@ def declared_service(
     return service
 
 
+def runtime_placement_relation(
+    service: dict[str, Any], source_path: str
+) -> dict[str, Any] | None:
+    """Derive Docker placement from an authoritative Compose runtime binding."""
+    runtime = service.get("runtime")
+    if not isinstance(runtime, dict):
+        return None
+    if runtime.get("provider") != "truenas-app" or not runtime.get("containerService"):
+        return None
+    return {
+        "source": service["id"],
+        "target": "docker",
+        "type": "hostedBy",
+        "strength": "required",
+        "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+        "evidence": [
+            f"{source_path}:{service['composeService']}.x-nabla.runtime.containerService"
+        ],
+    }
+
+
 def topology_relation(
     metadata: dict[str, Any],
     source: str,
@@ -331,6 +352,12 @@ def load_compose_extensions(
                     f"{context}.relations[{index}]",
                     "topology relation",
                 )
+
+            placement = runtime_placement_relation(service, source_path)
+            if placement is not None:
+                key = (placement["source"], placement["target"], placement["type"])
+                if key not in relations:
+                    relations[key] = placement
 
 
 def apply_service_icons(
