@@ -12,6 +12,12 @@ x-nabla:
       category: infrastructure
       url: https://truenas.albandrieu.com:7000
       description: TrueNAS SCALE storage and application host.
+  relations:
+    - source: docker
+      target: truenas
+      type: hostedBy
+      strength: required
+      description: Docker runtime is hosted on the TrueNAS platform.
 
 services:
   homarr:
