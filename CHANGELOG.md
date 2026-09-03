@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.2.0...0.3.0) (2026-09-03)
+
+
+### Features
+
+* **catalog:** emit authoritative runtime placement ([#81](https://github.com/AlbanAndrieu/nabla-compose/issues/81)) ([f459cb8](https://github.com/AlbanAndrieu/nabla-compose/commit/f459cb809de62fc75dd980f2c45082b3f42bfefa))
+
 # [0.2.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.1.1...0.2.0) (2026-09-03)
 
 
