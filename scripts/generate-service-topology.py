@@ -22,6 +22,19 @@ OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml$")
 RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
+RELATION_TYPES = {
+    "dependsOn",
+    "consumesApi",
+    "providesApi",
+    "partOf",
+    "hostedBy",
+    "routesTo",
+    "observedBy",
+    "storesIn",
+    "authenticatesVia",
+    "exposedBy",
+    "automates",
+}
 
 
 def fail(message: str) -> None:
@@ -147,6 +160,9 @@ def topology_relation(
     strength = optional_text(metadata, "strength")
     if relation_type is None:
         fail(f"{context}.type is required")
+    if relation_type not in RELATION_TYPES:
+        supported = ", ".join(sorted(RELATION_TYPES))
+        fail(f"{context}.type must be one of: {supported}")
     if strength not in {"required", "optional"}:
         fail(f"{context}.strength must be required or optional")
 
@@ -173,6 +189,17 @@ def topology_relation(
         relation["description"] = description
     relation["evidence"] = evidence
     return relation
+
+
+def document_topology_relation(
+    metadata: dict[str, Any],
+    source_path: str,
+    relation_index: int,
+    context: str,
+) -> dict[str, Any]:
+    """Parse a top-level relation whose source is explicit in the document."""
+    source = require_identifier(metadata.get("source"), f"{context}.source")
+    return topology_relation(metadata, source, source_path, relation_index, context)
 
 
 def add_unique(
@@ -211,8 +238,9 @@ def load_static_topology(
             relation.get("target"), f"static relation {index}.target"
         )
         relation_type = relation.get("type")
-        if not isinstance(relation_type, str) or not relation_type:
-            fail(f"static relation {index}.type is required")
+        if relation_type not in RELATION_TYPES:
+            supported = ", ".join(sorted(RELATION_TYPES))
+            fail(f"static relation {index}.type must be one of: {supported}")
         add_unique(
             relations,
             (source, target, relation_type),
@@ -248,6 +276,19 @@ def load_compose_extensions(
                 context = f"{source_path}:x-nabla.nodes[{index}]"
                 node = topology_node(metadata, source_path, context)
                 add_unique(nodes, node["id"], node, context, "topology node")
+
+            document_relations = top_extension.get("relations", [])
+            if not isinstance(document_relations, list):
+                fail(f"{source_path}: x-nabla.relations must be a list")
+            for index, metadata in enumerate(document_relations):
+                if not isinstance(metadata, dict):
+                    fail(f"{source_path}: x-nabla.relations[{index}] must be a mapping")
+                context = f"{source_path}:x-nabla.relations[{index}]"
+                relation = document_topology_relation(
+                    metadata, source_path, index, context
+                )
+                key = (relation["source"], relation["target"], relation["type"])
+                add_unique(relations, key, relation, context, "topology relation")
 
         compose_services = document.get("services", {})
         if not isinstance(compose_services, dict):
