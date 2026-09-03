@@ -51,6 +51,7 @@
             "consumesApi",
             "providesApi",
             "partOf",
+            "hostedBy",
             "routesTo",
             "observedBy",
             "storesIn",

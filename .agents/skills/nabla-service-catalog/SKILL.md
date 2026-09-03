@@ -18,7 +18,7 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
 
-Use document-level `x-nabla.nodes` only for logical or external dependencies that do not have their own tracked Compose service, such as an external firewall or database.
+Use document-level `x-nabla.nodes` only for logical or external dependencies that do not have their own tracked Compose service, such as an external firewall or database. Use document-level `x-nabla.relations` when a relationship is between logical/infrastructure nodes rather than owned by one Compose service, for example `Docker hostedBy TrueNAS`.
 
 ## Dependency model
 
@@ -30,6 +30,7 @@ Use the existing relation vocabulary:
 - `consumesApi`: calls an API exposed by the target;
 - `providesApi`: exposes an API used by the target;
 - `partOf`: workload belongs to a larger logical system;
+- `hostedBy`: workload/runtime is structurally placed on the target runtime or host; this describes placement, not an application protocol dependency or a health-propagation rule;
 - `routesTo`: selects or forwards work to the target;
 - `observedBy`: exports telemetry/metrics/logs observed by the target;
 - `storesIn`: writes durable data or telemetry to the target;
@@ -37,18 +38,18 @@ Use the existing relation vocabulary:
 - `exposedBy`: target proxies or exposes the source;
 - `automates`: source orchestrates work in the target.
 
-Every relation must include `strength: required|optional` and should include concrete `evidence` pointing to the configuration that proves the relationship. Do not invent dependencies merely to make the graph look complete.
+Every relation must include `strength: required|optional` and should include concrete `evidence` pointing to the configuration that proves the relationship. Do not invent dependencies merely to make the graph look complete. Keep `hostedBy` separate from `dependsOn`/`partOf`: hosting should contribute to infrastructure impact analysis without pretending the host is a functional service dependency.
 
 ## Generated contracts
 
-Never hand-edit `catalog/services.json` or `catalog/service-topology.json` as the source of truth. After Compose metadata or static logical nodes change, run:
+Never hand-edit `catalog/services.json` or `catalog/service-topology.json` as the source of truth. After Compose metadata or static logical nodes/relations change, run:
 
 ```bash
 python scripts/generate-service-topology.py
 python scripts/generate-service-topology.py --check
 ```
 
-Review both generated files and ensure all relation targets resolve to known nodes.
+Review both generated files and ensure all relation sources and targets resolve to known nodes.
 
 ## Dashboard and monitoring consumers
 
