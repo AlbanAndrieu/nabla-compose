@@ -20,6 +20,8 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 
 Use document-level `x-nabla.nodes` only for logical or external dependencies that do not have their own tracked Compose service, such as an external firewall or database. Use document-level `x-nabla.relations` when a relationship is between logical/infrastructure nodes rather than owned by one Compose service, for example `Docker hostedBy TrueNAS`.
 
+The generator derives a required `service hostedBy docker` relation automatically when a service declares `runtime.provider: truenas-app` together with `runtime.containerService`. Do not duplicate that placement edge on every service; keep `Docker hostedBy TrueNAS` as an explicit document-level infrastructure relation.
+
 ## Dependency model
 
 Model architecture independently from Compose lifecycle ordering. Do not use `depends_on` as a substitute for catalog relations.

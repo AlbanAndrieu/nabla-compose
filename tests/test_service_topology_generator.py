@@ -35,6 +35,46 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
         self.assertEqual(relation["strength"], "required")
         self.assertTrue(relation["evidence"])
 
+    def test_truenas_compose_runtime_derives_hosted_by_docker(self) -> None:
+        relation = MODULE.runtime_placement_relation(
+            {
+                "id": "openwebui",
+                "composeService": "open-webui",
+                "runtime": {
+                    "provider": "truenas-app",
+                    "containerService": "open-webui",
+                },
+            },
+            "apps/openwebui/compose.yml",
+        )
+
+        self.assertIsNotNone(relation)
+        assert relation is not None
+        self.assertEqual(
+            (relation["source"], relation["target"], relation["type"]),
+            ("openwebui", "docker", "hostedBy"),
+        )
+        self.assertEqual(relation["strength"], "required")
+        self.assertEqual(
+            relation["evidence"],
+            [
+                "apps/openwebui/compose.yml:"
+                "open-webui.x-nabla.runtime.containerService"
+            ],
+        )
+
+    def test_non_compose_runtime_does_not_derive_docker_placement(self) -> None:
+        relation = MODULE.runtime_placement_relation(
+            {
+                "id": "native-app",
+                "composeService": "native-app",
+                "runtime": {"provider": "truenas-app", "appId": "native-app"},
+            },
+            "apps/native/compose.yml",
+        )
+
+        self.assertIsNone(relation)
+
     def test_document_level_relation_requires_explicit_source(self) -> None:
         relation = MODULE.document_topology_relation(
             {
