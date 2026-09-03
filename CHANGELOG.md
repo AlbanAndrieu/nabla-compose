@@ -1,3 +1,10 @@
+# [0.2.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.1.1...0.2.0) (2026-09-03)
+
+
+### Features
+
+* **catalog:** add hostedBy placement relation capability ([#80](https://github.com/AlbanAndrieu/nabla-compose/issues/80)) ([1e2d946](https://github.com/AlbanAndrieu/nabla-compose/commit/1e2d9465b0ee773bb588ac73cefd84f9c9582d8e))
+
 ## [0.1.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.1.0...0.1.1) (2026-09-01)
 
 
