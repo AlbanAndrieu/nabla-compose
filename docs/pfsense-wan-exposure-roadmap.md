@@ -27,6 +27,39 @@ Acceptance tests after the Easy Rule is replaced:
 5. The HAProxy TrueNAS backend remains `UP`, `L7OK`, and HTTP `200`.
 6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
 
+## P1 — verify HAProxy → TrueNAS backend TLS
+
+The public TrueNAS path intentionally uses TLS termination and re-encryption:
+
+```text
+Client --TLS verified--> HAProxy --TLS verified--> TrueNAS
+```
+
+The backend hop must not remain merely encrypted with certificate verification disabled. The TrueNAS GUI/API certificate now has a valid path for `truenas.albandrieu.com`; direct LAN validation must continue to succeed without `-k` before HAProxy verification is enabled.
+
+Hardening checklist:
+
+- confirm the certificate presented by `172.17.0.24:7000` with SNI `truenas.albandrieu.com` contains `DNS:truenas.albandrieu.com` in its SAN and chains to a CA trusted by pfSense;
+- configure the HAProxy TrueNAS backend to send the expected SNI/server name `truenas.albandrieu.com`;
+- configure HAProxy to verify the backend certificate and CA chain; do not leave `verify none` as the steady-state configuration;
+- keep TLS re-encryption rather than switching to passthrough solely to avoid backend certificate validation;
+- verify that ACME renewal on TrueNAS does not require manual HAProxy changes when the issuing CA chain remains trusted;
+- preserve the existing health check and validate that the TrueNAS backend remains `UP`, `L7OK`, and HTTP `200` after verification is enabled.
+
+Acceptance evidence:
+
+1. Direct LAN validation succeeds without bypassing TLS verification:
+
+   ```sh
+   curl --resolve truenas.albandrieu.com:7000:172.17.0.24 \
+     https://truenas.albandrieu.com:7000/ -I
+   ```
+
+2. HAProxy backend certificate verification is enabled and no `verify none` remains on the TrueNAS backend.
+3. The public `https://truenas.albandrieu.com:7000` path remains healthy.
+4. HAProxy reports the TrueNAS backend `UP`/`L7OK`, and no certificate/SNI validation error appears in HAProxy logs.
+5. A renewed TrueNAS ACME certificate is accepted by HAProxy without disabling verification.
+
 ## P1 — security-engine attribution
 
 Keep pfSense/PF, Snort, pfBlockerNG, and CrowdSec as distinct filtering layers. A running security service is not proof that it blocked a request.
