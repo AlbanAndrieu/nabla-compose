@@ -1,7 +1,7 @@
 min_version = "2024.9.5"
 
 [tools]
-python = "{{ get_env(name='PYTHON_VERSION', default='3.13') }}"
+python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 ruff = "latest"
 awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
@@ -18,9 +18,16 @@ op = "latest"
 terragrunt = "0.97.0"
 sops = "latest"
 docker-compose = "latest"
-1password = "latest"
+# 1password = "latest"
+
+[settings]
+lockfile = true
 
 [env]
+_.file = [".env.secrets", ".env.local"]
+
+ENV = "dev"
+
 # Keep repository-wide mise environment value-free. Runtime credentials belong
 # in the shell, mise.local.toml, or the repository secret rendering contract.
 PROJECT_NAME = "{{ config_root | basename }}"
