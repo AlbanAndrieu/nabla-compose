@@ -38,6 +38,27 @@ TrueNAS 26 is still a beta target for the provider. Treat every first `plan`/`ap
 
 The provider is configured with both the service-account username and API key. This uses the modern authentication path and avoids relying on `auth.login_with_api_key`, which is deprecated in TrueNAS 26 and scheduled for removal in TrueNAS 27.
 
+
+### Direct TrueNAS TLS state — 2026-09-04
+
+TrueNAS now presents a certificate valid for `truenas.albandrieu.com` on the direct LAN HTTPS/API listener. The direct backend path was validated without `-k`:
+
+```sh
+curl --resolve truenas.albandrieu.com:7000:172.17.0.24 \
+  https://truenas.albandrieu.com:7000/ -I
+# HTTP/2 302
+# location: https://truenas.albandrieu.com:7000/ui/
+```
+
+Keep:
+
+```dotenv
+TRUENAS_URL=https://truenas.albandrieu.com:7000
+TRUENAS_INSECURE_SKIP_VERIFY=false
+```
+
+The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in `docs/pfsense-wan-exposure-roadmap.md`: HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
+
 ## 2. Manual TrueNAS bootstrap boundary
 
 Keep these operations manual for the first cluster:
@@ -74,6 +95,57 @@ export TRUENAS_VM_BRIDGE=br0
 
 Talos VM NICs are attached to this bridge with VirtIO.
 
+
+### Implemented bridge state — 2026-09-04
+
+The first Talos bridge has now been created and tested on the TrueNAS host:
+
+```text
+LAN 172.17.0.0/24
+        |
+     enp10s0
+   physical uplink
+        |
+        v
+       br0
+  172.17.0.24/24
+        |
+        +-- TrueNAS host
+        +-- future taloscp01 VirtIO NIC
+        +-- future taloswk01 VirtIO NIC
+        +-- future taloswk02 VirtIO NIC
+```
+
+Observed configuration:
+
+- physical uplink: `enp10s0`, MAC `04:7c:16:d5:61:5e`;
+- `enp10s0` is a bridge member and carries no IPv4 address;
+- bridge: `br0`;
+- TrueNAS management address: static `172.17.0.24/24` on `br0`;
+- default gateway: `172.17.0.1` through `br0`;
+- MTU: `1500`;
+- bridge learning: enabled;
+- pfSense dynamic DHCP pool: `172.17.0.100-172.17.0.200`, so `172.17.0.24` is outside the dynamic range;
+- pfSense retains the static mapping `04:7c:16:d5:61:5e -> 172.17.0.24`.
+
+The TrueNAS **Test Changes** rollback mechanism was used before committing the bridge. During the test window, ICMP and direct HTTPS remained healthy. After saving, the observed host state was:
+
+```sh
+ip -br addr show br0
+# br0 UP 172.17.0.24/24
+
+ip -br addr show enp10s0
+# enp10s0 UP
+
+ip route show default
+# default via 172.17.0.1 dev br0 proto static
+
+bridge link show
+# enp10s0 ... master br0 state forwarding
+```
+
+A reboot-persistence check remains a hard gate before the first VM apply.
+
 ## 4. Create the parent ZFS datasets
 
 Do not use the pool root directly for Kubernetes/NFS shares.
@@ -99,6 +171,36 @@ Recommended initial settings:
 Keep compression enabled (`LZ4`/inherited) and keep `Sync=Standard` initially.
 
 The OpenTofu test module creates only the VM zvols below the existing `k8s/talos-vms` parent. It does not create or alter the pool hierarchy during the first experiment.
+
+
+### Implemented storage and Talos ISO state — 2026-09-04
+
+The bootstrap datasets now exist on `cpool`:
+
+```text
+cpool/k8s
+├── talos-vms
+├── nfs
+└── csi
+cpool/iso
+```
+
+The Talos Image Factory schematic pinned by the repository produced the following bootable ISO, which has been downloaded directly to TrueNAS:
+
+```text
+Talos version: v1.13.9
+Schematic ID:  ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515
+ISO path:      /mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
+SHA-256:       1185a383d02d987db0bd7c7feab7e6f5bb919b8ef91e26a73299278cc2b6773c
+```
+
+The file was verified as a bootable ISO 9660 Talos image. The local bootstrap configuration can therefore use:
+
+```dotenv
+TRUENAS_POOL=cpool
+TRUENAS_VM_BRIDGE=br0
+TALOS_ISO_PATH=/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
+```
 
 Set the pool name locally:
 
