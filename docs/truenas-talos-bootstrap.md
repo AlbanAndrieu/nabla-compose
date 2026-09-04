@@ -162,7 +162,7 @@ Do not grant `FULL_ADMIN` by default. If a plan/apply reports a permission error
 Export both the username and key:
 
 ```bash
-export TRUENAS_USERNAME='tofu_truenas'
+export TRUENAS_USER='tofu_truenas'
 export TRUENAS_API_KEY='...terraform key...'
 ```
 
@@ -196,7 +196,7 @@ It reuses the repository-wide `root.hcl` and existing remote-state backend.
 cd infrastructure/truenas
 
 export TRUENAS_URL='https://truenas.example.internal'
-export TRUENAS_USERNAME='tofu_truenas'
+export TRUENAS_USER='tofu_truenas'
 export TRUENAS_API_KEY='...terraform key...'
 export TRUENAS_POOL='<POOL>'
 export TRUENAS_VM_BRIDGE='br0'
@@ -430,7 +430,7 @@ Do not continue to Kubernetes until all of the following are true:
 - [ ] Parent `k8s`, `k8s/talos-vms`, `k8s/nfs` and `k8s/csi` datasets exist as intended.
 - [ ] The `mcp_reader` identity can list resources but cannot mutate them.
 - [ ] The `tofu_truenas` account and user-linked API key exist with only the required roles.
-- [ ] `TRUENAS_USERNAME` and `TRUENAS_API_KEY` are stored outside Git.
+- [ ] `TRUENAS_USER` and `TRUENAS_API_KEY` are stored outside Git.
 - [ ] `terragrunt plan` reports exactly three VMs, three zvols and their devices.
 - [ ] The first `terragrunt apply` creates those resources successfully.
 - [ ] `TRUENAS_DESTROY_PROTECTION=true` remains enabled.

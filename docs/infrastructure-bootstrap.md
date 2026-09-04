@@ -9,10 +9,11 @@ Keep durable, host-specific **non-secrets** in `.env.local` (or export them thro
 ```bash
 export TRUENAS_ENABLED=true
 export TRUENAS_URL=https://truenas.example.internal
-export TRUENAS_USERNAME=tofu_truenas
+export TRUENAS_USER=tofu_truenas
 export TRUENAS_POOL=<POOL>
 export TRUENAS_VM_BRIDGE=br0
-export TALOS_ISO_PATH=/mnt/<POOL>/iso/talos-amd64.iso
+# Optional until boot media is attached:
+# export TALOS_ISO_PATH=/mnt/<POOL>/iso/talos-amd64.iso
 export TRUENAS_READ_ONLY=true
 export TRUENAS_DESTROY_PROTECTION=true
 export TRUENAS_INSECURE_SKIP_VERIFY=false
@@ -28,6 +29,8 @@ set +a
 ```
 
 Do not move these values to Vaultwarden merely because they are environment variables. They are configuration, not credentials.
+
+`TRUENAS_URL` must use a DNS name covered by the TrueNAS TLS certificate. If the certificate covers a hostname but not `172.17.0.24`, keep `TRUENAS_INSECURE_SKIP_VERIFY=false` and use split DNS (or an equivalent local resolver override) so that hostname resolves to the LAN address instead of disabling certificate verification.
 
 Move the following **bootstrap secrets** to the Vaultwarden item `nabla/prod/infrastructure-bootstrap`:
 
@@ -119,7 +122,7 @@ terragrunt apply
 
 The `home-ops-backups` access key created by this unit is unrelated to the backend key. Import it into Vaultwarden deliberately after creation; do not replace the backend credentials with it.
 
-### 2. Resolve and place the Talos ISO
+### 2. Optional — resolve and place the Talos ISO
 
 From the repository root:
 
@@ -127,7 +130,7 @@ From the repository root:
 bash scripts/talos/image-factory.sh
 ```
 
-Download the reported ISO from a trusted workstation and place it at the TrueNAS-local path configured by `TALOS_ISO_PATH`.
+For a provider-only safe plan, this step can be skipped. Before creating bootable Talos VMs, download the reported ISO from a trusted workstation, place it at the TrueNAS-local path configured by `TALOS_ISO_PATH`, and re-run the preflight.
 
 ### 3. TrueNAS safe initialization and plan
 
