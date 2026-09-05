@@ -6,6 +6,7 @@ ruff = "latest"
 awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
 kubectl = "latest"
+talosctl = "1.13.9"
 helm = "latest"
 argocd = "latest"
 trivy = "latest"
