@@ -69,7 +69,7 @@ check_endpoint() {
 printf '🔎 TrueNAS/Talos infrastructure preflight (%s)\n' "${mode}"
 printf 'Secrets are checked for presence only; values are never printed.\n\n'
 
-for command in aws curl flock jq tofu terragrunt; do
+for command in aws cmp curl flock jq mktemp sha256sum tofu terragrunt; do
   require_command "${command}"
 done
 
@@ -112,6 +112,7 @@ for file in \
   root.hcl \
   config/talos/VERSION \
   config/talos/image-factory.yaml \
+  scripts/infra/backup-garage-state.sh \
   scripts/infra/probe-garage-backend.sh \
   scripts/infra/terragrunt-safe.sh \
   terraform/garage/.terraform.lock.hcl \
@@ -131,7 +132,7 @@ else
   ok "Garage native S3 lockfile is disabled; local writer serialization is required"
 fi
 
-for script in scripts/infra/probe-garage-backend.sh scripts/infra/terragrunt-safe.sh; do
+for script in scripts/infra/backup-garage-state.sh scripts/infra/probe-garage-backend.sh scripts/infra/terragrunt-safe.sh; do
   if [[ -x "${script}" ]]; then
     ok "executable: ${script}"
   else
