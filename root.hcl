@@ -7,8 +7,8 @@ remote_state {
   }
 
   config = {
-    endpoints = { s3 = "https://s3.int.albandrieu.com" }
-    bucket    = "opentofu-state" # tfstate-nabla-compose
+    endpoints = { s3 = get_env("GARAGE_S3_ENDPOINT", "https://s3.int.albandrieu.com") }
+    bucket    = get_env("GARAGE_STATE_BUCKET", "opentofu-state")
     key       = "${replace(path_relative_to_include(), "infrastructure/", "")}/tfstate.json"
     region    = "us-east-1"
 
