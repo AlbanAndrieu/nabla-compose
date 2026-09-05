@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.2...0.4.0) (2026-09-05)
+
+
+### Features
+
+* **talos:** prepare TrueNAS Kubernetes bootstrap ([#86](https://github.com/AlbanAndrieu/nabla-compose/issues/86)) ([244412e](https://github.com/AlbanAndrieu/nabla-compose/commit/244412eeeb4e1bcf8a6f7eb4bf0f3256bc22499f))
+
 ## [0.3.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.1...0.3.2) (2026-09-05)
 
 
