@@ -86,8 +86,14 @@ class InfrastructureStateContractTests(unittest.TestCase):
         )
 
         self.assertIn("/v2/ListBuckets", preflight)
-        self.assertIn('--config <(printf \'header = "Authorization: Bearer %s"', preflight)
-        self.assertNotIn('--header "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}"', preflight)
+        self.assertIn(
+            '--config <(printf \'header = "Authorization: Bearer %s"',
+            preflight,
+        )
+        self.assertNotIn(
+            '--header "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}"',
+            preflight,
+        )
         self.assertIn("Garage admin token rejected", preflight)
         self.assertIn("${GARAGE_ADMIN_TOKEN:-}", preflight)
 
