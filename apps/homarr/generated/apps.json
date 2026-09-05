@@ -690,6 +690,17 @@
       "syncEligible": false
     },
     {
+      "id": "scrutiny",
+      "name": "Scrutiny",
+      "group": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "composeService": "scrutiny",
+      "dockerManaged": true,
+      "href": "https://scrutiny.albandrieu.com",
+      "syncEligible": true,
+      "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB."
+    },
+    {
       "id": "sentry-sentry-cron",
       "name": "Sentry Cron",
       "group": "sentry",
