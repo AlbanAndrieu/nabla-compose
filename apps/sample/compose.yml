@@ -8,6 +8,10 @@ services:
       target: production
     container_name: fastapi-sample
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
     x-nabla:
       id: fastapi-sample
@@ -31,6 +35,11 @@ services:
           description: Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.
           evidence:
             - apps/sample/compose.yml:traefik.http.routers.fastapi-sample
+      monitoring:
+        type: http
+        target: http://172.17.0.24:8091/health
+        conditions:
+          - "[STATUS] == 200"
 
     # Runtime secrets/configuration stay on TrueNAS, outside Git. In particular,
     # define REDIS_URL=redis://:<REDIS_AUTH>@redis:6379/0 in .env.secrets.
