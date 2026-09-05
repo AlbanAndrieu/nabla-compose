@@ -175,6 +175,29 @@ Keep compression enabled (`LZ4`/inherited) and keep `Sync=Standard` initially.
 The OpenTofu test module creates only the VM zvols below the existing `k8s/talos-vms` parent. It does not create or alter the pool hierarchy during the first experiment.
 
 
+### Post-bridge service binding audit — 2026-09-05
+
+After the reboot, the management bridge remained stable and the principal TrueNAS listeners were audited:
+
+- SSH: bound to `br0`, listening on `172.17.0.24:9922`;
+- SMB: bound to `172.17.0.24`, listening on TCP/445;
+- NFSv4: no explicit bind-IP restriction, listening on TCP/2049;
+- iSCSI: portal listens on `0.0.0.0:3260`;
+- TrueNAS GUI/API: TCP/7000 on all host addresses;
+- Garage: TCP/3900 and TCP/3903 on all host addresses;
+- Traefik: TCP/80 and TCP/443 on all host addresses.
+
+The TrueNAS services `cifs`, `iscsitarget`, `nfs`, `snmp`, and `ssh` were all observed in `RUNNING` state with automatic start enabled.
+
+When auditing SSH, do **not** dump the full `ssh.config` object because it contains private host-key material. Use a field projection such as:
+
+```sh
+midclt call ssh.config |
+  jq '{bindiface, tcpport, passwordauth, kerberosauth, tcpfwd, weak_ciphers}'
+```
+
+The current SSH configuration also exposes the optional weak-cipher list. Review and remove `AES128-CBC` and `NONE` unless a documented legacy compatibility requirement exists.
+
 ### Implemented storage and Talos ISO state — 2026-09-04
 
 The bootstrap datasets now exist on `cpool`:
