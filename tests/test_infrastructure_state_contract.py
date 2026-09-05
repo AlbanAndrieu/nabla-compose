@@ -24,6 +24,20 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("run-all", wrapper)
         self.assertIn("--all", wrapper)
         self.assertIn("Refusing repository-wide Terragrunt apply", wrapper)
+        self.assertIn("backup-garage-state.sh", wrapper)
+
+    def test_state_backup_is_private_and_validated(self) -> None:
+        backup = (ROOT / "scripts/infra/backup-garage-state.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("umask 077", backup)
+        self.assertIn("head-object", backup)
+        self.assertIn("get-object", backup)
+        self.assertIn("chmod 0600", backup)
+        self.assertIn("sha256sum", backup)
+        self.assertIn("Downloaded state is not a valid JSON object", backup)
+        self.assertIn("Refusing apply", backup)
 
     def test_trusted_workflow_is_plan_only(self) -> None:
         workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
