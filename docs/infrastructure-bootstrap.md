@@ -9,8 +9,9 @@ Keep durable, host-specific **non-secrets** in `.env.local`. Start from `config/
 ```dotenv
 TRUENAS_ENABLED=true
 TRUENAS_URL=https://truenas.example.internal
-TRUENAS_USER=tofu_truenas
-TRUENAS_POOL=<POOL>
+TRUENAS_USER=albandrieu
+# Optional overrides; defaults are cpool and br0.
+TRUENAS_POOL=cpool
 TRUENAS_VM_BRIDGE=br0
 TALOS_ISO_PATH=/mnt/<POOL>/iso/talos-amd64.iso
 TRUENAS_READ_ONLY=true
@@ -30,6 +31,8 @@ set +a
 ```
 
 Do not move these values to Vaultwarden merely because they are environment variables. They are configuration, not credentials.
+
+For the current supervised bootstrap, the API key owner is `albandrieu`. Keep that as an explicit temporary operator choice; create a dedicated least-privilege `tofu_truenas` identity before unattended or recurring infrastructure automation.
 
 `TRUENAS_URL` must use a DNS name covered by the TrueNAS TLS certificate. Keep `TRUENAS_INSECURE_SKIP_VERIFY=false`; use split DNS or an equivalent local resolver override when the trusted hostname should resolve directly to the LAN address.
 
