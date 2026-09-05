@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/infra/preflight-truenas-talos.sh
+          bash -n scripts/infra/backup-garage-state.sh
           bash -n scripts/infra/probe-garage-backend.sh
           bash -n scripts/infra/terragrunt-safe.sh
 
