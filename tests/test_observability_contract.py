@@ -95,7 +95,6 @@ class ObservabilityContractTests(unittest.TestCase):
             )
         )
 
-
     def test_pfsense_exporter_is_pinned_to_dashboard_release(self) -> None:
         compose = (
             ROOT / "apps" / "prometheus" / "compose.yml"
