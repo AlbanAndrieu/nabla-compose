@@ -24,7 +24,12 @@ for command in flock terragrunt; do
 done
 
 joined_args=" $* "
-if [[ "${joined_args}" == *" apply "* ]] && { [[ "${joined_args}" == *" run-all "* ]] || [[ "${joined_args}" == *" --all "* ]]; }; then
+is_apply=false
+if [[ "${joined_args}" == *" apply "* ]]; then
+  is_apply=true
+fi
+
+if [[ "${is_apply}" == "true" ]] && { [[ "${joined_args}" == *" run-all "* ]] || [[ "${joined_args}" == *" --all "* ]]; }; then
   echo "Refusing repository-wide Terragrunt apply while Garage state has no distributed lock." >&2
   echo "Apply one infrastructure unit at a time after reviewing its plan." >&2
   exit 1
@@ -43,6 +48,15 @@ fi
 printf '🔒 local Terragrunt operator lock acquired: %s\n' "${lock_file}"
 printf '⚠️  this lock is host-local; do not run another writer from CI or another workstation\n'
 printf '📁 working directory: %s\n' "${workdir}"
+
+if [[ "${is_apply}" == "true" ]]; then
+  backup_script="${repo_root}/scripts/infra/backup-garage-state.sh"
+  if [[ ! -x "${backup_script}" ]]; then
+    echo "State backup guard is missing or not executable: ${backup_script}" >&2
+    exit 1
+  fi
+  "${backup_script}" "${workdir}"
+fi
 
 cd "${target_dir}"
 terragrunt "$@"
