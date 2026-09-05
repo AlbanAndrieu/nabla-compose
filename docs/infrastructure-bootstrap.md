@@ -90,6 +90,10 @@ Until a distributed lock service is introduced, **one workstation is the only st
 
 This is a bootstrap safety boundary, not a distributed lock. A future multi-writer workflow must add a shared lock service before remote applies are re-enabled.
 
+Because Garage does not provide S3 object versioning for state recovery, `terragrunt-safe.sh` also snapshots an existing remote state before every local `apply`. Backups are written outside the repository to `${NABLA_STATE_BACKUP_DIR}` when set, otherwise `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`. Directories are kept private and state files/checksums are written mode `0600`.
+
+Treat these files as secrets: OpenTofu state can contain sensitive resource attributes. Do not sync them to Git, public cloud storage, chat, or ordinary workstation backups without encryption.
+
 ## Preflight
 
 From the repository root, after `.env.local` configuration and secret exports are loaded:
@@ -137,6 +141,8 @@ If the plan is correct:
 scripts/infra/terragrunt-safe.sh infrastructure/garage apply
 ```
 
+Before the apply starts, the wrapper snapshots any existing `garage/tfstate.json`; the first apply is allowed when no state object exists yet. If an existing state cannot be read, downloaded, or validated as JSON, the wrapper refuses the apply.
+
 The `home-ops-backups` access key created by this unit is unrelated to the backend key. Import it into Vaultwarden deliberately after creation; do not replace the backend credentials with it.
 
 ### 2. Resolve and place the Talos ISO
@@ -177,11 +183,19 @@ bash scripts/infra/preflight-truenas-talos.sh apply
 scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
 
+Before the apply starts, the wrapper snapshots any existing `truenas/tfstate.json`. Keep the resulting local backup until the new resources and state are validated.
+
 The initial target is VM/zvol/device creation only. Do not combine this first apply with democratic-csi, Talos PKI generation, or a repository-wide apply.
 
 ### 5. Talos first boot
 
 Boot one control-plane VM first. Before generating final machine configuration, discover the disk and network names from Talos and confirm the deterministic MAC/network contract. Only then generate sensitive Talos configuration under ignored `generated/talos/` and continue with cluster bootstrap.
+
+## State recovery boundary
+
+Local state backups are a recovery copy, not an alternate live backend. Do not edit them manually and do not restore one while another Terragrunt/OpenTofu process is running. A restore is a maintenance operation: stop all infrastructure writers, verify the selected backup checksum, copy the current remote state aside first, then restore only the exact unit key (`garage/tfstate.json` or `truenas/tfstate.json`).
+
+The normal bootstrap must never require restoring state. If a restore becomes necessary, diagnose the remote state and resource reality before writing anything back.
 
 ## What should remain outside Vaultwarden
 
