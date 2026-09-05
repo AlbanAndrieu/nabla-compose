@@ -12,9 +12,20 @@ The goal is not merely to make containers start. A migration is complete only wh
 - TrueNAS remains on `26.0.0-BETA.3`; Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
 - Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
-- TrueNAS/Talos manual bootstrap progressed on 2026-09-04: `cpool/k8s/{talos-vms,nfs,csi}` and `cpool/iso` exist, Talos `v1.13.9` ISO is verified at `/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso`, `br0` now carries static `172.17.0.24/24` with `enp10s0` as its forwarding member, and direct TrueNAS TLS validates for `truenas.albandrieu.com`; the first read-only TrueNAS Terragrunt plan now passes with `15 to add, 0 to change, 0 to destroy`; reboot persistence is now validated; post-bridge service binding audit and Garage remote-state recovery remain before the first VM apply.
+- TrueNAS/Talos manual bootstrap progressed through the first reviewed create plan: `br0` survived reboot, SSH was rebound to `br0`, bootstrap-critical SMB/NFS/iSCSI/TrueNAS/Garage/Traefik listeners were verified, Garage state read/write/delete passed, and the repeated TrueNAS plan remains `15 to add, 0 to change, 0 to destroy`. The resource apply may provision the three stopped Talos VMs; Talos machine configuration remains a later workstation-driven step.
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
+
+### Post-reboot runtime cleanup — 2026-09-05
+
+Track these independently from the Talos bridge/bootstrap:
+
+- [ ] Alertmanager: fix host-file/dataset permissions so the container can read `/etc/alertmanager/config.yml`;
+- [ ] Scrutiny: inspect failing healthcheck and logs before changing networking;
+- [ ] `opensearch-security`: fix ownership/ACL of `/mnt/cpool/opensearch-security/data` so the OpenSearch container user can create `nodes/`;
+- [x] Open WebUI: healthy after reboot;
+- [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
+- [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 ## P0 hard gate — secrets-first migration
 
