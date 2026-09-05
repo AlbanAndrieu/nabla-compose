@@ -84,3 +84,10 @@ else
   echo "⚠️  Conditional-write result was inconclusive (exit ${conditional_rc})."
   echo "    Native OpenTofu S3 locking must remain disabled until verified."
 fi
+
+aws --endpoint-url "${endpoint}" s3api delete-object \
+  --bucket "${bucket}" \
+  --key "${key}" \
+  >/dev/null
+
+echo "✅ Garage state bucket delete succeeded"
