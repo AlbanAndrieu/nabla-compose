@@ -28,7 +28,7 @@ The script requires a complete semantic release (`vMAJOR.MINOR.PATCH`) rather th
 
 ## Generate the cluster configuration
 
-Install a compatible `talosctl`, then choose the Kubernetes API endpoint that the cluster will use.
+`talosctl` is pinned with the rest of the workstation tooling in `mise.toml`. After synchronizing the branch, run `mise install`, then verify `mise exec -- talosctl version --client`. Choose the Kubernetes API endpoint that the cluster will use only after the first control-plane VM has an assigned/reserved LAN address.
 
 For the initial single-control-plane lab, this can be the future control-plane IP on port `6443`. For an HA control plane, use the stable load-balancer/VIP endpoint instead.
 
