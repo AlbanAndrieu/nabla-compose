@@ -39,6 +39,34 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("Downloaded state is not a valid JSON object", backup)
         self.assertIn("Refusing apply", backup)
 
+    def test_non_secret_env_template_excludes_credentials(self) -> None:
+        template = (ROOT / "config/infrastructure.env.example").read_text(
+            encoding="utf-8"
+        )
+
+        for name in (
+            "TRUENAS_ENABLED",
+            "TRUENAS_URL",
+            "TRUENAS_USERNAME",
+            "TRUENAS_POOL",
+            "TRUENAS_VM_BRIDGE",
+            "TALOS_ISO_PATH",
+            "TRUENAS_READ_ONLY",
+            "TRUENAS_DESTROY_PROTECTION",
+            "TRUENAS_INSECURE_SKIP_VERIFY",
+            "GARAGE_S3_ENDPOINT",
+            "GARAGE_STATE_BUCKET",
+        ):
+            self.assertRegex(template, rf"(?m)^export {name}=")
+
+        for secret_name in (
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "GARAGE_ADMIN_TOKEN",
+            "TRUENAS_API_KEY",
+        ):
+            self.assertNotRegex(template, rf"(?m)^export {secret_name}=")
+
     def test_trusted_workflow_is_plan_only(self) -> None:
         workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
             encoding="utf-8"
