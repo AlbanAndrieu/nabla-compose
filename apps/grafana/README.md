@@ -249,5 +249,7 @@ export GRAFANA_SERVICE_ACCOUNT_TOKEN='<render from Vaultwarden>'
 ```
 
 The MCP client can then query Grafana dashboards and the provisioned Loki,
-Mimir, and Tempo datasources. Do not use the Grafana administrator account or
-expose the MCP transport on the Internet.
+Mimir, and Tempo datasources. The server is started with `--disable-write` in
+addition to the Viewer/read-only Grafana role, so write-capable MCP tools are
+not exposed. Do not use the Grafana administrator account or expose the MCP
+transport on the Internet.
