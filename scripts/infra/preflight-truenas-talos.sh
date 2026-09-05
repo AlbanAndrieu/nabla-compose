@@ -76,10 +76,12 @@ check_garage_admin_token() {
   fi
 
   local status
-  status="$(curl --silent --show-error --location --connect-timeout 5 --max-time 10 \
-    --header "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
-    --output /dev/null --write-out '%{http_code}' \
-    "${garage_admin_endpoint%/}/v2/ListBuckets" || true)"
+  status="$(
+    curl --silent --show-error --connect-timeout 5 --max-time 10 \
+      --config <(printf 'header = "Authorization: Bearer %s"\n' "${GARAGE_ADMIN_TOKEN}") \
+      --output /dev/null --write-out '%{http_code}' \
+      "${garage_admin_endpoint%/}/v2/ListBuckets" || true
+  )"
 
   case "${status}" in
     200)
