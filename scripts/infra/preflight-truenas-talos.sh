@@ -49,6 +49,10 @@ expect_env() {
   fi
 }
 
+garage_s3_endpoint="${GARAGE_S3_ENDPOINT:-https://s3.int.albandrieu.com}"
+garage_admin_endpoint="${GARAGE_ADMIN_ENDPOINT:-https://garage-admin.int.albandrieu.com}"
+garage_state_bucket="${GARAGE_STATE_BUCKET:-opentofu-state}"
+
 check_endpoint() {
   local name="$1" url="$2"
   if [[ -z "${url}" ]]; then
@@ -64,6 +68,30 @@ check_endpoint() {
   else
     fail "${name} is not reachable over HTTP(S)"
   fi
+}
+
+check_garage_admin_token() {
+  if [[ -z "${GARAGE_ADMIN_TOKEN:-}" ]]; then
+    return
+  fi
+
+  local status
+  status="$(curl --silent --show-error --location --connect-timeout 5 --max-time 10 \
+    --header "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
+    --output /dev/null --write-out '%{http_code}' \
+    "${garage_admin_endpoint%/}/v2/ListBuckets" || true)"
+
+  case "${status}" in
+    200)
+      ok "Garage admin token accepted for ListBuckets"
+      ;;
+    401 | 403)
+      fail "Garage admin token rejected (HTTP ${status})"
+      ;;
+    *)
+      fail "Garage authenticated ListBuckets check failed (HTTP ${status:-none})"
+      ;;
+  esac
 }
 
 printf '🔎 TrueNAS/Talos infrastructure preflight (%s)\n' "${mode}"
@@ -101,8 +129,10 @@ if [[ -n "${TALOS_ISO_PATH:-}" && ! "${TALOS_ISO_PATH}" =~ ^/mnt/ ]]; then
 fi
 
 printf '\n🌐 Endpoint reachability\n'
-check_endpoint "Garage S3 backend" "https://s3.int.albandrieu.com"
-check_endpoint "Garage admin API" "https://garage-admin.int.albandrieu.com"
+check_endpoint "Garage S3 backend" "${garage_s3_endpoint}"
+check_endpoint "Garage admin API" "${garage_admin_endpoint}"
+check_garage_admin_token
+ok "Garage state bucket configured: ${garage_state_bucket}"
 if [[ -n "${TRUENAS_URL:-}" ]]; then
   check_endpoint "TrueNAS API" "${TRUENAS_URL}"
 fi
