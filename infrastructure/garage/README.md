@@ -27,7 +27,8 @@ Until a distributed lock service is introduced:
 - keep one workstation as the only state writer;
 - run local Terragrunt commands through `scripts/infra/terragrunt-safe.sh`;
 - do not run repository-wide applies;
-- do not run remote CI/CD applies concurrently with local operations.
+- do not run remote CI/CD applies concurrently with local operations;
+- keep the automatic pre-apply state snapshots until the new state is validated.
 
 Before the first real initialization, verify the actual bucket with:
 
@@ -36,6 +37,10 @@ scripts/infra/probe-garage-backend.sh
 ```
 
 The probe uses temporary `.nabla-preflight/` objects to verify bucket read/write/delete access and to report actual conditional-write behavior without touching an OpenTofu state key.
+
+Garage does not provide the S3 object-versioning recovery model recommended for infrastructure state. To compensate during bootstrap, `terragrunt-safe.sh` invokes `scripts/infra/backup-garage-state.sh` before every apply. If the unit already has a remote state object, that object is downloaded, validated as JSON, checksummed and stored outside Git with private permissions. If an existing state cannot be backed up safely, the apply is refused.
+
+The default backup location is `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`; override it with `NABLA_STATE_BACKUP_DIR` when the workstation has a dedicated encrypted recovery volume.
 
 ## What this unit manages
 
@@ -67,6 +72,10 @@ scripts/infra/terragrunt-safe.sh infrastructure/garage plan
 ```
 
 `-reconfigure` is required after a backend configuration change. Avoid `init -upgrade` during normal bootstrap so reviewed provider lockfiles remain authoritative.
+
+## State backup handling
+
+State snapshots can contain sensitive resource data and must be treated like credentials. Do not put them in Vaultwarden items, Git, CI artifacts or unencrypted sync folders. Keep them on an encrypted operator-controlled filesystem and remove stale copies only after validating a newer known-good state.
 
 ## After the first apply
 
