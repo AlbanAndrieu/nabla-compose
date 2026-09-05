@@ -599,14 +599,13 @@
     "port": 9121
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Scrutiny",
-    "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB.",
+    "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31054
+    "url": "http://172.17.0.24:31054/api/health"
   },
   {
     "type": "port",
