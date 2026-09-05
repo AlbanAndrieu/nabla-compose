@@ -12,7 +12,7 @@ services:
       url: https://scrutiny.albandrieu.com
       description: SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB.
       runtime:
-        provider: docker-compose
+        provider: truenas-app
         containerService: scrutiny
     cap_add:
       - SYS_RAWIO
