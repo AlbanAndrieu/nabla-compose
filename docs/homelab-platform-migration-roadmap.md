@@ -88,6 +88,164 @@ P0 follow-up in `fastapi-sample`:
 - preserve the distinction between `truenas-app` and `docker-compose` runtime providers;
 - update `/api/homelab/status` so successful Compose cutovers become `in_sync` rather than `declared_only`.
 
+## P0.1 — lightweight centralized logs and pfSense/Grafana observability
+
+### Objective
+
+Centralize service/application and network-security telemetry while keeping the
+homelab footprint bounded. Reuse the existing observability/security services
+instead of deploying another full logging stack.
+
+Target architecture:
+
+```text
+pfSense RFC5424 syslog -> Alloy -> Loki -> Grafana
+pfSense API -> pfsense-exporter -> Prometheus -> Mimir -> Grafana
+applications OTLP -> Alloy -> Loki / Mimir / Tempo
+Suricata eve.json -> Alloy -> Loki
+
+security/forensic workflows -> existing Graylog + OpenSearch
+AI/operator queries -> local Grafana MCP -> Grafana datasources
+```
+
+### Reuse-first constraints
+
+The default implementation must reuse:
+
+- Grafana;
+- Grafana Alloy;
+- Loki;
+- Mimir;
+- Tempo;
+- Prometheus;
+- the existing `pfsense-exporter`;
+- existing Graylog/OpenSearch where full-text forensic indexing is justified;
+- existing CrowdSec pfSense/Suricata acquisition during its current migration.
+
+Do **not** add Telegraf, InfluxDB, Promtail, another OpenTelemetry Collector,
+another log database, or another dashboard service solely for pfSense
+observability.
+
+Do not expose the Docker socket merely to collect container logs. Prefer OTLP
+for instrumented applications. Evaluate read-only Docker log-file collection
+only after the TrueNAS Docker log paths, permissions, rotation behavior and
+resulting volume are measured.
+
+### Repository implementation
+
+Prepared in `apps/grafana`:
+
+- [x] reuse the existing Alloy service rather than adding one;
+- [x] receive pfSense native remote syslog directly on trusted-LAN
+      UDP/1514 using RFC5424;
+- [x] preserve low-cardinality syslog labels only: host, app, severity and
+      facility;
+- [x] continue Suricata file ingestion into Loki;
+- [x] route OTLP logs to Loki in addition to the existing OTLP metrics -> Mimir
+      and traces -> Tempo pipelines;
+- [x] keep CrowdSec's existing `PFSENSE_LOG_DIR` ingestion unchanged during
+      this phase;
+- [x] bound Loki filesystem retention to 30 days and enable Compactor
+      retention;
+- [x] disable Loki's ad-hoc deletion API;
+- [x] provision the seven maintained upstream `pfrest/pfsense_exporter`
+      metric dashboards against the existing Mimir datasource;
+- [x] add a repository-owned pfSense Logs & Security Loki dashboard;
+- [x] add a local/stdio Grafana MCP configuration using a dedicated rotatable
+      service-account token stored in Vaultwarden;
+- [x] avoid any new continuously running container for MCP access.
+
+### pfSense operator configuration
+
+Runtime work still required on pfSense:
+
+- [ ] set **Status > System Logs > Settings > Log Message Format** to RFC5424;
+- [ ] enable remote logging to `172.17.0.24:1514`;
+- [ ] use the trusted LAN address/interface as the source;
+- [ ] enable System, Firewall Events, General Authentication, DNS, DHCP, VPN
+      and Gateway Monitor first;
+- [ ] add Routing/NTP/other categories only when useful;
+- [ ] verify no NAT, HAProxy, Traefik, Cloudflare Tunnel or WAN rule exposes
+      UDP/1514;
+- [ ] verify Alloy receives records without RFC5424 parsing errors;
+- [ ] verify `{job="pfsense"}` returns logs in Grafana/Loki;
+- [ ] verify `up{job="pfsense_exporter"}` remains healthy through
+      Prometheus/Mimir;
+- [ ] validate all provisioned pfSense metric dashboards against real exporter
+      labels/series;
+- [ ] validate firewall, dpinger, authentication and VPN panels against real
+      pfSense app names.
+
+The built-in pfSense remote syslog transport is UDP and cleartext. It is
+acceptable only on the trusted LAN. If a later topology crosses an untrusted
+network, use the pfSense syslog-ng package with TCP/TLS or a protected VPN path;
+do not expose cleartext syslog to the Internet.
+
+### Capacity and retention gate
+
+Loki filesystem storage does not self-throttle according to available disk
+space. After enabling pfSense logging:
+
+- [ ] measure daily ingest volume for at least one normal week;
+- [ ] monitor `/mnt/cpool/loki` growth and Compactor activity;
+- [ ] confirm 30-day retention fits the intended storage budget;
+- [ ] shorten retention rather than adding storage infrastructure if ordinary
+      operational logs grow too quickly;
+- [ ] keep firewall/IP/request identifiers in log content rather than Loki
+      labels to avoid cardinality growth.
+
+### Graylog/OpenSearch forensic phase
+
+Do not duplicate every pfSense event into both Loki and OpenSearch by default.
+
+After measuring the real log volume:
+
+- [ ] identify the event classes that genuinely need full-text/forensic
+      indexing (authentication failures, IDS/IPS, administrative actions,
+      selected firewall/security events);
+- [ ] route only those classes to the existing Graylog/OpenSearch path if that
+      improves incident investigation enough to justify the storage/JVM cost;
+- [ ] keep ordinary high-volume operational logs in Loki;
+- [ ] define a consistent field vocabulary for source/destination IP, action,
+      interface, rule ID and security-event category before dual ingestion;
+- [ ] do not expose `opensearch-security` externally while its security
+      plugin is disabled;
+- [ ] require a dedicated authenticated read-only OpenSearch identity before
+      adding Grafana OpenSearch or OpenSearch MCP access.
+
+### MCP / external access
+
+Grafana is the first agent-facing observability boundary because it already
+queries Loki, Mimir and Tempo.
+
+- [x] define the official Grafana MCP server locally over stdio;
+- [x] keep MCP ephemeral rather than permanently hosted;
+- [ ] create a dedicated Grafana Viewer/read-only service account;
+- [ ] import `GRAFANA_SERVICE_ACCOUNT_TOKEN` into
+      `nabla/prod/grafana-observability` in Vaultwarden;
+- [ ] validate that the MCP account can list/query dashboards and datasources
+      but cannot edit dashboards, users, datasources or alert configuration;
+- [ ] do not expose the MCP server itself to the public Internet.
+
+OpenSearch MCP remains a later forensic integration and must not bypass the
+OpenSearch authentication hardening gate above.
+
+### Definition of done
+
+This observability milestone is complete when:
+
+- pfSense system/firewall/auth/VPN/gateway logs arrive directly in Alloy and
+  are queryable in Loki;
+- all seven pfSense exporter dashboards render useful real data from Mimir;
+- the pfSense logs dashboard renders real logs with useful low-cardinality
+  metadata;
+- OTLP application logs can reach Loki through the same Alloy receiver;
+- Loki retention is observed working and storage growth is within budget;
+- CrowdSec ingestion still works unchanged;
+- Grafana MCP can answer read-only log/metric/dashboard questions using its
+  dedicated account;
+- no new datastore or permanently running logging/MCP service was introduced.
+
 ## Dataset convention
 
 Use one top-level dataset per application/system and sub-datasets when components have different durability or backup characteristics:
