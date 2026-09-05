@@ -138,6 +138,14 @@
       "description": "Non-destructively reconciles generated Nabla applications through the Homarr API."
     },
     {
+      "id": "influxdb",
+      "name": "InfluxDB",
+      "kind": "time-series-database",
+      "category": "data",
+      "sourcePath": "apps/influxdb/compose.yml",
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "kind": "dashboard",
@@ -388,7 +396,14 @@
       "category": "observability",
       "sourcePath": "apps/scrutiny/compose.yml",
       "url": "https://scrutiny.albandrieu.com",
-      "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB."
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service."
+    },
+    {
+      "id": "scrutiny-collector",
+      "name": "Scrutiny Collector",
+      "kind": "metrics-collector",
+      "category": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml"
     },
     {
       "id": "searxng",
@@ -903,6 +918,16 @@
       "description": "Reconciles generated application desired state through the Homarr OpenAPI endpoints.",
       "evidence": [
         "apps/homarr/sync.py:/api/apps"
+      ]
+    },
+    {
+      "source": "influxdb",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/influxdb/compose.yml:influxdb.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -1536,6 +1561,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/scrutiny/compose.yml:scrutiny.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scrutiny",
+      "target": "influxdb",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Scrutiny stores SMART history in the shared InfluxDB service.",
+      "evidence": [
+        "apps/scrutiny/compose.yml:SCRUTINY_WEB_INFLUXDB_HOST"
+      ]
+    },
+    {
+      "source": "scrutiny-collector",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scrutiny/compose.yml:scrutiny-collector.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scrutiny-collector",
+      "target": "scrutiny",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The collector posts SMART inventory and metrics to the Scrutiny web/API service.",
+      "evidence": [
+        "apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT"
       ]
     },
     {
