@@ -252,7 +252,7 @@ Cursor and other local agents can use `truenas-readonly` to inspect pools, datas
 
 Do **not** reuse the MCP key for infrastructure writes.
 
-Create a second service account, for example `tofu_truenas`, with a custom privilege containing only the roles required by this initial module:
+Current supervised bootstrap status: the existing `albandrieu` account owns the API key used for the read-only plan. This is acceptable for the supervised bootstrap, but it is not the steady-state least-privilege design. Before unattended or recurring automation, create a dedicated service account such as `tofu_truenas` with a custom privilege containing only the roles required by this module:
 
 - `READONLY_ADMIN` — inspect existing system/resource state;
 - `VM_WRITE` — create/update the three VMs;
@@ -264,8 +264,8 @@ Do not grant `FULL_ADMIN` by default. If a plan/apply reports a permission error
 Export both the username and key:
 
 ```bash
-export TRUENAS_USER='tofu_truenas'
-export TRUENAS_API_KEY='...terraform key...'
+export TRUENAS_USER='albandrieu'
+export TRUENAS_API_KEY='...current operator API key...'
 ```
 
 ### 5.3 Future credentials
@@ -300,7 +300,8 @@ Garage state is currently operated under the repository single-writer contract. 
 export TRUENAS_URL='https://truenas.example.internal'
 export TRUENAS_USER='tofu_truenas'
 export TRUENAS_API_KEY='...terraform key...'
-export TRUENAS_POOL='<POOL>'
+# Optional overrides; repository defaults are cpool and br0.
+export TRUENAS_POOL='cpool'
 export TRUENAS_VM_BRIDGE='br0'
 export TRUENAS_ENABLED=true
 export TRUENAS_READ_ONLY=true
@@ -531,9 +532,10 @@ There is no need to choose either before the first Kubernetes cluster exists. Th
 Do not continue to Kubernetes until all of the following are true:
 
 - [ ] TrueNAS is reachable through the bridge after a reboot.
+- [ ] **Do not forget the reboot persistence test before the first VM apply:** `br0` must retain `172.17.0.24/24`, `enp10s0` must remain a bridge member without IPv4, and the default route must remain on `br0`.
 - [ ] Parent `k8s`, `k8s/talos-vms`, `k8s/nfs` and `k8s/csi` datasets exist as intended.
 - [ ] The `mcp_reader` identity can list resources but cannot mutate them.
-- [ ] The `tofu_truenas` account and user-linked API key exist with only the required roles.
+- [ ] Before unattended/recurring automation, replace the supervised `albandrieu` bootstrap identity with a dedicated `tofu_truenas` account and user-linked API key containing only the required roles.
 - [ ] `TRUENAS_USER` and `TRUENAS_API_KEY` are stored outside Git.
 - [ ] `terragrunt plan` reports exactly three VMs, three zvols and their devices.
 - [ ] The first `terragrunt apply` creates those resources successfully.
