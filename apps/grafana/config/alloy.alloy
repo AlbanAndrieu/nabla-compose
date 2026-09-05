@@ -3,6 +3,8 @@ logging {
 }
 
 loki.relabel "pfsense_syslog" {
+  forward_to = [loki.write.default.receiver]
+
   rule {
     source_labels = ["__syslog_message_hostname"]
     target_label  = "host"
