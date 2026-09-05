@@ -1,6 +1,6 @@
 # Infrastructure bootstrap preflight
 
-This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueNAS/Talos initialization. It deliberately separates non-secret local configuration from secret material.
+This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueNAS/Talos initialization. It deliberately separates non-secret local configuration from secret material and keeps the first bootstrap single-writer.
 
 ## Environment ownership
 
@@ -82,6 +82,14 @@ set +a
 
 The renderer creates the parent directory with mode `0700` and the file with mode `0600`.
 
+## State locking model
+
+The state itself remains in the Garage `opentofu-state` bucket, but native OpenTofu S3 lockfiles are deliberately disabled. OpenTofu's S3 lock requires atomic conditional writes; the current Garage architecture does not provide the compare-and-swap semantics required for that lock.
+
+Until a distributed lock service is introduced, **one workstation is the only state writer**. Use `scripts/infra/terragrunt-safe.sh` for every local Terragrunt operation. It acquires a host-local `flock` and refuses repository-wide applies. Do not run an apply from CI or a second workstation at the same time.
+
+This is a bootstrap safety boundary, not a distributed lock. A future multi-writer workflow must add a shared lock service before remote applies are re-enabled.
+
 ## Preflight
 
 From the repository root, after `.env.local` configuration and secret exports are loaded:
@@ -90,9 +98,17 @@ From the repository root, after `.env.local` configuration and secret exports ar
 bash scripts/infra/preflight-truenas-talos.sh plan
 ```
 
-The preflight checks only secret presence, never values. It validates required tools, safety flags, expected repository inputs, and HTTP reachability for Garage S3, Garage admin and TrueNAS.
+The preflight checks only secret presence, never values. It validates required tools, safety flags, expected repository inputs, executable guards and HTTP reachability for Garage S3, Garage admin and TrueNAS.
 
-Do not continue until the preflight is green.
+Before the first Terragrunt initialization, probe the real state bucket with temporary objects:
+
+```bash
+scripts/infra/probe-garage-backend.sh
+```
+
+The probe verifies S3 authentication plus bucket read/write/delete access and tests `If-None-Match` behavior. It writes only below a temporary `.nabla-preflight/` key and removes the object on exit.
+
+Do not continue until the normal preflight and the basic S3 round-trip are green.
 
 ## Bootstrap order
 
@@ -102,19 +118,23 @@ Initialize units individually first; do not start with a repository-wide apply.
 
 ### 1. Garage state/backend validation
 
+From the repository root:
+
 ```bash
-cd infrastructure/garage
-terragrunt init
-terragrunt validate
-terragrunt plan
+scripts/infra/probe-garage-backend.sh
+scripts/infra/terragrunt-safe.sh infrastructure/garage init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/garage validate
+scripts/infra/terragrunt-safe.sh infrastructure/garage plan
 ```
+
+`-reconfigure` is intentional after changing backend locking semantics. Do not use `init -upgrade` during this bootstrap; provider upgrades belong in reviewed dependency changes with regenerated lockfiles.
 
 Review the plan. The Garage unit must not require 1Password.
 
 If the plan is correct:
 
 ```bash
-terragrunt apply
+scripts/infra/terragrunt-safe.sh infrastructure/garage apply
 ```
 
 The `home-ops-backups` access key created by this unit is unrelated to the backend key. Import it into Vaultwarden deliberately after creation; do not replace the backend credentials with it.
@@ -139,13 +159,12 @@ export TRUENAS_DESTROY_PROTECTION=true
 export TRUENAS_INSECURE_SKIP_VERIFY=false
 bash scripts/infra/preflight-truenas-talos.sh plan
 
-cd infrastructure/truenas
-terragrunt init
-terragrunt validate
-terragrunt plan
+scripts/infra/terragrunt-safe.sh infrastructure/truenas init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/truenas validate
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
 ```
 
-The committed provider lock is consumed read-only by CI and pins the tested TrueNAS provider line. Review every create/update/delete action before enabling write mode.
+The committed provider lock pins the tested TrueNAS provider line. Review every create/update/delete action before enabling write mode.
 
 ### 4. First controlled TrueNAS apply
 
@@ -154,10 +173,8 @@ Only after the plan is understood:
 ```bash
 export TRUENAS_READ_ONLY=false
 export TRUENAS_DESTROY_PROTECTION=true
-cd ../..
 bash scripts/infra/preflight-truenas-talos.sh apply
-cd infrastructure/truenas
-terragrunt apply
+scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
 
 The initial target is VM/zvol/device creation only. Do not combine this first apply with democratic-csi, Talos PKI generation, or a repository-wide apply.
