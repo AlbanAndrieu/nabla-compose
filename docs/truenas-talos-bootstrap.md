@@ -144,7 +144,9 @@ bridge link show
 # enp10s0 ... master br0 state forwarding
 ```
 
-A reboot-persistence check remains a hard gate before the first VM apply.
+The reboot-persistence check completed successfully on 2026-09-05: `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding bridge member without IPv4, the default route remained on `br0`, and direct HTTPS validation still returned HTTP 302 without disabling certificate verification.
+
+One service-level regression was found and corrected after the reboot: SSH had **Bind Interfaces** pinned to `enp10s0`. Because the management IPv4 moved from `enp10s0` to `br0`, sshd no longer had an IPv4 address on its selected interface. SSH recovered after changing **Bind Interfaces** to `br0`. Audit other services with explicit interface or bind-IP restrictions (especially SMB and NFS) after bridge migration.
 
 ## 4. Create the parent ZFS datasets
 
@@ -342,7 +344,7 @@ Expected resources were present:
 - three VirtIO NIC devices attached to `br0` with deterministic MAC addresses;
 - three CDROM devices because `TALOS_ISO_PATH` is configured.
 
-Do not apply this plan until the deferred TrueNAS reboot-persistence check for `br0` has passed.
+The deferred TrueNAS reboot-persistence check for `br0` has now passed. Before apply, complete the post-bridge service binding audit and restore/verify the Garage remote-state path.
 
 ### Phase B — first controlled create
 
