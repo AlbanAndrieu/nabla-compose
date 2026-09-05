@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4924ef3c068052f21ee6331905172654ae9eff7016d6c87aab82773c945efd81",
+  "catalogRevision": "sha256:8fa63b591d2a44a3e9d05d6d7241a8cfc62f825c8521d9b32a301f8f6e7a9bb9",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -204,6 +204,19 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "homarr-sync"
+      }
+    },
+    {
+      "id": "influxdb",
+      "name": "InfluxDB",
+      "kind": "time-series-database",
+      "category": "data",
+      "sourcePath": "apps/influxdb/compose.yml",
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
+      "composeService": "influxdb",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "influxdb"
       }
     },
     {
@@ -524,12 +537,24 @@
       "kind": "storage-monitoring",
       "category": "observability",
       "sourcePath": "apps/scrutiny/compose.yml",
-      "composeService": "scrutiny",
       "url": "https://scrutiny.albandrieu.com",
-      "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB.",
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+      "composeService": "scrutiny",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "scrutiny"
+      }
+    },
+    {
+      "id": "scrutiny-collector",
+      "name": "Scrutiny Collector",
+      "kind": "metrics-collector",
+      "category": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "composeService": "scrutiny-collector",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scrutiny-collector"
       }
     },
     {
