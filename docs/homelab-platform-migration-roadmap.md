@@ -21,6 +21,11 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
 - [ ] confirm all three Kubernetes nodes transition from the initial `NotReady` state to `Ready`; if not, inspect node conditions/events before any machine-config reapply;
 - [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
+- [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
+- [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
+- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
+- [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
+- [ ] bootstrap GitOps only after storage behavior and rollback are proven;
 ### Post-reboot runtime cleanup — 2026-09-05
 
 Track these independently from the Talos bridge/bootstrap:
