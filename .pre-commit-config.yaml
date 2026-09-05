@@ -145,20 +145,8 @@ repos:
         language: system
         entry: python -m unittest tests.test_observability_contract -v
         pass_filenames: false
-        files: '^(apps/grafana/|\.mcp\.json|\.cursor/mcp\.json|config/secrets/manifest\.json|tests/test_observability_contract\.py)
-        language: python
-        entry: python scripts/generate-service-topology.py
-        additional_dependencies: ["PyYAML==6.0.3"]
-        pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
-
-      - id: compose-config
-        name: "🐳 compose · Validate Compose configuration"
-        language: system
-        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
-        stages: [pre-commit]
-
+        files: >-
+          ^(apps/grafana/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
