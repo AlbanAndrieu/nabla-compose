@@ -508,6 +508,28 @@ mise exec -- \
 
 After the update, keep the Talos VMs stopped until the next bootstrap phase deliberately starts `taloscp01`.
 
+### Boot-order state converged — 2026-09-06
+
+A later refresh after the reviewed six-device-order plan reported **no resource actions**. The only plan delta was the derived VM-status output changing from the previously stored `STOPPED` values to the live `RUNNING` values for all three Talos VMs:
+
+```text
+Resources: 0 added, 0 changed, 0 destroyed.
+
+taloscp01 = RUNNING
+taloswk01 = RUNNING
+taloswk02 = RUNNING
+```
+
+The serialized apply created a remote-state backup and then completed with `0 added, 0 changed, 0 destroyed`. This proves the DISK/CDROM/NIC ordering is already converged in TrueNAS; do not keep applying solely to change the `talos_vm_status` output.
+
+`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart=false` only prevents automatic boot and does not force an already-running VM to stop.
+
+Before applying Talos machine configuration, decide the operator sequence explicitly:
+
+1. use `taloscp01` at its reserved `172.17.0.50` address for the first control-plane configuration;
+2. either stop both workers until the control plane is installed/bootstrap-ready, or keep them in maintenance mode only long enough to discover their DHCP addresses and confirm `/dev/vda`;
+3. never run `talosctl bootstrap` more than once for the cluster.
+
 ### Phase B — first controlled create
 
 Only after reviewing the plan:

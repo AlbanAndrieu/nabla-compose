@@ -70,8 +70,25 @@ Acceptance gates:
 - [ ] every catalog entry with a Tunnel URL but `external=false` is reconciled: either declare the intended protected external access or remove the stale Tunnel/DNS exposure;
 - [ ] Scrutiny external navigation is `https://scrutiny.albandrieu.com/` behind Cloudflare Access, while LAN navigation remains `http://172.17.0.24:31054/`;
 - [ ] FastAPI Sample/UI consumers never synthesize `https://truenas.albandrieu.com:<application-port>/` for an application whose catalog declares an HTTP LAN endpoint.
+- [ ] FastAPI Sample `/sickz` treats an observed Access application with zero effective policies/decisions as a failure rather than compliant; the repository audit helper already fails closed on this condition.
 
 The last item is a follow-up for the FastAPI Sample presentation layer if the incorrect Scrutiny link is still rendered after the catalog changes: internal navigation must be built from `internalHost`, `internalPort` and `internalSecure`, while external navigation must use `tunnelUrl`.
+
+#### Live Cloudflare reconciliation — 2026-09-06
+
+The workstation audit against FastAPI Sample `/sickz` confirms that Cloudflare edge evidence is present for the declared tunneled services, but the API-side Tunnel ingress observer currently does not enumerate their hostnames. Treat that as an observer/inventory gap until the Cloudflare token scope and tunnel configuration API path are verified; an observed Cloudflare Access challenge remains valid enforcement evidence.
+
+The audit separates the actionable findings:
+
+- [ ] **Access protection missing or not observed:** Heimdall, Vaultwarden, Keycloak, Homarr and Plumber API. These returned neither an API-observed Access policy nor an anonymous HTTP Access challenge and must be checked in Cloudflare Zero Trust;
+- [x] **Access challenge observed:** Scrutiny, IT Tools, 2FAuth, n8n, KaraKeep, Open WebUI, Nexus, LiteLLM, SearXNG, Minio, Langfuse and Language Tool. Do not report these as missing Access policies merely because the read-only API observer cannot enumerate the application/policy;
+- [ ] **Scrutiny runtime:** Access enforcement is present, but TrueNAS correctly reports the native Scrutiny application STOPPED while the Compose migration is pending;
+- [ ] **Bichon:** `external=false` but the endpoint is reachable from FastAPI Cloud and TrueNAS reports the app CRASHED. Remove the unintended public exposure independently from the application crash;
+- [ ] **pfSense TCP/10443:** FastAPI Cloud can currently reach the administration/API listener even though this runtime is not an approved administration source. Reconcile the WAN source policy rather than relying on dynamic blocking;
+- [x] **TrueNAS TCP/7000 and Garage:** remain explicit direct-exposure warnings under their documented security exceptions.
+
+The repository audit helper must fail only when an Access-required service has neither API-observed policy evidence nor an HTTP Access challenge, while still failing closed for an API-observed Access application with zero effective policy decisions.
+
 
 ## P0 hard gate — secrets-first migration
 
