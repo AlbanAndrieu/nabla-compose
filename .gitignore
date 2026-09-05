@@ -70,6 +70,9 @@ Thumbs.db
 # Generate files as they might contains credentials
 /pip.conf
 
+# Talos generated machine configuration and cluster PKI
+/.talos/
+
 # terraform
 
 .infracost/
