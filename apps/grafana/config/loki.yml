@@ -1,7 +1,9 @@
 ---
 auth_enabled: false
+
 server:
   http_listen_port: 3100
+
 common:
   path_prefix: /loki
   replication_factor: 1
@@ -12,6 +14,7 @@ common:
     filesystem:
       chunks_directory: /loki/chunks
       rules_directory: /loki/rules
+
 schema_config:
   configs:
     - from: "2024-04-01"
@@ -21,3 +24,18 @@ schema_config:
       index:
         prefix: index_
         period: 24h
+
+# Keep the single-node filesystem deployment bounded. Loki does not reclaim
+# filesystem storage based on free disk space; retention is compactor-driven.
+limits_config:
+  retention_period: 720h
+  max_query_lookback: 720h
+  deletion_mode: disabled
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 15m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 10
+  delete_request_store: filesystem
