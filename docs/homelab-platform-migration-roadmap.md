@@ -14,6 +14,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
 - TrueNAS/Talos manual bootstrap progressed through the first reviewed create plan: `br0` survived reboot, SSH was rebound to `br0`, bootstrap-critical SMB/NFS/iSCSI/TrueNAS/Garage/Traefik listeners were verified, Garage state read/write/delete passed, and the repeated TrueNAS plan remains `15 to add, 0 to change, 0 to destroy`. The resource apply completed successfully with 15 resources created and no changes/destructions. `taloscp01` has been started for first-boot DHCP discovery; Talos machine configuration remains a workstation-driven step after its stable IP and real install disk are confirmed.
 - Talos control-plane maintenance discovery completed: `taloscp01` is reachable at `172.17.0.50:50000`, runs Talos `v1.13.9`, exposes `ens2` with the planned MAC, and reports the target install disk as `/dev/vda` (34 GB VirtIO).
+- [x] Talos boot-device normalization plan reviewed with all Talos VMs stopped: `0 to add, 6 to change, 0 to destroy`. The only actions are three DISK orders `1001 -> 1000` and three CDROM orders `1000 -> 1001`; NIC order remains `1002`.
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
@@ -22,11 +23,55 @@ The goal is not merely to make containers start. A migration is complete only wh
 Track these independently from the Talos bridge/bootstrap:
 
 - [x] Alertmanager configuration is now tracked in `apps/prometheus/alertmanager.yml`, mounted read-only, and integrated from Prometheus; repository rule files are also mounted and loaded. Configure a real notification receiver before depending on alert delivery;
-- [ ] Scrutiny: inspect failing healthcheck and logs before changing networking;
+- [x] Native Scrutiny recovered functionally before cutover: InfluxDB `/health` and Scrutiny `/api/health` returned HTTP 200 and SMART collection ran. The native app is now stopped and the user created the target Scrutiny dataset; complete the repository-managed migration below before retiring native data;
 - [x] `opensearch-security`: data ownership corrected to UID/GID `1000:1000`; `_cluster/health` is green and Docker health is healthy;
 - [x] Open WebUI: healthy after reboot;
 - [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
+
+### Cloudflare Tunnel + Access reconciliation
+
+Cloudflare public access must be treated as a declared security contract, not merely as a working DNS/Tunnel hostname.
+
+The local service catalog currently declares these services as externally reachable through a secure Cloudflare edge and therefore Access-required by FastAPI Sample unless explicitly overridden:
+
+```text
+Heimdall
+IT Tools
+Vaultwarden
+2FAuth
+Keycloak
+Homarr
+KaraKeep
+Plumber API
+Open WebUI
+Nexus
+LiteLLM
+SearXNG
+Minio
+Langfuse
+Language Tool
+n8n
+Scrutiny
+```
+
+This is an **intent inventory**, not proof that the live Cloudflare Access applications/policies exist. Use FastAPI Sample's read-only Cloudflare observer through `/sickz` to reconcile the live state:
+
+```bash
+scripts/security/audit-cloudflare-access-via-fastapi.sh
+```
+
+Acceptance gates:
+
+- [ ] every service with `external=true`, `tunnelSecure=true` and effective `cloudflareAccessRequired=true` has a matching Cloudflare Tunnel ingress;
+- [ ] every Access-required hostname has a matching Cloudflare Access application with at least one effective policy;
+- [ ] no Access-required hostname has an accidental host-wide `Everyone`/bypass policy;
+- [ ] intentional public webhook/API exceptions such as n8n are narrowed to the required path or use Service Auth rather than weakening the whole host;
+- [ ] every catalog entry with a Tunnel URL but `external=false` is reconciled: either declare the intended protected external access or remove the stale Tunnel/DNS exposure;
+- [ ] Scrutiny external navigation is `https://scrutiny.albandrieu.com/` behind Cloudflare Access, while LAN navigation remains `http://172.17.0.24:31054/`;
+- [ ] FastAPI Sample/UI consumers never synthesize `https://truenas.albandrieu.com:<application-port>/` for an application whose catalog declares an HTTP LAN endpoint.
+
+The last item is a follow-up for the FastAPI Sample presentation layer if the incorrect Scrutiny link is still rendered after the catalog changes: internal navigation must be built from `internalHost`, `internalPort` and `internalSecure`, while external navigation must use `tunnelUrl`.
 
 ## P0 hard gate — secrets-first migration
 
@@ -169,6 +214,56 @@ Remaining migration work:
 - keep port `30081`, timezone `Europe/Paris`, existing URL and authentication settings;
 - validate `/up`, login, OTP entries, icons and WebAuthn;
 - only then retire the native app.
+
+#### Scrutiny + shared InfluxDB
+
+The native TrueNAS Scrutiny omnibus application has been stopped after validating that its web/API, embedded InfluxDB and SMART collector were functional.
+
+Target architecture:
+
+```text
+Cloudflare Access/Tunnel
+        |
+        v
+https://scrutiny.albandrieu.com
+        |
+LAN http://172.17.0.24:31054
+        |
+        v
+Scrutiny Web/API
+        |
+        +--> shared InfluxDB 2.8 (influxdb:8086)
+        ^
+        |
+Scrutiny Collector --> TrueNAS disks
+```
+
+Repository targets:
+
+- `apps/scrutiny/compose.yml`: pinned Scrutiny v0.9.3 web + collector;
+- `apps/influxdb/compose.yml`: reusable InfluxDB 2.8 service;
+- `/mnt/cpool/scrutiny/config`: Scrutiny application configuration/SQLite state;
+- `/mnt/cpool/influxdb/data` and `/mnt/cpool/influxdb/config`: shared InfluxDB durability;
+- Scrutiny LAN port remains TCP/31054 for migration compatibility;
+- InfluxDB host diagnostics remain loopback-only on TCP/31055; Docker consumers use `http://influxdb:8086`.
+
+Migration gates:
+
+- [x] native Scrutiny functionality validated before cutover;
+- [x] native Scrutiny app stopped;
+- [x] dedicated Scrutiny target dataset created;
+- [ ] snapshot native Scrutiny config and embedded InfluxDB datasets;
+- [ ] copy Scrutiny config/SQLite state into `/mnt/cpool/scrutiny/config`;
+- [ ] create `/mnt/cpool/influxdb/{data,config}`;
+- [ ] perform a logical InfluxDB backup/restore from the native 2.2 data into standalone InfluxDB 2.8; do not blindly copy engine files across versions;
+- [ ] create a least-privilege Scrutiny InfluxDB token separate from the admin token;
+- [ ] start standalone InfluxDB and validate `http://127.0.0.1:31055/health`;
+- [ ] start Scrutiny web + collector and validate `http://172.17.0.24:31054/api/health`;
+- [ ] confirm all historical disks/timelines and a fresh SMART collection;
+- [ ] confirm `https://scrutiny.albandrieu.com/` is routed by Cloudflare Tunnel and protected by the intended Access policy;
+- [ ] keep the native datasets for the rollback window, then retire the native app only after acceptance.
+
+Before pointing other applications at the shared InfluxDB service, inventory the existing Telegraf reference to `172.17.0.24:30115`; determine whether it represents a still-live legacy InfluxDB endpoint or stale configuration and migrate it deliberately rather than creating an accidental duplicate database.
 
 ### Wave 1 — low-risk host-path cutovers
 
