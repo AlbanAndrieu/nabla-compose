@@ -15,6 +15,16 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertRegex(root_hcl, r"(?m)^\s*use_lockfile\s*=\s*false\s*$")
         self.assertNotRegex(root_hcl, r"(?m)^\s*use_lockfile\s*=\s*true\s*$")
 
+    def test_backend_overrides_are_shared_with_terragrunt(self) -> None:
+        root_hcl = (ROOT / "root.hcl").read_text(encoding="utf-8")
+        garage_hcl = (ROOT / "infrastructure/garage/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('get_env("GARAGE_S3_ENDPOINT"', root_hcl)
+        self.assertIn('get_env("GARAGE_STATE_BUCKET"', root_hcl)
+        self.assertIn('get_env("GARAGE_ADMIN_ENDPOINT"', garage_hcl)
+
     def test_local_wrapper_blocks_repository_wide_apply(self) -> None:
         wrapper = (ROOT / "scripts/infra/terragrunt-safe.sh").read_text(
             encoding="utf-8"
@@ -57,6 +67,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "TRUENAS_DESTROY_PROTECTION",
             "TRUENAS_INSECURE_SKIP_VERIFY",
             "GARAGE_S3_ENDPOINT",
+            "GARAGE_ADMIN_ENDPOINT",
             "GARAGE_STATE_BUCKET",
         ):
             self.assertRegex(template, rf"(?m)^export {name}=")
@@ -68,6 +79,15 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "TRUENAS_API_KEY",
         ):
             self.assertNotRegex(template, rf"(?m)^export {secret_name}=")
+
+    def test_preflight_authenticates_garage_admin_token(self) -> None:
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("/v2/ListBuckets", preflight)
+        self.assertIn("Authorization: Bearer ${GARAGE_ADMIN_TOKEN}", preflight)
+        self.assertIn("Garage admin token rejected", preflight)
 
     def test_trusted_workflow_is_plan_only(self) -> None:
         workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
