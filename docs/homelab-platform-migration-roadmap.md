@@ -13,6 +13,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
 - TrueNAS/Talos manual bootstrap progressed through the first reviewed create plan: `br0` survived reboot, SSH was rebound to `br0`, bootstrap-critical SMB/NFS/iSCSI/TrueNAS/Garage/Traefik listeners were verified, Garage state read/write/delete passed, and the repeated TrueNAS plan remains `15 to add, 0 to change, 0 to destroy`. The resource apply completed successfully with 15 resources created and no changes/destructions. `taloscp01` has been started for first-boot DHCP discovery; Talos machine configuration remains a workstation-driven step after its stable IP and real install disk are confirmed.
+- Talos control-plane maintenance discovery completed: `taloscp01` is reachable at `172.17.0.50:50000`, runs Talos `v1.13.9`, exposes `ens2` with the planned MAC, and reports the target install disk as `/dev/vda` (34 GB VirtIO).
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
@@ -20,9 +21,9 @@ The goal is not merely to make containers start. A migration is complete only wh
 
 Track these independently from the Talos bridge/bootstrap:
 
-- [ ] Alertmanager: fix host-file/dataset permissions so the container can read `/etc/alertmanager/config.yml`;
+- [x] Alertmanager configuration is now tracked in `apps/prometheus/alertmanager.yml`, mounted read-only, and integrated from Prometheus; repository rule files are also mounted and loaded. Configure a real notification receiver before depending on alert delivery;
 - [ ] Scrutiny: inspect failing healthcheck and logs before changing networking;
-- [ ] `opensearch-security`: fix ownership/ACL of `/mnt/cpool/opensearch-security/data` so the OpenSearch container user can create `nodes/`;
+- [x] `opensearch-security`: data ownership corrected to UID/GID `1000:1000`; `_cluster/health` is green and Docker health is healthy;
 - [x] Open WebUI: healthy after reboot;
 - [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
