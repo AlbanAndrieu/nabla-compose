@@ -530,6 +530,30 @@ Before applying Talos machine configuration, decide the operator sequence explic
 2. either stop both workers until the control plane is installed/bootstrap-ready, or keep them in maintenance mode only long enough to discover their DHCP addresses and confirm `/dev/vda`;
 3. never run `talosctl bootstrap` more than once for the cluster.
 
+### Kubernetes bootstrap reached — 2026-09-06
+
+`taloscp01` was configured, rebooted from the installed `/dev/vda` system disk, and authenticated with the generated Talos PKI. Persistent Talos volumes are present on `/dev/vda2` (META), `/dev/vda3` (STATE) and `/dev/vda4` (EPHEMERAL).
+
+The one-time Talos bootstrap completed successfully:
+
+- `etcd`: `Running` / `OK`;
+- `kubelet`: `Running` / `OK`;
+- Kubernetes API: `https://172.17.0.50:6443`;
+- CoreDNS, kube-proxy and flannel pods are running;
+- workers are already registered from `172.17.0.51` and `172.17.0.52` with the expected MAC addresses and `/dev/vda` install disks.
+
+The first Kubernetes node names are Talos-generated stable names:
+
+```text
+172.17.0.50  talos-ib5-q5a  control-plane
+172.17.0.51  talos-lvs-nhe  worker
+172.17.0.52  talos-7fc-fdt  worker
+```
+
+Do not re-run `talosctl apply-config --insecure` against `.51` or `.52` once they require a client certificate and are visible to Kubernetes. `--insecure` is only for maintenance mode before the first machine configuration is installed. A `tls: certificate required` response means the node has already left maintenance mode; use the generated `talosconfig` for authenticated Talos API operations instead.
+
+After bootstrap, a short `NotReady` interval is expected while CNI and kubelet node conditions settle. If it persists, inspect Kubernetes node conditions/events rather than reapplying machine configuration.
+
 ### Phase B — first controlled create
 
 Only after reviewing the plan:
