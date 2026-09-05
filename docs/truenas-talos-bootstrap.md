@@ -476,6 +476,37 @@ Talos maintenance-mode discovery succeeded at `172.17.0.50`:
 The next Talos machine-config generation can therefore use `https://172.17.0.50:6443` as the initial single-control-plane endpoint and `/dev/vda` as the install disk.
 
 
+### Reviewed boot-order normalization plan — 2026-09-06
+
+After stopping `taloscp01` (the worker VMs were already stopped), the repository device-order change was planned against the created resources:
+
+```text
+Plan: 0 to add, 6 to change, 0 to destroy.
+```
+
+The six in-place updates are exactly:
+
+```text
+taloscp01 DISK   1001 -> 1000
+taloswk01 DISK   1001 -> 1000
+taloswk02 DISK   1001 -> 1000
+taloscp01 CDROM  1000 -> 1001
+taloswk01 CDROM  1000 -> 1001
+taloswk02 CDROM  1000 -> 1001
+```
+
+NIC order remains `1002`. No VM, zvol or VM device is recreated or destroyed. With all Talos VMs stopped, this is the expected safe normalization before Talos installs to `/dev/vda`.
+
+Apply only while the plan remains exactly this six-update/no-destroy shape:
+
+```bash
+mise exec -- \
+  scripts/infra/terragrunt-safe.sh \
+  infrastructure/truenas apply
+```
+
+After the update, keep the Talos VMs stopped until the next bootstrap phase deliberately starts `taloscp01`.
+
 ### Phase B — first controlled create
 
 Only after reviewing the plan:
