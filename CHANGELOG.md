@@ -1,3 +1,10 @@
+# [0.7.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.6.0...0.7.0) (2026-09-05)
+
+
+### Features
+
+* **sample:** harden TrueNAS local runtime dependencies ([#89](https://github.com/AlbanAndrieu/nabla-compose/issues/89)) ([727be01](https://github.com/AlbanAndrieu/nabla-compose/commit/727be01bd2dd8c9c78a0f863ad311f0459b90fcd))
+
 # [0.6.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.5.0...0.6.0) (2026-09-05)
 
 
