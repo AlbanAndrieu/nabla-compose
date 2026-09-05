@@ -112,6 +112,14 @@ CrowdSec is deliberately unchanged in this phase: its central engine still
 reads the existing `PFSENSE_LOG_DIR` files. Do not remove that producer/path
 until CrowdSec ingestion has been migrated and validated separately.
 
+Alloy keeps the same pfSense directory mounted only as a rollback aid. File
+tailing is **disabled by default** with
+`PFSENSE_FILE_GLOB=/var/log/pfsense-disabled/*.log`. If direct remote syslog
+must be temporarily bypassed, set `PFSENSE_FILE_GLOB=/var/log/pfsense/*.log`;
+those fallback records use `job="pfsense-legacy"` so dashboards do not mix
+them with the normal direct `job="pfsense"` stream. Do not enable both paths
+long-term because that would duplicate storage.
+
 ### Loki label policy
 
 The pfSense syslog receiver persists only low-cardinality header fields as Loki
