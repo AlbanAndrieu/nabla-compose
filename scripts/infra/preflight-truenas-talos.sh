@@ -110,6 +110,7 @@ fi
 printf '\n📦 Repository inputs\n'
 for file in \
   root.hcl \
+  config/infrastructure.env.example \
   config/talos/VERSION \
   config/talos/image-factory.yaml \
   scripts/infra/backup-garage-state.sh \
