@@ -66,7 +66,6 @@ missing="$(
         or (
           (.value.cloudflare_access_observed // false) == true
           and ((.value.cloudflare_access_policy_decisions // []) | length) == 0
-          and (.value.cloudflare_access_signal // false) != true
         )
       )
     | .value.name // .key
