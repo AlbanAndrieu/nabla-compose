@@ -78,6 +78,12 @@ endpoints:
   url: tcp://172.17.0.24:9200
   conditions:
   - '[CONNECTED] == true'
+- name: FastAPI Sample
+  group: development
+  interval: 60s
+  url: http://172.17.0.24:8091/health
+  conditions:
+  - '[STATUS] == 200'
 - name: Garage
   group: data
   interval: 60s

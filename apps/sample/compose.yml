@@ -1,0 +1,96 @@
+---
+services:
+  fastapi-sample:
+    image: ${FASTAPI_SAMPLE_IMAGE:-fastapi-sample:local}
+    build:
+      context: ../../fastapi-sample
+      dockerfile: Dockerfile
+      target: production
+    container_name: fastapi-sample
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    x-nabla:
+      id: fastapi-sample
+      name: FastAPI Sample
+      kind: api
+      category: development
+      description: Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.
+      runtime:
+        provider: truenas-app
+        containerService: fastapi-sample
+      relations:
+        - target: redis
+          type: dependsOn
+          strength: optional
+          description: FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.
+          evidence:
+            - apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.
+          evidence:
+            - apps/sample/compose.yml:traefik.http.routers.fastapi-sample
+      monitoring:
+        type: http
+        target: http://172.17.0.24:8091/health
+        conditions:
+          - "[STATUS] == 200"
+
+    # Runtime secrets/configuration stay on TrueNAS, outside Git. In particular,
+    # define REDIS_URL=redis://:<REDIS_AUTH>@redis:6379/0 in .env.secrets.
+    # PostgreSQL/Supabase, pfSense, TrueNAS and other optional provider settings
+    # can be supplied through the same files without duplicating secrets here.
+    env_file:
+      - /mnt/cpool/sample/.env
+      - /mnt/cpool/sample/.env.secrets
+
+    environment:
+      FASTAPI_ENV: production
+      FASTAPI_CLOUD: ""
+      FASTAPI_CLOUD_APP_ID: ""
+      EXPOSE_PORT: "8080"
+      SICKZ_INTERNAL_NETWORK: "true"
+      SICKZ_NETWORK_LABEL: nabla
+      APP_DOMAIN: fastapi-sample.int.albandrieu.com
+
+    ports:
+      - "${FASTAPI_SAMPLE_PORT:-8091}:8080"
+
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://localhost:8080/health
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_network"
+      - "traefik.http.routers.fastapi-sample.rule=Host(`fastapi-sample.int.albandrieu.com`)"
+      - "traefik.http.routers.fastapi-sample.entrypoints=websecure"
+      - "traefik.http.routers.fastapi-sample.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
+      - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
+
+    networks:
+      - intranet
+      - traefik_network
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network
