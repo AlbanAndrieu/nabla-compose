@@ -14,6 +14,16 @@ command -v jq >/dev/null 2>&1 || {
   exit 1
 }
 
+print_list() {
+  local values="$1"
+  local value
+
+  while IFS= read -r value; do
+    [[ -n "${value}" ]] || continue
+    printf '  - %s\n' "${value}"
+  done <<<"${values}"
+}
+
 curl_args=(--fail --silent --show-error --max-time 45)
 if [[ -n "${DIAGNOSTICS_KEY}" ]]; then
   curl_args+=(-H "X-Diagnostics-Key: ${DIAGNOSTICS_KEY}")
@@ -29,8 +39,11 @@ if [[ "${observer_configured}" != "true" ]]; then
   echo "❌ FastAPI Sample Cloudflare observer is not configured." >&2
   exit 2
 fi
+
 if [[ -n "${observer_error}" || -n "${access_error}" ]]; then
-  printf '❌ Cloudflare observer error: tunnel=%s access=%s\n'     "${observer_error:-none}" "${access_error:-none}" >&2
+  printf '❌ Cloudflare observer error: tunnel=%s access=%s\n' \
+    "${observer_error:-none}" \
+    "${access_error:-none}" >&2
   exit 2
 fi
 
@@ -84,122 +97,14 @@ public="$(
 
 if [[ -n "${missing}" ]]; then
   echo
-  echo "❌ Access-required services with neither API-observed policy nor HTTP Access enforcement:"
-  printf '  - %s\n' "${missing//
+  echo "❌ Access-required services missing effective Access policy coverage:"
+  print_list "${missing}"
 fi
 
 if [[ -n "${public}" ]]; then
   echo
   echo "❌ Access-required services with broad public/bypass policy:"
-  printf '  - %s\n' "${public//
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n'/
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n  - '}"
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n'/
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n'/
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n  - '}"
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n  - '}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n'/
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
-fi
-
-if [[ -n "${missing}" || -n "${public}" ]]; then
-  exit 3
-fi
-
-echo
-echo "✅ No missing or broadly public Cloudflare Access policy detected by FastAPI Sample."
-\n  - '}"
-fi
-
-if [[ -n "${public}" ]]; then
-  echo
-  echo "❌ Access-required services with broad public/bypass policy:"
-  sed 's/^/  - /' <<<"${public}"
+  print_list "${public}"
 fi
 
 if [[ -n "${missing}" || -n "${public}" ]]; then
