@@ -75,9 +75,12 @@ services:
     image: prom/alertmanager
     restart: unless-stopped
     ports:
-      - 9093:9093
+      - "172.17.0.24:9093:9093"
     volumes:
-      - /mnt/cpool/alertmanager/:/etc/alertmanager/
+      - type: bind
+        source: ./alertmanager.yml
+        target: /etc/alertmanager/config.yml
+        read_only: true
     # networks: ["traefik_network"]
     command:
       - "--config.file=/etc/alertmanager/config.yml"
