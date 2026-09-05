@@ -40,7 +40,7 @@ The probe uses temporary `.nabla-preflight/` objects to verify bucket read/write
 
 Garage does not provide the S3 object-versioning recovery model recommended for infrastructure state. To compensate during bootstrap, `terragrunt-safe.sh` invokes `scripts/infra/backup-garage-state.sh` before every apply. If the unit already has a remote state object, that object is downloaded, validated as JSON, checksummed and stored outside Git with private permissions. If an existing state cannot be backed up safely, the apply is refused.
 
-The default backup location is `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`; override it with `NABLA_STATE_BACKUP_DIR` when the workstation has a dedicated encrypted recovery volume.
+The default backup location is `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`; override it with `NABLA_STATE_BACKUP_DIR` when the workstation has a dedicated encrypted recovery volume. The override must resolve to an absolute path outside the Git checkout.
 
 ## What this unit manages
 
