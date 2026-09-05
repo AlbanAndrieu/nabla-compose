@@ -91,7 +91,7 @@ Until a distributed lock service is introduced, **one workstation is the only st
 
 This is a bootstrap safety boundary, not a distributed lock. A future multi-writer workflow must add a shared lock service before remote applies are re-enabled.
 
-Because Garage does not provide S3 object versioning for state recovery, `terragrunt-safe.sh` also snapshots an existing remote state before every local `apply`. Backups are written outside the repository to `${NABLA_STATE_BACKUP_DIR}` when set, otherwise `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`. Directories are kept private and state files/checksums are written mode `0600`.
+Because Garage does not provide S3 object versioning for state recovery, `terragrunt-safe.sh` also snapshots an existing remote state before every local `apply`. Backups are written outside the repository to `${NABLA_STATE_BACKUP_DIR}` when set, otherwise `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`. A custom backup directory must resolve to an absolute path and is rejected if it is inside the Git checkout. Directories are kept private and state files/checksums are written mode `0600`.
 
 Treat these files as secrets: OpenTofu state can contain sensitive resource attributes. Do not sync them to Git, public cloud storage, chat, or ordinary workstation backups without encryption.
 
