@@ -6,11 +6,13 @@ if (($# < 2)); then
   exit 2
 fi
 
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 workdir="$1"
 shift
+target_dir="${repo_root}/${workdir}"
 
-if [[ ! -d "${workdir}" ]]; then
-  echo "Infrastructure directory does not exist: ${workdir}" >&2
+if [[ ! -d "${target_dir}" ]]; then
+  echo "Infrastructure directory does not exist: ${target_dir}" >&2
   exit 2
 fi
 
@@ -21,7 +23,13 @@ for command in flock terragrunt; do
   fi
 done
 
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+joined_args=" $* "
+if [[ "${joined_args}" == *" apply "* ]] && { [[ "${joined_args}" == *" run-all "* ]] || [[ "${joined_args}" == *" --all "* ]]; }; then
+  echo "Refusing repository-wide Terragrunt apply while Garage state has no distributed lock." >&2
+  echo "Apply one infrastructure unit at a time after reviewing its plan." >&2
+  exit 1
+fi
+
 lock_root="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
 lock_file="${lock_root%/}/nabla-compose-terragrunt.lock"
 
@@ -33,7 +41,8 @@ if ! flock --nonblock 9; then
 fi
 
 printf '🔒 local Terragrunt operator lock acquired: %s\n' "${lock_file}"
+printf '⚠️  this lock is host-local; do not run another writer from CI or another workstation\n'
 printf '📁 working directory: %s\n' "${workdir}"
 
-cd "${repo_root}/${workdir}"
+cd "${target_dir}"
 terragrunt "$@"
