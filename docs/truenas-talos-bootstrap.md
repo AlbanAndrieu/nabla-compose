@@ -179,15 +179,41 @@ The OpenTofu test module creates only the VM zvols below the existing `k8s/talos
 
 After the reboot, the management bridge remained stable and the principal TrueNAS listeners were audited:
 
-- SSH: bound to `br0`, listening on `172.17.0.24:9922`;
-- SMB: bound to `172.17.0.24`, listening on TCP/445;
-- NFSv4: no explicit bind-IP restriction, listening on TCP/2049;
-- iSCSI: portal listens on `0.0.0.0:3260`;
-- TrueNAS GUI/API: TCP/7000 on all host addresses;
-- Garage: TCP/3900 and TCP/3903 on all host addresses;
-- Traefik: TCP/80 and TCP/443 on all host addresses.
+| Service | Listener / published port | Binding after bridge migration | Observed state |
+| --- | --- | --- | --- |
+| SSH | TCP/9922 | `br0` / `172.17.0.24` plus localhost and link-local IPv6 | RUNNING |
+| SMB/CIFS | TCP/445 | explicit `172.17.0.24` | RUNNING |
+| NFSv4 | TCP/2049 | all host addresses | RUNNING |
+| iSCSI target | TCP/3260 | portal `0.0.0.0` | RUNNING |
+| TrueNAS GUI/API | TCP/7000 | all host addresses | RUNNING; direct TLS returns HTTP 302 |
+| Traefik | TCP/80, TCP/443 | Docker-published on all host addresses | RUNNING |
+| Garage S3 | TCP/3900 | Docker-published on all host addresses | RUNNING; unauthenticated root request returns HTTP 403 |
+| Garage RPC | TCP/3901 | Docker-published on all host addresses | RUNNING |
+| Garage Admin API | TCP/3903 | Docker-published on all host addresses | RUNNING; authenticated ListBuckets succeeds |
+| Garage WebUI | TCP/3909 | Docker-published on all host addresses | healthy |
+| Vaultwarden | TCP/30032 -> container TCP/80 | Docker-published on all host addresses | healthy |
+| Pi-hole DNS | TCP/53 + UDP/53 | Docker-published on all host addresses | healthy |
+| Pi-hole Web/API | TCP/20720 | Docker-published on all host addresses | healthy |
+| Prometheus | TCP/9090 | Docker-published on all host addresses | running |
+| Alertmanager | TCP/9093 | Docker bridge/published by Compose | **restart loop**: cannot read `/etc/alertmanager/config.yml` |
+| Scrutiny | TCP/31054 -> 8080, TCP/31055 -> 8086 | Docker-published on all host addresses | **unhealthy**, diagnosis pending |
+| OpenSearch primary | TCP/9200, TCP/9600 | Docker-published on all host addresses | healthy |
+| OpenSearch security test node | host `127.0.0.1:9201` -> container TCP/9200 | loopback only | **unhealthy**: data path permission denied |
+| Open WebUI | TCP/31028 -> 8080 | Docker-published on all host addresses | healthy after reboot |
+| Docker socket proxy | TCP/2375 | currently published on all host addresses | running; security hardening required |
 
 The TrueNAS services `cifs`, `iscsitarget`, `nfs`, `snmp`, and `ssh` were all observed in `RUNNING` state with automatic start enabled.
+
+Known post-reboot application issues are not attributable to `br0` based on their current errors:
+
+- Alertmanager exits because `/etc/alertmanager/config.yml` is not readable by the container process (`permission denied`);
+- `opensearch-security` cannot create `/usr/share/opensearch/data/nodes` because the bind-mounted dataset permissions/ACL do not permit the container user to write there;
+- Scrutiny is running but its healthcheck is failing; inspect its health output and logs before changing its network configuration;
+- Open WebUI is now healthy;
+- Tailscale is intentionally not used and can remain stopped/deferred;
+- other explicitly stopped applications are not Talos bootstrap dependencies unless they provide DNS, reverse proxy, state storage, or another bootstrap-critical path.
+
+Do not treat a TrueNAS Apps `DEPLOYING` state alone as a bridge failure. Correlate it with container status, healthcheck output, and logs.
 
 When auditing SSH, do **not** dump the full `ssh.config` object because it contains private host-key material. Use a field projection such as:
 
@@ -323,7 +349,7 @@ Garage state is currently operated under the repository single-writer contract. 
 
 ```bash
 export TRUENAS_URL='https://truenas.example.internal'
-export TRUENAS_USER='tofu_truenas'
+export TRUENAS_USER='albandrieu'
 export TRUENAS_API_KEY='...terraform key...'
 # Optional overrides; repository defaults are cpool and br0.
 export TRUENAS_POOL='cpool'
@@ -345,6 +371,7 @@ Expected resources for the default test configuration:
 3 x truenas_zvol
 3 x truenas_vm_device (DISK)
 3 x truenas_vm_device (NIC)
+3 x truenas_vm_device (CDROM, when TALOS_ISO_PATH is set)
 ```
 
 No VM is started automatically.
@@ -367,7 +394,34 @@ Expected resources were present:
 - three VirtIO NIC devices attached to `br0` with deterministic MAC addresses;
 - three CDROM devices because `TALOS_ISO_PATH` is configured.
 
-The deferred TrueNAS reboot-persistence check for `br0` has now passed. Before apply, complete the post-bridge service binding audit and restore/verify the Garage remote-state path.
+The deferred TrueNAS reboot-persistence check for `br0` has passed, the post-bridge service binding audit is complete for the bootstrap-critical TrueNAS listeners, Garage S3/Admin connectivity is restored, and the Garage read/write/delete probe passes. The remaining unhealthy application containers above are tracked separately and are not required to provision the stopped Talos VMs.
+
+### Final reviewed create plan — 2026-09-05
+
+After the TrueNAS reboot, bridge validation, Garage recovery, and provider initialization, the workstation plan was repeated and remained create-only:
+
+```text
+Plan: 15 to add, 0 to change, 0 to destroy.
+```
+
+The planned objects are:
+
+- 3 UEFI Talos VMs: `taloscp01`, `taloswk01`, `taloswk02`;
+- each VM: 4 GiB RAM, 2 cores, host CPU passthrough, `autostart=false`;
+- 3 x 32 GiB LZ4 zvols below `cpool/k8s/talos-vms`;
+- 3 VirtIO disks;
+- 3 VirtIO NICs on `br0`;
+- 3 Talos ISO CDROM devices.
+
+The deterministic NIC MAC addresses remain:
+
+```text
+taloscp01  02:00:00:00:10:01
+taloswk01  02:00:00:00:20:01
+taloswk02  02:00:00:00:20:02
+```
+
+Because `autostart=false`, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
 
 ### Phase B — first controlled create
 
@@ -399,9 +453,13 @@ TrueNAS VM names are kept alphanumeric because the provider/TrueNAS VM API rejec
 The first provider test does not require a boot ISO. To attach one, place a Talos ISO on TrueNAS and set the TrueNAS-local path:
 
 ```bash
-export TALOS_ISO_PATH='/mnt/<POOL>/iso/talos-amd64.iso'
-terragrunt plan
-terragrunt apply
+export TALOS_ISO_PATH='/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso'
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
+
+# Apply only after the reviewed plan remains create-only:
+export TRUENAS_READ_ONLY=false
+bash scripts/infra/preflight-truenas-talos.sh apply
+scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
 
 A CDROM device is created for each VM only when `TALOS_ISO_PATH` is non-empty.
