@@ -196,7 +196,8 @@ After the reboot, the management bridge remained stable and the principal TrueNA
 | Pi-hole Web/API | TCP/20720 | Docker-published on all host addresses | healthy |
 | Prometheus | TCP/9090 | Docker-published on all host addresses | running |
 | Alertmanager | TCP/9093 | Docker bridge/published by Compose | **restart loop**: cannot read `/etc/alertmanager/config.yml` |
-| Scrutiny | TCP/31054 -> 8080, host-loopback TCP/31055 -> 8086 in the Compose target | Web/API on LAN; embedded InfluxDB loopback-only in the Compose target | native app now healthy; migration target prepared in `apps/scrutiny/` |
+| Scrutiny | LAN TCP/31054 -> web TCP/8080 | `http://172.17.0.24:31054/`; public navigation is `https://scrutiny.albandrieu.com/` through Cloudflare Tunnel + Access | native app stopped after functional validation; split web/collector migration prepared in `apps/scrutiny/` |
+| InfluxDB | host-loopback TCP/31055 -> TCP/8086 | Docker consumers use `http://influxdb:8086` on `intranet`; no LAN/Internet listener by default | standalone reusable target prepared in `apps/influxdb/`; migration not yet executed |
 | OpenSearch primary | TCP/9200, TCP/9600 | Docker-published on all host addresses | healthy |
 | OpenSearch security test node | host `127.0.0.1:9201` -> container TCP/9200 | loopback only | **unhealthy**: data path permission denied |
 | Open WebUI | TCP/31028 -> 8080 | Docker-published on all host addresses | healthy after reboot |
