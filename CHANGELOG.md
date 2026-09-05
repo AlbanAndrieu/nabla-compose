@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.1...0.3.2) (2026-09-05)
+
+
+### Bug Fixes
+
+* **garage:** align bootstrap env and admin preflight ([#84](https://github.com/AlbanAndrieu/nabla-compose/issues/84)) ([64632f5](https://github.com/AlbanAndrieu/nabla-compose/commit/64632f59337a52876784349c1917c87715376bcf))
+
 ## [0.3.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.0...0.3.1) (2026-09-05)
 
 
