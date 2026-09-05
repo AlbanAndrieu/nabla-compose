@@ -1,0 +1,38 @@
+---
+services:
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:v0.9.3-omnibus
+    container_name: scrutiny
+    restart: unless-stopped
+    x-nabla:
+      id: scrutiny
+      name: Scrutiny
+      kind: storage-monitoring
+      category: observability
+      url: https://scrutiny.albandrieu.com
+      description: SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB.
+      runtime:
+        provider: docker-compose
+        containerService: scrutiny
+    cap_add:
+      - SYS_RAWIO
+    ports:
+      - "172.17.0.24:31054:8080"
+      - "127.0.0.1:31055:8086"
+    volumes:
+      - /run/udev:/run/udev:ro
+      - /dev:/dev:ro
+      - /mnt/cpool/scrutiny/config:/opt/scrutiny/config
+      - /mnt/cpool/scrutiny/influxdb:/opt/scrutiny/influxdb
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://127.0.0.1:8080/api/health
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
