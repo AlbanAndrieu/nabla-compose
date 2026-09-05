@@ -109,9 +109,15 @@ require_env AWS_SECRET_ACCESS_KEY
 require_env GARAGE_ADMIN_TOKEN
 
 printf '\n🗄️  TrueNAS provider inputs\n'
-for name in TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL TRUENAS_VM_BRIDGE TALOS_ISO_PATH; do
+for name in TRUENAS_URL TRUENAS_USER TRUENAS_API_KEY TRUENAS_POOL TRUENAS_VM_BRIDGE; do
   require_env "${name}"
 done
+
+if [[ -n "${TALOS_ISO_PATH:-}" ]]; then
+  ok "optional environment variable present: TALOS_ISO_PATH"
+else
+  ok "TALOS_ISO_PATH not set (optional; no Talos CDROM will be attached)"
+fi
 
 expect_env TRUENAS_ENABLED true
 expect_env TRUENAS_DESTROY_PROTECTION true

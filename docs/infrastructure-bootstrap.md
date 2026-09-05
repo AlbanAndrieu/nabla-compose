@@ -4,30 +4,34 @@ This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueN
 
 ## Environment ownership
 
-Keep durable, host-specific **non-secrets** in `.env.local` (or export them through your existing shell/direnv flow). Start from `config/infrastructure.env.example`, which intentionally contains no credential values. Because the repository currently sources `.env.local` rather than parsing it with `dotenv`, declare these values with `export` so child processes such as Terragrunt and OpenTofu receive them:
+Keep durable, host-specific **non-secrets** in `.env.local`. Start from `config/infrastructure.env.example`, which intentionally contains no credential values. `mise.toml` loads `.env.secrets` and `.env.local` through `env._.file`, so these files use dotenv syntax and do not need `export`. Ad-hoc shell exports remain valid overrides.
 
-```bash
-export TRUENAS_ENABLED=true
-export TRUENAS_URL=https://truenas.example.internal
-export TRUENAS_USERNAME=tofu_truenas
-export TRUENAS_POOL=<POOL>
-export TRUENAS_VM_BRIDGE=br0
-export TALOS_ISO_PATH=/mnt/<POOL>/iso/talos-amd64.iso
-export TRUENAS_READ_ONLY=true
-export TRUENAS_DESTROY_PROTECTION=true
-export TRUENAS_INSECURE_SKIP_VERIFY=false
+```dotenv
+TRUENAS_ENABLED=true
+TRUENAS_URL=https://truenas.example.internal
+TRUENAS_USER=tofu_truenas
+TRUENAS_POOL=<POOL>
+TRUENAS_VM_BRIDGE=br0
+TALOS_ISO_PATH=/mnt/<POOL>/iso/talos-amd64.iso
+TRUENAS_READ_ONLY=true
+TRUENAS_DESTROY_PROTECTION=true
+TRUENAS_INSECURE_SKIP_VERIFY=false
 ```
 
-If your existing `.env.local` uses plain `NAME=value` assignments, load it explicitly with automatic export before running infrastructure commands:
+If you run the infrastructure scripts outside an activated `mise` environment, load the dotenv files explicitly with automatic export:
 
 ```bash
 set -a
+# shellcheck disable=SC1091
+source .env.secrets
 # shellcheck disable=SC1091
 source .env.local
 set +a
 ```
 
 Do not move these values to Vaultwarden merely because they are environment variables. They are configuration, not credentials.
+
+`TRUENAS_URL` must use a DNS name covered by the TrueNAS TLS certificate. Keep `TRUENAS_INSECURE_SKIP_VERIFY=false`; use split DNS or an equivalent local resolver override when the trusted hostname should resolve directly to the LAN address.
 
 Move the following **bootstrap secrets** to the Vaultwarden item `nabla/prod/infrastructure-bootstrap`:
 
@@ -146,7 +150,7 @@ Before the apply starts, the wrapper snapshots any existing `garage/tfstate.json
 
 The `home-ops-backups` access key created by this unit is unrelated to the backend key. Import it into Vaultwarden deliberately after creation; do not replace the backend credentials with it.
 
-### 2. Resolve and place the Talos ISO
+### 2. Optional — resolve and place the Talos ISO
 
 From the repository root:
 
@@ -154,7 +158,7 @@ From the repository root:
 bash scripts/talos/image-factory.sh
 ```
 
-Download the reported ISO from a trusted workstation and place it at the TrueNAS-local path configured by `TALOS_ISO_PATH`.
+For a provider-only safe plan, this step can be skipped. Before creating bootable Talos VMs, download the reported ISO from a trusted workstation, place it at the TrueNAS-local path configured by `TALOS_ISO_PATH`, and re-run the preflight.
 
 ### 3. TrueNAS safe initialization and plan
 

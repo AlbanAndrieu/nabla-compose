@@ -146,6 +146,15 @@
       "icon": "📊"
     },
     {
+      "id": "kubernetes",
+      "name": "Kubernetes (Talos)",
+      "kind": "orchestrator",
+      "category": "infrastructure",
+      "sourcePath": "docs/truenas-talos-bootstrap.md",
+      "description": "Target Kubernetes cluster bootstrapped on Talos Linux VMs hosted by TrueNAS.",
+      "icon": "☸️"
+    },
+    {
       "id": "langflow",
       "name": "Langflow",
       "kind": "workflow",
@@ -413,6 +422,15 @@
       "category": "observability",
       "sourcePath": "apps/sybase-exporter/compose.yml",
       "icon": "📡"
+    },
+    {
+      "id": "talos",
+      "name": "Talos Linux",
+      "kind": "kubernetes-os",
+      "category": "infrastructure",
+      "sourcePath": "docs/truenas-talos-bootstrap.md",
+      "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS.",
+      "icon": "🔷"
     },
     {
       "id": "tempo",
@@ -896,6 +914,16 @@
       "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
       "evidence": [
         "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
+      ]
+    },
+    {
+      "source": "kubernetes",
+      "target": "talos",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "The Kubernetes cluster runs on Talos Linux control-plane and worker nodes.",
+      "evidence": [
+        "docs/truenas-talos-bootstrap.md:default Talos VM topology and bootstrap sequence"
       ]
     },
     {
@@ -1569,6 +1597,17 @@
       "description": "The exporter queries Sybase ASE through the FreeTDS driver.",
       "evidence": [
         "apps/sybase-exporter/compose.yml:SYBASE_DATA_SOURCE_NAME"
+      ]
+    },
+    {
+      "source": "talos",
+      "target": "truenas",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Talos control-plane and worker nodes are provisioned as VMs on TrueNAS.",
+      "evidence": [
+        "docs/truenas-talos-bootstrap.md:TrueNAS VM bridge and default Talos VM topology",
+        "terraform/truenas/main.tf:truenas_vm"
       ]
     },
     {

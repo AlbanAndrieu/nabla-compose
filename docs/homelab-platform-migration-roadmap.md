@@ -12,6 +12,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - TrueNAS remains on `26.0.0-BETA.3`; Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
 - Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
+- TrueNAS/Talos manual bootstrap progressed on 2026-09-04: `cpool/k8s/{talos-vms,nfs,csi}` and `cpool/iso` exist, Talos `v1.13.9` ISO is verified at `/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso`, `br0` now carries static `172.17.0.24/24` with `enp10s0` as its forwarding member, and direct TrueNAS TLS validates for `truenas.albandrieu.com`; reboot persistence and the first read-only TrueNAS Terragrunt plan remain pending.
 
 ## P0 hard gate — secrets-first migration
 

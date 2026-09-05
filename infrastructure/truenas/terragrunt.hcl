@@ -9,7 +9,7 @@ terraform {
 inputs = {
   enabled                      = tobool(get_env("TRUENAS_ENABLED", "false"))
   truenas_url                  = get_env("TRUENAS_URL", "")
-  truenas_username             = get_env("TRUENAS_USERNAME", "")
+  truenas_username             = get_env("TRUENAS_USER", "")
   truenas_api_key              = get_env("TRUENAS_API_KEY", "")
   truenas_read_only            = tobool(get_env("TRUENAS_READ_ONLY", "true"))
   truenas_destroy_protection   = tobool(get_env("TRUENAS_DESTROY_PROTECTION", "true"))

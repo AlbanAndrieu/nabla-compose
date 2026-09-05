@@ -59,7 +59,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
         for name in (
             "TRUENAS_ENABLED",
             "TRUENAS_URL",
-            "TRUENAS_USERNAME",
+            "TRUENAS_USER",
             "TRUENAS_POOL",
             "TRUENAS_VM_BRIDGE",
             "TALOS_ISO_PATH",
@@ -70,7 +70,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "GARAGE_ADMIN_ENDPOINT",
             "GARAGE_STATE_BUCKET",
         ):
-            self.assertRegex(template, rf"(?m)^export {name}=")
+            self.assertRegex(template, rf"(?m)^{name}=")
 
         for secret_name in (
             "AWS_ACCESS_KEY_ID",
@@ -78,7 +78,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "GARAGE_ADMIN_TOKEN",
             "TRUENAS_API_KEY",
         ):
-            self.assertNotRegex(template, rf"(?m)^export {secret_name}=")
+            self.assertNotRegex(template, rf"(?m)^(?:export\\s+)?{secret_name}=")
 
     def test_preflight_authenticates_garage_admin_token(self) -> None:
         preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
