@@ -52,6 +52,8 @@ expect_env() {
 garage_s3_endpoint="${GARAGE_S3_ENDPOINT:-https://s3.int.albandrieu.com}"
 garage_admin_endpoint="${GARAGE_ADMIN_ENDPOINT:-https://garage-admin.int.albandrieu.com}"
 garage_state_bucket="${GARAGE_STATE_BUCKET:-opentofu-state}"
+export TRUENAS_POOL="${TRUENAS_POOL:-cpool}"
+export TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"
 
 check_endpoint() {
   local name="$1" url="$2"
@@ -109,9 +111,11 @@ require_env AWS_SECRET_ACCESS_KEY
 require_env GARAGE_ADMIN_TOKEN
 
 printf '\n🗄️  TrueNAS provider inputs\n'
-for name in TRUENAS_URL TRUENAS_USER TRUENAS_API_KEY TRUENAS_POOL TRUENAS_VM_BRIDGE; do
+for name in TRUENAS_URL TRUENAS_USER TRUENAS_API_KEY; do
   require_env "${name}"
 done
+ok "TRUENAS_POOL=${TRUENAS_POOL} (default: cpool)"
+ok "TRUENAS_VM_BRIDGE=${TRUENAS_VM_BRIDGE} (default: br0)"
 
 if [[ -n "${TALOS_ISO_PATH:-}" ]]; then
   ok "optional environment variable present: TALOS_ISO_PATH"
