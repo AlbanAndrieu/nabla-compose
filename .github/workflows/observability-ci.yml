@@ -1,0 +1,61 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Observability CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: ["master"]
+    paths:
+      - apps/grafana/**
+      - tests/test_observability_contract.py
+      - .mcp.json
+      - .cursor/mcp.json
+      - config/secrets/manifest.json
+      - .github/workflows/observability-ci.yml
+  workflow_dispatch:
+
+concurrency:
+  group: observability-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Alloy / Loki / dashboard contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate observability contract
+        shell: bash
+        run: python -m unittest tests.test_observability_contract -v
+
+      - name: Validate Alloy configuration
+        shell: bash
+        run: |
+          docker run --rm \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            -e 'PFSENSE_FILE_GLOB=/var/log/pfsense-disabled/*.log' \
+            -v "${PWD}/apps/grafana/config:/config:ro" \
+            grafana/alloy:v1.18.0 \
+            validate /config/alloy.alloy
+
+      - name: Validate Loki configuration
+        shell: bash
+        run: |
+          docker run --rm \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            -v "${PWD}/apps/grafana/config:/config:ro" \
+            grafana/loki:3.7.6 \
+            -config.file=/config/loki.yml \
+            -verify-config=true
