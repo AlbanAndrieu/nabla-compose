@@ -104,6 +104,24 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
         self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
 
+    def test_talos_vm_boot_order_is_deterministic(self) -> None:
+        vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_disk" \{[\s\S]*?order\s*=\s*1000',
+        )
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_iso" \{[\s\S]*?order\s*=\s*1001',
+        )
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_nic" \{[\s\S]*?order\s*=\s*1002',
+        )
+
     def test_preflight_authenticates_garage_admin_token(self) -> None:
         preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
             encoding="utf-8"
