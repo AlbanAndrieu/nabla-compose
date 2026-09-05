@@ -4,7 +4,7 @@ This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueN
 
 ## Environment ownership
 
-Keep durable, host-specific **non-secrets** in `.env.local` (or export them through your existing shell/direnv flow). Because the repository currently sources `.env.local` rather than parsing it with `dotenv`, declare these values with `export` so child processes such as Terragrunt and OpenTofu receive them:
+Keep durable, host-specific **non-secrets** in `.env.local` (or export them through your existing shell/direnv flow). Start from `config/infrastructure.env.example`, which intentionally contains no credential values. Because the repository currently sources `.env.local` rather than parsing it with `dotenv`, declare these values with `export` so child processes such as Terragrunt and OpenTofu receive them:
 
 ```bash
 export TRUENAS_ENABLED=true
@@ -71,16 +71,17 @@ Unlock Vaultwarden through the Bitwarden CLI, then render an ephemeral shell-com
 
 ```bash
 export BW_SESSION="$(bw unlock --raw)"
+runtime_root="${XDG_RUNTIME_DIR:-/tmp}/nabla-secrets-${UID}"
 python scripts/secrets/render_from_bitwarden.py \
   --app infrastructure-bootstrap \
-  --output-file /run/nabla-secrets/infrastructure.env
+  --output-file "${runtime_root}/infrastructure.env"
 set -a
-# shellcheck disable=SC1091
-source /run/nabla-secrets/infrastructure.env
+# shellcheck disable=SC1090
+source "${runtime_root}/infrastructure.env"
 set +a
 ```
 
-The renderer creates the parent directory with mode `0700` and the file with mode `0600`.
+The renderer creates the parent directory with mode `0700` and the file with mode `0600`. `XDG_RUNTIME_DIR` is preferred because it is user-scoped and ephemeral; `/tmp/nabla-secrets-${UID}` is the fallback and remains protected by the renderer's permissions.
 
 ## State locking model
 
