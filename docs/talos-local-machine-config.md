@@ -16,12 +16,12 @@ Do not copy these files into Git, CI artifacts, issue comments, chat messages, o
 
 ## Version baseline
 
-The current pinned default is Talos `v1.13.8`.
+The current pinned default is Talos `v1.13.9`.
 
 Override it only deliberately:
 
 ```bash
-export TALOS_VERSION=v1.13.8
+export TALOS_VERSION=v1.13.9
 ```
 
 The script requires a complete semantic release (`vMAJOR.MINOR.PATCH`) rather than a moving `latest` tag.
@@ -35,7 +35,7 @@ For the initial single-control-plane lab, this can be the future control-plane I
 ```bash
 export TALOS_CLUSTER_NAME=nabla-talos
 export TALOS_CONTROL_PLANE_ENDPOINT=https://192.0.2.10:6443
-export TALOS_VERSION=v1.13.8
+export TALOS_VERSION=v1.13.9
 export TALOS_INSTALL_DISK=/dev/vda
 
 scripts/talos/generate-config.sh
