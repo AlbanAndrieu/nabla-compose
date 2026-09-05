@@ -196,7 +196,7 @@ After the reboot, the management bridge remained stable and the principal TrueNA
 | Pi-hole Web/API | TCP/20720 | Docker-published on all host addresses | healthy |
 | Prometheus | TCP/9090 | Docker-published on all host addresses | running |
 | Alertmanager | TCP/9093 | Docker bridge/published by Compose | **restart loop**: cannot read `/etc/alertmanager/config.yml` |
-| Scrutiny | TCP/31054 -> 8080, TCP/31055 -> 8086 | Docker-published on all host addresses | **unhealthy**, diagnosis pending |
+| Scrutiny | TCP/31054 -> 8080, host-loopback TCP/31055 -> 8086 in the Compose target | Web/API on LAN; embedded InfluxDB loopback-only in the Compose target | native app now healthy; migration target prepared in `apps/scrutiny/` |
 | OpenSearch primary | TCP/9200, TCP/9600 | Docker-published on all host addresses | healthy |
 | OpenSearch security test node | host `127.0.0.1:9201` -> container TCP/9200 | loopback only | **unhealthy**: data path permission denied |
 | Open WebUI | TCP/31028 -> 8080 | Docker-published on all host addresses | healthy after reboot |
@@ -205,6 +205,8 @@ After the reboot, the management bridge remained stable and the principal TrueNA
 The TrueNAS services `cifs`, `iscsitarget`, `nfs`, `snmp`, and `ssh` were all observed in `RUNNING` state with automatic start enabled.
 
 Known post-reboot application issues are not attributable to `br0` based on their current errors:
+
+- Alertmanager is now backed by the tracked `apps/prometheus/alertmanager.yml`; Prometheus points at `172.17.0.24:9093`, and repository rule files are mounted/read from `/etc/prometheus/rules/*.rules.yml`. The current default receiver intentionally sends no external notification until a real receiver is configured;
 
 - Alertmanager exits because `/etc/alertmanager/config.yml` is not readable by the container process (`permission denied`);
 - `opensearch-security` cannot create `/usr/share/opensearch/data/nodes` because the bind-mounted dataset permissions/ACL do not permit the container user to write there;
@@ -461,6 +463,18 @@ Interpretation:
 - after a lease exists, reserve a stable IP outside the dynamic pool before generating Talos machine configuration.
 
 Do not run `talosctl apply-config` until the node address and the actual install disk have both been observed.
+
+Talos maintenance-mode discovery succeeded at `172.17.0.50`:
+
+- Talos client/server: `v1.13.9`;
+- API TCP/50000 reachable;
+- NIC: `ens2`, MAC `02:00:00:00:10:01`, link up;
+- install disk: `/dev/vda`, 34 GB, VirtIO, writable;
+- ISO device: `/dev/sr0`, 337 MB, QEMU DVD-ROM;
+- pfSense static mapping: `02:00:00:00:10:01 -> 172.17.0.50`.
+
+The next Talos machine-config generation can therefore use `https://172.17.0.50:6443` as the initial single-control-plane endpoint and `/dev/vda` as the install disk.
+
 
 ### Phase B — first controlled create
 
