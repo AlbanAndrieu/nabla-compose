@@ -107,6 +107,7 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn("--cap-drop=ALL", grafana["args"])
             self.assertIn("grafana/mcp-grafana:1.2.0-alpine", grafana["args"])
             self.assertIn("stdio", grafana["args"])
+            self.assertIn("--disable-write", grafana["args"])
             self.assertNotIn("streamable-http", grafana["args"])
             self.assertNotIn("sse", grafana["args"])
 
