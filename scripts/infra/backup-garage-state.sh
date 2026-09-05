@@ -38,6 +38,19 @@ unit_name="${relative//\//-}"
 state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
 backup_root="${NABLA_STATE_BACKUP_DIR:-${state_home}/nabla-compose/opentofu-state-backups}"
 backup_dir="${backup_root}/${unit_name}"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+if [[ "${backup_root}" != /* ]]; then
+  echo "NABLA_STATE_BACKUP_DIR must resolve to an absolute path." >&2
+  exit 1
+fi
+
+case "${backup_root}" in
+  "${repo_root}" | "${repo_root}"/*)
+    echo "Refusing to store sensitive state backups inside the Git checkout: ${backup_root}" >&2
+    exit 1
+    ;;
+esac
 
 export AWS_EC2_METADATA_DISABLED=true
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
@@ -78,8 +91,8 @@ aws --endpoint-url "${endpoint}" s3api get-object \
   "${tmp_state}" \
   >/dev/null
 
-if ! jq -e 'type == "object"' "${tmp_state}" >/dev/null; then
-  echo "Downloaded state is not a valid JSON object; refusing apply." >&2
+if ! jq -e 'type == "object" and has("version") and has("serial")' "${tmp_state}" >/dev/null; then
+  echo "Downloaded state does not look like a valid OpenTofu state; refusing apply." >&2
   exit 1
 fi
 
