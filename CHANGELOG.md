@@ -1,3 +1,10 @@
+# [0.5.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.4.0...0.5.0) (2026-09-05)
+
+
+### Features
+
+* **observability:** centralize pfSense and application logs ([#85](https://github.com/AlbanAndrieu/nabla-compose/issues/85)) ([e561ab5](https://github.com/AlbanAndrieu/nabla-compose/commit/e561ab5a6565519acf274f89065f2dc2f7d2a243))
+
 # [0.4.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.2...0.4.0) (2026-09-05)
 
 
