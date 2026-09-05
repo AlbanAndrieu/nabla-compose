@@ -80,6 +80,30 @@ class InfrastructureStateContractTests(unittest.TestCase):
         ):
             self.assertNotRegex(template, rf"(?m)^(?:export\\s+)?{secret_name}=")
 
+    def test_truenas_bootstrap_defaults_are_consistent(self) -> None:
+        terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+        variables = (ROOT / "terraform/truenas/variables.tofu").read_text(
+            encoding="utf-8"
+        )
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('get_env("TRUENAS_POOL", "cpool")', terragrunt)
+        self.assertIn('get_env("TRUENAS_VM_BRIDGE", "br0")', terragrunt)
+        self.assertRegex(
+            variables,
+            r'variable "truenas_pool" \{[^}]*default\s*=\s*"cpool"',
+        )
+        self.assertRegex(
+            variables,
+            r'variable "vm_bridge" \{[^}]*default\s*=\s*"br0"',
+        )
+        self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
+        self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
+
     def test_preflight_authenticates_garage_admin_token(self) -> None:
         preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
             encoding="utf-8"
