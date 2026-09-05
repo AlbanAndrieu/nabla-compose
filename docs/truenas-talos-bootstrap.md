@@ -404,14 +404,14 @@ After the TrueNAS reboot, bridge validation, Garage recovery, and provider initi
 Plan: 15 to add, 0 to change, 0 to destroy.
 ```
 
-The planned objects are:
+The apply completed successfully on 2026-09-05 with `15 added, 0 changed, 0 destroyed`. The created objects are:
 
 - 3 UEFI Talos VMs: `taloscp01`, `taloswk01`, `taloswk02`;
 - each VM: 4 GiB RAM, 2 cores, host CPU passthrough, `autostart=false`;
 - 3 x 32 GiB LZ4 zvols below `cpool/k8s/talos-vms`;
-- 3 VirtIO disks;
-- 3 VirtIO NICs on `br0`;
-- 3 Talos ISO CDROM devices.
+- 3 VirtIO disks, explicitly ordered first at device order `1000`;
+- 3 Talos ISO CDROM devices, explicitly ordered next at device order `1001`;
+- 3 VirtIO NICs on `br0`, explicitly ordered at `1002`.
 
 The deterministic NIC MAC addresses remain:
 
@@ -422,6 +422,45 @@ taloswk02  02:00:00:00:20:02
 ```
 
 Because `autostart=false`, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
+
+### First control-plane boot: DHCP/IP discovery
+
+After the successful infrastructure apply, start only `taloscp01`. Talos 1.13 uses DHCP by default on every linked interface before machine configuration is applied. If no IP appears in pfSense, distinguish a boot problem from a layer-2/DHCP problem before generating Talos configuration.
+
+On TrueNAS, first confirm the VM and device state:
+
+```sh
+midclt call vm.query '[["id","=",6]]' |
+  jq '.[] | {id, name, status}'
+
+midclt call vm.device.query '[["vm","=",6]]' |
+  jq '.[] | {id, dtype, order, attributes}'
+```
+
+The expected MAC is `02:00:00:00:10:01`, attached to `br0`.
+
+Check whether the VM MAC is visible on the bridge:
+
+```sh
+bridge fdb show br br0 |
+  grep -i '02:00:00:00:10:01'
+```
+
+Then capture only DHCP/ARP traffic for that VM while restarting it:
+
+```sh
+tcpdump -eni br0 \
+  'ether host 02:00:00:00:10:01 and (arp or udp port 67 or udp port 68)'
+```
+
+Interpretation:
+
+- no frames from the VM MAC: verify that the VM actually booted the Talos ISO and inspect device order/CDROM path;
+- DHCPDISCOVER but no DHCPOFFER: troubleshoot pfSense DHCP/bridge/LAN policy;
+- DISCOVER/OFFER/REQUEST/ACK: the network is healthy; locate the lease/ARP entry in pfSense using the MAC;
+- after a lease exists, reserve a stable IP outside the dynamic pool before generating Talos machine configuration.
+
+Do not run `talosctl apply-config` until the node address and the actual install disk have both been observed.
 
 ### Phase B — first controlled create
 
