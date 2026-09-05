@@ -600,6 +600,16 @@
   },
   {
     "type": "port",
+    "name": "Scrutiny",
+    "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31054
+  },
+  {
+    "type": "port",
     "name": "Sentry Web",
     "description": "Nabla generated monitor: sentry-sentry-web",
     "interval": 60,
