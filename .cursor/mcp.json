@@ -70,7 +70,8 @@
         "GRAFANA_SERVICE_ACCOUNT_TOKEN",
         "grafana/mcp-grafana:1.2.0-alpine",
         "-t",
-        "stdio"
+        "stdio",
+        "--disable-write"
       ],
       "env": {
         "GRAFANA_URL": "${env:GRAFANA_URL}",
