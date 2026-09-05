@@ -36,8 +36,10 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("get-object", backup)
         self.assertIn("chmod 0600", backup)
         self.assertIn("sha256sum", backup)
-        self.assertIn("Downloaded state is not a valid JSON object", backup)
+        self.assertIn("Downloaded state does not look like a valid OpenTofu state", backup)
         self.assertIn("Refusing apply", backup)
+        self.assertIn("must resolve to an absolute path", backup)
+        self.assertIn("Refusing to store sensitive state backups inside the Git checkout", backup)
 
     def test_non_secret_env_template_excludes_credentials(self) -> None:
         template = (ROOT / "config/infrastructure.env.example").read_text(
