@@ -18,6 +18,9 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
+- [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
+- [ ] confirm all three Kubernetes nodes transition from the initial `NotReady` state to `Ready`; if not, inspect node conditions/events before any machine-config reapply;
+- [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
 ### Post-reboot runtime cleanup — 2026-09-05
 
 Track these independently from the Talos bridge/bootstrap:
