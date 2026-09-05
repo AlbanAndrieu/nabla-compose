@@ -60,6 +60,14 @@
       "icon": "🔎"
     },
     {
+      "id": "fastapi-sample",
+      "name": "FastAPI Sample",
+      "kind": "api",
+      "category": "development",
+      "sourcePath": "apps/sample/compose.yml",
+      "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation."
+    },
+    {
       "id": "garage",
       "name": "Garage",
       "kind": "object-storage",
@@ -705,6 +713,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/elasticsearch/compose.yml:elasticsearch.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "fastapi-sample",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sample/compose.yml:fastapi-sample.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "fastapi-sample",
+      "target": "redis",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.",
+      "evidence": [
+        "apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL"
+      ]
+    },
+    {
+      "source": "fastapi-sample",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.",
+      "evidence": [
+        "apps/sample/compose.yml:traefik.http.routers.fastapi-sample"
       ]
     },
     {

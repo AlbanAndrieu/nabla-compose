@@ -130,6 +130,15 @@
     "port": 9200
   },
   {
+    "type": "http",
+    "name": "FastAPI Sample",
+    "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:8091/health"
+  },
+  {
     "type": "port",
     "name": "Garage",
     "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:8fa63b591d2a44a3e9d05d6d7241a8cfc62f825c8521d9b32a301f8f6e7a9bb9",
+  "catalogRevision": "sha256:4dff0f5a25a5f7af9e162575213d2bfc41d9041bd45c3131946e3deac74b928d",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -82,6 +82,19 @@
         "containerService": "elasticsearch"
       },
       "icon": "🔎"
+    },
+    {
+      "id": "fastapi-sample",
+      "name": "FastAPI Sample",
+      "kind": "api",
+      "category": "development",
+      "sourcePath": "apps/sample/compose.yml",
+      "composeService": "fastapi-sample",
+      "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "fastapi-sample"
+      }
     },
     {
       "id": "garage",
@@ -212,8 +225,8 @@
       "kind": "time-series-database",
       "category": "data",
       "sourcePath": "apps/influxdb/compose.yml",
-      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
       "composeService": "influxdb",
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "influxdb"
@@ -537,9 +550,9 @@
       "kind": "storage-monitoring",
       "category": "observability",
       "sourcePath": "apps/scrutiny/compose.yml",
+      "composeService": "scrutiny",
       "url": "https://scrutiny.albandrieu.com",
       "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
-      "composeService": "scrutiny",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "scrutiny"
