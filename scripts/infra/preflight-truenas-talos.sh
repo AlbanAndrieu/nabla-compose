@@ -71,6 +71,10 @@ check_endpoint() {
 }
 
 check_garage_admin_token() {
+  if [[ -z "${GARAGE_ADMIN_TOKEN:-}" ]]; then
+    return
+  fi
+
   local status
   status="$(curl --silent --show-error --location --connect-timeout 5 --max-time 10 \
     --header "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
