@@ -46,6 +46,10 @@ loki.source.syslog "pfsense" {
 loki.source.file "security" {
   targets = [
     {
+      __path__ = sys.env("PFSENSE_FILE_GLOB"),
+      job      = "pfsense-legacy",
+    },
+    {
       __path__ = "/var/log/suricata/*.json",
       job      = "suricata",
     },
