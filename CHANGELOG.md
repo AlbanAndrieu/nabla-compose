@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.3.0...0.3.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* **state:** make Garage backend bootstrap safe ([#83](https://github.com/AlbanAndrieu/nabla-compose/issues/83)) ([6f8b95d](https://github.com/AlbanAndrieu/nabla-compose/commit/6f8b95dbd3ce1098e438e417e85a270ab7f85844))
+
 # [0.3.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.2.0...0.3.0) (2026-09-03)
 
 
