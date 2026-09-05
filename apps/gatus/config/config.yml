@@ -364,9 +364,9 @@ endpoints:
 - name: Scrutiny
   group: observability
   interval: 60s
-  url: tcp://172.17.0.24:31054
+  url: http://172.17.0.24:31054/api/health
   conditions:
-  - '[CONNECTED] == true'
+  - '[STATUS] == 200'
 - name: Sentry Web
   group: sentry
   interval: 60s
