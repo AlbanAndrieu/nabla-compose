@@ -59,7 +59,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
         for name in (
             "TRUENAS_ENABLED",
             "TRUENAS_URL",
-            "TRUENAS_USERNAME",
+            "TRUENAS_USER",
             "TRUENAS_POOL",
             "TRUENAS_VM_BRIDGE",
             "TALOS_ISO_PATH",
@@ -70,7 +70,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "GARAGE_ADMIN_ENDPOINT",
             "GARAGE_STATE_BUCKET",
         ):
-            self.assertRegex(template, rf"(?m)^export {name}=")
+            self.assertRegex(template, rf"(?m)^{name}=")
 
         for secret_name in (
             "AWS_ACCESS_KEY_ID",
@@ -78,7 +78,49 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "GARAGE_ADMIN_TOKEN",
             "TRUENAS_API_KEY",
         ):
-            self.assertNotRegex(template, rf"(?m)^export {secret_name}=")
+            self.assertNotRegex(template, rf"(?m)^(?:export\\s+)?{secret_name}=")
+
+    def test_truenas_bootstrap_defaults_are_consistent(self) -> None:
+        terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+        variables = (ROOT / "terraform/truenas/variables.tofu").read_text(
+            encoding="utf-8"
+        )
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('get_env("TRUENAS_POOL", "cpool")', terragrunt)
+        self.assertIn('get_env("TRUENAS_VM_BRIDGE", "br0")', terragrunt)
+        self.assertRegex(
+            variables,
+            r'variable "truenas_pool" \{[^}]*default\s*=\s*"cpool"',
+        )
+        self.assertRegex(
+            variables,
+            r'variable "vm_bridge" \{[^}]*default\s*=\s*"br0"',
+        )
+        self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
+        self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
+
+    def test_talos_vm_boot_order_is_deterministic(self) -> None:
+        vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_disk" \{[\s\S]*?order\s*=\s*1000',
+        )
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_iso" \{[\s\S]*?order\s*=\s*1001',
+        )
+        self.assertRegex(
+            vm_config,
+            r'resource "truenas_vm_device" "talos_nic" \{[\s\S]*?order\s*=\s*1002',
+        )
 
     def test_preflight_authenticates_garage_admin_token(self) -> None:
         preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(

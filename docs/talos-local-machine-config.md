@@ -16,26 +16,33 @@ Do not copy these files into Git, CI artifacts, issue comments, chat messages, o
 
 ## Version baseline
 
-The current pinned default is Talos `v1.13.8`.
+The current pinned default is Talos `v1.13.9`.
 
 Override it only deliberately:
 
 ```bash
-export TALOS_VERSION=v1.13.8
+export TALOS_VERSION=v1.13.9
 ```
 
 The script requires a complete semantic release (`vMAJOR.MINOR.PATCH`) rather than a moving `latest` tag.
 
 ## Generate the cluster configuration
 
-Install a compatible `talosctl`, then choose the Kubernetes API endpoint that the cluster will use.
+`talosctl` is a **workstation-side operator tool**. It is not required on the TrueNAS host and this runbook does not require `mise` to be installed on TrueNAS. The workstation `mise.toml` pins Talos `1.13.9` through the explicit `aqua:siderolabs/talos` backend. After synchronizing the branch on the workstation, install the declared tools before trying to execute the binary:
+
+```bash
+mise install
+mise exec -- talosctl version --client
+```
+
+`mise exec` does not replace the installation step when the declared binary has not yet been installed. Choose the Kubernetes API endpoint only after the first control-plane VM has an assigned/reserved LAN address.
 
 For the initial single-control-plane lab, this can be the future control-plane IP on port `6443`. For an HA control plane, use the stable load-balancer/VIP endpoint instead.
 
 ```bash
 export TALOS_CLUSTER_NAME=nabla-talos
 export TALOS_CONTROL_PLANE_ENDPOINT=https://192.0.2.10:6443
-export TALOS_VERSION=v1.13.8
+export TALOS_VERSION=v1.13.9
 export TALOS_INSTALL_DISK=/dev/vda
 
 scripts/talos/generate-config.sh

@@ -38,6 +38,27 @@ TrueNAS 26 is still a beta target for the provider. Treat every first `plan`/`ap
 
 The provider is configured with both the service-account username and API key. This uses the modern authentication path and avoids relying on `auth.login_with_api_key`, which is deprecated in TrueNAS 26 and scheduled for removal in TrueNAS 27.
 
+
+### Direct TrueNAS TLS state — 2026-09-04
+
+TrueNAS now presents a certificate valid for `truenas.albandrieu.com` on the direct LAN HTTPS/API listener. The direct backend path was validated without `-k`:
+
+```sh
+curl --resolve truenas.albandrieu.com:7000:172.17.0.24 \
+  https://truenas.albandrieu.com:7000/ -I
+# HTTP/2 302
+# location: https://truenas.albandrieu.com:7000/ui/
+```
+
+Keep:
+
+```dotenv
+TRUENAS_URL=https://truenas.albandrieu.com:7000
+TRUENAS_INSECURE_SKIP_VERIFY=false
+```
+
+The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in `docs/pfsense-wan-exposure-roadmap.md`: HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
+
 ## 2. Manual TrueNAS bootstrap boundary
 
 Keep these operations manual for the first cluster:
@@ -74,6 +95,59 @@ export TRUENAS_VM_BRIDGE=br0
 
 Talos VM NICs are attached to this bridge with VirtIO.
 
+
+### Implemented bridge state — 2026-09-04
+
+The first Talos bridge has now been created and tested on the TrueNAS host:
+
+```text
+LAN 172.17.0.0/24
+        |
+     enp10s0
+   physical uplink
+        |
+        v
+       br0
+  172.17.0.24/24
+        |
+        +-- TrueNAS host
+        +-- future taloscp01 VirtIO NIC
+        +-- future taloswk01 VirtIO NIC
+        +-- future taloswk02 VirtIO NIC
+```
+
+Observed configuration:
+
+- physical uplink: `enp10s0`, MAC `04:7c:16:d5:61:5e`;
+- `enp10s0` is a bridge member and carries no IPv4 address;
+- bridge: `br0`;
+- TrueNAS management address: static `172.17.0.24/24` on `br0`;
+- default gateway: `172.17.0.1` through `br0`;
+- MTU: `1500`;
+- bridge learning: enabled;
+- pfSense dynamic DHCP pool: `172.17.0.100-172.17.0.200`, so `172.17.0.24` is outside the dynamic range;
+- pfSense retains the static mapping `04:7c:16:d5:61:5e -> 172.17.0.24`.
+
+The TrueNAS **Test Changes** rollback mechanism was used before committing the bridge. During the test window, ICMP and direct HTTPS remained healthy. After saving, the observed host state was:
+
+```sh
+ip -br addr show br0
+# br0 UP 172.17.0.24/24
+
+ip -br addr show enp10s0
+# enp10s0 UP
+
+ip route show default
+# default via 172.17.0.1 dev br0 proto static
+
+bridge link show
+# enp10s0 ... master br0 state forwarding
+```
+
+The reboot-persistence check completed successfully on 2026-09-05: `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding bridge member without IPv4, the default route remained on `br0`, and direct HTTPS validation still returned HTTP 302 without disabling certificate verification.
+
+One service-level regression was found and corrected after the reboot: SSH had **Bind Interfaces** pinned to `enp10s0`. Because the management IPv4 moved from `enp10s0` to `br0`, sshd no longer had an IPv4 address on its selected interface. SSH recovered after changing **Bind Interfaces** to `br0`. Audit other services with explicit interface or bind-IP restrictions (especially SMB and NFS) after bridge migration.
+
 ## 4. Create the parent ZFS datasets
 
 Do not use the pool root directly for Kubernetes/NFS shares.
@@ -99,6 +173,88 @@ Recommended initial settings:
 Keep compression enabled (`LZ4`/inherited) and keep `Sync=Standard` initially.
 
 The OpenTofu test module creates only the VM zvols below the existing `k8s/talos-vms` parent. It does not create or alter the pool hierarchy during the first experiment.
+
+
+### Post-bridge service binding audit — 2026-09-05
+
+After the reboot, the management bridge remained stable and the principal TrueNAS listeners were audited:
+
+| Service | Listener / published port | Binding after bridge migration | Observed state |
+| --- | --- | --- | --- |
+| SSH | TCP/9922 | `br0` / `172.17.0.24` plus localhost and link-local IPv6 | RUNNING |
+| SMB/CIFS | TCP/445 | explicit `172.17.0.24` | RUNNING |
+| NFSv4 | TCP/2049 | all host addresses | RUNNING |
+| iSCSI target | TCP/3260 | portal `0.0.0.0` | RUNNING |
+| TrueNAS GUI/API | TCP/7000 | all host addresses | RUNNING; direct TLS returns HTTP 302 |
+| Traefik | TCP/80, TCP/443 | Docker-published on all host addresses | RUNNING |
+| Garage S3 | TCP/3900 | Docker-published on all host addresses | RUNNING; unauthenticated root request returns HTTP 403 |
+| Garage RPC | TCP/3901 | Docker-published on all host addresses | RUNNING |
+| Garage Admin API | TCP/3903 | Docker-published on all host addresses | RUNNING; authenticated ListBuckets succeeds |
+| Garage WebUI | TCP/3909 | Docker-published on all host addresses | healthy |
+| Vaultwarden | TCP/30032 -> container TCP/80 | Docker-published on all host addresses | healthy |
+| Pi-hole DNS | TCP/53 + UDP/53 | Docker-published on all host addresses | healthy |
+| Pi-hole Web/API | TCP/20720 | Docker-published on all host addresses | healthy |
+| Prometheus | TCP/9090 | Docker-published on all host addresses | running |
+| Alertmanager | TCP/9093 | Docker bridge/published by Compose | **restart loop**: cannot read `/etc/alertmanager/config.yml` |
+| Scrutiny | LAN TCP/31054 -> web TCP/8080 | `http://172.17.0.24:31054/`; public navigation is `https://scrutiny.albandrieu.com/` through Cloudflare Tunnel + Access | native app stopped after functional validation; split web/collector migration prepared in `apps/scrutiny/` |
+| InfluxDB | host-loopback TCP/31055 -> TCP/8086 | Docker consumers use `http://influxdb:8086` on `intranet`; no LAN/Internet listener by default | standalone reusable target prepared in `apps/influxdb/`; migration not yet executed |
+| OpenSearch primary | TCP/9200, TCP/9600 | Docker-published on all host addresses | healthy |
+| OpenSearch security test node | host `127.0.0.1:9201` -> container TCP/9200 | loopback only | **unhealthy**: data path permission denied |
+| Open WebUI | TCP/31028 -> 8080 | Docker-published on all host addresses | healthy after reboot |
+| Docker socket proxy | TCP/2375 | currently published on all host addresses | running; security hardening required |
+
+The TrueNAS services `cifs`, `iscsitarget`, `nfs`, `snmp`, and `ssh` were all observed in `RUNNING` state with automatic start enabled.
+
+Known post-reboot application issues are not attributable to `br0` based on their current errors:
+
+- Alertmanager is now backed by the tracked `apps/prometheus/alertmanager.yml`; Prometheus points at `172.17.0.24:9093`, and repository rule files are mounted/read from `/etc/prometheus/rules/*.rules.yml`. The current default receiver intentionally sends no external notification until a real receiver is configured;
+
+- Alertmanager exits because `/etc/alertmanager/config.yml` is not readable by the container process (`permission denied`);
+- `opensearch-security` cannot create `/usr/share/opensearch/data/nodes` because the bind-mounted dataset permissions/ACL do not permit the container user to write there;
+- Scrutiny is running but its healthcheck is failing; inspect its health output and logs before changing its network configuration;
+- Open WebUI is now healthy;
+- Tailscale is intentionally not used and can remain stopped/deferred;
+- other explicitly stopped applications are not Talos bootstrap dependencies unless they provide DNS, reverse proxy, state storage, or another bootstrap-critical path.
+
+Do not treat a TrueNAS Apps `DEPLOYING` state alone as a bridge failure. Correlate it with container status, healthcheck output, and logs.
+
+When auditing SSH, do **not** dump the full `ssh.config` object because it contains private host-key material. Use a field projection such as:
+
+```sh
+midclt call ssh.config |
+  jq '{bindiface, tcpport, passwordauth, kerberosauth, tcpfwd, weak_ciphers}'
+```
+
+The current SSH configuration also exposes the optional weak-cipher list. Review and remove `AES128-CBC` and `NONE` unless a documented legacy compatibility requirement exists.
+
+### Implemented storage and Talos ISO state — 2026-09-04
+
+The bootstrap datasets now exist on `cpool`:
+
+```text
+cpool/k8s
+├── talos-vms
+├── nfs
+└── csi
+cpool/iso
+```
+
+The Talos Image Factory schematic pinned by the repository produced the following bootable ISO, which has been downloaded directly to TrueNAS:
+
+```text
+Talos version: v1.13.9
+Schematic ID:  ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515
+ISO path:      /mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
+SHA-256:       1185a383d02d987db0bd7c7feab7e6f5bb919b8ef91e26a73299278cc2b6773c
+```
+
+The file was verified as a bootable ISO 9660 Talos image. The local bootstrap configuration can therefore use:
+
+```dotenv
+TRUENAS_POOL=cpool
+TRUENAS_VM_BRIDGE=br0
+TALOS_ISO_PATH=/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
+```
 
 Set the pool name locally:
 
@@ -150,7 +306,7 @@ Cursor and other local agents can use `truenas-readonly` to inspect pools, datas
 
 Do **not** reuse the MCP key for infrastructure writes.
 
-Create a second service account, for example `tofu_truenas`, with a custom privilege containing only the roles required by this initial module:
+Current supervised bootstrap status: the existing `albandrieu` account owns the API key used for the read-only plan. This is acceptable for the supervised bootstrap, but it is not the steady-state least-privilege design. Before unattended or recurring automation, create a dedicated service account such as `tofu_truenas` with a custom privilege containing only the roles required by this module:
 
 - `READONLY_ADMIN` — inspect existing system/resource state;
 - `VM_WRITE` — create/update the three VMs;
@@ -162,8 +318,8 @@ Do not grant `FULL_ADMIN` by default. If a plan/apply reports a permission error
 Export both the username and key:
 
 ```bash
-export TRUENAS_USERNAME='tofu_truenas'
-export TRUENAS_API_KEY='...terraform key...'
+export TRUENAS_USER='albandrieu'
+export TRUENAS_API_KEY='...current operator API key...'
 ```
 
 ### 5.3 Future credentials
@@ -192,20 +348,23 @@ It reuses the repository-wide `root.hcl` and existing remote-state backend.
 
 ### Phase A — init and safe plan
 
-```bash
-cd infrastructure/truenas
+Garage state is currently operated under the repository single-writer contract. Run TrueNAS Terragrunt operations through the serialized wrapper from the repository root:
 
+```bash
 export TRUENAS_URL='https://truenas.example.internal'
-export TRUENAS_USERNAME='tofu_truenas'
+export TRUENAS_USER='albandrieu'
 export TRUENAS_API_KEY='...terraform key...'
-export TRUENAS_POOL='<POOL>'
+# Optional overrides; repository defaults are cpool and br0.
+export TRUENAS_POOL='cpool'
 export TRUENAS_VM_BRIDGE='br0'
 export TRUENAS_ENABLED=true
 export TRUENAS_READ_ONLY=true
 export TRUENAS_DESTROY_PROTECTION=true
 
-terragrunt init -upgrade
-terragrunt plan
+bash scripts/infra/preflight-truenas-talos.sh plan
+scripts/infra/terragrunt-safe.sh infrastructure/truenas init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/truenas validate
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
 ```
 
 Expected resources for the default test configuration:
@@ -215,9 +374,139 @@ Expected resources for the default test configuration:
 3 x truenas_zvol
 3 x truenas_vm_device (DISK)
 3 x truenas_vm_device (NIC)
+3 x truenas_vm_device (CDROM, when TALOS_ISO_PATH is set)
 ```
 
 No VM is started automatically.
+
+### Validated read-only plan — 2026-09-05
+
+The workstation preflight now passes with zero warnings. The Garage backend read/write/delete probe succeeds but confirms that `If-None-Match: *` is not enforced, so the single-writer wrapper remains mandatory.
+
+The first TrueNAS read-only plan completed successfully:
+
+```text
+Plan: 15 to add, 0 to change, 0 to destroy.
+```
+
+Expected resources were present:
+
+- three Talos VMs with `autostart=false`;
+- three 32 GiB `LZ4` zvols under `cpool/k8s/talos-vms`;
+- three VirtIO disk devices;
+- three VirtIO NIC devices attached to `br0` with deterministic MAC addresses;
+- three CDROM devices because `TALOS_ISO_PATH` is configured.
+
+The deferred TrueNAS reboot-persistence check for `br0` has passed, the post-bridge service binding audit is complete for the bootstrap-critical TrueNAS listeners, Garage S3/Admin connectivity is restored, and the Garage read/write/delete probe passes. The remaining unhealthy application containers above are tracked separately and are not required to provision the stopped Talos VMs.
+
+### Final reviewed create plan — 2026-09-05
+
+After the TrueNAS reboot, bridge validation, Garage recovery, and provider initialization, the workstation plan was repeated and remained create-only:
+
+```text
+Plan: 15 to add, 0 to change, 0 to destroy.
+```
+
+The apply completed successfully on 2026-09-05 with `15 added, 0 changed, 0 destroyed`. The created objects are:
+
+- 3 UEFI Talos VMs: `taloscp01`, `taloswk01`, `taloswk02`;
+- each VM: 4 GiB RAM, 2 cores, host CPU passthrough, `autostart=false`;
+- 3 x 32 GiB LZ4 zvols below `cpool/k8s/talos-vms`;
+- 3 VirtIO disks, explicitly ordered first at device order `1000`;
+- 3 Talos ISO CDROM devices, explicitly ordered next at device order `1001`;
+- 3 VirtIO NICs on `br0`, explicitly ordered at `1002`.
+
+The deterministic NIC MAC addresses remain:
+
+```text
+taloscp01  02:00:00:00:10:01
+taloswk01  02:00:00:00:20:01
+taloswk02  02:00:00:00:20:02
+```
+
+Because `autostart=false`, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
+
+### First control-plane boot: DHCP/IP discovery
+
+After the successful infrastructure apply, start only `taloscp01`. Talos 1.13 uses DHCP by default on every linked interface before machine configuration is applied. If no IP appears in pfSense, distinguish a boot problem from a layer-2/DHCP problem before generating Talos configuration.
+
+On TrueNAS, first confirm the VM and device state:
+
+```sh
+midclt call vm.query '[["id","=",6]]' |
+  jq '.[] | {id, name, status}'
+
+midclt call vm.device.query '[["vm","=",6]]' |
+  jq '.[] | {id, dtype, order, attributes}'
+```
+
+The expected MAC is `02:00:00:00:10:01`, attached to `br0`.
+
+Check whether the VM MAC is visible on the bridge:
+
+```sh
+bridge fdb show br br0 |
+  grep -i '02:00:00:00:10:01'
+```
+
+Then capture only DHCP/ARP traffic for that VM while restarting it:
+
+```sh
+tcpdump -eni br0 \
+  'ether host 02:00:00:00:10:01 and (arp or udp port 67 or udp port 68)'
+```
+
+Interpretation:
+
+- no frames from the VM MAC: verify that the VM actually booted the Talos ISO and inspect device order/CDROM path;
+- DHCPDISCOVER but no DHCPOFFER: troubleshoot pfSense DHCP/bridge/LAN policy;
+- DISCOVER/OFFER/REQUEST/ACK: the network is healthy; locate the lease/ARP entry in pfSense using the MAC;
+- after a lease exists, reserve a stable IP outside the dynamic pool before generating Talos machine configuration.
+
+Do not run `talosctl apply-config` until the node address and the actual install disk have both been observed.
+
+Talos maintenance-mode discovery succeeded at `172.17.0.50`:
+
+- Talos client/server: `v1.13.9`;
+- API TCP/50000 reachable;
+- NIC: `ens2`, MAC `02:00:00:00:10:01`, link up;
+- install disk: `/dev/vda`, 34 GB, VirtIO, writable;
+- ISO device: `/dev/sr0`, 337 MB, QEMU DVD-ROM;
+- pfSense static mapping: `02:00:00:00:10:01 -> 172.17.0.50`.
+
+The next Talos machine-config generation can therefore use `https://172.17.0.50:6443` as the initial single-control-plane endpoint and `/dev/vda` as the install disk.
+
+
+### Reviewed boot-order normalization plan — 2026-09-06
+
+After stopping `taloscp01` (the worker VMs were already stopped), the repository device-order change was planned against the created resources:
+
+```text
+Plan: 0 to add, 6 to change, 0 to destroy.
+```
+
+The six in-place updates are exactly:
+
+```text
+taloscp01 DISK   1001 -> 1000
+taloswk01 DISK   1001 -> 1000
+taloswk02 DISK   1001 -> 1000
+taloscp01 CDROM  1000 -> 1001
+taloswk01 CDROM  1000 -> 1001
+taloswk02 CDROM  1000 -> 1001
+```
+
+NIC order remains `1002`. No VM, zvol or VM device is recreated or destroyed. With all Talos VMs stopped, this is the expected safe normalization before Talos installs to `/dev/vda`.
+
+Apply only while the plan remains exactly this six-update/no-destroy shape:
+
+```bash
+mise exec -- \
+  scripts/infra/terragrunt-safe.sh \
+  infrastructure/truenas apply
+```
+
+After the update, keep the Talos VMs stopped until the next bootstrap phase deliberately starts `taloscp01`.
 
 ### Phase B — first controlled create
 
@@ -226,13 +515,13 @@ Only after reviewing the plan:
 ```bash
 export TRUENAS_READ_ONLY=false
 export TRUENAS_DESTROY_PROTECTION=true
-
-terragrunt apply
+bash scripts/infra/preflight-truenas-talos.sh apply
+scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
 
-This allows create/update operations while retaining provider-level protection against deletion.
+This allows create/update operations while retaining provider-level protection against deletion. The wrapper serializes the local writer and snapshots existing state before apply.
 
-The repository CD workflow follows the same trust boundary: `.github/workflows/terragrunt-cd.yaml` is manual-dispatch only, runs on the private `infra-runners` label, requires explicit apply confirmation, and is scoped to `infrastructure/truenas`. It intentionally has no scheduled or push-triggered `apply`. The runner must inject the required TrueNAS/state credentials through the trusted secret boundary; secret values must not be committed to the repository.
+The repository CD workflow `.github/workflows/terragrunt-cd.yaml` is currently **plan-only**, manual-dispatch, and restricted to the private `infra-runners` label. Remote apply remains disabled while Garage lacks the conditional-write semantics required for distributed S3 locking. Do not re-enable CI apply until a shared lock service or equivalent distributed locking contract is in place.
 
 The default test nodes are intentionally small:
 
@@ -249,9 +538,13 @@ TrueNAS VM names are kept alphanumeric because the provider/TrueNAS VM API rejec
 The first provider test does not require a boot ISO. To attach one, place a Talos ISO on TrueNAS and set the TrueNAS-local path:
 
 ```bash
-export TALOS_ISO_PATH='/mnt/<POOL>/iso/talos-amd64.iso'
-terragrunt plan
-terragrunt apply
+export TALOS_ISO_PATH='/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso'
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
+
+# Apply only after the reviewed plan remains create-only:
+export TRUENAS_READ_ONLY=false
+bash scripts/infra/preflight-truenas-talos.sh apply
+scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
 
 A CDROM device is created for each VM only when `TALOS_ISO_PATH` is non-empty.
@@ -427,10 +720,11 @@ There is no need to choose either before the first Kubernetes cluster exists. Th
 Do not continue to Kubernetes until all of the following are true:
 
 - [ ] TrueNAS is reachable through the bridge after a reboot.
+- [ ] **Do not forget the reboot persistence test before the first VM apply:** `br0` must retain `172.17.0.24/24`, `enp10s0` must remain a bridge member without IPv4, and the default route must remain on `br0`.
 - [ ] Parent `k8s`, `k8s/talos-vms`, `k8s/nfs` and `k8s/csi` datasets exist as intended.
 - [ ] The `mcp_reader` identity can list resources but cannot mutate them.
-- [ ] The `tofu_truenas` account and user-linked API key exist with only the required roles.
-- [ ] `TRUENAS_USERNAME` and `TRUENAS_API_KEY` are stored outside Git.
+- [ ] Before unattended/recurring automation, replace the supervised `albandrieu` bootstrap identity with a dedicated `tofu_truenas` account and user-linked API key containing only the required roles.
+- [ ] `TRUENAS_USER` and `TRUENAS_API_KEY` are stored outside Git.
 - [ ] `terragrunt plan` reports exactly three VMs, three zvols and their devices.
 - [ ] The first `terragrunt apply` creates those resources successfully.
 - [ ] `TRUENAS_DESTROY_PROTECTION=true` remains enabled.

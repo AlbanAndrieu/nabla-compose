@@ -42,6 +42,13 @@
       "tunnelSecure": true,
       "cloudflareAccessRequired": true,
       "securityException": "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth."
+    },
+    {
+      "name": "Scrutiny",
+      "external": true,
+      "tunnelUrl": "https://scrutiny.albandrieu.com",
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true
     }
   ]
 }

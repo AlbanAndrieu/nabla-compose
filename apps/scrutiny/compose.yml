@@ -1,0 +1,93 @@
+---
+services:
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:v0.9.3-web
+    container_name: scrutiny
+    restart: unless-stopped
+    x-nabla:
+      id: scrutiny
+      name: Scrutiny
+      kind: storage-monitoring
+      category: observability
+      url: https://scrutiny.albandrieu.com
+      description: SMART disk health monitoring web/API backed by the shared InfluxDB service.
+      runtime:
+        provider: truenas-app
+        containerService: scrutiny
+      relations:
+        - target: influxdb
+          type: storesIn
+          strength: required
+          description: Scrutiny stores SMART history in the shared InfluxDB service.
+          evidence:
+            - apps/scrutiny/compose.yml:SCRUTINY_WEB_INFLUXDB_HOST
+      monitoring:
+        type: http
+        target: http://172.17.0.24:31054/api/health
+        conditions:
+          - "[STATUS] == 200"
+    ports:
+      - "172.17.0.24:31054:8080"
+    environment:
+      SCRUTINY_WEB_INFLUXDB_HOST: influxdb
+      SCRUTINY_WEB_INFLUXDB_PORT: "8086"
+      SCRUTINY_WEB_INFLUXDB_TOKEN: ${SCRUTINY_INFLUXDB_TOKEN:?set SCRUTINY_INFLUXDB_TOKEN via the secret provider}
+      SCRUTINY_WEB_INFLUXDB_ORG: ${INFLUXDB_ORG:-nabla}
+      SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_INFLUXDB_BUCKET:-scrutiny}
+      TZ: Europe/Paris
+    volumes:
+      - /mnt/cpool/scrutiny/config:/opt/scrutiny/config
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://127.0.0.1:8080/api/health
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks:
+      - intranet
+
+  scrutiny-collector:
+    image: ghcr.io/analogj/scrutiny:v0.9.3-collector
+    container_name: scrutiny-collector
+    restart: unless-stopped
+    x-nabla:
+      id: scrutiny-collector
+      name: Scrutiny Collector
+      kind: metrics-collector
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: scrutiny-collector
+      relations:
+        - target: scrutiny
+          type: consumesApi
+          strength: required
+          description: The collector posts SMART inventory and metrics to the Scrutiny web/API service.
+          evidence:
+            - apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT
+    cap_add:
+      - SYS_RAWIO
+    environment:
+      COLLECTOR_API_ENDPOINT: http://scrutiny:8080
+      COLLECTOR_HOST_ID: truenas
+      COLLECTOR_RUN_STARTUP: "true"
+      TZ: Europe/Paris
+    volumes:
+      - /run/udev:/run/udev:ro
+      - /dev:/dev:ro
+    depends_on:
+      scrutiny:
+        condition: service_healthy
+    networks:
+      - intranet
+
+networks:
+  intranet:
+    external: true
+    name: intranet

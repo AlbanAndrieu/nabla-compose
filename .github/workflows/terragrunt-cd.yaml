@@ -19,6 +19,8 @@ env:
   TRUENAS_DESTROY_PROTECTION: "true"
   TRUENAS_INSECURE_SKIP_VERIFY: "false"
   TRUENAS_READ_ONLY: "true"
+  TRUENAS_POOL: "cpool"
+  TRUENAS_VM_BRIDGE: "br0"
 
 jobs:
   truenas-plan:
@@ -66,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL; do
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TRUENAS_URL TRUENAS_USER TRUENAS_API_KEY; do
             if [[ -z "${!name:-}" ]]; then
               missing+=("${name}")
             fi

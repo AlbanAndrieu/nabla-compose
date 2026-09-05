@@ -256,6 +256,17 @@
       "syncEligible": true
     },
     {
+      "id": "influxdb",
+      "name": "InfluxDB",
+      "group": "data",
+      "sourcePath": "apps/influxdb/compose.yml",
+      "composeService": "influxdb",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "group": "observability",
@@ -685,6 +696,27 @@
       "group": "redis",
       "sourcePath": "apps/redis/compose.yml",
       "composeService": "redis_exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "scrutiny",
+      "name": "Scrutiny",
+      "group": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "composeService": "scrutiny",
+      "dockerManaged": true,
+      "href": "https://scrutiny.albandrieu.com",
+      "syncEligible": true,
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service."
+    },
+    {
+      "id": "scrutiny-collector",
+      "name": "Scrutiny Collector",
+      "group": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "composeService": "scrutiny-collector",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false

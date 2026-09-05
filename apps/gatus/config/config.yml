@@ -361,6 +361,12 @@ endpoints:
   url: tcp://172.17.0.24:9121
   conditions:
   - '[CONNECTED] == true'
+- name: Scrutiny
+  group: observability
+  interval: 60s
+  url: http://172.17.0.24:31054/api/health
+  conditions:
+  - '[STATUS] == 200'
 - name: Sentry Web
   group: sentry
   interval: 60s

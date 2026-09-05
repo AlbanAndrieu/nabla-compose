@@ -6,12 +6,16 @@ global:
 remote_write:
   - url: http://172.17.0.24:9009/api/v1/push
 
-scrape_configs:
-  - job_name: scrutiny
-    static_configs:
-      - targets:
-          - 172.17.0.24:8080
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 172.17.0.24:9093
 
+rule_files:
+  - /etc/prometheus/rules/*.rules.yml
+
+scrape_configs:
   - job_name: pfsense_exporter
     metrics_path: /metrics
     scrape_interval: 15s

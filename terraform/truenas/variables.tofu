@@ -44,7 +44,7 @@ variable "truenas_insecure_skip_verify" {
 variable "truenas_pool" {
   description = "Existing TrueNAS ZFS pool used for Talos VM zvols."
   type        = string
-  default     = ""
+  default     = "cpool"
 }
 
 variable "talos_zvol_parent" {

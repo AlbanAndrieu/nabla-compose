@@ -3,6 +3,8 @@
 env/scripts/jenkins/*.nse
 env/scripts/jenkins/tls.lua
 
+*-SAV
+
 *.csv
 *.ipynb_checkpoints
 data/*
@@ -75,6 +77,10 @@ Thumbs.db
 terraform.tfstate
 terraform.tfstate.backup
 .terragrunt-cache/
+# Terragrunt working-directory lockfiles are generated from the module lockfiles.
+# Keep terraform/*/.terraform.lock.hcl tracked; ignore only infrastructure workdirs.
+/infrastructure/*/.terraform.lock.hcl
+
 .tfsec/
 
 # Latex

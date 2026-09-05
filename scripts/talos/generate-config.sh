@@ -5,7 +5,12 @@ umask 077
 ROOT="$(git rev-parse --show-toplevel)"
 CLUSTER_NAME="${TALOS_CLUSTER_NAME:-nabla-talos}"
 ENDPOINT="${TALOS_CONTROL_PLANE_ENDPOINT:-}"
-TALOS_VERSION="${TALOS_VERSION:-v1.13.8}"
+VERSION_FILE="${ROOT}/config/talos/VERSION"
+[[ -r "${VERSION_FILE}" ]] || {
+  echo "missing Talos version file: ${VERSION_FILE}" >&2
+  exit 1
+}
+TALOS_VERSION="${TALOS_VERSION:-$(<"${VERSION_FILE}")}"
 INSTALL_DISK="${TALOS_INSTALL_DISK:-/dev/vda}"
 OUTPUT_DIR="${TALOS_OUTPUT_DIR:-${ROOT}/.talos/generated}"
 OVERWRITE="${TALOS_OVERWRITE:-false}"
@@ -20,7 +25,7 @@ command -v talosctl >/dev/null 2>&1 || fail "talosctl is required"
 [[ -n "${ENDPOINT}" ]] || fail "TALOS_CONTROL_PLANE_ENDPOINT is required (for example https://10.0.0.10:6443)"
 [[ "${ENDPOINT}" =~ ^https://[^[:space:]]+:6443$ ]] || fail "TALOS_CONTROL_PLANE_ENDPOINT must use https:// and port 6443"
 [[ "${CLUSTER_NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || fail "TALOS_CLUSTER_NAME contains unsupported characters"
-[[ "${TALOS_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "TALOS_VERSION must be a full release such as v1.13.8"
+[[ "${TALOS_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "TALOS_VERSION must be a full release such as v1.13.9"
 [[ "${INSTALL_DISK}" == /dev/* ]] || fail "TALOS_INSTALL_DISK must be an absolute /dev path"
 [[ "${OVERWRITE}" == "true" || "${OVERWRITE}" == "false" ]] || fail "TALOS_OVERWRITE must be true or false"
 

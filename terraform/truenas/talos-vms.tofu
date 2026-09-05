@@ -37,6 +37,7 @@ resource "truenas_vm_device" "talos_disk" {
 
   vm    = tonumber(truenas_vm.talos[each.key].id)
   dtype = "DISK"
+  order = 1000
   attributes = {
     path = "/dev/zvol/${var.truenas_pool}/${var.talos_zvol_parent}/${each.key}-disk0"
     type = "VIRTIO"
@@ -50,6 +51,7 @@ resource "truenas_vm_device" "talos_nic" {
 
   vm    = tonumber(truenas_vm.talos[each.key].id)
   dtype = "NIC"
+  order = 1002
   attributes = {
     type       = "VIRTIO"
     nic_attach = var.vm_bridge
@@ -62,6 +64,7 @@ resource "truenas_vm_device" "talos_iso" {
 
   vm    = tonumber(truenas_vm.talos[each.key].id)
   dtype = "CDROM"
+  order = 1001
   attributes = {
     path = var.talos_iso_path
   }

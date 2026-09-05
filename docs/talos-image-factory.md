@@ -55,11 +55,10 @@ Example:
 
 ```bash
 export TALOS_ISO_PATH='/mnt/<POOL>/iso/talos-amd64.iso'
-cd infrastructure/truenas
-terragrunt plan
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
 ```
 
-The TrueNAS module keeps VM autostart disabled and the infrastructure CD workflow remains manual-only. Creating boot artifacts must never imply an automatic `terragrunt apply`.
+The TrueNAS module keeps VM autostart disabled and the infrastructure CD workflow remains manual-dispatch and plan-only. Creating boot artifacts must never imply an automatic `terragrunt apply`.
 
 ## First boot validation
 
