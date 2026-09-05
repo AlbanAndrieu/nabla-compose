@@ -382,6 +382,15 @@
       "icon": "🔴"
     },
     {
+      "id": "scrutiny",
+      "name": "Scrutiny",
+      "kind": "storage-monitoring",
+      "category": "observability",
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "url": "https://scrutiny.albandrieu.com",
+      "description": "SMART disk health monitoring with the Scrutiny omnibus web/API and embedded InfluxDB."
+    },
+    {
       "id": "searxng",
       "name": "SearXNG",
       "kind": "search",
@@ -1517,6 +1526,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/redis/compose.yml:redis.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scrutiny",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scrutiny/compose.yml:scrutiny.x-nabla.runtime.containerService"
       ]
     },
     {
