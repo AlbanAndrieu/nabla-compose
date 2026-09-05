@@ -28,7 +28,14 @@ The script requires a complete semantic release (`vMAJOR.MINOR.PATCH`) rather th
 
 ## Generate the cluster configuration
 
-`talosctl` is pinned with the rest of the workstation tooling in `mise.toml`. After synchronizing the branch, run `mise install`, then verify `mise exec -- talosctl version --client`. Choose the Kubernetes API endpoint that the cluster will use only after the first control-plane VM has an assigned/reserved LAN address.
+`talosctl` is a **workstation-side operator tool**. It is not required on the TrueNAS host and this runbook does not require `mise` to be installed on TrueNAS. The workstation `mise.toml` pins Talos `1.13.9` through the explicit `aqua:siderolabs/talos` backend. After synchronizing the branch on the workstation, install the declared tools before trying to execute the binary:
+
+```bash
+mise install
+mise exec -- talosctl version --client
+```
+
+`mise exec` does not replace the installation step when the declared binary has not yet been installed. Choose the Kubernetes API endpoint only after the first control-plane VM has an assigned/reserved LAN address.
 
 For the initial single-control-plane lab, this can be the future control-plane IP on port `6443`. For an HA control plane, use the stable load-balancer/VIP endpoint instead.
 
