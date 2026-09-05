@@ -70,6 +70,7 @@ Acceptance gates:
 - [ ] every catalog entry with a Tunnel URL but `external=false` is reconciled: either declare the intended protected external access or remove the stale Tunnel/DNS exposure;
 - [ ] Scrutiny external navigation is `https://scrutiny.albandrieu.com/` behind Cloudflare Access, while LAN navigation remains `http://172.17.0.24:31054/`;
 - [ ] FastAPI Sample/UI consumers never synthesize `https://truenas.albandrieu.com:<application-port>/` for an application whose catalog declares an HTTP LAN endpoint.
+- [ ] FastAPI Sample `/sickz` treats an observed Access application with zero effective policies/decisions as a failure rather than compliant; the repository audit helper already fails closed on this condition.
 
 The last item is a follow-up for the FastAPI Sample presentation layer if the incorrect Scrutiny link is still rendered after the catalog changes: internal navigation must be built from `internalHost`, `internalPort` and `internalSecure`, while external navigation must use `tunnelUrl`.
 
