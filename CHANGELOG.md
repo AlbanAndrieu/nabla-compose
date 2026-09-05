@@ -1,3 +1,10 @@
+# [0.6.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.5.0...0.6.0) (2026-09-05)
+
+
+### Features
+
+* **sample:** add local FastAPI Sample deployment ([#88](https://github.com/AlbanAndrieu/nabla-compose/issues/88)) ([da54c6d](https://github.com/AlbanAndrieu/nabla-compose/commit/da54c6d920d1f89e8db0c4501366ebc0fc80e354))
+
 # [0.5.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.4.0...0.5.0) (2026-09-05)
 
 
