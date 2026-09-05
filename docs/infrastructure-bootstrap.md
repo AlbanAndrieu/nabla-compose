@@ -1,10 +1,10 @@
 # Infrastructure bootstrap preflight
 
-This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueNAS/Talos initialization. It deliberately separates non-secret local configuration from secret material.
+This runbook is the operator path for the first Garage/OpenTofu/Terragrunt/TrueNAS/Talos initialization. It deliberately separates non-secret local configuration from secret material and keeps the first bootstrap single-writer.
 
 ## Environment ownership
 
-Keep durable, host-specific **non-secrets** in `.env.local` (or export them through your existing shell/direnv flow). Because the repository currently sources `.env.local` rather than parsing it with `dotenv`, declare these values with `export` so child processes such as Terragrunt and OpenTofu receive them:
+Keep durable, host-specific **non-secrets** in `.env.local` (or export them through your existing shell/direnv flow). Start from `config/infrastructure.env.example`, which intentionally contains no credential values. Because the repository currently sources `.env.local` rather than parsing it with `dotenv`, declare these values with `export` so child processes such as Terragrunt and OpenTofu receive them:
 
 ```bash
 export TRUENAS_ENABLED=true
@@ -71,16 +71,29 @@ Unlock Vaultwarden through the Bitwarden CLI, then render an ephemeral shell-com
 
 ```bash
 export BW_SESSION="$(bw unlock --raw)"
+runtime_root="${XDG_RUNTIME_DIR:-/tmp}/nabla-secrets-${UID}"
 python scripts/secrets/render_from_bitwarden.py \
   --app infrastructure-bootstrap \
-  --output-file /run/nabla-secrets/infrastructure.env
+  --output-file "${runtime_root}/infrastructure.env"
 set -a
-# shellcheck disable=SC1091
-source /run/nabla-secrets/infrastructure.env
+# shellcheck disable=SC1090
+source "${runtime_root}/infrastructure.env"
 set +a
 ```
 
-The renderer creates the parent directory with mode `0700` and the file with mode `0600`.
+The renderer creates the parent directory with mode `0700` and the file with mode `0600`. `XDG_RUNTIME_DIR` is preferred because it is user-scoped and ephemeral; `/tmp/nabla-secrets-${UID}` is the fallback and remains protected by the renderer's permissions.
+
+## State locking model
+
+The state itself remains in the Garage `opentofu-state` bucket, but native OpenTofu S3 lockfiles are deliberately disabled. OpenTofu's S3 lock requires atomic conditional writes; the current Garage architecture does not provide the compare-and-swap semantics required for that lock.
+
+Until a distributed lock service is introduced, **one workstation is the only state writer**. Use `scripts/infra/terragrunt-safe.sh` for every local Terragrunt operation. It acquires a host-local `flock` and refuses repository-wide applies. Do not run an apply from CI or a second workstation at the same time.
+
+This is a bootstrap safety boundary, not a distributed lock. A future multi-writer workflow must add a shared lock service before remote applies are re-enabled.
+
+Because Garage does not provide S3 object versioning for state recovery, `terragrunt-safe.sh` also snapshots an existing remote state before every local `apply`. Backups are written outside the repository to `${NABLA_STATE_BACKUP_DIR}` when set, otherwise `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/opentofu-state-backups/`. A custom backup directory must resolve to an absolute path and is rejected if it is inside the Git checkout. Directories are kept private and state files/checksums are written mode `0600`.
+
+Treat these files as secrets: OpenTofu state can contain sensitive resource attributes. Do not sync them to Git, public cloud storage, chat, or ordinary workstation backups without encryption.
 
 ## Preflight
 
@@ -90,9 +103,17 @@ From the repository root, after `.env.local` configuration and secret exports ar
 bash scripts/infra/preflight-truenas-talos.sh plan
 ```
 
-The preflight checks only secret presence, never values. It validates required tools, safety flags, expected repository inputs, and HTTP reachability for Garage S3, Garage admin and TrueNAS.
+The preflight checks only secret presence, never values. It validates required tools, safety flags, expected repository inputs, executable guards and HTTP reachability for Garage S3, Garage admin and TrueNAS.
 
-Do not continue until the preflight is green.
+Before the first Terragrunt initialization, probe the real state bucket with temporary objects:
+
+```bash
+scripts/infra/probe-garage-backend.sh
+```
+
+The probe verifies S3 authentication plus bucket read/write/delete access and tests `If-None-Match` behavior. It writes only below a temporary `.nabla-preflight/` key and removes the object on exit.
+
+Do not continue until the normal preflight and the basic S3 round-trip are green.
 
 ## Bootstrap order
 
@@ -102,20 +123,26 @@ Initialize units individually first; do not start with a repository-wide apply.
 
 ### 1. Garage state/backend validation
 
+From the repository root:
+
 ```bash
-cd infrastructure/garage
-terragrunt init
-terragrunt validate
-terragrunt plan
+scripts/infra/probe-garage-backend.sh
+scripts/infra/terragrunt-safe.sh infrastructure/garage init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/garage validate
+scripts/infra/terragrunt-safe.sh infrastructure/garage plan
 ```
+
+`-reconfigure` is intentional after changing backend locking semantics. Do not use `init -upgrade` during this bootstrap; provider upgrades belong in reviewed dependency changes with regenerated lockfiles.
 
 Review the plan. The Garage unit must not require 1Password.
 
 If the plan is correct:
 
 ```bash
-terragrunt apply
+scripts/infra/terragrunt-safe.sh infrastructure/garage apply
 ```
+
+Before the apply starts, the wrapper snapshots any existing `garage/tfstate.json`; the first apply is allowed when no state object exists yet. If an existing state cannot be read, downloaded, or validated as JSON, the wrapper refuses the apply.
 
 The `home-ops-backups` access key created by this unit is unrelated to the backend key. Import it into Vaultwarden deliberately after creation; do not replace the backend credentials with it.
 
@@ -139,13 +166,12 @@ export TRUENAS_DESTROY_PROTECTION=true
 export TRUENAS_INSECURE_SKIP_VERIFY=false
 bash scripts/infra/preflight-truenas-talos.sh plan
 
-cd infrastructure/truenas
-terragrunt init
-terragrunt validate
-terragrunt plan
+scripts/infra/terragrunt-safe.sh infrastructure/truenas init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/truenas validate
+scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
 ```
 
-The committed provider lock is consumed read-only by CI and pins the tested TrueNAS provider line. Review every create/update/delete action before enabling write mode.
+The committed provider lock pins the tested TrueNAS provider line. Review every create/update/delete action before enabling write mode.
 
 ### 4. First controlled TrueNAS apply
 
@@ -154,17 +180,23 @@ Only after the plan is understood:
 ```bash
 export TRUENAS_READ_ONLY=false
 export TRUENAS_DESTROY_PROTECTION=true
-cd ../..
 bash scripts/infra/preflight-truenas-talos.sh apply
-cd infrastructure/truenas
-terragrunt apply
+scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 ```
+
+Before the apply starts, the wrapper snapshots any existing `truenas/tfstate.json`. Keep the resulting local backup until the new resources and state are validated.
 
 The initial target is VM/zvol/device creation only. Do not combine this first apply with democratic-csi, Talos PKI generation, or a repository-wide apply.
 
 ### 5. Talos first boot
 
 Boot one control-plane VM first. Before generating final machine configuration, discover the disk and network names from Talos and confirm the deterministic MAC/network contract. Only then generate sensitive Talos configuration under ignored `generated/talos/` and continue with cluster bootstrap.
+
+## State recovery boundary
+
+Local state backups are a recovery copy, not an alternate live backend. Do not edit them manually and do not restore one while another Terragrunt/OpenTofu process is running. A restore is a maintenance operation: stop all infrastructure writers, verify the selected backup checksum, copy the current remote state aside first, then restore only the exact unit key (`garage/tfstate.json` or `truenas/tfstate.json`).
+
+The normal bootstrap must never require restoring state. If a restore becomes necessary, diagnose the remote state and resource reality before writing anything back.
 
 ## What should remain outside Vaultwarden
 

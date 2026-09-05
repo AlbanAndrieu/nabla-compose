@@ -69,7 +69,7 @@ check_endpoint() {
 printf '🔎 TrueNAS/Talos infrastructure preflight (%s)\n' "${mode}"
 printf 'Secrets are checked for presence only; values are never printed.\n\n'
 
-for command in curl jq tofu terragrunt; do
+for command in aws cmp curl flock jq mktemp sha256sum tofu terragrunt; do
   require_command "${command}"
 done
 
@@ -109,8 +109,13 @@ fi
 
 printf '\n📦 Repository inputs\n'
 for file in \
+  root.hcl \
+  config/infrastructure.env.example \
   config/talos/VERSION \
   config/talos/image-factory.yaml \
+  scripts/infra/backup-garage-state.sh \
+  scripts/infra/probe-garage-backend.sh \
+  scripts/infra/terragrunt-safe.sh \
   terraform/garage/.terraform.lock.hcl \
   terraform/truenas/.terraform.lock.hcl \
   infrastructure/garage/terragrunt.hcl \
@@ -119,6 +124,20 @@ for file in \
     ok "readable: ${file}"
   else
     fail "missing repository input: ${file}"
+  fi
+done
+
+if grep -Eq '^[[:space:]]*use_lockfile[[:space:]]*=[[:space:]]*true' root.hcl; then
+  fail "root.hcl enables native S3 lockfile on the Garage backend; this is unsupported by the current single-writer contract"
+else
+  ok "Garage native S3 lockfile is disabled; local writer serialization is required"
+fi
+
+for script in scripts/infra/backup-garage-state.sh scripts/infra/probe-garage-backend.sh scripts/infra/terragrunt-safe.sh; do
+  if [[ -x "${script}" ]]; then
+    ok "executable: ${script}"
+  else
+    fail "script must be executable: ${script}"
   fi
 done
 

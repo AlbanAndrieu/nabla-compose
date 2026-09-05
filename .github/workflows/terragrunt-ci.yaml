@@ -12,7 +12,12 @@ on:
       - root.hcl
       - infrastructure/**
       - terraform/**
+      - scripts/infra/**
+      - docs/infrastructure-bootstrap.md
+      - config/infrastructure.env.example
+      - tests/test_infrastructure_state_contract.py
       - .github/workflows/terragrunt-ci.yaml
+      - .github/workflows/terragrunt-cd.yaml
   workflow_dispatch:
 
 concurrency:
@@ -43,6 +48,18 @@ jobs:
       - name: Check OpenTofu formatting
         shell: bash
         run: tofu fmt -check -recursive terraform
+
+      - name: Check infrastructure shell syntax
+        shell: bash
+        run: |
+          bash -n scripts/infra/preflight-truenas-talos.sh
+          bash -n scripts/infra/backup-garage-state.sh
+          bash -n scripts/infra/probe-garage-backend.sh
+          bash -n scripts/infra/terragrunt-safe.sh
+
+      - name: Validate state backend safety contract
+        shell: bash
+        run: python3 -m unittest tests.test_infrastructure_state_contract
 
       - name: Install Terragrunt
         shell: bash
@@ -108,10 +125,12 @@ jobs:
             echo "It does **not** load homelab credentials, contact the internal state backend, or run a real Terragrunt plan."
             echo
             echo "- OpenTofu: \`fmt -check\`"
+            echo "- Infrastructure scripts: Bash syntax"
+            echo "- Garage state: single-writer safety contract"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
             echo "- Garage provider: committed dependency lock enforced read-only"
             echo "- Garage module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
             echo "- TrueNAS provider: committed dependency lock enforced read-only"
             echo "- TrueNAS module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
-            echo "- Real plans/applies remain trusted manual operations on the private runner."
+            echo "- Real backend I/O remains an explicit workstation preflight."
           } >> "${GITHUB_STEP_SUMMARY}"

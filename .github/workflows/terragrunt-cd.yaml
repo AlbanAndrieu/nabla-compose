@@ -7,20 +7,6 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      operation:
-        description: "Trusted TrueNAS Terragrunt operation"
-        required: true
-        default: plan
-        type: choice
-        options:
-          - plan
-          - apply
-      confirm_apply:
-        description: "Required confirmation when operation=apply"
-        required: true
-        default: false
-        type: boolean
 
 concurrency:
   group: terragrunt-cd-${{ github.ref }}
@@ -32,9 +18,11 @@ env:
   TRUENAS_ENABLED: "true"
   TRUENAS_DESTROY_PROTECTION: "true"
   TRUENAS_INSECURE_SKIP_VERIFY: "false"
+  TRUENAS_READ_ONLY: "true"
 
 jobs:
-  truenas:
+  truenas-plan:
+    name: Trusted TrueNAS plan only
     runs-on: infra-runners
     environment: TrueNAS
     timeout-minutes: 30
@@ -78,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for name in TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL; do
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TRUENAS_URL TRUENAS_USERNAME TRUENAS_API_KEY TRUENAS_POOL; do
             if [[ -z "${!name:-}" ]]; then
               missing+=("${name}")
             fi
@@ -93,30 +81,18 @@ jobs:
           tofu version
           terragrunt --version
 
-      - name: Reject unconfirmed apply
-        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply != true }}
+      - name: Explain plan-only safety boundary
         shell: bash
         run: |
-          echo "Refusing Terragrunt apply without confirm_apply=true." >&2
-          exit 1
+          echo "Garage stores OpenTofu state but does not currently provide the conditional writes required for native S3 locking."
+          echo "Remote apply is intentionally disabled until a distributed lock service is introduced."
 
       - name: Terragrunt init
         working-directory: infrastructure/truenas
         shell: bash
-        run: terragrunt init -upgrade
+        run: terragrunt init -reconfigure
 
       - name: Terragrunt plan
-        if: ${{ inputs.operation == 'plan' }}
         working-directory: infrastructure/truenas
         shell: bash
-        env:
-          TRUENAS_READ_ONLY: "true"
         run: terragrunt plan
-
-      - name: Terragrunt apply
-        if: ${{ inputs.operation == 'apply' && inputs.confirm_apply }}
-        working-directory: infrastructure/truenas
-        shell: bash
-        env:
-          TRUENAS_READ_ONLY: "false"
-        run: terragrunt apply -auto-approve
