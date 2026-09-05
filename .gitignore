@@ -3,6 +3,8 @@
 env/scripts/jenkins/*.nse
 env/scripts/jenkins/tls.lua
 
+*-SAV
+
 *.csv
 *.ipynb_checkpoints
 data/*
@@ -79,9 +81,6 @@ terraform.tfstate.backup
 # Keep terraform/*/.terraform.lock.hcl tracked; ignore only infrastructure workdirs.
 /infrastructure/*/.terraform.lock.hcl
 
-# Local Doco-CD backup files created during operator edits.
-/.doco-cd.yaml-SAV
-/.doco-cd.yml-SAV
 .tfsec/
 
 # Latex
