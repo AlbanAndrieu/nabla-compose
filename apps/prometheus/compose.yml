@@ -42,6 +42,11 @@ services:
       - type: bind
         source: ./prometheus.yml
         target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - type: bind
+        source: ./rules
+        target: /etc/prometheus/rules
+        read_only: true
       - /mnt/cpool/prometheus/data:/prometheus
     # networks: ["traefik_network"]
     # labels:
