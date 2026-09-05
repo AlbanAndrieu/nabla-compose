@@ -60,7 +60,7 @@ missing="$(
     | select(.value.cloudflare_access_required == true)
     | select(
         (.value.cloudflare_access_observed // false) != true
-        or (.value.cloudflare_access_policy_count // 0) == 0
+        or ((.value.cloudflare_access_policy_decisions // []) | length) == 0
       )
     | .value.name // .key
   ' <<<"${payload}"
@@ -78,7 +78,7 @@ public="$(
 
 if [[ -n "${missing}" ]]; then
   echo
-  echo "❌ Access-required services missing a matching Access app/policy:"
+  echo "❌ Access-required services missing a matching Access app/policy decision:"
   sed 's/^/  - /' <<<"${missing}"
 fi
 
