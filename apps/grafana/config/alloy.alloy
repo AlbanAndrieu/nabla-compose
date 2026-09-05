@@ -2,11 +2,54 @@ logging {
   level = "info"
 }
 
+loki.relabel "pfsense_syslog" {
+  forward_to = [loki.write.default.receiver]
+
+  rule {
+    source_labels = ["__syslog_message_hostname"]
+    target_label  = "host"
+  }
+
+  rule {
+    source_labels = ["__syslog_message_app_name"]
+    target_label  = "app"
+  }
+
+  rule {
+    source_labels = ["__syslog_message_severity"]
+    target_label  = "severity"
+  }
+
+  rule {
+    source_labels = ["__syslog_message_facility"]
+    target_label  = "facility"
+  }
+}
+
+loki.source.syslog "pfsense" {
+  listener {
+    address                = "0.0.0.0:1514"
+    protocol               = "udp"
+    syslog_format          = "rfc5424"
+    use_incoming_timestamp = true
+    udp_queue_size         = 1024
+
+    labels = {
+      environment = "homelab",
+      job         = "pfsense",
+      source      = "remote-syslog",
+    }
+  }
+
+  relabel_rules = loki.relabel.pfsense_syslog.rules
+  forward_to    = [loki.write.default.receiver]
+}
+
 loki.source.file "security" {
   targets = [
     {
-      __path__ = "/var/log/pfsense/*.log",
-      job      = "pfsense",
+      __path__ = sys.env("PFSENSE_FILE_GLOB"),
+      job      = "pfsense-legacy",
     },
     {
       __path__ = "/var/log/suricata/*.json",
@@ -36,9 +79,14 @@ otelcol.receiver.otlp "default" {
   }
 
   output {
+    logs    = [otelcol.exporter.loki.default.input]
     metrics = [otelcol.exporter.prometheus.mimir.input]
     traces  = [otelcol.exporter.otlp.tempo.input]
   }
+}
+
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
 }
 
 otelcol.exporter.prometheus "mimir" {

@@ -39,6 +39,7 @@ class SecretsRendererTests(unittest.TestCase):
             {item["app"] for item in manifest["items"]},
             {
                 "infrastructure-bootstrap",
+                "grafana-observability",
                 "n8n",
                 "2fauth",
                 "open-terminal",

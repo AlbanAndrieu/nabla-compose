@@ -106,7 +106,7 @@ services:
 
   pfsense-exporter:
     network_mode: bridge
-    image: ghcr.io/pfrest/pfsense_exporter:latest
+    image: ghcr.io/pfrest/pfsense_exporter:${PFSENSE_EXPORTER_IMG:-v0.0.10}
     container_name: pfsense-exporter
     restart: unless-stopped
     x-nabla:

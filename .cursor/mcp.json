@@ -3,7 +3,10 @@
     "truenas-readonly": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@profanter-dev/truenas-mcp@1.0.6"],
+      "args": [
+        "-y",
+        "@profanter-dev/truenas-mcp@1.0.6"
+      ],
       "env": {
         "TRUENAS_HOST": "${env:TRUENAS_MCP_HOST}",
         "TRUENAS_API_KEY": "${env:TRUENAS_MCP_API_KEY}",
@@ -13,7 +16,10 @@
     "bitwarden": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@bitwarden/mcp-server@2026.7.0"],
+      "args": [
+        "-y",
+        "@bitwarden/mcp-server@2026.7.0"
+      ],
       "env": {
         "BW_SESSION": "${env:BW_SESSION}",
         "BW_CLI_PATH": "${env:BW_CLI_PATH}"
@@ -33,7 +39,10 @@
     "uptime-kuma": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@davidfuchs/mcp-uptime-kuma@0.11.9"],
+      "args": [
+        "-y",
+        "@davidfuchs/mcp-uptime-kuma@0.11.9"
+      ],
       "env": {
         "UPTIME_KUMA_URL": "${env:UPTIME_KUMA_URL}",
         "UPTIME_KUMA_USERNAME": "${env:UPTIME_KUMA_USERNAME}",
@@ -44,6 +53,30 @@
     "fastapi-sample": {
       "type": "http",
       "url": "https://fastapi-sample.fastapicloud.dev/mcp"
+    },
+    "grafana": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "-e",
+        "GRAFANA_URL",
+        "-e",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
+        "grafana/mcp-grafana:1.2.0-alpine",
+        "-t",
+        "stdio",
+        "--disable-write"
+      ],
+      "env": {
+        "GRAFANA_URL": "${env:GRAFANA_URL}",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${env:GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+      }
     }
   }
 }

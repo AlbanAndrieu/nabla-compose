@@ -140,6 +140,14 @@ repos:
         pass_filenames: false
         files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
 
+      - id: observability-contract
+        name: "📊 observability · Validate lightweight logging contract"
+        language: system
+        entry: python -m unittest tests.test_observability_contract -v
+        pass_filenames: false
+        files: >-
+          ^(apps/(grafana|prometheus)/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
+
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python
