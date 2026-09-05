@@ -88,6 +88,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("/v2/ListBuckets", preflight)
         self.assertIn("Authorization: Bearer ${GARAGE_ADMIN_TOKEN}", preflight)
         self.assertIn("Garage admin token rejected", preflight)
+        self.assertIn("${GARAGE_ADMIN_TOKEN:-}", preflight)
 
     def test_trusted_workflow_is_plan_only(self) -> None:
         workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
