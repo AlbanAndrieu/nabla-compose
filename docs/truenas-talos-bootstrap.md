@@ -324,6 +324,26 @@ Expected resources for the default test configuration:
 
 No VM is started automatically.
 
+### Validated read-only plan — 2026-09-05
+
+The workstation preflight now passes with zero warnings. The Garage backend read/write/delete probe succeeds but confirms that `If-None-Match: *` is not enforced, so the single-writer wrapper remains mandatory.
+
+The first TrueNAS read-only plan completed successfully:
+
+```text
+Plan: 15 to add, 0 to change, 0 to destroy.
+```
+
+Expected resources were present:
+
+- three Talos VMs with `autostart=false`;
+- three 32 GiB `LZ4` zvols under `cpool/k8s/talos-vms`;
+- three VirtIO disk devices;
+- three VirtIO NIC devices attached to `br0` with deterministic MAC addresses;
+- three CDROM devices because `TALOS_ISO_PATH` is configured.
+
+Do not apply this plan until the deferred TrueNAS reboot-persistence check for `br0` has passed.
+
 ### Phase B — first controlled create
 
 Only after reviewing the plan:
