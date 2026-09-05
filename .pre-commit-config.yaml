@@ -146,7 +146,7 @@ repos:
         entry: python -m unittest tests.test_observability_contract -v
         pass_filenames: false
         files: >-
-          ^(apps/grafana/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
+          ^(apps/(grafana|prometheus)/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
