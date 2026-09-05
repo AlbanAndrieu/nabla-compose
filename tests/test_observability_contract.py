@@ -95,6 +95,19 @@ class ObservabilityContractTests(unittest.TestCase):
             )
         )
 
+
+    def test_pfsense_exporter_is_pinned_to_dashboard_release(self) -> None:
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "ghcr.io/pfrest/pfsense_exporter:"
+            "${PFSENSE_EXPORTER_IMG:-v0.0.10}",
+            compose,
+        )
+        self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
+
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
