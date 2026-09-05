@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "generate-service-topology.py"
@@ -92,6 +94,52 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
             (relation["source"], relation["target"], relation["type"]),
             ("docker", "truenas", "hostedBy"),
         )
+
+    def test_undeclared_compose_helpers_do_not_become_catalog_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            relative_path = Path("apps/fixture/compose.yml")
+            compose_path = root / relative_path
+            compose_path.parent.mkdir(parents=True)
+            compose_path.write_text(
+                """
+services:
+  declared:
+    image: example/declared:latest
+    x-nabla:
+      id: declared
+      name: Declared service
+      kind: application
+      category: test
+      runtime:
+        provider: truenas-app
+        containerService: declared
+  helper:
+    image: example/helper:latest
+    depends_on:
+      - declared
+""".lstrip(),
+                encoding="utf-8",
+            )
+
+            nodes: dict[str, dict] = {}
+            relations: dict[tuple[str, str, str], dict] = {}
+            services: dict[str, dict] = {}
+            with (
+                patch.object(MODULE, "ROOT", root),
+                patch.object(
+                    MODULE,
+                    "tracked_compose_paths",
+                    return_value=[relative_path],
+                ),
+            ):
+                MODULE.load_compose_extensions(nodes, relations, services)
+
+        self.assertEqual(set(nodes), {"declared"})
+        self.assertEqual(set(services), {"declared"})
+        self.assertNotIn("helper", nodes)
+        self.assertNotIn("helper", services)
+        self.assertIn(("declared", "docker", "hostedBy"), relations)
 
     def test_unknown_relation_type_is_rejected_before_generation(self) -> None:
         with self.assertRaisesRegex(ValueError, "type must be one of"):
