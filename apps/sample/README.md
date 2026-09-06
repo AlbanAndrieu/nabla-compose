@@ -197,9 +197,13 @@ appliance certificates validate those hostnames. Do not replace this with
 ### TrueNAS WebSocket source allowlist
 
 TrueNAS 26.0.0-BETA.2 applies `system.general.ui_allowlist` to API/UI
-WebSocket source addresses **before API-key authentication**. A successful
-`GET /api/versions` therefore proves HTTPS reachability only; it does not prove
-that `/api/current` is permitted.
+WebSocket source addresses **before API-key authentication**. The WebSocket
+handler checks the active runtime value returned by
+`system.general.get_ui_allowlist`, not merely the persisted value visible in
+`system.general.config`. Those values can temporarily differ during
+update/restart/rollback/check-in handling. A successful `GET /api/versions`
+therefore proves HTTPS reachability only; it does not prove that
+`/api/current` is permitted.
 
 For the Docker-hosted observer, TrueNAS sees the FastAPI container address on
 the shared `intranet` bridge, not the TrueNAS LAN address. A policy close such
