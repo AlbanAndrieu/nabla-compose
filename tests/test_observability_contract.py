@@ -107,6 +107,18 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
 
+    def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('up{job="pfsense_exporter"} == 0', rules)
+        self.assertIn(
+            'absent(pfsense_system_cpu_usage_ratio{job="pfsense_exporter"})',
+            rules,
+        )
+        self.assertNotIn("pfsense_info", rules)
+
     def test_syslog_preserves_sender_identity_for_live_source_checks(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
 
