@@ -338,6 +338,26 @@ function probe_clickhouse_langfuse_contract_if_present {
     functional_ok "ClickHouse Langfuse contract: dedicated database/user present"
   else
     functional_fail "ClickHouse Langfuse contract: expected database/user langfuse (got ${result})"
+    return
+  fi
+
+  local grants
+  if ! grants="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR langfuse"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse Langfuse contract: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -Eq 'ALTER SETTINGS.*ON langfuse[.][*] TO langfuse' <<<"${grants}"; then
+    functional_ok "ClickHouse Langfuse contract: database-scoped ALTER SETTINGS present"
+  else
+    functional_fail "ClickHouse Langfuse contract: ALTER SETTINGS ON langfuse.* missing"
   fi
 }
 
