@@ -153,7 +153,7 @@
       "kind": "dashboard",
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
-      "url": "http://172.17.0.24:7575",
+      "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory."
     },
     {
