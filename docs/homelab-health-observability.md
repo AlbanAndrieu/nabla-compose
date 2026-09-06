@@ -96,6 +96,95 @@ A high detection count is not service downtime.
 Prometheus, Mimir, Grafana, exporters and collectors can be operationally
 important without being functional dependencies of every monitored service.
 
+## Operator presentation model
+
+The health board is intentionally service-first and uses five top-level
+summaries:
+
+1. **Services** — user-facing and experiment outcomes;
+2. **Critical core** — narrow foundational failure domains;
+3. **Security controls** — control health and security posture;
+4. **Shared platform** — shared data/state/capabilities;
+5. **Observability** — telemetry coverage and tooling health.
+
+The status vocabulary separates the direct outcome from dependency risk:
+
+- **Operational** — the local/direct service outcome is healthy;
+- **At risk** — the service still works, but a required functional dependency
+  is degraded, failed or unknown;
+- **Degraded** — the service itself has a warning or partial functional issue;
+- **Down** — the direct/local service outcome failed;
+- **Unknown** — evidence is insufficient or stale.
+
+A service that is **At risk** remains counted as operational because the user
+outcome still succeeds. It stays visually attention-worthy and carries
+dependency evidence so operators can act before the degradation becomes an
+outage.
+
+Structural `hostedBy` relationships contribute to blast-radius/downstream
+presentation, but do not propagate functional failure. For example, TrueNAS
+hosting Docker explains why a TrueNAS outage can affect many workloads without
+claiming every service is already down while its direct probe still succeeds.
+
+Within an equal health/criticality tier, components with a larger downstream
+blast radius should be presented first.
+
+### Criticality contract
+
+Use the OpenTelemetry-compatible vocabulary:
+
+```text
+critical | high | medium | low
+```
+
+Explicit `presentationRole: core` is deliberately narrow and always implies
+`criticality: critical`.
+
+Current critical-core foundations include:
+
+- TrueNAS;
+- Docker/container runtime;
+- pfSense;
+- pfSense HAProxy / required edge ingress;
+- Traefik;
+- Talos;
+- Kubernetes;
+- etcd.
+
+Do not promote a component to core merely because it has many consumers.
+Databases, caches, Mimir/Loki and other shared capabilities can be high-impact
+shared-platform components without becoming foundational core.
+
+### Metrics shown by role
+
+Keep metric density low in the fleet view. Prefer two to four useful signals
+per critical component and put detailed time-series in Grafana drill-downs.
+
+For **services**, prefer user-visible golden signals:
+
+- availability / successful functional probes;
+- latency;
+- errors;
+- traffic/throughput;
+- service-specific saturation and later SLO/error-budget evidence.
+
+For **critical core**, prefer component health plus capacity/pressure:
+
+- TrueNAS: memory, CPU, filesystem/ZFS capacity and storage health;
+- pfSense: gateway/interface/firewall health plus direct reachability;
+- Talos: node/API health and EPHEMERAL storage;
+- Kubernetes: API readiness, Ready nodes, node pressure and kube-system health;
+- etcd: leader/quorum, alarms, database/quota pressure and fsync latency.
+
+For **security controls**, keep two independent dimensions:
+
+- control availability/freshness;
+- security posture/detections/policy drift.
+
+For **observability**, report telemetry coverage separately. A collector or
+Prometheus failure is a blind spot, not proof that the monitored service or
+platform failed.
+
 ## TrueNAS host metrics
 
 The existing TrueNAS-hosted Prometheus now scrapes:
@@ -295,9 +384,10 @@ Prometheus queries used by FastAPI Sample must be:
 
 Never expose an arbitrary PromQL proxy in the public API.
 
-Application-side work is tracked in
-`AlbanAndrieu/fastapi-sample#195`; the service-first presentation is developed
-in `AlbanAndrieu/fastapi-sample#196`.
+The service-first presentation is now implemented by
+`AlbanAndrieu/fastapi-sample#196`. A later application-side metrics
+aggregation change should consume only fixed `nabla:*` recording rules from
+the trusted LAN; no separate follow-up PR number is reserved yet.
 
 ## Hardening follow-ups
 
