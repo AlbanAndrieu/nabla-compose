@@ -40,6 +40,31 @@ REDIS_URL=redis://:REPLACE_WITH_REDIS_PASSWORD@redis:6379/0
 
 There is deliberately no Compose `depends_on` from FastAPI Sample to Redis because they are separate Compose projects. Service discovery is provided by the shared external `intranet` network.
 
+## Prometheus / core health metrics
+
+FastAPI Sample can optionally enrich the service-first health board from the
+existing Prometheus recording-rule contract without exposing arbitrary PromQL.
+
+Put the non-secret Prometheus endpoint in `/mnt/cpool/sample/.env`:
+
+```dotenv
+HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
+HOMELAB_PROMETHEUS_TIMEOUT_SECONDS=1.5
+```
+
+The application only reads the fixed `nabla:*` recording rules maintained in
+`apps/prometheus/rules/nabla-core.rules.yml`. The current summary covers
+TrueNAS CPU/memory capacity plus TrueNAS, cAdvisor, pfSense and Prometheus
+telemetry availability.
+
+Prometheus telemetry is diagnostic evidence, not the authoritative service
+outcome. If Prometheus or an exporter is unavailable, FastAPI Sample must report
+telemetry as unavailable/degraded without marking the underlying service or
+platform down.
+
+Keep this endpoint on the trusted LAN. Do not publish Prometheus merely to make
+the FastAPI Cloud health board richer.
+
 ## Supabase
 
 If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the same `.env.secrets` file, for example:
