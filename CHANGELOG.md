@@ -1,3 +1,10 @@
+## [0.15.6](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.5...0.15.6) (2026-09-06)
+
+
+### Bug Fixes
+
+* **langfuse:** probe container hostname for healthchecks ([#115](https://github.com/AlbanAndrieu/nabla-compose/issues/115)) ([42cf6be](https://github.com/AlbanAndrieu/nabla-compose/commit/42cf6be99f05a80290f3311c8c1180339bd42211))
+
 ## [0.15.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.4...0.15.5) (2026-09-06)
 
 
