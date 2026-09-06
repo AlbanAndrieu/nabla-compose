@@ -174,12 +174,36 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
         self.assertIn("GRAYLOG_MONGODB_URI", audit)
+        self.assertIn("probe_secret_min_length_if_present", audit)
+        self.assertIn("GRAYLOG_PASSWORD_SECRET 16", audit)
+        self.assertIn("probe_secret_regex_if_present", audit)
+        self.assertIn("GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'", audit)
+        self.assertIn("function app_is_present", audit)
+        self.assertIn("function normalize_env_value", audit)
         self.assertIn("HOMARR_ENCRYPTION_KEY", audit)
         self.assertIn("SECRET_ENCRYPTION_KEY", audit)
         self.assertIn(
             "Decryption failed, likely due to incorrect encryption key or corrupted data",
             audit,
         )
+
+    def test_roadmap_tracks_bichon_oauth2_reauthorization(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("#### Bichon OAuth2 recovery", roadmap)
+        self.assertIn("OAuth2 Tokens -> Delete Token", roadmap)
+        self.assertIn("re-authorize the affected account", roadmap)
+        self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
+
+    def test_runbook_uses_canonical_langfuse_recovery(self) -> None:
+        runbook = self.read("docs/truenas-app-lifecycle.md")
+
+        self.assertIn("prepare-migrations.mjs", runbook)
+        self.assertIn("org.opencontainers.image.revision", runbook)
+        self.assertIn("git checkout <IMAGE_REVISION_OR_TAG>", runbook)
+        self.assertIn("no migration found for version 38", runbook)
+        self.assertIn("do not run another `force`", runbook)
+        self.assertIn("nabla\'s Recovery Token", runbook)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode

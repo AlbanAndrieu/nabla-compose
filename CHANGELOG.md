@@ -1,3 +1,10 @@
+## [0.14.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.1...0.14.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **truenas:** harden runtime recovery follow-up ([#105](https://github.com/AlbanAndrieu/nabla-compose/issues/105)) ([de1edab](https://github.com/AlbanAndrieu/nabla-compose/commit/de1edab49e1ee6dd08f4f22716c4b04750d3297d))
+
 ## [0.14.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.0...0.14.1) (2026-09-06)
 
 

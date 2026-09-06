@@ -134,7 +134,7 @@ The audit separates the actionable findings:
 - [ ] **Access protection missing or not observed:** Heimdall, Vaultwarden, Keycloak, Homarr and Plumber API. These returned neither an API-observed Access policy nor an anonymous HTTP Access challenge and must be checked in Cloudflare Zero Trust;
 - [x] **Access challenge observed:** Scrutiny, IT Tools, 2FAuth, n8n, KaraKeep, Open WebUI, Nexus, LiteLLM, SearXNG, Minio, Langfuse and Language Tool. Do not report these as missing Access policies merely because the read-only API observer cannot enumerate the application/policy;
 - [ ] **Scrutiny runtime:** Access enforcement is present, but TrueNAS correctly reports the native Scrutiny application STOPPED while the Compose migration is pending;
-- [ ] **Bichon:** `external=false` but the endpoint is reachable from FastAPI Cloud and TrueNAS reports the app CRASHED. Remove the unintended public exposure independently from the application crash;
+- [ ] **Bichon:** the Compose-backed v2.0.3 service is RUNNING and IMAP synchronization is active, but OAuth2 refresh is degraded because stored OAuth2 tokens cannot be decrypted. The current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration snapshot, so do not rotate it. Remove the unusable OAuth2 token(s) through Bichon's OAuth2 Tokens UI and re-authorize the affected account(s). Keep unintended public exposure cleanup as a separate security task;
 - [ ] **pfSense TCP/10443:** FastAPI Cloud can currently reach the administration/API listener even though this runtime is not an approved administration source. Reconcile the WAN source policy rather than relying on dynamic blocking;
 - [x] **TrueNAS TCP/7000 and Garage:** remain explicit direct-exposure warnings under their documented security exceptions.
 
@@ -498,6 +498,33 @@ Remaining migration work:
 - validate `/up`, login, OTP entries, icons and WebAuthn;
 - only then retire the native app.
 
+#### Bichon OAuth2 recovery
+
+Bichon v2.0.3 is now running from the repository-backed Compose definition and
+continues to synchronize both IMAP accounts. Runtime evidence confirms that the
+current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration ZFS snapshot, so
+the remaining error is isolated to stored OAuth2 token material rather than a
+rotated runtime key.
+
+Recovery gates:
+
+- [x] Bichon v2.0.3 starts successfully and serves HTTP on TCP/15630;
+- [x] existing Tantivy indexes and migrated mail data open successfully;
+- [x] both IMAP accounts continue incremental synchronization;
+- [x] current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration snapshot;
+- [ ] identify the affected OAuth2 account/token in the Bichon UI;
+- [ ] use **OAuth2 Tokens -> Delete Token** for the unusable encrypted token;
+- [ ] repeat the OAuth2 authorization flow for the affected account;
+- [ ] confirm the periodic `oauth2-token-refresh-task` no longer logs
+      `Decryption failed, likely due to incorrect encryption key or corrupted data`;
+- [ ] rerun `scripts/truenas/audit-app-lifecycle.sh` and require the Bichon
+      OAuth2 encryption probe to pass;
+- [ ] independently remove any unintended public exposure because Bichon remains
+      declared `external=false`.
+
+Do not edit encrypted token records directly and do not rotate
+`BICHON_ENCRYPT_PASSWORD` as part of this recovery.
+
 #### Scrutiny + shared InfluxDB
 
 The native TrueNAS Scrutiny omnibus application has been stopped after validating that its web/API, embedded InfluxDB and SMART collector were functional.
@@ -515,7 +542,7 @@ LAN http://172.17.0.24:31054
         v
 Scrutiny Web/API
         |
-        +--> shared InfluxDB 2.8 (influxdb:8086)
+        +--> shared InfluxDB 2.9.1 (influxdb:8086)
         ^
         |
 Scrutiny Collector --> TrueNAS disks
@@ -524,7 +551,7 @@ Scrutiny Collector --> TrueNAS disks
 Repository targets:
 
 - `apps/scrutiny/compose.yml`: pinned Scrutiny v0.9.3 web + collector;
-- `apps/influxdb/compose.yml`: reusable InfluxDB 2.8 service;
+- `apps/influxdb/compose.yml`: reusable InfluxDB 2.9.1 service;
 - `/mnt/cpool/scrutiny/config`: Scrutiny application configuration/SQLite state;
 - `/mnt/cpool/influxdb/data` and `/mnt/cpool/influxdb/config`: shared InfluxDB durability;
 - Scrutiny LAN port remains TCP/31054 for migration compatibility;
@@ -539,7 +566,7 @@ Migration gates:
 - [ ] copy Scrutiny config/SQLite state into `/mnt/cpool/scrutiny/config`;
 - [ ] create `/mnt/cpool/influxdb/{data,config}`;
 - [ ] perform a logical InfluxDB backup/restore from the native 2.2 data into standalone InfluxDB 2.8; do not blindly copy engine files across versions;
-- [ ] create a least-privilege Scrutiny InfluxDB token separate from the admin token;
+- [ ] create a least-privilege Scrutiny InfluxDB token separate from both the operator/admin token and the temporary `nabla's Recovery Token`;
 - [ ] start standalone InfluxDB and validate `http://127.0.0.1:31055/health`;
 - [ ] start Scrutiny web + collector and validate `http://172.17.0.24:31054/api/health`;
 - [ ] confirm all historical disks/timelines and a fresh SMART collection;

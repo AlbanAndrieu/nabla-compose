@@ -1,6 +1,6 @@
 {
   "name": "nabla-compose",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "private": true,
   "description": "Homelab Docker Compose and infrastructure-as-code automation",
   "scripts": {
