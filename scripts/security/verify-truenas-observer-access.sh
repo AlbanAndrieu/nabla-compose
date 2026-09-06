@@ -76,6 +76,7 @@ key_id = key.split("-", 1)[0] if "-" in key else "<unknown>"
 print("username_variable =", settings.adapter_username_environment)
 print("api_key_variable  =", settings.adapter_api_key_environment)
 print("api_key_id        =", key_id)
+print("verify_ssl        =", settings.verify_ssl)
 print(
     "shadowed_username_variables =",
     ",".join(settings.shadowed_username_environments) or "<none>",
@@ -89,6 +90,10 @@ if settings.adapter_username_environment != "TRUENAS_API_USERNAME":
     raise SystemExit("canonical TRUENAS_API_USERNAME is not selected")
 if settings.adapter_api_key_environment != "TRUENAS_API_KEY":
     raise SystemExit("canonical TRUENAS_API_KEY is not selected")
+if not settings.verify_ssl:
+    raise SystemExit(
+        "TRUENAS_API_VERIFY_SSL must be true for the hostname-validated homelab observer"
+    )
 PY
 
 shadowed_user="$(
