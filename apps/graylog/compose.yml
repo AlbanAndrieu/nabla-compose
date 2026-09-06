@@ -1,22 +1,5 @@
 ---
 services:
-  mongo:
-    image: docker.io/mongo:6.0.5-jammy
-    container_name: mongodb
-    restart: unless-stopped
-    x-nabla:
-      id: graylog-mongodb
-      name: Graylog MongoDB
-      kind: database
-      category: data
-      runtime:
-        provider: truenas-app
-        containerService: mongo
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - graynet
-
   graylog:
     image: docker.io/graylog/graylog:6.3.15
     container_name: graylog
@@ -30,10 +13,10 @@ services:
         provider: truenas-app
         containerService: graylog
       relations:
-        - target: graylog-mongodb
+        - target: mongo
           type: dependsOn
           strength: required
-          description: Graylog stores application configuration and metadata in MongoDB.
+          description: Graylog stores application configuration and metadata in the shared MongoDB service.
           evidence:
             - apps/graylog/compose.yml:GRAYLOG_MONGODB_URI
         - target: opensearch-security
@@ -45,12 +28,9 @@ services:
     env_file:
       - /mnt/cpool/graylog/.env.secrets
     environment:
-      GRAYLOG_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET}"
-      GRAYLOG_ROOT_PASSWORD_SHA2: "${GRAYLOG_ROOT_PASSWORD_SHA2}"
       GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"
       GRAYLOG_HTTP_EXTERNAL_URI: "${GRAYLOG_HTTP_EXTERNAL_URI:-http://172.17.0.24:9000/}"
       GRAYLOG_ELASTICSEARCH_HOSTS: "http://opensearch-security:9200"
-      GRAYLOG_MONGODB_URI: "mongodb://mongodb:27017/graylog"
       GRAYLOG_TIMEZONE: "Europe/Paris"
       TZ: "Europe/Paris"
       GRAYLOG_TRANSPORT_EMAIL_PROTOCOL: "smtp"
@@ -67,30 +47,22 @@ services:
       GRAYLOG_TRANSPORT_SUBJECT_PREFIX: "${GRAYLOG_TRANSPORT_SUBJECT_PREFIX:-[graylog]}"
     entrypoint: /usr/bin/tini -- wait-for-it opensearch-security:9200 -- /docker-entrypoint.sh
     volumes:
-      - "${PWD}/config/graylog/graylog.conf:/usr/share/graylog/config/graylog.conf"
-      - graylog_data:/usr/share/graylog/data
+      - /mnt/cpool/compose/nabla-compose/apps/graylog/config/graylog/graylog.conf:/usr/share/graylog/config/graylog.conf:ro
+      - /mnt/cpool/graylog/data:/usr/share/graylog/data
     networks:
-      - graynet
+      - intranet
       - security
-    depends_on:
-      mongo:
-        condition: service_started
     ports:
-      - "${GRAYLOG_HTTP_PORT:-9000}:9000/tcp"
-      - "${GRAYLOG_SYSLOG_TCP_PORT:-15140}:1514/tcp"
-      - "${GRAYLOG_SYSLOG_UDP_PORT:-15140}:1514/udp"
-      - "${GRAYLOG_GELF_TCP_PORT:-12201}:12201/tcp"
-      - "${GRAYLOG_GELF_UDP_PORT:-12201}:12201/udp"
+      - "172.17.0.24:${GRAYLOG_HTTP_PORT:-9000}:9000/tcp"
+      - "172.17.0.24:${GRAYLOG_SYSLOG_TCP_PORT:-15140}:1514/tcp"
+      - "172.17.0.24:${GRAYLOG_SYSLOG_UDP_PORT:-15140}:1514/udp"
+      - "172.17.0.24:${GRAYLOG_GELF_TCP_PORT:-12201}:12201/tcp"
+      - "172.17.0.24:${GRAYLOG_GELF_UDP_PORT:-12201}:12201/udp"
 
 networks:
-  graynet:
-    driver: bridge
+  intranet:
+    external: true
+    name: intranet
   security:
     external: true
     name: nabla-security
-
-volumes:
-  mongo_data:
-    driver: local
-  graylog_data:
-    driver: local
