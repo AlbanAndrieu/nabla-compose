@@ -1,4 +1,5 @@
 ---
+metrics: true
 endpoints:
 - name: 2FAuth
   group: security
