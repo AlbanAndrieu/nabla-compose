@@ -119,9 +119,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}", langfuse)
         self.assertIn("NEXTAUTH_URL: ${NEXTAUTH_URL:-https://langfuse.albandrieu.com}", langfuse)
         self.assertIn("langfuse-web:\n        condition: service_healthy", langfuse)
-        self.assertIn("http://$HOSTNAME:3030/api/health", langfuse)
+        self.assertIn("http://$(hostname):3030/api/health", langfuse)
         self.assertIn(
-            "http://$HOSTNAME:3000/api/public/health?failIfDatabaseUnavailable=true",
+            "http://$(hostname):3000/api/public/health?failIfDatabaseUnavailable=true",
             langfuse,
         )
         self.assertIn("http://minio:9000", langfuse)
