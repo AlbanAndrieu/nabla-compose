@@ -10,12 +10,14 @@
   git submodule update --init --recursive fastapi-sample
   ```
 
-- Ensure the shared external Docker networks already exist:
+- Bootstrap the shared backend network once if it does not already exist, and verify the Traefik network created by the TrueNAS Traefik app:
 
   ```bash
-  docker network inspect intranet >/dev/null
+  docker network inspect intranet >/dev/null 2>&1 || docker network create --driver bridge intranet
   docker network inspect traefik_network >/dev/null
   ```
+
+  `intranet` is the shared backend/service-discovery network used by multiple independent Compose projects. Keep it separate from `traefik_network`, which is the ingress/proxy network.
 
 - Deploy Redis from `apps/redis/compose.yml` (or another Redis service attached to `intranet` with the DNS alias `redis`) before enabling the optional Redis integration.
 
@@ -79,11 +81,14 @@ Optional PostgreSQL/Supavisor settings (`POSTGRES_*`, `SUPABASE_PROJECT_REF`, `S
 
 ## Validate and deploy
 
-Validate the manifest without starting the stack:
+Validate the manifests without expanding runtime secrets:
 
 ```bash
-docker compose -f apps/sample/compose.yml config
+docker compose --project-directory apps/redis -f apps/redis/compose.yml config --quiet --no-interpolate --no-env-resolution
+docker compose --project-directory apps/sample -f apps/sample/compose.yml config --quiet --no-interpolate --no-env-resolution
 ```
+
+Avoid pasting the output of a fully interpolated `docker compose config` command into tickets or chats because it can expand values from local environment files.
 
 Then deploy from the repository root:
 
