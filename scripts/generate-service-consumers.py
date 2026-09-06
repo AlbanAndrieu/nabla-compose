@@ -606,7 +606,11 @@ def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             continue
         endpoints.append(endpoint)
-    return {"metrics": True, "endpoints": endpoints}
+    return {
+        "metrics": True,
+        "storage": {"type": "sqlite", "path": "/data/gatus.db"},
+        "endpoints": endpoints,
+    }
 
 
 def seconds(interval: str) -> int:
