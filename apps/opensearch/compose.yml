@@ -35,7 +35,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl --fail --silent --show-error --insecure --user \"admin:$$OPENSEARCH_INITIAL_ADMIN_PASSWORD\" https://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'",
+          'curl --fail --silent --show-error --insecure --user "admin:$OPENSEARCH_INITIAL_ADMIN_PASSWORD" https://localhost:9200/_cluster/health | grep -qE ''"status":"(green|yellow)"''',
         ]
       interval: 15s
       timeout: 10s
