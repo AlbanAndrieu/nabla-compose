@@ -16,7 +16,7 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `kind`: architectural role;
 - `category`: catalog grouping;
 - `presentationRole`: optional UI intent, one of `service`, `core`, or `support`; prefer `service` for user-facing/lab capabilities, `core` for shared platform foundations, and `support` for auxiliary tooling;
-- `criticality`: optional operator-urgency tier, one of `critical`, `high`, `medium`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation;
+- `criticality`: optional operator-urgency tier aligned with OpenTelemetry `service.criticality`: `critical`, `high`, `medium`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation. Explicit `presentationRole: core` is intentionally narrow and is normalized to `critical`; use topology/kind or another role for shared components that are important but not foundational;
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
 
@@ -50,7 +50,7 @@ Presentation role, criticality and dependency strength answer different question
 - `criticality` expresses how urgently operators should care about its own failure;
 - relation `strength` expresses whether a dependent actually requires the target to function.
 
-A high/critical observability component such as Prometheus can therefore be operationally important without making every monitored service functionally unavailable when Prometheus itself is down.
+A high observability component such as Prometheus can therefore be operationally important without making every monitored service functionally unavailable when Prometheus itself is down. Reserve explicit `core` for foundations whose loss represents a broad platform failure domain (for example TrueNAS, pfSense, Docker, Talos, Kubernetes, etcd and critical ingress/networking components).
 
 ## Generated contracts
 
