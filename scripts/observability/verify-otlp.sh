@@ -175,30 +175,26 @@ loki_query='{service_name="nabla-observability-smoke"} |= "'"${marker}"'"'
 
 while ((waited < OTLP_SMOKE_TIMEOUT)); do
   if [[ "${loki_ok}" == "false" ]]; then
-    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode "query=${loki_query}"       --data-urlencode 'since=5m'       --data-urlencode 'limit=20'       --output "${tmp_dir}/loki.json"       "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
-      jq -e '.status == "success" and (.data.result | length) > 0'         "${tmp_dir}/loki.json" >/dev/null 2>&1; then
-      loki_ok=true
-      ok "OTLP log reached Loki"
+    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode "query=${loki_query}"       --data-urlencode 'since=5m'       --data-urlencode 'limit=20'       --output "${tmp_dir}/loki.json"       "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null; then
+      if jq -e '.status == "success" and (.data.result | length) > 0' "${tmp_dir}/loki.json" >/dev/null 2>&1; then
+        loki_ok=true
+        ok "OTLP log reached Loki"
+      fi
     fi
   fi
 
   if [[ "${mimir_ok}" == "false" ]]; then
-    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode 'query=nabla_observability_smoke'       --output "${tmp_dir}/mimir.json"       "${MIMIR_URL%/}/prometheus/api/v1/query" 2>/dev/null &&
-      jq -e '
-        .status == "success"
-        and (.data.result | length) > 0
-        and any(.data.result[]; .value[1] == "1")
-      ' "${tmp_dir}/mimir.json" >/dev/null 2>&1; then
-      mimir_ok=true
-      ok "OTLP metric reached Mimir"
+    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode 'query=nabla_observability_smoke'       --output "${tmp_dir}/mimir.json"       "${MIMIR_URL%/}/prometheus/api/v1/query" 2>/dev/null; then
+      if jq -e '.status == "success" and (.data.result | length) > 0 and any(.data.result[]; .value[1] == "1")' "${tmp_dir}/mimir.json" >/dev/null 2>&1; then
+        mimir_ok=true
+        ok "OTLP metric reached Mimir"
+      fi
     fi
   fi
 
   if [[ "${tempo_ok}" == "false" ]]; then
     status="$(curl --silent --show-error --connect-timeout 4 --max-time 10       --output "${tmp_dir}/tempo.json" --write-out '%{http_code}'       "${TEMPO_URL%/}/api/traces/${trace_id}" 2>/dev/null || true)"
-    if [[ "${status}" == "200" ]] && jq -e '
-      (.batches // .resourceSpans // .trace // empty) != null
-    ' "${tmp_dir}/tempo.json" >/dev/null 2>&1; then
+    if [[ "${status}" == "200" ]] && jq -e '(.batches // .resourceSpans // .trace // empty) != null' "${tmp_dir}/tempo.json" >/dev/null 2>&1; then
       tempo_ok=true
       ok "OTLP trace reached Tempo"
     fi
