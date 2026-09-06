@@ -12,14 +12,14 @@
       "category": "security",
       "sourcePath": "apps/2fauth/compose.yml",
       "composeService": "2fauth",
+      "securityFunctions": [
+        "protect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "2fauth"
       },
-      "icon": "🔐",
-      "securityFunctions": [
-        "protect"
-      ]
+      "icon": "🔐"
     },
     {
       "id": "alloy",
@@ -79,15 +79,15 @@
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
       "composeService": "crowdsec",
+      "securityFunctions": [
+        "detect",
+        "respond"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "crowdsec"
       },
-      "icon": "🛡️",
-      "securityFunctions": [
-        "detect",
-        "respond"
-      ]
+      "icon": "🛡️"
     },
     {
       "id": "elasticsearch",
@@ -621,14 +621,14 @@
       "category": "security",
       "sourcePath": "apps/suricata/compose.yml",
       "composeService": "suricata",
+      "securityFunctions": [
+        "detect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "suricata"
       },
-      "icon": "🦈",
-      "securityFunctions": [
-        "detect"
-      ]
+      "icon": "🦈"
     },
     {
       "id": "sybase-exporter",
@@ -718,14 +718,14 @@
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
       "composeService": "wazuh.manager",
+      "securityFunctions": [
+        "detect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wazuh.manager"
       },
-      "icon": "🛡️",
-      "securityFunctions": [
-        "detect"
-      ]
+      "icon": "🛡️"
     }
   ]
 }
