@@ -1,7 +1,9 @@
+---
 services:
   langflow:
     image: docker.io/langflowai/openrag-langflow:latest
     container_name: langflow
+    restart: unless-stopped
     x-nabla:
       id: langflow
       name: Langflow
@@ -11,28 +13,32 @@ services:
         provider: truenas-app
         containerService: langflow
       relations:
-        - target: elasticsearch
+        - target: opensearch
           type: dependsOn
           strength: required
-          description: The OpenRAG Langflow runtime accesses Elasticsearch.
+          description: The OpenRAG Langflow runtime accesses the shared OpenSearch service.
           evidence:
-            - apps/langflow/compose.yml:ES_HOST
+            - apps/langflow/compose.yml:OPENSEARCH_HOST
+    env_file:
+      - /mnt/cpool/langflow/.env.secrets
     ports:
       - "7860:7860"
     volumes:
       - ./flows:/app/flows:U,z
       - ./langflow-data:/app/langflow-data:U,z
     environment:
-      - ES_HOST=elasticsearch
-      - ES_PORT=9200
-      - ES_USER=elastic
-      - ES_PASS=${ELASTIC_PASSWORD:-changeme}
-      - LANGFLOW_DEACTIVATE_TRACING=
-      # Add more envs from the openrag compose as needed
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: "9200"
+      OPENSEARCH_URL: https://opensearch:9200
+      OPENSEARCH_USERNAME: "${OPENSEARCH_USERNAME:-admin}"
+      LANGFLOW_DEACTIVATE_TRACING: ""
     networks:
+      - intranet
       - traefik_network
-    restart: unless-stopped
 
 networks:
+  intranet:
+    external: true
+    name: intranet
   traefik_network:
     external: true
