@@ -23,7 +23,7 @@ IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml$")
 RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
-CRITICALITIES = {"critical", "high", "standard", "low"}
+CRITICALITIES = {"critical", "high", "medium", "low"}
 RELATION_TYPES = {
     "dependsOn",
     "consumesApi",
