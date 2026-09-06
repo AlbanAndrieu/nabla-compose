@@ -1,5 +1,5 @@
 # Runtime secrets are injected from /mnt/cpool/langfuse/.env.secrets.
-# DATABASE_URL uses the shared PostgreSQL `nabla` identity and `postgres` database.
+# DATABASE_URL uses the dedicated PostgreSQL `langfuse` identity and `langfuse` database.
 # Langfuse v4 uses the shared PostgreSQL, Redis, MinIO and ClickHouse services
 # over the private intranet network.
 x-nabla:
@@ -62,7 +62,7 @@ services:
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: ${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}
       CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}
       CLICKHOUSE_CLUSTER_ENABLED: ${CLICKHOUSE_CLUSTER_ENABLED:-false}
       LANGFUSE_USE_AZURE_BLOB: ${LANGFUSE_USE_AZURE_BLOB:-false}
