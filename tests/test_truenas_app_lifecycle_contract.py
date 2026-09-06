@@ -104,6 +104,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("target: /etc/ntopng.license", compose)
         self.assertGreaterEqual(compose.count("create_host_path: false"), 2)
         self.assertNotIn("\n    command:\n", compose)
+        self.assertIn("healthcheck:", compose)
+        self.assertIn("wget --quiet --spider --timeout=5", compose)
+        self.assertIn("http://127.0.0.1:${NTOPNG_HTTP_PORT:-3000}/", compose)
         self.assertNotIn("${CLICKHOUSE_USER:-clickhouse}", compose)
         self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
 
