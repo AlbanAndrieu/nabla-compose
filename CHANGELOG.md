@@ -1,3 +1,10 @@
+## [0.15.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.1...0.15.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **sample:** document and verify TrueNAS WebSocket source allowlist ([#111](https://github.com/AlbanAndrieu/nabla-compose/issues/111)) ([9a8b8cc](https://github.com/AlbanAndrieu/nabla-compose/commit/9a8b8cc3b98260d409287abceb06e4c3e47fdbd7))
+
 ## [0.15.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.0...0.15.1) (2026-09-06)
 
 
