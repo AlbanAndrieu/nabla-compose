@@ -475,7 +475,48 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 
 - external `altinity/clickhouse-exporter` removed;
 - native ClickHouse Prometheus endpoint on `9363` used instead;
-- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade.
+- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade;
+- [x] live TrueNAS validation on 2026-09-06 reports ClickHouse `26.8.2.7`,
+      timezone `UTC`, database `default`, HTTP/8123 healthy and internal
+      TCP/9000 reachable;
+- [x] repository Compose matches the live data owner `101:101` and persistent
+      dataset `/mnt/cpool/clickhouse`;
+- [ ] treat ClickHouse as shared platform infrastructure and validate every
+      deployed consumer before/after version or permission changes.
+
+##### Shared ClickHouse consumer compatibility gate
+
+Current/planned consumers have different compatibility contracts:
+
+- **Langfuse** — use dedicated ClickHouse database `langfuse`; Langfuse v4
+  requires ClickHouse >=25.12 and recommends 26.4, so the live 26.8.2.7 server
+  satisfies Langfuse's version floor;
+- **Sentry/Snuba** — currently points at the shared host, but upstream Sentry
+  self-hosted still builds its own Altinity ClickHouse 25.8 line. Do not claim
+  26.8 compatibility from a simple Sentry web health check: validate synthetic
+  event ingestion through Snuba and searchability. If that fails, decouple
+  Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
+  Langfuse/ntopng server;
+- **ntopng** — planned historical flow consumer using its own `ntopng`
+  database. Enable only with the required ntopng Enterprise M-or-higher license
+  and validate flow persistence across both ntopng and ClickHouse restarts.
+
+Acceptance after every shared ClickHouse change:
+
+- [x] `SELECT version(), timezone(), currentDatabase()` succeeds through
+      `clickhouse-client` and reports `26.8.2.7 / UTC / default`;
+- [x] HTTP `/ping` on TCP/8123 succeeds;
+- [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
+- [ ] Langfuse web database-aware health and worker health pass after clean
+      initialization in database `langfuse`;
+- [ ] send a synthetic Sentry event and prove it is processed/queryable through
+      Snuba after the shared-server change, or explicitly decouple Sentry;
+- [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
+      persistence across restarts;
+- [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
+
+A successful ClickHouse `/ping` alone is not sufficient to approve a shared
+ClickHouse upgrade.
 
 #### Grafana
 
@@ -726,6 +767,12 @@ Preferred migration method:
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
 ### Wave 3.5 — Paperless document platform migration
+
+- [ ] Langfuse uses the generic `nabla` PostgreSQL identity selected for the
+      homelab: `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`.
+      Langfuse uses the `public` schema of the selected database, so never
+      `DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
+      before deleting Langfuse-owned tables.
 
 #### Paperless-ngx + Paperless-AI
 
