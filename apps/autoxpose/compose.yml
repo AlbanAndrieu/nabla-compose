@@ -1,40 +1,30 @@
+---
 services:
-  # Optional: enable this block to avoid mounting /var/run/docker.sock directly.
-  # docker-proxy:
-  #   image: tecnativa/docker-socket-proxy:latest
-  #   container_name: autoxpose-docker-proxy
-  #   restart: unless-stopped
-  #   environment:
-  #     - CONTAINERS=1   # allow listing containers
-  #     - EVENTS=1       # allow event stream for auto-discovery
-  #     - INFO=1         # basic daemon info
-  #     - NETWORKS=1     # needed for network metadata
-  #     - POST=0         # block mutating calls
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   ports:
-  #     - '2375:2375'    # internal Docker API port (do not expose publicly)
-
   autoxpose:
-    image: mostafawahied/autoxpose:latest
+    image: mostafawahied/autoxpose:0.4.2
     container_name: autoxpose
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     ports:
-      - '4949:3000' # host:container
+      - "4949:3000" # host:container
     environment:
       - UID=568
       - GID=568
-      - SERVER_IP=${SERVER_IP:-82.66.4.247} # public IP for DNS records
-      - LAN_IP=${LAN_IP:-172.17.0.24} # private IP for proxy targets
-      # If using the optional docker-proxy above, set DOCKER_HOST and remove the socket mount:
-      - DOCKER_HOST=tcp://172.17.0.24:2375
+      - SERVER_IP=${SERVER_IP:-82.66.4.247} # public IP used for DNS A records
+      - LAN_IP=${LAN_IP:-172.17.0.24} # private host IP used by optional proxy providers
+      # Reuse the host-wide read-only proxy from the root compose project.
+      # Do not publish a second unauthenticated Docker API on the LAN.
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
     volumes:
       - /mnt/cpool/autoxpose:/app/packages/backend/data
-      # Comment this mount if using docker-proxy
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    # depends_on:
-    #   - docker-proxy
+    networks:
+      - intranet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
-volumes:
-  autoxpose-data:
+networks:
+  intranet:
+    external: true
+    name: intranet

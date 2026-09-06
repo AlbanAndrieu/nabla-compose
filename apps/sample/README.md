@@ -102,7 +102,67 @@ The local host port defaults to `8091`, mapped to container port `8080`:
 curl -fsS http://127.0.0.1:8091/health
 ```
 
-The Traefik route is `https://fastapi-sample.int.albandrieu.com` when the `traefik_network` and internal DNS/TLS configuration are available.
+The internal Traefik route remains `https://fastapi-sample.int.albandrieu.com`.
+The public route is `https://sample.albandrieu.com`.
+
+### Public ingress ownership
+
+Keep responsibilities separated:
+
+```text
+AutoXpose (Cloudflare DNS only)
+        |
+        v
+sample.albandrieu.com -> 82.66.4.247
+        |
+        v
+pfSense HAProxy :443
+        | TLS re-encryption
+        v
+Traefik :443
+        |
+        v
+fastapi-sample:8080
+```
+
+AutoXpose must have the Cloudflare DNS provider configured for
+`albandrieu.com` and **no Nginx Proxy Manager or Caddy proxy provider**.
+The sample uses `autoxpose.enable=auto`, so configuring a proxy provider in
+AutoXpose would create a second proxy route and violate this ownership model.
+
+The legacy `docker-traefik-cloudflare-companion` still runs for other Traefik
+hosts. It is explicitly configured to exclude the `sample` and `int`
+subdomain trees from the `albandrieu.com` zone so it cannot race AutoXpose
+for `sample.albandrieu.com` or publish private `*.int.albandrieu.com`
+routers to public DNS. Long term, consolidate Cloudflare record ownership into
+one reconciler instead of keeping multiple DNS automation paths.
+
+Current AutoXpose labels intentionally use only the documented contract:
+`autoxpose.enable`, `subdomain`, `name`, `scheme` and `port`.
+Do not reintroduce the legacy/unsupported `autoxpose.domain` label.
+
+AutoXpose targets the published host port `8091` for discovery/DNS metadata;
+Traefik reaches the container directly on `traefik_network` port `8080`.
+
+### TLS / DNS acceptance
+
+Traefik uses Let's Encrypt with the Cloudflare DNS-01 challenge. Keep the ACME
+registration email explicit via `TRAEFIK_ACME_EMAIL`. The certificate store is
+`/mnt/cpool/traefik/certs/acme.json`; it must exist with mode `600` and must
+not be shared by multiple Traefik instances.
+
+Run the read-only acceptance check from TrueNAS after recreating AutoXpose,
+Traefik and FastAPI Sample:
+
+```bash
+bash scripts/ingress/verify-sample-exposure.sh
+```
+
+The script verifies the local health endpoint, AutoXpose Cloudflare DNS-only
+ownership, public DNS, the certificate served directly by Traefik with SNI,
+the public certificate served by pfSense/HAProxy, and the final public
+`/health` path.
+
 
 ## Persistence policy
 
