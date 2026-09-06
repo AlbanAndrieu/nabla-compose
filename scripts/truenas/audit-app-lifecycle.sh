@@ -474,6 +474,108 @@ function probe_clickhouse_langfuse_contract_if_present {
   fi
 }
 
+function probe_ntopng_clickhouse_contract_if_running {
+  local clickhouse_container
+  local secret_file="/mnt/cpool/ntopng/.env.secrets"
+  local password
+  local metadata
+  local grants
+
+  if ! app_is_running ntopng; then
+    printf 'SKIP: ntopng ClickHouse contract app state is %s\n' "${states[ntopng]-MISSING}"
+    return
+  fi
+
+  if ! app_is_running clickhouse; then
+    functional_fail "ntopng ClickHouse contract: ClickHouse app is not RUNNING"
+    return
+  fi
+
+  if [[ ! -r "${secret_file}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ${secret_file} is not readable"
+    return
+  fi
+
+  password="$(sed -n 's/^NTOPNG_CLICKHOUSE_PASSWORD=//p' "${secret_file}" | tail -n 1)"
+  password="$(normalize_env_value "${password}")"
+  if (("${#password}" < 32)); then
+    functional_fail "ntopng ClickHouse contract: NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters"
+    return
+  fi
+
+  case "${password}" in
+    clickhouse|default)
+      functional_fail "ntopng ClickHouse contract: insecure shared/default password is forbidden"
+      return
+      ;;
+  esac
+
+  clickhouse_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${clickhouse_container}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ClickHouse container not found"
+    return
+  fi
+
+  if ! metadata="$(
+    docker exec "${clickhouse_container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "
+          SELECT concat(
+            toString((SELECT count() FROM system.databases WHERE name = '"'"'ntopng'"'"')),
+            '"'"'|'"'"',
+            toString((SELECT count() FROM system.users WHERE name = '"'"'ntopng'"'"'))
+          )
+        "
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: metadata query failed"
+    return
+  fi
+
+  if [[ "${metadata}" != "1|1" ]]; then
+    functional_fail "ntopng ClickHouse contract: expected dedicated database/user ntopng (got ${metadata})"
+    return
+  fi
+
+  if ! grants="$(
+    docker exec "${clickhouse_container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR ntopng"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -F ' ON *.* TO ntopng' <<<"${grants}" |
+    grep -Fvq 'GRANT USAGE ON *.* TO ntopng'; then
+    functional_fail "ntopng ClickHouse contract: global *.* privileges are forbidden"
+    return
+  fi
+
+  if docker exec \
+    -e NTOPNG_CLICKHOUSE_PASSWORD="${password}" \
+    "${clickhouse_container}" sh -c '
+      clickhouse-client \
+        --user ntopng \
+        --password "$NTOPNG_CLICKHOUSE_PASSWORD" \
+        --database ntopng \
+        --query "SELECT 1" >/dev/null
+    ' 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: dedicated credentials accepted without global grants"
+  else
+    functional_fail "ntopng ClickHouse contract: dedicated credentials rejected"
+  fi
+}
+
 function probe_langfuse_worker_clickhouse_credentials_if_running {
   local container
 
@@ -586,6 +688,7 @@ probe_clickhouse_runtime_if_running
 probe_clickhouse_config_mounts_if_running
 probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
+probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
 probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
