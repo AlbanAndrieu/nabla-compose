@@ -78,7 +78,12 @@ Track these independently from the Talos bridge/bootstrap:
 - [x] Native Scrutiny recovered functionally before cutover: InfluxDB `/health` and Scrutiny `/api/health` returned HTTP 200 and SMART collection ran. The native app is now stopped and the user created the target Scrutiny dataset; complete the repository-managed migration below before retiring native data;
 - [x] `opensearch-security`: data ownership corrected to UID/GID `1000:1000`; `_cluster/health` is green and Docker health is healthy;
 - [x] Open WebUI: healthy after reboot;
-- [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
+- [x] Docker socket proxy: the TrueNAS-managed proxy that published
+  `0.0.0.0:2375` is stopped; AutoXpose and Doco-CD now use the repository
+  `docker-socket-proxy:2375` over the shared `intranet` network, with no
+  host-published Docker API port;
+- [ ] uninstall the stopped native TrueNAS Docker Socket Proxy app after one
+  final consumer inventory confirms no rollback dependency remains;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 ### Internal DNS resilience and public `*.int` cleanup
