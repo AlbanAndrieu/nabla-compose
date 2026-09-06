@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:20e4365490f762cbf31d9cb4a2f6527a7ecd6d2e01e72ec5d9d0cf2f9be8cf0c",
+  "catalogRevision": "sha256:2a9a8f7a54a18da8bd827dc6a9075482f73f21cf1092f72b1d5dd7ac3b04651c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -42,6 +42,18 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "autokuma"
+      }
+    },
+    {
+      "id": "bichon",
+      "name": "Bichon",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "apps/bichon/compose.yml",
+      "composeService": "bichon",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bichon"
       }
     },
     {
@@ -165,19 +177,6 @@
         "containerService": "graylog"
       },
       "icon": "🪵"
-    },
-    {
-      "id": "graylog-mongodb",
-      "name": "Graylog MongoDB",
-      "kind": "database",
-      "category": "data",
-      "sourcePath": "apps/graylog/compose.yml",
-      "composeService": "mongo",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "mongo"
-      },
-      "icon": "🍃"
     },
     {
       "id": "haproxy-exporter",
@@ -335,6 +334,19 @@
         "containerService": "minio"
       },
       "icon": "🪣"
+    },
+    {
+      "id": "mongo",
+      "name": "MongoDB",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/mongo/compose.yml",
+      "composeService": "mongo",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mongo"
+      },
+      "icon": "🍃"
     },
     {
       "id": "n8n",
