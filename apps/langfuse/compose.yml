@@ -1,4 +1,5 @@
 # Runtime secrets are injected from /mnt/cpool/langfuse/.env.secrets.
+# DATABASE_URL uses the shared PostgreSQL `nabla` identity and `postgres` database.
 # Langfuse v4 uses the shared PostgreSQL, Redis, MinIO and ClickHouse services
 # over the private intranet network.
 x-nabla:
