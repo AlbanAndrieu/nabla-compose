@@ -298,6 +298,36 @@ function probe_clickhouse_runtime_if_running {
   functional_ok "ClickHouse SQL runtime: version=${version} timezone=${timezone} database=${database}"
 }
 
+function probe_clickhouse_config_mounts_if_running {
+  local container
+
+  if ! app_is_running clickhouse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse config mounts: container not found"
+    return
+  fi
+
+  local path
+  for path in \
+    /etc/clickhouse-server/config.d/prometheus.xml \
+    /etc/clickhouse-server/users.d/admin-grants.xml
+  do
+    if docker exec "${container}" test -f "${path}"; then
+      functional_ok "ClickHouse config mount: ${path} is a file"
+    else
+      functional_fail "ClickHouse config mount: ${path} is not a regular file"
+    fi
+  done
+}
+
 function probe_clickhouse_admin_grant_option_if_running {
   local container
   local grants
@@ -506,6 +536,7 @@ probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
 probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
 probe_langfuse_worker_clickhouse_credentials_if_running
