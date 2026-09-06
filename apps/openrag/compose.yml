@@ -1,7 +1,9 @@
+---
 services:
   openrag-backend:
     image: docker.io/langflowai/openrag-backend:latest
     container_name: openrag-backend
+    restart: unless-stopped
     x-nabla:
       id: openrag-backend
       name: OpenRAG Backend
@@ -14,26 +16,23 @@ services:
         - target: langflow
           type: dependsOn
           strength: required
-          description: OpenRAG backend invokes the Langflow service.
+          description: OpenRAG backend invokes the shared Langflow service.
           evidence:
             - apps/openrag/compose.yml:LANGFLOW_URL
-        - target: elasticsearch
+        - target: opensearch
           type: dependsOn
           strength: required
-          description: OpenRAG backend stores and retrieves indexed content through Elasticsearch.
+          description: OpenRAG backend stores and retrieves indexed content through OpenSearch.
           evidence:
-            - apps/openrag/compose.yml:ES_HOST
+            - apps/openrag/compose.yml:OPENSEARCH_HOST
+    env_file:
+      - /mnt/cpool/openrag/.env.secrets
     environment:
-      - ES_HOST=elasticsearch
-      - ES_PORT=9200
-      - ES_USER=elastic
-      - ES_PASS=${ELASTIC_PASSWORD:-changeme}
-      - LANGFLOW_URL=http://langflow:7860
-      # Add any other required envs from the openrag reference compose here
-      - ENVIRONMENT=production
-    depends_on:
-      - elasticsearch
-      - langflow
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: "9200"
+      OPENSEARCH_USERNAME: "${OPENSEARCH_USERNAME:-admin}"
+      LANGFLOW_URL: http://langflow:7860
+      ENVIRONMENT: production
     volumes:
       - ./openrag-documents:/app/openrag-documents:U,z
       - ./keys:/app/keys:U,z
@@ -42,12 +41,13 @@ services:
       - ./config:/app/config:U,z
       - ./data:/app/data:U,z
     networks:
+      - intranet
       - traefik_network
-    restart: unless-stopped
 
   openrag-frontend:
     image: docker.io/langflowai/openrag-frontend:latest
     container_name: openrag-frontend
+    restart: unless-stopped
     x-nabla:
       id: openrag-frontend
       name: OpenRAG Frontend
@@ -64,15 +64,18 @@ services:
           evidence:
             - apps/openrag/compose.yml:OPENRAG_BACKEND_HOST
     environment:
-      - OPENRAG_BACKEND_HOST=openrag-backend
+      OPENRAG_BACKEND_HOST: openrag-backend
     depends_on:
       - openrag-backend
     ports:
       - "3000:3000"
     networks:
+      - intranet
       - traefik_network
-    restart: unless-stopped
 
 networks:
+  intranet:
+    external: true
+    name: intranet
   traefik_network:
     external: true
