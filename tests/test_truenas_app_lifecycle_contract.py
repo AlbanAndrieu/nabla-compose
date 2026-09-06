@@ -86,6 +86,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('"172.17.0.24:8123:8123"', clickhouse)
         self.assertIn('"172.17.0.24:9000:9000"', clickhouse)
         self.assertIn("aliases:\n          - clickhouse", clickhouse)
+        self.assertIn(
+            "./config/admin-grants.xml:/etc/clickhouse-server/users.d/admin-grants.xml:ro",
+            clickhouse,
+        )
+        admin_grants = self.read("apps/clickhouse/config/admin-grants.xml")
+        self.assertIn("GRANT ALL ON *.* WITH GRANT OPTION", admin_grants)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
