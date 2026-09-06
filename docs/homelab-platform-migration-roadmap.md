@@ -518,6 +518,46 @@ Acceptance after every shared ClickHouse change:
 A successful ClickHouse `/ping` alone is not sufficient to approve a shared
 ClickHouse upgrade.
 
+#### Langfuse v4 fresh reset
+
+The previous Langfuse analytical/application history is disposable. Prefer a
+clean Langfuse v4 initialization over repairing the old v3/v4 migration marker.
+
+Target:
+
+- Langfuse web/worker pinned to `4.30.0`;
+- shared ClickHouse `26.8.2.7`, database `langfuse`;
+- shared PostgreSQL 18.6 using the generic homelab identity:
+  `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`;
+- shared Redis via `redis:6379`, isolated with
+  `REDIS_KEY_PREFIX=langfuse-v4:`;
+- shared MinIO via `minio:9000`, isolated in bucket `langfuse-v4`;
+- all runtime secrets remain outside Git under
+  `/mnt/cpool/langfuse/.env.secrets`;
+- telemetry disabled by default.
+
+Because Langfuse uses PostgreSQL's `public` schema in the selected database,
+never drop the shared `postgres` database as part of a Langfuse reset. Before
+cleaning old Langfuse PostgreSQL state, inventory table ownership and remove
+only objects proven to belong to the previous Langfuse installation.
+
+Completion gates:
+
+- [ ] old Langfuse web/worker stopped before resetting Langfuse-owned state;
+- [ ] ClickHouse database `langfuse` recreated without touching other shared
+      ClickHouse databases;
+- [ ] PostgreSQL `postgres` remains intact and the generic `nabla` role can
+      perform the required Langfuse migrations;
+- [ ] Redis namespace `langfuse-v4:` configured;
+- [ ] MinIO bucket `langfuse-v4` available;
+- [ ] Langfuse v4 starts without pending/dirty PostgreSQL or ClickHouse
+      migrations;
+- [ ] web database-aware health and worker health both pass;
+- [ ] a new project can ingest and query a smoke-test trace;
+- [ ] Sentry/Snuba remains functional or is explicitly decoupled before the
+      shared ClickHouse change is accepted.
+
+
 #### Grafana
 
 Compose target must preserve:
