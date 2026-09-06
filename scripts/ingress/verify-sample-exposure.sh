@@ -3,9 +3,8 @@ set -euo pipefail
 
 TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
 PUBLIC_HOST="${PUBLIC_HOST:-sample.albandrieu.com}"
-EXPECTED_PUBLIC_IP="${EXPECTED_PUBLIC_IP:-82.66.4.247}"
+INTERNAL_HOST="${INTERNAL_HOST:-sample.int.albandrieu.com}"
 LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"
-AUTOXPOSE_URL="${AUTOXPOSE_URL:-http://${TRUENAS_HOST}:4949}"
 TRAEFIK_HOST="${TRAEFIK_HOST:-${TRUENAS_HOST}}"
 TRAEFIK_PORT="${TRAEFIK_PORT:-443}"
 ACME_FILE="${ACME_FILE:-/mnt/cpool/traefik/certs/acme.json}"
@@ -16,51 +15,16 @@ fail() {
   exit 1
 }
 
-printf '==> local FastAPI health\n'
-curl --fail --silent --show-error --max-time 10 "${LOCAL_HEALTH_URL}" >/dev/null
-
-printf '==> AutoXpose provider ownership\n'
-status_json="$(curl --fail --silent --show-error --max-time 10 "${AUTOXPOSE_URL}/api/settings/status")"
-python3 -c '
-import json
-import sys
-
-status = json.load(sys.stdin)
-dns = status.get("dns") or {}
-proxy = status.get("proxy") or {}
-if not dns.get("configured"):
-    raise SystemExit("AutoXpose DNS provider is not configured")
-if dns.get("provider") != "cloudflare":
-    raise SystemExit(
-        "AutoXpose DNS provider must be cloudflare, got {!r}".format(dns.get("provider"))
-    )
-if dns.get("domain") != "albandrieu.com":
-    raise SystemExit(
-        "AutoXpose DNS domain must be albandrieu.com, got {!r}".format(dns.get("domain"))
-    )
-if proxy.get("configured"):
-    raise SystemExit(
-        "AutoXpose proxy provider must stay disabled when Traefik owns routing; got {!r}".format(
-            proxy.get("provider")
-        )
-    )
-' <<<"${status_json}"
-
-printf '==> public DNS\n'
-resolved_ips="$(getent ahostsv4 "${PUBLIC_HOST}" | awk '{print $1}' | sort -u)"
-grep -Fxq "${EXPECTED_PUBLIC_IP}" <<<"${resolved_ips}" || {
-  printf 'Resolved IPv4 addresses:\n%s\n' "${resolved_ips}" >&2
-  fail "${PUBLIC_HOST} does not resolve to expected public IP ${EXPECTED_PUBLIC_IP}"
-}
-
 check_certificate() {
   local connect_host="$1"
-  local label="$2"
+  local server_name="$2"
+  local label="$3"
   local pem
+
   pem="$(timeout 15 openssl s_client \
     -connect "${connect_host}" \
-    -servername "${PUBLIC_HOST}" \
-    -verify_hostname "${PUBLIC_HOST}" \
+    -servername "${server_name}" \
+    -verify_hostname "${server_name}" \
     -verify_return_error </dev/null 2>/dev/null)" ||
     fail "${label} TLS handshake/hostname verification failed"
 
@@ -72,24 +36,72 @@ check_certificate() {
     openssl x509 -noout -subject -issuer -dates
 }
 
-printf '==> Traefik backend TLS certificate\n'
-check_certificate "${TRAEFIK_HOST}:${TRAEFIK_PORT}" "Traefik"
+printf '==> TrueNAS FastAPI health\n'
+curl --fail --silent --show-error --max-time 10 "${LOCAL_HEALTH_URL}" >/dev/null
 
-printf '==> ACME store permissions\n'
+printf '==> internal Pi-hole DNS\n'
+internal_ips="$(getent ahostsv4 "${INTERNAL_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
+[[ -n "${internal_ips}" ]] || fail "${INTERNAL_HOST} does not resolve"
+grep -Fxq "${TRUENAS_HOST}" <<<"${internal_ips}" || {
+  printf 'Resolved IPv4 addresses:\n%s\n' "${internal_ips}" >&2
+  fail "${INTERNAL_HOST} does not resolve to TrueNAS ${TRUENAS_HOST}"
+}
+
+printf '==> internal Traefik TLS certificate\n'
+check_certificate "${TRAEFIK_HOST}:${TRAEFIK_PORT}" "${INTERNAL_HOST}" "Traefik internal ingress"
+
+printf '==> internal FastAPI through Traefik\n'
+curl --fail --silent --show-error --max-time 15 \
+  --resolve "${INTERNAL_HOST}:443:${TRAEFIK_HOST}" \
+  "https://${INTERNAL_HOST}/health" >/dev/null
+
+printf '==> Traefik ACME store permissions\n'
 if [[ -r "${ACME_FILE}" ]]; then
   [[ -s "${ACME_FILE}" ]] || fail "ACME store is empty: ${ACME_FILE}"
   mode="$(stat -c '%a' "${ACME_FILE}")"
   [[ "${mode}" == "600" ]] || fail "ACME store must have mode 600, got ${mode}"
-  grep -Fq "${PUBLIC_HOST}" "${ACME_FILE}" ||
-    fail "ACME store does not contain a certificate reference for ${PUBLIC_HOST}"
 else
   printf 'SKIP: ACME store %s is not readable from this host (expected from a workstation)\n' "${ACME_FILE}"
 fi
 
-printf '==> public pfSense/HAProxy TLS certificate\n'
-check_certificate "${PUBLIC_HOST}:443" "public ingress"
+printf '==> public Cloudflare DNS\n'
+public_ips="$(getent ahostsv4 "${PUBLIC_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
+[[ -n "${public_ips}" ]] || fail "${PUBLIC_HOST} does not resolve"
+printf '%s\n' "${public_ips}"
 
-printf '==> public FastAPI health\n'
-curl --fail --silent --show-error --max-time 15 "https://${PUBLIC_HOST}/health" >/dev/null
+printf '==> public Cloudflare edge TLS certificate\n'
+check_certificate "${PUBLIC_HOST}:443" "${PUBLIC_HOST}" "Cloudflare edge"
 
-printf 'OK: %s is healthy through Cloudflare DNS -> pfSense HAProxy -> Traefik -> FastAPI Sample\n' "${PUBLIC_HOST}"
+printf '==> public Cloudflare Access / Tunnel\n'
+if [[ -n "${CF_ACCESS_CLIENT_ID:-}" || -n "${CF_ACCESS_CLIENT_SECRET:-}" ]]; then
+  [[ -n "${CF_ACCESS_CLIENT_ID:-}" && -n "${CF_ACCESS_CLIENT_SECRET:-}" ]] ||
+    fail "CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be provided together"
+
+  curl --fail --silent --show-error --max-time 20 \
+    -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
+    -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+    "https://${PUBLIC_HOST}/health" >/dev/null
+
+  printf 'OK: authenticated Cloudflare Access request reached FastAPI Sample\n'
+else
+  headers="$(mktemp)"
+  trap 'rm -f "${headers}"' EXIT
+
+  status="$(curl --silent --show-error --max-time 20 \
+    --output /dev/null --dump-header "${headers}" \
+    --write-out '%{http_code}' "https://${PUBLIC_HOST}/health")"
+
+  if [[ "${status}" != "302" && "${status}" != "401" && "${status}" != "403" ]]; then
+    fail "expected a Cloudflare Access challenge without credentials, got HTTP ${status}"
+  fi
+
+  if ! grep -Eiq 'cloudflare-access|cloudflareaccess\.com|www-authenticate:.*Cloudflare-Access' "${headers}"; then
+    cat "${headers}" >&2
+    fail "public response does not contain Cloudflare Access challenge evidence"
+  fi
+
+  printf 'OK: Cloudflare Access is enforcing authentication (HTTP %s)\n' "${status}"
+  printf 'INFO: set CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET to prove the full Tunnel origin path\n'
+fi
+
+printf 'OK: internal Pi-hole -> Traefik and public Cloudflare Access/Tunnel contracts are consistent for FastAPI Sample\n'
