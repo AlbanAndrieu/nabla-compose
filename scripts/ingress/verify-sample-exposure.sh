@@ -77,10 +77,44 @@ if [[ -n "${CF_ACCESS_CLIENT_ID:-}" || -n "${CF_ACCESS_CLIENT_SECRET:-}" ]]; the
   [[ -n "${CF_ACCESS_CLIENT_ID:-}" && -n "${CF_ACCESS_CLIENT_SECRET:-}" ]] ||
     fail "CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be provided together"
 
-  curl --fail --silent --show-error --max-time 20 \
+  token_headers="$(mktemp)"
+  token_body="$(mktemp)"
+  trap 'rm -f "${token_headers}" "${token_body}"' EXIT
+
+  token_status="$(curl --silent --show-error --max-time 20 \
+    --output "${token_body}" --dump-header "${token_headers}" \
+    --write-out '%{http_code}' \
     -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
     -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
-    "https://${PUBLIC_HOST}/health" >/dev/null
+    "https://${PUBLIC_HOST}/health")"
+
+  token_content_type="$(
+    awk 'BEGIN { IGNORECASE=1 } /^content-type:/ {
+      sub(/^[^:]*:[[:space:]]*/, "")
+      sub(/\r$/, "")
+      print
+      exit
+    }' "${token_headers}"
+  )"
+  printf 'Cloudflare token response: HTTP %s · Content-Type %s\n' \
+    "${token_status}" "${token_content_type:-unknown}"
+
+  if [[ "${token_status}" != "200" ]]; then
+    if grep -Eiq 'cloudflare-access|cloudflareaccess\.com|www-authenticate:.*Cloudflare-Access' "${token_headers}"; then
+      fail "service token was not accepted by Cloudflare Access; verify a Service Auth policy includes this token"
+    fi
+    fail "authenticated public health returned HTTP ${token_status}; inspect the Tunnel route/origin"
+  fi
+
+  if [[ "${token_content_type}" != application/json* ]]; then
+    printf 'Response preview: ' >&2
+    head -c 160 "${token_body}" | tr '\n' ' ' >&2
+    printf '\n' >&2
+    fail "authenticated public health returned HTTP 200 but not JSON"
+  fi
+
+  python3 -m json.tool "${token_body}" >/dev/null ||
+    fail "authenticated public health returned invalid JSON"
 
   printf 'OK: authenticated Cloudflare Access request reached FastAPI Sample\n'
 else
