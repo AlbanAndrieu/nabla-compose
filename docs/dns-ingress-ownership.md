@@ -59,6 +59,28 @@ filtering and convenience rather than a single point of failure for all DNS.
 If TrueNAS is down, services hosted on TrueNAS are unavailable anyway; that
 failure must not prevent clients from resolving unrelated public domains.
 
+### Garage exception boundary
+
+Garage administration is private:
+
+```text
+garage.int.albandrieu.com       -> Garage WebUI -> LAN/VPN only
+garage-admin.int.albandrieu.com -> Garage Admin API -> LAN/VPN only
+```
+
+Only the S3 data plane retains a temporary direct-public exception:
+
+```text
+s3.int.albandrieu.com
+*.s3.int.albandrieu.com
+```
+
+The OpenTofu backend uses the S3 API, while Garage administration uses the
+separate Admin API only when managing Garage itself. The repository Terragrunt
+CD workflow is restricted to the private `infra-runners` boundary, so the
+Admin API and WebUI do not need public DNS. The S3 exception should also be
+removed once every state writer uses a trusted LAN/VPN/WARP path.
+
 ## Public `*.albandrieu.com`
 
 There is not one universal publication mechanism for every public hostname.
