@@ -174,6 +174,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
         self.assertIn("GRAYLOG_MONGODB_URI", audit)
+        self.assertIn("probe_secret_min_length_if_present", audit)
+        self.assertIn("GRAYLOG_PASSWORD_SECRET 16", audit)
+        self.assertIn("probe_secret_regex_if_present", audit)
+        self.assertIn("GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'", audit)
+        self.assertIn("function app_is_present", audit)
         self.assertIn("HOMARR_ENCRYPTION_KEY", audit)
         self.assertIn("SECRET_ENCRYPTION_KEY", audit)
         self.assertIn(
