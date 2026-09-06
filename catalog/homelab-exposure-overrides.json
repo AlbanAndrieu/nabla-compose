@@ -27,7 +27,14 @@
       "external": true,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "garage.int.albandrieu.com is intentionally published directly through Traefik with Let's Encrypt rather than Cloudflare. Keep this visible as an orange security-debt warning until migrated behind Cloudflare."
+      "securityException": "Only the Garage S3 API at s3.int.albandrieu.com (and bucket subdomains) retains a temporary direct-public exception for OpenTofu state access. garage-admin.int.albandrieu.com and garage.int.albandrieu.com are administration surfaces and must remain LAN/VPN-only; any public DNS record for them is configuration drift."
+    },
+    {
+      "name": "Garage WebUI",
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
+      "securityException": "Garage WebUI is an administration surface and must remain LAN/VPN-only. Public DNS, direct WAN ingress or a public Cloudflare hostname is configuration drift unless a separately reviewed Access-protected design is introduced."
     },
     {
       "name": "Bichon",
