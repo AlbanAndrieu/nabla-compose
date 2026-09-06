@@ -186,6 +186,23 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             audit,
         )
 
+    def test_roadmap_tracks_bichon_oauth2_reauthorization(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("#### Bichon OAuth2 recovery", roadmap)
+        self.assertIn("OAuth2 Tokens -> Delete Token", roadmap)
+        self.assertIn("re-authorize the affected account", roadmap)
+        self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
+
+    def test_runbook_uses_canonical_langfuse_recovery(self) -> None:
+        runbook = self.read("docs/truenas-app-lifecycle.md")
+
+        self.assertIn("prepare-migrations.mjs", runbook)
+        self.assertIn('render "$CANONICAL" unclustered default', runbook)
+        self.assertIn("no migration found for version 38", runbook)
+        self.assertIn("do not run another `force`", runbook)
+        self.assertIn("nabla\'s Recovery Token", runbook)
+
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 
