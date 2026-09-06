@@ -806,13 +806,38 @@ Preferred migration method:
 
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
-### Wave 3.5 — Paperless document platform migration
+Current runtime cleanup inventory includes dedicated PostgreSQL containers for
+Keycloak, Zabbix, n8n, Paperless-ngx, OpenArchiver, Home Assistant,
+Reactive Resume, Memos, FreshRSS and Domain Watchdog in addition to the shared
+`ix-postgres-postgres-1` service.
 
-- [ ] Langfuse uses the generic `nabla` PostgreSQL identity selected for the
-      homelab: `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`.
-      Langfuse uses the `public` schema of the selected database, so never
-      `DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
-      before deleting Langfuse-owned tables.
+Consolidation policy:
+
+- [ ] inventory each application's PostgreSQL version, extensions, database,
+      owner, authentication and backup/restore path;
+- [ ] classify each instance as **must remain dedicated**, **safe to consolidate**
+      or **retire with application migration**;
+- [ ] never consolidate by reusing/copying raw `PGDATA` across PostgreSQL major
+      versions; use logical dump/restore;
+- [ ] migrate one application database at a time to the shared PostgreSQL 18.6
+      service and prove application health + rollback before retiring its
+      dedicated container;
+- [ ] keep Keycloak dedicated initially as already decided in the identity
+      roadmap;
+- [ ] keep Paperless-local PostgreSQL until the Paperless migration wave proves
+      whether consolidation is compatible with its backup/restore contract;
+- [ ] remove stopped/obsolete PostgreSQL upgrade/helper containers only after
+      confirming they are not referenced by the owning TrueNAS application.
+
+Langfuse uses the generic `nabla` PostgreSQL identity selected for the homelab:
+
+```text
+DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
+```
+
+Langfuse uses the `public` schema of the selected database, so never
+`DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
+before deleting Langfuse-owned tables.
 
 #### Paperless-ngx + Paperless-AI
 
