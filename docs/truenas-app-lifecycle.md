@@ -421,8 +421,7 @@ migrate -source file://clickhouse/migrations/unclustered \
 ```
 
 Do not use the v3.225.7 migration directory for this rewind: it only contains
-versions 1..37 and therefore cannot traverse down from 39. Do not use
-`force 37`; `goto 37` executes the v4 down migrations required to remove the
+versions 1..37 and therefore cannot traverse down from 39. Do not use `force 37`; `goto 37` executes the v4 down migrations required to remove the
 new v4 tables/recreate superseded objects before resetting the schema marker.
 
 Before running the rewind:
