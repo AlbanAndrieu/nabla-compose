@@ -274,6 +274,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+        failure_modes = self.read("docs/clickhouse-langfuse-failure-modes.md")
 
         self.assertIn("## Fresh Langfuse v4 reset", runbook)
         self.assertIn("Do not replace the Custom App wrapper", runbook)
@@ -287,6 +288,17 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("generic `nabla` role", roadmap)
         self.assertIn("GRANT ALTER SETTINGS ON langfuse.* TO langfuse;", runbook)
         self.assertIn("migration 48", runbook)
+
+        self.assertIn("## 1. TrueNAS Custom App turned prometheus.xml into a directory", failure_modes)
+        self.assertIn("## 2. The ClickHouse bootstrap user could not delegate privileges", failure_modes)
+        self.assertIn("## 3. Langfuse 4.30.0 migration 48 failed with Code 497", failure_modes)
+        self.assertIn("Dirty database version 48", failure_modes)
+        self.assertIn("GRANT ALL ON *.* WITH GRANT OPTION", failure_modes)
+        self.assertIn("GRANT ALTER SETTINGS ON langfuse.* TO langfuse;", failure_modes)
+        self.assertIn("## 4. ClickHouse datastore ownership blocked destructive DDL", failure_modes)
+        self.assertIn("## 5. A healthy ClickHouse ping is necessary but not sufficient", failure_modes)
+        self.assertIn("Sentry/Snuba", failure_modes)
+        self.assertIn("ntopng", failure_modes)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
