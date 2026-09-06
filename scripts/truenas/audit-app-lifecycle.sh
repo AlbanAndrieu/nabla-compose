@@ -176,8 +176,9 @@ function normalize_env_value {
   if (("${#value}" >= 2)); then
     first="${value:0:1}"
     last="${value: -1}"
-    if [[ ("${first}" == '"' && "${last}" == '"') ||
-      ("${first}" == "'" && "${last}" == "'") ]]; then
+    if [[ "${first}" == '"' && "${last}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "${first}" == "'" && "${last}" == "'" ]]; then
       value="${value:1:${#value}-2}"
     fi
   fi
