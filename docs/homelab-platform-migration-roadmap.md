@@ -55,8 +55,16 @@ container address.
   preflight for container source IP, both configured and active runtime
   `ui_allowlist` state, canonical credential variable selection, HTTPS version
   discovery and authenticated WebSocket calls;
-- [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
-  after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
+- [x] add `scripts/security/configure-truenas-observer-allowlist.sh` as a
+  deliberate fail-safe configurator: one update, 300-second rollback timer,
+  active/persisted state verification, authenticated observer probe, then
+  check-in;
+- [x] document that `system.general.checkin` returning `null` is not proof
+  that a pending rollback was accepted; use `checkin_waiting` before and after
+  check-in;
+- [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
+  the live container now exposes only the canonical
+  `TRUENAS_API_USERNAME=fastapi_observer` username variable;
 - [x] pin FastAPI Sample to `172.16.55.9` on the production
   `172.16.55.0/24` intranet by default (override with
   `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed allowlist
