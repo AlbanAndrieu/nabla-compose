@@ -49,22 +49,22 @@ while IFS= read -r compose_path; do
 
   case "${state}" in
     RUNNING)
-      ((running += 1))
+      running=$((running + 1))
       ;;
     STOPPED)
-      ((stopped += 1))
+      stopped=$((stopped + 1))
       ;;
     CRASHED)
-      ((crashed += 1))
+      crashed=$((crashed + 1))
       ;;
     DEPLOYING)
-      ((deploying += 1))
+      deploying=$((deploying + 1))
       ;;
     MISSING)
-      ((missing += 1))
+      missing=$((missing + 1))
       ;;
     *)
-      ((other += 1))
+      other=$((other + 1))
       ;;
   esac
 done < <(git -C "${ROOT}" ls-files 'apps/*/compose.yml' | sort)
@@ -87,21 +87,21 @@ fi
 
 functional_failures=0
 
-functional_ok() {
+function functional_ok {
   printf '✅ %s\n' "$*"
 }
 
-functional_fail() {
+function functional_fail {
   printf '❌ %s\n' "$*" >&2
-  ((functional_failures += 1))
+  functional_failures=$((functional_failures + 1))
 }
 
-app_is_running() {
+function app_is_running {
   local app_id="$1"
   [[ "${states[${app_id}]-MISSING}" == "RUNNING" ]]
 }
 
-probe_http_if_running() {
+function probe_http_if_running {
   local app_id="$1"
   local label="$2"
   local url="$3"
@@ -118,7 +118,7 @@ probe_http_if_running() {
   fi
 }
 
-probe_intranet_tcp_if_running() {
+function probe_intranet_tcp_if_running {
   local app_id="$1"
   local label="$2"
   local host="$3"
@@ -146,7 +146,7 @@ probe_intranet_tcp_if_running() {
   fi
 }
 
-probe_secret_if_running() {
+function probe_secret_if_running {
   local app_id="$1"
   local label="$2"
   local file="$3"
