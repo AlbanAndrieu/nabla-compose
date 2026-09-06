@@ -13,14 +13,14 @@
       "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "The pfSense administration/API listener on 10443 is trusted-sources-only. FastAPI Cloud is not an approved administration source: direct reachability from that runtime is a negative exposure check and a security-policy failure. Keep administration limited to approved stable sources, use dedicated least-privilege API identities, and move durable posture/Snort telemetry to an out-of-band observer."
+      "securityException": "The pfSense administration/API listener on 10443 is a trusted-source-only endpoint. FastAPI Cloud is not an approved administration source: direct reachability from that runtime is a negative exposure check and a security-policy failure. Keep administration limited to approved stable sources, use dedicated least-privilege API identities, and move durable posture/Snort telemetry to an out-of-band observer."
     },
     {
       "name": "Home",
       "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. Only approved stable administration sources should reach it; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used."
+      "securityException": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. This source-aware policy permits only approved stable administration sources; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used."
     },
     {
       "name": "Garage",
