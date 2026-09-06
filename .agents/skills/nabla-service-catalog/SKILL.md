@@ -17,6 +17,7 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `category`: catalog grouping;
 - `presentationRole`: optional UI intent, one of `service`, `core`, or `support`; prefer `service` for user-facing/lab capabilities, `core` for shared platform foundations, and `support` for auxiliary tooling;
 - `criticality`: optional operator-urgency tier aligned with OpenTelemetry `service.criticality`: `critical`, `high`, `medium`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation. Explicit `presentationRole: core` is intentionally narrow and is normalized to `critical`; use topology/kind or another role for shared components that are important but not foundational;
+- `securityFunctions`: optional non-empty list of NIST CSF 2.0 functions: `govern`, `identify`, `protect`, `detect`, `respond`, `recover`. Use it only when repository/runtime evidence shows that the component is intentionally used to experiment with that cybersecurity function; component presence does not prove control effectiveness, maturity, health, or dependency impact;
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
 
@@ -44,10 +45,11 @@ Use the existing relation vocabulary:
 
 Every relation must include `strength: required|optional` and should include concrete `evidence` pointing to the configuration that proves the relationship. Do not invent dependencies merely to make the graph look complete. Keep `hostedBy` separate from `dependsOn`/`partOf`: hosting should contribute to infrastructure impact analysis without pretending the host is a functional service dependency.
 
-Presentation role, criticality and dependency strength answer different questions:
+Presentation role, criticality, security function and dependency strength answer different questions:
 
 - `presentationRole` decides where an entity belongs in operator-facing views;
 - `criticality` expresses how urgently operators should care about its own failure;
+- `securityFunctions` describes which NIST CSF 2.0 functions the component is deliberately used to experiment with; it is navigation/coverage metadata, not an effectiveness or maturity score;
 - relation `strength` expresses whether a dependent actually requires the target to function.
 
 A high observability component such as Prometheus can therefore be operationally important without making every monitored service functionally unavailable when Prometheus itself is down. Reserve explicit `core` for foundations whose loss represents a broad platform failure domain (for example TrueNAS, pfSense, Docker, Talos, Kubernetes, etcd and critical ingress/networking components).
