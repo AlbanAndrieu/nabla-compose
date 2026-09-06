@@ -86,6 +86,7 @@ fi
 
 
 probe_failures=0
+probe_warnings=0
 
 function functional_ok {
   printf '✅ %s\n' "$*"
@@ -94,6 +95,11 @@ function functional_ok {
 function functional_fail {
   printf '❌ %s\n' "$*" >&2
   probe_failures=$((probe_failures + 1))
+}
+
+function functional_warn {
+  printf '⚠️ %s\n' "$*" >&2
+  probe_warnings=$((probe_warnings + 1))
 }
 
 function app_is_running {
@@ -490,8 +496,7 @@ function probe_sentry_snuba_clickhouse_if_running {
   )"
 
   if [[ -z "${snuba_container}" ]]; then
-    printf '%s\n' \
-      'WARN: Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated.'
+    functional_warn "Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated."
     return
   fi
 
@@ -838,8 +843,13 @@ else
 fi
 
 if ((probe_failures > 0)); then
-  printf '\n❌ functional verification failed: %d probe(s) failed\n' "${probe_failures}" >&2
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
   exit 1
 fi
 
-printf '\n✅ functional verification passed\n'
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
