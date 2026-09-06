@@ -6,9 +6,11 @@ groups:
         expr: up{job="truenas_node"} == 0
         for: 2m
         labels:
-          severity: critical
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
         annotations:
-          summary: TrueNAS node-exporter is unreachable
+          summary: TrueNAS node-exporter telemetry is unavailable
           description: "Prometheus cannot scrape TrueNAS host metrics for more than 2 minutes."
 
       - alert: TrueNASHostOutOfMemory
@@ -19,6 +21,16 @@ groups:
         annotations:
           summary: TrueNAS host memory is low
           description: "Less than 10% of host memory has remained available for 5 minutes."
+
+      - alert: TrueNASHostMemoryCritical
+        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
+        for: 2m
+        labels:
+          severity: critical
+          scope: platform
+        annotations:
+          summary: TrueNAS host memory is critically low
+          description: "Less than 5% of host memory has remained available for 2 minutes."
 
       - alert: TrueNASFilesystemSpaceLow
         expr: |
