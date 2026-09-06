@@ -91,6 +91,40 @@ Security tooling needs two independent states:
 
 A high detection count is not service downtime.
 
+#### NIST CSF 2.0 security-function coverage
+
+Optional `x-nabla.securityFunctions` metadata classifies the cybersecurity
+functions that a component is deliberately used to exercise in the homelab.
+The allowed values map directly to the NIST Cybersecurity Framework 2.0 Core:
+
+- `govern` — cybersecurity risk strategy, policy, roles, oversight and supply-chain governance;
+- `identify` — assets, dependencies, suppliers, risks and improvement opportunities;
+- `protect` — safeguards such as identity/access control, data/platform security and resilience;
+- `detect` — discovery and analysis of possible cybersecurity attacks or compromises;
+- `respond` — incident management, containment, analysis, mitigation and communication;
+- `recover` — restoration of affected assets and operations.
+
+These functions are concurrent risk-management outcomes, not lifecycle phases.
+`govern` informs and prioritizes the other five functions.
+
+This field is **coverage/navigation metadata only**. It must never be interpreted
+as proof of control effectiveness, compliance, maturity, availability or
+dependency impact. Do not infer a function from a product name or category
+alone. For example, an IDS may justify `detect` when detection is actually
+configured; it only justifies `protect` or `respond` when prevention,
+blocking or active-response behavior is explicitly configured and evidenced.
+
+Keep the concerns separate:
+
+- `category` describes what the component is;
+- `securityFunctions` describes which NIST CSF outcomes it intentionally exercises;
+- `criticality` describes operational urgency if the component itself fails;
+- topology relations describe dependency/blast-radius semantics;
+- Gatus/Prometheus evidence describes runtime health and telemetry.
+
+Reference: NIST CSWP 29, *The NIST Cybersecurity Framework (CSF) 2.0*,
+<https://doi.org/10.6028/NIST.CSWP.29>.
+
 ### Observability and support
 
 Prometheus, Mimir, Grafana, exporters and collectors can be operationally
