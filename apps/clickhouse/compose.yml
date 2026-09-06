@@ -1,7 +1,7 @@
 ---
 services:
   clickhouse:
-    image: docker.io/clickhouse/clickhouse-server:25.8 # Shared compatibility pin: Sentry self-hosted currently targets ClickHouse 25.8; validate/decouple consumers before 26.4.
+    image: docker.io/clickhouse/clickhouse-server:25.8 # clickhouse 26.x has issue with langfuse keep using 25.8
     x-nabla:
       id: clickhouse
       name: ClickHouse

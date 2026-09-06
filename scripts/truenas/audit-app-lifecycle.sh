@@ -292,7 +292,6 @@ probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
-probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 

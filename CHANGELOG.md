@@ -1,3 +1,10 @@
+## [0.14.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.4...0.14.5) (2026-09-06)
+
+
+### Bug Fixes
+
+* **security:** keep Garage administration private ([#108](https://github.com/AlbanAndrieu/nabla-compose/issues/108)) ([d361eae](https://github.com/AlbanAndrieu/nabla-compose/commit/d361eaea1b8720e1ec3b3e376912259c6e2842aa))
+
 ## [0.14.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.3...0.14.4) (2026-09-06)
 
 

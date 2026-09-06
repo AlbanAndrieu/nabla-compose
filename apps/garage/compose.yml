@@ -39,9 +39,9 @@ services:
       - /mnt/cpool/garage/data:/var/lib/garage/data
       - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     ports:
-      - "3900:3900"
-      - "3901:3901" # RPC Garage obligatoire
-      - "3903:3903" # Admin API
+      - "172.17.0.24:3900:3900" # S3 API, trusted LAN only
+      - "172.17.0.24:3901:3901" # RPC Garage, trusted LAN only
+      - "172.17.0.24:3903:3903" # Admin API, trusted LAN only
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
@@ -93,13 +93,13 @@ services:
       - source: garage_config
         target: /etc/garage.toml
     ports:
-      - "3909:3909"
+      - "172.17.0.24:3909:3909" # WebUI, trusted LAN only
     volumes:
       - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     environment:
-      API_BASE_URL: "http://172.17.0.24:3903"
+      API_BASE_URL: "http://garage:3903"
       API_ADMIN_KEY: "${GARAGE_ADMIN_TOKEN}"
-      S3_ENDPOINT_URL: "http://172.17.0.24:3900"
+      S3_ENDPOINT_URL: "http://garage:3900"
       # AUTH_USER_PASS: "${GARAGE_WEBUI_ADMIN_PASS}"
     networks: ["traefik_network"]
     labels:

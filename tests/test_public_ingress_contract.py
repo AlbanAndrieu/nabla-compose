@@ -63,6 +63,24 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", compose)
         self.assertNotIn("172.17.0.24:2375", compose)
 
+    def test_autoxpose_has_local_http_healthcheck(self) -> None:
+        compose = (ROOT / "apps" / "autoxpose" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("healthcheck:", compose)
+        self.assertIn("http://127.0.0.1:3000/api/settings/status", compose)
+        self.assertIn("response.ok ? 0 : 1", compose)
+
+    def test_garage_public_exception_is_s3_only(self) -> None:
+        overrides = (
+            ROOT / "catalog" / "homelab-exposure-overrides.json"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Only the Garage S3 API", overrides)
+        self.assertIn('"name": "Garage WebUI"', overrides)
+        self.assertIn('"external": false', overrides)
+
     def test_pihole_sync_uses_shared_read_only_docker_proxy(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
 
@@ -116,10 +134,25 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("TEMPORARY-EXCEPTION", script)
         self.assertIn("UNEXPECTED", script)
         self.assertIn("exit 3", script)
-        self.assertIn("garage.int.albandrieu.com", allowlist)
+        self.assertIn("s3.int.albandrieu.com", allowlist)
         self.assertIn("vaultwarden.int.albandrieu.com", allowlist)
+        self.assertNotIn("*.s3.int.albandrieu.com", allowlist)
+        self.assertNotIn("garage.int.albandrieu.com", allowlist)
+        self.assertNotIn("garage-admin.int.albandrieu.com", allowlist)
         self.assertNotIn("ollama.int.albandrieu.com", allowlist)
         self.assertNotIn("hello.int.albandrieu.com", allowlist)
+
+    def test_garage_host_ports_are_lan_bound(self) -> None:
+        compose = (ROOT / "apps" / "garage" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for port in ("3900", "3901", "3903", "3909"):
+            self.assertIn(f'"172.17.0.24:{port}:{port}"', compose)
+        self.assertIn('API_BASE_URL: "http://garage:3903"', compose)
+        self.assertIn('S3_ENDPOINT_URL: "http://garage:3900"', compose)
+        self.assertNotIn('"3903:3903"', compose)
+        self.assertNotIn('"3909:3909"', compose)
 
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
