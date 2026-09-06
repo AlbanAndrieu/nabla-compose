@@ -13,11 +13,12 @@
 - Bootstrap the shared backend network once if it does not already exist, and verify the Traefik network created by the TrueNAS Traefik app:
 
   ```bash
-  docker network inspect intranet >/dev/null 2>&1 || docker network create --driver bridge intranet
+  docker network inspect intranet >/dev/null 2>&1 || \
+    docker network create --driver bridge --subnet 172.16.55.0/24 intranet
   docker network inspect traefik_network >/dev/null
   ```
 
-  `intranet` is the shared backend/service-discovery network used by multiple independent Compose projects. Keep it separate from `traefik_network`, which is the ingress/proxy network.
+  `intranet` is the shared backend/service-discovery network used by multiple independent Compose projects. Keep it separate from `traefik_network`, which is the ingress/proxy network. The current production network uses `172.16.55.0/24`; do not recreate it with a different subnet without reviewing every static address and TrueNAS source-allowlist dependency.
 
 - Deploy Redis from `apps/redis/compose.yml` (or another Redis service attached to `intranet` with the DNS alias `redis`) before enabling the optional Redis integration.
 
@@ -228,9 +229,13 @@ scripts/security/verify-truenas-observer-access.sh
 ```
 
 Do not allow the whole shared Docker subnet merely to make this observer work.
-Until the `intranet` address is explicitly reserved, a container recreate can
-change its source IP and require a reviewed `ui_allowlist` update. The roadmap
-tracks moving the observer to a stable dedicated address/network boundary.
+The Compose service pins the observer source to
+`${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}` on `intranet`, matching the
+reviewed TrueNAS `/32` allowlist entry. A collision or subnet mismatch should
+fail deployment rather than silently move the observer to a different source
+address. Override `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed
+TrueNAS allowlist update. A future dedicated observer network can isolate this
+boundary further.
 
 The canonical runtime credentials are:
 
