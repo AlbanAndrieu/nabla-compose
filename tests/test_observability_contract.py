@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 import unittest
 from pathlib import Path
 
@@ -149,6 +150,13 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertIn("TrueNASHostMemoryCritical", node_rules)
         self.assertIn("severity: critical", node_rules)
+
+    def test_talos_cluster_validator_remains_executable(self) -> None:
+        mode = (ROOT / "scripts" / "talos" / "validate-cluster.sh").stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
 
     def test_syslog_preserves_sender_identity_for_live_source_checks(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
