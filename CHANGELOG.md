@@ -1,3 +1,11 @@
+# [0.12.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.11.0...0.12.0) (2026-09-06)
+
+
+### Features
+
+* **gatus:** expose synthetic service metrics ([#98](https://github.com/AlbanAndrieu/nabla-compose/issues/98)) ([6cb066a](https://github.com/AlbanAndrieu/nabla-compose/commit/6cb066abfc2de8349d068ca7b9b67e4d11e520bc))
+* **talos:** harden cluster validation and network smoke ([#100](https://github.com/AlbanAndrieu/nabla-compose/issues/100)) ([9868679](https://github.com/AlbanAndrieu/nabla-compose/commit/98686799b31d8ef466e7d006aec2cf833d58cd2e))
+
 # [0.11.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.10.1...0.11.0) (2026-09-06)
 
 
