@@ -34,6 +34,7 @@ host     = 172.17.0.24 (override with CLICKHOUSE_HOST only when reviewed)
 database = ntopng
 user     = ntopng
 password = NTOPNG_CLICKHOUSE_PASSWORD from /mnt/cpool/ntopng/.env.secrets
+           mounted as /run/secrets/ntopng_runtime_env
 ```
 
 Create a dedicated database/user with the ClickHouse administrative identity.
@@ -69,13 +70,16 @@ Do not print the value during runtime validation.
 
 ## Runtime behavior
 
-The repository wrapper renders `/run/nabla-ntopng.conf` at container startup
-with mode `0600`, then delegates to the upstream `/run.sh` entrypoint using
-only that configuration-file path. The ClickHouse password is therefore absent
-from the repository, Compose interpolation, and the ntopng process command
-line. The wrapper also unsets `NTOPNG_CLICKHOUSE_PASSWORD` before starting
-ntopng, leaving the ephemeral root-readable configuration file as the runtime
-credential carrier.
+The host `.env.secrets` file is mounted with the Compose secrets mechanism as
+`/run/secrets/ntopng_runtime_env`; it is **not** injected through `env_file`.
+The wrapper extracts `NTOPNG_CLICKHOUSE_PASSWORD`, renders
+`/run/nabla-ntopng.conf` at container startup with mode `0600`, then
+delegates to the upstream `/run.sh` entrypoint using only that
+configuration-file path. The ClickHouse password is therefore absent from the
+repository, Compose interpolation, Docker `Config.Env`, and the ntopng process
+command line. The wrapper also unsets its local password variable before
+starting ntopng, leaving the ephemeral root-readable configuration file as the
+runtime credential carrier.
 
 The generated configuration enables `--strict-startup`. If ntopng cannot
 initialize its ClickHouse backend, the service must fail startup instead of
@@ -88,12 +92,13 @@ Before treating the service as operational, validate:
 1. the dedicated `ntopng` database and user exist;
 2. the dedicated credentials can execute an authenticated query against
    database `ntopng`;
-3. the user has the required database-scoped DML/DDL grants but neither
+3. Docker `Config.Env` does not contain `NTOPNG_CLICKHOUSE_PASSWORD`;
+4. the user has the required database-scoped DML/DDL grants but neither
    `ALL ON ntopng.*` nor any global `*.*` grant;
-4. the mounted license is a regular non-empty file and `ntopng -V` reports
+5. the mounted license is a regular non-empty file and `ntopng -V` reports
    Enterprise M/L/XL/XXL;
-5. ntopng remains running with strict startup enabled;
-6. new flows appear in ClickHouse and remain queryable after both ntopng and
+6. ntopng remains running with strict startup enabled;
+7. new flows appear in ClickHouse and remain queryable after both ntopng and
    ClickHouse restarts.
 
 The lifecycle audit performs the first four checks when the TrueNAS ntopng app
