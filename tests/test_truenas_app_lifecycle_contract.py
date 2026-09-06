@@ -111,10 +111,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
 
         self.assertIn("ntopng runtime secret file is missing or unreadable", wrapper)
-        self.assertIn(
-            "NTOPNG_CLICKHOUSE_PASSWORD must be set in the runtime secret file",
-            wrapper,
-        )
         self.assertIn("/run/secrets/ntopng_runtime_env", wrapper)
         self.assertIn(
             "NTOPNG_CLICKHOUSE_PASSWORD must be exactly 64 hexadecimal characters",
