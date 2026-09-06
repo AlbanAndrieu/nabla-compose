@@ -179,6 +179,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("probe_secret_regex_if_present", audit)
         self.assertIn("GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'", audit)
         self.assertIn("function app_is_present", audit)
+        self.assertIn("function normalize_env_value", audit)
         self.assertIn("HOMARR_ENCRYPTION_KEY", audit)
         self.assertIn("SECRET_ENCRYPTION_KEY", audit)
         self.assertIn(
@@ -198,7 +199,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         runbook = self.read("docs/truenas-app-lifecycle.md")
 
         self.assertIn("prepare-migrations.mjs", runbook)
-        self.assertIn('render "$CANONICAL" unclustered default', runbook)
+        self.assertIn("org.opencontainers.image.revision", runbook)
+        self.assertIn("git checkout <IMAGE_REVISION_OR_TAG>", runbook)
         self.assertIn("no migration found for version 38", runbook)
         self.assertIn("do not run another `force`", runbook)
         self.assertIn("nabla\'s Recovery Token", runbook)
