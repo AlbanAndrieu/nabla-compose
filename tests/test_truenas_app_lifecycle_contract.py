@@ -269,6 +269,13 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_langfuse_init_contract_if_present", audit)
         self.assertIn("partial LANGFUSE_INIT_* set", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
+        self.assertIn("function probe_sentry_snuba_clickhouse_if_running", audit)
+        self.assertIn(
+            "no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated",
+            audit,
+        )
+        self.assertIn("Sentry/Snuba -> ClickHouse TCP", audit)
+        self.assertIn("Sentry web health (Snuba/ClickHouse not validated)", audit)
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn(
             "NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters",
@@ -345,6 +352,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("Sentry/Snuba", roadmap)
         self.assertIn("ntopng", roadmap)
         self.assertIn("synthetic Sentry event", roadmap)
+        self.assertIn("apps/sentry/compose.yml", roadmap)
+        self.assertIn("snuba-api", roadmap)
+        self.assertIn("web-process health only", roadmap)
+        self.assertIn("restore/adopt a supported Snuba topology", roadmap)
         self.assertIn("database `ntopng`", roadmap)
 
     def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
@@ -374,6 +385,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("## 4. ClickHouse datastore ownership blocked destructive DDL", failure_modes)
         self.assertIn("## 5. A healthy ClickHouse ping is necessary but not sufficient", failure_modes)
         self.assertIn("Sentry/Snuba", failure_modes)
+        self.assertIn("## 7. Sentry web health is not Snuba / ClickHouse health", failure_modes)
+        self.assertIn("false positive", failure_modes)
+        self.assertIn("synthetic Sentry event", failure_modes)
         self.assertIn("ntopng", failure_modes)
 
     def test_runtime_audit_script_is_executable(self) -> None:
