@@ -184,7 +184,9 @@ The repository ntopng application now fixes the database/user identity to
 `ntopng`, obtains only `NTOPNG_CLICKHOUSE_PASSWORD` from the runtime secret
 file, rejects known shared/default passwords, and enables `--strict-startup`.
 The TrueNAS lifecycle audit validates the dedicated database/user, forbids
-global `*.*` grants, and proves authenticated access when ntopng is running.
+global `*.*` grants and database-scoped `ALL`, then uses ClickHouse
+`CHECK GRANT` to prove the required scoped DML/DDL privileges when ntopng is
+running.
 
 The runtime flow-persistence test is still required before ntopng can be
 considered production-ready.
