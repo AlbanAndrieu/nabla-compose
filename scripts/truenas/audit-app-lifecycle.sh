@@ -298,6 +298,49 @@ function probe_clickhouse_runtime_if_running {
   functional_ok "ClickHouse SQL runtime: version=${version} timezone=${timezone} database=${database}"
 }
 
+function probe_clickhouse_langfuse_contract_if_present {
+  local container
+  local result
+
+  if ! app_is_present langfuse || ! app_is_running clickhouse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse Langfuse contract: container not found"
+    return
+  fi
+
+  if ! result="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "
+          SELECT concat(
+            toString((SELECT count() FROM system.databases WHERE name = '"'"'langfuse'"'"')),
+            '"'"'|'"'"',
+            toString((SELECT count() FROM system.users WHERE name = '"'"'langfuse'"'"'))
+          )
+        "
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse Langfuse contract: metadata query failed"
+    return
+  fi
+
+  if [[ "${result}" == "1|1" ]]; then
+    functional_ok "ClickHouse Langfuse contract: dedicated database/user present"
+  else
+    functional_fail "ClickHouse Langfuse contract: expected database/user langfuse (got ${result})"
+  fi
+}
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -320,6 +363,7 @@ probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets S
 probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
 probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
@@ -343,6 +387,7 @@ probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
+probe_clickhouse_langfuse_contract_if_present
 probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"

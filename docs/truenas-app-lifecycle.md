@@ -402,9 +402,11 @@ marker.
 
 Shared infrastructure contracts:
 
-- ClickHouse: `26.8.2.7`, timezone `UTC`, database `langfuse`;
-- PostgreSQL: shared PostgreSQL 18.6, generic user `nabla`, database
-  `postgres`;
+- ClickHouse: `26.8.2.7`, timezone `UTC`, dedicated user/database
+  `langfuse`;
+- PostgreSQL: shared PostgreSQL 18.6 with dedicated role/database `langfuse`;
+- shared administrative/generic identities (`clickhouse`, `nabla`) remain
+  separate from Langfuse runtime credentials;
 - Redis: internal `redis:6379`, key prefix `langfuse-v4:`;
 - MinIO: internal `minio:9000`, bucket `langfuse-v4`.
 
@@ -417,8 +419,8 @@ Runtime secrets remain in:
 and must include at least:
 
 ```text
-DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
-CLICKHOUSE_PASSWORD=<shared ClickHouse password>
+DATABASE_URL=postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse
+CLICKHOUSE_PASSWORD=<dedicated Langfuse ClickHouse password>
 REDIS_AUTH=<shared Redis password>
 SALT=<stable Langfuse salt>
 ENCRYPTION_KEY=<stable Langfuse encryption key>
@@ -442,30 +444,68 @@ clickhouse-client \
 
 Expected current live values are `26.8.2.7`, `UTC`, and `default`.
 
-If the Langfuse ClickHouse database must be recreated, first ensure the
-ClickHouse data directory is writable by UID/GID `101:101`. Do not run a
-database drop while ClickHouse reports filesystem permission errors.
-
-Then reset only Langfuse analytical state:
+If destructive ClickHouse DDL fails with `filesystem_error:
+Permission denied` below `/var/lib/clickhouse/store`, stop Langfuse and plan a
+short maintenance window for every shared ClickHouse consumer. Confirm that no
+other container mounts `/mnt/cpool/clickhouse`, stop ClickHouse, then repair
+the inherited ownership before restarting it:
 
 ```bash
-docker exec ix-clickhouse-clickhouse-1 sh -c '
-clickhouse-client \
-  --user "$CLICKHOUSE_USER" \
-  --password "$CLICKHOUSE_PASSWORD" \
-  --multiquery \
-  --query "
-    DROP DATABASE IF EXISTS langfuse;
-    CREATE DATABASE langfuse;
-  "
-'
+sudo chown -R 101:101 /mnt/cpool/clickhouse
+sudo chown -R 101:101 /mnt/cpool/logs/clickhouse-server
 ```
 
-PostgreSQL is different: the selected contract intentionally reuses the shared
-`postgres` database. Langfuse v4 uses the `public` schema of the selected
-database, so **never** run `DROP DATABASE postgres`. Before deleting old
-Langfuse PostgreSQL objects, inventory tables and owners and remove only objects
-proven to belong to the old Langfuse installation.
+`sudo install -d -o 101 -g 101 -m 0750 /mnt/cpool/clickhouse` creates the
+directory if it is missing and applies owner/mode; it does **not** erase an
+existing datastore. It does not replace the recursive ownership repair when old
+files are already owned by UID 568 or root.
+
+After ClickHouse is healthy again, create a dedicated Langfuse database/user
+with the administrative `clickhouse` identity. Generate a high-entropy
+`LANGFUSE_CLICKHOUSE_PASSWORD`, keep it outside Git, and store the same value
+as `CLICKHOUSE_PASSWORD` in `/mnt/cpool/langfuse/.env.secrets`.
+
+Required Langfuse v4 permissions for the single-container server:
+
+```sql
+CREATE DATABASE IF NOT EXISTS langfuse;
+CREATE USER IF NOT EXISTS langfuse IDENTIFIED WITH sha256_password BY '<secret>';
+
+GRANT SELECT, INSERT ON langfuse.* TO langfuse;
+GRANT ALTER UPDATE, ALTER DELETE ON langfuse.* TO langfuse;
+GRANT CREATE, DROP TABLE, DROP VIEW ON langfuse.* TO langfuse;
+GRANT ALTER ADD COLUMN, ALTER MODIFY COLUMN, ALTER VIEW MODIFY QUERY ON langfuse.* TO langfuse;
+GRANT ALTER ADD INDEX, ALTER DROP INDEX, ALTER MATERIALIZE INDEX ON langfuse.* TO langfuse;
+
+GRANT SELECT(database, table, name, partition, partition_id, active, rows)
+  ON system.parts TO langfuse;
+GRANT SELECT(database, table, is_done)
+  ON system.mutations TO langfuse;
+GRANT SELECT(database, name, engine)
+  ON system.tables TO langfuse;
+GRANT SELECT ON system.processes TO langfuse;
+GRANT SELECT ON system.query_log* TO langfuse;
+
+GRANT SYSTEM SYNC REPLICA, SYSTEM MERGES, ALTER SETTINGS
+  ON langfuse.observations_pid_tid_sorting TO langfuse;
+```
+
+Keep `CLICKHOUSE_CLUSTER_ENABLED=false` on this single-container deployment;
+the clustered `REMOTE` and `CLUSTER` grants are therefore unnecessary.
+
+PostgreSQL is also isolated. Do not modify the existing `nabla` role. Create a
+dedicated role/database and place its URL in the Langfuse secret file:
+
+```sql
+CREATE ROLE langfuse LOGIN PASSWORD '<secret>';
+CREATE DATABASE langfuse OWNER langfuse;
+```
+
+```text
+DATABASE_URL=postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse
+```
+
+The generic `nabla` role and shared `postgres` database remain untouched.
 
 The v4 Compose isolates the other shared dependencies with:
 
@@ -485,9 +525,10 @@ Before starting Langfuse v4:
 
 1. verify Docker DNS and TCP/9000 for `clickhouse`;
 2. verify Redis TCP/6379 and MinIO HTTP/9000;
-3. verify the generic PostgreSQL `nabla` user can connect to database
-   `postgres`;
-4. ensure no stale partial `LANGFUSE_INIT_*` bootstrap variables remain unless
+3. verify PostgreSQL user `langfuse` can connect to database `langfuse`;
+4. verify ClickHouse user `langfuse` can access database `langfuse` while
+   the administrative `clickhouse` identity remains separate;
+5. ensure no stale partial `LANGFUSE_INIT_*` bootstrap variables remain unless
    the complete headless bootstrap set is intentionally configured.
 
 Redeploy Langfuse and validate:
