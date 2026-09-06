@@ -1,3 +1,10 @@
+## [0.15.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.3...0.15.4) (2026-09-06)
+
+
+### Bug Fixes
+
+* **langfuse:** gate worker on runtime readiness ([#113](https://github.com/AlbanAndrieu/nabla-compose/issues/113)) ([c91f71f](https://github.com/AlbanAndrieu/nabla-compose/commit/c91f71f0021a225fc12465f99363622bf2dad862))
+
 ## [0.15.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.2...0.15.3) (2026-09-06)
 
 
