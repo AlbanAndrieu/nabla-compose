@@ -179,6 +179,27 @@ page identifies this runtime as **TrueNAS homelab production** rather than a
 local workstation. This mode is distinct from FastAPI Cloud production and is
 intended to use trusted LAN paths for TrueNAS, pfSense and Prometheus observers.
 
+The Compose service also applies container-local split DNS for the appliance
+hostnames:
+
+```text
+truenas.albandrieu.com -> 172.17.0.24
+home.albandrieu.com    -> 172.17.0.1
+```
+
+This keeps the existing TLS hostnames and certificate verification while
+bypassing public/WAN DNS routing from the internal observer. Keep
+`TRUENAS_API_VERIFY_SSL=true` and `PFSENSE_API_VERIFY_SSL=true` when the
+appliance certificates validate those hostnames. Do not replace this with
+`verify=false` merely to use a private IP.
+
+For Prometheus, keep the existing LAN-only setting in
+`/mnt/cpool/sample/.env`:
+
+```dotenv
+HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
+```
+
 The defaults target the TrueNAS runtime at `172.17.0.24` and validate:
 
 1. direct FastAPI health on `http://172.17.0.24:8091/health`;
