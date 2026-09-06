@@ -290,6 +290,10 @@ public CI:
       labels/series;
 - [ ] validate firewall, dpinger, authentication and VPN panels against real
       pfSense app names;
+- [ ] verify whether HAProxy package events are present in the same RFC5424
+      stream; if not, inspect `/api/v2/services/haproxy/settings` and the
+      local pfSense syslog routing before adding any second listener or
+      datastore;
 - [ ] run `verify-stack.sh --strict` and retain the pass/fail summary as the
       acceptance evidence;
 - [ ] run `verify-pfsense-syslog.sh --live-only` and prove the sender is
