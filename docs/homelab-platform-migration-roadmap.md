@@ -570,7 +570,8 @@ Acceptance after every shared ClickHouse change:
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba after the shared-server change, or explicitly decouple Sentry;
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
-      database/user, a mode-`0600` ephemeral runtime configuration with the
+      database/user, a Compose-mounted runtime secret absent from Docker
+      `Config.Env`, a mode-`0600` ephemeral ntopng configuration with the
       password removed from ntopng argv/environment, and `--strict-startup`;
 - [ ] before enabling ntopng, install a valid Enterprise M/L/XL/XXL license at
       `/mnt/cpool/ntopng/ntopng.license`, create the dedicated ClickHouse
