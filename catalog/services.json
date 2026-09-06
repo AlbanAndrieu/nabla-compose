@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:2a9a8f7a54a18da8bd827dc6a9075482f73f21cf1092f72b1d5dd7ac3b04651c",
+  "catalogRevision": "sha256:6f2359a6c32f392739ee89ce928d1e9a8dc6582864dce8c1432df76a34fc2131",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -16,7 +16,10 @@
         "provider": "truenas-app",
         "containerService": "2fauth"
       },
-      "icon": "🔐"
+      "icon": "🔐",
+      "securityFunctions": [
+        "protect"
+      ]
     },
     {
       "id": "alloy",
@@ -80,7 +83,11 @@
         "provider": "truenas-app",
         "containerService": "crowdsec"
       },
-      "icon": "🛡️"
+      "icon": "🛡️",
+      "securityFunctions": [
+        "detect",
+        "respond"
+      ]
     },
     {
       "id": "elasticsearch",
@@ -618,7 +625,10 @@
         "provider": "truenas-app",
         "containerService": "suricata"
       },
-      "icon": "🦈"
+      "icon": "🦈",
+      "securityFunctions": [
+        "detect"
+      ]
     },
     {
       "id": "sybase-exporter",
@@ -712,7 +722,10 @@
         "provider": "truenas-app",
         "containerService": "wazuh.manager"
       },
-      "icon": "🛡️"
+      "icon": "🛡️",
+      "securityFunctions": [
+        "detect"
+      ]
     }
   ]
 }
