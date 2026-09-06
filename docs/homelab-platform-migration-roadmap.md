@@ -61,9 +61,16 @@ must not be treated as evidence that the services are intentionally public.
   beginning with Ollama, Hello, Code, Dozzle, Drawio and LanguageTool;
 - [ ] review the legacy `nexus-albanandrieu.int` record and remove it if no
   current consumer requires it;
-- [ ] keep Garage/S3 direct-public records only while their explicit security
-  exception is required, then migrate them to non-`.int` hostnames or a
-  private network path;
+- [x] narrow the Garage public exception to the single S3 root endpoint
+  `s3.int.albandrieu.com`; OpenTofu sets `use_path_style=true`, so public
+  `*.s3.int.albandrieu.com` bucket subdomains are not required;
+- [ ] delete the live Cloudflare DNS records for
+  `garage.int.albandrieu.com`, `garage-admin.int.albandrieu.com` and
+  `*.s3.int.albandrieu.com`, while retaining internal Traefik routes where
+  needed for LAN administration;
+- [ ] migrate the remaining Garage S3 state endpoint to a private runner/VPN/WARP
+  path once all OpenTofu/Terragrunt writers are proven to run inside the trusted
+  network, then remove the final public `.int` S3 exceptions;
 - [ ] migrate any workstation dependency on
   `vaultwarden.int.albandrieu.com` away from public `.int` DNS. Prefer a
   private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
