@@ -59,6 +59,8 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("CF-Access-Client-Id", script)
         self.assertIn("CF-Access-Client-Secret", script)
         self.assertIn("Cloudflare Access is enforcing authentication", script)
+        self.assertIn("Cloudflare token response: HTTP", script)
+        self.assertIn("verify a Service Auth policy includes this token", script)
         self.assertNotIn("AUTOXPOSE_URL", script)
         self.assertNotIn("EXPECTED_PUBLIC_IP", script)
         self.assertNotIn("pfSense/HAProxy", script)
