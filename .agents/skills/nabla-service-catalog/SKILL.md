@@ -16,7 +16,7 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `kind`: architectural role;
 - `category`: catalog grouping;
 - `presentationRole`: optional UI intent, one of `service`, `core`, or `support`; prefer `service` for user-facing/lab capabilities, `core` for shared platform foundations, and `support` for auxiliary tooling;
-- `criticality`: optional operator-urgency tier, one of `critical`, `high`, `standard`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation;
+- `criticality`: optional operator-urgency tier, one of `critical`, `high`, `medium`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation;
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
 
