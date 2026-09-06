@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:63513f56a0157b5bb2232ae4a459fcb4d5cf556db6ab8de838c8e9e9a3538ebe",
+  "catalogRevision": "sha256:fbc65f4cbd593402bd4fba8b7a093a8d486f358cfef9e4fa1436d31dd04f0081",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -634,7 +634,9 @@
         "provider": "truenas-app",
         "containerService": "traefik"
       },
-      "icon": "🚦"
+      "icon": "🚦",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "wazuh-dashboard",
