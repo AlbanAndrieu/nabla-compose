@@ -16,6 +16,13 @@ include:
 Cross-application dependencies must use shared external Docker networks.
 `depends_on` is valid only for services defined in the same Compose project.
 
+Do not replace the Custom App wrapper with the full contents of an application
+Compose file when that Compose uses relative bind mounts such as
+`./config/prometheus.xml`. TrueNAS renders the custom Compose in its own
+application directory; a missing relative bind source can then be created by
+Docker as a directory. Keep the absolute `include:` wrapper above so relative
+paths are resolved from the repository-backed Compose project.
+
 The shared backend network is:
 
 ```text
@@ -408,8 +415,9 @@ Shared infrastructure contracts:
 - shared administrative/generic identities (`clickhouse`, `nabla`) remain
   separate from Langfuse runtime credentials;
 - the ClickHouse bootstrap administrator enables SQL-driven access management via
-  `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1`; this is required to create and alter
-  dedicated service users such as `langfuse`;
+  `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1`; validate its effective
+  `WITH GRANT OPTION` rights with `SHOW GRANTS FOR clickhouse` before
+  delegating service-account privileges;
 - Redis: internal `redis:6379`, key prefix `langfuse-v4:`;
 - MinIO: internal `minio:9000`, bucket `langfuse-v4`.
 
@@ -480,6 +488,10 @@ GRANT CREATE, DROP TABLE, DROP VIEW ON langfuse.* TO langfuse;
 GRANT ALTER ADD COLUMN, ALTER MODIFY COLUMN, ALTER VIEW MODIFY QUERY ON langfuse.* TO langfuse;
 GRANT ALTER ADD INDEX, ALTER DROP INDEX, ALTER MATERIALIZE INDEX ON langfuse.* TO langfuse;
 
+-- Langfuse v4.30 schema migrations modify MergeTree table settings
+-- (for example enable_block_number_column / enable_block_offset_column on scores).
+GRANT ALTER SETTINGS ON langfuse.* TO langfuse;
+
 GRANT SELECT(database, table, name, partition, partition_id, active, rows)
   ON system.parts TO langfuse;
 GRANT SELECT(database, table, is_done)
@@ -492,6 +504,13 @@ GRANT SELECT ON system.query_log* TO langfuse;
 GRANT SYSTEM SYNC REPLICA, SYSTEM MERGES, ALTER SETTINGS
   ON langfuse.observations_pid_tid_sorting TO langfuse;
 ```
+
+Langfuse 4.30.0 migration 48 also executes `ALTER TABLE scores MODIFY SETTING`.
+A missing database-scoped `ALTER SETTINGS` grant leaves ClickHouse migration
+version 48 dirty. Because this reset treats Langfuse ClickHouse history as
+disposable, stop Langfuse, add the grant, then drop/recreate only database
+`langfuse` and rerun the migrations instead of forcing the dirty migration
+version manually.
 
 Keep `CLICKHOUSE_CLUSTER_ENABLED=false` on this single-container deployment;
 the clustered `REMOTE` and `CLUSTER` grants are therefore unnecessary.

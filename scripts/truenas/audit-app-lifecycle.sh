@@ -255,6 +255,54 @@ function probe_legacy_secret_name {
   fi
 }
 
+function probe_langfuse_init_contract_if_present {
+  local file="/mnt/cpool/langfuse/.env.secrets"
+  local -a present=()
+  local variable
+
+  if ! app_is_present langfuse || [[ ! -r "${file}" ]]; then
+    return
+  fi
+
+  while IFS= read -r variable; do
+    [[ -n "${variable}" ]] && present+=("${variable}")
+  done < <(
+    grep -E '^LANGFUSE_INIT_[A-Z0-9_]+=.' "${file}" 2>/dev/null |
+      cut -d= -f1 |
+      sort -u
+  )
+
+  if (("${#present[@]}" == 0)); then
+    functional_ok "Langfuse init contract: no partial bootstrap variables configured"
+    return
+  fi
+
+  local -a required=(
+    LANGFUSE_INIT_ORG_ID
+    LANGFUSE_INIT_ORG_NAME
+    LANGFUSE_INIT_PROJECT_ID
+    LANGFUSE_INIT_PROJECT_NAME
+    LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+    LANGFUSE_INIT_PROJECT_SECRET_KEY
+    LANGFUSE_INIT_USER_EMAIL
+    LANGFUSE_INIT_USER_NAME
+    LANGFUSE_INIT_USER_PASSWORD
+  )
+
+  local -a missing=()
+  for variable in "${required[@]}"; do
+    if ! grep -q "^${variable}=." "${file}"; then
+      missing+=("${variable}")
+    fi
+  done
+
+  if (("${#missing[@]}" == 0)); then
+    functional_ok "Langfuse init contract: complete headless bootstrap set configured"
+  else
+    functional_fail "Langfuse init contract: partial LANGFUSE_INIT_* set; remove all bootstrap variables or configure the complete set"
+  fi
+}
+
 function probe_clickhouse_runtime_if_running {
   local container
   local result
@@ -298,6 +346,71 @@ function probe_clickhouse_runtime_if_running {
   functional_ok "ClickHouse SQL runtime: version=${version} timezone=${timezone} database=${database}"
 }
 
+function probe_clickhouse_config_mounts_if_running {
+  local container
+
+  if ! app_is_running clickhouse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse config mounts: container not found"
+    return
+  fi
+
+  # Incident guard: a TrueNAS Custom App with an incorrectly resolved relative
+  # bind source can materialize prometheus.xml as a directory instead of a file.
+  local path="/etc/clickhouse-server/config.d/prometheus.xml"
+  if docker exec "${container}" test -f "${path}"; then
+    functional_ok "ClickHouse config mount: ${path} is a file"
+  else
+    functional_fail "ClickHouse config mount: ${path} is not a regular file"
+  fi
+}
+
+function probe_clickhouse_admin_grant_option_if_running {
+  local container
+  local grants
+
+  if ! app_is_running clickhouse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse admin delegation: container not found"
+    return
+  fi
+
+  if ! grants="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR clickhouse"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse admin delegation: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -Eq 'GRANT .*ALTER.* ON [*][.][*] TO clickhouse WITH GRANT OPTION' <<<"${grants}" &&
+    grep -Eq 'GRANT CREATE USER,.* TO clickhouse WITH GRANT OPTION' <<<"${grants}"; then
+    functional_ok "ClickHouse admin delegation: required WITH GRANT OPTION privileges present"
+  else
+    functional_fail "ClickHouse admin delegation: required delegable ALTER/access-management privileges missing"
+  fi
+}
+
 function probe_clickhouse_langfuse_contract_if_present {
   local container
   local result
@@ -338,6 +451,26 @@ function probe_clickhouse_langfuse_contract_if_present {
     functional_ok "ClickHouse Langfuse contract: dedicated database/user present"
   else
     functional_fail "ClickHouse Langfuse contract: expected database/user langfuse (got ${result})"
+    return
+  fi
+
+  local grants
+  if ! grants="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR langfuse"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse Langfuse contract: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -Eq 'ALTER SETTINGS.*ON langfuse[.][*] TO langfuse' <<<"${grants}"; then
+    functional_ok "ClickHouse Langfuse contract: database-scoped ALTER SETTINGS present"
+  else
+    functional_fail "ClickHouse Langfuse contract: ALTER SETTINGS ON langfuse.* missing"
   fi
 }
 
@@ -438,6 +571,7 @@ probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secret
 probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
 probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
 probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
 
 printf '\n🔎 functional service checks\n'
 probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
@@ -449,6 +583,8 @@ probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
 probe_langfuse_worker_clickhouse_credentials_if_running
 probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
