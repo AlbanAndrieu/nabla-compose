@@ -7,6 +7,23 @@ The ClickHouse integration requires an **ntopng Enterprise M or higher**
 license. Do not enable the ClickHouse flow backend until the required ntopng
 license is installed and validated.
 
+The TrueNAS app mounts the persistent license from
+`/mnt/cpool/ntopng/ntopng.license` with `create_host_path: false`. The
+deployment therefore fails instead of allowing Docker to create a directory
+when the expected license file is missing. If a legacy host license already
+exists at `/etc/ntopng.license`, migrate it without printing its contents:
+
+```bash
+sudo install -d -m 700 /mnt/cpool/ntopng
+if sudo test -f /etc/ntopng.license; then
+  sudo install -m 600 /etc/ntopng.license /mnt/cpool/ntopng/ntopng.license
+fi
+sudo test -s /mnt/cpool/ntopng/ntopng.license
+```
+
+Otherwise place the licensed file directly at the persistent path with mode
+`0600` before creating the TrueNAS app.
+
 ## Dedicated ClickHouse identity
 
 ntopng must not reuse the shared administrative `clickhouse` account or the
@@ -73,8 +90,10 @@ Before treating the service as operational, validate:
    database `ntopng`;
 3. the user has the required database-scoped DML/DDL grants but neither
    `ALL ON ntopng.*` nor any global `*.*` grant;
-4. ntopng remains running with strict startup enabled;
-5. new flows appear in ClickHouse and remain queryable after both ntopng and
+4. the mounted license is a regular non-empty file and `ntopng -V` reports
+   Enterprise M/L/XL/XXL;
+5. ntopng remains running with strict startup enabled;
+6. new flows appear in ClickHouse and remain queryable after both ntopng and
    ClickHouse restarts.
 
 The lifecycle audit performs the first four checks when the TrueNAS ntopng app
