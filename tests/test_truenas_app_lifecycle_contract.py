@@ -71,6 +71,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("ES_HOST=elasticsearch", langflow)
         self.assertIn("aliases:\n          - opensearch", opensearch)
         self.assertIn("external: true\n    name: intranet", opensearch)
+        self.assertIn("external: true\n    name: nabla-security", opensearch)
 
     def test_langfuse_uses_shared_redis_and_minio_internal_ports(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
