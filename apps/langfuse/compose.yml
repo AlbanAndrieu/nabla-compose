@@ -14,6 +14,9 @@ services:
   langfuse-worker:
     image: ghcr.io/langfuse/langfuse-worker:4.30.0
     restart: always
+    depends_on:
+      langfuse-web:
+        condition: service_healthy
     env_file:
       - /mnt/cpool/langfuse/.env.secrets
     x-nabla:
@@ -56,14 +59,26 @@ services:
             - apps/langfuse/compose.yml:REDIS_HOST
     ports:
       - "127.0.0.1:3030:3030"
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3030/api/health
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     environment: &langfuse-worker-env
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://langfuse.albandrieu.com}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: ${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}
       CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_DB: langfuse
       CLICKHOUSE_CLUSTER_ENABLED: ${CLICKHOUSE_CLUSTER_ENABLED:-false}
       LANGFUSE_USE_AZURE_BLOB: ${LANGFUSE_USE_AZURE_BLOB:-false}
       LANGFUSE_USE_OCI_NATIVE_OBJECT_STORAGE: ${LANGFUSE_USE_OCI_NATIVE_OBJECT_STORAGE:-false}
@@ -138,6 +153,18 @@ services:
             - apps/langfuse/compose.yml:REDIS_HOST
     ports:
       - "172.17.0.24:3000:3000"
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - "http://127.0.0.1:3000/api/public/health?failIfDatabaseUnavailable=true"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
     environment:
       <<: *langfuse-worker-env
       LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:-http://172.17.0.24:9002}

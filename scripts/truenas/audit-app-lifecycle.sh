@@ -341,6 +341,68 @@ function probe_clickhouse_langfuse_contract_if_present {
   fi
 }
 
+function probe_langfuse_worker_clickhouse_credentials_if_running {
+  local container
+
+  if ! app_is_running langfuse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "langfuse-worker" || /^ix-langfuse-langfuse-worker-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "Langfuse worker ClickHouse auth: container not found"
+    return
+  fi
+
+  if docker exec "${container}" node -e '
+    const user = process.env.CLICKHOUSE_USER;
+    const password = process.env.CLICKHOUSE_PASSWORD;
+    const database = process.env.CLICKHOUSE_DB || "default";
+    const baseUrl = process.env.CLICKHOUSE_URL;
+
+    if (!user || !password || !baseUrl) {
+      process.stderr.write("missing ClickHouse runtime environment\n");
+      process.exit(1);
+    }
+
+    const query = encodeURIComponent("SELECT concat(currentUser(), '\''|'\'', currentDatabase())");
+    const url =
+      baseUrl.replace(/\/$/, "") +
+      "/?database=" +
+      encodeURIComponent(database) +
+      "&query=" +
+      query;
+    const authorization =
+      "Basic " + Buffer.from(user + ":" + password).toString("base64");
+
+    fetch(url, { headers: { Authorization: authorization } })
+      .then(async (response) => {
+        const body = (await response.text()).trim();
+        if (!response.ok) {
+          process.stderr.write("ClickHouse HTTP " + response.status + "\n");
+          process.exit(1);
+        }
+        if (body !== user + "|" + database) {
+          process.stderr.write("unexpected ClickHouse identity: " + body + "\n");
+          process.exit(1);
+        }
+      })
+      .catch((error) => {
+        process.stderr.write(String(error) + "\n");
+        process.exit(1);
+      });
+  ' >/dev/null 2>&1; then
+    functional_ok "Langfuse worker ClickHouse auth: runtime credentials accepted"
+  else
+    functional_fail "Langfuse worker ClickHouse auth: effective CLICKHOUSE_USER/PASSWORD/DB rejected"
+  fi
+}
+
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -388,6 +450,7 @@ probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
 probe_clickhouse_langfuse_contract_if_present
+probe_langfuse_worker_clickhouse_credentials_if_running
 probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"

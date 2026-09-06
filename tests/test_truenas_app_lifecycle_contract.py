@@ -94,8 +94,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("ghcr.io/langfuse/langfuse:4.30.0", langfuse)
         self.assertIn("ghcr.io/langfuse/langfuse-worker:4.30.0", langfuse)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
-        self.assertIn("CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}", langfuse)
-        self.assertIn("CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}", langfuse)
+        self.assertIn("CLICKHOUSE_DB: langfuse", langfuse)
+        self.assertIn("CLICKHOUSE_USER: langfuse", langfuse)
+        self.assertNotIn("${CLICKHOUSE_USER:-langfuse}", langfuse)
         self.assertIn(
             "CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}",
             langfuse,
@@ -117,6 +118,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertIn("TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}", langfuse)
         self.assertIn("NEXTAUTH_URL: ${NEXTAUTH_URL:-https://langfuse.albandrieu.com}", langfuse)
+        self.assertIn("langfuse-web:\n        condition: service_healthy", langfuse)
+        self.assertIn("http://127.0.0.1:3030/api/health", langfuse)
+        self.assertIn(
+            "http://127.0.0.1:3000/api/public/health?failIfDatabaseUnavailable=true",
+            langfuse,
+        )
         self.assertIn("http://minio:9000", langfuse)
         self.assertNotIn("      DATABASE_URL:", langfuse)
         self.assertNotIn("      REDIS_AUTH:", langfuse)
@@ -205,6 +212,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
+        self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
+        self.assertIn("runtime credentials accepted", audit)
         self.assertIn("dedicated database/user present", audit)
         self.assertIn("timezone(),", audit)
         self.assertIn("http://172.17.0.24:9005/_health/", audit)
