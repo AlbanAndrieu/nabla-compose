@@ -101,6 +101,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('LANGFLOW_AUTO_LOGIN: "false"', langflow)
         self.assertIn("LANGFLOW_SUPERUSER:", langflow)
         self.assertNotIn("LANGFLOW_SUPERUSER_PASSWORD:", langflow)
+        self.assertIn('DO_NOT_TRACK: "true"', langflow)
 
     def test_homarr_compose_preserves_native_port_and_dataset(self) -> None:
         homarr = self.read("apps/homarr/compose.yml")
@@ -111,7 +112,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/homarr/.env.secrets", homarr)
         self.assertIn("/mnt/cpool/homarr/sync:/state", homarr)
         self.assertNotIn("SECRET_ENCRYPTION_KEY: ${", homarr)
-        self.assertIn("cap_add:\n      - CHOWN\n      - SETGID\n      - SETUID", homarr)
+        self.assertIn(
+            "cap_add:\n      - CHOWN\n      - DAC_OVERRIDE\n      - SETGID\n      - SETUID",
+            homarr,
+        )
 
     def test_scrutiny_loads_influx_token_from_runtime_env_file(self) -> None:
         scrutiny = self.read("apps/scrutiny/compose.yml")
@@ -119,10 +123,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/scrutiny/.env.secrets", scrutiny)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN:?", scrutiny)
         self.assertNotIn("SCRUTINY_WEB_INFLUXDB_TOKEN:", scrutiny)
-        self.assertNotIn("SCRUTINY_WEB_INFLUXDB_ORG:", scrutiny)
-        self.assertNotIn("SCRUTINY_WEB_INFLUXDB_BUCKET:", scrutiny)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_HOST: influxdb", scrutiny)
         self.assertIn('SCRUTINY_WEB_INFLUXDB_PORT: "8086"', scrutiny)
+        self.assertIn(
+            "SCRUTINY_WEB_INFLUXDB_ORG: ${SCRUTINY_WEB_INFLUXDB_ORG:-nabla}",
+            scrutiny,
+        )
+        self.assertIn(
+            "SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_WEB_INFLUXDB_BUCKET:-metrics}",
+            scrutiny,
+        )
 
     def test_graylog_avoids_clickhouse_host_port_9000(self) -> None:
         graylog = self.read("apps/graylog/compose.yml")
@@ -131,13 +141,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("GRAYLOG_HTTP_PORT:-9003", graylog)
         self.assertIn("http://172.17.0.24:9003/", graylog)
         self.assertIn(
-            "/mnt/cpool/compose/nabla-compose/apps/graylog/config/graylog:/usr/share/graylog/data/config:ro",
-            graylog,
-        )
-        self.assertIn(
             "/mnt/cpool/graylog/data/journal:/usr/share/graylog/data/journal",
             graylog,
         )
+        self.assertNotIn("/usr/share/graylog/data/config", graylog)
         self.assertNotIn("/mnt/cpool/graylog/data:/usr/share/graylog/data", graylog)
 
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
@@ -167,6 +174,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
         self.assertIn("GRAYLOG_MONGODB_URI", audit)
+        self.assertIn("HOMARR_ENCRYPTION_KEY", audit)
+        self.assertIn("SECRET_ENCRYPTION_KEY", audit)
+        self.assertIn(
+            "Decryption failed, likely due to incorrect encryption key or corrupted data",
+            audit,
+        )
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
