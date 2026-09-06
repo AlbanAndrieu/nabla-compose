@@ -572,9 +572,11 @@ Acceptance after every shared ClickHouse change:
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
       database/user, a mode-`0600` ephemeral runtime configuration with the
       password removed from ntopng argv/environment, and `--strict-startup`;
-- [ ] before enabling ntopng, create the dedicated ClickHouse database/user,
-      store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate authenticated
-      access with only `SELECT`, `INSERT`, `TRUNCATE`, `CREATE TABLE`,
+- [ ] before enabling ntopng, install a valid Enterprise M/L/XL/XXL license at
+      `/mnt/cpool/ntopng/ntopng.license`, create the dedicated ClickHouse
+      database/user, store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate
+      authenticated access with only `SELECT`, `INSERT`, `TRUNCATE`,
+      `CREATE TABLE`,
       `DROP TABLE` and `ALTER` on `ntopng.*`; explicitly reject both
       database-scoped `ALL` and global `*.*` grants;
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
