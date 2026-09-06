@@ -295,9 +295,10 @@ Prometheus queries used by FastAPI Sample must be:
 
 Never expose an arbitrary PromQL proxy in the public API.
 
-Application-side work is tracked in
-`AlbanAndrieu/fastapi-sample#195`; the service-first presentation is developed
-in `AlbanAndrieu/fastapi-sample#196`.
+The service-first presentation is developed in
+`AlbanAndrieu/fastapi-sample#196`. A later application-side metrics
+aggregation change should consume only the fixed `nabla:*` recording rules
+from the trusted LAN; no separate PR number is reserved yet.
 
 ## Hardening follow-ups
 
