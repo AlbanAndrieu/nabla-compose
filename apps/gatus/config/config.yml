@@ -427,7 +427,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pfsense-exporter
     nabla_service_id: pfsense-exporter
-  url: http://172.17.0.24:9945/metrics?target=172.17.0.1:10443
+  url: http://172.17.0.24:9945/metrics?target=172.17.0.1
   conditions:
   - '[STATUS] == 200'
 - name: Pihole
