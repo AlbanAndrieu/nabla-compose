@@ -83,12 +83,31 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("REDIS_HOST: ${REDIS_HOST:-redis}", langfuse)
         self.assertIn("REDIS_PORT: ${REDIS_PORT:-6379}", langfuse)
         self.assertIn("http://minio:9000", langfuse)
-        self.assertNotIn("postgresql://postgres:postgres@", langfuse)
-        self.assertNotIn("REDIS_AUTH: ${REDIS_AUTH:-myredissecret}", langfuse)
-        self.assertNotIn("NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-mysecret}", langfuse)
+        self.assertNotIn("      DATABASE_URL:", langfuse)
+        self.assertNotIn("      REDIS_AUTH:", langfuse)
+        self.assertNotIn("      NEXTAUTH_SECRET:", langfuse)
         self.assertNotIn("LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:-http://172.17.0.24:9000}", langfuse)
         self.assertIn("external: true\n    name: intranet", langfuse)
         self.assertIn("aliases:\n          - minio", minio)
+
+    def test_langflow_uses_boolean_tracing_flag_and_shared_opensearch(self) -> None:
+        langflow = self.read("apps/langflow/compose.yml")
+
+        self.assertIn('LANGFLOW_DEACTIVATE_TRACING: "true"', langflow)
+        self.assertNotIn("LANGFLOW_DEACTIVATE_TRACING=\n", langflow)
+        self.assertIn("OPENSEARCH_HOST: opensearch", langflow)
+        self.assertIn("/mnt/cpool/langflow/.env.secrets", langflow)
+        self.assertIn("external: true\n    name: intranet", langflow)
+
+    def test_homarr_compose_preserves_native_port_and_dataset(self) -> None:
+        homarr = self.read("apps/homarr/compose.yml")
+
+        self.assertIn("ghcr.io/homarr-labs/homarr:v1.76.2", homarr)
+        self.assertIn("172.17.0.24:30100:7575", homarr)
+        self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
+        self.assertIn("/mnt/cpool/homarr/.env.secrets", homarr)
+        self.assertIn("/mnt/cpool/homarr/sync:/state", homarr)
+        self.assertNotIn("SECRET_ENCRYPTION_KEY: ${", homarr)
 
     def test_scrutiny_loads_influx_token_from_runtime_env_file(self) -> None:
         scrutiny = self.read("apps/scrutiny/compose.yml")
