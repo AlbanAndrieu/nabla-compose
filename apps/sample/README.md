@@ -102,84 +102,107 @@ The local host port defaults to `8091`, mapped to container port `8080`:
 curl -fsS http://127.0.0.1:8091/health
 ```
 
-The internal Traefik route remains `https://fastapi-sample.int.albandrieu.com`.
-The public route is `https://sample.albandrieu.com`.
+The canonical internal Traefik route is `https://sample.int.albandrieu.com`.
+The former `https://fastapi-sample.int.albandrieu.com` hostname remains as a
+compatibility alias.
 
-### Public ingress ownership
+The protected public route is `https://sample.albandrieu.com`.
 
-Keep responsibilities separated:
+### Ingress ownership
+
+Keep the LAN and public ingress paths separate:
 
 ```text
-AutoXpose (Cloudflare DNS only)
-        |
-        v
-sample.albandrieu.com -> 82.66.4.247
-        |
-        v
-pfSense HAProxy :443
-        | TLS re-encryption
-        v
+LAN workstation
+      |
+      v
+Pi-hole DNS
+sample.int.albandrieu.com -> 172.17.0.24
+      |
+      v
 Traefik :443
-        |
-        v
+      |
+      v
 fastapi-sample:8080
 ```
 
-AutoXpose must have the Cloudflare DNS provider configured for
-`albandrieu.com` and **no Nginx Proxy Manager or Caddy proxy provider**.
-The sample uses `autoxpose.enable=auto`, so configuring a proxy provider in
-AutoXpose would create a second proxy route and violate this ownership model.
+```text
+Internet
+   |
+   v
+Cloudflare Access
+   |
+   v
+Cloudflare Tunnel
+   |
+   v
+http://172.17.0.24:8091
+   |
+   v
+fastapi-sample:8080
+```
 
-The legacy `docker-traefik-cloudflare-companion` still runs for other Traefik
-hosts. It is explicitly configured to exclude the `sample` and `int`
-subdomain trees from the `albandrieu.com` zone so it cannot race AutoXpose
-for `sample.albandrieu.com` or publish private `*.int.albandrieu.com`
-routers to public DNS. Long term, consolidate Cloudflare record ownership into
-one reconciler instead of keeping multiple DNS automation paths.
+For the Cloudflare Tunnel published application, use:
 
-Current AutoXpose labels intentionally use only the documented contract:
-`autoxpose.enable`, `subdomain`, `name`, `scheme` and `port`.
-Do not reintroduce the legacy/unsupported `autoxpose.domain` label.
+- public hostname: `sample.albandrieu.com`;
+- service type: `HTTP`;
+- service URL: `http://172.17.0.24:8091`.
 
-AutoXpose targets the published host port `8091` for discovery/DNS metadata;
-Traefik reaches the container directly on `traefik_network` port `8080`.
+The public Tunnel path deliberately bypasses pfSense HAProxy and Traefik.
+Cloudflare Tunnel establishes the origin connection outbound from the
+`cloudflared` connector, so there is no reason to publish the sample through
+the WAN HAProxy path as well.
 
-### TLS / DNS acceptance
+The account uses a Default-Deny Cloudflare Access posture. Therefore the
+hostname also needs a matching self-hosted Access application with at least
+one effective policy. A Tunnel route alone is not enough: without an Access
+application/policy, Cloudflare correctly blocks the request before it reaches
+the origin.
 
-Traefik uses Let's Encrypt with the Cloudflare DNS-01 challenge. Keep the ACME
-registration email explicit via `TRAEFIK_ACME_EMAIL`. The certificate store is
-`/mnt/cpool/traefik/certs/acme.json`; it must exist with mode `600` and must
-not be shared by multiple Traefik instances.
+Do not add AutoXpose labels to FastAPI Sample. AutoXpose may keep its persisted
+Nginx Proxy Manager provider for other services, but it is not an owner of
+either Sample hostname:
 
-Run the read-only acceptance check from TrueNAS **or from a LAN workstation**
-after recreating AutoXpose, Traefik and FastAPI Sample:
+- `sample.int.albandrieu.com` -> Pi-hole / Traefik;
+- `sample.albandrieu.com` -> Cloudflare Tunnel / Access.
+
+### TLS / Access acceptance
+
+Run the read-only acceptance check from TrueNAS or from a LAN workstation:
 
 ```bash
 bash scripts/ingress/verify-sample-exposure.sh
 ```
 
-The defaults target the TrueNAS runtime at `172.17.0.24`:
+The defaults target the TrueNAS runtime at `172.17.0.24` and validate:
 
-- FastAPI Sample: `http://172.17.0.24:8091/health`;
-- AutoXpose: `http://172.17.0.24:4949`;
-- Traefik TLS: `172.17.0.24:443`.
+1. direct FastAPI health on `http://172.17.0.24:8091/health`;
+2. Pi-hole resolution of `sample.int.albandrieu.com` to `172.17.0.24`;
+3. direct Traefik routing/TLS for the internal hostname;
+4. public Cloudflare DNS and edge TLS;
+5. Cloudflare Access enforcement.
+
+Without a Cloudflare Access service token, a redirect/challenge from Access is
+the expected public result. To prove the full Tunnel path through Access, set
+both service-token variables:
+
+```bash
+CF_ACCESS_CLIENT_ID='...' \
+CF_ACCESS_CLIENT_SECRET='...' \
+  bash scripts/ingress/verify-sample-exposure.sh
+```
+
+The script then sends the standard Cloudflare Access service-token headers and
+requires `https://sample.albandrieu.com/health` to return successfully.
 
 A workstation-local FastAPI process listening on `0.0.0.0:8080` is a
-different runtime. To test it deliberately, override only the local probe:
+different runtime. To test it deliberately, override only the direct health
+probe:
 
 ```bash
 LOCAL_HEALTH_URL=http://127.0.0.1:8080/health \
   bash scripts/ingress/verify-sample-exposure.sh
 ```
-
-When the script runs outside TrueNAS, the direct `acme.json` filesystem check
-is skipped if `/mnt/cpool/traefik/certs/acme.json` is not readable; both live
-TLS certificate checks still run.
-
-The script verifies the local health endpoint, AutoXpose Cloudflare DNS-only
-ownership, public DNS, the certificate served directly by Traefik with SNI,
-the public certificate served by pfSense/HAProxy, and the final public
-`/health` path.
 
 
 ## Persistence policy
