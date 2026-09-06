@@ -67,28 +67,59 @@ printf 'OK: TrueNAS ui_allowlist permits %s\n' "${container_ip}"
 
 printf '==> sanitized FastAPI TrueNAS credential selection\n'
 docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+import os
+
 from nabla.settings.homelab import TrueNASProviderSettings
 
 settings = TrueNASProviderSettings()
 key = settings.adapter_api_key
 key_id = key.split("-", 1)[0] if "-" in key else "<unknown>"
 
-print("username_variable =", settings.adapter_username_environment)
-print("api_key_variable  =", settings.adapter_api_key_environment)
+username_candidates = (
+    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
+    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
+    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
+)
+selected_username_variable = next(
+    (name for name, value in username_candidates if value),
+    "TRUENAS_API_USERNAME",
+)
+shadowed_username_variables = [
+    name
+    for name, value in username_candidates
+    if value and name != selected_username_variable
+]
+
+api_key_candidates = (
+    ("TRUENAS_API_KEY", os.getenv("TRUENAS_API_KEY", "").strip()),
+    ("TRUENAS_MCP_API_KEY", os.getenv("TRUENAS_MCP_API_KEY", "").strip()),
+)
+selected_api_key_variable = next(
+    (name for name, value in api_key_candidates if value),
+    "TRUENAS_API_KEY",
+)
+shadowed_api_key_variables = [
+    name
+    for name, value in api_key_candidates
+    if value and name != selected_api_key_variable
+]
+
+print("username_variable =", selected_username_variable)
+print("api_key_variable  =", selected_api_key_variable)
 print("api_key_id        =", key_id)
 print("verify_ssl        =", settings.verify_ssl)
 print(
     "shadowed_username_variables =",
-    ",".join(settings.shadowed_username_environments) or "<none>",
+    ",".join(shadowed_username_variables) or "<none>",
 )
 print(
     "shadowed_api_key_variables  =",
-    ",".join(settings.shadowed_api_key_environments) or "<none>",
+    ",".join(shadowed_api_key_variables) or "<none>",
 )
 
-if settings.adapter_username_environment != "TRUENAS_API_USERNAME":
+if selected_username_variable != "TRUENAS_API_USERNAME":
     raise SystemExit("canonical TRUENAS_API_USERNAME is not selected")
-if settings.adapter_api_key_environment != "TRUENAS_API_KEY":
+if selected_api_key_variable != "TRUENAS_API_KEY":
     raise SystemExit("canonical TRUENAS_API_KEY is not selected")
 if not settings.verify_ssl:
     raise SystemExit(
@@ -98,9 +129,17 @@ PY
 
 shadowed_user="$(
   docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
-from nabla.settings.homelab import TrueNASProviderSettings
+import os
 
-print(",".join(TrueNASProviderSettings().shadowed_username_environments))
+selected = "TRUENAS_API_USERNAME" if os.getenv("TRUENAS_API_USERNAME", "").strip() else (
+    "TRUENAS_USERNAME" if os.getenv("TRUENAS_USERNAME", "").strip() else "TRUENAS_USER"
+)
+configured = (
+    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
+    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
+    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
+)
+print(",".join(name for name, value in configured if value and name != selected))
 PY
 )"
 if [[ -n "${shadowed_user}" ]]; then
