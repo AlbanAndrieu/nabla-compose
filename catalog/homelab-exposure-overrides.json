@@ -27,7 +27,7 @@
       "external": true,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "Only the Garage S3 API at s3.int.albandrieu.com (and bucket subdomains) retains a temporary direct-public exception for OpenTofu state access. garage-admin.int.albandrieu.com and garage.int.albandrieu.com are administration surfaces and must remain LAN/VPN-only; any public DNS record for them is configuration drift."
+      "securityException": "Only the Garage S3 API at s3.int.albandrieu.com retains a temporary direct-public exception for the OpenTofu state backend. OpenTofu uses path-style S3 requests, so public bucket subdomains are not required. garage-admin.int.albandrieu.com, garage.int.albandrieu.com and *.s3.int.albandrieu.com must remain private; any public DNS record for them is configuration drift."
     },
     {
       "name": "Garage WebUI",
