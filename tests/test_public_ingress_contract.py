@@ -44,6 +44,22 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", compose)
         self.assertNotIn("172.17.0.24:2375", compose)
 
+    def test_sample_acceptance_defaults_to_truenas_from_lan(self) -> None:
+        script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"', script)
+        self.assertIn(
+            'LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"',
+            script,
+        )
+        self.assertIn(
+            'AUTOXPOSE_URL="${AUTOXPOSE_URL:-http://${TRUENAS_HOST}:4949}"',
+            script,
+        )
+        self.assertIn("SKIP: ACME store", script)
+
     def test_legacy_cloudflare_companion_cannot_own_sample_dns(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
 
