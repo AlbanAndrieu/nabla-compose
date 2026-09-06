@@ -15,10 +15,32 @@ NTOPNG_CLICKHOUSE_PASSWORD="$(
   sed -n 's/^NTOPNG_CLICKHOUSE_PASSWORD=//p' "${secret_file}" |
     tail -n 1
 )"
-if [ -z "${NTOPNG_CLICKHOUSE_PASSWORD}" ]; then
-  printf '%s\n' "NTOPNG_CLICKHOUSE_PASSWORD must be set in the runtime secret file" >&2
+
+# Vaultwarden rendering quotes dotenv values literally. Strip only matching
+# outer quotes, then keep the credential format deliberately narrow so no
+# general-purpose dotenv evaluation is required here.
+case "${NTOPNG_CLICKHOUSE_PASSWORD}" in
+  \'*\')
+    NTOPNG_CLICKHOUSE_PASSWORD=${NTOPNG_CLICKHOUSE_PASSWORD#\'}
+    NTOPNG_CLICKHOUSE_PASSWORD=${NTOPNG_CLICKHOUSE_PASSWORD%\'}
+    ;;
+  \"*\")
+    NTOPNG_CLICKHOUSE_PASSWORD=${NTOPNG_CLICKHOUSE_PASSWORD#\"}
+    NTOPNG_CLICKHOUSE_PASSWORD=${NTOPNG_CLICKHOUSE_PASSWORD%\"}
+    ;;
+esac
+
+if [ "${#NTOPNG_CLICKHOUSE_PASSWORD}" -ne 64 ]; then
+  printf '%s\n' "NTOPNG_CLICKHOUSE_PASSWORD must be exactly 64 hexadecimal characters" >&2
   exit 1
 fi
+
+case "${NTOPNG_CLICKHOUSE_PASSWORD}" in
+  *[!0-9A-Fa-f]*)
+    printf '%s\n' "NTOPNG_CLICKHOUSE_PASSWORD must be exactly 64 hexadecimal characters" >&2
+    exit 1
+    ;;
+esac
 
 NTOPNG_CLICKHOUSE_DATABASE="ntopng"
 NTOPNG_CLICKHOUSE_USER="ntopng"
