@@ -1,12 +1,14 @@
-# cAdvisor alert rules (from awesome-prometheus-alerts)
+---
 groups:
-- name: GoogleCadvisor
-  rules:
-    - alert: ContainerKilled
-      expr: time() - container_last_seen > 60
-      for: 0m
-      labels: {severity: warning}
-      annotations:
-        summary: Container killed
-        description: "A container has disappeared."
-# ... (add more cAdvisor rules from awesome-prometheus-alerts)
+  - name: TrueNASCAdvisor
+    rules:
+      - alert: TrueNASCAdvisorDown
+        expr: up{job="truenas_cadvisor"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
+        annotations:
+          summary: TrueNAS container telemetry is unavailable
+          description: "Prometheus cannot scrape TrueNAS container metrics for more than 2 minutes."

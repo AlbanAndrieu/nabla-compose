@@ -6,9 +6,11 @@ groups:
         expr: up{job="pfsense_exporter"} == 0
         for: 2m
         labels:
-          severity: critical
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
         annotations:
-          summary: pfSense exporter scrape is down
+          summary: pfSense metrics path is unavailable
           description: >-
             Prometheus cannot successfully scrape the pfSense exporter target
             for at least two minutes.

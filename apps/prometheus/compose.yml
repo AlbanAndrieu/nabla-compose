@@ -6,7 +6,7 @@ secrets:
 services:
   prometheus:
     network_mode: bridge
-    image: prom/prometheus:${PROMETHEUS_IMG:-latest}
+    image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
     container_name: prometheus
     restart: unless-stopped
     x-nabla:
@@ -63,7 +63,7 @@ services:
 
   node-exporter:
     network_mode: bridge
-    image: quay.io/prometheus/node-exporter:latest
+    image: quay.io/prometheus/node-exporter:v1.12.1
     restart: unless-stopped
     volumes:
       - /proc:/host/proc:ro
@@ -74,7 +74,7 @@ services:
       - "--path.rootfs=/host"
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
-      - --collector.filesystem.ignored-mount-points
+      - --collector.filesystem.mount-points-exclude
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
       - 9100:9100

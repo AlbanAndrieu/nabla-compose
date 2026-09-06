@@ -1,0 +1,33 @@
+---
+groups:
+  - name: NablaCoreSignals
+    interval: 30s
+    rules:
+      - record: nabla:telemetry:pfsense_metrics_up
+        expr: max(up{job="pfsense_exporter"})
+
+      - record: nabla:telemetry:truenas_node_up
+        expr: max(up{job="truenas_node"})
+
+      - record: nabla:telemetry:truenas_cadvisor_up
+        expr: max(up{job="truenas_cadvisor"})
+
+      - record: nabla:core:truenas_memory_available_ratio
+        expr: |
+          max(
+            node_memory_MemAvailable_bytes{job="truenas_node"}
+            /
+            node_memory_MemTotal_bytes{job="truenas_node"}
+          )
+
+      - record: nabla:core:truenas_cpu_busy_ratio
+        expr: |
+          1 - avg(
+            rate(node_cpu_seconds_total{job="truenas_node",mode="idle"}[5m])
+          )
+
+  - name: NablaObservabilitySignals
+    interval: 30s
+    rules:
+      - record: nabla:observability:prometheus_up
+        expr: max(up{job="prometheus"})

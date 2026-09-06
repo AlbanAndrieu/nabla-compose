@@ -1,12 +1,65 @@
-# Node Exporter alert rules (from awesome-prometheus-alerts)
+---
 groups:
-- name: NodeExporter
-  rules:
-    - alert: HostOutOfMemory
-      expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < .10)
-      for: 2m
-      labels: {severity: warning}
-      annotations:
-        summary: Host out of memory
-        description: "Node memory is filling up (< 10% left)"
-# ... (add more node-exporter warnings/critical rules from awesome-prometheus-alerts)
+  - name: TrueNASNodeExporter
+    rules:
+      - alert: TrueNASNodeExporterDown
+        expr: up{job="truenas_node"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
+        annotations:
+          summary: TrueNAS node-exporter telemetry is unavailable
+          description: "Prometheus cannot scrape TrueNAS host metrics for more than 2 minutes."
+
+      - alert: TrueNASHostOutOfMemory
+        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: TrueNAS host memory is low
+          description: "Less than 10% of host memory has remained available for 5 minutes."
+
+      - alert: TrueNASHostMemoryCritical
+        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
+        for: 2m
+        labels:
+          severity: critical
+          scope: platform
+        annotations:
+          summary: TrueNAS host memory is critically low
+          description: "Less than 5% of host memory has remained available for 2 minutes."
+
+      - alert: TrueNASFilesystemSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="truenas_node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|ramfs|nsfs|tracefs|fusectl|autofs"}
+            /
+            node_filesystem_size_bytes{job="truenas_node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|ramfs|nsfs|tracefs|fusectl|autofs"}
+          ) < 0.15
+          and on(instance, device, mountpoint)
+          node_filesystem_readonly{job="truenas_node"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: TrueNAS filesystem free space is low
+          description: "Filesystem {{ $labels.mountpoint }} has less than 15% available space."
+
+      - alert: TrueNASFilesystemSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="truenas_node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|ramfs|nsfs|tracefs|fusectl|autofs"}
+            /
+            node_filesystem_size_bytes{job="truenas_node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|ramfs|nsfs|tracefs|fusectl|autofs"}
+          ) < 0.05
+          and on(instance, device, mountpoint)
+          node_filesystem_readonly{job="truenas_node"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: TrueNAS filesystem free space is critical
+          description: "Filesystem {{ $labels.mountpoint }} has less than 5% available space."
