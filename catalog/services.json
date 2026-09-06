@@ -630,13 +630,13 @@
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "traefik",
       "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+      "presentationRole": "core",
+      "criticality": "critical",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "traefik"
       },
-      "icon": "🚦",
-      "presentationRole": "core",
-      "criticality": "critical"
+      "icon": "🚦"
     },
     {
       "id": "wazuh-dashboard",
