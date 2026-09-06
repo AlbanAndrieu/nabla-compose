@@ -24,6 +24,7 @@ COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?m
 RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
+SECURITY_FUNCTIONS = {"govern", "identify", "protect", "detect", "respond", "recover"}
 RELATION_TYPES = {
     "dependsOn",
     "consumesApi",
@@ -106,6 +107,30 @@ def presentation_metadata(
     return result
 
 
+def security_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, list[str]]:
+    """Validate optional NIST CSF 2.0 security-function metadata."""
+
+    raw = metadata.get("securityFunctions")
+    if raw is None:
+        return {}
+    if not isinstance(raw, list) or not raw:
+        fail(f"{context}.securityFunctions must be a non-empty list")
+
+    values: list[str] = []
+    for index, value in enumerate(raw):
+        if not isinstance(value, str) or value not in SECURITY_FUNCTIONS:
+            supported = ", ".join(sorted(SECURITY_FUNCTIONS))
+            fail(
+                f"{context}.securityFunctions[{index}] must be one of: {supported}"
+            )
+        if value in values:
+            fail(f"{context}.securityFunctions must not contain duplicates")
+        values.append(value)
+    return {"securityFunctions": values}
+
+
 def topology_node(
     metadata: dict[str, Any], source_path: str, context: str
 ) -> dict[str, Any]:
@@ -123,6 +148,7 @@ def topology_node(
         if value is not None:
             node[key] = value
     node.update(presentation_metadata(metadata, context))
+    node.update(security_metadata(metadata, context))
     return node
 
 
@@ -167,7 +193,13 @@ def declared_service(
         "sourcePath": node["sourcePath"],
         "composeService": compose_service,
     }
-    for key in ("url", "description", "presentationRole", "criticality"):
+    for key in (
+        "url",
+        "description",
+        "presentationRole",
+        "criticality",
+        "securityFunctions",
+    ):
         if key in node:
             service[key] = node[key]
     runtime = runtime_binding(metadata, context)
