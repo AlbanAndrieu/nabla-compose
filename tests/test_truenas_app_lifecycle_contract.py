@@ -92,7 +92,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         wrapper = self.read("apps/ntopng/entrypoint.sh")
         readme = self.read("apps/ntopng/README.md")
 
-        self.assertIn("/mnt/cpool/ntopng/.env.secrets", compose)
+        self.assertIn("ntopng_runtime_env:", compose)
+        self.assertIn("file: /mnt/cpool/ntopng/.env.secrets", compose)
+        self.assertIn("source: ntopng_runtime_env", compose)
+        self.assertIn("target: ntopng_runtime_env", compose)
+        self.assertNotIn("\n    env_file:\n", compose)
         self.assertIn("NTOPNG_INTERFACE: ${NTOPNG_INTERFACE:-eth0}", compose)
         self.assertIn("NTOPNG_HTTP_PORT: ${NTOPNG_HTTP_PORT:-3000}", compose)
         self.assertIn("/usr/local/bin/nabla-ntopng-entrypoint.sh", compose)
@@ -103,7 +107,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("${CLICKHOUSE_USER:-clickhouse}", compose)
         self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
 
-        self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be set", wrapper)
+        self.assertIn("ntopng runtime secret file is missing or unreadable", wrapper)
+        self.assertIn(
+            "NTOPNG_CLICKHOUSE_PASSWORD must be set in the runtime secret file",
+            wrapper,
+        )
+        self.assertIn("/run/secrets/ntopng_runtime_env", wrapper)
         self.assertIn("clickhouse|default", wrapper)
         self.assertIn('config="/run/nabla-ntopng.conf"', wrapper)
         self.assertIn("--dump-flows=clickhouse;", wrapper)
@@ -117,6 +126,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
         self.assertIn("Do not grant `ALL`, global `*.*`", readme)
         self.assertIn("/mnt/cpool/ntopng/ntopng.license", readme)
+        self.assertIn("Docker `Config.Env`", readme)
+        self.assertIn("/run/secrets/ntopng_runtime_env", readme)
         self.assertIn("Enterprise M/L/XL/XXL", readme)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
@@ -254,6 +265,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
         self.assertIn("global *.* privileges are forbidden", audit)
+        self.assertIn("password absent from Docker Config.Env", audit)
+        self.assertIn("password exposed in Docker Config.Env", audit)
+        self.assertIn("runtime secret mounted", audit)
+        self.assertIn("runtime secret mount missing or empty", audit)
         self.assertIn("Enterprise license file mounted", audit)
         self.assertIn("supported Enterprise edition detected", audit)
         self.assertIn("Enterprise M-or-higher edition required", audit)
