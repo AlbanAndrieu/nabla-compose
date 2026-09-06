@@ -80,6 +80,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         minio = self.read("apps/minio/compose.yml")
 
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
+        self.assertIn("CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}", langfuse)
         self.assertIn("REDIS_HOST: ${REDIS_HOST:-redis}", langfuse)
         self.assertIn("REDIS_PORT: ${REDIS_PORT:-6379}", langfuse)
         self.assertIn("http://minio:9000", langfuse)
@@ -166,6 +167,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
+        self.assertIn("http://172.17.0.24:9005/_health/", audit)
         self.assertIn("failIfDatabaseUnavailable=true", audit)
         self.assertIn("http://127.0.0.1:3030/api/health", audit)
         self.assertIn('probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017', audit)
