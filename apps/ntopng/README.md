@@ -52,14 +52,17 @@ Do not print the value during runtime validation.
 
 ## Runtime behavior
 
-The repository wrapper constructs ntopng's ClickHouse `-F` option inside the
-container from the runtime environment and then delegates to the upstream
-`/run.sh` entrypoint. This prevents the password from being embedded in the
-repository Compose file or requiring Compose-time secret interpolation.
+The repository wrapper renders `/run/nabla-ntopng.conf` at container startup
+with mode `0600`, then delegates to the upstream `/run.sh` entrypoint using
+only that configuration-file path. The ClickHouse password is therefore absent
+from the repository, Compose interpolation, and the ntopng process command
+line. The wrapper also unsets `NTOPNG_CLICKHOUSE_PASSWORD` before starting
+ntopng, leaving the ephemeral root-readable configuration file as the runtime
+credential carrier.
 
-`--strict-startup` is enabled. If ntopng cannot initialize its ClickHouse
-backend, the service must fail startup instead of silently running without
-historical flow persistence.
+The generated configuration enables `--strict-startup`. If ntopng cannot
+initialize its ClickHouse backend, the service must fail startup instead of
+silently running without historical flow persistence.
 
 Default ClickHouse target: `172.17.0.24:9000`, database `ntopng`.
 
