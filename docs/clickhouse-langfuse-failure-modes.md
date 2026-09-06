@@ -169,6 +169,26 @@ Future ClickHouse consumers such as ntopng must receive a dedicated
 database/user contract and must be added to the same compatibility gate rather
 than reusing the administrative `clickhouse` identity.
 
+## 6. Planned consumers must not inherit the ClickHouse administrator
+
+### Risk
+
+The historical ntopng Compose configuration defaulted to the shared
+`clickhouse` identity and even supplied `clickhouse` as a password fallback.
+That contradicts the shared-database isolation model: compromise or
+misconfiguration of ntopng would inherit privileges unrelated to flow storage.
+
+### Guard
+
+The repository ntopng application now fixes the database/user identity to
+`ntopng`, obtains only `NTOPNG_CLICKHOUSE_PASSWORD` from the runtime secret
+file, rejects known shared/default passwords, and enables `--strict-startup`.
+The TrueNAS lifecycle audit validates the dedicated database/user, forbids
+global `*.*` grants, and proves authenticated access when ntopng is running.
+
+The runtime flow-persistence test is still required before ntopng can be
+considered production-ready.
+
 ## Regression policy
 
 The incident is considered closed only when the repository audit and contract
