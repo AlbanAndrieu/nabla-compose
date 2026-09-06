@@ -1,4 +1,7 @@
 ---
+# LEGACY EXAMPLE ONLY — do not activate this file for the TrueNAS deployment.
+# Use apps/ntopng/compose.yml, which enforces the dedicated ntopng ClickHouse
+# identity and runtime secret contract.
 # https://github.com/ntop/docker-ntop
 services:
   nprobe_collector:
