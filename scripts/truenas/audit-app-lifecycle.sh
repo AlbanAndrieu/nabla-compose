@@ -146,6 +146,33 @@ probe_intranet_tcp_if_running() {
   fi
 }
 
+probe_secret_if_running() {
+  local app_id="$1"
+  local label="$2"
+  local file="$3"
+  local variable="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if [[ -r "${file}" ]] && grep -q "^${variable}=." "${file}"; then
+    functional_ok "${label}: ${variable} configured"
+  else
+    functional_fail "${label}: ${variable} missing or empty in ${file}"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_running homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_running langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_ORG
+probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_BUCKET
+probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+
 printf '\n🔎 functional service checks\n'
 probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
 probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
