@@ -249,6 +249,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
         self.assertIn("global *.* privileges are forbidden", audit)
+        self.assertIn("ephemeral config is a mode-0600 file", audit)
+        self.assertIn("password absent from process argv", audit)
+        self.assertIn("password is exposed in process argv", audit)
         self.assertIn("ALL ON ntopng.* is broader than required", audit)
         self.assertIn(
             "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*",
