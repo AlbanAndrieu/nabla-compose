@@ -44,6 +44,19 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", compose)
         self.assertNotIn("172.17.0.24:2375", compose)
 
+    def test_legacy_cloudflare_companion_cannot_own_sample_dns(self) -> None:
+        compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "ghcr.io/tiredofit/docker-traefik-cloudflare-companion:7.4.0",
+            compose,
+        )
+        self.assertIn(
+            "DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test",
+            compose,
+        )
+        self.assertNotIn("EXCLUDED_DOMAINS=", compose)
+
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
 
