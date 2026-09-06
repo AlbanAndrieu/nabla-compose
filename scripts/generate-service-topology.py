@@ -22,6 +22,8 @@ OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml$")
 RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
+PRESENTATION_ROLES = {"service", "core", "support"}
+CRITICALITIES = {"critical", "high", "standard", "low"}
 RELATION_TYPES = {
     "dependsOn",
     "consumesApi",
@@ -95,6 +97,18 @@ def topology_node(
         value = optional_text(metadata, key)
         if value is not None:
             node[key] = value
+    presentation_role = optional_text(metadata, "presentationRole")
+    if presentation_role is not None:
+        if presentation_role not in PRESENTATION_ROLES:
+            supported = ", ".join(sorted(PRESENTATION_ROLES))
+            fail(f"{context}.presentationRole must be one of: {supported}")
+        node["presentationRole"] = presentation_role
+    criticality = optional_text(metadata, "criticality")
+    if criticality is not None:
+        if criticality not in CRITICALITIES:
+            supported = ", ".join(sorted(CRITICALITIES))
+            fail(f"{context}.criticality must be one of: {supported}")
+        node["criticality"] = criticality
     return node
 
 
@@ -139,7 +153,7 @@ def declared_service(
         "sourcePath": node["sourcePath"],
         "composeService": compose_service,
     }
-    for key in ("url", "description"):
+    for key in ("url", "description", "presentationRole", "criticality"):
         if key in node:
             service[key] = node[key]
     runtime = runtime_binding(metadata, context)
