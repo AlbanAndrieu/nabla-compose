@@ -13,6 +13,10 @@ class PublicIngressContractTests(unittest.TestCase):
 
         self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
+        self.assertIn(
+            "ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}",
+            compose,
+        )
         self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
         self.assertNotIn("fastapi-sample.int.albandrieu.com", compose)
         self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 1)
@@ -97,6 +101,11 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("system.general.config", script)
         self.assertIn("ui_allowlist", script)
         self.assertIn("/32", script)
+        self.assertIn(
+            'EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}"',
+            script,
+        )
+        self.assertIn("observer source IP drift", script)
         self.assertIn("/code/.venv/bin/python", script)
         self.assertIn("TRUENAS_API_USERNAME", script)
         self.assertIn("TRUENAS_API_KEY", script)
