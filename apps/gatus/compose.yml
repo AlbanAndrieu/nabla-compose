@@ -18,6 +18,7 @@ services:
       - 8085:8080
     volumes:
       - ./config:/config:ro
+      - /mnt/cpool/gatus:/data
     networks:
       - intranet
     cap_drop:

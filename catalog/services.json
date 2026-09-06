@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:20e4365490f762cbf31d9cb4a2f6527a7ecd6d2e01e72ec5d9d0cf2f9be8cf0c",
+  "catalogRevision": "sha256:e34fe0a1bda4159940afde912756fdc74202085b90faba5e73ff9579032ea565",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -12,6 +12,9 @@
       "category": "security",
       "sourcePath": "apps/2fauth/compose.yml",
       "composeService": "2fauth",
+      "securityFunctions": [
+        "protect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "2fauth"
@@ -45,6 +48,18 @@
       }
     },
     {
+      "id": "bichon",
+      "name": "Bichon",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "apps/bichon/compose.yml",
+      "composeService": "bichon",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bichon"
+      }
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -64,6 +79,10 @@
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
       "composeService": "crowdsec",
+      "securityFunctions": [
+        "detect",
+        "respond"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "crowdsec"
@@ -167,19 +186,6 @@
       "icon": "🪵"
     },
     {
-      "id": "graylog-mongodb",
-      "name": "Graylog MongoDB",
-      "kind": "database",
-      "category": "data",
-      "sourcePath": "apps/graylog/compose.yml",
-      "composeService": "mongo",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "mongo"
-      },
-      "icon": "🍃"
-    },
-    {
       "id": "haproxy-exporter",
       "name": "pfSense HAProxy Exporter",
       "kind": "metrics-exporter",
@@ -199,7 +205,7 @@
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
       "composeService": "homarr",
-      "url": "http://172.17.0.24:7575",
+      "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
       "runtime": {
         "provider": "truenas-app",
@@ -335,6 +341,19 @@
         "containerService": "minio"
       },
       "icon": "🪣"
+    },
+    {
+      "id": "mongo",
+      "name": "MongoDB",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/mongo/compose.yml",
+      "composeService": "mongo",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mongo"
+      },
+      "icon": "🍃"
     },
     {
       "id": "n8n",
@@ -602,6 +621,9 @@
       "category": "security",
       "sourcePath": "apps/suricata/compose.yml",
       "composeService": "suricata",
+      "securityFunctions": [
+        "detect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "suricata"
@@ -696,6 +718,9 @@
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
       "composeService": "wazuh.manager",
+      "securityFunctions": [
+        "detect"
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wazuh.manager"

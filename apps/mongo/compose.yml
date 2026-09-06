@@ -1,0 +1,40 @@
+---
+services:
+  mongo:
+    image: docker.io/mongo:7.0
+    container_name: mongo
+    restart: unless-stopped
+    x-nabla:
+      id: mongo
+      name: MongoDB
+      kind: database
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: mongo
+    env_file:
+      - /mnt/cpool/mongo/.env.secrets
+    volumes:
+      - /mnt/cpool/mongo/data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --host 127.0.0.1
+          --username "$$MONGO_INITDB_ROOT_USERNAME"
+          --password "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin
+          --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      intranet:
+        aliases:
+          - mongo
+
+networks:
+  intranet:
+    external: true
+    name: intranet

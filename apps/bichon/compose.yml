@@ -1,26 +1,38 @@
 ---
 services:
   bichon:
-    image: rustmailer/bichon:latest # 1.4.3
+    image: rustmailer/bichon:2.0.3
     container_name: bichon
+    restart: unless-stopped
+    x-nabla:
+      id: bichon
+      name: Bichon
+      kind: application
+      category: productivity
+      runtime:
+        provider: truenas-app
+        containerService: bichon
+      monitoring:
+        type: port
+        target: tcp://172.17.0.24:15630
+        conditions:
+          - "[CONNECTED] == true"
     ports:
-      - "15630:15630" # 30313
+      - "172.17.0.24:15630:15630"
     volumes:
-      - /mnt/cpool/bichon/:/data
-    user: "568:568" # TrueNAS apps user
+      - /mnt/cpool/bichon:/data
+    user: "568:568"
     env_file:
       - /mnt/cpool/bichon/.env.secrets
     environment:
       BICHON_ROOT_DIR: /data
       BICHON_LOG_LEVEL: info
-    networks: ["traefik_network"]
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.bichon.rule=Host(`bichon.int.albandrieu.com`)"
-    #  - "traefik.http.routers.bichon.entrypoints=websecure"
-    #  - "traefik.http.routers.bichon.tls.certresolver=letsencrypt"
-    #  - "traefik.http.routers.bichon.service=bichon"
-    #  - "traefik.http.services.bichon.loadbalancer.server.scheme=http"
+    networks:
+      - traefik_network
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 networks:
   traefik_network:

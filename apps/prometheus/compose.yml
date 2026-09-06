@@ -137,7 +137,7 @@ services:
         containerService: pfsense-exporter
       monitoring:
         type: http
-        target: http://172.17.0.24:9945/metrics?target=172.17.0.1:10443
+        target: http://172.17.0.24:9945/metrics?target=172.17.0.1
         conditions:
           - "[STATUS] == 200"
       relations:

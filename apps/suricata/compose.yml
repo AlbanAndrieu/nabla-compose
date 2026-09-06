@@ -9,6 +9,8 @@ services:
       name: Suricata
       kind: ids
       category: security
+      securityFunctions:
+        - detect
       runtime:
         provider: truenas-app
         containerService: suricata
