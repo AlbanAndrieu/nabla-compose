@@ -480,6 +480,10 @@ GRANT CREATE, DROP TABLE, DROP VIEW ON langfuse.* TO langfuse;
 GRANT ALTER ADD COLUMN, ALTER MODIFY COLUMN, ALTER VIEW MODIFY QUERY ON langfuse.* TO langfuse;
 GRANT ALTER ADD INDEX, ALTER DROP INDEX, ALTER MATERIALIZE INDEX ON langfuse.* TO langfuse;
 
+-- Langfuse v4.30 schema migrations modify MergeTree table settings
+-- (for example enable_block_number_column / enable_block_offset_column on scores).
+GRANT ALTER SETTINGS ON langfuse.* TO langfuse;
+
 GRANT SELECT(database, table, name, partition, partition_id, active, rows)
   ON system.parts TO langfuse;
 GRANT SELECT(database, table, is_done)
@@ -492,6 +496,13 @@ GRANT SELECT ON system.query_log* TO langfuse;
 GRANT SYSTEM SYNC REPLICA, SYSTEM MERGES, ALTER SETTINGS
   ON langfuse.observations_pid_tid_sorting TO langfuse;
 ```
+
+Langfuse 4.30.0 migration 48 also executes `ALTER TABLE scores MODIFY SETTING`.
+A missing database-scoped `ALTER SETTINGS` grant leaves ClickHouse migration
+version 48 dirty. Because this reset treats Langfuse ClickHouse history as
+disposable, stop Langfuse, add the grant, then drop/recreate only database
+`langfuse` and rerun the migrations instead of forcing the dirty migration
+version manually.
 
 Keep `CLICKHOUSE_CLUSTER_ENABLED=false` on this single-container deployment;
 the clustered `REMOTE` and `CLUSTER` grants are therefore unnecessary.
