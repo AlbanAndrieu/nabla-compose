@@ -34,13 +34,25 @@ printf 'container=%s network=%s source_ip=%s expected_source_ip=%s\n'   "${CONTA
   fail "observer source IP drift: expected ${EXPECTED_SOURCE_IP}, got ${container_ip}; do not widen TrueNAS ui_allowlist"
 
 printf '==> TrueNAS UI/API source allowlist\n'
-allowlist_json="$(
+configured_allowlist_json="$(
   midclt call system.general.config |
     jq -c '.ui_allowlist // []'
 )"
-printf '%s\n' "${allowlist_json}" | jq .
+runtime_allowlist_json="$(
+  midclt call system.general.get_ui_allowlist |
+    jq -c '. // []'
+)"
 
-if ! python3 - "${container_ip}" "${allowlist_json}" <<'PY'
+printf 'configured ui_allowlist:\n'
+printf '%s\n' "${configured_allowlist_json}" | jq .
+printf 'runtime ui_allowlist (authoritative for /api/current):\n'
+printf '%s\n' "${runtime_allowlist_json}" | jq .
+
+if [[ "${configured_allowlist_json}" != "${runtime_allowlist_json}" ]]; then
+  warn "configured and runtime TrueNAS ui_allowlist values differ; HTTP restart/update/check-in state is not fully reconciled"
+fi
+
+if ! python3 - "${container_ip}" "${runtime_allowlist_json}" <<'PY'
 import ipaddress
 import json
 import sys
@@ -60,10 +72,10 @@ for entry in allowlist:
 raise SystemExit(1)
 PY
 then
-  fail "TrueNAS ui_allowlist does not permit ${container_ip}; review a narrow ${container_ip}/32 with rollback/check-in protection"
+  fail "runtime TrueNAS ui_allowlist does not permit ${container_ip}; review a narrow ${container_ip}/32 with rollback/check-in protection"
 fi
 
-printf 'OK: TrueNAS ui_allowlist permits %s\n' "${container_ip}"
+printf 'OK: runtime TrueNAS ui_allowlist permits %s\n' "${container_ip}"
 
 printf '==> sanitized FastAPI TrueNAS credential selection\n'
 docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
