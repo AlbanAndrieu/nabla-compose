@@ -278,10 +278,17 @@ If no existing bucket contains those measurements, create a new dedicated
 `metrics` (or `scrutiny`) bucket and accept that there is no Scrutiny history
 in this InfluxDB datastore.
 
-The recovery/operator token is only for administration. Create a dedicated
-read/write token scoped to the selected Scrutiny bucket and place that token in
-`/mnt/cpool/scrutiny/.env.secrets`; do not reuse the operator token for the
-application.
+The recovery/operator token is only for administration; do not reuse it for
+Scrutiny. Scrutiny's bring-your-own-InfluxDB mode needs the base bucket plus
+three downsampling buckets (`<base>_weekly`, `<base>_monthly`,
+`<base>_yearly`) and the three corresponding aggregation tasks. Its restricted
+application token needs read access to the organization plus scoped read/write
+access to those buckets and tasks.
+
+If no historical Scrutiny bucket is found, use the upstream default base name
+`metrics`, create the four placeholder buckets and three placeholder tasks,
+then create the restricted token. Scrutiny replaces the placeholder task
+configuration during startup.
 
 ## Langfuse shared Redis and MinIO
 
@@ -333,6 +340,29 @@ Langfuse application available for rollback until the Compose-backed web and
 worker containers both remain stable.
 
 The repository Compose no longer contains production-like fallback passwords.
+
+## Langfuse ClickHouse dirty migration recovery
+
+If Langfuse PostgreSQL migrations are clean but startup repeatedly reports
+`Dirty database version 39`, the failure is in the golang-migrate ClickHouse
+state, not PostgreSQL, Redis, or MinIO.
+
+First inspect migration 39 from the exact deployed Langfuse image before
+changing migration state:
+
+```bash
+docker run --rm --entrypoint sh langfuse/langfuse:3 -lc \
+  'sed -n "1,220p" /app/packages/shared/clickhouse/migrations/unclustered/0039_create_events_full.up.sql'
+```
+
+For current Langfuse v3 images this migration creates `events_full` with
+`CREATE TABLE IF NOT EXISTS`, so it is designed to tolerate a retry after a
+half-applied attempt. Confirm that statement in the deployed image. Then stop
+the Langfuse restart loop, force the migration marker back to 38, and rerun the
+normal migration path. Never force the marker forward to 39 without verifying
+that migration 39 completed successfully.
+
+Keep a ClickHouse dataset snapshot before manipulating the migration marker.
 
 ## Homarr permissions
 
