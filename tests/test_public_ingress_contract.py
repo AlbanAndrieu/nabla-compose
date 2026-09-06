@@ -93,6 +93,22 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock", pihole)
         self.assertIn("- intranet", pihole)
 
+    def test_truenas_observer_allowlist_configurator_is_fail_safe(self) -> None:
+        script = (
+            ROOT / "scripts" / "security" / "configure-truenas-observer-allowlist.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("rollback_timeout", script)
+        self.assertIn("300", script)
+        self.assertIn("ui_restart_delay", script)
+        self.assertIn("system.general.checkin_waiting", script)
+        self.assertIn("system.general.get_ui_allowlist", script)
+        self.assertIn("adapter.system_version()", script)
+        self.assertIn("adapter.list_apps()", script)
+        self.assertIn("system.general.checkin", script)
+        self.assertIn("172.16.55.9", script)
+        self.assertNotIn("172.16.55.0/24", script)
+
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
         script = (
             ROOT / "scripts" / "security" / "verify-truenas-observer-access.sh"
