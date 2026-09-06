@@ -100,6 +100,17 @@ endpoints:
 
 Gatus supports HTTP, TCP, ICMP, DNS, TLS and external/push checks, so generation must consume explicit monitoring metadata rather than guessing from `url`.
 
+The generated Gatus configuration enables its Prometheus-compatible `/metrics`
+endpoint. This provides synthetic service evidence such as endpoint success,
+request duration, HTTP result codes and certificate lifetime. Treat these as
+black-box probe signals: they describe the monitored path from Gatus, not real
+application request traffic or proof of security-control effectiveness.
+
+Do not duplicate this function with another black-box probe stack by default.
+The follow-up Prometheus integration should scrape Gatus and derive bounded
+recording rules for service availability/latency while preserving a stable Nabla
+service identity.
+
 The selected community MCP is `adambenhassen/gatus-mcp`. It serves Streamable HTTP on `/mcp`. Status/history tools are read-only; `submit_external_result` is the write operation and requires a Gatus token.
 
 ```bash
