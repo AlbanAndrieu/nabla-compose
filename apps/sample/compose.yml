@@ -56,7 +56,7 @@ services:
       EXPOSE_PORT: "8080"
       SICKZ_INTERNAL_NETWORK: "true"
       SICKZ_NETWORK_LABEL: nabla
-      APP_DOMAIN: fastapi-sample.int.albandrieu.com
+      APP_DOMAIN: sample.int.albandrieu.com
 
     ports:
       - "${FASTAPI_SAMPLE_PORT:-8091}:8080"
@@ -75,26 +75,19 @@ services:
       start_period: 60s
 
     labels:
-      # AutoXpose owns public DNS only. Keep its proxy provider unconfigured so
-      # Traefik remains the single reverse-proxy authority for this service.
-      - "autoxpose.enable=auto"
-      - "autoxpose.subdomain=sample"
-      - "autoxpose.name=FastAPI Sample"
-      - "autoxpose.scheme=http"
-      - "autoxpose.port=${FASTAPI_SAMPLE_PORT:-8091}"
+      # Internal DNS is synchronized from Traefik routers into Pi-hole.
+      # Public sample.albandrieu.com is owned by Cloudflare Tunnel + Access.
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"
-      - "traefik.http.routers.fastapi-sample.rule=Host(`fastapi-sample.int.albandrieu.com`)"
+      - "traefik.http.routers.fastapi-sample.rule=Host(`sample.int.albandrieu.com`)"
       - "traefik.http.routers.fastapi-sample.entrypoints=websecure"
       - "traefik.http.routers.fastapi-sample.tls.certresolver=letsencrypt"
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
-      - "traefik.http.routers.fastapi-sample-public.rule=Host(`sample.albandrieu.com`)"
-      - "traefik.http.routers.fastapi-sample-public.entrypoints=websecure"
-      - "traefik.http.routers.fastapi-sample-public.tls=true"
-      - "traefik.http.routers.fastapi-sample-public.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.fastapi-sample-public.service=fastapi-sample"
+      - "traefik.http.routers.fastapi-sample-legacy.rule=Host(`fastapi-sample.int.albandrieu.com`)"
+      - "traefik.http.routers.fastapi-sample-legacy.entrypoints=websecure"
+      - "traefik.http.routers.fastapi-sample-legacy.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.fastapi-sample-legacy.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
-
     networks:
       - intranet
       - traefik_network
