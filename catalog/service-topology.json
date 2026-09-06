@@ -370,9 +370,9 @@
       "category": "network",
       "sourcePath": "apps/crowdsec/compose.yml",
       "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
-      "icon": "🔥",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "icon": "🔥"
     },
     {
       "id": "pfsense-exporter",
@@ -389,9 +389,9 @@
       "category": "network",
       "sourcePath": "apps/traefik/compose.yml",
       "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.",
-      "icon": "⚖️",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "icon": "⚖️"
     },
     {
       "id": "postgresql",
@@ -500,9 +500,9 @@
       "category": "network",
       "sourcePath": "apps/traefik/compose.yml",
       "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
-      "icon": "🚦",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "icon": "🚦"
     },
     {
       "id": "truenas",
