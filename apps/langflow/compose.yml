@@ -31,6 +31,7 @@ services:
       OPENSEARCH_USERNAME: "${OPENSEARCH_USERNAME:-admin}"
       OPENSEARCH_URL: https://opensearch:9200
       LANGFLOW_DEACTIVATE_TRACING: "true"
+      DO_NOT_TRACK: "true"
       LANGFLOW_AUTO_LOGIN: "false"
       LANGFLOW_SUPERUSER: ${LANGFLOW_SUPERUSER:-langflow}
       LANGFLOW_NEW_USER_IS_ACTIVE: "false"
