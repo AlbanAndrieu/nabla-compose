@@ -75,11 +75,11 @@ printf '\nSummary: RUNNING=%d STOPPED=%d CRASHED=%d DEPLOYING=%d MISSING=%d OTHE
 printf '\n🔎 problematic Docker container states\n'
 problematic="$(
   docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Image}}' |
-    awk 'BEGIN { IGNORECASE=1 } /Restarting|unhealthy|Exited|Dead|Created/'
+    awk 'BEGIN { IGNORECASE=1 } /Restarting|unhealthy|Dead|Created/ || (/Exited \(/ && $0 !~ /Exited \(0\)/)'
 )"
 
 if [[ -n "${problematic}" ]]; then
   printf '%s\n' "${problematic}"
 else
-  printf '✅ no restarting, unhealthy, exited, dead or created containers detected\n'
+  printf '✅ no restarting, unhealthy, non-zero exited, dead or created containers detected\n'
 fi
