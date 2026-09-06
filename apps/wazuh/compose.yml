@@ -18,6 +18,8 @@ services:
       name: Wazuh Manager
       kind: security-manager
       category: security
+      securityFunctions:
+        - detect
       runtime:
         provider: truenas-app
         containerService: wazuh.manager
