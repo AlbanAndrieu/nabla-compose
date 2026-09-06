@@ -4,7 +4,21 @@ set -eu
 : "${CLICKHOUSE_HOST:=172.17.0.24}"
 : "${NTOPNG_INTERFACE:=eth0}"
 : "${NTOPNG_HTTP_PORT:=3000}"
-: "${NTOPNG_CLICKHOUSE_PASSWORD:?NTOPNG_CLICKHOUSE_PASSWORD must be set}"
+
+secret_file="/run/secrets/ntopng_runtime_env"
+if [ ! -r "${secret_file}" ]; then
+  printf '%s\n' "ntopng runtime secret file is missing or unreadable" >&2
+  exit 1
+fi
+
+NTOPNG_CLICKHOUSE_PASSWORD="$(
+  sed -n 's/^NTOPNG_CLICKHOUSE_PASSWORD=//p' "${secret_file}" |
+    tail -n 1
+)"
+if [ -z "${NTOPNG_CLICKHOUSE_PASSWORD}" ]; then
+  printf '%s\n' "NTOPNG_CLICKHOUSE_PASSWORD must be set in the runtime secret file" >&2
+  exit 1
+fi
 
 NTOPNG_CLICKHOUSE_DATABASE="ntopng"
 NTOPNG_CLICKHOUSE_USER="ntopng"
@@ -19,7 +33,8 @@ esac
 # ntopng accepts a configuration file as its single argument. Generate it at
 # runtime so the ClickHouse password is neither stored in the repository nor
 # exposed in the ntopng process argv. The secret is removed from the inherited
-# environment before delegating to the upstream image entrypoint.
+# environment before delegating to the upstream image entrypoint. The source
+# credential file is mounted as a Compose secret, not injected into Config.Env.
 config="/run/nabla-ntopng.conf"
 umask 077
 cat >"${config}" <<EOF
