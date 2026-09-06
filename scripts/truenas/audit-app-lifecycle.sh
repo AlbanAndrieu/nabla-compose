@@ -255,6 +255,54 @@ function probe_legacy_secret_name {
   fi
 }
 
+function probe_langfuse_init_contract_if_present {
+  local file="/mnt/cpool/langfuse/.env.secrets"
+  local -a present=()
+  local variable
+
+  if ! app_is_present langfuse || [[ ! -r "${file}" ]]; then
+    return
+  fi
+
+  while IFS= read -r variable; do
+    [[ -n "${variable}" ]] && present+=("${variable}")
+  done < <(
+    grep -E '^LANGFUSE_INIT_[A-Z0-9_]+=.' "${file}" 2>/dev/null |
+      cut -d= -f1 |
+      sort -u
+  )
+
+  if (("${#present[@]}" == 0)); then
+    functional_ok "Langfuse init contract: no partial bootstrap variables configured"
+    return
+  fi
+
+  local -a required=(
+    LANGFUSE_INIT_ORG_ID
+    LANGFUSE_INIT_ORG_NAME
+    LANGFUSE_INIT_PROJECT_ID
+    LANGFUSE_INIT_PROJECT_NAME
+    LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+    LANGFUSE_INIT_PROJECT_SECRET_KEY
+    LANGFUSE_INIT_USER_EMAIL
+    LANGFUSE_INIT_USER_NAME
+    LANGFUSE_INIT_USER_PASSWORD
+  )
+
+  local -a missing=()
+  for variable in "${required[@]}"; do
+    if ! grep -q "^${variable}=." "${file}"; then
+      missing+=("${variable}")
+    fi
+  done
+
+  if (("${#missing[@]}" == 0)); then
+    functional_ok "Langfuse init contract: complete headless bootstrap set configured"
+  else
+    functional_fail "Langfuse init contract: partial LANGFUSE_INIT_* set; remove all bootstrap variables or configure the complete set"
+  fi
+}
+
 function probe_clickhouse_runtime_if_running {
   local container
   local result
@@ -355,10 +403,11 @@ function probe_clickhouse_admin_grant_option_if_running {
     return
   fi
 
-  if grep -Fq 'GRANT ALL ON *.* WITH GRANT OPTION' <<<"${grants}"; then
-    functional_ok "ClickHouse admin delegation: WITH GRANT OPTION present"
+  if grep -Eq 'GRANT .*ALTER.* ON [*][.][*] TO clickhouse WITH GRANT OPTION' <<<"${grants}" &&
+    grep -Eq 'GRANT CREATE USER,.* TO clickhouse WITH GRANT OPTION' <<<"${grants}"; then
+    functional_ok "ClickHouse admin delegation: required WITH GRANT OPTION privileges present"
   else
-    functional_fail "ClickHouse admin delegation: GRANT ALL ON *.* WITH GRANT OPTION missing"
+    functional_fail "ClickHouse admin delegation: required delegable ALTER/access-management privileges missing"
   fi
 }
 
@@ -522,6 +571,7 @@ probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secret
 probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
 probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
 probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
 
 printf '\n🔎 functional service checks\n'
 probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
