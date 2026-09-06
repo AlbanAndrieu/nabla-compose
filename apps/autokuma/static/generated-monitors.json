@@ -480,7 +480,7 @@
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443"
+    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"
   },
   {
     "type": "port",
