@@ -106,6 +106,7 @@ class PublicIngressContractTests(unittest.TestCase):
             script,
         )
         self.assertIn("observer source IP drift", script)
+        self.assertIn("TRUENAS_API_VERIFY_SSL must be true", script)
         self.assertIn("/code/.venv/bin/python", script)
         self.assertIn("TRUENAS_API_USERNAME", script)
         self.assertIn("TRUENAS_API_KEY", script)
