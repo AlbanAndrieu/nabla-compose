@@ -561,18 +561,31 @@ function probe_ntopng_clickhouse_contract_if_running {
     return
   fi
 
-  if docker exec \
-    -e NTOPNG_CLICKHOUSE_PASSWORD="${password}" \
-    "${clickhouse_container}" sh -c '
-      clickhouse-client \
-        --user ntopng \
-        --password "$NTOPNG_CLICKHOUSE_PASSWORD" \
-        --database ntopng \
-        --query "SELECT 1" >/dev/null
-    ' 2>/dev/null; then
-    functional_ok "ntopng ClickHouse contract: dedicated credentials accepted without global grants"
+  if grep -Eq 'GRANT ALL( PRIVILEGES)? ON ntopng[.][*] TO ntopng' <<<"${grants}"; then
+    functional_fail "ntopng ClickHouse contract: ALL ON ntopng.* is broader than required"
+    return
+  fi
+
+  local grant_check
+  if ! grant_check="$(
+    docker exec \
+      -e NTOPNG_CLICKHOUSE_PASSWORD="${password}" \
+      "${clickhouse_container}" sh -c '
+        clickhouse-client \
+          --user ntopng \
+          --password "$NTOPNG_CLICKHOUSE_PASSWORD" \
+          --database ntopng \
+          --query "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*"
+      ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: dedicated credentials or CHECK GRANT failed"
+    return
+  fi
+
+  if [[ "${grant_check}" == "1" ]]; then
+    functional_ok "ntopng ClickHouse contract: required database-scoped DML/DDL grants present"
   else
-    functional_fail "ntopng ClickHouse contract: dedicated credentials rejected"
+    functional_fail "ntopng ClickHouse contract: required database-scoped DML/DDL grants missing"
   fi
 }
 
