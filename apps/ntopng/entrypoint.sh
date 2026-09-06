@@ -45,12 +45,6 @@ esac
 NTOPNG_CLICKHOUSE_DATABASE="ntopng"
 NTOPNG_CLICKHOUSE_USER="ntopng"
 
-case "${NTOPNG_CLICKHOUSE_PASSWORD}" in
-  clickhouse|default)
-    printf '%s\n' "Refusing insecure shared/default ClickHouse password for ntopng" >&2
-    exit 1
-    ;;
-esac
 
 # ntopng accepts a configuration file as its single argument. Generate it at
 # runtime so the ClickHouse password is neither stored in the repository nor
