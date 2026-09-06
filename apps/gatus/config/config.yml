@@ -4,132 +4,189 @@ endpoints:
 - name: 2FAuth
   group: security
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: 2fauth
+    nabla_service_id: 2fauth
   url: tcp://172.17.0.24:30081
   conditions:
   - '[CONNECTED] == true'
 - name: Aistor
   group: aistor
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: aistor
   url: tcp://172.17.0.24:9002
   conditions:
   - '[CONNECTED] == true'
 - name: Grafana Alloy
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: alloy
+    nabla_service_id: alloy
   url: http://172.17.0.24:12345/-/healthy
   conditions:
   - '[STATUS] == 200'
 - name: Autoxpose
   group: autoxpose
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: autoxpose
   url: tcp://172.17.0.24:4949
   conditions:
   - '[CONNECTED] == true'
 - name: Bichon
   group: bichon
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: bichon
   url: tcp://172.17.0.24:15630
   conditions:
   - '[CONNECTED] == true'
 - name: ClickHouse
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: clickhouse
+    nabla_service_id: clickhouse
   url: tcp://172.17.0.24:8123
   conditions:
   - '[CONNECTED] == true'
 - name: Code Server
   group: code
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: code-code-server
   url: tcp://172.17.0.24:8443
   conditions:
   - '[CONNECTED] == true'
 - name: CrowdSec
   group: security
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: crowdsec
+    nabla_service_id: crowdsec
   url: tcp://172.17.0.24:8080
   conditions:
   - '[CONNECTED] == true'
 - name: Docker API
   group: infrastructure
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: docker
   url: tcp://docker-socket-proxy:2375
   conditions:
   - '[CONNECTED] == true'
 - name: Dockhand
   group: dockhand
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: dockhand
   url: tcp://172.17.0.24:3050
   conditions:
   - '[CONNECTED] == true'
 - name: Dozzle
   group: dozzle
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: dozzle
   url: tcp://172.17.0.24:8888
   conditions:
   - '[CONNECTED] == true'
 - name: Drawio
   group: drawio
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: drawio
   url: tcp://172.17.0.24:9080
   conditions:
   - '[CONNECTED] == true'
 - name: Elasticsearch
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: elasticsearch
+    nabla_service_id: elasticsearch
   url: tcp://172.17.0.24:9200
   conditions:
   - '[CONNECTED] == true'
 - name: FastAPI Sample
   group: development
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: fastapi-sample
+    nabla_service_id: fastapi-sample
   url: http://172.17.0.24:8091/health
   conditions:
   - '[STATUS] == 200'
 - name: Garage
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: garage
+    nabla_service_id: garage
   url: tcp://172.17.0.24:3900
   conditions:
   - '[CONNECTED] == true'
 - name: Garage WebUI
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: garage-webui
+    nabla_service_id: garage-webui
   url: tcp://172.17.0.24:3909
   conditions:
   - '[CONNECTED] == true'
 - name: Gatus
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: gatus
+    nabla_service_id: gatus
   url: tcp://172.17.0.24:8085
   conditions:
   - '[CONNECTED] == true'
 - name: Grafana
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: grafana
+    nabla_service_id: grafana
   url: http://172.17.0.24:30037/api/health
   conditions:
   - '[STATUS] == 200'
 - name: Graylog
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: graylog
+    nabla_service_id: graylog
   url: tcp://172.17.0.24:9000
   conditions:
   - '[CONNECTED] == true'
 - name: pfSense HAProxy Exporter
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: haproxy-exporter
+    nabla_service_id: haproxy-exporter
   url: tcp://172.17.0.24:9101
   conditions:
   - '[CONNECTED] == true'
 - name: Homarr
   group: operations
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: homarr
+    nabla_service_id: homarr
   url: tcp://172.17.0.24:7575
   conditions:
   - '[CONNECTED] == true'
 - name: Home Assistant
   group: home-automation
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: homeassistant
   url: https://homeassistant.albanandrieu.com
   conditions:
   - '[STATUS] >= 200'
@@ -137,306 +194,436 @@ endpoints:
 - name: Kibana
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: kibana
+    nabla_service_id: kibana
   url: tcp://172.17.0.24:5601
   conditions:
   - '[CONNECTED] == true'
 - name: Langflow
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: langflow
+    nabla_service_id: langflow
   url: tcp://172.17.0.24:7860
   conditions:
   - '[CONNECTED] == true'
 - name: Langfuse Web
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: langfuse-web
+    nabla_service_id: langfuse-web
   url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
 - name: Languagetool
   group: languagetool
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: languagetool
   url: tcp://172.17.0.24:8010
   conditions:
   - '[CONNECTED] == true'
 - name: LiteLLM
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: litellm
+    nabla_service_id: litellm
   url: tcp://172.17.0.24:4000
   conditions:
   - '[CONNECTED] == true'
 - name: Loki
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: loki
+    nabla_service_id: loki
   url: http://172.17.0.24:3100/ready
   conditions:
   - '[STATUS] == 200'
 - name: Mimir
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: mimir
+    nabla_service_id: mimir
   url: http://172.17.0.24:9009/ready
   conditions:
   - '[STATUS] == 200'
 - name: MinIO
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: minio
+    nabla_service_id: minio
   url: tcp://172.17.0.24:9002
   conditions:
   - '[CONNECTED] == true'
 - name: n8n
   group: automation
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: n8n
+    nabla_service_id: n8n
   url: tcp://172.17.0.24:30109
   conditions:
   - '[CONNECTED] == true'
 - name: Nexus
   group: nexus
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: nexus
   url: tcp://172.17.0.24:8081
   conditions:
   - '[CONNECTED] == true'
 - name: Nginx
   group: nginx
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: nginx
   url: tcp://172.17.0.24:8099
   conditions:
   - '[CONNECTED] == true'
 - name: App
   group: nginx-proxy-manager
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: nginx-proxy-manager-app
   url: tcp://172.17.0.24:30020
   conditions:
   - '[CONNECTED] == true'
 - name: ntopng
   group: network
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: ntopng
+    nabla_service_id: ntopng
   url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
 - name: Obsidian
   group: productivity
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: obsidian
+    nabla_service_id: obsidian
   url: tcp://172.17.0.24:3002
   conditions:
   - '[CONNECTED] == true'
 - name: Ollama
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: ollama
+    nabla_service_id: ollama
   url: tcp://172.17.0.24:30068
   conditions:
   - '[CONNECTED] == true'
 - name: Op Connect Api
   group: opconnect
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opconnect-op-connect-api
   url: tcp://172.17.0.24:8097
   conditions:
   - '[CONNECTED] == true'
 - name: Op Connect Sync
   group: opconnect
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opconnect-op-connect-sync
   url: tcp://172.17.0.24:8098
   conditions:
   - '[CONNECTED] == true'
 - name: Openhands
   group: openhands
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: openhands
   url: tcp://172.17.0.24:3010
   conditions:
   - '[CONNECTED] == true'
 - name: OpenRAG Frontend
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: openrag-frontend
+    nabla_service_id: openrag-frontend
   url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
 - name: OpenSearch
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opensearch
+    nabla_service_id: opensearch
   url: tcp://172.17.0.24:9200
   conditions:
   - '[CONNECTED] == true'
 - name: OpenSearch Dashboards
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opensearch-dashboards
+    nabla_service_id: opensearch-dashboards
   url: tcp://172.17.0.24:5601
   conditions:
   - '[CONNECTED] == true'
 - name: OpenSearch Exporter
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opensearch-exporter
+    nabla_service_id: opensearch-exporter
   url: tcp://172.17.0.24:9114
   conditions:
   - '[CONNECTED] == true'
 - name: OpenSearch Security Exporter
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: opensearch-security-exporter
+    nabla_service_id: opensearch-security-exporter
   url: tcp://172.17.0.24:9115
   conditions:
   - '[CONNECTED] == true'
 - name: Open WebUI
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: openwebui
+    nabla_service_id: openwebui
   url: tcp://172.17.0.24:31028
   conditions:
   - '[CONNECTED] == true'
 - name: Open WebUI Pipelines
   group: ai
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: openwebui-pipelines
+    nabla_service_id: openwebui-pipelines
   url: tcp://172.17.0.24:9099
   conditions:
   - '[CONNECTED] == true'
 - name: pfSense
   group: network
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: pfsense
   url: tcp://172.17.0.1:10443
   conditions:
   - '[CONNECTED] == true'
 - name: pfSense Exporter
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: pfsense-exporter
+    nabla_service_id: pfsense-exporter
   url: http://172.17.0.24:9945/metrics?target=172.17.0.1:10443
   conditions:
   - '[STATUS] == 200'
 - name: Pihole
   group: pihole
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: pihole
   url: tcp://172.17.0.24:53
   conditions:
   - '[CONNECTED] == true'
 - name: Pihole Exporter
   group: pihole
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: pihole-pihole-exporter
   url: tcp://172.17.0.24:9617
   conditions:
   - '[CONNECTED] == true'
 - name: Portracker
   group: portracker
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: portracker
   url: tcp://172.17.0.24:4999
   conditions:
   - '[CONNECTED] == true'
 - name: Postgres Exporter
   group: postgres
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: postgres-postgres-exporter
   url: tcp://172.17.0.24:9187
   conditions:
   - '[CONNECTED] == true'
 - name: PostgreSQL
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: postgresql
   url: tcp://172.17.0.24:5432
   conditions:
   - '[CONNECTED] == true'
 - name: Prometheus
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: prometheus
+    nabla_service_id: prometheus
   url: http://172.17.0.24:9090/-/ready
   conditions:
   - '[STATUS] == 200'
 - name: Alertmanager
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: prometheus-alertmanager
+    nabla_service_id: prometheus-alertmanager
   url: http://172.17.0.24:9093/-/ready
   conditions:
   - '[STATUS] == 200'
 - name: Cadvisor
   group: prometheus
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: prometheus-cadvisor
   url: tcp://172.17.0.24:8089
   conditions:
   - '[CONNECTED] == true'
 - name: Node Exporter
   group: prometheus
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: prometheus-node-exporter
   url: tcp://172.17.0.24:9100
   conditions:
   - '[CONNECTED] == true'
 - name: Pyroscope
   group: pyroscope
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: pyroscope
   url: tcp://172.17.0.24:4040
   conditions:
   - '[CONNECTED] == true'
 - name: Redis
   group: data
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: redis
+    nabla_service_id: redis
   url: tcp://172.17.0.24:30059
   conditions:
   - '[CONNECTED] == true'
 - name: Redis Exporter
   group: redis
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: redis-redis-exporter
   url: tcp://172.17.0.24:9121
   conditions:
   - '[CONNECTED] == true'
 - name: Scrutiny
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: scrutiny
+    nabla_service_id: scrutiny
   url: http://172.17.0.24:31054/api/health
   conditions:
   - '[STATUS] == 200'
 - name: Sentry Web
   group: sentry
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: sentry-sentry-web
   url: tcp://172.17.0.24:9005
   conditions:
   - '[CONNECTED] == true'
 - name: SonarQube
   group: development
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: sonarqube
+    nabla_service_id: sonarqube
   url: tcp://172.17.0.24:9001
   conditions:
   - '[CONNECTED] == true'
 - name: Squid
   group: squid
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: squid
   url: tcp://172.17.0.24:3128
   conditions:
   - '[CONNECTED] == true'
 - name: Sybase Exporter
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: sybase-exporter
+    nabla_service_id: sybase-exporter
   url: tcp://172.17.0.24:9113
   conditions:
   - '[CONNECTED] == true'
 - name: Tempo
   group: observability
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: tempo
+    nabla_service_id: tempo
   url: http://172.17.0.24:3200/ready
   conditions:
   - '[STATUS] == 200'
 - name: Traefik
   group: network
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: traefik
+    nabla_service_id: traefik
   url: tcp://172.17.0.24:80
   conditions:
   - '[CONNECTED] == true'
 - name: Ddns Updater
   group: traefik
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: traefik-ddns-updater
   url: tcp://172.17.0.24:8000
   conditions:
   - '[CONNECTED] == true'
 - name: TrueNAS
   group: infrastructure
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: truenas
   url: tcp://172.17.0.24:7000
   conditions:
   - '[CONNECTED] == true'
 - name: Vaultwarden
   group: vaultwarden
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: vaultwarden
   url: tcp://172.17.0.24:30032
   conditions:
   - '[CONNECTED] == true'
 - name: Wazuh Manager
   group: security
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: wazuh-manager
+    nabla_service_id: wazuh-manager
   url: tcp://172.17.0.24:1514
   conditions:
   - '[CONNECTED] == true'
 - name: Wordpress
   group: wordpress
   interval: 60s
+  extra-labels:
+    nabla_monitor_id: wordpress
   url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'

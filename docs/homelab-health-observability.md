@@ -226,6 +226,34 @@ Filesystem/ZFS capacity is intentionally not collapsed into one stable
 recording rule yet. First inspect the actual TrueNAS filesystem/ZFS label set
 so an irrelevant mount cannot become the fleet-wide minimum by accident.
 
+### Gatus synthetic service metrics
+
+Gatus exposes the generated black-box checks as Prometheus metrics on
+`/metrics`. Prometheus scrapes that endpoint as `job="gatus"`.
+
+Every generated endpoint carries a stable `nabla_monitor_id`. Only endpoints
+backed by declared service-local `x-nabla` metadata — the same contract used
+to generate `catalog/services.json` — additionally carry `nabla_service_id`.
+Fallback Compose monitors and static logical/core probes therefore remain
+visible without being mislabeled as services. Stable service recording rules
+expose:
+
+```promql
+nabla:telemetry:gatus_up
+nabla:service:synthetic_probe_success
+nabla:service:synthetic_probe_duration_seconds
+nabla:service:synthetic_availability_ratio_5m
+```
+
+The `nabla:service:*` rules select only series with `nabla_service_id` and
+preserve the Gatus `type` label. In particular, `type="TCP"`
+means transport reachability only; it must not be promoted to application
+health. HTTP health/readiness probes provide stronger synthetic evidence but
+remain black-box observations from Gatus, not real request traffic.
+
+Loss of Gatus or its Prometheus scrape is a telemetry blind spot. It must not
+overwrite a still-successful direct service check.
+
 ### Runtime acceptance
 
 After deployment, validate:

@@ -91,6 +91,13 @@ scrape_configs:
           - __param_target
         target_label: instance
 
+  - job_name: gatus
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 172.17.0.24:8085
+
   - job_name: crowdsec
     static_configs:
       - targets:
