@@ -96,6 +96,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("NTOPNG_INTERFACE: ${NTOPNG_INTERFACE:-eth0}", compose)
         self.assertIn("NTOPNG_HTTP_PORT: ${NTOPNG_HTTP_PORT:-3000}", compose)
         self.assertIn("/usr/local/bin/nabla-ntopng-entrypoint.sh", compose)
+        self.assertIn("source: /mnt/cpool/ntopng/ntopng.license", compose)
+        self.assertIn("target: /etc/ntopng.license", compose)
+        self.assertGreaterEqual(compose.count("create_host_path: false"), 2)
         self.assertNotIn("\n    command:\n", compose)
         self.assertNotIn("${CLICKHOUSE_USER:-clickhouse}", compose)
         self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
@@ -113,6 +116,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;", readme)
         self.assertNotIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
         self.assertIn("Do not grant `ALL`, global `*.*`", readme)
+        self.assertIn("/mnt/cpool/ntopng/ntopng.license", readme)
+        self.assertIn("Enterprise M/L/XL/XXL", readme)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
@@ -249,6 +254,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
         self.assertIn("global *.* privileges are forbidden", audit)
+        self.assertIn("Enterprise license file mounted", audit)
+        self.assertIn("supported Enterprise edition detected", audit)
+        self.assertIn("Enterprise M-or-higher edition required", audit)
         self.assertIn("ephemeral config is a mode-0600 file", audit)
         self.assertIn("password absent from process argv", audit)
         self.assertIn("password is exposed in process argv", audit)
