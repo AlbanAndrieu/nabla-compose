@@ -132,6 +132,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/run/secrets/ntopng_runtime_env", readme)
         self.assertIn("Enterprise M/L/XL/XXL", readme)
 
+        wrapper_mode = (ROOT / "apps/ntopng/entrypoint.sh").stat().st_mode
+        self.assertTrue(wrapper_mode & stat.S_IXUSR)
+        self.assertTrue(wrapper_mode & stat.S_IXGRP)
+        self.assertTrue(wrapper_mode & stat.S_IXOTH)
+
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
         minio = self.read("apps/minio/compose.yml")
