@@ -95,10 +95,10 @@ longer embeds MongoDB and connects to it over `intranet`.
 Prepare storage:
 
 ```bash
-mkdir -p /mnt/cpool/mongo/data /mnt/cpool/graylog/data
+mkdir -p /mnt/cpool/mongo/data /mnt/cpool/graylog/data/journal
 chown -R 999:999 /mnt/cpool/mongo/data
-chown -R 1100:1100 /mnt/cpool/graylog/data
-chmod 770 /mnt/cpool/mongo/data /mnt/cpool/graylog/data
+chown -R 1100:1100 /mnt/cpool/graylog/data/journal
+chmod 770 /mnt/cpool/mongo/data /mnt/cpool/graylog/data/journal
 ```
 
 Create MongoDB credentials:
@@ -122,9 +122,24 @@ MONGO_ROOT_PASSWORD="$(
 )"
 GRAYLOG_MONGO_PASSWORD="$(openssl rand -hex 32)"
 
-docker exec mongo mongosh --quiet \
+docker exec \
+  -e GRAYLOG_MONGO_PASSWORD="${GRAYLOG_MONGO_PASSWORD}" \
+  mongo mongosh --quiet \
   -u root -p "${MONGO_ROOT_PASSWORD}" --authenticationDatabase admin \
-  --eval "db.getSiblingDB('graylog').createUser({user:'graylog',pwd:'${GRAYLOG_MONGO_PASSWORD}',roles:[{role:'readWrite',db:'graylog'}]})"
+  --eval '
+const graylog = db.getSiblingDB("graylog");
+const roles = [
+  { role: "readWrite", db: "graylog" },
+  { role: "dbAdmin", db: "graylog" },
+  { role: "clusterMonitor", db: "admin" }
+];
+const password = process.env.GRAYLOG_MONGO_PASSWORD;
+if (graylog.getUser("graylog")) {
+  graylog.updateUser("graylog", { pwd: password, roles });
+} else {
+  graylog.createUser({ user: "graylog", pwd: password, roles });
+}
+'
 ```
 
 Then populate the existing Graylog secret file without committing either
@@ -151,6 +166,13 @@ unset GRAYLOG_PASSWORD_SECRET GRAYLOG_ADMIN_PASSWORD GRAYLOG_ROOT_PASSWORD_SHA2
 Graylog keeps port `9000` inside the container but defaults to host port
 `9003` because ClickHouse already publishes host TCP/9000. Verify TCP/9003 is
 free before the first start.
+
+The Graylog Docker image expects bundled/custom configuration under
+`/usr/share/graylog/data/config`. Do not bind-mount the whole host
+`/mnt/cpool/graylog/data` over `/usr/share/graylog/data`: an empty host
+directory would hide the image configuration and produce
+`graylog.conf doesn't exist`. The repository mounts the versioned config
+directory read-only and persists only `/usr/share/graylog/data/journal`.
 
 Install/start in this order:
 
@@ -190,7 +212,31 @@ cluster:
 OPENSEARCH_PASSWORD=<existing OpenSearch password>
 ```
 
-Start `opensearch`, then `langflow`, then `openrag`.
+Langflow is deployed with interactive authentication enabled, so
+`/mnt/cpool/langflow/.env.secrets` must additionally contain a strong
+bootstrap superuser password:
+
+```text
+LANGFLOW_SUPERUSER_PASSWORD=<strong random password>
+```
+
+Generate it without printing it:
+
+```bash
+grep -q '^LANGFLOW_SUPERUSER_PASSWORD=.' /mnt/cpool/langflow/.env.secrets || {
+  printf 'LANGFLOW_SUPERUSER_PASSWORD=%s\n' "$(openssl rand -hex 32)" |
+    sudo tee -a /mnt/cpool/langflow/.env.secrets >/dev/null
+}
+sudo chmod 600 /mnt/cpool/langflow/.env.secrets
+```
+
+The primary OpenSearch container must be recreated from the repository Compose
+after the `intranet` migration so that the `opensearch` network alias is
+actually attached at runtime. A Compose file declaring the alias does not
+retroactively modify an already-running container.
+
+Start/recreate `opensearch`, validate `opensearch:9200` from `intranet`,
+then start `langflow`, then `openrag`.
 
 ## Gatus
 
@@ -224,6 +270,18 @@ SCRUTINY_WEB_INFLUXDB_BUCKET=<existing bucket>
 
 The Compose definition supplies only `influxdb:8086`; token, organization and
 bucket are deliberately not interpolated by Compose.
+
+For the current recovered InfluxDB datastore, the organization is `nabla`.
+Do not guess the Scrutiny bucket. Locate the bucket that actually contains
+Scrutiny's `smart` or `temp` measurements before creating the final token.
+If no existing bucket contains those measurements, create a new dedicated
+`metrics` (or `scrutiny`) bucket and accept that there is no Scrutiny history
+in this InfluxDB datastore.
+
+The recovery/operator token is only for administration. Create a dedicated
+read/write token scoped to the selected Scrutiny bucket and place that token in
+`/mnt/cpool/scrutiny/.env.secrets`; do not reuse the operator token for the
+application.
 
 ## Langfuse shared Redis and MinIO
 
@@ -275,6 +333,24 @@ Langfuse application available for rollback until the Compose-backed web and
 worker containers both remain stable.
 
 The repository Compose no longer contains production-like fallback passwords.
+
+## Homarr permissions
+
+Homarr runs with `PUID=568` and `PGID=568`. Its entrypoint creates/chowns
+`/appdata` subdirectories and then drops privileges. The Compose file therefore
+drops every Linux capability and adds back only `CHOWN`, `SETGID`, and
+`SETUID`.
+
+Prepare the existing dataset before recreation:
+
+```bash
+chown -R 568:568 /mnt/cpool/homarr
+chmod -R u+rwX,g+rwX /mnt/cpool/homarr
+```
+
+Keep the existing `SECRET_ENCRYPTION_KEY` in
+`/mnt/cpool/homarr/.env.secrets`; rotating it would make stored encrypted
+integration secrets unreadable.
 
 ## Historical TrueNAS lifecycle failures
 
