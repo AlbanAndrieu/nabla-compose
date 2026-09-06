@@ -182,8 +182,11 @@ misconfiguration of ntopng would inherit privileges unrelated to flow storage.
 
 The repository ntopng application now fixes the database/user identity to
 `ntopng`, obtains only `NTOPNG_CLICKHOUSE_PASSWORD` from the runtime secret
-file, rejects known shared/default passwords, and enables `--strict-startup`.
-The TrueNAS lifecycle audit validates the dedicated database/user, forbids
+file, renders an ephemeral mode-`0600` ntopng configuration, removes the
+password from the child process environment/argv, rejects known shared/default
+passwords, and enables `--strict-startup`. The TrueNAS lifecycle audit
+validates the config mode and argv exposure, validates the dedicated
+database/user, forbids
 global `*.*` grants and database-scoped `ALL`, then uses ClickHouse
 `CHECK GRANT` to prove the required scoped DML/DDL privileges when ntopng is
 running.
