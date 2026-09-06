@@ -165,7 +165,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: graylog
     nabla_service_id: graylog
-  url: tcp://172.17.0.24:9000
+  url: tcp://172.17.0.24:9003
   conditions:
   - '[CONNECTED] == true'
 - name: pfSense HAProxy Exporter
