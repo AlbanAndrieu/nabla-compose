@@ -248,6 +248,81 @@ services:
                 "fixture.x-nabla",
             )
 
+    def test_security_functions_propagate_to_node_and_service(self) -> None:
+        metadata = {
+            "id": "security-fixture",
+            "name": "Security fixture",
+            "kind": "security-control",
+            "category": "security",
+            "securityFunctions": ["protect", "detect", "respond"],
+            "runtime": {
+                "provider": "truenas-app",
+                "containerService": "security-fixture",
+            },
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "apps/security-fixture/compose.yml",
+            "fixture.x-nabla",
+        )
+        service = MODULE.declared_service(
+            metadata,
+            "apps/security-fixture/compose.yml",
+            "security-fixture",
+            "fixture.x-nabla",
+        )
+
+        expected = ["protect", "detect", "respond"]
+        self.assertEqual(node["securityFunctions"], expected)
+        self.assertEqual(service["securityFunctions"], expected)
+
+    def test_invalid_security_function_is_rejected(self) -> None:
+        metadata = {
+            "id": "security-fixture",
+            "name": "Security fixture",
+            "kind": "security-control",
+            "category": "security",
+            "securityFunctions": ["protect", "prevent"],
+        }
+
+        with self.assertRaisesRegex(ValueError, "securityFunctions\[1\] must be one of"):
+            MODULE.topology_node(
+                metadata,
+                "apps/security-fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
+    def test_security_functions_require_non_empty_unique_list(self) -> None:
+        base = {
+            "id": "security-fixture",
+            "name": "Security fixture",
+            "kind": "security-control",
+            "category": "security",
+        }
+
+        for invalid in ("protect", []):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "securityFunctions must be a non-empty list",
+                ):
+                    MODULE.topology_node(
+                        {**base, "securityFunctions": invalid},
+                        "apps/security-fixture/compose.yml",
+                        "fixture.x-nabla",
+                    )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "securityFunctions must not contain duplicates",
+        ):
+            MODULE.topology_node(
+                {**base, "securityFunctions": ["detect", "detect"]},
+                "apps/security-fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
     def test_unknown_relation_type_is_rejected_before_generation(self) -> None:
         with self.assertRaisesRegex(ValueError, "type must be one of"):
             MODULE.topology_relation(
