@@ -64,7 +64,7 @@ services:
         - CMD-SHELL
         - >-
           wget --no-verbose --tries=1 --spider
-          "http://$HOSTNAME:3030/api/health"
+          "http://$(hostname):3030/api/health"
           || exit 1
       interval: 10s
       timeout: 5s
@@ -157,7 +157,7 @@ services:
         - CMD-SHELL
         - >-
           wget --no-verbose --tries=1 --spider
-          "http://$HOSTNAME:3000/api/public/health?failIfDatabaseUnavailable=true"
+          "http://$(hostname):3000/api/public/health?failIfDatabaseUnavailable=true"
           || exit 1
       interval: 10s
       timeout: 5s
