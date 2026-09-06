@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:6f2359a6c32f392739ee89ce928d1e9a8dc6582864dce8c1432df76a34fc2131",
+  "catalogRevision": "sha256:e34fe0a1bda4159940afde912756fdc74202085b90faba5e73ff9579032ea565",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -205,7 +205,7 @@
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
       "composeService": "homarr",
-      "url": "http://172.17.0.24:7575",
+      "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
       "runtime": {
         "provider": "truenas-app",
