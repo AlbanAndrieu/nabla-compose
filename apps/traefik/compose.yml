@@ -69,6 +69,7 @@ services:
       - "--providers.docker.network=traefik_network"
 
       # Let's Encrypt / Cloudflare DNS
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:-alban.andrieu@free.fr}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/certs/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
@@ -218,8 +219,9 @@ services:
   #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
   dnsupdater:
-    # image: yfrickx/traefik-cloudflare-updater:latest
-    image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:latest
+    # Legacy Traefik -> Cloudflare companion. Keep it from owning records that
+    # AutoXpose manages, and keep private *.int names out of public DNS.
+    image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:7.4.0
     container_name: dnsupdater
     restart: unless-stopped
     volumes:
@@ -230,9 +232,10 @@ services:
       - TARGET_DOMAIN=albandrieu.com
       - DOMAIN1=albandrieu.com
       # - DOMAIN1_ZONE_ID=015XXX
+      # Current companion contract: comma-separated subdomain trees.
+      - DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test
       - DOMAIN2=albanandrieu.com
       # - DOMAIN2_ZONE_ID=227XXX
-      - EXCLUDED_DOMAINS=static.albandrieu.com,test.albanandrieu.com
 
   # traeflare:
   #   image: ghcr.io/m4tt72/traeflare:main

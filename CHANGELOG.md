@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.2...0.13.0) (2026-09-06)
+
+
+### Features
+
+* **ingress:** expose FastAPI Sample through Traefik and AutoXpose DNS ([#103](https://github.com/AlbanAndrieu/nabla-compose/issues/103)) ([95e5950](https://github.com/AlbanAndrieu/nabla-compose/commit/95e595059f75ad6dd9da5dfd163224ff49545ebb))
+
 ## [0.12.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.1...0.12.2) (2026-09-06)
 
 
