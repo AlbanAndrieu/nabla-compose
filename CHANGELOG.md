@@ -1,3 +1,10 @@
+## [0.15.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.2...0.15.3) (2026-09-06)
+
+
+### Bug Fixes
+
+* **clickhouse:** enable SQL access management ([#112](https://github.com/AlbanAndrieu/nabla-compose/issues/112)) ([9ec56b2](https://github.com/AlbanAndrieu/nabla-compose/commit/9ec56b25138211c76d1284b1d20cc81402271045))
+
 ## [0.15.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.1...0.15.2) (2026-09-06)
 
 
