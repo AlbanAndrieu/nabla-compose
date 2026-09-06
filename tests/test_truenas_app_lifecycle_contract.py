@@ -80,8 +80,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         minio = self.read("apps/minio/compose.yml")
         clickhouse = self.read("apps/clickhouse/compose.yml")
 
-        self.assertIn("docker.langfuse.com/langfuse/langfuse:4.30.0", langfuse)
-        self.assertIn("docker.langfuse.com/langfuse/langfuse-worker:4.30.0", langfuse)
+        self.assertIn("ghcr.io/langfuse/langfuse:4.30.0", langfuse)
+        self.assertIn("ghcr.io/langfuse/langfuse-worker:4.30.0", langfuse)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
         self.assertIn("CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}", langfuse)
         self.assertIn("CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}", langfuse)
