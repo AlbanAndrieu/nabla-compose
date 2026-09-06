@@ -17,4 +17,9 @@ inputs = {
   truenas_pool                 = get_env("TRUENAS_POOL", "cpool")
   vm_bridge                    = get_env("TRUENAS_VM_BRIDGE", "br0")
   talos_iso_path               = get_env("TALOS_ISO_PATH", "")
+  kubernetes_nfs_share_enabled = tobool(get_env("KUBERNETES_NFS_SHARE_ENABLED", "false"))
+  kubernetes_csi_dataset       = get_env("KUBERNETES_CSI_DATASET", "k8s/csi")
+  kubernetes_nfs_allowed_hosts = compact([
+    for host in split(",", get_env("KUBERNETES_NFS_ALLOWED_HOSTS", "172.17.0.50,172.17.0.51,172.17.0.52")) : trimspace(host)
+  ])
 }
