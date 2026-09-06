@@ -592,7 +592,7 @@ def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             continue
         endpoints.append(endpoint)
-    return {"endpoints": endpoints}
+    return {"metrics": True, "endpoints": endpoints}
 
 
 def seconds(interval: str) -> int:
