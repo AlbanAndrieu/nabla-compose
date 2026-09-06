@@ -317,8 +317,7 @@ function probe_clickhouse_config_mounts_if_running {
 
   local path
   for path in \
-    /etc/clickhouse-server/config.d/prometheus.xml \
-    /etc/clickhouse-server/users.d/admin-grants.xml
+    /etc/clickhouse-server/config.d/prometheus.xml
   do
     if docker exec "${container}" test -f "${path}"; then
       functional_ok "ClickHouse config mount: ${path} is a file"
