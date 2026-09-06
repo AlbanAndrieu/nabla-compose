@@ -70,9 +70,9 @@ must not be treated as evidence that the services are intentionally public.
   Cloudflare Access Service Auth is appropriate only for automation that can
   explicitly send `CF-Access-Client-Id` and `CF-Access-Client-Secret`;
   do not assume stock Bitwarden clients can inject those headers;
-- [ ] add a read-only Cloudflare DNS drift check that reports every public
-  `*.int.albandrieu.com` record and fails unless it appears in a reviewed
-  temporary-exception allowlist;
+- [x] add `scripts/security/audit-public-int-dns.sh`, a read-only Cloudflare
+  DNS drift check that reports every public `*.int.albandrieu.com` record and
+  fails unless it appears in the reviewed temporary-exception allowlist;
 - [ ] keep pfSense/Unbound as the general LAN resolver and design the private
   `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
   point of failure;
