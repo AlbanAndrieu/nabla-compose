@@ -2,11 +2,12 @@
 set -eu
 
 : "${CLICKHOUSE_HOST:=172.17.0.24}"
+: "${NTOPNG_INTERFACE:=eth0}"
+: "${NTOPNG_HTTP_PORT:=3000}"
 : "${NTOPNG_CLICKHOUSE_PASSWORD:?NTOPNG_CLICKHOUSE_PASSWORD must be set}"
 
 NTOPNG_CLICKHOUSE_DATABASE="ntopng"
 NTOPNG_CLICKHOUSE_USER="ntopng"
-export NTOPNG_CLICKHOUSE_DATABASE NTOPNG_CLICKHOUSE_USER
 
 case "${NTOPNG_CLICKHOUSE_PASSWORD}" in
   clickhouse|default)
@@ -15,9 +16,19 @@ case "${NTOPNG_CLICKHOUSE_PASSWORD}" in
     ;;
 esac
 
-# The upstream ntop image entrypoint (/run.sh) appends $NTOP_CONFIG to the
-# ntopng command. Build the -F argument at runtime so the password comes from
-# the container env_file rather than Compose interpolation or the repository.
-export NTOP_CONFIG="-F clickhouse;${CLICKHOUSE_HOST};${NTOPNG_CLICKHOUSE_DATABASE};${NTOPNG_CLICKHOUSE_USER};${NTOPNG_CLICKHOUSE_PASSWORD}"
+# ntopng accepts a configuration file as its single argument. Generate it at
+# runtime so the ClickHouse password is neither stored in the repository nor
+# exposed in the ntopng process argv. The secret is removed from the inherited
+# environment before delegating to the upstream image entrypoint.
+config="/run/nabla-ntopng.conf"
+umask 077
+cat >"${config}" <<EOF
+--interface=${NTOPNG_INTERFACE}
+--http-port=${NTOPNG_HTTP_PORT}
+--dump-flows=clickhouse;${CLICKHOUSE_HOST};${NTOPNG_CLICKHOUSE_DATABASE};${NTOPNG_CLICKHOUSE_USER};${NTOPNG_CLICKHOUSE_PASSWORD}
+--strict-startup=
+EOF
+chmod 600 "${config}"
 
-exec /run.sh "$@"
+unset NTOP_CONFIG NTOPNG_CLICKHOUSE_PASSWORD
+exec /run.sh "${config}"
