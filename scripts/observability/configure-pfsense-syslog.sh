@@ -42,8 +42,8 @@ for command in curl jq mktemp; do
   fi
 done
 
-if [[ -z "${PFSENSE_API_KEY:-}" ]]; then
-  fail "PFSENSE_API_KEY is required; use a dedicated key with GET/PATCH access to status/logs/settings"
+if [[ -z "${PFSENSE_OBSERVABILITY_API_KEY:-}" ]]; then
+  fail "PFSENSE_OBSERVABILITY_API_KEY is required; use a dedicated local operator key with only GET/PATCH access to status/logs/settings"
 fi
 
 if ((errors > 0)); then
@@ -65,7 +65,7 @@ curl_common=(
   --max-time 20
   --header "Accept: application/json"
   --header "Content-Type: application/json"
-  --header "X-API-Key: ${PFSENSE_API_KEY}"
+  --header "X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"
 )
 
 if [[ -n "${PFSENSE_API_CA_BUNDLE:-}" ]]; then
