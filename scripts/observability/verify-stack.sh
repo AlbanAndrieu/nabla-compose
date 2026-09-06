@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 strict=false
 if [[ "${1:-}" == "--strict" ]]; then
   strict=true
@@ -186,6 +188,12 @@ printf '\n'
 if ((errors > 0)); then
   printf '❌ Observability preflight failed: %d error(s), %d warning(s).\n'     "${errors}" "${warnings}" >&2
   exit 1
+fi
+
+if [[ "${strict}" == "true" ]]; then
+  printf '\n🔗 End-to-end telemetry paths\n'
+  bash "${SCRIPT_DIR}/verify-otlp.sh"
+  bash "${SCRIPT_DIR}/verify-pfsense-syslog.sh" --synthetic-only
 fi
 
 printf '✅ Observability preflight passed with %d warning(s).\n' "${warnings}"
