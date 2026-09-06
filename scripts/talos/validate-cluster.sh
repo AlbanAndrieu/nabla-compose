@@ -23,6 +23,39 @@ check_kubelet() {
     fail "kubelet health is not OK on ${node_ip}"
 }
 
+count_etcd_members() {
+  local members_output="$1"
+
+  awk '
+    BEGIN {
+      header_seen = 0
+      malformed = 0
+    }
+    /^NODE[[:space:]]+ID[[:space:]]+HOSTNAME([[:space:]]|$)/ {
+      header_seen = 1
+      next
+    }
+    header_seen && NF && $NF ~ /^(true|false)$/ {
+      member_ids[$2] = 1
+      next
+    }
+    header_seen && NF {
+      malformed = 1
+    }
+    END {
+      if (!header_seen || malformed) {
+        exit 2
+      }
+
+      count = 0
+      for (id in member_ids) {
+        count++
+      }
+      print count
+    }
+  ' <<<"${members_output}"
+}
+
 for command in talosctl kubectl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
@@ -93,8 +126,9 @@ pressure_summary="$(
 [[ -z "${pressure_summary}" ]] ||
   fail "Kubernetes node pressure detected: ${pressure_summary}"
 
-etcd_members="$(talosctl --nodes "${CONTROL_PLANE_IP}" etcd members --output json)"
-etcd_member_count="$(jq 'length' <<<"${etcd_members}")"
+etcd_members_output="$(talosctl --nodes "${CONTROL_PLANE_IP}" etcd members)"
+etcd_member_count="$(count_etcd_members "${etcd_members_output}")" ||
+  fail "unexpected talosctl etcd members table format"
 [[ "${etcd_member_count}" -eq 1 ]] ||
   fail "expected exactly one etcd member for the current single-control-plane topology, found ${etcd_member_count}"
 
