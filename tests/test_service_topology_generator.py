@@ -148,7 +148,7 @@ services:
             "kind": "security-app",
             "category": "security",
             "presentationRole": "service",
-            "criticality": "high",
+            "criticality": "medium",
             "runtime": {
                 "provider": "truenas-app",
                 "containerService": "vaultwarden",
@@ -168,9 +168,63 @@ services:
         )
 
         self.assertEqual(node["presentationRole"], "service")
-        self.assertEqual(node["criticality"], "high")
+        self.assertEqual(node["criticality"], "medium")
         self.assertEqual(service["presentationRole"], "service")
-        self.assertEqual(service["criticality"], "high")
+        self.assertEqual(service["criticality"], "medium")
+
+    def test_core_role_is_normalized_to_critical(self) -> None:
+        metadata = {
+            "id": "kubernetes",
+            "name": "Kubernetes",
+            "kind": "orchestrator",
+            "category": "infrastructure",
+            "presentationRole": "core",
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "catalog/service-topology.static.json",
+            "fixture.x-nabla",
+        )
+
+        self.assertEqual(node["presentationRole"], "core")
+        self.assertEqual(node["criticality"], "critical")
+
+    def test_core_role_rejects_noncritical_criticality(self) -> None:
+        metadata = {
+            "id": "kubernetes",
+            "name": "Kubernetes",
+            "kind": "orchestrator",
+            "category": "infrastructure",
+            "presentationRole": "core",
+            "criticality": "high",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "criticality must be critical when presentationRole is core",
+        ):
+            MODULE.topology_node(
+                metadata,
+                "catalog/service-topology.static.json",
+                "fixture.x-nabla",
+            )
+
+    def test_standard_is_not_a_valid_criticality(self) -> None:
+        metadata = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "application",
+            "category": "test",
+            "criticality": "standard",
+        }
+
+        with self.assertRaisesRegex(ValueError, "criticality must be one of"):
+            MODULE.topology_node(
+                metadata,
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
 
     def test_invalid_presentation_metadata_is_rejected(self) -> None:
         base = {
