@@ -8,32 +8,23 @@ ROOT = Path(__file__).parents[1]
 
 
 class PublicIngressContractTests(unittest.TestCase):
-    def test_sample_has_separate_internal_and_public_traefik_routes(self) -> None:
+    def test_sample_internal_traefik_hosts_are_canonical_and_compatible(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
+        self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
+        self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
         self.assertIn("Host(`fastapi-sample.int.albandrieu.com`)", compose)
-        self.assertIn("Host(`sample.albandrieu.com`)", compose)
-        self.assertIn(
-            "traefik.http.routers.fastapi-sample-public.tls.certresolver=letsencrypt",
-            compose,
-        )
         self.assertIn(
             "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080",
             compose,
         )
 
-    def test_sample_autoxpose_contract_is_dns_first_and_documented(self) -> None:
+    def test_sample_public_path_is_not_owned_by_autoxpose_or_traefik(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
-        for label in (
-            "autoxpose.enable=auto",
-            "autoxpose.subdomain=sample",
-            "autoxpose.name=FastAPI Sample",
-            "autoxpose.scheme=http",
-            "autoxpose.port=${FASTAPI_SAMPLE_PORT:-8091}",
-        ):
-            self.assertIn(label, compose)
-        self.assertNotIn("autoxpose.domain=", compose)
+        self.assertNotIn("autoxpose.", compose)
+        self.assertNotIn("Host(`sample.albandrieu.com`)", compose)
+        self.assertNotIn("fastapi-sample-public", compose)
 
     def test_autoxpose_uses_shared_read_only_docker_proxy(self) -> None:
         compose = (ROOT / "apps" / "autoxpose" / "compose.yml").read_text(encoding="utf-8")
@@ -44,21 +35,23 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", compose)
         self.assertNotIn("172.17.0.24:2375", compose)
 
-    def test_sample_acceptance_defaults_to_truenas_from_lan(self) -> None:
+    def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
         script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(
             encoding="utf-8"
         )
 
         self.assertIn('TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"', script)
+        self.assertIn('INTERNAL_HOST="${INTERNAL_HOST:-sample.int.albandrieu.com}"', script)
         self.assertIn(
             'LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"',
             script,
         )
-        self.assertIn(
-            'AUTOXPOSE_URL="${AUTOXPOSE_URL:-http://${TRUENAS_HOST}:4949}"',
-            script,
-        )
-        self.assertIn("SKIP: ACME store", script)
+        self.assertIn("CF-Access-Client-Id", script)
+        self.assertIn("CF-Access-Client-Secret", script)
+        self.assertIn("Cloudflare Access is enforcing authentication", script)
+        self.assertNotIn("AUTOXPOSE_URL", script)
+        self.assertNotIn("EXPECTED_PUBLIC_IP", script)
+        self.assertNotIn("pfSense/HAProxy", script)
 
     def test_legacy_cloudflare_companion_cannot_own_sample_dns(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
