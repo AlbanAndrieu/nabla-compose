@@ -26,7 +26,10 @@ Read-only integration preflight. It verifies:
 
 - Grafana API and database health;
 - Alloy readiness and component health;
-- Loki, Mimir, Tempo and Prometheus readiness;
+- Loki, Mimir, Tempo, Prometheus and Alertmanager readiness;
+- active Prometheus targets for Prometheus, Grafana, Alloy, Loki, Mimir, Tempo,
+  Alertmanager and the pfSense exporter;
+- an active Prometheus -> Alertmanager integration;
 - a real `pfsense-exporter` scrape against `172.17.0.1:10443`;
 - `up{job="pfsense_exporter"} == 1` in Prometheus and Mimir;
 - Grafana datasource health for Loki, Mimir and Tempo when a service-account
@@ -50,8 +53,10 @@ Two independent checks are available:
 
 - `--synthetic-only`: send one RFC5424 UDP packet to Alloy and prove it reaches
   Loki;
-- `--live-only`: require recent `job="pfsense"` records whose transport
-  sender is `172.17.0.1`.
+- `--live-only`: require recent `job="pfsense",device="pfsense"` records.
+  Alloy assigns that stable device label only when the transport sender is the
+  known pfSense LAN address `172.17.0.1`; the raw IP is not persisted as a
+  Loki label.
 
 Without an option it runs both checks. The script reports only status and stream
 counts; it does not print firewall/authentication log contents.
@@ -60,15 +65,23 @@ counts; it does not print firewall/authentication log contents.
 
 Safe pfREST v2 configurator.
 
-Default behavior is `--plan`. The script:
+Default behavior is `--check`, which is fully read-only. The script:
 
 1. runs the observability preflight;
-2. reads the current pfSense log settings;
-3. preserves every existing remote syslog destination;
-4. reuses the desired destination if it already exists, otherwise selects the
+2. reads `/api/v2/system/restapi/version` and refuses to continue below the
+   security floor `v2.9.0`;
+3. reads the current pfSense log settings;
+4. preserves every existing remote syslog destination;
+5. reuses the desired destination if it already exists, otherwise selects the
    first empty remote-syslog slot;
-5. fails instead of overwriting anything when all three slots are occupied;
-6. asks pfREST to validate the PATCH with `dry_run=true`.
+6. fails instead of overwriting anything when all three slots are occupied;
+7. prints the desired non-secret logging contract and exits without PATCH in
+   `--check` mode.
+
+`--plan` is the second stage. It sends the same desired configuration with
+pfREST `dry_run=true`, so the API validates the PATCH without persisting it.
+Because pfREST global read-only mode can reject the PATCH method before the
+dry-run pipeline, open a supervised write window only if needed for this stage.
 
 Only explicit `--apply` performs a mutation. Apply first runs
 `verify-stack.sh --strict`, then patches and re-reads the pfSense settings,
@@ -100,9 +113,13 @@ variable: PFSENSE_OBSERVABILITY_API_KEY
 Permanent privileges should be limited to:
 
 ```text
+REST API - /api/v2/system/restapi/version GET
 REST API - /api/v2/status/logs/settings GET
 REST API - /api/v2/status/logs/settings PATCH
 ```
+
+The version GET exists only to enforce the local security floor. The helper
+never upgrades or rolls back the pfREST package.
 
 Do not add the user to the pfSense administrators group and do not grant shell,
 webConfigurator-all-pages, firewall, diagnostics or unrelated REST privileges.
@@ -138,17 +155,25 @@ bash scripts/observability/verify-stack.sh --strict
 
 The strict preflight must pass before changing pfSense.
 
-Load the dedicated pfSense observability operator key, then dry-run:
+Load the dedicated pfSense observability operator key, then inspect using GET
+requests only:
 
 ```bash
 export PFSENSE_API_URL=https://172.17.0.1:10443
 export PFSENSE_SYSLOG_SOURCE_INTERFACE=lan
 
+bash scripts/observability/configure-pfsense-syslog.sh --check
+```
+
+Review the displayed **non-secret** desired settings. Then, if pfREST global
+read-only mode blocks PATCH methods, open a supervised write window and ask the
+API to validate the change without persisting it:
+
+```bash
 bash scripts/observability/configure-pfsense-syslog.sh --plan
 ```
 
-Review the displayed **non-secret** desired settings. When the pfREST write
-window is intentionally open:
+Only after that dry-run succeeds:
 
 ```bash
 bash scripts/observability/configure-pfsense-syslog.sh --apply
@@ -185,6 +210,22 @@ publish it through WAN NAT, HAProxy, Traefik or Cloudflare. If the path ever
 crosses an untrusted network, migrate that transport to syslog-ng TCP/TLS or a
 protected VPN.
 
+## Grafana stack-health dashboard
+
+Grafana provisions `Nabla Observability Stack Health` from
+`apps/grafana/config/dashboards/observability/stack-health.json`.
+
+It reuses the existing Mimir datasource and shows:
+
+- core observability target availability;
+- the pfSense metrics path;
+- currently firing critical alerts;
+- scrape duration and samples scraped;
+- Prometheus remote-write failures/retries toward Mimir.
+
+This dashboard adds queries only; it does not deploy another service or
+datastore.
+
 ## Continuous monitoring
 
 Gatus and AutoKuma monitor functional HTTP endpoints instead of only open TCP
@@ -196,7 +237,13 @@ ports for:
 - Mimir;
 - Tempo;
 - Prometheus;
+- Alertmanager;
 - pfSense Exporter.
+
+Prometheus also scrapes the internal `/metrics` endpoints of Grafana, Alloy,
+Loki, Mimir, Tempo and Alertmanager every 30 seconds and raises a critical
+`NablaObservabilityTargetDown` alert when one of these core monitoring
+targets remains unavailable for two minutes.
 
 The pfSense Exporter monitor performs a real scrape of the pfSense target, so
 an exporter process that is running but cannot query pfSense is considered

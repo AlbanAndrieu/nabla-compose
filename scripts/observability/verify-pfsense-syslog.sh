@@ -101,25 +101,25 @@ verify_synthetic() {
 
 verify_live_pfsense() {
   local output="${tmp_dir}/pfsense-live.json"
-  local query="{job=\"pfsense\",sender=\"${PFSENSE_SYSLOG_SOURCE_IP}\"}"
+  local query='{job="pfsense",device="pfsense"}'
 
   printf '\n🔥 Real pfSense -> Alloy -> Loki\n'
   if ! loki_query "${query}" "${PFSENSE_LOG_LOOKBACK}" "${output}" 2>/dev/null; then
-    fail "Loki query for pfSense sender failed"
+    fail "Loki query for device=pfsense failed"
     return
   fi
 
   if jq -e '.status == "success" and (.data.result | length) > 0'     "${output}" >/dev/null 2>&1; then
     local streams
     streams="$(jq '[.data.result[].stream] | unique | length' "${output}")"
-    ok "real pfSense syslog observed from sender ${PFSENSE_SYSLOG_SOURCE_IP} (${streams} stream(s), lookback ${PFSENSE_LOG_LOOKBACK})"
+    ok "real pfSense syslog observed from the trusted pfSense source (${streams} stream(s), lookback ${PFSENSE_LOG_LOOKBACK})"
   else
-    fail "no real pfSense syslog from sender ${PFSENSE_SYSLOG_SOURCE_IP} in the last ${PFSENSE_LOG_LOOKBACK}"
+    fail "no real pfSense syslog classified as device=pfsense in the last ${PFSENSE_LOG_LOOKBACK}"
   fi
 }
 
 printf '🔎 pfSense syslog integration verification\n'
-printf 'Alloy UDP: %s:%s | expected pfSense sender: %s\n\n'   "${ALLOY_SYSLOG_HOST}" "${ALLOY_SYSLOG_UDP_PORT}" "${PFSENSE_SYSLOG_SOURCE_IP}"
+printf 'Alloy UDP: %s:%s | trusted pfSense classification: device=pfsense\n\n' "${ALLOY_SYSLOG_HOST}" "${ALLOY_SYSLOG_UDP_PORT}"
 
 for command in curl date jq mktemp python3; do
   require_command "${command}"

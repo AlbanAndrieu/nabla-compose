@@ -27,7 +27,9 @@ loki.relabel "pfsense_syslog" {
 
   rule {
     source_labels = ["__syslog_connection_ip_address"]
-    target_label  = "sender"
+    regex         = "172\\.17\\.0\\.1"
+    target_label  = "device"
+    replacement   = "pfsense"
   }
 }
 

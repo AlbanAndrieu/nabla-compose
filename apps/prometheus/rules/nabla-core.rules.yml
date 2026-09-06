@@ -31,3 +31,17 @@ groups:
     rules:
       - record: nabla:observability:prometheus_up
         expr: max(up{job="prometheus"})
+
+      - alert: NablaObservabilityTargetDown
+        expr: >-
+          up{job=~"prometheus|grafana|alloy|loki|mimir|tempo|alertmanager"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          scope: observability
+          impact: degraded
+        annotations:
+          summary: Core observability target is unavailable
+          description: >-
+            The {{ $labels.job }} observability target has been unreachable by
+            Prometheus for at least two minutes.

@@ -158,11 +158,14 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
 
-    def test_syslog_preserves_sender_identity_for_live_source_checks(self) -> None:
+    def test_syslog_classifies_known_pfsense_without_ip_label(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
 
         self.assertIn('__syslog_connection_ip_address', alloy)
-        self.assertIn('target_label  = "sender"', alloy)
+        self.assertIn('regex         = "172\\\\.17\\\\.0\\\\.1"', alloy)
+        self.assertIn('target_label  = "device"', alloy)
+        self.assertIn('replacement   = "pfsense"', alloy)
+        self.assertNotIn('target_label  = "sender"', alloy)
 
     def test_observability_services_use_functional_monitoring(self) -> None:
         grafana_compose = (GRAFANA / "compose.yml").read_text(encoding="utf-8")
@@ -180,6 +183,7 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn(endpoint, grafana_compose)
 
         self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
+        self.assertIn("http://172.17.0.24:9093/-/ready", prometheus_compose)
         self.assertIn(
             "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
             prometheus_compose,
@@ -195,9 +199,63 @@ class ObservabilityContractTests(unittest.TestCase):
             "http://172.17.0.24:9009/ready",
             "http://172.17.0.24:3200/ready",
             "http://172.17.0.24:9090/-/ready",
+            "http://172.17.0.24:9093/-/ready",
             "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
         ):
             self.assertIn(endpoint, gatus)
+
+    def test_observability_stack_is_self_scraped_and_alerted(self) -> None:
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+
+        expected_targets = {
+            "grafana": "172.17.0.24:30037",
+            "alloy": "172.17.0.24:12345",
+            "loki": "172.17.0.24:3100",
+            "mimir": "172.17.0.24:9009",
+            "tempo": "172.17.0.24:3200",
+            "alertmanager": "172.17.0.24:9093",
+        }
+        for job, target in expected_targets.items():
+            self.assertIn(f"- job_name: {job}", prometheus)
+            self.assertIn(target, prometheus)
+
+        self.assertIn("NablaObservabilityTargetDown", rules)
+        self.assertIn(
+            'up{job=~"prometheus|grafana|alloy|loki|mimir|tempo|alertmanager"} == 0',
+            rules,
+        )
+        self.assertIn("severity: critical", rules)
+
+    def test_observability_stack_dashboard_uses_existing_mimir(self) -> None:
+        dashboard = json.loads(
+            (
+                GRAFANA
+                / "config"
+                / "dashboards"
+                / "observability"
+                / "stack-health.json"
+            ).read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(dashboard["uid"], "nabla_observability_stack")
+        self.assertEqual(dashboard["title"], "Nabla Observability Stack Health")
+        self.assertGreaterEqual(len(dashboard["panels"]), 8)
+
+        expressions = []
+        for panel in dashboard["panels"]:
+            for target in panel.get("targets", []):
+                self.assertEqual(target["datasource"]["uid"], "mimir")
+                expressions.append(target.get("expr", ""))
+
+        joined = "\n".join(expressions)
+        self.assertIn("pfsense_exporter", joined)
+        self.assertIn("scrape_duration_seconds", joined)
+        self.assertIn("prometheus_remote_storage_samples_failed_total", joined)
 
     def test_operator_scripts_keep_pfsense_changes_guarded(self) -> None:
         scripts = ROOT / "scripts" / "observability"
@@ -208,26 +266,43 @@ class ObservabilityContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         otlp = (scripts / "verify-otlp.sh").read_text(encoding="utf-8")
 
-        self.assertIn('mode="plan"', configure)
+        self.assertIn('mode="check"', configure)
+        self.assertIn("--check", configure)
+        self.assertIn("--plan", configure)
         self.assertIn("--apply", configure)
         self.assertIn("/api/v2/status/logs/settings", configure)
+        self.assertIn("/api/v2/system/restapi/version", configure)
+        self.assertIn('PFSENSE_RESTAPI_MIN_VERSION="v2.9.0"', configure)
         self.assertIn('"X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"', configure)
         self.assertIn("dry_run: true", configure)
+        self.assertIn("no PATCH request was sent", configure)
         self.assertIn("all three pfSense remote syslog slots are already occupied", configure)
         self.assertIn('PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"', configure)
         self.assertIn('verify-stack.sh" --strict', configure)
 
         self.assertIn("RFC5424", syslog)
-        self.assertIn(r'sender=\"${PFSENSE_SYSLOG_SOURCE_IP}\"', syslog)
+        self.assertIn('marker="nabla-observability-smoke-$(date +%s)-$"', syslog)
+        self.assertIn('device="pfsense"', syslog)
+        self.assertNotIn('target_label  = "sender"', syslog)
         self.assertIn("socket.SOCK_DGRAM", syslog)
 
         for signal in ("logs", "metrics", "traces"):
             self.assertIn(f'("{signal}", {signal})', otlp)
         self.assertIn("/v1/${signal}", otlp)
         self.assertIn("/api/traces/${trace_id}", otlp)
+        self.assertIn('"traceId": trace_bytes.hex()', otlp)
+        self.assertIn('"spanId": span_bytes.hex()', otlp)
+        self.assertNotIn("base64.b64encode", otlp)
+        self.assertIn('"asInt": str(metric_value)', otlp)
+        self.assertIn('{__name__=~"nabla_observability_smoke.*"}', otlp)
+        self.assertIn('--arg expected "${metric_value}"', otlp)
 
         self.assertIn("verify-otlp.sh", stack)
         self.assertIn("verify-pfsense-syslog.sh", stack)
+        self.assertIn("/api/v1/targets?state=active", stack)
+        self.assertIn("/api/v1/alertmanagers", stack)
+        self.assertIn("Alertmanager readiness", stack)
+        self.assertIn("Prometheus target is up", stack)
 
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):

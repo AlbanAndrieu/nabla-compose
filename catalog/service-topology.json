@@ -409,6 +409,13 @@
       "icon": "📊"
     },
     {
+      "id": "prometheus-alertmanager",
+      "name": "Alertmanager",
+      "kind": "alerting",
+      "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml"
+    },
+    {
       "id": "redis",
       "name": "Redis",
       "kind": "cache",
@@ -1624,6 +1631,16 @@
       "description": "Prometheus remote-writes collected metrics to Mimir for durable storage.",
       "evidence": [
         "apps/prometheus/prometheus.yml:remote_write"
+      ]
+    },
+    {
+      "source": "prometheus-alertmanager",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/prometheus/compose.yml:alertmanager.x-nabla.runtime.containerService"
       ]
     },
     {

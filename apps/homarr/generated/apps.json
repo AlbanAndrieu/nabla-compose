@@ -654,7 +654,7 @@
     {
       "id": "prometheus-alertmanager",
       "name": "Alertmanager",
-      "group": "prometheus",
+      "group": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
       "composeService": "alertmanager",
       "dockerManaged": true,
