@@ -81,6 +81,31 @@ def optional_text(metadata: dict[str, Any], key: str) -> str | None:
     return value.strip()
 
 
+def presentation_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, str]:
+    """Validate UI role/criticality consistently for static and Compose nodes."""
+    result: dict[str, str] = {}
+    presentation_role = optional_text(metadata, "presentationRole")
+    if presentation_role is not None:
+        if presentation_role not in PRESENTATION_ROLES:
+            supported = ", ".join(sorted(PRESENTATION_ROLES))
+            fail(f"{context}.presentationRole must be one of: {supported}")
+        result["presentationRole"] = presentation_role
+
+    criticality = optional_text(metadata, "criticality")
+    if criticality is not None and criticality not in CRITICALITIES:
+        supported = ", ".join(sorted(CRITICALITIES))
+        fail(f"{context}.criticality must be one of: {supported}")
+    if presentation_role == "core":
+        if criticality not in {None, "critical"}:
+            fail(f"{context}.criticality must be critical when presentationRole is core")
+        criticality = "critical"
+    if criticality is not None:
+        result["criticality"] = criticality
+    return result
+
+
 def topology_node(
     metadata: dict[str, Any], source_path: str, context: str
 ) -> dict[str, Any]:
@@ -97,22 +122,7 @@ def topology_node(
         value = optional_text(metadata, key)
         if value is not None:
             node[key] = value
-    presentation_role = optional_text(metadata, "presentationRole")
-    if presentation_role is not None:
-        if presentation_role not in PRESENTATION_ROLES:
-            supported = ", ".join(sorted(PRESENTATION_ROLES))
-            fail(f"{context}.presentationRole must be one of: {supported}")
-        node["presentationRole"] = presentation_role
-    criticality = optional_text(metadata, "criticality")
-    if criticality is not None and criticality not in CRITICALITIES:
-        supported = ", ".join(sorted(CRITICALITIES))
-        fail(f"{context}.criticality must be one of: {supported}")
-    if presentation_role == "core":
-        if criticality not in {None, "critical"}:
-            fail(f"{context}.criticality must be critical when presentationRole is core")
-        criticality = "critical"
-    if criticality is not None:
-        node["criticality"] = criticality
+    node.update(presentation_metadata(metadata, context))
     return node
 
 
@@ -266,7 +276,17 @@ def load_static_topology(
         if not isinstance(node, dict):
             fail(f"static node {index} must be an object")
         node_id = require_identifier(node.get("id"), f"static node {index}.id")
-        add_unique(nodes, node_id, dict(node), f"static node {index}", "topology node")
+        normalized_node = dict(node)
+        normalized_node.update(
+            presentation_metadata(normalized_node, f"static node {index}")
+        )
+        add_unique(
+            nodes,
+            node_id,
+            normalized_node,
+            f"static node {index}",
+            "topology node",
+        )
     for index, relation in enumerate(raw_relations):
         if not isinstance(relation, dict):
             fail(f"static relation {index} must be an object")
