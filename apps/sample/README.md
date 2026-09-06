@@ -151,12 +151,30 @@ registration email explicit via `TRAEFIK_ACME_EMAIL`. The certificate store is
 `/mnt/cpool/traefik/certs/acme.json`; it must exist with mode `600` and must
 not be shared by multiple Traefik instances.
 
-Run the read-only acceptance check from TrueNAS after recreating AutoXpose,
-Traefik and FastAPI Sample:
+Run the read-only acceptance check from TrueNAS **or from a LAN workstation**
+after recreating AutoXpose, Traefik and FastAPI Sample:
 
 ```bash
 bash scripts/ingress/verify-sample-exposure.sh
 ```
+
+The defaults target the TrueNAS runtime at `172.17.0.24`:
+
+- FastAPI Sample: `http://172.17.0.24:8091/health`;
+- AutoXpose: `http://172.17.0.24:4949`;
+- Traefik TLS: `172.17.0.24:443`.
+
+A workstation-local FastAPI process listening on `0.0.0.0:8080` is a
+different runtime. To test it deliberately, override only the local probe:
+
+```bash
+LOCAL_HEALTH_URL=http://127.0.0.1:8080/health \
+  bash scripts/ingress/verify-sample-exposure.sh
+```
+
+When the script runs outside TrueNAS, the direct `acme.json` filesystem check
+is skipped if `/mnt/cpool/traefik/certs/acme.json` is not readable; both live
+TLS certificate checks still run.
 
 The script verifies the local health endpoint, AutoXpose Cloudflare DNS-only
 ownership, public DNS, the certificate served directly by Traefik with SNI,
