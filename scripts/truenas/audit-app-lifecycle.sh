@@ -180,7 +180,11 @@ probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
 probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
 probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
 
