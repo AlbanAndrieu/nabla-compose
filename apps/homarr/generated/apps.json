@@ -294,7 +294,7 @@
       "sourcePath": "apps/langfuse/compose.yml",
       "composeService": "langfuse-web",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:31060",
+      "href": "http://172.17.0.24:3000",
       "syncEligible": true
     },
     {
@@ -505,7 +505,7 @@
       "sourcePath": "apps/openrag/compose.yml",
       "composeService": "openrag-frontend",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:3000",
+      "href": "http://172.17.0.24:31060",
       "syncEligible": true
     },
     {
