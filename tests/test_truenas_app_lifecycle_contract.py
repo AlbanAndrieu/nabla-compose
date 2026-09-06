@@ -217,6 +217,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
+        self.assertIn("function probe_clickhouse_config_mounts_if_running", audit)
+        self.assertIn("admin-grants.xml is a file", audit)
+        self.assertIn("prometheus.xml is a file", audit)
         self.assertIn("function probe_clickhouse_admin_grant_option_if_running", audit)
         self.assertIn("WITH GRANT OPTION present", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
@@ -279,6 +282,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("## Fresh Langfuse v4 reset", runbook)
+        self.assertIn("Do not replace the Custom App wrapper", runbook)
         self.assertIn("DATABASE_URL=postgresql://langfuse:", runbook)
         self.assertIn("CLICKHOUSE_DB=langfuse", runbook)
         self.assertIn("REDIS_KEY_PREFIX=langfuse-v4:", runbook)
