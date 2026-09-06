@@ -570,7 +570,8 @@ Acceptance after every shared ClickHouse change:
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba after the shared-server change, or explicitly decouple Sentry;
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
-      database/user, runtime-only password injection and `--strict-startup`;
+      database/user, a mode-`0600` ephemeral runtime configuration with the
+      password removed from ntopng argv/environment, and `--strict-startup`;
 - [ ] before enabling ntopng, create the dedicated ClickHouse database/user,
       store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate authenticated
       access with only `SELECT`, `INSERT`, `TRUNCATE`, `CREATE TABLE`,
