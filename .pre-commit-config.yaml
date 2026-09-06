@@ -148,6 +148,14 @@ repos:
         files: >-
           ^(apps/(grafana|prometheus|gatus|autokuma)/|scripts/observability/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
+      - id: kubernetes-storage-contract
+        name: "💾 kubernetes · Validate TrueNAS NFS storage contract"
+        language: system
+        entry: python -m unittest tests.test_kubernetes_storage_contract -v
+        pass_filenames: false
+        files: >-
+          ^(kubernetes/storage/democratic-csi-nfs/|scripts/talos/(?:install-democratic-csi-nfs|smoke-persistent-storage)[.]sh|terraform/truenas/(?:kubernetes-storage|variables|outputs)[.]tofu|infrastructure/truenas/terragrunt[.]hcl|config/infrastructure[.]env[.]example|tests/test_kubernetes_storage_contract[.]py)$
+
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python
