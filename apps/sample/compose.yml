@@ -61,6 +61,12 @@ services:
 
     # Keep appliance probes on the trusted LAN while preserving public DNS
     # names for TLS hostname verification.
+    #
+    # TrueNAS 26 also applies system.general.ui_allowlist to /api/current
+    # WebSocket source addresses before API-key authentication. The source
+    # observed by TrueNAS is this container's intranet IP, not 172.17.0.24.
+    # Validate the current /32 with:
+    # scripts/security/verify-truenas-observer-access.sh
     extra_hosts:
       - "truenas.albandrieu.com:172.17.0.24"
       - "home.albandrieu.com:172.17.0.1"
