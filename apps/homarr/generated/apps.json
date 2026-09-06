@@ -211,7 +211,7 @@
       "sourcePath": "apps/graylog/compose.yml",
       "composeService": "graylog",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:9000",
+      "href": "http://172.17.0.24:9003",
       "syncEligible": true
     },
     {
