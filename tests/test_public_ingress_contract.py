@@ -104,6 +104,23 @@ class PublicIngressContractTests(unittest.TestCase):
         )
         self.assertNotIn("EXCLUDED_DOMAINS=", compose)
 
+    def test_public_int_dns_audit_is_fail_closed(self) -> None:
+        script = (ROOT / "scripts" / "security" / "audit-public-int-dns.sh").read_text(
+            encoding="utf-8"
+        )
+        allowlist = (
+            ROOT / "config" / "public-int-dns-exceptions.txt"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('endswith(".int.albandrieu.com")', script)
+        self.assertIn("TEMPORARY-EXCEPTION", script)
+        self.assertIn("UNEXPECTED", script)
+        self.assertIn("exit 3", script)
+        self.assertIn("garage.int.albandrieu.com", allowlist)
+        self.assertIn("vaultwarden.int.albandrieu.com", allowlist)
+        self.assertNotIn("ollama.int.albandrieu.com", allowlist)
+        self.assertNotIn("hello.int.albandrieu.com", allowlist)
+
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
 
