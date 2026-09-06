@@ -66,7 +66,10 @@ sudo chmod 600 /mnt/cpool/ntopng/.env.secrets
 ```
 
 Use the same password when creating/resetting the ClickHouse `ntopng` user.
-Do not print the value during runtime validation.
+Keep this dedicated credential exactly 64 hexadecimal characters. This matches
+`openssl rand -hex 32` and allows the runtime wrapper to decode the
+Vaultwarden-rendered outer dotenv quotes without evaluating the secret file as
+shell code. Do not print the value during runtime validation.
 
 ## Runtime behavior
 
