@@ -394,76 +394,96 @@ worker containers both remain stable.
 
 The repository Compose no longer contains production-like fallback passwords.
 
-## Langfuse ClickHouse dirty migration recovery
+## Langfuse clean database reset on shared ClickHouse
 
-If the deployed Langfuse v3 image reports a ClickHouse schema version newer
-than its bundled migrations, do not keep forcing migration markers. Langfuse
-v3.225.7 ships ClickHouse migrations through version 37. A database that initially reported `39 (dirty)` therefore proves that a Langfuse
-v4/preview migration set touched the ClickHouse database. If an operator has
-already run `force 38`, treat `38` as the current recovery position; do not run
-another force command. The remaining safe operation is the official `goto 37`
-rewind with the matching v4/preview migration set.
+The current Langfuse history is explicitly disposable. Do not continue repairing
+the old ClickHouse migration marker. ClickHouse is shared infrastructure used by
+Sentry/Snuba and planned ntopng, so never wipe `/mnt/cpool/clickhouse` merely
+to reset Langfuse.
 
-For the current homelab, ClickHouse is pinned to 25.8. Langfuse v4 requires
-ClickHouse >=25.12, so an attempted v4 startup against 25.8 can fail during the
-v4 schema upgrade and leave a dirty migration marker.
+Keep the shared ClickHouse server on the Sentry-compatible 25.8 line for now.
+Langfuse v3 supports this version. Isolate Langfuse in its own ClickHouse
+database named `langfuse`; the repository Compose now defaults
+`CLICKHOUSE_DB=langfuse`.
 
-The official Langfuse v4 rollback procedure is to rewind the ClickHouse schema
-to version 37 with the migration files from the **same v4 web image/version
-that applied the newer schema**:
+Recovery sequence:
 
-```bash
-cd /app/packages/shared
+1. stop Langfuse web/worker;
+2. retain the existing ZFS snapshot of `cpool/clickhouse`;
+3. verify ClickHouse itself and the currently deployed consumers before reset;
+4. drop/recreate only the ClickHouse database `langfuse`;
+5. drop/recreate only the PostgreSQL database/user dedicated to Langfuse;
+6. update `/mnt/cpool/langfuse/.env.secrets` with the new
+   `DATABASE_URL`/password while preserving the stable Langfuse
+   `SALT`, `ENCRYPTION_KEY`, S3 and Redis credentials;
+7. remove obsolete partial `LANGFUSE_INIT_*` bootstrap variables unless a
+   complete headless bootstrap set is intentionally configured;
+8. redeploy Langfuse and let the v3 web container apply clean PostgreSQL and
+   ClickHouse migrations automatically;
+9. validate both Langfuse health endpoints and a new synthetic trace.
 
-migrate -source file://clickhouse/migrations/unclustered \
-  -database "${CLICKHOUSE_MIGRATION_URL}?username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}&database=${CLICKHOUSE_DB:-default}&x-multi-statement=true&x-migrations-table-engine=MergeTree" \
-  goto 37
-```
-
-Do not use the v3.225.7 migration directory for this rewind: it only contains
-versions 1..37 and therefore cannot traverse down from 39. Do not use
-`force 37`; `goto 37` executes the v4 down migrations required to remove the
-new v4 tables/recreate superseded objects before resetting the schema marker.
-
-Before running the rewind:
-
-1. keep Langfuse web stopped;
-2. retain a ZFS snapshot of `cpool/clickhouse`;
-3. inspect locally cached Langfuse images and their OCI labels to identify the
-   exact v4 image/version that ran before v3.225.7;
-4. confirm that image contains migration files 0038 and 0039 in both up/down
-   directions.
-
-Example image inventory:
+Reset only the dedicated Langfuse ClickHouse database:
 
 ```bash
-docker image ls --digests --no-trunc langfuse/langfuse
-
-for image in $(docker image ls --no-trunc --format '{{.ID}}' langfuse/langfuse | sort -u); do
-  printf '%s\t' "$image"
-  docker image inspect "$image" \
-    --format 'version={{ index .Config.Labels "org.opencontainers.image.version" }} revision={{ index .Config.Labels "org.opencontainers.image.revision" }}'
-done
-```
-
-Once the matching v4 image is identified, inspect its migration tree:
-
-```bash
-docker run --rm --entrypoint sh <MATCHING_V4_IMAGE> -lc '
-find /app/packages/shared/clickhouse/migrations/unclustered \
-  -maxdepth 1 -type f \
-  \( -name "0038_*" -o -name "0039_*" \) \
-  -print | sort
+docker exec clickhouse bash -lc '
+clickhouse-client \
+  --user "$CLICKHOUSE_USER" \
+  --password "$CLICKHOUSE_PASSWORD" \
+  --multiquery \
+  --query "
+    DROP DATABASE IF EXISTS langfuse;
+    CREATE DATABASE langfuse;
+  "
 '
 ```
 
-Only then run the official `goto 37` command inside that same image using the
-existing ClickHouse credentials. After a successful rewind, redeploy the latest
-v3 image and validate both Langfuse web and worker health endpoints.
+Do not run `DROP DATABASE default` and do not remove
+`/mnt/cpool/clickhouse`: those actions can destroy state belonging to another
+consumer.
 
-If the matching v4 image cannot be identified, prefer restoring ClickHouse from
-a snapshot taken before the attempted v4 migration over mixing migration files
-from an arbitrary v4 release.
+Validate the ClickHouse server itself from the ClickHouse client rather than
+from a PostgreSQL session:
+
+```bash
+docker exec clickhouse bash -lc '
+clickhouse-client \
+  --user "$CLICKHOUSE_USER" \
+  --password "$CLICKHOUSE_PASSWORD" \
+  --query "SELECT version(), timezone(), currentDatabase()"
+'
+```
+
+Langfuse requires ClickHouse timezone `UTC`. A PostgreSQL client will reject
+`timezone()` because that is a ClickHouse function; the equivalent PostgreSQL
+sanity query is:
+
+```sql
+SELECT version(), current_setting('TimeZone'), current_database();
+```
+
+After the PostgreSQL `langfuse` database has been recreated, the runtime
+secret must point to that dedicated database:
+
+```text
+DATABASE_URL=postgresql://langfuse:<LANGFUSE_DB_PASSWORD>@<postgres-host>:5432/langfuse
+```
+
+Then redeploy Langfuse and require:
+
+```bash
+curl -fsS \
+  'http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true'
+
+curl -fsS http://127.0.0.1:3030/api/health
+```
+
+Only after a fresh synthetic trace is ingested and queryable should the old
+Langfuse-specific ClickHouse state be considered retired.
+
+A future upgrade of the **shared** ClickHouse service to 26.4 is a separate
+platform change. It requires Sentry/Snuba compatibility proof (or Sentry
+decoupling) and ntopng validation when ntopng is deployed.
+
 
 ## Homarr permissions
 
