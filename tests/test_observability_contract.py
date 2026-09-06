@@ -107,6 +107,77 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
 
+    def test_syslog_preserves_sender_identity_for_live_source_checks(self) -> None:
+        alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
+
+        self.assertIn('__syslog_connection_ip_address', alloy)
+        self.assertIn('target_label  = "sender"', alloy)
+
+    def test_observability_services_use_functional_monitoring(self) -> None:
+        grafana_compose = (GRAFANA / "compose.yml").read_text(encoding="utf-8")
+        prometheus_compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+
+        for endpoint in (
+            "http://172.17.0.24:30037/api/health",
+            "http://172.17.0.24:12345/-/healthy",
+            "http://172.17.0.24:3100/ready",
+            "http://172.17.0.24:9009/ready",
+            "http://172.17.0.24:3200/ready",
+        ):
+            self.assertIn(endpoint, grafana_compose)
+
+        self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
+        self.assertIn(
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+            prometheus_compose,
+        )
+
+        gatus = (
+            ROOT / "apps" / "gatus" / "config" / "config.yml"
+        ).read_text(encoding="utf-8")
+        for endpoint in (
+            "http://172.17.0.24:30037/api/health",
+            "http://172.17.0.24:12345/-/healthy",
+            "http://172.17.0.24:3100/ready",
+            "http://172.17.0.24:9009/ready",
+            "http://172.17.0.24:3200/ready",
+            "http://172.17.0.24:9090/-/ready",
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+        ):
+            self.assertIn(endpoint, gatus)
+
+    def test_operator_scripts_keep_pfsense_changes_guarded(self) -> None:
+        scripts = ROOT / "scripts" / "observability"
+        stack = (scripts / "verify-stack.sh").read_text(encoding="utf-8")
+        syslog = (scripts / "verify-pfsense-syslog.sh").read_text(encoding="utf-8")
+        configure = (
+            scripts / "configure-pfsense-syslog.sh"
+        ).read_text(encoding="utf-8")
+        otlp = (scripts / "verify-otlp.sh").read_text(encoding="utf-8")
+
+        self.assertIn('mode="plan"', configure)
+        self.assertIn("--apply", configure)
+        self.assertIn("/api/v2/status/logs/settings", configure)
+        self.assertIn('"X-API-Key: ${PFSENSE_API_KEY}"', configure)
+        self.assertIn("dry_run: true", configure)
+        self.assertIn("all three pfSense remote syslog slots are already occupied", configure)
+        self.assertIn('PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"', configure)
+        self.assertIn('verify-stack.sh" --strict', configure)
+
+        self.assertIn("RFC5424", syslog)
+        self.assertIn('sender=\"${PFSENSE_SYSLOG_SOURCE_IP}\"', syslog)
+        self.assertIn("socket.SOCK_DGRAM", syslog)
+
+        for signal in ("logs", "metrics", "traces"):
+            self.assertIn(f'("{signal}", {signal})', otlp)
+        self.assertIn("/v1/${signal}", otlp)
+        self.assertIn("/api/traces/${trace_id}", otlp)
+
+        self.assertIn("verify-otlp.sh", stack)
+        self.assertIn("verify-pfsense-syslog.sh", stack)
+
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
