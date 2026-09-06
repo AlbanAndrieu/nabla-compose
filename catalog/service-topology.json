@@ -168,7 +168,9 @@
       "category": "infrastructure",
       "sourcePath": "docs/truenas-talos-bootstrap.md",
       "description": "Target Kubernetes cluster bootstrapped on Talos Linux VMs hosted by TrueNAS.",
-      "icon": "☸️"
+      "icon": "☸️",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "langflow",
@@ -462,7 +464,9 @@
       "category": "infrastructure",
       "sourcePath": "docs/truenas-talos-bootstrap.md",
       "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS.",
-      "icon": "🔷"
+      "icon": "🔷",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "tempo",
