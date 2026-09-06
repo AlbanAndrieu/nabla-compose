@@ -1,0 +1,92 @@
+---
+csiDriver:
+  name: org.democratic-csi.nabla.truenas-nfs
+  fsGroupPolicy: File
+
+storageClasses:
+  - name: truenas-nfs
+    defaultClass: false
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+    allowVolumeExpansion: false
+    parameters:
+      fsType: nfs
+    mountOptions:
+      - noatime
+      - nfsvers=4.1
+    secrets:
+      provisioner-secret:
+      controller-publish-secret:
+      node-stage-secret:
+      node-publish-secret:
+      controller-expand-secret:
+
+  - name: truenas-nfs-smoke
+    defaultClass: false
+    reclaimPolicy: Delete
+    volumeBindingMode: Immediate
+    allowVolumeExpansion: false
+    parameters:
+      fsType: nfs
+    mountOptions:
+      - noatime
+      - nfsvers=4.1
+    secrets:
+      provisioner-secret:
+      controller-publish-secret:
+      node-stage-secret:
+      node-publish-secret:
+      controller-expand-secret:
+
+driver:
+  config:
+    driver: nfs-client
+    instance_id: nabla-truenas-nfs-client
+    nfs:
+      shareHost: 172.17.0.24
+      shareBasePath: /mnt/cpool/k8s/csi
+      controllerBasePath: /storage
+      dirPermissionsMode: "0770"
+      dirPermissionsUser: 0
+      dirPermissionsGroup: 0
+
+controller:
+  enabled: true
+  strategy: deployment
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
+  hostIPC: true
+  externalResizer:
+    enabled: false
+  externalSnapshotter:
+    enabled: false
+  driver:
+    securityContext:
+      allowPrivilegeEscalation: true
+      capabilities:
+        add:
+          - SYS_ADMIN
+      privileged: true
+    lifecycle:
+      postStart:
+        exec:
+          command:
+            - /bin/sh
+            - -ec
+            - >-
+              mkdir -p /storage;
+              mount -t nfs -o nfsvers=4.1
+              172.17.0.24:/mnt/cpool/k8s/csi /storage
+      preStop:
+        exec:
+          command:
+            - /bin/sh
+            - -ec
+            - umount /storage || true
+
+node:
+  driver:
+    # Talos is immutable and should not depend on a host /etc/localtime file.
+    localtimeHostPath: null
+
+volumeSnapshotClasses: []
