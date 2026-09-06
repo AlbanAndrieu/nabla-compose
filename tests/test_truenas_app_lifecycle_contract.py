@@ -77,12 +77,38 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         langfuse = self.read("apps/langfuse/compose.yml")
         minio = self.read("apps/minio/compose.yml")
 
+        self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
         self.assertIn("REDIS_HOST: ${REDIS_HOST:-redis}", langfuse)
         self.assertIn("REDIS_PORT: ${REDIS_PORT:-6379}", langfuse)
         self.assertIn("http://minio:9000", langfuse)
+        self.assertNotIn("postgresql://postgres:postgres@", langfuse)
+        self.assertNotIn("REDIS_AUTH: ${REDIS_AUTH:-myredissecret}", langfuse)
+        self.assertNotIn("NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-mysecret}", langfuse)
         self.assertNotIn("LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:-http://172.17.0.24:9000}", langfuse)
         self.assertIn("external: true\n    name: intranet", langfuse)
         self.assertIn("aliases:\n          - minio", minio)
+
+    def test_scrutiny_loads_influx_token_from_runtime_env_file(self) -> None:
+        scrutiny = self.read("apps/scrutiny/compose.yml")
+
+        self.assertIn("/mnt/cpool/scrutiny/.env.secrets", scrutiny)
+        self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN:?", scrutiny)
+        self.assertNotIn("SCRUTINY_WEB_INFLUXDB_TOKEN:", scrutiny)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_HOST: influxdb", scrutiny)
+        self.assertIn('SCRUTINY_WEB_INFLUXDB_PORT: "8086"', scrutiny)
+
+    def test_graylog_avoids_clickhouse_host_port_9000(self) -> None:
+        graylog = self.read("apps/graylog/compose.yml")
+
+        self.assertIn('GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"', graylog)
+        self.assertIn("GRAYLOG_HTTP_PORT:-9003", graylog)
+        self.assertIn("http://172.17.0.24:9003/", graylog)
+
+    def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+
+        self.assertIn("Exited \\(0\\)", audit)
+        self.assertIn("non-zero exited", audit)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
