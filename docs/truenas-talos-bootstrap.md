@@ -4,7 +4,7 @@ This runbook documents the small set of TrueNAS operations that should remain ma
 
 Current lab baseline:
 
-- TrueNAS SCALE: `26.0.0-BETA.3`;
+- TrueNAS SCALE: `26.0.0-BETA.2` (intentional rollback/hold; do not upgrade independently of the pinned API client);
 - OpenTofu/Terragrunt: existing `nabla-compose` stack;
 - TrueNAS provider: `PjSalty/truenas ~> 2.4`;
 - local AI inspection: read-only `@profanter-dev/truenas-mcp@1.0.6`, using the TrueNAS 25.10+/26 `/api/current` JSON-RPC endpoint;

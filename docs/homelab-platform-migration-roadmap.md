@@ -9,7 +9,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Working pull request: `AlbanAndrieu/nabla-compose#59`, branch `feat/crowdsec-central-lapi`.
 - Baseline commit `9d7374d3a269e09f7c76b10c9a08dd0fd8cf3e4f` passed Compose Validate, Service Consumers, Pre-commit and MegaLinter.
 - Public PR CI must remain on `ubuntu-latest` without private homelab access or `infra-runners`.
-- TrueNAS remains on `26.0.0-BETA.3`; Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
+- TrueNAS intentionally remains on `26.0.0-BETA.2`; keep `truenas/api_client` pinned to the matching `TS-26.0.0-BETA.2` tag and do not upgrade either side independently. Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
 - Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
 - Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
 - TrueNAS/Talos manual bootstrap progressed through the first reviewed create plan: `br0` survived reboot, SSH was rebound to `br0`, bootstrap-critical SMB/NFS/iSCSI/TrueNAS/Garage/Traefik listeners were verified, Garage state read/write/delete passed, and the repeated TrueNAS plan remains `15 to add, 0 to change, 0 to destroy`. The resource apply completed successfully with 15 resources created and no changes/destructions. `taloscp01` has been started for first-boot DHCP discovery; Talos machine configuration remains a workstation-driven step after its stable IP and real install disk are confirmed.
@@ -26,6 +26,50 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
 - [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
+### TrueNAS FastAPI observer boundary — 2026-09-06
+
+The internal FastAPI production observer now uses a dedicated TrueNAS identity:
+
+```text
+fastapi_observer
+  -> fastapi-observer group
+  -> APPS_READ only
+  -> dedicated user-linked API key
+```
+
+Runtime validation proves `system.version` and `app.query` (86 apps) with the
+native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
+TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
+before authentication. The Docker observer reaches TrueNAS from its `intranet`
+container address.
+
+- [x] create the dedicated `fastapi_observer` API-only user with
+  `APPS_READ`, password login disabled, SSH password login disabled and SMB
+  disabled;
+- [x] create/reset a dedicated user-linked API key and prove native
+  `system.version` + `app.query`;
+- [x] add the current FastAPI container source address as a narrow `/32` to
+  TrueNAS `ui_allowlist`, validate the WebSocket calls, then
+  `system.general.checkin`;
+- [x] add `scripts/security/verify-truenas-observer-access.sh` as a read-only
+  preflight for container source IP, `ui_allowlist`, canonical credential
+  variable selection, HTTPS version discovery and authenticated WebSocket
+  calls;
+- [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
+  after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
+- [x] pin FastAPI Sample to `172.16.55.9` on the production
+  `172.16.55.0/24` intranet by default (override with
+  `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed allowlist
+  change), so a recreate cannot silently change the TrueNAS WebSocket source;
+- [x] document `172.16.55.9/32` as the current Docker-origin TrueNAS UI/API
+  allowlist entry required by FastAPI Sample;
+- [ ] evaluate a dedicated observer Docker network as a later isolation
+  improvement if other trusted-LAN observers need their own source identities;
+- [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
+  `truenas.albandrieu.com` certificate chain from inside the container;
+- [ ] never widen `ui_allowlist` to all of `172.16.55.0/24` merely to avoid
+  container-address management.
+
 ### Post-reboot runtime cleanup — 2026-09-05
 
 Track these independently from the Talos bridge/bootstrap:
@@ -34,7 +78,12 @@ Track these independently from the Talos bridge/bootstrap:
 - [x] Native Scrutiny recovered functionally before cutover: InfluxDB `/health` and Scrutiny `/api/health` returned HTTP 200 and SMART collection ran. The native app is now stopped and the user created the target Scrutiny dataset; complete the repository-managed migration below before retiring native data;
 - [x] `opensearch-security`: data ownership corrected to UID/GID `1000:1000`; `_cluster/health` is green and Docker health is healthy;
 - [x] Open WebUI: healthy after reboot;
-- [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
+- [x] Docker socket proxy: the TrueNAS-managed proxy that published
+  `0.0.0.0:2375` is stopped; AutoXpose and Doco-CD now use the repository
+  `docker-socket-proxy:2375` over the shared `intranet` network, with no
+  host-published Docker API port;
+- [ ] uninstall the stopped native TrueNAS Docker Socket Proxy app after one
+  final consumer inventory confirms no rollback dependency remains;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 ### Internal DNS resilience and public `*.int` cleanup

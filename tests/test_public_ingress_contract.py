@@ -13,6 +13,10 @@ class PublicIngressContractTests(unittest.TestCase):
 
         self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
+        self.assertIn(
+            "ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}",
+            compose,
+        )
         self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
         self.assertNotIn("fastapi-sample.int.albandrieu.com", compose)
         self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 1)
@@ -88,6 +92,28 @@ class PublicIngressContractTests(unittest.TestCase):
         pihole = compose.split("  pihole-dns-sync:", 1)[1].split("  ddns-updater:", 1)[0]
         self.assertNotIn("/var/run/docker.sock", pihole)
         self.assertIn("- intranet", pihole)
+
+    def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
+        script = (
+            ROOT / "scripts" / "security" / "verify-truenas-observer-access.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("system.general.config", script)
+        self.assertIn("ui_allowlist", script)
+        self.assertIn("/32", script)
+        self.assertIn(
+            'EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}"',
+            script,
+        )
+        self.assertIn("observer source IP drift", script)
+        self.assertIn("TRUENAS_API_VERIFY_SSL must be true", script)
+        self.assertIn("/code/.venv/bin/python", script)
+        self.assertIn("TRUENAS_API_USERNAME", script)
+        self.assertIn("TRUENAS_API_KEY", script)
+        self.assertIn("adapter.system_version()", script)
+        self.assertIn("adapter.list_apps()", script)
+        self.assertNotIn("system.general.update", script)
+        self.assertNotIn("system.general.checkin", script)
 
     def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
         script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(
