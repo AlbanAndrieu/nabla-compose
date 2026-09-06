@@ -215,6 +215,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
         self.assertIn("runtime credentials accepted", audit)
         self.assertIn("dedicated database/user present", audit)
+        self.assertIn("database-scoped ALTER SETTINGS present", audit)
+        self.assertIn("ALTER SETTINGS ON langfuse.* missing", audit)
         self.assertIn("timezone(),", audit)
         self.assertIn("http://172.17.0.24:9005/_health/", audit)
         self.assertIn("failIfDatabaseUnavailable=true", audit)
@@ -277,6 +279,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("4.30.0", roadmap)
         self.assertIn("postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse", roadmap)
         self.assertIn("generic `nabla` role", roadmap)
+        self.assertIn("GRANT ALTER SETTINGS ON langfuse.* TO langfuse;", runbook)
+        self.assertIn("migration 48", runbook)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
