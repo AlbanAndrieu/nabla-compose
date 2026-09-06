@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 
-fail() {
+function fail {
   printf '❌ %s\n' "$*" >&2
   exit 1
 }
