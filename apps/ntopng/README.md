@@ -20,13 +20,21 @@ password = NTOPNG_CLICKHOUSE_PASSWORD from /mnt/cpool/ntopng/.env.secrets
 ```
 
 Create a dedicated database/user with the ClickHouse administrative identity.
-A database-scoped bootstrap grant is acceptable because ntopng owns its schema;
-never grant this service account global `*.*` privileges:
+Grant only the database-scoped DML/DDL that ntopng actually uses. The upstream
+schema creates tables/views, applies ALTER migrations, and the maintenance
+paths can truncate data. Do not grant `ALL`, global `*.*`, access-management,
+or administrative privileges to this service account:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS ntopng;
 CREATE USER IF NOT EXISTS ntopng IDENTIFIED WITH sha256_password BY '<secret>';
-GRANT ALL ON ntopng.* TO ntopng;
+
+-- Runtime DML plus explicit maintenance/purge support.
+GRANT SELECT, INSERT, TRUNCATE ON ntopng.* TO ntopng;
+
+-- ntopng bootstraps tables/views and applies schema migrations at startup.
+-- CREATE TABLE includes CREATE VIEW; DROP TABLE includes DROP VIEW.
+GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;
 ```
 
 Generate and store the password outside Git:
@@ -60,7 +68,8 @@ Before treating the service as operational, validate:
 1. the dedicated `ntopng` database and user exist;
 2. the dedicated credentials can execute an authenticated query against
    database `ntopng`;
-3. the user has no global `*.*` grant;
+3. the user has the required database-scoped DML/DDL grants but neither
+   `ALL ON ntopng.*` nor any global `*.*` grant;
 4. ntopng remains running with strict startup enabled;
 5. new flows appear in ClickHouse and remain queryable after both ntopng and
    ClickHouse restarts.
