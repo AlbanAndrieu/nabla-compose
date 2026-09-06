@@ -72,6 +72,17 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("aliases:\n          - opensearch", opensearch)
         self.assertIn("external: true\n    name: intranet", opensearch)
 
+    def test_langfuse_uses_shared_redis_and_minio_internal_ports(self) -> None:
+        langfuse = self.read("apps/langfuse/compose.yml")
+        minio = self.read("apps/minio/compose.yml")
+
+        self.assertIn("REDIS_HOST: ${REDIS_HOST:-redis}", langfuse)
+        self.assertIn("REDIS_PORT: ${REDIS_PORT:-6379}", langfuse)
+        self.assertIn("http://minio:9000", langfuse)
+        self.assertNotIn("LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:-http://172.17.0.24:9000}", langfuse)
+        self.assertIn("external: true\n    name: intranet", langfuse)
+        self.assertIn("aliases:\n          - minio", minio)
+
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 
