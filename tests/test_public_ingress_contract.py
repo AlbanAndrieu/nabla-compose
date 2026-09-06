@@ -110,7 +110,8 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("/code/.venv/bin/python", script)
         self.assertIn("TRUENAS_API_USERNAME", script)
         self.assertIn("TRUENAS_API_KEY", script)
-        self.assertIn("app.query", script)
+        self.assertIn("adapter.system_version()", script)
+        self.assertIn("adapter.list_apps()", script)
         self.assertNotIn("system.general.update", script)
         self.assertNotIn("system.general.checkin", script)
 
