@@ -1,3 +1,17 @@
+## [0.14.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.4...0.14.5) (2026-09-06)
+
+
+### Bug Fixes
+
+* **security:** keep Garage administration private ([#108](https://github.com/AlbanAndrieu/nabla-compose/issues/108)) ([d361eae](https://github.com/AlbanAndrieu/nabla-compose/commit/d361eaea1b8720e1ec3b3e376912259c6e2842aa))
+
+## [0.14.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.3...0.14.4) (2026-09-06)
+
+
+### Bug Fixes
+
+* **langfuse:** document safe v4 schema rewind ([#107](https://github.com/AlbanAndrieu/nabla-compose/issues/107)) ([fd93f10](https://github.com/AlbanAndrieu/nabla-compose/commit/fd93f10e4333d301a48e89c75d531a90f001fe89))
+
 ## [0.14.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.2...0.14.3) (2026-09-06)
 
 

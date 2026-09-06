@@ -61,9 +61,16 @@ must not be treated as evidence that the services are intentionally public.
   beginning with Ollama, Hello, Code, Dozzle, Drawio and LanguageTool;
 - [ ] review the legacy `nexus-albanandrieu.int` record and remove it if no
   current consumer requires it;
-- [ ] keep Garage/S3 direct-public records only while their explicit security
-  exception is required, then migrate them to non-`.int` hostnames or a
-  private network path;
+- [x] narrow the Garage public exception to the single S3 root endpoint
+  `s3.int.albandrieu.com`; OpenTofu sets `use_path_style=true`, so public
+  `*.s3.int.albandrieu.com` bucket subdomains are not required;
+- [ ] delete the live Cloudflare DNS records for
+  `garage.int.albandrieu.com`, `garage-admin.int.albandrieu.com` and
+  `*.s3.int.albandrieu.com`, while retaining internal Traefik routes where
+  needed for LAN administration;
+- [ ] migrate the remaining Garage S3 state endpoint to a private runner/VPN/WARP
+  path once all OpenTofu/Terragrunt writers are proven to run inside the trusted
+  network, then remove the final public `.int` S3 exceptions;
 - [ ] migrate any workstation dependency on
   `vaultwarden.int.albandrieu.com` away from public `.int` DNS. Prefer a
   private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
@@ -469,51 +476,47 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 - external `altinity/clickhouse-exporter` removed;
 - native ClickHouse Prometheus endpoint on `9363` used instead;
 - keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade;
-- [ ] replace the legacy Langfuse-v3 ClickHouse datastore with a fresh
-      `ClickHouse 26.8.2.7` dataset owned by UID/GID `101:101`;
-- [ ] preserve the old dataset as `cpool/clickhouse-v3-backup` until the v4
-      validation window completes;
-- [ ] keep ClickHouse on the shared `intranet` network with alias
-      `clickhouse` and validate HTTP/8123, TCP/9000 and Prometheus/9363 after
-      recreation.
+- [x] live TrueNAS validation on 2026-09-06 reports ClickHouse `26.8.2.7`,
+      timezone `UTC`, database `default`, HTTP/8123 healthy and internal
+      TCP/9000 reachable;
+- [x] repository Compose matches the live data owner `101:101` and persistent
+      dataset `/mnt/cpool/clickhouse`;
+- [ ] treat ClickHouse as shared platform infrastructure and validate every
+      deployed consumer before/after version or permission changes.
 
-#### Langfuse v4 fresh reset
+##### Shared ClickHouse consumer compatibility gate
 
-The previous Langfuse v3 state is intentionally disposable. Prefer a clean
-self-hosted Langfuse v4 deployment over repairing the dirty v3/v4 ClickHouse
-migration marker.
+Current/planned consumers have different compatibility contracts:
 
-Target:
+- **Langfuse** — use dedicated ClickHouse database `langfuse`; Langfuse v4
+  requires ClickHouse >=25.12 and recommends 26.4, so the live 26.8.2.7 server
+  satisfies Langfuse's version floor;
+- **Sentry/Snuba** — currently points at the shared host, but upstream Sentry
+  self-hosted still builds its own Altinity ClickHouse 25.8 line. Do not claim
+  26.8 compatibility from a simple Sentry web health check: validate synthetic
+  event ingestion through Snuba and searchability. If that fails, decouple
+  Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
+  Langfuse/ntopng server;
+- **ntopng** — planned historical flow consumer using its own `ntopng`
+  database. Enable only with the required ntopng Enterprise M-or-higher license
+  and validate flow persistence across both ntopng and ClickHouse restarts.
 
-- Langfuse web/worker pinned to `v4.30.0`;
-- ClickHouse pinned to `26.8.2.7`;
-- fresh ClickHouse database `langfuse`;
-- fresh dedicated PostgreSQL role/database `langfuse` on the existing shared
-  PostgreSQL service;
-- shared Redis isolated with `REDIS_KEY_PREFIX=langfuse-v4:`;
-- shared MinIO isolated with bucket `langfuse-v4`;
-- all Langfuse/ClickHouse credentials outside Git in
-  `/mnt/cpool/langfuse/.env.secrets` and
-  `/mnt/cpool/clickhouse/.env.secrets`;
-- telemetry disabled by default.
+Acceptance after every shared ClickHouse change:
 
-Completion gates:
+- [x] `SELECT version(), timezone(), currentDatabase()` succeeds through
+      `clickhouse-client` and reports `26.8.2.7 / UTC / default`;
+- [x] HTTP `/ping` on TCP/8123 succeeds;
+- [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
+- [ ] Langfuse web database-aware health and worker health pass after clean
+      initialization in database `langfuse`;
+- [ ] send a synthetic Sentry event and prove it is processed/queryable through
+      Snuba after the shared-server change, or explicitly decouple Sentry;
+- [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
+      persistence across restarts;
+- [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
 
-- [ ] old Langfuse app stopped before resetting dependencies;
-- [ ] `cpool/clickhouse` snapshotted and renamed to
-      `cpool/clickhouse-v3-backup`;
-- [ ] fresh `cpool/clickhouse` dataset created and writable by UID/GID 101;
-- [ ] dedicated ClickHouse password generated and shared only through runtime
-      secret files;
-- [ ] dedicated PostgreSQL `langfuse` role/database created;
-- [ ] MinIO bucket `langfuse-v4` created;
-- [ ] Redis namespace `langfuse-v4:` configured;
-- [ ] ClickHouse HTTP/TCP/Prometheus probes pass;
-- [ ] Langfuse v4 web and worker start without pending/dirty migrations;
-- [ ] web health with database verification returns success;
-- [ ] worker health returns success;
-- [ ] a new Langfuse project can ingest and query a smoke-test trace;
-- [ ] rollback dataset retained until the validation window completes.
+A successful ClickHouse `/ping` alone is not sufficient to approve a shared
+ClickHouse upgrade.
 
 #### Grafana
 
@@ -764,6 +767,12 @@ Preferred migration method:
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
 ### Wave 3.5 — Paperless document platform migration
+
+- [ ] Langfuse uses the generic `nabla` PostgreSQL identity selected for the
+      homelab: `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`.
+      Langfuse uses the `public` schema of the selected database, so never
+      `DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
+      before deleting Langfuse-owned tables.
 
 #### Paperless-ngx + Paperless-AI
 

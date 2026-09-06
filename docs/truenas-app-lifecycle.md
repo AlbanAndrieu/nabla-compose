@@ -343,409 +343,125 @@ If no historical Scrutiny bucket is found, use the upstream default base name
 then create the restricted token. Scrutiny replaces the placeholder task
 configuration during startup.
 
-## Fresh Langfuse v4 reset
+## Langfuse shared Redis and MinIO
 
-The previous Langfuse v3 state is intentionally not migrated. Langfuse v4 is
-installed as a fresh deployment so the dirty ClickHouse migration marker can be
-discarded instead of repaired.
+Host ports and container ports are different contracts. Redis publishes
+`30059:6379` and MinIO publishes `9002:9000`, but Langfuse should use
+`redis:6379` and `minio:9000` only after both services have joined the
+external `intranet` network.
 
-Target versions and dependencies:
-
-- Langfuse web/worker: `4.30.0`;
-- ClickHouse: `26.8.2.7` on a fresh `cpool/clickhouse` dataset;
-- PostgreSQL: existing shared server, but a new dedicated database/user named
-  `langfuse`;
-- Redis: existing shared service on `redis:6379`, isolated with
-  `REDIS_KEY_PREFIX=langfuse-v4:`;
-- MinIO: existing shared service on `minio:9000`, isolated in bucket
-  `langfuse-v4`.
-
-Langfuse v4 requires ClickHouse >=25.12, PostgreSQL >=15 and Redis >=7. The
-selected ClickHouse version is a current LTS release and the Langfuse containers
-are pinned to the stable v4.30.0 release.
-
-### 1. Keep rollback copies, do not delete the old state
-
-Stop Langfuse before resetting any dependency:
+Validate the network rather than testing host DNS:
 
 ```bash
-midclt call app.stop langfuse
-midclt call app.stop clickhouse
+docker network inspect intranet |
+  jq -r '.[0].Containers[]?.Name' |
+  sort
+
+docker exec mongo getent hosts redis
+docker exec mongo getent hosts minio
+docker exec mongo bash -lc 'timeout 3 bash -c "</dev/tcp/redis/6379"'
+docker exec influxdb curl -fsS http://minio:9000/minio/health/live
 ```
 
-Confirm that no container still has `/mnt/cpool/clickhouse` mounted before the
-ZFS rename:
+The host command `ping minio` is not evidence for Docker service discovery;
+host DNS may resolve a public search-domain hostname instead.
+
+Before replacing the current TrueNAS Langfuse app, materialize its current
+runtime secrets into `/mnt/cpool/langfuse/.env.secrets` without printing them.
+The existing TrueNAS application already has these variables in its rendered
+container environment; creating a new dataset does not copy them automatically.
 
 ```bash
-docker ps --format '{{.Names}}' |
-  while read -r container; do
-    docker inspect "${container}" --format '{{range .Mounts}}{{println .Source}}{{end}}' 2>/dev/null |
-      grep -Fx /mnt/cpool/clickhouse &&
-      echo "still mounted by ${container}"
-  done
+sudo install -d -m 700 /mnt/cpool/langfuse
+
+{
+  sudo docker inspect ix-langfuse-langfuse-worker-1 \
+    --format '{{range .Config.Env}}{{println .}}{{end}}'
+  sudo docker inspect ix-langfuse-langfuse-web-1 \
+    --format '{{range .Config.Env}}{{println .}}{{end}}'
+} |
+  grep -E '^(DATABASE_URL|SALT|ENCRYPTION_KEY|CLICKHOUSE_PASSWORD|LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID|LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY|REDIS_AUTH|SMTP_CONNECTION_URL|NEXTAUTH_SECRET|LANGFUSE_INIT_PROJECT_SECRET_KEY|LANGFUSE_INIT_USER_PASSWORD)=' |
+  awk -F= '!seen[$1]++' |
+  sudo tee /mnt/cpool/langfuse/.env.secrets >/dev/null
+
+sudo chmod 600 /mnt/cpool/langfuse/.env.secrets
+sudo sed 's/=.*$/=<redacted>/' /mnt/cpool/langfuse/.env.secrets
 ```
 
-Keep the existing ClickHouse snapshot and rename the old dataset instead of
-destroying it:
+The final command prints variable names only. Keep the existing TrueNAS
+Langfuse application available for rollback until the Compose-backed web and
+worker containers both remain stable.
 
-```bash
-zfs snapshot -r cpool/clickhouse@pre-langfuse-v4-reset-$(date +%Y%m%d)
+The repository Compose no longer contains production-like fallback passwords.
 
-zfs rename \
-  cpool/clickhouse \
-  cpool/clickhouse-v3-backup
+## Langfuse clean reset on shared ClickHouse
 
-zfs create cpool/clickhouse
+The previous Langfuse analytical history is disposable. Stop repairing the
+old ClickHouse migration marker and initialize Langfuse on clean application
+state instead.
 
-mkdir -p /mnt/cpool/logs/clickhouse-server
-chown -R 101:101 /mnt/cpool/clickhouse /mnt/cpool/logs/clickhouse-server
-chmod 770 /mnt/cpool/clickhouse /mnt/cpool/logs/clickhouse-server
-```
+The shared ClickHouse service is **not** Langfuse-owned storage. The live
+TrueNAS instance is ClickHouse `26.8.2.7`, runs in timezone `UTC`, uses
+`/mnt/cpool/clickhouse` owned by UID/GID `101:101`, and is also a current
+or planned dependency for Sentry/Snuba and ntopng. Never wipe
+`/mnt/cpool/clickhouse` merely to reset Langfuse.
 
-Do not destroy `cpool/clickhouse-v3-backup` until Langfuse v4 has passed its
-validation window.
+Langfuse uses the dedicated ClickHouse database `langfuse` while the server
+keeps `default` as its default database. Reset only `langfuse` after
+confirming ClickHouse filesystem ownership is healthy.
 
-### 2. Create a dedicated ClickHouse secret
-
-The ClickHouse application reads only the password from:
+The selected PostgreSQL contract uses the generic homelab identity and
+database:
 
 ```text
-/mnt/cpool/clickhouse/.env.secrets
+DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
 ```
 
-Create a new password and mirror the same value into the Langfuse runtime secret
-file without printing it:
+Langfuse uses PostgreSQL's `public` schema in the selected database. Therefore
+do **not** drop the shared `postgres` database. For a clean Langfuse reset,
+inventory and remove only Langfuse-owned tables/objects, or use an isolated
+PostgreSQL database in a later hardening change.
+
+Validate ClickHouse from ClickHouse itself:
 
 ```bash
-umask 077
-CLICKHOUSE_PASSWORD="$(openssl rand -hex 32)"
-
-printf 'CLICKHOUSE_PASSWORD=%s\n' "${CLICKHOUSE_PASSWORD}" |
-  tee /mnt/cpool/clickhouse/.env.secrets >/dev/null
-
-sed -i '/^CLICKHOUSE_PASSWORD=/d' /mnt/cpool/langfuse/.env.secrets
-printf 'CLICKHOUSE_PASSWORD=%s\n' "${CLICKHOUSE_PASSWORD}" |
-  tee -a /mnt/cpool/langfuse/.env.secrets >/dev/null
-
-chmod 600 \
-  /mnt/cpool/clickhouse/.env.secrets \
-  /mnt/cpool/langfuse/.env.secrets
-
-unset CLICKHOUSE_PASSWORD
-```
-
-The repository Compose fixes the non-secret identity to:
-
-```text
-CLICKHOUSE_USER=clickhouse
-CLICKHOUSE_DB=langfuse
-```
-
-### 3. Create a fresh PostgreSQL database/user
-
-Do not reuse the former `postgres` database. Create a dedicated role and
-database on the existing PostgreSQL service:
-
-```bash
-POSTGRES_CONTAINER="$(
-  docker ps --format '{{.Names}}' |
-    grep -E '^(postgres|ix-postgres-postgres-1)```
-
-Replace the old `DATABASE_URL` in the runtime secret file:
-
-```bash
-sed -i '/^DATABASE_URL=/d;/^DIRECT_URL=/d' \
-  /mnt/cpool/langfuse/.env.secrets
-
-printf 'DATABASE_URL=postgresql://langfuse:%s@172.17.0.24:5432/langfuse\n' \
-  "${LANGFUSE_DB_PASSWORD}" |
-  tee -a /mnt/cpool/langfuse/.env.secrets >/dev/null
-
-printf 'DIRECT_URL=postgresql://langfuse:%s@172.17.0.24:5432/langfuse\n' \
-  "${LANGFUSE_DB_PASSWORD}" |
-  tee -a /mnt/cpool/langfuse/.env.secrets >/dev/null
-
-chmod 600 /mnt/cpool/langfuse/.env.secrets
-unset LANGFUSE_DB_PASSWORD
-```
-
-### 4. Isolate the shared Redis and MinIO dependencies
-
-Host ports and container ports are different contracts. Langfuse must use
-`redis:6379` and `minio:9000` over `intranet`.
-
-The v4 Compose sets:
-
-```text
-REDIS_KEY_PREFIX=langfuse-v4:
-LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse-v4
-LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse-v4
-LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse-v4
-```
-
-This prevents v4 BullMQ/cache keys from colliding with stale v3 Redis keys and
-keeps new S3 objects separate from the previous deployment.
-
-Create the bucket before starting Langfuse. Use the existing MinIO credentials
-without printing them:
-
-```bash
-docker exec minio sh -lc '
-  mkdir -p /data/langfuse-v4
+docker exec ix-clickhouse-clickhouse-1 bash -lc '
+clickhouse-client \
+  --user "$CLICKHOUSE_USER" \
+  --password "$CLICKHOUSE_PASSWORD" \
+  --query "
+    SELECT
+      version(),
+      timezone(),
+      currentDatabase()
+  "
 '
 ```
 
-Then verify shared service discovery:
-
-```bash
-docker exec mongo getent hosts redis
-docker exec mongo getent hosts minio
-docker exec mongo getent hosts clickhouse
-```
-
-### 5. Redeploy ClickHouse first
-
-Pull the branch/merged revision and recreate ClickHouse from the repository
-Compose. The new container must join `intranet` with alias `clickhouse`.
-
-After startup:
-
-```bash
-curl -fsS http://172.17.0.24:8123/ping &&
-  echo "ClickHouse HTTP OK"
-
-docker exec mongo \
-  bash -lc 'timeout 3 bash -c "</dev/tcp/clickhouse/9000"' &&
-  echo "ClickHouse TCP migration endpoint OK"
-
-docker exec clickhouse clickhouse-client \
-  --query 'SELECT version(), timezone(), currentDatabase()'
-```
-
-The timezone must remain `UTC`.
-
-### 6. Redeploy Langfuse v4
-
-The Compose uses the shared dependencies through:
+Expected current live result:
 
 ```text
-CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
-CLICKHOUSE_URL=http://clickhouse:8123
-CLICKHOUSE_DB=langfuse
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_KEY_PREFIX=langfuse-v4:
+26.8.2.7    UTC    default
 ```
 
-Secrets such as `DATABASE_URL`, `DIRECT_URL`, `CLICKHOUSE_PASSWORD`,
-`REDIS_AUTH`, `SALT`, `ENCRYPTION_KEY`, `NEXTAUTH_SECRET` and S3
-credentials remain in `/mnt/cpool/langfuse/.env.secrets`.
+The harmless shell warning about
+`/var/lib/clickhouse/.bash_profile: Permission denied` can be avoided with
+`docker exec ... clickhouse-client ...` directly if the image environment
+permits it; it is not evidence of a ClickHouse SQL failure.
 
-For a fresh v4 deployment, remove partial headless-initialization variables
-unless the full bootstrap set is intentionally configured. Do not carry only a
-subset of `LANGFUSE_INIT_*` variables from the previous deployment.
+Before modifying the shared server, validate all deployed consumers:
 
-Redeploy Langfuse and follow both containers:
+1. ClickHouse HTTP `/ping`;
+2. internal Docker DNS/TCP `clickhouse:9000`;
+3. Langfuse web/worker after its clean initialization;
+4. Sentry with an actual synthetic event through Snuba, not only web health;
+5. ntopng flow persistence once its licensed ClickHouse export is enabled.
 
-```bash
-midclt call app.redeploy langfuse
+Sentry self-hosted upstream currently vendors an Altinity ClickHouse 25.8
+baseline. If Sentry/Snuba fails against the shared 26.8.2.7 server, isolate
+Sentry on its own vendor-supported ClickHouse instead of downgrading the shared
+Langfuse/ntopng service.
 
-docker logs --tail=200 -f ix-langfuse-langfuse-web-1
-docker logs --tail=200 -f ix-langfuse-langfuse-worker-1
-```
-
-### 7. Validate v4 before removing rollback data
-
-```bash
-curl -fsS \
-  'http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true' |
-  jq
-
-curl -fsS http://127.0.0.1:3030/api/health | jq
-
-scripts/truenas/audit-app-lifecycle.sh
-```
-
-Keep `cpool/clickhouse-v3-backup` and the pre-reset snapshot until the web and
-worker remain healthy and a new Langfuse project can ingest/query test traces.
-
-## Homarr permissions
-
-Homarr runs with `PUID=568` and `PGID=568`. Its entrypoint creates/chowns
-`/appdata` and nginx runtime directories before dropping privileges. The
-Compose file therefore drops every Linux capability and adds back only
-`CHOWN`, `DAC_OVERRIDE`, `SETGID`, and `SETUID`. `DAC_OVERRIDE` is
-required so the root startup process can traverse/chown nginx directories after
-all default Docker capabilities have been dropped.
-
-Prepare the existing dataset before recreation:
-
-```bash
-chown -R 568:568 /mnt/cpool/homarr
-chmod -R u+rwX,g+rwX /mnt/cpool/homarr
-```
-
-Homarr v1.x requires the variable name `SECRET_ENCRYPTION_KEY`. If the
-existing file still uses the legacy/local name `HOMARR_ENCRYPTION_KEY`, rename
-the variable without changing its value:
-
-```bash
-if grep -q '^HOMARR_ENCRYPTION_KEY=.' /mnt/cpool/homarr/.env.secrets &&
-  ! grep -q '^SECRET_ENCRYPTION_KEY=.' /mnt/cpool/homarr/.env.secrets; then
-  sed -i 's/^HOMARR_ENCRYPTION_KEY=/SECRET_ENCRYPTION_KEY=/' \
-    /mnt/cpool/homarr/.env.secrets
-fi
-chmod 600 /mnt/cpool/homarr/.env.secrets
-```
-
-Do not rotate the key: stored integration secrets depend on the original
-`SECRET_ENCRYPTION_KEY`.
-
-## Historical TrueNAS lifecycle failures
-
-Historical errors for Prometheus duplicate YAML keys, mutually-exclusive
-`network_mode`/networks settings, obsolete pfSense exporter images and the
-old Code Server `security_opt` shape are not present in the current Compose
-definitions.
-
-Karakeep Chrome and Paperless Tika should only be changed when their current
-healthchecks fail. A historical unhealthy start followed by a healthy current
-container is treated as a recovered transient incident, not as a reason to
-weaken healthchecks.
- |
-    head -n 1
-)"
-test -n "${POSTGRES_CONTAINER}" ||
-  { echo "PostgreSQL container not found" >&2; exit 1; }
-
-LANGFUSE_DB_PASSWORD="$(openssl rand -hex 32)"
-
-docker exec -u postgres "${POSTGRES_CONTAINER}" psql \
-  -v ON_ERROR_STOP=1 \
-  --set=langfuse_password="${LANGFUSE_DB_PASSWORD}" \
-  -c "DROP DATABASE IF EXISTS langfuse;" \
-  -c "DROP ROLE IF EXISTS langfuse;" \
-  -c "CREATE ROLE langfuse LOGIN PASSWORD :'langfuse_password';" \
-  -c "CREATE DATABASE langfuse OWNER langfuse;"
-```
-
-Replace the old `DATABASE_URL` in the runtime secret file:
-
-```bash
-sed -i '/^DATABASE_URL=/d;/^DIRECT_URL=/d' \
-  /mnt/cpool/langfuse/.env.secrets
-
-printf 'DATABASE_URL=postgresql://langfuse:%s@172.17.0.24:5432/langfuse\n' \
-  "${LANGFUSE_DB_PASSWORD}" |
-  tee -a /mnt/cpool/langfuse/.env.secrets >/dev/null
-
-printf 'DIRECT_URL=postgresql://langfuse:%s@172.17.0.24:5432/langfuse\n' \
-  "${LANGFUSE_DB_PASSWORD}" |
-  tee -a /mnt/cpool/langfuse/.env.secrets >/dev/null
-
-chmod 600 /mnt/cpool/langfuse/.env.secrets
-unset LANGFUSE_DB_PASSWORD
-```
-
-### 4. Isolate the shared Redis and MinIO dependencies
-
-Host ports and container ports are different contracts. Langfuse must use
-`redis:6379` and `minio:9000` over `intranet`.
-
-The v4 Compose sets:
-
-```text
-REDIS_KEY_PREFIX=langfuse-v4:
-LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse-v4
-LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse-v4
-LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse-v4
-```
-
-This prevents v4 BullMQ/cache keys from colliding with stale v3 Redis keys and
-keeps new S3 objects separate from the previous deployment.
-
-Create the bucket before starting Langfuse. Use the existing MinIO credentials
-without printing them:
-
-```bash
-docker exec minio sh -lc '
-  mkdir -p /data/langfuse-v4
-'
-```
-
-Then verify shared service discovery:
-
-```bash
-docker exec mongo getent hosts redis
-docker exec mongo getent hosts minio
-docker exec mongo getent hosts clickhouse
-```
-
-### 5. Redeploy ClickHouse first
-
-Pull the branch/merged revision and recreate ClickHouse from the repository
-Compose. The new container must join `intranet` with alias `clickhouse`.
-
-After startup:
-
-```bash
-curl -fsS http://172.17.0.24:8123/ping &&
-  echo "ClickHouse HTTP OK"
-
-docker exec mongo \
-  bash -lc 'timeout 3 bash -c "</dev/tcp/clickhouse/9000"' &&
-  echo "ClickHouse TCP migration endpoint OK"
-
-docker exec clickhouse clickhouse-client \
-  --query 'SELECT version(), timezone(), currentDatabase()'
-```
-
-The timezone must remain `UTC`.
-
-### 6. Redeploy Langfuse v4
-
-The Compose uses the shared dependencies through:
-
-```text
-CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
-CLICKHOUSE_URL=http://clickhouse:8123
-CLICKHOUSE_DB=langfuse
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_KEY_PREFIX=langfuse-v4:
-```
-
-Secrets such as `DATABASE_URL`, `DIRECT_URL`, `CLICKHOUSE_PASSWORD`,
-`REDIS_AUTH`, `SALT`, `ENCRYPTION_KEY`, `NEXTAUTH_SECRET` and S3
-credentials remain in `/mnt/cpool/langfuse/.env.secrets`.
-
-For a fresh v4 deployment, remove partial headless-initialization variables
-unless the full bootstrap set is intentionally configured. Do not carry only a
-subset of `LANGFUSE_INIT_*` variables from the previous deployment.
-
-Redeploy Langfuse and follow both containers:
-
-```bash
-midclt call app.redeploy langfuse
-
-docker logs --tail=200 -f ix-langfuse-langfuse-web-1
-docker logs --tail=200 -f ix-langfuse-langfuse-worker-1
-```
-
-### 7. Validate v4 before removing rollback data
-
-```bash
-curl -fsS \
-  'http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true' |
-  jq
-
-curl -fsS http://127.0.0.1:3030/api/health | jq
-
-scripts/truenas/audit-app-lifecycle.sh
-```
-
-Keep `cpool/clickhouse-v3-backup` and the pre-reset snapshot until the web and
-worker remain healthy and a new Langfuse project can ingest/query test traces.
 
 ## Homarr permissions
 

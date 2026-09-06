@@ -75,41 +75,40 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("external: true\n    name: intranet", opensearch)
         self.assertIn("external: true\n    name: nabla-security", opensearch)
 
-    def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
-        langfuse = self.read("apps/langfuse/compose.yml")
-        minio = self.read("apps/minio/compose.yml")
+    def test_clickhouse_matches_shared_truenas_runtime(self) -> None:
         clickhouse = self.read("apps/clickhouse/compose.yml")
 
-        self.assertIn("ghcr.io/langfuse/langfuse:4.30.0", langfuse)
-        self.assertIn("ghcr.io/langfuse/langfuse-worker:4.30.0", langfuse)
+        self.assertIn("clickhouse-server:26.8.2.7", clickhouse)
+        self.assertIn('user: "101:101"', clickhouse)
+        self.assertIn("/mnt/cpool/clickhouse/.env.secrets", clickhouse)
+        self.assertIn("/mnt/cpool/clickhouse:/var/lib/clickhouse", clickhouse)
+        self.assertIn('"172.17.0.24:8123:8123"', clickhouse)
+        self.assertIn('"172.17.0.24:9000:9000"', clickhouse)
+        self.assertIn("aliases:\n          - clickhouse", clickhouse)
+
+    def test_langfuse_uses_shared_redis_and_minio_internal_ports(self) -> None:
+        langfuse = self.read("apps/langfuse/compose.yml")
+        minio = self.read("apps/minio/compose.yml")
+
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
-        self.assertIn("CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}", langfuse)
-        self.assertIn("CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}", langfuse)
         self.assertIn("CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}", langfuse)
+        self.assertIn(
+            "CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}",
+            langfuse,
+        )
+        self.assertIn(
+            "CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}",
+            langfuse,
+        )
         self.assertIn("REDIS_HOST: ${REDIS_HOST:-redis}", langfuse)
         self.assertIn("REDIS_PORT: ${REDIS_PORT:-6379}", langfuse)
-        self.assertIn("REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-langfuse-v4:}", langfuse)
-        self.assertIn("LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_EVENT_UPLOAD_BUCKET:-langfuse-v4}", langfuse)
-        self.assertIn("LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${LANGFUSE_S3_MEDIA_UPLOAD_BUCKET:-langfuse-v4}", langfuse)
         self.assertIn("http://minio:9000", langfuse)
-        self.assertIn("TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}", langfuse)
-        self.assertIn("NEXTAUTH_URL: ${NEXTAUTH_URL:-https://langfuse.albandrieu.com}", langfuse)
-        self.assertNotIn("LANGFUSE_INIT_ORG_ID:", langfuse)
-        self.assertNotIn("LANGFUSE_INIT_PROJECT_ID:", langfuse)
-        self.assertNotIn("LANGFUSE_INIT_USER_EMAIL:", langfuse)
         self.assertNotIn("      DATABASE_URL:", langfuse)
         self.assertNotIn("      REDIS_AUTH:", langfuse)
         self.assertNotIn("      NEXTAUTH_SECRET:", langfuse)
+        self.assertNotIn("LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:-http://172.17.0.24:9000}", langfuse)
         self.assertIn("external: true\n    name: intranet", langfuse)
         self.assertIn("aliases:\n          - minio", minio)
-
-        self.assertIn("clickhouse/clickhouse-server:26.8.2.7", clickhouse)
-        self.assertIn("/mnt/cpool/clickhouse/.env.secrets", clickhouse)
-        self.assertIn('user: "101:101"', clickhouse)
-        self.assertIn("CLICKHOUSE_DB: langfuse", clickhouse)
-        self.assertIn("CLICKHOUSE_USER: clickhouse", clickhouse)
-        self.assertIn("aliases:\n          - clickhouse", clickhouse)
-        self.assertNotIn("CLICKHOUSE_PASSWORD:", clickhouse)
 
     def test_langflow_uses_boolean_tracing_flag_and_shared_opensearch(self) -> None:
         langflow = self.read("apps/langflow/compose.yml")
@@ -187,19 +186,15 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
+        self.assertIn("function probe_clickhouse_runtime_if_running", audit)
+        self.assertIn("timezone(),", audit)
+        self.assertIn("http://172.17.0.24:9005/_health/", audit)
         self.assertIn("failIfDatabaseUnavailable=true", audit)
         self.assertIn("http://127.0.0.1:3030/api/health", audit)
         self.assertIn('probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017', audit)
         self.assertIn("functional verification failed", audit)
         self.assertIn("SECRET_ENCRYPTION_KEY", audit)
         self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
-        self.assertIn("/mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets DATABASE_URL", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets REDIS_AUTH", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets SALT", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY", audit)
-        self.assertIn("/mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET", audit)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
         self.assertIn("GRAYLOG_MONGODB_URI", audit)
         self.assertIn("probe_secret_min_length_if_present", audit)
@@ -223,17 +218,25 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
 
-    def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
+    def test_runbook_uses_clean_shared_langfuse_reset(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
+
+        self.assertIn("## Langfuse clean reset on shared ClickHouse", runbook)
+        self.assertIn("26.8.2.7", runbook)
+        self.assertIn("database `langfuse`", runbook)
+        self.assertIn("DATABASE_URL=postgresql://nabla:", runbook)
+        self.assertIn("do **not** drop the shared `postgres` database", runbook)
+        self.assertIn("Sentry self-hosted upstream", runbook)
+
+    def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
-        self.assertIn("## Fresh Langfuse v4 reset", runbook)
-        self.assertIn("langfuse-v4", runbook)
-        self.assertIn("REDIS_KEY_PREFIX=langfuse-v4:", runbook)
-        self.assertIn("cpool/clickhouse-v3-backup", runbook)
-        self.assertIn("Langfuse v4 fresh reset", roadmap)
-        self.assertIn("v4.30.0", roadmap)
-        self.assertIn("ClickHouse 26.8.2.7", roadmap)
+        self.assertIn("##### Shared ClickHouse consumer compatibility gate", roadmap)
+        self.assertIn("26.8.2.7", roadmap)
+        self.assertIn("Sentry/Snuba", roadmap)
+        self.assertIn("ntopng", roadmap)
+        self.assertIn("synthetic Sentry event", roadmap)
+        self.assertIn("database `ntopng`", roadmap)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode

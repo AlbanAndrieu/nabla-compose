@@ -23,7 +23,7 @@ services:
     env_file:
       - /mnt/cpool/clickhouse/.env.secrets
     environment:
-      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse
     volumes:
       - /mnt/cpool/clickhouse:/var/lib/clickhouse
