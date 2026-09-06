@@ -204,7 +204,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 7575
+    "port": 30100
   },
   {
     "type": "http",
