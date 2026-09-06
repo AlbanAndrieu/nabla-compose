@@ -3,13 +3,13 @@ groups:
   - name: NablaCoreSignals
     interval: 30s
     rules:
-      - record: nabla:core:pfsense_metrics_up
+      - record: nabla:telemetry:pfsense_metrics_up
         expr: max(up{job="pfsense_exporter"})
 
-      - record: nabla:core:truenas_node_telemetry_up
+      - record: nabla:telemetry:truenas_node_up
         expr: max(up{job="truenas_node"})
 
-      - record: nabla:core:truenas_container_telemetry_up
+      - record: nabla:telemetry:truenas_cadvisor_up
         expr: max(up{job="truenas_cadvisor"})
 
       - record: nabla:core:truenas_memory_available_ratio
