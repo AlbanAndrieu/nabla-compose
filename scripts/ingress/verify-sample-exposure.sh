@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
 PUBLIC_HOST="${PUBLIC_HOST:-sample.albandrieu.com}"
 EXPECTED_PUBLIC_IP="${EXPECTED_PUBLIC_IP:-82.66.4.247}"
-LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://127.0.0.1:8091/health}"
-AUTOXPOSE_URL="${AUTOXPOSE_URL:-http://127.0.0.1:4949}"
-TRAEFIK_HOST="${TRAEFIK_HOST:-172.17.0.24}"
+LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"
+AUTOXPOSE_URL="${AUTOXPOSE_URL:-http://${TRUENAS_HOST}:4949}"
+TRAEFIK_HOST="${TRAEFIK_HOST:-${TRUENAS_HOST}}"
 TRAEFIK_PORT="${TRAEFIK_PORT:-443}"
 ACME_FILE="${ACME_FILE:-/mnt/cpool/traefik/certs/acme.json}"
 CERT_MIN_SECONDS="${CERT_MIN_SECONDS:-604800}"
@@ -69,11 +70,15 @@ printf '==> Traefik backend TLS certificate\n'
 check_certificate "${TRAEFIK_HOST}:${TRAEFIK_PORT}" "Traefik"
 
 printf '==> ACME store permissions\n'
-[[ -s "${ACME_FILE}" ]] || fail "ACME store missing or empty: ${ACME_FILE}"
-mode="$(stat -c '%a' "${ACME_FILE}")"
-[[ "${mode}" == "600" ]] || fail "ACME store must have mode 600, got ${mode}"
-grep -Fq "${PUBLIC_HOST}" "${ACME_FILE}" ||
-  fail "ACME store does not contain a certificate reference for ${PUBLIC_HOST}"
+if [[ -r "${ACME_FILE}" ]]; then
+  [[ -s "${ACME_FILE}" ]] || fail "ACME store is empty: ${ACME_FILE}"
+  mode="$(stat -c '%a' "${ACME_FILE}")"
+  [[ "${mode}" == "600" ]] || fail "ACME store must have mode 600, got ${mode}"
+  grep -Fq "${PUBLIC_HOST}" "${ACME_FILE}" ||
+    fail "ACME store does not contain a certificate reference for ${PUBLIC_HOST}"
+else
+  printf 'SKIP: ACME store %s is not readable from this host (expected from a workstation)\n' "${ACME_FILE}"
+fi
 
 printf '==> public pfSense/HAProxy TLS certificate\n'
 check_certificate "${PUBLIC_HOST}:443" "public ingress"
@@ -81,4 +86,4 @@ check_certificate "${PUBLIC_HOST}:443" "public ingress"
 printf '==> public FastAPI health\n'
 curl --fail --silent --show-error --max-time 15 "https://${PUBLIC_HOST}/health" >/dev/null
 
-printf 'OK: %s is healthy through AutoXpose DNS -> pfSense HAProxy -> Traefik -> FastAPI Sample\n' "${PUBLIC_HOST}"
+printf 'OK: %s is healthy through Cloudflare DNS -> pfSense HAProxy -> Traefik -> FastAPI Sample\n' "${PUBLIC_HOST}"
