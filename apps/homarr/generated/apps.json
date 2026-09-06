@@ -157,7 +157,7 @@
       "sourcePath": "apps/sample/compose.yml",
       "composeService": "fastapi-sample",
       "dockerManaged": true,
-      "href": "https://fastapi-sample.int.albandrieu.com",
+      "href": "https://sample.int.albandrieu.com",
       "syncEligible": true,
       "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation."
     },

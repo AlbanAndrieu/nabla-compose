@@ -122,13 +122,13 @@ services:
     container_name: pihole-dns-sync
     restart: unless-stopped
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/traefik/:/etc/traefik/
       # - /mnt/cpool/traefik/external-services.yml:/etc/traefik/external-services.yml:ro
       # - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
       PIHOLE_URL: http://172.17.0.24:20720
       SKIP_TLS_VERIFY: "true"
       TARGET_IP: 172.17.0.24
@@ -136,6 +136,8 @@ services:
       DOMAIN_SUFFIX: int.albandrieu.com
       EXTERNAL_SERVICES_FILE: /etc/traefik/external-services.yml
       OUTPUT_FILE: /etc/traefik/routes.yml
+    networks:
+      - intranet
 
   ddns-updater:
     image: ghcr.io/qdm12/ddns-updater
@@ -251,6 +253,9 @@ services:
   #     - traefik
 
 networks:
+  intranet:
+    external: true
+    name: intranet
   traefik_network:
     name: traefik_network
     # driver: bridge
