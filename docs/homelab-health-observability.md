@@ -125,6 +125,21 @@ Keep the concerns separate:
 Reference: NIST CSWP 29, *The NIST Cybersecurity Framework (CSF) 2.0*,
 <https://doi.org/10.6028/NIST.CSWP.29>.
 
+Current evidence-backed service mappings are deliberately sparse:
+
+| Component | Declared NIST CSF 2.0 functions | Repository evidence |
+| --- | --- | --- |
+| 2FAuth | Protect | MFA/TOTP security application |
+| Suricata | Detect | IDS runtime and EVE/event pipeline |
+| CrowdSec | Detect, Respond | security-engine decisions plus pfSense remediation LAPI |
+| pfSense | Protect, Respond | firewall plus CrowdSec remediation component |
+| Wazuh Manager | Detect | security-event manager and alert pipeline |
+
+`Govern`, `Identify` and `Recover` remain visible framework functions but are
+not assigned to a service merely to make coverage appear complete. Add them
+only when the homelab has an explicit, evidenced control or experiment for
+those outcomes.
+
 ### Observability and support
 
 Prometheus, Mimir, Grafana, exporters and collectors can be operationally
