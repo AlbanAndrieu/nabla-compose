@@ -10,7 +10,7 @@ on:
     branches: ["master"]
     paths:
       - apps/grafana/**
-      - apps/prometheus/compose.yml
+      - apps/prometheus/**
       - apps/gatus/config/config.yml
       - apps/autokuma/static/generated-monitors.json
       - scripts/observability/**
