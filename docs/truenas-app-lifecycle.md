@@ -186,13 +186,22 @@ sudo awk -F= '
 ' /mnt/cpool/graylog/.env.secrets
 ```
 
-`GRAYLOG_PASSWORD_SECRET` must be at least 16 characters and
+`GRAYLOG_PASSWORD_SECRET` must be at least 16 effective characters and
 `GRAYLOG_ROOT_PASSWORD_SHA2` must be a 64-character hexadecimal SHA-256
-digest. When reusing an existing Graylog MongoDB database, preserve the
-historical `GRAYLOG_PASSWORD_SECRET` if it can be recovered; changing it can
-make previously encrypted Graylog settings unreadable. Generate a new password
-secret only for a genuinely new Graylog state or when the old value is known
-to be unrecoverable and the encrypted settings are intentionally reset.
+digest. Matching outer single/double quotes in an env file are syntax, not part
+of the effective secret value; a raw length of 17 can therefore represent only
+15 effective characters.
+
+Before replacing `GRAYLOG_PASSWORD_SECRET`, inspect whether the target Graylog
+MongoDB database already contains application collections. When reusing an
+existing Graylog database, preserve the historical `GRAYLOG_PASSWORD_SECRET`
+if it can be recovered; changing it can make previously encrypted Graylog
+settings unreadable.
+
+If the Graylog database is genuinely empty because this is a new migration
+target that has never booted successfully, generate a new high-entropy password
+secret (96 hexadecimal characters is sufficient) and normalize any matching
+outer quotes around `GRAYLOG_ROOT_PASSWORD_SHA2`. Do not print either value.
 
 Graylog keeps port `9000` inside the container but defaults to host port
 `9003` because ClickHouse already publishes host TCP/9000. Verify TCP/9003 is
