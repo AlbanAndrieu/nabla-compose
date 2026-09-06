@@ -183,7 +183,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: homarr
     nabla_service_id: homarr
-  url: tcp://172.17.0.24:7575
+  url: tcp://172.17.0.24:30100
   conditions:
   - '[CONNECTED] == true'
 - name: Home Assistant
