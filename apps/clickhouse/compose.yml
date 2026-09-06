@@ -25,6 +25,7 @@ services:
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
     volumes:
       - /mnt/cpool/clickhouse:/var/lib/clickhouse
       - /mnt/cpool/logs/clickhouse-server:/var/log/clickhouse-server
