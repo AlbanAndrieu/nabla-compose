@@ -168,6 +168,23 @@ function probe_secret_if_present {
   fi
 }
 
+function normalize_env_value {
+  local value="$1"
+  local first
+  local last
+
+  if (("${#value}" >= 2)); then
+    first="${value:0:1}"
+    last="${value: -1}"
+    if [[ ("${first}" == '"' && "${last}" == '"') ||
+      ("${first}" == "'" && "${last}" == "'") ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+
+  printf '%s' "${value}"
+}
+
 function probe_secret_min_length_if_present {
   local app_id="$1"
   local label="$2"
@@ -186,6 +203,7 @@ function probe_secret_min_length_if_present {
   fi
 
   value="$(sed -n "s/^${variable}=//p" "${file}" | tail -n 1)"
+  value="$(normalize_env_value "${value}")"
   if (("${#value}" >= minimum_length)); then
     functional_ok "${label}: ${variable} length contract satisfied"
   else
@@ -199,12 +217,20 @@ function probe_secret_regex_if_present {
   local file="$3"
   local variable="$4"
   local regex="$5"
+  local value
 
   if ! app_is_present "${app_id}"; then
     return
   fi
 
-  if [[ -r "${file}" ]] && grep -Eq "^${variable}=${regex}$" "${file}"; then
+  if [[ ! -r "${file}" ]]; then
+    functional_fail "${label}: ${file} is not readable"
+    return
+  fi
+
+  value="$(sed -n "s/^${variable}=//p" "${file}" | tail -n 1)"
+  value="$(normalize_env_value "${value}")"
+  if [[ "${value}" =~ ^${regex}$ ]]; then
     functional_ok "${label}: ${variable} format contract satisfied"
   else
     functional_fail "${label}: ${variable} has an invalid format"
