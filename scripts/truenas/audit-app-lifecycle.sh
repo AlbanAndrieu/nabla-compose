@@ -315,16 +315,14 @@ function probe_clickhouse_config_mounts_if_running {
     return
   fi
 
-  local path
-  for path in \
-    /etc/clickhouse-server/config.d/prometheus.xml
-  do
-    if docker exec "${container}" test -f "${path}"; then
-      functional_ok "ClickHouse config mount: ${path} is a file"
-    else
-      functional_fail "ClickHouse config mount: ${path} is not a regular file"
-    fi
-  done
+  # Incident guard: a TrueNAS Custom App with an incorrectly resolved relative
+  # bind source can materialize prometheus.xml as a directory instead of a file.
+  local path="/etc/clickhouse-server/config.d/prometheus.xml"
+  if docker exec "${container}" test -f "${path}"; then
+    functional_ok "ClickHouse config mount: ${path} is a file"
+  else
+    functional_fail "ClickHouse config mount: ${path} is not a regular file"
+  fi
 }
 
 function probe_clickhouse_admin_grant_option_if_running {
