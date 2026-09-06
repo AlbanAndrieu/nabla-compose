@@ -39,10 +39,11 @@ endpoints:
   conditions:
   - '[CONNECTED] == true'
 - name: Bichon
-  group: bichon
+  group: productivity
   interval: 60s
   extra-labels:
     nabla_monitor_id: bichon
+    nabla_service_id: bichon
   url: tcp://172.17.0.24:15630
   conditions:
   - '[CONNECTED] == true'
