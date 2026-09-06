@@ -1,3 +1,10 @@
+## [0.14.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.2...0.14.3) (2026-09-06)
+
+
+### Bug Fixes
+
+* **security:** keep internal DNS private and remove Docker proxy exposure debt ([#106](https://github.com/AlbanAndrieu/nabla-compose/issues/106)) ([45bc9c7](https://github.com/AlbanAndrieu/nabla-compose/commit/45bc9c719582327b089f780a0233946c9816d6d8))
+
 ## [0.14.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.1...0.14.2) (2026-09-06)
 
 
