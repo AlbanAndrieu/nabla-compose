@@ -217,6 +217,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
+        self.assertIn("function probe_clickhouse_admin_grant_option_if_running", audit)
+        self.assertIn("WITH GRANT OPTION present", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
         self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
         self.assertIn("runtime credentials accepted", audit)
