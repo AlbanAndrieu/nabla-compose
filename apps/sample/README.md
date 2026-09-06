@@ -102,9 +102,9 @@ The local host port defaults to `8091`, mapped to container port `8080`:
 curl -fsS http://127.0.0.1:8091/health
 ```
 
-The canonical internal Traefik route is `https://sample.int.albandrieu.com`.
-The former `https://fastapi-sample.int.albandrieu.com` hostname remains as a
-compatibility alias.
+The internal Traefik route is `https://sample.int.albandrieu.com`.
+It is intentionally the only `Host(...)` router for this container because the
+current Pi-hole synchronizer extracts one hostname per Docker container.
 
 The protected public route is `https://sample.albandrieu.com`.
 
@@ -173,6 +173,11 @@ Run the read-only acceptance check from TrueNAS or from a LAN workstation:
 ```bash
 bash scripts/ingress/verify-sample-exposure.sh
 ```
+
+The TrueNAS deployment sets `FASTAPI_RUNTIME_MODE=homelab`, so the API landing
+page identifies this runtime as **TrueNAS homelab production** rather than a
+local workstation. This mode is distinct from FastAPI Cloud production and is
+intended to use trusted LAN paths for TrueNAS, pfSense and Prometheus observers.
 
 The defaults target the TrueNAS runtime at `172.17.0.24` and validate:
 
