@@ -68,7 +68,7 @@ services:
     depends_on:
       - openrag-backend
     ports:
-      - "3000:3000"
+      - "${OPENRAG_FRONTEND_PORT:-31060}:3000"
     networks:
       - intranet
       - traefik_network
