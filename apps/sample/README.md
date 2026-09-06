@@ -193,6 +193,58 @@ bypassing public/WAN DNS routing from the internal observer. Keep
 appliance certificates validate those hostnames. Do not replace this with
 `verify=false` merely to use a private IP.
 
+### TrueNAS WebSocket source allowlist
+
+TrueNAS 26.0.0-BETA.2 applies `system.general.ui_allowlist` to API/UI
+WebSocket source addresses **before API-key authentication**. A successful
+`GET /api/versions` therefore proves HTTPS reachability only; it does not prove
+that `/api/current` is permitted.
+
+For the Docker-hosted observer, TrueNAS sees the FastAPI container address on
+the shared `intranet` bridge, not the TrueNAS LAN address. A policy close such
+as:
+
+```text
+WebSocket connection closed with code=1008
+You are not allowed to access this resource
+```
+
+is a source-address allowlist denial, not an `APPS_READ` RBAC failure.
+
+The live 2026-09-06 recovery proved the sequence:
+
+```text
+/api/versions over HTTPS                         -> HTTP 200
+native BETA.2 midclt as fastapi_observer         -> system.version + app.query succeed
+FastAPI container before ui_allowlist change     -> WebSocket denied
+allow container intranet IP /32                  -> system.version + app.query = 86
+system.general.checkin                           -> change persisted
+```
+
+Run the read-only preflight after every recreate/network change:
+
+```bash
+scripts/security/verify-truenas-observer-access.sh
+```
+
+Do not allow the whole shared Docker subnet merely to make this observer work.
+Until the `intranet` address is explicitly reserved, a container recreate can
+change its source IP and require a reviewed `ui_allowlist` update. The roadmap
+tracks moving the observer to a stable dedicated address/network boundary.
+
+The canonical runtime credentials are:
+
+```dotenv
+TRUENAS_API_USERNAME=fastapi_observer
+TRUENAS_API_KEY=<dedicated user-linked API key>
+```
+
+Remove stale `TRUENAS_USER` / `TRUENAS_USERNAME` aliases from the TrueNAS
+FastAPI runtime once migration is proven. The application intentionally prefers
+`TRUENAS_API_USERNAME`, but leaving an old alias creates a dangerous fallback:
+if the canonical variable disappears later, the old username could be paired
+with the new canonical API key.
+
 For Prometheus, keep the existing LAN-only setting in
 `/mnt/cpool/sample/.env`:
 
