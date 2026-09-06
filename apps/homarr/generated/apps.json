@@ -61,12 +61,12 @@
     {
       "id": "bichon",
       "name": "Bichon",
-      "group": "bichon",
+      "group": "productivity",
       "sourcePath": "apps/bichon/compose.yml",
       "composeService": "bichon",
       "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
+      "href": "http://172.17.0.24:15630",
+      "syncEligible": true
     },
     {
       "id": "clickhouse",
@@ -215,16 +215,6 @@
       "syncEligible": true
     },
     {
-      "id": "graylog-mongodb",
-      "name": "Graylog MongoDB",
-      "group": "data",
-      "sourcePath": "apps/graylog/compose.yml",
-      "composeService": "mongo",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "haproxy-exporter",
       "name": "pfSense HAProxy Exporter",
       "group": "observability",
@@ -366,6 +356,16 @@
       "dockerManaged": true,
       "href": "http://172.17.0.24:9091",
       "syncEligible": true
+    },
+    {
+      "id": "mongo",
+      "name": "MongoDB",
+      "group": "data",
+      "sourcePath": "apps/mongo/compose.yml",
+      "composeService": "mongo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "n8n",
