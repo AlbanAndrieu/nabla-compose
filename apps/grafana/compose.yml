@@ -13,6 +13,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: grafana
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30037/api/health
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: loki
           type: consumesApi
@@ -63,6 +68,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: loki
+      monitoring:
+        type: http
+        target: http://172.17.0.24:3100/ready
+        conditions:
+          - "[STATUS] == 200"
     command:
       - -config.file=/etc/loki/config.yml
     ports:
@@ -83,6 +93,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: mimir
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9009/ready
+        conditions:
+          - "[STATUS] == 200"
     command:
       - -config.file=/etc/mimir/config.yml
     ports:
@@ -103,6 +118,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: tempo
+      monitoring:
+        type: http
+        target: http://172.17.0.24:3200/ready
+        conditions:
+          - "[STATUS] == 200"
     command:
       - -config.file=/etc/tempo/config.yml
     ports:
@@ -123,6 +143,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: alloy
+      monitoring:
+        type: http
+        target: http://172.17.0.24:12345/-/healthy
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: loki
           type: storesIn
