@@ -559,7 +559,7 @@ function probe_ntopng_clickhouse_contract_if_running {
   fi
 
   if docker top "${ntopng_container}" -eo args 2>/dev/null |
-    grep -Fq -- "${password}"; then
+    grep -Fq -f <(printf '%s\n' "${password}"); then
     functional_fail "ntopng ClickHouse contract: password is exposed in process argv"
     return
   else
