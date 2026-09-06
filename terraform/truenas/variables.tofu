@@ -47,6 +47,36 @@ variable "truenas_pool" {
   default     = "cpool"
 }
 
+variable "kubernetes_nfs_share_enabled" {
+  description = "Create the TrueNAS NFS export consumed by democratic-csi nfs-client."
+  type        = bool
+  default     = false
+}
+
+variable "kubernetes_csi_dataset" {
+  description = "Existing dataset path, relative to the pool, exported for Kubernetes dynamic NFS directories."
+  type        = string
+  default     = "k8s/csi"
+
+  validation {
+    condition     = length(trimspace(var.kubernetes_csi_dataset)) > 0 && !startswith(var.kubernetes_csi_dataset, "/") && !endswith(var.kubernetes_csi_dataset, "/")
+    error_message = "kubernetes_csi_dataset must be a non-empty pool-relative dataset path without leading or trailing slashes."
+  }
+}
+
+variable "kubernetes_nfs_allowed_hosts" {
+  description = "Explicit Talos node IPv4 addresses allowed to mount the Kubernetes NFS export."
+  type        = list(string)
+  default     = ["172.17.0.50", "172.17.0.51", "172.17.0.52"]
+
+  validation {
+    condition = length(var.kubernetes_nfs_allowed_hosts) > 0 && length(distinct(var.kubernetes_nfs_allowed_hosts)) == length(var.kubernetes_nfs_allowed_hosts) && alltrue([
+      for host in var.kubernetes_nfs_allowed_hosts : can(cidrhost("${host}/32", 0))
+    ])
+    error_message = "kubernetes_nfs_allowed_hosts must contain unique IPv4 host addresses."
+  }
+}
+
 variable "talos_zvol_parent" {
   description = "Existing dataset path, relative to the pool, that will contain Talos VM zvols."
   type        = string
