@@ -479,6 +479,7 @@ function probe_ntopng_clickhouse_contract_if_running {
   local ntopng_container
   local secret_file="/mnt/cpool/ntopng/.env.secrets"
   local password
+  local edition
   local metadata
   local grants
 
@@ -520,6 +521,32 @@ function probe_ntopng_clickhouse_contract_if_running {
     functional_fail "ntopng ClickHouse contract: ntopng container not found"
     return
   fi
+
+  if docker exec "${ntopng_container}" test -s /etc/ntopng.license 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: Enterprise license file mounted"
+  else
+    functional_fail "ntopng ClickHouse contract: /etc/ntopng.license missing or empty"
+    return
+  fi
+
+  if ! edition="$(
+    docker exec "${ntopng_container}" ntopng -V 2>/dev/null |
+      sed -n 's/^Edition:[[:space:]]*//p' |
+      head -n 1
+  )"; then
+    functional_fail "ntopng ClickHouse contract: unable to determine ntopng edition"
+    return
+  fi
+
+  case "${edition}" in
+    Enterprise\ M*|Enterprise\ L*|Enterprise\ XL*|Enterprise\ XXL*)
+      functional_ok "ntopng ClickHouse contract: supported Enterprise edition detected"
+      ;;
+    *)
+      functional_fail "ntopng ClickHouse contract: Enterprise M-or-higher edition required"
+      return
+      ;;
+  esac
 
   if docker exec "${ntopng_container}" sh -c '
     test -f /run/nabla-ntopng.conf &&
