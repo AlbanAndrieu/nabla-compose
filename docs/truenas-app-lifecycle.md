@@ -394,73 +394,119 @@ worker containers both remain stable.
 
 The repository Compose no longer contains production-like fallback passwords.
 
-## Langfuse clean reset on shared ClickHouse
+## Fresh Langfuse v4 reset
 
-The previous Langfuse analytical history is disposable. Stop repairing the
-old ClickHouse migration marker and initialize Langfuse on clean application
-state instead.
+The previous Langfuse state is disposable. Use a fresh Langfuse v4
+initialization instead of repairing the former v3/v4 ClickHouse migration
+marker.
 
-The shared ClickHouse service is **not** Langfuse-owned storage. The live
-TrueNAS instance is ClickHouse `26.8.2.7`, runs in timezone `UTC`, uses
-`/mnt/cpool/clickhouse` owned by UID/GID `101:101`, and is also a current
-or planned dependency for Sentry/Snuba and ntopng. Never wipe
-`/mnt/cpool/clickhouse` merely to reset Langfuse.
+Shared infrastructure contracts:
 
-Langfuse uses the dedicated ClickHouse database `langfuse` while the server
-keeps `default` as its default database. Reset only `langfuse` after
-confirming ClickHouse filesystem ownership is healthy.
+- ClickHouse: `26.8.2.7`, timezone `UTC`, database `langfuse`;
+- PostgreSQL: shared PostgreSQL 18.6, generic user `nabla`, database
+  `postgres`;
+- Redis: internal `redis:6379`, key prefix `langfuse-v4:`;
+- MinIO: internal `minio:9000`, bucket `langfuse-v4`.
 
-The selected PostgreSQL contract uses the generic homelab identity and
-database:
+Runtime secrets remain in:
+
+```text
+/mnt/cpool/langfuse/.env.secrets
+```
+
+and must include at least:
 
 ```text
 DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
+CLICKHOUSE_PASSWORD=<shared ClickHouse password>
+REDIS_AUTH=<shared Redis password>
+SALT=<stable Langfuse salt>
+ENCRYPTION_KEY=<stable Langfuse encryption key>
+NEXTAUTH_SECRET=<stable NextAuth secret>
 ```
 
-Langfuse uses PostgreSQL's `public` schema in the selected database. Therefore
-do **not** drop the shared `postgres` database. For a clean Langfuse reset,
-inventory and remove only Langfuse-owned tables/objects, or use an isolated
-PostgreSQL database in a later hardening change.
+The ClickHouse service is shared infrastructure. Never delete
+`/mnt/cpool/clickhouse` merely to reset Langfuse. Reset only the dedicated
+ClickHouse database `langfuse`.
 
-Validate ClickHouse from ClickHouse itself:
+Before the reset, confirm ClickHouse itself:
 
 ```bash
-docker exec ix-clickhouse-clickhouse-1 bash -lc '
+docker exec ix-clickhouse-clickhouse-1 sh -c '
 clickhouse-client \
   --user "$CLICKHOUSE_USER" \
   --password "$CLICKHOUSE_PASSWORD" \
+  --query "SELECT version(), timezone(), currentDatabase()"
+'
+```
+
+Expected current live values are `26.8.2.7`, `UTC`, and `default`.
+
+If the Langfuse ClickHouse database must be recreated, first ensure the
+ClickHouse data directory is writable by UID/GID `101:101`. Do not run a
+database drop while ClickHouse reports filesystem permission errors.
+
+Then reset only Langfuse analytical state:
+
+```bash
+docker exec ix-clickhouse-clickhouse-1 sh -c '
+clickhouse-client \
+  --user "$CLICKHOUSE_USER" \
+  --password "$CLICKHOUSE_PASSWORD" \
+  --multiquery \
   --query "
-    SELECT
-      version(),
-      timezone(),
-      currentDatabase()
+    DROP DATABASE IF EXISTS langfuse;
+    CREATE DATABASE langfuse;
   "
 '
 ```
 
-Expected current live result:
+PostgreSQL is different: the selected contract intentionally reuses the shared
+`postgres` database. Langfuse v4 uses the `public` schema of the selected
+database, so **never** run `DROP DATABASE postgres`. Before deleting old
+Langfuse PostgreSQL objects, inventory tables and owners and remove only objects
+proven to belong to the old Langfuse installation.
+
+The v4 Compose isolates the other shared dependencies with:
 
 ```text
-26.8.2.7    UTC    default
+CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
+CLICKHOUSE_URL=http://clickhouse:8123
+CLICKHOUSE_DB=langfuse
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_KEY_PREFIX=langfuse-v4:
+LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse-v4
+LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse-v4
+LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse-v4
 ```
 
-The harmless shell warning about
-`/var/lib/clickhouse/.bash_profile: Permission denied` can be avoided with
-`docker exec ... clickhouse-client ...` directly if the image environment
-permits it; it is not evidence of a ClickHouse SQL failure.
+Before starting Langfuse v4:
 
-Before modifying the shared server, validate all deployed consumers:
+1. verify Docker DNS and TCP/9000 for `clickhouse`;
+2. verify Redis TCP/6379 and MinIO HTTP/9000;
+3. verify the generic PostgreSQL `nabla` user can connect to database
+   `postgres`;
+4. ensure no stale partial `LANGFUSE_INIT_*` bootstrap variables remain unless
+   the complete headless bootstrap set is intentionally configured.
 
-1. ClickHouse HTTP `/ping`;
-2. internal Docker DNS/TCP `clickhouse:9000`;
-3. Langfuse web/worker after its clean initialization;
-4. Sentry with an actual synthetic event through Snuba, not only web health;
-5. ntopng flow persistence once its licensed ClickHouse export is enabled.
+Redeploy Langfuse and validate:
 
-Sentry self-hosted upstream currently vendors an Altinity ClickHouse 25.8
-baseline. If Sentry/Snuba fails against the shared 26.8.2.7 server, isolate
-Sentry on its own vendor-supported ClickHouse instead of downgrading the shared
-Langfuse/ntopng service.
+```bash
+curl -fsS \
+  'http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true'
+
+curl -fsS http://127.0.0.1:3030/api/health
+```
+
+A fresh smoke-test trace must be ingestible and queryable before the reset is
+considered complete.
+
+Because ClickHouse is shared, also validate Sentry/Snuba after the change.
+Sentry self-hosted upstream still vendors an Altinity ClickHouse 25.8 baseline;
+if synthetic Sentry event ingestion/search fails against the shared 26.8.2.7
+server, decouple Sentry onto its own vendor-supported ClickHouse. When ntopng is
+enabled later, validate its dedicated `ntopng` database and flow persistence.
 
 
 ## Homarr permissions
