@@ -244,6 +244,8 @@ Prepared in `apps/grafana`:
       synthetic smoke events;
 - [x] replace TCP-only Gatus/AutoKuma checks for Grafana, Alloy, Loki, Mimir,
       Tempo, Prometheus and pfSense Exporter with functional HTTP checks;
+- [x] replace the stale `pfsense_info` alert with Prometheus scrape health
+      plus an expected real pfSense system metric;
 - [x] add `scripts/observability/verify-stack.sh` for read-only service,
       datasource, dashboard and pfSense-metrics validation;
 - [x] add `scripts/observability/verify-otlp.sh` to prove the Alloy OTLP
