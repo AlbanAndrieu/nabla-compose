@@ -23,8 +23,8 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
 - [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
 - [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
-- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
-- [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
+- [x] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit PSA `restricted` smoke workload; `scripts/talos/smoke-kubernetes-network.sh` passed DNS, Service DNS, ClusterIP and cross-node routing on 2026-09-06;
+- [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi NFS change after network/DNS validation; use `docs/kubernetes-storage-democratic-csi.md` for the TrueNAS 26 compatibility boundary and acceptance gate;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
 ### Post-reboot runtime cleanup — 2026-09-05
 
