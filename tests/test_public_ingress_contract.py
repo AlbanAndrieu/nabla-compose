@@ -35,6 +35,25 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("Host(`sample.albandrieu.com`)", compose)
         self.assertNotIn("fastapi-sample-public", compose)
 
+    def test_private_int_routes_do_not_enable_autoxpose(self) -> None:
+        for compose_path in (ROOT / "apps").glob("*/compose.yml"):
+            compose = compose_path.read_text(encoding="utf-8")
+            if ".int.albandrieu.com" not in compose:
+                continue
+            self.assertNotIn(
+                "autoxpose.enable=",
+                compose,
+                f"{compose_path.relative_to(ROOT)} mixes private .int routing with AutoXpose",
+            )
+
+    def test_dococd_uses_shared_internal_docker_proxy(self) -> None:
+        compose = (ROOT / "docker-compose-truenas.yml").read_text(encoding="utf-8")
+
+        self.assertIn("DOCKER_HOST: tcp://docker-socket-proxy:2375", compose)
+        self.assertNotIn("DOCKER_HOST: tcp://172.17.0.24:2375", compose)
+        dococd = compose.split("  doco-cd:", 1)[1].split("\nnetworks:", 1)[0]
+        self.assertIn("- intranet", dococd)
+
     def test_autoxpose_uses_shared_read_only_docker_proxy(self) -> None:
         compose = (ROOT / "apps" / "autoxpose" / "compose.yml").read_text(encoding="utf-8")
 
@@ -84,6 +103,23 @@ class PublicIngressContractTests(unittest.TestCase):
             compose,
         )
         self.assertNotIn("EXCLUDED_DOMAINS=", compose)
+
+    def test_public_int_dns_audit_is_fail_closed(self) -> None:
+        script = (ROOT / "scripts" / "security" / "audit-public-int-dns.sh").read_text(
+            encoding="utf-8"
+        )
+        allowlist = (
+            ROOT / "config" / "public-int-dns-exceptions.txt"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('endswith(".int.albandrieu.com")', script)
+        self.assertIn("TEMPORARY-EXCEPTION", script)
+        self.assertIn("UNEXPECTED", script)
+        self.assertIn("exit 3", script)
+        self.assertIn("garage.int.albandrieu.com", allowlist)
+        self.assertIn("vaultwarden.int.albandrieu.com", allowlist)
+        self.assertNotIn("ollama.int.albandrieu.com", allowlist)
+        self.assertNotIn("hello.int.albandrieu.com", allowlist)
 
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")

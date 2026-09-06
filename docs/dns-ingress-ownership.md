@@ -33,7 +33,31 @@ resolvable on the LAN. AutoXpose is not the authoritative publisher for this
 
 The legacy Traefik Cloudflare companion explicitly excludes the `int`
 subdomain tree so it must not publish `*.int.albandrieu.com` into public
-Cloudflare DNS.
+Cloudflare DNS. AutoXpose must not be attached to services whose only Traefik
+hostname is under `*.int.albandrieu.com`.
+
+Public Cloudflare DNS entries under `*.int.albandrieu.com` are configuration
+drift by default. Historical records created before the companion exclusion was
+fixed must be inventoried and removed unless the service has a documented,
+temporary direct-exposure exception. New public services must use a non-`.int`
+hostname and an explicit Cloudflare Tunnel/Access or direct-ingress contract.
+
+### DNS resilience
+
+Do not make general LAN DNS availability depend on Pi-hole running on TrueNAS.
+Clients should keep using pfSense/Unbound as their normal resolver. The target
+design is for pfSense to remain able to resolve public DNS independently and to
+serve or forward only the private `int.albandrieu.com` zone through a
+failure-contained mechanism.
+
+Because the current `*.int` Traefik endpoints normally converge on
+`172.17.0.24`, evaluate making pfSense/Unbound authoritative for the critical
+internal zone (for example through reviewed host/local-zone data generated from
+the repository). Pi-hole can then remain an optional synchronized consumer for
+filtering and convenience rather than a single point of failure for all DNS.
+
+If TrueNAS is down, services hosted on TrueNAS are unavailable anyway; that
+failure must not prevent clients from resolving unrelated public domains.
 
 ## Public `*.albandrieu.com`
 
@@ -74,6 +98,6 @@ is Cloudflare Access -> Cloudflare Tunnel -> `http://172.17.0.24:8091`.
 
 For a LAN-only `*.int.albandrieu.com` hostname resolving directly to
 `172.17.0.24`, a LAN client can reach Traefik without traversing the WAN
-HAProxy path. If a `*.int` name is intentionally made public, that is a
-separate exposure decision and must be declared explicitly rather than inferred
-from the suffix.
+HAProxy path. A public `*.int` record is forbidden by default. Any temporary
+legacy exception must be declared explicitly, monitored as security debt and
+migrated to a non-`.int` public hostname.

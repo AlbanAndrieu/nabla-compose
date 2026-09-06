@@ -57,7 +57,7 @@ services:
       - /mnt/cpool/model/ollama/:/mnt/cpool/model/ollama/
     ports:
       - 30068:30068
-    #  --- Traefik/Autoxpose Labels
+    #  --- Internal Traefik labels
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ollama.rule=Host(`ollama.int.albandrieu.com`)"
@@ -65,11 +65,6 @@ services:
       - "traefik.http.routers.ollama.tls.certresolver=letsencrypt"
       - "traefik.http.routers.ollama.service=ollama"
       - "traefik.http.services.ollama.loadbalancer.server.scheme=http"
-      - autoxpose.enable=true
-      - autoxpose.subdomain=ollama
-      - autoxpose.port=30068
-      - autoxpose.domain=ollama.albandrieu.com
-      - autoxpose.scheme=http
       #  --- Prometheus metrics
       - prometheus.scrape=true
       - prometheus.port=30068

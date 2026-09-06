@@ -48,7 +48,7 @@ services:
       SECRET_PROVIDER: webhook
       SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
       # <<: *poll-config  # Uncomment this line to use the poll configuration from above (the `x-poll-config` section).
-      DOCKER_HOST: tcp://172.17.0.24:2375
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
 
     depends_on: []
     # depends_on:
@@ -76,6 +76,7 @@ services:
 
     networks:
       - default
+      - intranet
       - secrets-backend
 
 networks:

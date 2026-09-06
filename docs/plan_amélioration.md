@@ -35,9 +35,18 @@
 
 ### Topologie autoritative de l’ingress direct
 
-Le chemin public `*.int.albandrieu.com` doit être représenté par les mêmes sources que le runtime et ne doit plus être reconstruit à la main par les consommateurs :
+Le namespace `*.int.albandrieu.com` est privé par défaut (LAN/VPN) et ne doit
+pas être publié dans le DNS public Cloudflare. Les rares exceptions historiques
+d'ingress direct doivent être explicites, temporaires et suivies comme dette de
+sécurité.
 
-`Internet -> pfSense -> HAProxy -> Traefik :443 sur TrueNAS -> service Docker`
+Chemin privé normal :
+
+`LAN/VPN -> DNS interne -> Traefik :443 sur TrueNAS -> service Docker`
+
+Chemin public direct, uniquement pour une exception déclarée :
+
+`Internet -> DNS public non-.int (ou exception legacy) -> pfSense -> HAProxy -> Traefik :443 -> service Docker`
 
 État et suivi :
 

@@ -37,6 +37,49 @@ Track these independently from the Talos bridge/bootstrap:
 - [ ] Docker socket proxy: remove or restrict the current `0.0.0.0:2375` publication unless LAN-wide access is explicitly required;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
+### Internal DNS resilience and public `*.int` cleanup
+
+The private namespace contract is now:
+
+```text
+*.int.albandrieu.com -> LAN/VPN only
+public service       -> non-.int hostname + explicit exposure policy
+```
+
+Live Cloudflare DNS inventory on 2026-09-06 found historical public records for
+`code`, `dozzle`, `drawio`, `garage-admin`, `garage`, `hello`,
+`languagetool`, `ollama`, `s3`, `*.s3`, `vaultwarden` and a legacy
+`nexus-albanandrieu` host under `*.int.albandrieu.com`. These records were
+created before the Traefik Cloudflare companion excluded the `int` tree and
+must not be treated as evidence that the services are intentionally public.
+
+- [x] prevent the legacy Traefik Cloudflare companion from publishing the
+  `int` subdomain tree;
+- [x] remove AutoXpose labels from LAN-only Ollama and Hello so a private
+  Traefik route cannot also create a public DNS record;
+- [ ] delete public `*.int` records that have no explicit exposure exception,
+  beginning with Ollama, Hello, Code, Dozzle, Drawio and LanguageTool;
+- [ ] review the legacy `nexus-albanandrieu.int` record and remove it if no
+  current consumer requires it;
+- [ ] keep Garage/S3 direct-public records only while their explicit security
+  exception is required, then migrate them to non-`.int` hostnames or a
+  private network path;
+- [ ] migrate any workstation dependency on
+  `vaultwarden.int.albandrieu.com` away from public `.int` DNS. Prefer a
+  private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
+  Cloudflare Access Service Auth is appropriate only for automation that can
+  explicitly send `CF-Access-Client-Id` and `CF-Access-Client-Secret`;
+  do not assume stock Bitwarden clients can inject those headers;
+- [x] add `scripts/security/audit-public-int-dns.sh`, a read-only Cloudflare
+  DNS drift check that reports every public `*.int.albandrieu.com` record and
+  fails unless it appears in the reviewed temporary-exception allowlist;
+- [ ] keep pfSense/Unbound as the general LAN resolver and design the private
+  `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
+  point of failure;
+- [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
+  critical `*.int` names, with Pi-hole synchronization retained as an
+  optional secondary consumer.
+
 ### Cloudflare Tunnel + Access reconciliation
 
 Cloudflare public access must be treated as a declared security contract, not merely as a working DNS/Tunnel hostname.
