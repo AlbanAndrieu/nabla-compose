@@ -14,6 +14,16 @@
       "criticality": "critical"
     },
     {
+      "id": "etcd",
+      "name": "etcd",
+      "kind": "control-plane-store",
+      "category": "infrastructure",
+      "presentationRole": "core",
+      "sourcePath": "docs/homelab-health-observability.md",
+      "description": "Critical Kubernetes control-plane state store managed by Talos on control-plane nodes.",
+      "icon": "🗄️"
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
@@ -34,12 +44,32 @@
   "relations": [
     {
       "source": "kubernetes",
+      "target": "etcd",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Kubernetes control-plane availability depends on a healthy etcd state store.",
+      "evidence": [
+        "docs/homelab-health-observability.md:etcd direct health gate and control-plane criticality"
+      ]
+    },
+    {
+      "source": "kubernetes",
       "target": "talos",
       "type": "hostedBy",
       "strength": "required",
       "description": "The Kubernetes cluster runs on Talos Linux control-plane and worker nodes.",
       "evidence": [
         "docs/truenas-talos-bootstrap.md:default Talos VM topology and bootstrap sequence"
+      ]
+    },
+    {
+      "source": "etcd",
+      "target": "talos",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Talos control-plane nodes host the etcd member(s) backing Kubernetes.",
+      "evidence": [
+        "docs/homelab-health-observability.md:current Talos control-plane and etcd topology"
       ]
     },
     {
