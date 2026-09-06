@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.0...0.15.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **clickhouse:** isolate Langfuse on shared database ([#110](https://github.com/AlbanAndrieu/nabla-compose/issues/110)) ([415ec3c](https://github.com/AlbanAndrieu/nabla-compose/commit/415ec3c438749a6107dbdbfb686bd63de16563d3))
+
 # [0.15.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.5...0.15.0) (2026-09-06)
 
 
