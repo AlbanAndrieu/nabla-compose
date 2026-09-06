@@ -15,6 +15,8 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `name`: human-readable service name;
 - `kind`: architectural role;
 - `category`: catalog grouping;
+- `presentationRole`: optional UI intent, one of `service`, `core`, or `support`; prefer `service` for user-facing/lab capabilities, `core` for shared platform foundations, and `support` for auxiliary tooling;
+- `criticality`: optional operator-urgency tier, one of `critical`, `high`, `standard`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation;
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
 
@@ -41,6 +43,14 @@ Use the existing relation vocabulary:
 - `automates`: source orchestrates work in the target.
 
 Every relation must include `strength: required|optional` and should include concrete `evidence` pointing to the configuration that proves the relationship. Do not invent dependencies merely to make the graph look complete. Keep `hostedBy` separate from `dependsOn`/`partOf`: hosting should contribute to infrastructure impact analysis without pretending the host is a functional service dependency.
+
+Presentation role, criticality and dependency strength answer different questions:
+
+- `presentationRole` decides where an entity belongs in operator-facing views;
+- `criticality` expresses how urgently operators should care about its own failure;
+- relation `strength` expresses whether a dependent actually requires the target to function.
+
+A high/critical observability component such as Prometheus can therefore be operationally important without making every monitored service functionally unavailable when Prometheus itself is down.
 
 ## Generated contracts
 
