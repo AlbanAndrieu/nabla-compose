@@ -11,7 +11,7 @@ x-nabla:
 
 services:
   langfuse-worker:
-    image: docker.langfuse.com/langfuse/langfuse-worker:4.30.0
+    image: ghcr.io/langfuse/langfuse-worker:4.30.0
     restart: always
     env_file:
       - /mnt/cpool/langfuse/.env.secrets
@@ -94,7 +94,7 @@ services:
       - intranet
 
   langfuse-web:
-    image: docker.langfuse.com/langfuse/langfuse:4.30.0
+    image: ghcr.io/langfuse/langfuse:4.30.0
     restart: always
     env_file:
       - /mnt/cpool/langfuse/.env.secrets
