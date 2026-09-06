@@ -1,4 +1,8 @@
 ---
+secrets:
+  ntopng_runtime_env:
+    file: /mnt/cpool/ntopng/.env.secrets
+
 services:
   ntopng:
     image: ntop/ntopng:latest
@@ -23,8 +27,10 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    env_file:
-      - /mnt/cpool/ntopng/.env.secrets
+    secrets:
+      - source: ntopng_runtime_env
+        target: ntopng_runtime_env
+        mode: "0400"
     environment:
       TZ: ${TZ:-Europe/Paris}
       CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-172.17.0.24}
