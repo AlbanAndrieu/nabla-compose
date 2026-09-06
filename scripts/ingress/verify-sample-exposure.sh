@@ -31,12 +31,18 @@ proxy = status.get("proxy") or {}
 if not dns.get("configured"):
     raise SystemExit("AutoXpose DNS provider is not configured")
 if dns.get("provider") != "cloudflare":
-    raise SystemExit(f"AutoXpose DNS provider must be cloudflare, got {dns.get("provider")!r}")
+    raise SystemExit(
+        "AutoXpose DNS provider must be cloudflare, got {!r}".format(dns.get("provider"))
+    )
 if dns.get("domain") != "albandrieu.com":
-    raise SystemExit(f"AutoXpose DNS domain must be albandrieu.com, got {dns.get("domain")!r}")
+    raise SystemExit(
+        "AutoXpose DNS domain must be albandrieu.com, got {!r}".format(dns.get("domain"))
+    )
 if proxy.get("configured"):
     raise SystemExit(
-        f"AutoXpose proxy provider must stay disabled when Traefik owns routing; got {proxy.get("provider")!r}"
+        "AutoXpose proxy provider must stay disabled when Traefik owns routing; got {!r}".format(
+            proxy.get("provider")
+        )
     )
 ' <<<"${status_json}"
 
