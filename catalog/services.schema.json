@@ -56,6 +56,8 @@
         "name": { "type": "string", "minLength": 1 },
         "kind": { "type": "string", "minLength": 1 },
         "category": { "type": "string", "minLength": 1 },
+        "presentationRole": { "enum": ["service", "core", "support"] },
+        "criticality": { "enum": ["critical", "high", "standard", "low"] },
         "sourcePath": { "type": "string", "minLength": 1 },
         "composeService": { "type": "string", "minLength": 1 },
         "url": { "type": "string", "minLength": 1 },
