@@ -250,6 +250,30 @@ host DNS may resolve a public search-domain hostname instead.
 
 Before replacing the current TrueNAS Langfuse app, materialize its current
 runtime secrets into `/mnt/cpool/langfuse/.env.secrets` without printing them.
+The existing TrueNAS application already has these variables in its rendered
+container environment; creating a new dataset does not copy them automatically.
+
+```bash
+sudo install -d -m 700 /mnt/cpool/langfuse
+
+{
+  sudo docker inspect ix-langfuse-langfuse-worker-1 \
+    --format '{{range .Config.Env}}{{println .}}{{end}}'
+  sudo docker inspect ix-langfuse-langfuse-web-1 \
+    --format '{{range .Config.Env}}{{println .}}{{end}}'
+} |
+  grep -E '^(DATABASE_URL|SALT|ENCRYPTION_KEY|CLICKHOUSE_PASSWORD|LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID|LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY|REDIS_AUTH|SMTP_CONNECTION_URL|NEXTAUTH_SECRET|LANGFUSE_INIT_PROJECT_SECRET_KEY|LANGFUSE_INIT_USER_PASSWORD)=' |
+  awk -F= '!seen[$1]++' |
+  sudo tee /mnt/cpool/langfuse/.env.secrets >/dev/null
+
+sudo chmod 600 /mnt/cpool/langfuse/.env.secrets
+sudo sed 's/=.*$/=<redacted>/' /mnt/cpool/langfuse/.env.secrets
+```
+
+The final command prints variable names only. Keep the existing TrueNAS
+Langfuse application available for rollback until the Compose-backed web and
+worker containers both remain stable.
+
 The repository Compose no longer contains production-like fallback passwords.
 
 ## Historical TrueNAS lifecycle failures
