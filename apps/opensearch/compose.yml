@@ -116,4 +116,5 @@ networks:
     external: true
     name: intranet
   security:
+    external: true
     name: nabla-security
