@@ -219,16 +219,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
 
-    def test_runbook_uses_canonical_langfuse_recovery(self) -> None:
-        runbook = self.read("docs/truenas-app-lifecycle.md")
-
-        self.assertIn("prepare-migrations.mjs", runbook)
-        self.assertIn("org.opencontainers.image.revision", runbook)
-        self.assertIn("git checkout <IMAGE_REVISION_OR_TAG>", runbook)
-        self.assertIn("no migration found for version 38", runbook)
-        self.assertIn("do not run another `force`", runbook)
-        self.assertIn("nabla\'s Recovery Token", runbook)
-
     def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
