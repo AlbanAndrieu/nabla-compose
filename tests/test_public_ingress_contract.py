@@ -142,6 +142,18 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("ollama.int.albandrieu.com", allowlist)
         self.assertNotIn("hello.int.albandrieu.com", allowlist)
 
+    def test_garage_host_ports_are_lan_bound(self) -> None:
+        compose = (ROOT / "apps" / "garage" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for port in ("3900", "3901", "3903", "3909"):
+            self.assertIn(f'"172.17.0.24:{port}:{port}"', compose)
+        self.assertIn('API_BASE_URL: "http://garage:3903"', compose)
+        self.assertIn('S3_ENDPOINT_URL: "http://garage:3900"', compose)
+        self.assertNotIn('"3903:3903"', compose)
+        self.assertNotIn('"3909:3909"', compose)
+
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
 
