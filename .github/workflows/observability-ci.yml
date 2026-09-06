@@ -11,6 +11,9 @@ on:
     paths:
       - apps/grafana/**
       - apps/prometheus/compose.yml
+      - apps/gatus/config/config.yml
+      - apps/autokuma/static/generated-monitors.json
+      - scripts/observability/**
       - tests/test_observability_contract.py
       - .mcp.json
       - .cursor/mcp.json
@@ -36,6 +39,10 @@ jobs:
       - name: Validate observability contract
         shell: bash
         run: python -m unittest tests.test_observability_contract -v
+
+      - name: Validate observability shell scripts
+        shell: bash
+        run: bash -n scripts/observability/*.sh
 
       - name: Validate Alloy configuration
         shell: bash
