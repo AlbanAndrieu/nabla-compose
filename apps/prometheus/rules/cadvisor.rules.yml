@@ -6,7 +6,9 @@ groups:
         expr: up{job="truenas_cadvisor"} == 0
         for: 2m
         labels:
-          severity: critical
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
         annotations:
-          summary: TrueNAS cAdvisor is unreachable
+          summary: TrueNAS container telemetry is unavailable
           description: "Prometheus cannot scrape TrueNAS container metrics for more than 2 minutes."
