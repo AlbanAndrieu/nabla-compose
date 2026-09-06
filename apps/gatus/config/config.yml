@@ -219,7 +219,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: langfuse-web
     nabla_service_id: langfuse-web
-  url: tcp://172.17.0.24:31060
+  url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
 - name: Languagetool
@@ -356,7 +356,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: openrag-frontend
     nabla_service_id: openrag-frontend
-  url: tcp://172.17.0.24:3000
+  url: tcp://172.17.0.24:31060
   conditions:
   - '[CONNECTED] == true'
 - name: OpenSearch
