@@ -89,6 +89,21 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock", pihole)
         self.assertIn("- intranet", pihole)
 
+    def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
+        script = (
+            ROOT / "scripts" / "security" / "verify-truenas-observer-access.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("system.general.config", script)
+        self.assertIn("ui_allowlist", script)
+        self.assertIn("/32", script)
+        self.assertIn("/code/.venv/bin/python", script)
+        self.assertIn("TRUENAS_API_USERNAME", script)
+        self.assertIn("TRUENAS_API_KEY", script)
+        self.assertIn("app.query", script)
+        self.assertNotIn("system.general.update", script)
+        self.assertNotIn("system.general.checkin", script)
+
     def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
         script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(
             encoding="utf-8"
