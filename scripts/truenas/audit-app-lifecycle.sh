@@ -163,18 +163,52 @@ function probe_secret_if_running {
   fi
 }
 
+
+function probe_legacy_secret_name {
+  local label="$1"
+  local file="$2"
+  local legacy_variable="$3"
+  local required_variable="$4"
+
+  if [[ ! -r "${file}" ]]; then
+    return
+  fi
+
+  if grep -q "^${legacy_variable}=." "${file}" &&
+    ! grep -q "^${required_variable}=." "${file}"; then
+    functional_fail "${label}: ${legacy_variable} must be renamed to ${required_variable}"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
 printf '\n🔎 runtime secret contracts\n'
 probe_secret_if_running homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
 probe_secret_if_running langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
 probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
-probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_ORG
-probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_BUCKET
 probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
 probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
 probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
 
 printf '\n🔎 functional service checks\n'
 probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
 probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
 probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
