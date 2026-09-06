@@ -481,6 +481,11 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
       TCP/9000 reachable;
 - [x] repository Compose matches the live data owner `101:101` and persistent
       dataset `/mnt/cpool/clickhouse`;
+- [ ] repair files inherited from the former UID/GID before destructive DDL:
+      the shared datastore must remain writable by ClickHouse UID/GID `101:101`;
+- [ ] provision a dedicated ClickHouse user/database `langfuse` with only the
+      grants required by Langfuse v4; keep the administrative `clickhouse`
+      identity separate;
 - [ ] treat ClickHouse as shared platform infrastructure and validate every
       deployed consumer before/after version or permission changes.
 
@@ -526,9 +531,11 @@ clean Langfuse v4 initialization over repairing the old v3/v4 migration marker.
 Target:
 
 - Langfuse web/worker pinned to `4.30.0`;
-- shared ClickHouse `26.8.2.7`, database `langfuse`;
-- shared PostgreSQL 18.6 using the generic homelab identity:
-  `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`;
+- shared ClickHouse `26.8.2.7`, dedicated database/user `langfuse`;
+- shared PostgreSQL 18.6 with dedicated role/database `langfuse`:
+  `DATABASE_URL=postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse`;
+- the generic PostgreSQL role `nabla` remains unchanged and is not part of the
+  Langfuse reset;
 - shared Redis via `redis:6379`, isolated with
   `REDIS_KEY_PREFIX=langfuse-v4:`;
 - shared MinIO via `minio:9000`, isolated in bucket `langfuse-v4`;
@@ -546,8 +553,8 @@ Completion gates:
 - [ ] old Langfuse web/worker stopped before resetting Langfuse-owned state;
 - [ ] ClickHouse database `langfuse` recreated without touching other shared
       ClickHouse databases;
-- [ ] PostgreSQL `postgres` remains intact and the generic `nabla` role can
-      perform the required Langfuse migrations;
+- [ ] dedicated PostgreSQL database `langfuse` is owned by role `langfuse`
+      and performs the required Langfuse migrations without modifying `nabla`;
 - [ ] Redis namespace `langfuse-v4:` configured;
 - [ ] MinIO bucket `langfuse-v4` available;
 - [ ] Langfuse v4 starts without pending/dirty PostgreSQL or ClickHouse
@@ -829,15 +836,17 @@ Consolidation policy:
 - [ ] remove stopped/obsolete PostgreSQL upgrade/helper containers only after
       confirming they are not referenced by the owning TrueNAS application.
 
-Langfuse uses the generic `nabla` PostgreSQL identity selected for the homelab:
+Langfuse uses dedicated PostgreSQL isolation on the shared server:
 
 ```text
-DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
+role:     langfuse
+database: langfuse
+DATABASE_URL=postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse
 ```
 
-Langfuse uses the `public` schema of the selected database, so never
-`DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
-before deleting Langfuse-owned tables.
+The generic `nabla` role and the shared `postgres` database are not modified
+by a Langfuse reset. Langfuse uses the `public` schema inside its dedicated
+`langfuse` database.
 
 #### Paperless-ngx + Paperless-AI
 
