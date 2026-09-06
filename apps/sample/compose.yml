@@ -51,6 +51,7 @@ services:
 
     environment:
       FASTAPI_ENV: production
+      FASTAPI_RUNTIME_MODE: homelab
       FASTAPI_CLOUD: ""
       FASTAPI_CLOUD_APP_ID: ""
       EXPOSE_PORT: "8080"
@@ -83,10 +84,6 @@ services:
       - "traefik.http.routers.fastapi-sample.entrypoints=websecure"
       - "traefik.http.routers.fastapi-sample.tls.certresolver=letsencrypt"
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
-      - "traefik.http.routers.fastapi-sample-legacy.rule=Host(`fastapi-sample.int.albandrieu.com`)"
-      - "traefik.http.routers.fastapi-sample-legacy.entrypoints=websecure"
-      - "traefik.http.routers.fastapi-sample-legacy.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.fastapi-sample-legacy.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
     networks:
       - intranet
