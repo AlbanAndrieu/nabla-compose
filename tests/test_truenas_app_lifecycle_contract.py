@@ -105,8 +105,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('export NTOP_CONFIG="-F clickhouse;', wrapper)
         self.assertIn('exec /run.sh "$@"', wrapper)
 
-        self.assertIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
-        self.assertIn("never grant this service account global `*.*` privileges", readme)
+        self.assertIn("GRANT SELECT, INSERT, TRUNCATE ON ntopng.* TO ntopng;", readme)
+        self.assertIn("GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;", readme)
+        self.assertNotIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
+        self.assertIn("Do not grant `ALL`, global `*.*`", readme)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
@@ -243,7 +245,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
         self.assertIn("global *.* privileges are forbidden", audit)
-        self.assertIn("dedicated credentials accepted without global grants", audit)
+        self.assertIn("ALL ON ntopng.* is broader than required", audit)
+        self.assertIn(
+            "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*",
+            audit,
+        )
+        self.assertIn("required database-scoped DML/DDL grants present", audit)
         self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
         self.assertIn("runtime credentials accepted", audit)
         self.assertIn("dedicated database/user present", audit)
