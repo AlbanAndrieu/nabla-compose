@@ -18,7 +18,7 @@ fail() {
   errors=$((errors + 1))
 }
 
-for command in curl jq mktemp python3; do
+for command in curl date jq mktemp python3; do
   if command -v "${command}" >/dev/null 2>&1; then
     ok "command available: ${command}"
   else
