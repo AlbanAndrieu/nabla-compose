@@ -49,7 +49,9 @@
       "kind": "container-runtime",
       "category": "infrastructure",
       "sourcePath": "apps/homarr/compose.yml",
-      "description": "Docker engine hosting the TrueNAS Compose workloads."
+      "description": "Docker engine hosting the TrueNAS Compose workloads.",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "elasticsearch",
@@ -58,6 +60,17 @@
       "category": "data",
       "sourcePath": "apps/elasticsearch/compose.yml",
       "icon": "🔎"
+    },
+    {
+      "id": "etcd",
+      "name": "etcd",
+      "kind": "control-plane-store",
+      "category": "infrastructure",
+      "presentationRole": "core",
+      "sourcePath": "docs/homelab-health-observability.md",
+      "description": "Critical Kubernetes control-plane state store managed by Talos on control-plane nodes.",
+      "icon": "🗄️",
+      "criticality": "critical"
     },
     {
       "id": "fastapi-sample",
@@ -168,7 +181,9 @@
       "category": "infrastructure",
       "sourcePath": "docs/truenas-talos-bootstrap.md",
       "description": "Target Kubernetes cluster bootstrapped on Talos Linux VMs hosted by TrueNAS.",
-      "icon": "☸️"
+      "icon": "☸️",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "langflow",
@@ -355,6 +370,8 @@
       "category": "network",
       "sourcePath": "apps/crowdsec/compose.yml",
       "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
+      "presentationRole": "core",
+      "criticality": "critical",
       "icon": "🔥"
     },
     {
@@ -372,6 +389,8 @@
       "category": "network",
       "sourcePath": "apps/traefik/compose.yml",
       "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.",
+      "presentationRole": "core",
+      "criticality": "critical",
       "icon": "⚖️"
     },
     {
@@ -462,7 +481,9 @@
       "category": "infrastructure",
       "sourcePath": "docs/truenas-talos-bootstrap.md",
       "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS.",
-      "icon": "🔷"
+      "icon": "🔷",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "tempo",
@@ -479,6 +500,8 @@
       "category": "network",
       "sourcePath": "apps/traefik/compose.yml",
       "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+      "presentationRole": "core",
+      "criticality": "critical",
       "icon": "🚦"
     },
     {
@@ -488,7 +511,9 @@
       "category": "infrastructure",
       "sourcePath": "apps/homarr/compose.yml",
       "url": "https://truenas.albandrieu.com:7000",
-      "description": "TrueNAS SCALE storage and application host."
+      "description": "TrueNAS SCALE storage and application host.",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "uptime-kuma",
@@ -713,6 +738,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/elasticsearch/compose.yml:elasticsearch.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "etcd",
+      "target": "talos",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Talos control-plane nodes host the etcd member(s) backing Kubernetes.",
+      "evidence": [
+        "docs/homelab-health-observability.md:current Talos control-plane and etcd topology"
       ]
     },
     {
@@ -986,6 +1021,16 @@
       "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
       "evidence": [
         "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
+      ]
+    },
+    {
+      "source": "kubernetes",
+      "target": "etcd",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Kubernetes control-plane availability depends on a healthy etcd state store.",
+      "evidence": [
+        "docs/homelab-health-observability.md:etcd direct health gate and control-plane criticality"
       ]
     },
     {

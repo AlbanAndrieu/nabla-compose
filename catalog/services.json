@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4dff0f5a25a5f7af9e162575213d2bfc41d9041bd45c3131946e3deac74b928d",
+  "catalogRevision": "sha256:fbc65f4cbd593402bd4fba8b7a093a8d486f358cfef9e4fa1436d31dd04f0081",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -630,6 +630,8 @@
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "traefik",
       "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+      "presentationRole": "core",
+      "criticality": "critical",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "traefik"

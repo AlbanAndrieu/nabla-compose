@@ -141,6 +141,113 @@ services:
         self.assertNotIn("helper", services)
         self.assertIn(("declared", "docker", "hostedBy"), relations)
 
+    def test_presentation_role_and_criticality_propagate_to_service(self) -> None:
+        metadata = {
+            "id": "vaultwarden",
+            "name": "Vaultwarden",
+            "kind": "security-app",
+            "category": "security",
+            "presentationRole": "service",
+            "criticality": "medium",
+            "runtime": {
+                "provider": "truenas-app",
+                "containerService": "vaultwarden",
+            },
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "apps/vaultwarden/compose.yml",
+            "fixture.x-nabla",
+        )
+        service = MODULE.declared_service(
+            metadata,
+            "apps/vaultwarden/compose.yml",
+            "vaultwarden",
+            "fixture.x-nabla",
+        )
+
+        self.assertEqual(node["presentationRole"], "service")
+        self.assertEqual(node["criticality"], "medium")
+        self.assertEqual(service["presentationRole"], "service")
+        self.assertEqual(service["criticality"], "medium")
+
+    def test_core_role_is_normalized_to_critical(self) -> None:
+        metadata = {
+            "id": "kubernetes",
+            "name": "Kubernetes",
+            "kind": "orchestrator",
+            "category": "infrastructure",
+            "presentationRole": "core",
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "catalog/service-topology.static.json",
+            "fixture.x-nabla",
+        )
+
+        self.assertEqual(node["presentationRole"], "core")
+        self.assertEqual(node["criticality"], "critical")
+
+    def test_core_role_rejects_noncritical_criticality(self) -> None:
+        metadata = {
+            "id": "kubernetes",
+            "name": "Kubernetes",
+            "kind": "orchestrator",
+            "category": "infrastructure",
+            "presentationRole": "core",
+            "criticality": "high",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "criticality must be critical when presentationRole is core",
+        ):
+            MODULE.topology_node(
+                metadata,
+                "catalog/service-topology.static.json",
+                "fixture.x-nabla",
+            )
+
+    def test_standard_is_not_a_valid_criticality(self) -> None:
+        metadata = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "application",
+            "category": "test",
+            "criticality": "standard",
+        }
+
+        with self.assertRaisesRegex(ValueError, "criticality must be one of"):
+            MODULE.topology_node(
+                metadata,
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
+    def test_invalid_presentation_metadata_is_rejected(self) -> None:
+        base = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "application",
+            "category": "test",
+        }
+
+        with self.assertRaisesRegex(ValueError, "presentationRole must be one of"):
+            MODULE.topology_node(
+                {**base, "presentationRole": "dashboard-only"},
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
+        with self.assertRaisesRegex(ValueError, "criticality must be one of"):
+            MODULE.topology_node(
+                {**base, "criticality": "catastrophic"},
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
     def test_unknown_relation_type_is_rejected_before_generation(self) -> None:
         with self.assertRaisesRegex(ValueError, "type must be one of"):
             MODULE.topology_relation(
