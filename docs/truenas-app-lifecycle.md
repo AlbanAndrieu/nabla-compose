@@ -408,8 +408,10 @@ Shared infrastructure contracts:
 - shared administrative/generic identities (`clickhouse`, `nabla`) remain
   separate from Langfuse runtime credentials;
 - the ClickHouse bootstrap administrator enables SQL-driven access management via
-  `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1`; this is required to create and alter
-  dedicated service users such as `langfuse`;
+  `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1`, and the repository mounts
+  `apps/clickhouse/config/admin-grants.xml` so the administrative `clickhouse`
+  identity has `GRANT ALL ON *.* WITH GRANT OPTION`; access management alone
+  does not make existing privileges delegable;
 - Redis: internal `redis:6379`, key prefix `langfuse-v4:`;
 - MinIO: internal `minio:9000`, bucket `langfuse-v4`.
 
