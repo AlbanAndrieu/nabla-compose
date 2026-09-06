@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.9.0...0.10.0) (2026-09-06)
+
+
+### Features
+
+* **catalog:** add service role and criticality contract ([#91](https://github.com/AlbanAndrieu/nabla-compose/issues/91)) ([ad1fb4d](https://github.com/AlbanAndrieu/nabla-compose/commit/ad1fb4d011074b9d515d82457b52ab9294141391))
+
 # [0.9.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.8.0...0.9.0) (2026-09-06)
 
 
