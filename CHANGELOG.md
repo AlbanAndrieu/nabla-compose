@@ -1,3 +1,11 @@
+## [0.10.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.10.0...0.10.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **talos:** preserve cluster validator executable mode ([#93](https://github.com/AlbanAndrieu/nabla-compose/issues/93)) ([9fdc0e6](https://github.com/AlbanAndrieu/nabla-compose/commit/9fdc0e6ced1e1298895a2ccc1c3552d8f1e1b87d))
+* **talos:** restore validator executable bit ([#92](https://github.com/AlbanAndrieu/nabla-compose/issues/92)) ([75481d5](https://github.com/AlbanAndrieu/nabla-compose/commit/75481d5246ea4536ee5cc81615d5a23f171f4802))
+
 # [0.10.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.9.0...0.10.0) (2026-09-06)
 
 
