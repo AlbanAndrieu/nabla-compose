@@ -238,13 +238,41 @@ Prepared in `apps/grafana`:
 - [x] add a repository-owned pfSense Logs & Security Loki dashboard;
 - [x] add a local/stdio Grafana MCP configuration using a dedicated rotatable
       service-account token stored in Vaultwarden;
-- [x] avoid any new continuously running container for MCP access.
+- [x] avoid any new continuously running container for MCP access;
+- [x] preserve the transport sender address as the low-cardinality Loki
+      `sender` label so genuine pfSense traffic can be distinguished from
+      synthetic smoke events;
+- [x] replace TCP-only Gatus/AutoKuma checks for Grafana, Alloy, Loki, Mimir,
+      Tempo, Prometheus and pfSense Exporter with functional HTTP checks;
+- [x] add `scripts/observability/verify-stack.sh` for read-only service,
+      datasource, dashboard and pfSense-metrics validation;
+- [x] add `scripts/observability/verify-otlp.sh` to prove the Alloy OTLP
+      fan-out to Loki, Mimir and Tempo;
+- [x] add `scripts/observability/verify-pfsense-syslog.sh` to prove both a
+      synthetic RFC5424 path and real pfSense sender traffic;
+- [x] add `scripts/observability/configure-pfsense-syslog.sh` with
+      dry-run-by-default pfREST configuration, explicit `--apply`, existing
+      remote-destination preservation and strict pre-mutation health gates;
+- [x] keep the pfSense write identity separate from FastAPI Cloud read-only
+      identities as `PFSENSE_OBSERVABILITY_API_KEY`.
 
 ### pfSense operator configuration
 
-Runtime work still required on pfSense:
+Runtime work still required on pfSense. The repository helper prepares and
+validates these changes, but the private LAN path has not been exercised by
+public CI:
 
-- [ ] set **Status > System Logs > Settings > Log Message Format** to RFC5424;
+- [x] prepare a pfREST GET/PATCH helper for
+      `/api/v2/status/logs/settings` with `dry_run=true` by default;
+- [x] refuse to overwrite any of the three existing remote-syslog slots;
+- [x] require the complete strict observability preflight before
+      `--apply`;
+- [ ] create/import the dedicated least-privilege
+      `PFSENSE_OBSERVABILITY_API_KEY` in
+      `nabla/prod/pfsense-observability`;
+- [ ] run the helper `--plan` from the trusted LAN and review the accepted
+      pfREST dry-run;
+- [ ] set/apply **Status > System Logs > Settings > Log Message Format** to RFC5424;
 - [ ] enable remote logging to `172.17.0.24:1514`;
 - [ ] use the trusted LAN address/interface as the source;
 - [ ] enable System, Firewall Events, General Authentication, DNS, DHCP, VPN
@@ -259,7 +287,13 @@ Runtime work still required on pfSense:
 - [ ] validate all provisioned pfSense metric dashboards against real exporter
       labels/series;
 - [ ] validate firewall, dpinger, authentication and VPN panels against real
-      pfSense app names.
+      pfSense app names;
+- [ ] run `verify-stack.sh --strict` and retain the pass/fail summary as the
+      acceptance evidence;
+- [ ] run `verify-pfsense-syslog.sh --live-only` and prove the sender is
+      `172.17.0.1`;
+- [ ] re-enable pfSense REST API global read-only mode immediately after the
+      supervised PATCH window.
 
 The built-in pfSense remote syslog transport is UDP and cleartext. It is
 acceptable only on the trusted LAN. If a later topology crosses an untrusted
