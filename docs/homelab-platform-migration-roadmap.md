@@ -573,7 +573,9 @@ Acceptance after every shared ClickHouse change:
       database/user, runtime-only password injection and `--strict-startup`;
 - [ ] before enabling ntopng, create the dedicated ClickHouse database/user,
       store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate authenticated
-      access without global `*.*` grants;
+      access with only `SELECT`, `INSERT`, `TRUNCATE`, `CREATE TABLE`,
+      `DROP TABLE` and `ALTER` on `ntopng.*`; explicitly reject both
+      database-scoped `ALL` and global `*.*` grants;
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
       persistence across restarts;
 - [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
