@@ -23,14 +23,14 @@ x-nabla:
 
 services:
   homarr:
-    image: ghcr.io/homarr-labs/homarr:v1.72.0
+    image: ghcr.io/homarr-labs/homarr:v1.76.2
     container_name: homarr
     x-nabla:
       id: homarr
       name: Homarr
       kind: dashboard
       category: operations
-      url: http://172.17.0.24:7575
+      url: http://172.17.0.24:30100
       description: Homelab application dashboard generated from the Nabla service inventory.
       runtime:
         provider: truenas-app
@@ -43,14 +43,15 @@ services:
           evidence:
             - apps/homarr/compose.yml:DOCKER_HOSTNAMES
     restart: unless-stopped
+    env_file:
+      - /mnt/cpool/homarr/.env.secrets
     environment:
-      SECRET_ENCRYPTION_KEY: ${HOMARR_SECRET_ENCRYPTION_KEY:?set HOMARR_SECRET_ENCRYPTION_KEY}
       PUID: ${PUID:-568}
       PGID: ${PGID:-568}
       DOCKER_HOSTNAMES: docker-socket-proxy
       DOCKER_PORTS: "2375"
     ports:
-      - 7575:7575
+      - "172.17.0.24:30100:7575"
     volumes:
       - /mnt/cpool/homarr:/appdata
       - ./generated:/config/nabla:ro
@@ -83,9 +84,10 @@ services:
     restart: "no"
     depends_on:
       - homarr
+    env_file:
+      - /mnt/cpool/homarr/.env.secrets
     environment:
       HOMARR_BASE_URL: http://homarr:7575
-      HOMARR_API_KEY: ${HOMARR_API_KEY:-}
       HOMARR_MANIFEST: /config/nabla/apps.json
       HOMARR_SYNC_STATE: /state/homarr-map.json
       HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
@@ -99,7 +101,7 @@ services:
     volumes:
       - ./generated:/config/nabla:ro
       - ./sync.py:/opt/nabla/sync.py:ro
-      - /mnt/cpool/homarr-sync:/state
+      - /mnt/cpool/homarr/sync:/state
     networks:
       - intranet
     cap_drop:

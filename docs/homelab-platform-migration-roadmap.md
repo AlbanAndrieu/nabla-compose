@@ -648,6 +648,72 @@ Preferred migration method:
 
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
+### Wave 3.5 — Paperless document platform migration
+
+#### Paperless-ngx + Paperless-AI
+
+Migrate the currently native TrueNAS Paperless applications into repository-managed Compose definitions:
+
+- `apps/paperless-ngx/compose.yml` for the document platform and its tightly coupled database/conversion dependencies;
+- `apps/paperless-ai/compose.yml` for the optional local-AI enrichment layer.
+
+Implementation references:
+
+- Techno Tim full guide: https://technotim.com/posts/paperless-ngx-local-ai/
+- reference stack: https://github.com/timothystewart6/paperless-stack
+- Paperless-AI Compose reference: https://github.com/clusterzx/paperless-ai/blob/main/docker-compose.yml
+
+The Techno Tim stack is the architectural baseline: Paperless-ngx with PostgreSQL, Redis, Gotenberg and Tika as the core document stack, with Ollama/Open WebUI/Paperless-AI/Paperless-GPT as optional local-AI components. Adapt it to this repository instead of copying the stack wholesale: reuse the existing homelab Ollama/Open WebUI services where appropriate and avoid duplicate long-running infrastructure unless isolation is required.
+
+Preferred durable layout:
+
+```text
+/mnt/cpool/paperless-ngx/
+├── data/
+├── media/
+├── export/
+├── consume/
+└── postgres/
+
+/mnt/cpool/paperless-ai/
+└── data/
+```
+
+Keep Paperless's Redis lifecycle local to the Paperless stack initially unless runtime inventory proves that moving it to the shared Redis service is safe. Gotenberg and Tika remain auxiliary services in the same Compose project because Paperless startup/functional health depends on them.
+
+Paperless-AI should join the trusted internal application network and consume the Paperless API plus the existing local model endpoint rather than starting a second Ollama/Open WebUI stack. Paperless-GPT remains an optional later experiment after the base migration is stable.
+
+Important maintenance gate: the current `clusterzx/paperless-ai` README states that the project is not actively maintained while its author rewrites the application and notes a possible official Paperless-ngx AI integration. Before cutover, re-evaluate whether to deploy the referenced Paperless-AI image, pin a reviewed version/digest, or prefer an official Paperless-ngx AI capability if one has become production-ready.
+
+Inventory before implementation:
+
+- exact Paperless-ngx and Paperless-AI versions;
+- Paperless PostgreSQL major version, database/user and current storage path;
+- Paperless `SECRET_KEY`, admin/bootstrap state and all OAuth/API credentials;
+- Redis configuration;
+- OCR languages and OCR settings;
+- consume/export/media/data storage mappings;
+- Gotenberg/Tika versions and health behavior;
+- Paperless-AI API token, Paperless URL and model/provider configuration;
+- current document count, tags, correspondents, document types and custom fields.
+
+Migration sequence:
+
+1. capture current Paperless-ngx and Paperless-AI functional health;
+2. inventory the native TrueNAS datasets/ixVolumes and secrets without printing values;
+3. snapshot every Paperless/Paperless-AI source dataset;
+4. prepare repository Compose definitions and explicit `/mnt/cpool` datasets;
+5. use logical PostgreSQL dump/restore when the source/target PostgreSQL major version or `PGDATA` layout differs;
+6. stop native Paperless/Paperless-AI before the final mutable-data copy;
+7. restore database and durable document/media data with verified ownership;
+8. start Paperless PostgreSQL/Redis/Gotenberg/Tika, then Paperless-ngx;
+9. validate login, document count, full-text search, OCR, consume-folder ingestion, Office conversion and restart persistence;
+10. start Paperless-AI only after base Paperless is healthy, then validate tagging/classification/RAG against a non-sensitive test document;
+11. verify Gatus/AutoKuma/Homarr/catalog/runtime signals;
+12. keep the native apps stopped but recoverable until both document integrity and rollback are proven.
+
+Acceptance requires functional document retrieval and OCR/search parity, not merely healthy containers.
+
 ### Wave 4 — reverse proxy migration
 
 #### Nginx Proxy Manager -> NPMplus
@@ -951,13 +1017,14 @@ Recommended program order:
 4. complete Grafana and 2FAuth cutovers;
 5. Karakeep;
 6. FreshRSS;
-7. Reactive Resume;
-8. shared PostgreSQL;
-9. native Nginx Proxy Manager -> proven NPMplus;
-10. Vaultwarden/Bitwarden CLI secret normalization in parallel with waves 3-9;
-11. Keycloak GitHub SSO bootstrap;
-12. HashiCorp Vault and Keycloak OIDC integration;
-13. Talos/Kubernetes-specific workload auth after the cluster is production-ready.
+7. Paperless-ngx + Paperless-AI;
+8. Reactive Resume;
+9. shared PostgreSQL;
+10. native Nginx Proxy Manager -> proven NPMplus;
+11. Vaultwarden/Bitwarden CLI secret normalization in parallel with waves 3-10;
+12. Keycloak GitHub SSO bootstrap;
+13. HashiCorp Vault and Keycloak OIDC integration;
+14. Talos/Kubernetes-specific workload auth after the cluster is production-ready.
 
 ## Definition of done
 

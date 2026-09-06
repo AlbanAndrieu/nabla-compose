@@ -10,6 +10,8 @@ services:
       name: 2FAuth
       kind: security-app
       category: security
+      securityFunctions:
+        - protect
       runtime:
         provider: truenas-app
         containerService: 2fauth

@@ -472,6 +472,7 @@ def collect_services(
     default_interval = concrete_text(defaults.get("interval")) or "60s"
     homarr_apps: dict[str, dict[str, Any]] = {}
     monitors: dict[str, dict[str, Any]] = {}
+    declared_service_ids: set[str] = set()
 
     for relative_path in tracked_compose_paths():
         document = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8")) or {}
@@ -489,6 +490,8 @@ def collect_services(
             raw_metadata = raw_service.get("x-nabla")
             metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
             service_id = app_service_id(app_name, service_name, metadata)
+            if isinstance(raw_metadata, dict):
+                declared_service_ids.add(service_id)
             name = concrete_text(metadata.get("name")) or title(service_name)
             kind = concrete_text(metadata.get("kind"))
             category = concrete_text(metadata.get("category")) or slug(app_name)
@@ -540,6 +543,9 @@ def collect_services(
 
     apply_homarr_static(homarr_apps, static)
     apply_monitoring_static(monitors, static, default_interval)
+    for monitor_id, monitor in monitors.items():
+        if monitor_id in declared_service_ids:
+            monitor["service_id"] = monitor_id
     return (
         [homarr_apps[key] for key in sorted(homarr_apps)],
         [monitors[key] for key in sorted(monitors)],
@@ -576,6 +582,14 @@ def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
             "name": monitor["name"],
             "group": monitor["group"],
             "interval": monitor["interval"],
+            "extra-labels": {
+                "nabla_monitor_id": monitor["id"],
+                **(
+                    {"nabla_service_id": monitor["service_id"]}
+                    if monitor.get("service_id")
+                    else {}
+                ),
+            },
         }
         if monitor["type"] == "http":
             endpoint["url"] = monitor["url"]
@@ -592,7 +606,11 @@ def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             continue
         endpoints.append(endpoint)
-    return {"metrics": True, "endpoints": endpoints}
+    return {
+        "metrics": True,
+        "storage": {"type": "sqlite", "path": "/data/gatus.db"},
+        "endpoints": endpoints,
+    }
 
 
 def seconds(interval: str) -> int:

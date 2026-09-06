@@ -184,7 +184,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9000
+    "port": 9003
   },
   {
     "type": "port",
@@ -204,7 +204,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 7575
+    "port": 30100
   },
   {
     "type": "http",
@@ -401,7 +401,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 3000
+    "port": 31060
   },
   {
     "type": "port",
@@ -480,7 +480,7 @@
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443"
+    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"
   },
   {
     "type": "port",

@@ -30,7 +30,7 @@ Read-only integration preflight. It verifies:
 - active Prometheus targets for Prometheus, Grafana, Alloy, Loki, Mimir, Tempo,
   Alertmanager and the pfSense exporter;
 - an active Prometheus -> Alertmanager integration;
-- a real `pfsense-exporter` scrape against `172.17.0.1:10443`;
+- a real `pfsense-exporter` scrape for target host `172.17.0.1` (the pfSense API port `10443` remains in the exporter target configuration);
 - `up{job="pfsense_exporter"} == 1` in Prometheus and Mimir;
 - Grafana datasource health for Loki, Mimir and Tempo when a service-account
   token is available;

@@ -1,0 +1,42 @@
+---
+groups:
+  - name: NablaServiceSyntheticSignals
+    interval: 30s
+    rules:
+      - record: nabla:telemetry:gatus_up
+        expr: max(up{job="gatus"})
+
+      - record: nabla:service:synthetic_probe_success
+        expr: |
+          max by (nabla_service_id, type) (
+            gatus_results_endpoint_success{
+              job="gatus",
+              nabla_service_id!=""
+            }
+          )
+
+      - record: nabla:service:synthetic_probe_duration_seconds
+        expr: |
+          max by (nabla_service_id, type) (
+            gatus_results_duration_seconds{
+              job="gatus",
+              nabla_service_id!=""
+            }
+          )
+
+      - record: nabla:service:synthetic_availability_ratio_5m
+        expr: |
+          sum by (nabla_service_id, type) (
+            rate(gatus_results_total{
+              job="gatus",
+              success="true",
+              nabla_service_id!=""
+            }[5m])
+          )
+          /
+          sum by (nabla_service_id, type) (
+            rate(gatus_results_total{
+              job="gatus",
+              nabla_service_id!=""
+            }[5m])
+          )

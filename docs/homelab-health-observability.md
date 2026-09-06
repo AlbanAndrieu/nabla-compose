@@ -91,6 +91,55 @@ Security tooling needs two independent states:
 
 A high detection count is not service downtime.
 
+#### NIST CSF 2.0 security-function coverage
+
+Optional `x-nabla.securityFunctions` metadata classifies the cybersecurity
+functions that a component is deliberately used to exercise in the homelab.
+The allowed values map directly to the NIST Cybersecurity Framework 2.0 Core:
+
+- `govern` — cybersecurity risk strategy, policy, roles, oversight and supply-chain governance;
+- `identify` — assets, dependencies, suppliers, risks and improvement opportunities;
+- `protect` — safeguards such as identity/access control, data/platform security and resilience;
+- `detect` — discovery and analysis of possible cybersecurity attacks or compromises;
+- `respond` — incident management, containment, analysis, mitigation and communication;
+- `recover` — restoration of affected assets and operations.
+
+These functions are concurrent risk-management outcomes, not lifecycle phases.
+`govern` informs and prioritizes the other five functions.
+
+This field is **coverage/navigation metadata only**. It must never be interpreted
+as proof of control effectiveness, compliance, maturity, availability or
+dependency impact. Do not infer a function from a product name or category
+alone. For example, an IDS may justify `detect` when detection is actually
+configured; it only justifies `protect` or `respond` when prevention,
+blocking or active-response behavior is explicitly configured and evidenced.
+
+Keep the concerns separate:
+
+- `category` describes what the component is;
+- `securityFunctions` describes which NIST CSF outcomes it intentionally exercises;
+- `criticality` describes operational urgency if the component itself fails;
+- topology relations describe dependency/blast-radius semantics;
+- Gatus/Prometheus evidence describes runtime health and telemetry.
+
+Reference: NIST CSWP 29, *The NIST Cybersecurity Framework (CSF) 2.0*,
+<https://doi.org/10.6028/NIST.CSWP.29>.
+
+Current evidence-backed service mappings are deliberately sparse:
+
+| Component | Declared NIST CSF 2.0 functions | Repository evidence |
+| --- | --- | --- |
+| 2FAuth | Protect | MFA/TOTP security application |
+| Suricata | Detect | IDS runtime and EVE/event pipeline |
+| CrowdSec | Detect, Respond | security-engine decisions plus pfSense remediation LAPI |
+| pfSense | Protect, Respond | firewall plus CrowdSec remediation component |
+| Wazuh Manager | Detect | security-event manager and alert pipeline |
+
+`Govern`, `Identify` and `Recover` remain visible framework functions but are
+not assigned to a service merely to make coverage appear complete. Add them
+only when the homelab has an explicit, evidenced control or experiment for
+those outcomes.
+
 ### Observability and support
 
 Prometheus, Mimir, Grafana, exporters and collectors can be operationally
@@ -225,6 +274,34 @@ unavailable / blind spot**, not as TrueNAS or pfSense down.
 Filesystem/ZFS capacity is intentionally not collapsed into one stable
 recording rule yet. First inspect the actual TrueNAS filesystem/ZFS label set
 so an irrelevant mount cannot become the fleet-wide minimum by accident.
+
+### Gatus synthetic service metrics
+
+Gatus exposes the generated black-box checks as Prometheus metrics on
+`/metrics`. Prometheus scrapes that endpoint as `job="gatus"`.
+
+Every generated endpoint carries a stable `nabla_monitor_id`. Only endpoints
+backed by declared service-local `x-nabla` metadata — the same contract used
+to generate `catalog/services.json` — additionally carry `nabla_service_id`.
+Fallback Compose monitors and static logical/core probes therefore remain
+visible without being mislabeled as services. Stable service recording rules
+expose:
+
+```promql
+nabla:telemetry:gatus_up
+nabla:service:synthetic_probe_success
+nabla:service:synthetic_probe_duration_seconds
+nabla:service:synthetic_availability_ratio_5m
+```
+
+The `nabla:service:*` rules select only series with `nabla_service_id` and
+preserve the Gatus `type` label. In particular, `type="TCP"`
+means transport reachability only; it must not be promoted to application
+health. HTTP health/readiness probes provide stronger synthetic evidence but
+remain black-box observations from Gatus, not real request traffic.
+
+Loss of Gatus or its Prometheus scrape is a telemetry blind spot. It must not
+overwrite a still-successful direct service check.
 
 ### Runtime acceptance
 

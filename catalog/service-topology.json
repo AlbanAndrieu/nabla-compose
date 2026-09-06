@@ -9,6 +9,9 @@
       "kind": "security-app",
       "category": "security",
       "sourcePath": "apps/2fauth/compose.yml",
+      "securityFunctions": [
+        "protect"
+      ],
       "icon": "🔐"
     },
     {
@@ -28,6 +31,13 @@
       "description": "Declarative monitor reconciler for the existing Uptime Kuma instance."
     },
     {
+      "id": "bichon",
+      "name": "Bichon",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "apps/bichon/compose.yml"
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -41,6 +51,10 @@
       "kind": "security-agent",
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
+      "securityFunctions": [
+        "detect",
+        "respond"
+      ],
       "icon": "🛡️"
     },
     {
@@ -126,14 +140,6 @@
       "icon": "🪵"
     },
     {
-      "id": "graylog-mongodb",
-      "name": "Graylog MongoDB",
-      "kind": "database",
-      "category": "data",
-      "sourcePath": "apps/graylog/compose.yml",
-      "icon": "🍃"
-    },
-    {
       "id": "haproxy-exporter",
       "name": "pfSense HAProxy Exporter",
       "kind": "metrics-exporter",
@@ -147,7 +153,7 @@
       "kind": "dashboard",
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
-      "url": "http://172.17.0.24:7575",
+      "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory."
     },
     {
@@ -249,6 +255,14 @@
       "category": "data",
       "sourcePath": "apps/minio/compose.yml",
       "icon": "🪣"
+    },
+    {
+      "id": "mongo",
+      "name": "MongoDB",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/mongo/compose.yml",
+      "icon": "🍃"
     },
     {
       "id": "n8n",
@@ -372,6 +386,10 @@
       "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
       "presentationRole": "core",
       "criticality": "critical",
+      "securityFunctions": [
+        "protect",
+        "respond"
+      ],
       "icon": "🔥"
     },
     {
@@ -462,6 +480,9 @@
       "kind": "ids",
       "category": "security",
       "sourcePath": "apps/suricata/compose.yml",
+      "securityFunctions": [
+        "detect"
+      ],
       "icon": "🦈"
     },
     {
@@ -569,6 +590,9 @@
       "kind": "security-manager",
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
+      "securityFunctions": [
+        "detect"
+      ],
       "icon": "🛡️"
     }
   ],
@@ -661,6 +685,16 @@
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
       "evidence": [
         "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
+      ]
+    },
+    {
+      "source": "bichon",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/bichon/compose.yml:bichon.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -902,10 +936,10 @@
     },
     {
       "source": "graylog",
-      "target": "graylog-mongodb",
+      "target": "mongo",
       "type": "dependsOn",
       "strength": "required",
-      "description": "Graylog stores application configuration and metadata in MongoDB.",
+      "description": "Graylog stores application configuration and metadata in the shared MongoDB service.",
       "evidence": [
         "apps/graylog/compose.yml:GRAYLOG_MONGODB_URI"
       ]
@@ -918,16 +952,6 @@
       "description": "Graylog stores log indices in the shared OpenSearch 2.x security cluster.",
       "evidence": [
         "apps/graylog/compose.yml:GRAYLOG_ELASTICSEARCH_HOSTS"
-      ]
-    },
-    {
-      "source": "graylog-mongodb",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/graylog/compose.yml:mongo.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -1062,12 +1086,12 @@
     },
     {
       "source": "langflow",
-      "target": "elasticsearch",
+      "target": "opensearch",
       "type": "dependsOn",
       "strength": "required",
-      "description": "The OpenRAG Langflow runtime accesses Elasticsearch.",
+      "description": "The OpenRAG Langflow runtime accesses the shared OpenSearch service.",
       "evidence": [
-        "apps/langflow/compose.yml:ES_HOST"
+        "apps/langflow/compose.yml:OPENSEARCH_HOST"
       ]
     },
     {
@@ -1273,6 +1297,16 @@
       ]
     },
     {
+      "source": "mongo",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mongo/compose.yml:mongo.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "n8n",
       "target": "docker",
       "type": "hostedBy",
@@ -1394,22 +1428,22 @@
     },
     {
       "source": "openrag-backend",
-      "target": "elasticsearch",
+      "target": "langflow",
       "type": "dependsOn",
       "strength": "required",
-      "description": "OpenRAG backend stores and retrieves indexed content through Elasticsearch.",
+      "description": "OpenRAG backend invokes the shared Langflow service.",
       "evidence": [
-        "apps/openrag/compose.yml:ES_HOST"
+        "apps/openrag/compose.yml:LANGFLOW_URL"
       ]
     },
     {
       "source": "openrag-backend",
-      "target": "langflow",
+      "target": "opensearch",
       "type": "dependsOn",
       "strength": "required",
-      "description": "OpenRAG backend invokes the Langflow service.",
+      "description": "OpenRAG backend stores and retrieves indexed content through OpenSearch.",
       "evidence": [
-        "apps/openrag/compose.yml:LANGFLOW_URL"
+        "apps/openrag/compose.yml:OPENSEARCH_HOST"
       ]
     },
     {

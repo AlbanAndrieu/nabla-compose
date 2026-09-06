@@ -148,6 +148,14 @@ repos:
         files: >-
           ^(apps/(grafana|prometheus|gatus|autokuma)/|scripts/observability/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
+      - id: truenas-app-lifecycle-contract
+        name: "🧰 truenas · Validate app lifecycle recovery contract"
+        language: system
+        entry: python -m unittest tests.test_truenas_app_lifecycle_contract -v
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/truenas-app-lifecycle[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
+
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python

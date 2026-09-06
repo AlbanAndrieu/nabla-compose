@@ -135,6 +135,49 @@ class ObservabilityContractTests(unittest.TestCase):
         ):
             self.assertIn(metric, rules)
 
+    def test_gatus_metrics_separate_monitor_and_service_identity(self) -> None:
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        gatus = (
+            ROOT / "apps" / "gatus" / "config" / "config.yml"
+        ).read_text(encoding="utf-8")
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-service.rules.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("job_name: gatus", prometheus)
+        self.assertIn("172.17.0.24:8085", prometheus)
+        self.assertIn("metrics_path: /metrics", prometheus)
+        self.assertEqual(gatus.count("- name:"), gatus.count("nabla_monitor_id:"))
+        self.assertGreater(
+            gatus.count("nabla_monitor_id:"),
+            gatus.count("nabla_service_id:"),
+        )
+
+        catalog = json.loads(
+            (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
+        )
+        catalog_ids = {service["id"] for service in catalog["services"]}
+        gatus_service_ids = {
+            line.split(":", 1)[1].strip()
+            for line in gatus.splitlines()
+            if line.strip().startswith("nabla_service_id:")
+        }
+        self.assertTrue(gatus_service_ids)
+        self.assertLessEqual(gatus_service_ids, catalog_ids)
+
+        for metric in (
+            "nabla:telemetry:gatus_up",
+            "nabla:service:synthetic_probe_success",
+            "nabla:service:synthetic_probe_duration_seconds",
+            "nabla:service:synthetic_availability_ratio_5m",
+        ):
+            self.assertIn(metric, rules)
+
+        self.assertIn("max by (nabla_service_id, type)", rules)
+        self.assertIn("sum by (nabla_service_id, type)", rules)
+
     def test_exporter_loss_is_a_telemetry_warning_not_platform_failure(self) -> None:
         rules_dir = ROOT / "apps" / "prometheus" / "rules"
         for relative in (
@@ -184,8 +227,9 @@ class ObservabilityContractTests(unittest.TestCase):
 
         self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
         self.assertIn("http://172.17.0.24:9093/-/ready", prometheus_compose)
+        self.assertNotIn("target=172.17.0.1:10443", prometheus_compose)
         self.assertIn(
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
             prometheus_compose,
         )
 
@@ -200,7 +244,7 @@ class ObservabilityContractTests(unittest.TestCase):
             "http://172.17.0.24:3200/ready",
             "http://172.17.0.24:9090/-/ready",
             "http://172.17.0.24:9093/-/ready",
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
         ):
             self.assertIn(endpoint, gatus)
 
