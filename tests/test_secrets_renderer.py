@@ -40,6 +40,7 @@ class SecretsRendererTests(unittest.TestCase):
             {
                 "infrastructure-bootstrap",
                 "grafana-observability",
+                "pfsense-observability",
                 "n8n",
                 "2fauth",
                 "open-terminal",
