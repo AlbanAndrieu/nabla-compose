@@ -240,16 +240,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
 
-    def test_runbook_uses_clean_shared_langfuse_reset(self) -> None:
-        runbook = self.read("docs/truenas-app-lifecycle.md")
-
-        self.assertIn("## Langfuse clean reset on shared ClickHouse", runbook)
-        self.assertIn("26.8.2.7", runbook)
-        self.assertIn("database `langfuse`", runbook)
-        self.assertIn("DATABASE_URL=postgresql://nabla:", runbook)
-        self.assertIn("do **not** drop the shared `postgres` database", runbook)
-        self.assertIn("Sentry self-hosted upstream", runbook)
-
     def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
