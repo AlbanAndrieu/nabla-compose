@@ -474,6 +474,53 @@ function probe_clickhouse_langfuse_contract_if_present {
   fi
 }
 
+function probe_sentry_snuba_clickhouse_if_running {
+  local snuba_container
+  local clickhouse_host
+  local clickhouse_port
+
+  if ! app_is_running sentry; then
+    printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  snuba_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "snuba-api" || /(^|-)snuba-api(-|$)/ { print; exit }'
+  )"
+
+  if [[ -z "${snuba_container}" ]]; then
+    printf '%s\n' \
+      'WARN: Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated.'
+    return
+  fi
+
+  clickhouse_host="$(
+    docker inspect "${snuba_container}" \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+      sed -n 's/^CLICKHOUSE_HOST=//p' |
+      tail -n 1
+  )"
+  clickhouse_port="$(
+    docker inspect "${snuba_container}" \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+      sed -n 's/^CLICKHOUSE_PORT=//p' |
+      tail -n 1
+  )"
+
+  clickhouse_host="${clickhouse_host:-clickhouse}"
+  clickhouse_port="${clickhouse_port:-9000}"
+
+  if docker exec "${snuba_container}" \
+    python3 -c \
+      'import socket, sys; s = socket.create_connection((sys.argv[1], int(sys.argv[2])), 3); s.close()' \
+      "${clickhouse_host}" "${clickhouse_port}" >/dev/null 2>&1; then
+    functional_ok "Sentry/Snuba -> ClickHouse TCP ${clickhouse_host}:${clickhouse_port}"
+  else
+    functional_fail "Sentry/Snuba -> ClickHouse TCP failed (${clickhouse_host}:${clickhouse_port})"
+  fi
+}
+
 function probe_ntopng_clickhouse_contract_if_running {
   local clickhouse_container
   local ntopng_container
@@ -766,9 +813,10 @@ probe_clickhouse_runtime_if_running
 probe_clickhouse_config_mounts_if_running
 probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
 probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
-probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running sentry "Sentry web health (Snuba/ClickHouse not validated)" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 
