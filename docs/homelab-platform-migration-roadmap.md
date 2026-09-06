@@ -57,11 +57,14 @@ container address.
   calls;
 - [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
   after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
-- [ ] make the observer source address stable. Prefer a dedicated observer
-  Docker network/address or a formally reserved `intranet` address rather than
-  relying on dynamic bridge allocation;
-- [ ] once the observer address is stable, document that exact `/32` as the
-  only Docker-origin TrueNAS UI/API allowlist entry required by FastAPI Sample;
+- [x] pin FastAPI Sample to `172.16.55.9` on the production
+  `172.16.55.0/24` intranet by default (override with
+  `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed allowlist
+  change), so a recreate cannot silently change the TrueNAS WebSocket source;
+- [x] document `172.16.55.9/32` as the current Docker-origin TrueNAS UI/API
+  allowlist entry required by FastAPI Sample;
+- [ ] evaluate a dedicated observer Docker network as a later isolation
+  improvement if other trusted-LAN observers need their own source identities;
 - [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
   `truenas.albandrieu.com` certificate chain from inside the container;
 - [ ] never widen `ui_allowlist` to all of `172.16.55.0/24` merely to avoid
