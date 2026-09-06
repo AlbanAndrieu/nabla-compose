@@ -87,6 +87,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('"172.17.0.24:9000:9000"', clickhouse)
         self.assertIn("aliases:\n          - clickhouse", clickhouse)
 
+    def test_ntopng_uses_dedicated_clickhouse_identity(self) -> None:
+        compose = self.read("apps/ntopng/compose.yml")
+        wrapper = self.read("apps/ntopng/entrypoint.sh")
+        readme = self.read("apps/ntopng/README.md")
+
+        self.assertIn("/mnt/cpool/ntopng/.env.secrets", compose)
+        self.assertIn("NTOPNG_CLICKHOUSE_DATABASE: ntopng", compose)
+        self.assertIn("NTOPNG_CLICKHOUSE_USER: ntopng", compose)
+        self.assertIn("--strict-startup", compose)
+        self.assertIn("/usr/local/bin/nabla-ntopng-entrypoint.sh", compose)
+        self.assertNotIn("${CLICKHOUSE_USER:-clickhouse}", compose)
+        self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
+
+        self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be set", wrapper)
+        self.assertIn("clickhouse|default", wrapper)
+        self.assertIn('export NTOP_CONFIG="-F clickhouse;', wrapper)
+        self.assertIn('exec /run.sh "$@"', wrapper)
+
+        self.assertIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
+        self.assertIn("never grant this service account global `*.*` privileges", readme)
+
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
         minio = self.read("apps/minio/compose.yml")
@@ -219,6 +240,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_langfuse_init_contract_if_present", audit)
         self.assertIn("partial LANGFUSE_INIT_* set", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
+        self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
+        self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
+        self.assertIn("global *.* privileges are forbidden", audit)
+        self.assertIn("dedicated credentials accepted without global grants", audit)
         self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
         self.assertIn("runtime credentials accepted", audit)
         self.assertIn("dedicated database/user present", audit)
