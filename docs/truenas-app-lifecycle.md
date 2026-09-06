@@ -67,6 +67,26 @@ grep -q '^BICHON_ENCRYPT_PASSWORD=.' /mnt/cpool/bichon/.env.secrets
 Do not rotate this value casually after Bichon has encrypted stored account
 credentials.
 
+When a v1.x dataset is detected by Bichon 2.x, stop every container using the
+dataset, snapshot it, then run the non-destructive Fjall migration:
+
+```bash
+zfs snapshot -r cpool/bichon@pre-bichon-v2-migration-$(date +%Y%m%d)
+
+docker run --rm -it \
+  --user 568:568 \
+  --env-file /mnt/cpool/bichon/.env.secrets \
+  -e BICHON_ROOT_DIR=/data \
+  -v /mnt/cpool/bichon:/data \
+  --entrypoint bichon-admin \
+  rustmailer/bichon:2.0.3
+```
+
+Select **Migrate v1.x Storage to v2.x (Fjall -> bichon-blob)** for an existing
+v1.x deployment. Do not select the v0.3.7 migration unless the source really is
+the legacy v0.3.7 layout. Restart Bichon only after the admin migration reports
+success.
+
 ## Shared MongoDB then Graylog
 
 MongoDB is a standalone reusable application in `apps/mongo`. Graylog no
@@ -87,17 +107,31 @@ Create MongoDB credentials:
 umask 077
 MONGO_PASSWORD="$(openssl rand -hex 32)"
 cat > /mnt/cpool/mongo/.env.secrets <<EOF
-MONGO_INITDB_ROOT_USERNAME=graylog
+MONGO_INITDB_ROOT_USERNAME=root
 MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
 EOF
 chmod 600 /mnt/cpool/mongo/.env.secrets
+```
+
+Keeping `root` as the MongoDB bootstrap administrator is supported. Prefer a
+dedicated Graylog database user after MongoDB is healthy:
+
+```bash
+MONGO_ROOT_PASSWORD="$(
+  sed -n 's/^MONGO_INITDB_ROOT_PASSWORD=//p' /mnt/cpool/mongo/.env.secrets
+)"
+GRAYLOG_MONGO_PASSWORD="$(openssl rand -hex 32)"
+
+docker exec mongo mongosh --quiet \
+  -u root -p "${MONGO_ROOT_PASSWORD}" --authenticationDatabase admin \
+  --eval "db.getSiblingDB('graylog').createUser({user:'graylog',pwd:'${GRAYLOG_MONGO_PASSWORD}',roles:[{role:'readWrite',db:'graylog'}]})"
 ```
 
 Then populate the existing Graylog secret file without committing either
 secret:
 
 ```bash
-MONGO_PASSWORD="$(sed -n 's/^MONGO_INITDB_ROOT_PASSWORD=//p' /mnt/cpool/mongo/.env.secrets)"
+MONGO_PASSWORD="${GRAYLOG_MONGO_PASSWORD}"
 GRAYLOG_PASSWORD_SECRET="$(openssl rand -hex 48)"
 read -r -s -p 'Graylog admin password: ' GRAYLOG_ADMIN_PASSWORD
 printf '\n'
@@ -110,8 +144,13 @@ GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
 GRAYLOG_MONGODB_URI=mongodb://graylog:${MONGO_PASSWORD}@mongo:27017/graylog?authSource=admin
 EOF
 chmod 600 /mnt/cpool/graylog/.env.secrets
-unset MONGO_PASSWORD GRAYLOG_PASSWORD_SECRET GRAYLOG_ADMIN_PASSWORD GRAYLOG_ROOT_PASSWORD_SHA2
+unset MONGO_PASSWORD MONGO_ROOT_PASSWORD GRAYLOG_MONGO_PASSWORD
+unset GRAYLOG_PASSWORD_SECRET GRAYLOG_ADMIN_PASSWORD GRAYLOG_ROOT_PASSWORD_SHA2
 ```
+
+Graylog keeps port `9000` inside the container but defaults to host port
+`9003` because ClickHouse already publishes host TCP/9000. Verify TCP/9003 is
+free before the first start.
 
 Install/start in this order:
 
@@ -168,6 +207,50 @@ service consumers does not accidentally remove persistence.
 
 Follow `apps/influxdb/README.md`. InfluxDB must be healthy on
 `127.0.0.1:31055` before restarting the standalone Scrutiny service.
+
+Scrutiny receives its existing InfluxDB identity from:
+
+```text
+/mnt/cpool/scrutiny/.env.secrets
+```
+
+with the runtime variable names expected by Scrutiny:
+
+```text
+SCRUTINY_WEB_INFLUXDB_TOKEN=<dedicated token>
+SCRUTINY_WEB_INFLUXDB_ORG=<existing organization>
+SCRUTINY_WEB_INFLUXDB_BUCKET=<existing bucket>
+```
+
+The Compose definition supplies only `influxdb:8086`; token, organization and
+bucket are deliberately not interpolated by Compose.
+
+## Langfuse shared Redis and MinIO
+
+Host ports and container ports are different contracts. Redis publishes
+`30059:6379` and MinIO publishes `9002:9000`, but Langfuse should use
+`redis:6379` and `minio:9000` only after both services have joined the
+external `intranet` network.
+
+Validate the network rather than testing host DNS:
+
+```bash
+docker network inspect intranet |
+  jq -r '.[0].Containers[]?.Name' |
+  sort
+
+docker exec mongo getent hosts redis
+docker exec mongo getent hosts minio
+docker exec mongo bash -lc 'timeout 3 bash -c "</dev/tcp/redis/6379"'
+docker exec influxdb curl -fsS http://minio:9000/minio/health/live
+```
+
+The host command `ping minio` is not evidence for Docker service discovery;
+host DNS may resolve a public search-domain hostname instead.
+
+Before replacing the current TrueNAS Langfuse app, materialize its current
+runtime secrets into `/mnt/cpool/langfuse/.env.secrets` without printing them.
+The repository Compose no longer contains production-like fallback passwords.
 
 ## Historical TrueNAS lifecycle failures
 
