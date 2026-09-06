@@ -59,6 +59,12 @@ services:
       SICKZ_NETWORK_LABEL: nabla
       APP_DOMAIN: sample.int.albandrieu.com
 
+    # Keep appliance probes on the trusted LAN while preserving public DNS
+    # names for TLS hostname verification.
+    extra_hosts:
+      - "truenas.albandrieu.com:172.17.0.24"
+      - "home.albandrieu.com:172.17.0.1"
+
     ports:
       - "${FASTAPI_SAMPLE_PORT:-8091}:8080"
 
