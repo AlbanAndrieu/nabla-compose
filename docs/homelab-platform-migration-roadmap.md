@@ -18,6 +18,14 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
+- [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
+- [ ] confirm all three Kubernetes nodes transition from the initial `NotReady` state to `Ready`; if not, inspect node conditions/events before any machine-config reapply;
+- [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
+- [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
+- [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
+- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
+- [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
+- [ ] bootstrap GitOps only after storage behavior and rollback are proven;
 ### Post-reboot runtime cleanup — 2026-09-05
 
 Track these independently from the Talos bridge/bootstrap:
@@ -70,8 +78,25 @@ Acceptance gates:
 - [ ] every catalog entry with a Tunnel URL but `external=false` is reconciled: either declare the intended protected external access or remove the stale Tunnel/DNS exposure;
 - [ ] Scrutiny external navigation is `https://scrutiny.albandrieu.com/` behind Cloudflare Access, while LAN navigation remains `http://172.17.0.24:31054/`;
 - [ ] FastAPI Sample/UI consumers never synthesize `https://truenas.albandrieu.com:<application-port>/` for an application whose catalog declares an HTTP LAN endpoint.
+- [ ] FastAPI Sample `/sickz` treats an observed Access application with zero effective policies/decisions as a failure rather than compliant; the repository audit helper already fails closed on this condition.
 
 The last item is a follow-up for the FastAPI Sample presentation layer if the incorrect Scrutiny link is still rendered after the catalog changes: internal navigation must be built from `internalHost`, `internalPort` and `internalSecure`, while external navigation must use `tunnelUrl`.
+
+#### Live Cloudflare reconciliation — 2026-09-06
+
+The workstation audit against FastAPI Sample `/sickz` confirms that Cloudflare edge evidence is present for the declared tunneled services, but the API-side Tunnel ingress observer currently does not enumerate their hostnames. Treat that as an observer/inventory gap until the Cloudflare token scope and tunnel configuration API path are verified; an observed Cloudflare Access challenge remains valid enforcement evidence.
+
+The audit separates the actionable findings:
+
+- [ ] **Access protection missing or not observed:** Heimdall, Vaultwarden, Keycloak, Homarr and Plumber API. These returned neither an API-observed Access policy nor an anonymous HTTP Access challenge and must be checked in Cloudflare Zero Trust;
+- [x] **Access challenge observed:** Scrutiny, IT Tools, 2FAuth, n8n, KaraKeep, Open WebUI, Nexus, LiteLLM, SearXNG, Minio, Langfuse and Language Tool. Do not report these as missing Access policies merely because the read-only API observer cannot enumerate the application/policy;
+- [ ] **Scrutiny runtime:** Access enforcement is present, but TrueNAS correctly reports the native Scrutiny application STOPPED while the Compose migration is pending;
+- [ ] **Bichon:** `external=false` but the endpoint is reachable from FastAPI Cloud and TrueNAS reports the app CRASHED. Remove the unintended public exposure independently from the application crash;
+- [ ] **pfSense TCP/10443:** FastAPI Cloud can currently reach the administration/API listener even though this runtime is not an approved administration source. Reconcile the WAN source policy rather than relying on dynamic blocking;
+- [x] **TrueNAS TCP/7000 and Garage:** remain explicit direct-exposure warnings under their documented security exceptions.
+
+The repository audit helper must fail only when an Access-required service has neither API-observed policy evidence nor an HTTP Access challenge, while still failing closed for an API-observed Access application with zero effective policy decisions.
+
 
 ## P0 hard gate — secrets-first migration
 
@@ -213,13 +238,43 @@ Prepared in `apps/grafana`:
 - [x] add a repository-owned pfSense Logs & Security Loki dashboard;
 - [x] add a local/stdio Grafana MCP configuration using a dedicated rotatable
       service-account token stored in Vaultwarden;
-- [x] avoid any new continuously running container for MCP access.
+- [x] avoid any new continuously running container for MCP access;
+- [x] preserve the transport sender address as the low-cardinality Loki
+      `sender` label so genuine pfSense traffic can be distinguished from
+      synthetic smoke events;
+- [x] replace TCP-only Gatus/AutoKuma checks for Grafana, Alloy, Loki, Mimir,
+      Tempo, Prometheus and pfSense Exporter with functional HTTP checks;
+- [x] replace the stale `pfsense_info` alert with Prometheus scrape health
+      plus an expected real pfSense system metric;
+- [x] add `scripts/observability/verify-stack.sh` for read-only service,
+      datasource, dashboard and pfSense-metrics validation;
+- [x] add `scripts/observability/verify-otlp.sh` to prove the Alloy OTLP
+      fan-out to Loki, Mimir and Tempo;
+- [x] add `scripts/observability/verify-pfsense-syslog.sh` to prove both a
+      synthetic RFC5424 path and real pfSense sender traffic;
+- [x] add `scripts/observability/configure-pfsense-syslog.sh` with
+      dry-run-by-default pfREST configuration, explicit `--apply`, existing
+      remote-destination preservation and strict pre-mutation health gates;
+- [x] keep the pfSense write identity separate from FastAPI Cloud read-only
+      identities as `PFSENSE_OBSERVABILITY_API_KEY`.
 
 ### pfSense operator configuration
 
-Runtime work still required on pfSense:
+Runtime work still required on pfSense. The repository helper prepares and
+validates these changes, but the private LAN path has not been exercised by
+public CI:
 
-- [ ] set **Status > System Logs > Settings > Log Message Format** to RFC5424;
+- [x] prepare a pfREST GET/PATCH helper for
+      `/api/v2/status/logs/settings` with `dry_run=true` by default;
+- [x] refuse to overwrite any of the three existing remote-syslog slots;
+- [x] require the complete strict observability preflight before
+      `--apply`;
+- [ ] create/import the dedicated least-privilege
+      `PFSENSE_OBSERVABILITY_API_KEY` in
+      `nabla/prod/pfsense-observability`;
+- [ ] run the helper `--plan` from the trusted LAN and review the accepted
+      pfREST dry-run;
+- [ ] set/apply **Status > System Logs > Settings > Log Message Format** to RFC5424;
 - [ ] enable remote logging to `172.17.0.24:1514`;
 - [ ] use the trusted LAN address/interface as the source;
 - [ ] enable System, Firewall Events, General Authentication, DNS, DHCP, VPN
@@ -234,7 +289,17 @@ Runtime work still required on pfSense:
 - [ ] validate all provisioned pfSense metric dashboards against real exporter
       labels/series;
 - [ ] validate firewall, dpinger, authentication and VPN panels against real
-      pfSense app names.
+      pfSense app names;
+- [ ] verify whether HAProxy package events are present in the same RFC5424
+      stream; if not, inspect `/api/v2/services/haproxy/settings` and the
+      local pfSense syslog routing before adding any second listener or
+      datastore;
+- [ ] run `verify-stack.sh --strict` and retain the pass/fail summary as the
+      acceptance evidence;
+- [ ] run `verify-pfsense-syslog.sh --live-only` and prove the sender is
+      `172.17.0.1`;
+- [ ] re-enable pfSense REST API global read-only mode immediately after the
+      supervised PATCH window.
 
 The built-in pfSense remote syslog transport is UDP and cleartext. It is
 acceptable only on the trusted LAN. If a later topology crosses an untrusted

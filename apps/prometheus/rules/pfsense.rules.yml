@@ -1,12 +1,25 @@
-# pfSense Exporter alert rules (basic templates)
+---
 groups:
-- name: pfSense
-  rules:
-    - alert: pfSenseExporterDown
-      expr: pfsense_info{host="172.17.0.1"} < 1
-      for: 2m
-      labels:
-        severity: critical
-      annotations:
-        summary: pfSense exporter down
-        description: pfSense exporter is not reporting any info (host 172.17.0.1).
+  - name: pfSense
+    rules:
+      - alert: pfSenseExporterDown
+        expr: up{job="pfsense_exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: pfSense exporter scrape is down
+          description: >-
+            Prometheus cannot successfully scrape the pfSense exporter target
+            for at least two minutes.
+
+      - alert: pfSenseMetricsMissing
+        expr: absent(pfsense_system_cpu_usage_ratio{job="pfsense_exporter"})
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: pfSense system metrics are missing
+          description: >-
+            The expected pfSense system metric has been absent for five
+            minutes even though the exporter service may still be reachable.

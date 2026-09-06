@@ -508,6 +508,81 @@ mise exec -- \
 
 After the update, keep the Talos VMs stopped until the next bootstrap phase deliberately starts `taloscp01`.
 
+### Boot-order state converged — 2026-09-06
+
+A later refresh after the reviewed six-device-order plan reported **no resource actions**. The only plan delta was the derived VM-status output changing from the previously stored `STOPPED` values to the live `RUNNING` values for all three Talos VMs:
+
+```text
+Resources: 0 added, 0 changed, 0 destroyed.
+
+taloscp01 = RUNNING
+taloswk01 = RUNNING
+taloswk02 = RUNNING
+```
+
+The serialized apply created a remote-state backup and then completed with `0 added, 0 changed, 0 destroyed`. This proves the DISK/CDROM/NIC ordering is already converged in TrueNAS; do not keep applying solely to change the `talos_vm_status` output.
+
+`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart=false` only prevents automatic boot and does not force an already-running VM to stop.
+
+Before applying Talos machine configuration, decide the operator sequence explicitly:
+
+1. use `taloscp01` at its reserved `172.17.0.50` address for the first control-plane configuration;
+2. either stop both workers until the control plane is installed/bootstrap-ready, or keep them in maintenance mode only long enough to discover their DHCP addresses and confirm `/dev/vda`;
+3. never run `talosctl bootstrap` more than once for the cluster.
+
+### Kubernetes bootstrap reached — 2026-09-06
+
+`taloscp01` was configured, rebooted from the installed `/dev/vda` system disk, and authenticated with the generated Talos PKI. Persistent Talos volumes are present on `/dev/vda2` (META), `/dev/vda3` (STATE) and `/dev/vda4` (EPHEMERAL).
+
+The one-time Talos bootstrap completed successfully:
+
+- `etcd`: `Running` / `OK`;
+- `kubelet`: `Running` / `OK`;
+- Kubernetes API: `https://172.17.0.50:6443`;
+- CoreDNS, kube-proxy and flannel pods are running;
+- workers are already registered from `172.17.0.51` and `172.17.0.52` with the expected MAC addresses and `/dev/vda` install disks.
+
+The first Kubernetes node names are Talos-generated stable names:
+
+```text
+172.17.0.50  talos-ib5-q5a  control-plane
+172.17.0.51  talos-lvs-nhe  worker
+172.17.0.52  talos-7fc-fdt  worker
+```
+
+Do not re-run `talosctl apply-config --insecure` against `.51` or `.52` once they require a client certificate and are visible to Kubernetes. `--insecure` is only for maintenance mode before the first machine configuration is installed. A `tls: certificate required` response means the node has already left maintenance mode; use the generated `talosconfig` for authenticated Talos API operations instead.
+
+After bootstrap, a short `NotReady` interval is expected while CNI and kubelet node conditions settle. If it persists, inspect Kubernetes node conditions/events rather than reapplying machine configuration.
+
+### Base cluster healthy — 2026-09-06
+
+The three-node Talos/Kubernetes base cluster is now healthy:
+
+```text
+talos-ib5-q5a  172.17.0.50  control-plane  Ready
+talos-lvs-nhe  172.17.0.51  worker         Ready
+talos-7fc-fdt  172.17.0.52  worker         Ready
+```
+
+Validated state:
+
+- Talos v1.13.9 with RBAC enabled on all three nodes;
+- kubelet `Running` / `OK` on both workers;
+- worker persistent Talos partitions present on `/dev/vda2` (META), `/dev/vda3` (STATE) and `/dev/vda4` (EPHEMERAL);
+- Kubernetes 1.36.3 on all nodes;
+- `Ready=True` on all three nodes;
+- `NetworkUnavailable=False` with reason `FlannelIsUp` on all three nodes;
+- one expected etcd member for the current single-control-plane topology, at `172.17.0.50:2380` / `172.17.0.50:2379`;
+- Talos client context keeps only `172.17.0.50` as an endpoint and all three node IPs as managed nodes.
+
+A read-only repeatable validator is available:
+
+```bash
+mise exec -- scripts/talos/validate-cluster.sh
+```
+
+The base-cluster milestone is complete. The next reviewed phases are: Kubernetes DNS/network validation, then TrueNAS-backed persistent storage (democratic-csi), then GitOps/workload migration. Do not mix storage-driver rollout with base-cluster recovery changes.
+
 ### Phase B — first controlled create
 
 Only after reviewing the plan:

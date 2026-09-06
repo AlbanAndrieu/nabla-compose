@@ -20,14 +20,13 @@
     "port": 9002
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 12345
+    "url": "http://172.17.0.24:12345/-/healthy"
   },
   {
     "type": "port",
@@ -169,14 +168,13 @@
     "port": 8085
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Grafana",
     "description": "Nabla generated monitor: grafana",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30037
+    "url": "http://172.17.0.24:30037/api/health"
   },
   {
     "type": "port",
@@ -268,24 +266,22 @@
     "port": 4000
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Loki",
     "description": "Nabla generated monitor: loki",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3100
+    "url": "http://172.17.0.24:3100/ready"
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Mimir",
     "description": "Nabla generated monitor: mimir",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9009
+    "url": "http://172.17.0.24:9009/ready"
   },
   {
     "type": "port",
@@ -478,14 +474,13 @@
     "port": 10443
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "pfSense Exporter",
     "description": "Nabla generated monitor: pfsense-exporter",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9945
+    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443"
   },
   {
     "type": "port",
@@ -538,14 +533,13 @@
     "port": 5432
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Prometheus",
     "description": "Nabla generated monitor: prometheus",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9090
+    "url": "http://172.17.0.24:9090/-/ready"
   },
   {
     "type": "port",
@@ -657,14 +651,13 @@
     "port": 9113
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Tempo",
     "description": "Nabla generated monitor: tempo",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3200
+    "url": "http://172.17.0.24:3200/ready"
   },
   {
     "type": "port",

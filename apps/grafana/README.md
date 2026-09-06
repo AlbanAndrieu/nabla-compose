@@ -199,6 +199,31 @@ installing per-application log shippers. Keep resource labels low-cardinality
 (for example `service.name`, environment, namespace) and avoid turning
 request/user IDs into Loki labels.
 
+### Runtime integration scripts
+
+The repository provides a fail-closed operator workflow under
+`scripts/observability/`. Use it instead of validating components manually
+one by one:
+
+```bash
+bash scripts/observability/verify-stack.sh
+bash scripts/observability/verify-stack.sh --strict
+```
+
+The strict mode verifies Grafana datasources/dashboards and injects synthetic
+OTLP plus RFC5424 records to prove the real Alloy -> Loki/Mimir/Tempo pipelines.
+
+pfSense configuration is separate and dry-run by default:
+
+```bash
+bash scripts/observability/configure-pfsense-syslog.sh --plan
+bash scripts/observability/configure-pfsense-syslog.sh --apply
+```
+
+The apply path is blocked until the strict observability preflight succeeds.
+See `scripts/observability/README.md` for the required least-privilege
+identities, TLS handling and post-change verification.
+
 ### Validation
 
 After deploying the Grafana stack and enabling pfSense remote logging:

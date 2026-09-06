@@ -17,6 +17,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: prometheus
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9090/-/ready
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: mimir
           type: storesIn
@@ -117,6 +122,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: pfsense-exporter
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9945/metrics?target=172.17.0.1:10443
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: pfsense
           type: consumesApi

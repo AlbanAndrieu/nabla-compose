@@ -24,6 +24,11 @@ loki.relabel "pfsense_syslog" {
     source_labels = ["__syslog_message_facility"]
     target_label  = "facility"
   }
+
+  rule {
+    source_labels = ["__syslog_connection_ip_address"]
+    target_label  = "sender"
+  }
 }
 
 loki.source.syslog "pfsense" {
