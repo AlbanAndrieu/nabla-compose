@@ -468,7 +468,52 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 
 - external `altinity/clickhouse-exporter` removed;
 - native ClickHouse Prometheus endpoint on `9363` used instead;
-- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade.
+- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade;
+- [ ] replace the legacy Langfuse-v3 ClickHouse datastore with a fresh
+      `ClickHouse 26.8.2.7` dataset owned by UID/GID `101:101`;
+- [ ] preserve the old dataset as `cpool/clickhouse-v3-backup` until the v4
+      validation window completes;
+- [ ] keep ClickHouse on the shared `intranet` network with alias
+      `clickhouse` and validate HTTP/8123, TCP/9000 and Prometheus/9363 after
+      recreation.
+
+#### Langfuse v4 fresh reset
+
+The previous Langfuse v3 state is intentionally disposable. Prefer a clean
+self-hosted Langfuse v4 deployment over repairing the dirty v3/v4 ClickHouse
+migration marker.
+
+Target:
+
+- Langfuse web/worker pinned to `v4.30.0`;
+- ClickHouse pinned to `26.8.2.7`;
+- fresh ClickHouse database `langfuse`;
+- fresh dedicated PostgreSQL role/database `langfuse` on the existing shared
+  PostgreSQL service;
+- shared Redis isolated with `REDIS_KEY_PREFIX=langfuse-v4:`;
+- shared MinIO isolated with bucket `langfuse-v4`;
+- all Langfuse/ClickHouse credentials outside Git in
+  `/mnt/cpool/langfuse/.env.secrets` and
+  `/mnt/cpool/clickhouse/.env.secrets`;
+- telemetry disabled by default.
+
+Completion gates:
+
+- [ ] old Langfuse app stopped before resetting dependencies;
+- [ ] `cpool/clickhouse` snapshotted and renamed to
+      `cpool/clickhouse-v3-backup`;
+- [ ] fresh `cpool/clickhouse` dataset created and writable by UID/GID 101;
+- [ ] dedicated ClickHouse password generated and shared only through runtime
+      secret files;
+- [ ] dedicated PostgreSQL `langfuse` role/database created;
+- [ ] MinIO bucket `langfuse-v4` created;
+- [ ] Redis namespace `langfuse-v4:` configured;
+- [ ] ClickHouse HTTP/TCP/Prometheus probes pass;
+- [ ] Langfuse v4 web and worker start without pending/dirty migrations;
+- [ ] web health with database verification returns success;
+- [ ] worker health returns success;
+- [ ] a new Langfuse project can ingest and query a smoke-test trace;
+- [ ] rollback dataset retained until the validation window completes.
 
 #### Grafana
 
