@@ -130,6 +130,13 @@ AutoXpose must have the Cloudflare DNS provider configured for
 The sample uses `autoxpose.enable=auto`, so configuring a proxy provider in
 AutoXpose would create a second proxy route and violate this ownership model.
 
+The legacy `docker-traefik-cloudflare-companion` still runs for other Traefik
+hosts. It is explicitly configured to exclude the `sample` and `int`
+subdomain trees from the `albandrieu.com` zone so it cannot race AutoXpose
+for `sample.albandrieu.com` or publish private `*.int.albandrieu.com`
+routers to public DNS. Long term, consolidate Cloudflare record ownership into
+one reconciler instead of keeping multiple DNS automation paths.
+
 Current AutoXpose labels intentionally use only the documented contract:
 `autoxpose.enable`, `subdomain`, `name`, `scheme` and `port`.
 Do not reintroduce the legacy/unsupported `autoxpose.domain` label.
