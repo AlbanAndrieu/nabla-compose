@@ -52,9 +52,9 @@ container address.
   TrueNAS `ui_allowlist`, validate the WebSocket calls, then
   `system.general.checkin`;
 - [x] add `scripts/security/verify-truenas-observer-access.sh` as a read-only
-  preflight for container source IP, `ui_allowlist`, canonical credential
-  variable selection, HTTPS version discovery and authenticated WebSocket
-  calls;
+  preflight for container source IP, both configured and active runtime
+  `ui_allowlist` state, canonical credential variable selection, HTTPS version
+  discovery and authenticated WebSocket calls;
 - [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
   after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
 - [x] pin FastAPI Sample to `172.16.55.9` on the production
