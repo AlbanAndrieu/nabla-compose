@@ -227,8 +227,9 @@ class ObservabilityContractTests(unittest.TestCase):
 
         self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
         self.assertIn("http://172.17.0.24:9093/-/ready", prometheus_compose)
+        self.assertNotIn("target=172.17.0.1:10443", prometheus_compose)
         self.assertIn(
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
             prometheus_compose,
         )
 
@@ -243,7 +244,7 @@ class ObservabilityContractTests(unittest.TestCase):
             "http://172.17.0.24:3200/ready",
             "http://172.17.0.24:9090/-/ready",
             "http://172.17.0.24:9093/-/ready",
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1:10443",
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
         ):
             self.assertIn(endpoint, gatus)
 
