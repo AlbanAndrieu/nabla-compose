@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.13.0...0.14.0) (2026-09-06)
+
+
+### Features
+
+* **observability:** derive service signals from Gatus ([#102](https://github.com/AlbanAndrieu/nabla-compose/issues/102)) ([c6347b4](https://github.com/AlbanAndrieu/nabla-compose/commit/c6347b4fadc799b06438e1a53492c3b205b1f657))
+
 # [0.13.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.2...0.13.0) (2026-09-06)
 
 
