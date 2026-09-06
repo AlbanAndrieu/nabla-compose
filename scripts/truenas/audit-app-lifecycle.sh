@@ -85,7 +85,7 @@ else
 fi
 
 
-functional_failures=0
+probe_failures=0
 
 function functional_ok {
   printf '✅ %s\n' "$*"
@@ -93,7 +93,7 @@ function functional_ok {
 
 function functional_fail {
   printf '❌ %s\n' "$*" >&2
-  functional_failures=$((functional_failures + 1))
+  probe_failures=$((probe_failures + 1))
 }
 
 function app_is_running {
@@ -201,8 +201,8 @@ else
   printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
 fi
 
-if ((functional_failures > 0)); then
-  printf '\n❌ functional verification failed: %d probe(s) failed\n' "${functional_failures}" >&2
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed\n' "${probe_failures}" >&2
   exit 1
 fi
 
