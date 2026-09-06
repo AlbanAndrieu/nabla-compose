@@ -522,6 +522,22 @@ function probe_ntopng_clickhouse_contract_if_running {
     return
   fi
 
+  if docker inspect "${ntopng_container}" \
+    --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -q '^NTOPNG_CLICKHOUSE_PASSWORD='; then
+    functional_fail "ntopng ClickHouse contract: password exposed in Docker Config.Env"
+    return
+  else
+    functional_ok "ntopng ClickHouse contract: password absent from Docker Config.Env"
+  fi
+
+  if docker exec "${ntopng_container}" test -s /run/secrets/ntopng_runtime_env 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: runtime secret mounted"
+  else
+    functional_fail "ntopng ClickHouse contract: runtime secret mount missing or empty"
+    return
+  fi
+
   if docker exec "${ntopng_container}" test -s /etc/ntopng.license 2>/dev/null; then
     functional_ok "ntopng ClickHouse contract: Enterprise license file mounted"
   else
