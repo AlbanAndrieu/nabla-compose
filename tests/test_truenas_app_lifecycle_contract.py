@@ -197,15 +197,25 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
 
-    def test_runbook_uses_canonical_langfuse_recovery(self) -> None:
+    def test_runbook_uses_isolated_langfuse_reset(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
 
-        self.assertIn("goto 37", runbook)
-        self.assertIn("same v4 web image/version", runbook)
-        self.assertIn("Do not use `force 37`", runbook)
-        self.assertIn("ClickHouse is pinned to 25.8", runbook)
-        self.assertIn("Langfuse v4 requires", runbook)
+        self.assertIn("## Langfuse clean database reset on shared ClickHouse", runbook)
+        self.assertIn("DROP DATABASE IF EXISTS langfuse", runbook)
+        self.assertIn("CREATE DATABASE langfuse", runbook)
+        self.assertIn("do not remove", runbook)
+        self.assertIn("current_setting('TimeZone')", runbook)
+        self.assertIn("DATABASE_URL=postgresql://langfuse:", runbook)
         self.assertIn("nabla\'s Recovery Token", runbook)
+
+    def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("##### Shared ClickHouse consumer compatibility gate", roadmap)
+        self.assertIn("Sentry/Snuba", roadmap)
+        self.assertIn("ntopng", roadmap)
+        self.assertIn("database `langfuse`", roadmap)
+        self.assertIn("do **not** upgrade the shared server to 26.4 solely for Langfuse", roadmap)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
