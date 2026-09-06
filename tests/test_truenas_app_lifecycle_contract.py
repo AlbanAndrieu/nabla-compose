@@ -159,6 +159,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("functional verification failed", audit)
+        self.assertIn("SECRET_ENCRYPTION_KEY", audit)
+        self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
+        self.assertIn("GRAYLOG_MONGODB_URI", audit)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
