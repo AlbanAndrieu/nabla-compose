@@ -552,8 +552,12 @@ Current/planned consumers have different compatibility contracts:
   Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
   Langfuse/ntopng server;
 - **ntopng** — planned historical flow consumer using its own `ntopng`
-  database. Enable only with the required ntopng Enterprise M-or-higher license
-  and validate flow persistence across both ntopng and ClickHouse restarts.
+  database and dedicated `ntopng` user. The repository Compose refuses the
+  shared `clickhouse` / `default` identities, loads the password only from
+  `/mnt/cpool/ntopng/.env.secrets`, and uses `--strict-startup` so ClickHouse
+  initialization failure cannot silently disable historical persistence. Enable
+  only with the required ntopng Enterprise M-or-higher license and validate flow
+  persistence across both ntopng and ClickHouse restarts.
 
 Acceptance after every shared ClickHouse change:
 
@@ -565,6 +569,11 @@ Acceptance after every shared ClickHouse change:
       initialization in database `langfuse`;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba after the shared-server change, or explicitly decouple Sentry;
+- [x] repository ntopng configuration enforces a dedicated `ntopng`
+      database/user, runtime-only password injection and `--strict-startup`;
+- [ ] before enabling ntopng, create the dedicated ClickHouse database/user,
+      store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate authenticated
+      access without global `*.*` grants;
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
       persistence across restarts;
 - [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
