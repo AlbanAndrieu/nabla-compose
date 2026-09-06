@@ -69,6 +69,7 @@ services:
       - "--providers.docker.network=traefik_network"
 
       # Let's Encrypt / Cloudflare DNS
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:-alban.andrieu@free.fr}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/certs/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
