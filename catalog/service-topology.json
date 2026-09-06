@@ -9,10 +9,10 @@
       "kind": "security-app",
       "category": "security",
       "sourcePath": "apps/2fauth/compose.yml",
-      "icon": "🔐",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "icon": "🔐"
     },
     {
       "id": "alloy",
@@ -51,11 +51,11 @@
       "kind": "security-agent",
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
-      "icon": "🛡️",
       "securityFunctions": [
         "detect",
         "respond"
-      ]
+      ],
+      "icon": "🛡️"
     },
     {
       "id": "docker",
@@ -386,11 +386,11 @@
       "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
       "presentationRole": "core",
       "criticality": "critical",
-      "icon": "🔥",
       "securityFunctions": [
         "protect",
         "respond"
-      ]
+      ],
+      "icon": "🔥"
     },
     {
       "id": "pfsense-exporter",
@@ -480,10 +480,10 @@
       "kind": "ids",
       "category": "security",
       "sourcePath": "apps/suricata/compose.yml",
-      "icon": "🦈",
       "securityFunctions": [
         "detect"
-      ]
+      ],
+      "icon": "🦈"
     },
     {
       "id": "sybase",
@@ -590,10 +590,10 @@
       "kind": "security-manager",
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
-      "icon": "🛡️",
       "securityFunctions": [
         "detect"
-      ]
+      ],
+      "icon": "🛡️"
     }
   ],
   "relations": [
