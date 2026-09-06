@@ -260,6 +260,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("ephemeral config is a mode-0600 file", audit)
         self.assertIn("password absent from process argv", audit)
         self.assertIn("password is exposed in process argv", audit)
+        self.assertIn("-e NTOPNG_CLICKHOUSE_PASSWORD", audit)
+        self.assertNotIn('-e NTOPNG_CLICKHOUSE_PASSWORD="${password}"', audit)
         self.assertIn("ALL ON ntopng.* is broader than required", audit)
         self.assertIn(
             "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*",
