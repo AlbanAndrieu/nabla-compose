@@ -94,8 +94,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("ghcr.io/langfuse/langfuse:4.30.0", langfuse)
         self.assertIn("ghcr.io/langfuse/langfuse-worker:4.30.0", langfuse)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
-        self.assertIn("CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}", langfuse)
-        self.assertIn("CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}", langfuse)
+        self.assertIn("CLICKHOUSE_DB: langfuse", langfuse)
+        self.assertIn("CLICKHOUSE_USER: langfuse", langfuse)
+        self.assertNotIn("${CLICKHOUSE_USER:-langfuse}", langfuse)
         self.assertIn(
             "CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}",
             langfuse,
