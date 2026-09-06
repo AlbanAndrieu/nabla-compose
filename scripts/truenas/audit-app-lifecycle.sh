@@ -530,7 +530,7 @@ function probe_ntopng_clickhouse_contract_if_running {
   fi
 
   if ! edition="$(
-    docker exec "${ntopng_container}" ntopng -V 2>/dev/null |
+    docker exec "${ntopng_container}" ntopng -V 2>&1 |
       sed -n 's/^Edition:[[:space:]]*//p' |
       head -n 1
   )"; then
