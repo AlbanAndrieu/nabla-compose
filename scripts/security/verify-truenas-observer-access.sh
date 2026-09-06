@@ -146,6 +146,31 @@ if [[ -n "${shadowed_user}" ]]; then
   warn "legacy TrueNAS username aliases remain configured and shadowed: ${shadowed_user}"
 fi
 
+printf '==> websocket-client proxy decision\n'
+docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+from urllib.parse import urlparse
+
+from nabla.settings.homelab import TrueNASProviderSettings
+from websocket._url import get_proxy_info
+
+settings = TrueNASProviderSettings()
+hostname = urlparse(settings.websocket_uri).hostname
+proxy_host, proxy_port, _proxy_auth = get_proxy_info(
+    hostname,
+    True,
+    None,
+    0,
+    None,
+    None,
+)
+if proxy_host:
+    raise SystemExit(
+        f"websocket-client would proxy TrueNAS via {proxy_host}:{proxy_port}; "
+        "add the TrueNAS hostname/private address to NO_PROXY instead"
+    )
+print(f"direct websocket route for {hostname}")
+PY
+
 printf '==> TrueNAS HTTPS version discovery from container\n'
 docker exec "${CONTAINER}" curl --fail --silent --show-error   "https://${TRUENAS_NAME}:${TRUENAS_PORT}/api/versions" |
   jq .
