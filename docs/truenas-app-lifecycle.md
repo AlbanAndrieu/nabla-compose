@@ -370,6 +370,19 @@ Stop Langfuse before resetting any dependency:
 
 ```bash
 midclt call app.stop langfuse
+midclt call app.stop clickhouse
+```
+
+Confirm that no container still has `/mnt/cpool/clickhouse` mounted before the
+ZFS rename:
+
+```bash
+docker ps --format '{{.Names}}' |
+  while read -r container; do
+    docker inspect "${container}" --format '{{range .Mounts}}{{println .Source}}{{end}}' 2>/dev/null |
+      grep -Fx /mnt/cpool/clickhouse &&
+      echo "still mounted by ${container}"
+  done
 ```
 
 Keep the existing ClickHouse snapshot and rename the old dataset instead of
