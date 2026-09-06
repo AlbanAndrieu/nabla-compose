@@ -106,14 +106,36 @@ The existing TrueNAS-hosted Prometheus now scrapes:
 
 Initial TrueNAS alerts cover:
 
-- node-exporter unavailable for 2 minutes;
-- cAdvisor unavailable for 2 minutes;
-- less than 10% host memory available for 5 minutes;
-- less than 15% writable filesystem capacity available for 15 minutes;
-- less than 5% writable filesystem capacity available for 5 minutes.
+- node-exporter unavailable for 2 minutes — **warning / telemetry blind spot**;
+- cAdvisor unavailable for 2 minutes — **warning / telemetry blind spot**;
+- less than 10% host memory available for 5 minutes — warning platform pressure;
+- less than 5% host memory available for 2 minutes — **critical platform pressure**;
+- less than 15% writable filesystem capacity available for 15 minutes — warning;
+- less than 5% writable filesystem capacity available for 5 minutes — **critical**.
 
-These alerts are intentionally host/platform evidence. Functional service
-health remains separate.
+Exporter/collector loss is deliberately not a critical TrueNAS outage signal.
+Direct platform/service checks remain authoritative for current availability.
+Critical alerts are reserved for actual platform pressure/capacity symptoms.
+
+Stable recording rules provide a bounded backend contract for future UI/API
+consumers:
+
+```promql
+nabla:core:truenas_memory_available_ratio
+nabla:core:truenas_cpu_busy_ratio
+nabla:telemetry:truenas_node_up
+nabla:telemetry:truenas_cadvisor_up
+nabla:telemetry:pfsense_metrics_up
+nabla:observability:prometheus_up
+```
+
+The `nabla:telemetry:*` series describe evidence coverage, not the health of
+the observed platform. A missing exporter must render as **telemetry
+unavailable / blind spot**, not as TrueNAS or pfSense down.
+
+Filesystem/ZFS capacity is intentionally not collapsed into one stable
+recording rule yet. First inspect the actual TrueNAS filesystem/ZFS label set
+so an irrelevant mount cannot become the fleet-wide minimum by accident.
 
 ### Runtime acceptance
 
@@ -322,11 +344,17 @@ After runtime acceptance:
 
 ### P4 — service-first health board metrics
 
+- [x] establish stable initial TrueNAS/pfSense/telemetry recording names under
+      `nabla:core:*`, `nabla:telemetry:*` and
+      `nabla:observability:*`;
 - [ ] service outcome metrics: availability/errors/latency/traffic;
-- [ ] core metrics: capacity/pressure/component state;
+- [ ] core metrics: capacity/pressure/component state, adding Kubernetes/etcd
+      after their authenticated scrape paths exist;
 - [ ] security-control health separate from security posture;
 - [ ] retain evidence provenance and freshness in the UI;
-- [ ] ensure telemetry failures never overwrite direct service health.
+- [ ] ensure telemetry failures never overwrite direct service health;
+- [ ] expose only fixed/bounded server-side metric queries to the health UI,
+      never an arbitrary PromQL proxy.
 
 ## References
 
