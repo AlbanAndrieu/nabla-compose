@@ -94,6 +94,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("ghcr.io/langfuse/langfuse-worker:4.30.0", langfuse)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets", langfuse)
         self.assertIn("CLICKHOUSE_DB: ${CLICKHOUSE_DB:-langfuse}", langfuse)
+        self.assertIn("CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}", langfuse)
         self.assertIn(
             "CLICKHOUSE_MIGRATION_URL: ${CLICKHOUSE_MIGRATION_URL:-clickhouse://clickhouse:9000}",
             langfuse,
@@ -202,6 +203,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
+        self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
+        self.assertIn("dedicated database/user present", audit)
         self.assertIn("timezone(),", audit)
         self.assertIn("http://172.17.0.24:9005/_health/", audit)
         self.assertIn("failIfDatabaseUnavailable=true", audit)
@@ -212,6 +215,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("LANGFLOW_SUPERUSER_PASSWORD", audit)
         self.assertIn("/mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD", audit)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets DATABASE_URL", audit)
+        self.assertIn("postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse", audit)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD", audit)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets REDIS_AUTH", audit)
         self.assertIn("/mnt/cpool/langfuse/.env.secrets SALT", audit)
@@ -255,13 +259,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("## Fresh Langfuse v4 reset", runbook)
-        self.assertIn("DATABASE_URL=postgresql://nabla:", runbook)
+        self.assertIn("DATABASE_URL=postgresql://langfuse:", runbook)
         self.assertIn("CLICKHOUSE_DB=langfuse", runbook)
         self.assertIn("REDIS_KEY_PREFIX=langfuse-v4:", runbook)
         self.assertIn("Sentry/Snuba", runbook)
         self.assertIn("#### Langfuse v4 fresh reset", roadmap)
         self.assertIn("4.30.0", roadmap)
-        self.assertIn("postgresql://nabla:<secret>@172.17.0.24:5432/postgres", roadmap)
+        self.assertIn("postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse", roadmap)
+        self.assertIn("generic `nabla` role", roadmap)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
