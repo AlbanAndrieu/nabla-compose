@@ -87,6 +87,13 @@ v1.x deployment. Do not select the v0.3.7 migration unless the source really is
 the legacy v0.3.7 layout. Restart Bichon only after the admin migration reports
 success.
 
+HTTP health is not sufficient when Bichon logs a recurring OAuth2 decryption
+failure. Compare the current encryption password with the pre-migration
+snapshot without printing either value. If they differ, recover the original
+secret before allowing token refreshes. If they match, keep the data snapshot
+and re-authorize the affected OAuth2 account(s) through Bichon rather than
+editing encrypted token records directly.
+
 ## Shared MongoDB then Graylog
 
 MongoDB is a standalone reusable application in `apps/mongo`. Graylog no
@@ -167,12 +174,14 @@ Graylog keeps port `9000` inside the container but defaults to host port
 `9003` because ClickHouse already publishes host TCP/9000. Verify TCP/9003 is
 free before the first start.
 
-The Graylog Docker image expects bundled/custom configuration under
+The Graylog Docker image already provides its runtime configuration under
 `/usr/share/graylog/data/config`. Do not bind-mount the whole host
-`/mnt/cpool/graylog/data` over `/usr/share/graylog/data`: an empty host
-directory would hide the image configuration and produce
-`graylog.conf doesn't exist`. The repository mounts the versioned config
-directory read-only and persists only `/usr/share/graylog/data/journal`.
+`/mnt/cpool/graylog/data` over `/usr/share/graylog/data`, and do not mount
+an empty repository config directory over `/usr/share/graylog/data/config`:
+either case hides the image-provided `graylog.conf` and produces
+`Couldn't open properties file`. The repository therefore persists only
+`/usr/share/graylog/data/journal`; Graylog settings are supplied through
+environment variables and the image configuration.
 
 Install/start in this order:
 
@@ -238,6 +247,8 @@ retroactively modify an already-running container.
 Start/recreate `opensearch`, validate `opensearch:9200` from `intranet`,
 then start `langflow`, then `openrag`.
 
+Langflow telemetry is disabled declaratively with `DO_NOT_TRACK=true`.
+
 ## Gatus
 
 The repository Gatus instance persists status history in:
@@ -254,22 +265,29 @@ service consumers does not accidentally remove persistence.
 Follow `apps/influxdb/README.md`. InfluxDB must be healthy on
 `127.0.0.1:31055` before restarting the standalone Scrutiny service.
 
-Scrutiny receives its existing InfluxDB identity from:
+Scrutiny receives only its sensitive InfluxDB token from:
 
 ```text
 /mnt/cpool/scrutiny/.env.secrets
 ```
 
-with the runtime variable names expected by Scrutiny:
+with:
 
 ```text
-SCRUTINY_WEB_INFLUXDB_TOKEN=<dedicated token>
-SCRUTINY_WEB_INFLUXDB_ORG=<existing organization>
-SCRUTINY_WEB_INFLUXDB_BUCKET=<existing bucket>
+SCRUTINY_WEB_INFLUXDB_TOKEN=<dedicated restricted token>
 ```
 
-The Compose definition supplies only `influxdb:8086`; token, organization and
-bucket are deliberately not interpolated by Compose.
+The Compose definition declares the recovered non-secret datastore identity
+directly:
+
+```text
+SCRUTINY_WEB_INFLUXDB_ORG=nabla
+SCRUTINY_WEB_INFLUXDB_BUCKET=metrics
+```
+
+These values may still be overridden through Compose interpolation, but a
+repository-local `apps/scrutiny/.env` is not required for the TrueNAS Custom
+App deployment.
 
 For the current recovered InfluxDB datastore, the organization is `nabla`.
 Do not guess the Scrutiny bucket. Locate the bucket that actually contains
@@ -343,33 +361,53 @@ The repository Compose no longer contains production-like fallback passwords.
 
 ## Langfuse ClickHouse dirty migration recovery
 
-If Langfuse PostgreSQL migrations are clean but startup repeatedly reports
+If Langfuse PostgreSQL migrations are clean but startup reports
 `Dirty database version 39`, the failure is in the golang-migrate ClickHouse
 state, not PostgreSQL, Redis, or MinIO.
 
-First inspect migration 39 from the exact deployed Langfuse image before
-changing migration state:
+Keep Langfuse stopped and snapshot `cpool/clickhouse` before manipulating the
+migration marker. If the marker has already been forced back to version 38,
+do not run another `force` command.
+
+Do not guess a migration source directory from the image. Langfuse's own
+`clickhouse/scripts/up.sh` selects a delivered migration tree when present,
+or renders the canonical migration templates into a temporary directory. This
+is the same path used by the application entrypoint and remains valid when a
+specific materialized file path is absent from the image.
+
+Use the exact stopped web image and existing runtime secrets:
 
 ```bash
-docker run --rm --entrypoint sh langfuse/langfuse:3 -lc \
-  'sed -n "1,220p" /app/packages/shared/clickhouse/migrations/unclustered/0039_create_events_full.up.sql'
+LANGFUSE_IMAGE_ID="$(
+  docker inspect ix-langfuse-langfuse-web-1 --format '{{.Image}}'
+)"
+
+docker run --rm \
+  --network host \
+  --env-file /mnt/cpool/langfuse/.env.secrets \
+  -e CLICKHOUSE_MIGRATION_URL=clickhouse://127.0.0.1:9000 \
+  -e CLICKHOUSE_URL=http://127.0.0.1:8123 \
+  -e CLICKHOUSE_USER=clickhouse \
+  -e CLICKHOUSE_DB=default \
+  -e CLICKHOUSE_CLUSTER_ENABLED=false \
+  --entrypoint sh \
+  "${LANGFUSE_IMAGE_ID}" \
+  -lc 'cd /app/packages/shared && sh ./clickhouse/scripts/up.sh'
 ```
 
-For current Langfuse v3 images this migration creates `events_full` with
-`CREATE TABLE IF NOT EXISTS`, so it is designed to tolerate a retry after a
-half-applied attempt. Confirm that statement in the deployed image. Then stop
-the Langfuse restart loop, force the migration marker back to 38, and rerun the
-normal migration path. Never force the marker forward to 39 without verifying
-that migration 39 completed successfully.
-
-Keep a ClickHouse dataset snapshot before manipulating the migration marker.
+If that command succeeds, restart Langfuse and validate both the web health
+endpoint with database checking enabled and the worker health endpoint. If it
+fails, retain the snapshot and diagnose that exact migration error; do not
+advance the migration marker with another `force`.
 
 ## Homarr permissions
 
 Homarr runs with `PUID=568` and `PGID=568`. Its entrypoint creates/chowns
-`/appdata` subdirectories and then drops privileges. The Compose file therefore
-drops every Linux capability and adds back only `CHOWN`, `SETGID`, and
-`SETUID`.
+`/appdata` and nginx runtime directories before dropping privileges. The
+Compose file therefore drops every Linux capability and adds back only
+`CHOWN`, `DAC_OVERRIDE`, `SETGID`, and `SETUID`. `DAC_OVERRIDE` is
+required so the root startup process can traverse/chown nginx directories after
+all default Docker capabilities have been dropped.
 
 Prepare the existing dataset before recreation:
 
@@ -378,9 +416,21 @@ chown -R 568:568 /mnt/cpool/homarr
 chmod -R u+rwX,g+rwX /mnt/cpool/homarr
 ```
 
-Keep the existing `SECRET_ENCRYPTION_KEY` in
-`/mnt/cpool/homarr/.env.secrets`; rotating it would make stored encrypted
-integration secrets unreadable.
+Homarr v1.x requires the variable name `SECRET_ENCRYPTION_KEY`. If the
+existing file still uses the legacy/local name `HOMARR_ENCRYPTION_KEY`, rename
+the variable without changing its value:
+
+```bash
+if grep -q '^HOMARR_ENCRYPTION_KEY=.' /mnt/cpool/homarr/.env.secrets &&
+  ! grep -q '^SECRET_ENCRYPTION_KEY=.' /mnt/cpool/homarr/.env.secrets; then
+  sed -i 's/^HOMARR_ENCRYPTION_KEY=/SECRET_ENCRYPTION_KEY=/' \
+    /mnt/cpool/homarr/.env.secrets
+fi
+chmod 600 /mnt/cpool/homarr/.env.secrets
+```
+
+Do not rotate the key: stored integration secrets depend on the original
+`SECRET_ENCRYPTION_KEY`.
 
 ## Historical TrueNAS lifecycle failures
 
