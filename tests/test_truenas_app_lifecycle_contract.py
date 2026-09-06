@@ -67,6 +67,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("ES_HOST=elasticsearch", openrag)
         self.assertNotIn("      - elasticsearch", openrag)
         self.assertNotIn("      - langflow\n", openrag)
+        self.assertIn("OPENRAG_FRONTEND_PORT:-31060", openrag)
+        self.assertNotIn('"3000:3000"', openrag)
         self.assertIn("OPENSEARCH_HOST: opensearch", langflow)
         self.assertNotIn("ES_HOST=elasticsearch", langflow)
         self.assertIn("aliases:\n          - opensearch", opensearch)
