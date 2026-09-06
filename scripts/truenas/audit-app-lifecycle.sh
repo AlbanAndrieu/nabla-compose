@@ -476,6 +476,7 @@ function probe_clickhouse_langfuse_contract_if_present {
 
 function probe_ntopng_clickhouse_contract_if_running {
   local clickhouse_container
+  local ntopng_container
   local secret_file="/mnt/cpool/ntopng/.env.secrets"
   local password
   local metadata
@@ -509,6 +510,34 @@ function probe_ntopng_clickhouse_contract_if_running {
       return
       ;;
   esac
+
+  ntopng_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "ntopng" || /^ix-ntopng-ntopng-/ { print; exit }'
+  )"
+
+  if [[ -z "${ntopng_container}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ntopng container not found"
+    return
+  fi
+
+  if docker exec "${ntopng_container}" sh -c '
+    test -f /run/nabla-ntopng.conf &&
+      test "$(stat -c %a /run/nabla-ntopng.conf)" = 600
+  ' 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: ephemeral config is a mode-0600 file"
+  else
+    functional_fail "ntopng ClickHouse contract: ephemeral config missing or not mode 0600"
+    return
+  fi
+
+  if docker top "${ntopng_container}" -eo args 2>/dev/null |
+    grep -Fq -- "${password}"; then
+    functional_fail "ntopng ClickHouse contract: password is exposed in process argv"
+    return
+  else
+    functional_ok "ntopng ClickHouse contract: password absent from process argv"
+  fi
 
   clickhouse_container="$(
     docker ps --format '{{.Names}}' |
