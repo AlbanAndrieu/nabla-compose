@@ -198,11 +198,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_runbook_uses_canonical_langfuse_recovery(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
 
-        self.assertIn("prepare-migrations.mjs", runbook)
-        self.assertIn("org.opencontainers.image.revision", runbook)
-        self.assertIn("git checkout <IMAGE_REVISION_OR_TAG>", runbook)
-        self.assertIn("no migration found for version 38", runbook)
-        self.assertIn("do not run another `force`", runbook)
+        self.assertIn("goto 37", runbook)
+        self.assertIn("same v4 web image/version", runbook)
+        self.assertIn("Do not use `force 37`", runbook)
+        self.assertIn("ClickHouse is pinned to 25.8", runbook)
+        self.assertIn("Langfuse v4 requires", runbook)
         self.assertIn("nabla\'s Recovery Token", runbook)
 
     def test_runtime_audit_script_is_executable(self) -> None:
