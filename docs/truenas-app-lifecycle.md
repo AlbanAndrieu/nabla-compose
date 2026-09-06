@@ -407,6 +407,9 @@ Shared infrastructure contracts:
 - PostgreSQL: shared PostgreSQL 18.6 with dedicated role/database `langfuse`;
 - shared administrative/generic identities (`clickhouse`, `nabla`) remain
   separate from Langfuse runtime credentials;
+- the ClickHouse bootstrap administrator enables SQL-driven access management via
+  `CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1`; this is required to create and alter
+  dedicated service users such as `langfuse`;
 - Redis: internal `redis:6379`, key prefix `langfuse-v4:`;
 - MinIO: internal `minio:9000`, bucket `langfuse-v4`.
 
