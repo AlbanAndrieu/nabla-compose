@@ -1,3 +1,10 @@
+## [0.12.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.0...0.12.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **homelab:** bootstrap shared network and align pfSense policy ([#101](https://github.com/AlbanAndrieu/nabla-compose/issues/101)) ([9498a2f](https://github.com/AlbanAndrieu/nabla-compose/commit/9498a2f2869f45071f5af86c98f363772323ecd1))
+
 # [0.12.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.11.0...0.12.0) (2026-09-06)
 
 
