@@ -470,6 +470,65 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 - native ClickHouse Prometheus endpoint on `9363` used instead;
 - keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade.
 
+##### Shared ClickHouse consumer compatibility gate
+
+Treat ClickHouse as shared infrastructure, not as Langfuse-owned state. The
+repository currently has three consumers/planned consumers:
+
+- **Langfuse v3** — analytical traces/observations/scores; use the dedicated
+  database `langfuse` and allow it to be reset independently while historical
+  Langfuse data is explicitly disposable;
+- **Sentry/Snuba** — Sentry's analytical/event backend; validate Snuba/event
+  ingestion end-to-end before and after every shared ClickHouse version change;
+- **ntopng** — planned historical flow storage in the dedicated database
+  `ntopng`; ClickHouse persistence is only enabled when the required ntopng
+  license tier is present.
+
+Version policy:
+
+- [x] keep the shared server on ClickHouse `25.8` while the current Sentry
+      self-hosted compatibility baseline still uses 25.8;
+- [x] Langfuse v3 remains compatible with the shared 25.8 server;
+- [ ] do **not** upgrade the shared server to 26.4 solely for Langfuse;
+- [ ] before ClickHouse 26.4, either prove the deployed Sentry/Snuba version on
+      26.4 with a disposable clone or move Sentry to its own supported
+      ClickHouse instance;
+- [ ] only then consider ClickHouse 26.4, which is the recommended target for a
+      later Langfuse v4 upgrade.
+
+Database isolation target:
+
+```text
+ClickHouse 25.8 (shared)
+├── langfuse    # disposable/recreatable during current recovery
+├── ntopng      # future historical flow database
+└── Sentry/Snuba-managed databases/tables
+```
+
+Do not wipe `/mnt/cpool/clickhouse` to reset Langfuse while Sentry or ntopng
+uses the same ClickHouse service. Reset only the dedicated `langfuse` database
+and the dedicated Langfuse PostgreSQL database.
+
+Pre/post-change acceptance for the shared ClickHouse server:
+
+- [x] HTTP `/ping` succeeds on TCP/8123;
+- [x] Docker/internal TCP/9000 succeeds;
+- [ ] `SELECT version(), timezone(), currentDatabase()` succeeds through
+      `clickhouse-client` and reports timezone `UTC`;
+- [ ] Langfuse web health with
+      `failIfDatabaseUnavailable=true` and worker health both pass after its
+      clean database initialization;
+- [ ] Sentry web/API remains healthy and a synthetic Sentry event is accepted,
+      processed through Snuba and becomes queryable after the ClickHouse change;
+- [ ] when ntopng is deployed, its `ntopng` ClickHouse database exists and new
+      flow rows remain queryable across both ntopng and ClickHouse restarts;
+- [ ] Prometheus/Gatus ClickHouse health remains green and disk/memory metrics
+      stay within the platform thresholds.
+
+A ClickHouse version upgrade is complete only when all currently deployed
+consumers pass their functional acceptance checks; a successful ClickHouse
+`/ping` alone is insufficient.
+
 #### Grafana
 
 Compose target must preserve:
