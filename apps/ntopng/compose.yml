@@ -36,4 +36,15 @@ services:
     volumes:
       - /mnt/cpool/ntopng:/var/lib/ntopng
       - /mnt/cpool/ntopng/redis:/var/lib/redis
-      - /mnt/cpool/compose/nabla-compose/apps/ntopng/entrypoint.sh:/usr/local/bin/nabla-ntopng-entrypoint.sh:ro
+      - type: bind
+        source: /mnt/cpool/ntopng/ntopng.license
+        target: /etc/ntopng.license
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /mnt/cpool/compose/nabla-compose/apps/ntopng/entrypoint.sh
+        target: /usr/local/bin/nabla-ntopng-entrypoint.sh
+        read_only: true
+        bind:
+          create_host_path: false
