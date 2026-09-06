@@ -475,7 +475,88 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 
 - external `altinity/clickhouse-exporter` removed;
 - native ClickHouse Prometheus endpoint on `9363` used instead;
-- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade.
+- keep runtime verification in Gatus/Prometheus after every ClickHouse upgrade;
+- [x] live TrueNAS validation on 2026-09-06 reports ClickHouse `26.8.2.7`,
+      timezone `UTC`, database `default`, HTTP/8123 healthy and internal
+      TCP/9000 reachable;
+- [x] repository Compose matches the live data owner `101:101` and persistent
+      dataset `/mnt/cpool/clickhouse`;
+- [ ] treat ClickHouse as shared platform infrastructure and validate every
+      deployed consumer before/after version or permission changes.
+
+##### Shared ClickHouse consumer compatibility gate
+
+Current/planned consumers have different compatibility contracts:
+
+- **Langfuse** — use dedicated ClickHouse database `langfuse`; Langfuse v4
+  requires ClickHouse >=25.12 and recommends 26.4, so the live 26.8.2.7 server
+  satisfies Langfuse's version floor;
+- **Sentry/Snuba** — currently points at the shared host, but upstream Sentry
+  self-hosted still builds its own Altinity ClickHouse 25.8 line. Do not claim
+  26.8 compatibility from a simple Sentry web health check: validate synthetic
+  event ingestion through Snuba and searchability. If that fails, decouple
+  Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
+  Langfuse/ntopng server;
+- **ntopng** — planned historical flow consumer using its own `ntopng`
+  database. Enable only with the required ntopng Enterprise M-or-higher license
+  and validate flow persistence across both ntopng and ClickHouse restarts.
+
+Acceptance after every shared ClickHouse change:
+
+- [x] `SELECT version(), timezone(), currentDatabase()` succeeds through
+      `clickhouse-client` and reports `26.8.2.7 / UTC / default`;
+- [x] HTTP `/ping` on TCP/8123 succeeds;
+- [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
+- [ ] Langfuse web database-aware health and worker health pass after clean
+      initialization in database `langfuse`;
+- [ ] send a synthetic Sentry event and prove it is processed/queryable through
+      Snuba after the shared-server change, or explicitly decouple Sentry;
+- [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
+      persistence across restarts;
+- [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
+
+A successful ClickHouse `/ping` alone is not sufficient to approve a shared
+ClickHouse upgrade.
+
+#### Langfuse v4 fresh reset
+
+The previous Langfuse analytical/application history is disposable. Prefer a
+clean Langfuse v4 initialization over repairing the old v3/v4 migration marker.
+
+Target:
+
+- Langfuse web/worker pinned to `4.30.0`;
+- shared ClickHouse `26.8.2.7`, database `langfuse`;
+- shared PostgreSQL 18.6 using the generic homelab identity:
+  `DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres`;
+- shared Redis via `redis:6379`, isolated with
+  `REDIS_KEY_PREFIX=langfuse-v4:`;
+- shared MinIO via `minio:9000`, isolated in bucket `langfuse-v4`;
+- all runtime secrets remain outside Git under
+  `/mnt/cpool/langfuse/.env.secrets`;
+- telemetry disabled by default.
+
+Because Langfuse uses PostgreSQL's `public` schema in the selected database,
+never drop the shared `postgres` database as part of a Langfuse reset. Before
+cleaning old Langfuse PostgreSQL state, inventory table ownership and remove
+only objects proven to belong to the previous Langfuse installation.
+
+Completion gates:
+
+- [ ] old Langfuse web/worker stopped before resetting Langfuse-owned state;
+- [ ] ClickHouse database `langfuse` recreated without touching other shared
+      ClickHouse databases;
+- [ ] PostgreSQL `postgres` remains intact and the generic `nabla` role can
+      perform the required Langfuse migrations;
+- [ ] Redis namespace `langfuse-v4:` configured;
+- [ ] MinIO bucket `langfuse-v4` available;
+- [ ] Langfuse v4 starts without pending/dirty PostgreSQL or ClickHouse
+      migrations;
+- [ ] web database-aware health and worker health both pass;
+- [ ] a new project can ingest and query a smoke-test trace;
+- [ ] Sentry/Snuba remains functional or is explicitly decoupled before the
+      shared ClickHouse change is accepted.
+
 
 #### Grafana
 
@@ -725,7 +806,38 @@ Preferred migration method:
 
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
-### Wave 3.5 — Paperless document platform migration
+Current runtime cleanup inventory includes dedicated PostgreSQL containers for
+Keycloak, Zabbix, n8n, Paperless-ngx, OpenArchiver, Home Assistant,
+Reactive Resume, Memos, FreshRSS and Domain Watchdog in addition to the shared
+`ix-postgres-postgres-1` service.
+
+Consolidation policy:
+
+- [ ] inventory each application's PostgreSQL version, extensions, database,
+      owner, authentication and backup/restore path;
+- [ ] classify each instance as **must remain dedicated**, **safe to consolidate**
+      or **retire with application migration**;
+- [ ] never consolidate by reusing/copying raw `PGDATA` across PostgreSQL major
+      versions; use logical dump/restore;
+- [ ] migrate one application database at a time to the shared PostgreSQL 18.6
+      service and prove application health + rollback before retiring its
+      dedicated container;
+- [ ] keep Keycloak dedicated initially as already decided in the identity
+      roadmap;
+- [ ] keep Paperless-local PostgreSQL until the Paperless migration wave proves
+      whether consolidation is compatible with its backup/restore contract;
+- [ ] remove stopped/obsolete PostgreSQL upgrade/helper containers only after
+      confirming they are not referenced by the owning TrueNAS application.
+
+Langfuse uses the generic `nabla` PostgreSQL identity selected for the homelab:
+
+```text
+DATABASE_URL=postgresql://nabla:<secret>@172.17.0.24:5432/postgres
+```
+
+Langfuse uses the `public` schema of the selected database, so never
+`DROP DATABASE postgres` as part of a Langfuse reset; inventory ownership
+before deleting Langfuse-owned tables.
 
 #### Paperless-ngx + Paperless-AI
 

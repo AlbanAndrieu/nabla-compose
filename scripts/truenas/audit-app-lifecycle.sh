@@ -255,6 +255,49 @@ function probe_legacy_secret_name {
   fi
 }
 
+function probe_clickhouse_runtime_if_running {
+  local container
+  local result
+  local version
+  local timezone
+  local database
+
+  if ! app_is_running clickhouse; then
+    printf 'SKIP: ClickHouse SQL runtime app state is %s\n' "${states[clickhouse]-MISSING}"
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse SQL runtime: container not found"
+    return
+  fi
+
+  if ! result="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SELECT concat(version(), '"'"'|'"'"', timezone(), '"'"'|'"'"', currentDatabase())"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse SQL runtime: query failed"
+    return
+  fi
+
+  IFS='|' read -r version timezone database <<<"${result}"
+  if [[ "${timezone}" != "UTC" ]]; then
+    functional_fail "ClickHouse SQL runtime: timezone is ${timezone}, expected UTC"
+    return
+  fi
+
+  functional_ok "ClickHouse SQL runtime: version=${version} timezone=${timezone} database=${database}"
+}
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -275,6 +318,13 @@ function probe_log_absence_if_running {
 printf '\n🔎 runtime secret contracts\n'
 probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
 probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
 probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
@@ -292,6 +342,8 @@ probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 

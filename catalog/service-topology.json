@@ -205,7 +205,7 @@
       "kind": "observability",
       "category": "ai",
       "sourcePath": "apps/langfuse/compose.yml",
-      "description": "Logical Langfuse observability platform composed of web and worker workloads.",
+      "description": "Logical Langfuse v4 observability platform composed of web and worker workloads.",
       "icon": "📈"
     },
     {
