@@ -3,7 +3,6 @@ services:
   langflow:
     image: docker.io/langflowai/openrag-langflow:latest
     container_name: langflow
-    restart: unless-stopped
     x-nabla:
       id: langflow
       name: Langflow
@@ -29,12 +28,16 @@ services:
     environment:
       OPENSEARCH_HOST: opensearch
       OPENSEARCH_PORT: "9200"
-      OPENSEARCH_URL: https://opensearch:9200
       OPENSEARCH_USERNAME: "${OPENSEARCH_USERNAME:-admin}"
-      LANGFLOW_DEACTIVATE_TRACING: ""
+      OPENSEARCH_URL: https://opensearch:9200
+      LANGFLOW_DEACTIVATE_TRACING: "true"
+      LANGFLOW_CONFIG_DIR: /app/langflow-data
+      LANGFLOW_DATABASE_URL: sqlite:////app/langflow-data/langflow.db?timeout=60
+      LANGFLOW_ALLOW_CUSTOM_COMPONENTS: "false"
     networks:
       - intranet
       - traefik_network
+    restart: unless-stopped
 
 networks:
   intranet:
