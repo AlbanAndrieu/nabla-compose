@@ -167,7 +167,7 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn('verify-stack.sh" --strict', configure)
 
         self.assertIn("RFC5424", syslog)
-        self.assertIn('sender=\"${PFSENSE_SYSLOG_SOURCE_IP}\"', syslog)
+        self.assertIn(r'sender=\"${PFSENSE_SYSLOG_SOURCE_IP}\"', syslog)
         self.assertIn("socket.SOCK_DGRAM", syslog)
 
         for signal in ("logs", "metrics", "traces"):
