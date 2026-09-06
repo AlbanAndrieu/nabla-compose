@@ -298,6 +298,43 @@ function probe_clickhouse_runtime_if_running {
   functional_ok "ClickHouse SQL runtime: version=${version} timezone=${timezone} database=${database}"
 }
 
+function probe_clickhouse_admin_grant_option_if_running {
+  local container
+  local grants
+
+  if ! app_is_running clickhouse; then
+    return
+  fi
+
+  container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "ClickHouse admin delegation: container not found"
+    return
+  fi
+
+  if ! grants="$(
+    docker exec "${container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR clickhouse"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ClickHouse admin delegation: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -Fq 'GRANT ALL ON *.* WITH GRANT OPTION' <<<"${grants}"; then
+    functional_ok "ClickHouse admin delegation: WITH GRANT OPTION present"
+  else
+    functional_fail "ClickHouse admin delegation: GRANT ALL ON *.* WITH GRANT OPTION missing"
+  fi
+}
+
 function probe_clickhouse_langfuse_contract_if_present {
   local container
   local result
@@ -469,6 +506,7 @@ probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
+probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
 probe_langfuse_worker_clickhouse_credentials_if_running
 probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
