@@ -2,9 +2,8 @@
 # Every entry is security debt and must have a migration/removal roadmap.
 # Do not add a hostname merely to make the audit green.
 
-# Garage/S3 currently retain explicit direct-ingress exceptions.
-garage.int.albandrieu.com
-garage-admin.int.albandrieu.com
+# Only the Garage S3 data plane retains a temporary direct-ingress exception.
+# Garage WebUI and Admin API are private administration surfaces.
 s3.int.albandrieu.com
 *.s3.int.albandrieu.com
 
