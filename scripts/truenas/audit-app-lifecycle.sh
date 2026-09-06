@@ -500,17 +500,10 @@ function probe_ntopng_clickhouse_contract_if_running {
 
   password="$(sed -n 's/^NTOPNG_CLICKHOUSE_PASSWORD=//p' "${secret_file}" | tail -n 1)"
   password="$(normalize_env_value "${password}")"
-  if (("${#password}" < 32)); then
-    functional_fail "ntopng ClickHouse contract: NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters"
+  if [[ ! "${password}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    functional_fail "ntopng ClickHouse contract: NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters"
     return
   fi
-
-  case "${password}" in
-    clickhouse|default)
-      functional_fail "ntopng ClickHouse contract: insecure shared/default password is forbidden"
-      return
-      ;;
-  esac
 
   ntopng_container="$(
     docker ps --format '{{.Names}}' |
