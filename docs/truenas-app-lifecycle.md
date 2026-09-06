@@ -16,6 +16,13 @@ include:
 Cross-application dependencies must use shared external Docker networks.
 `depends_on` is valid only for services defined in the same Compose project.
 
+Do not replace the Custom App wrapper with the full contents of an application
+Compose file when that Compose uses relative bind mounts such as
+`./config/prometheus.xml`. TrueNAS renders the custom Compose in its own
+application directory; a missing relative bind source can then be created by
+Docker as a directory. Keep the absolute `include:` wrapper above so relative
+paths are resolved from the repository-backed Compose project.
+
 The shared backend network is:
 
 ```text
