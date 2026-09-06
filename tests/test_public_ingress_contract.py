@@ -21,6 +21,13 @@ class PublicIngressContractTests(unittest.TestCase):
             compose,
         )
 
+    def test_homelab_observer_keeps_appliance_probes_on_lan(self) -> None:
+        compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
+
+        self.assertIn('"truenas.albandrieu.com:172.17.0.24"', compose)
+        self.assertIn('"home.albandrieu.com:172.17.0.1"', compose)
+        self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
+
     def test_sample_public_path_is_not_owned_by_autoxpose_or_traefik(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
