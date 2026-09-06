@@ -1,8 +1,12 @@
 # Shared InfluxDB
 
-This stack provides a reusable InfluxDB 2.x service for Scrutiny and future homelab consumers.
+This stack adopts the existing TrueNAS Community InfluxDB 2.x datastore as a
+standalone reusable service for Scrutiny and future homelab consumers.
 
-## Network contract
+## Version and network contract
+
+The TrueNAS Community application currently uses InfluxDB 2.9.1. The Compose
+target is pinned to the same version to avoid a datastore downgrade.
 
 ```text
 Docker intranet consumers --> http://influxdb:8086
@@ -10,68 +14,66 @@ TrueNAS host diagnostics --> http://127.0.0.1:31055
 LAN / Internet            -X-> no direct InfluxDB listener by default
 ```
 
-Do not expose TCP/8086 or TCP/31055 through Cloudflare Tunnel or pfSense unless a separately reviewed use case requires it.
+Do not expose TCP/8086 or TCP/31055 through Cloudflare Tunnel or pfSense unless
+a separately reviewed use case requires it.
 
-## Durable data
+## Adopt the existing host-path datastore
+
+The stopped native application already uses the desired durable paths:
 
 ```text
 /mnt/cpool/influxdb/data   -> /var/lib/influxdb2
 /mnt/cpool/influxdb/config -> /etc/influxdb2
 ```
 
-Create these as explicit datasets/directories before first start and include them in the normal backup policy.
+Take a recursive ZFS snapshot before first Compose start. For example:
 
-## Bootstrap secrets
-
-The Compose target requires:
-
-```text
-INFLUXDB_ADMIN_PASSWORD
-INFLUXDB_ADMIN_TOKEN
+```bash
+zfs snapshot -r cpool/influxdb@pre-compose-migration-$(date +%Y%m%d)
 ```
 
-Non-secret defaults:
+Do not set `DOCKER_INFLUXDB_INIT_MODE=setup` when adopting this datastore.
+Setup variables are only appropriate for an empty first-time InfluxDB 2.x
+instance; replaying setup against an existing instance creates avoidable
+migration ambiguity.
 
-```text
-INFLUXDB_ADMIN_USERNAME=admin
-INFLUXDB_ORG=nabla
-INFLUXDB_DEFAULT_BUCKET=scrutiny
+The official InfluxDB 2 entrypoint starts as root when necessary, fixes the
+ownership of the engine/config directories, then drops to the `influxdb` user.
+The host paths must remain writable during that first adoption.
+
+Start the Compose-backed app and validate:
+
+```bash
+curl -fsS http://127.0.0.1:31055/health | jq
+docker logs --tail=100 influxdb
 ```
 
-Keep admin credentials in the configured secret provider, never in Git.
+Then inspect the existing organizations and buckets with an existing authorized
+token before changing any retention policy.
 
-After bootstrap, issue a least-privilege token per consumer. Scrutiny should receive a dedicated token through:
+## Scrutiny
+
+Scrutiny should use a dedicated least-privilege token through:
 
 ```text
 SCRUTINY_INFLUXDB_TOKEN
 ```
 
-Do not give application containers the admin token.
-
-## Scrutiny history migration
-
-The stopped native Scrutiny omnibus app used embedded InfluxDB 2.2 under:
-
-```text
-/mnt/.ix-apps/app_mounts/scrutiny/influxdb
-```
-
-The target image is InfluxDB 2.8. Preserve the source dataset and prefer a logical `influx backup` / `influx restore` migration over copying database engine files across versions.
-
-Before migration, identify the source organization, bucket and retention settings. Restore into the standalone service, then validate:
-
-```bash
-curl -fsS http://127.0.0.1:31055/health
-```
-
-and confirm Scrutiny's historical timelines before deleting any native-app dataset.
-
-## Future consumers
-
-Containers attached to the shared external `intranet` network should use:
+and connect over the shared Docker network:
 
 ```text
 http://influxdb:8086
 ```
 
-rather than introducing additional host port bindings. Each new consumer should receive its own organization/bucket/token scope where practical.
+Do not give Scrutiny the InfluxDB administrator token. Restart the standalone
+Scrutiny stack only after InfluxDB reports healthy and the expected historical
+bucket is visible.
+
+## Rollback
+
+If adoption fails, stop the Compose-backed InfluxDB before rolling back. Do not
+start the native TrueNAS app and the Compose service simultaneously against the
+same host paths.
+
+Keep the pre-migration ZFS snapshot until Scrutiny historical timelines have
+been verified.
