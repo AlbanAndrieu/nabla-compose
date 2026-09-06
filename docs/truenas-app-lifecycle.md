@@ -423,48 +423,50 @@ find /app/packages/shared/clickhouse/migrations \
 '
 ```
 
-For the recovery run, bypass the delivered tree and render a fresh unclustered
-migration directory from the canonical templates with the image's own
-`prepare-migrations.mjs`:
+The Langfuse runtime image may contain `clickhouse/scripts/up.sh` without the
+canonical migration sources or `prepare-migrations.mjs`. If
+`prepare-migrations.mjs` is absent, do not attempt to reconstruct migrations
+from guessed image paths. Use the Langfuse source revision matching the deployed
+image, as recommended by the upstream manual-migration procedure.
+
+First inspect the OCI metadata without exposing secrets:
 
 ```bash
-docker run --rm \
-  --network host \
-  --env-file /mnt/cpool/langfuse/.env.secrets \
-  -e CLICKHOUSE_MIGRATION_URL=clickhouse://127.0.0.1:9000 \
-  -e CLICKHOUSE_USER=clickhouse \
-  -e CLICKHOUSE_DB=default \
-  --entrypoint sh \
-  "${LANGFUSE_IMAGE_ID}" \
-  -lc '
-set -eu
-
-SCRIPT=/app/packages/shared/clickhouse/scripts/prepare-migrations.mjs
-CANONICAL=/app/packages/shared/clickhouse/migrations/canonical
-MIGRATIONS_DIRECTORY="$(
-  node "$SCRIPT" render "$CANONICAL" unclustered default
-)"
-trap '"'"'rm -rf "$MIGRATIONS_DIRECTORY"'"'"' EXIT
-
-find "$MIGRATIONS_DIRECTORY" -maxdepth 1 -type f \
-  \( -name "0038_*" -o -name "0039_*" \) \
-  -print | sort
-
-DATABASE_URL="${CLICKHOUSE_MIGRATION_URL}?username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}&database=${CLICKHOUSE_DB}&x-multi-statement=true&x-migrations-table-engine=MergeTree"
-
-migrate -source "file://${MIGRATIONS_DIRECTORY}" \
-  -database "${DATABASE_URL}" version
-
-migrate -source "file://${MIGRATIONS_DIRECTORY}" \
-  -database "${DATABASE_URL}" up
-'
+docker image inspect langfuse/langfuse:3 \
+  --format '{{json .Config.Labels}}' | jq
 ```
 
-The render step validates that every migration version has both an `up` and a
-`down` counterpart before invoking `migrate`. If rendering or migration still
-fails, retain the ClickHouse snapshot and diagnose that exact error. Do not run
-another `force` command and never force the marker forward merely to clear the
-dirty flag.
+Prefer `org.opencontainers.image.revision` as the exact source revision. If it
+is absent, record `org.opencontainers.image.version` and the image digest and
+resolve the matching Langfuse source release before continuing.
+
+Clone/check out that exact revision outside the application dataset:
+
+```bash
+mkdir -p /mnt/cpool/compose/vendor
+cd /mnt/cpool/compose/vendor
+
+git clone https://github.com/langfuse/langfuse.git langfuse-recovery
+cd langfuse-recovery
+git checkout <IMAGE_REVISION_OR_TAG>
+```
+
+Validate that the checked-out source contains complete migration pairs around
+the current marker:
+
+```bash
+find packages/shared/clickhouse/migrations/canonical \
+  -maxdepth 1 -type f \
+  \( -name '0038_*' -o -name '0039_*' \) \
+  -print | sort
+```
+
+Only after both `.up.sql` and `.down.sql` files exist for versions 38 and 39,
+run the upstream migration helper from that source checkout. Do not run another
+`force` command and never force the marker forward merely to clear the dirty
+flag. If the source revision cannot be matched exactly, stop and keep the
+ClickHouse snapshot rather than mixing migration files from a different
+Langfuse revision.
 
 If the canonical recovery succeeds, restart Langfuse and validate both the web
 health endpoint with database checking enabled and the worker health endpoint.
