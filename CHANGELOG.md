@@ -1,3 +1,10 @@
+## [0.12.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.1...0.12.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **observability:** harden pfSense and monitoring integration ([#97](https://github.com/AlbanAndrieu/nabla-compose/issues/97)) ([3c29215](https://github.com/AlbanAndrieu/nabla-compose/commit/3c292156fa51d4a07ec1ba0b11552be997ede945))
+
 ## [0.12.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.12.0...0.12.1) (2026-09-06)
 
 
