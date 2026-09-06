@@ -5,11 +5,13 @@ x-nabla:
       name: Docker
       kind: container-runtime
       category: infrastructure
+      presentationRole: core
       description: Docker engine hosting the TrueNAS Compose workloads.
     - id: truenas
       name: TrueNAS
       kind: storage-platform
       category: infrastructure
+      presentationRole: core
       url: https://truenas.albandrieu.com:7000
       description: TrueNAS SCALE storage and application host.
   relations:
