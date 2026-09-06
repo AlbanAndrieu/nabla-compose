@@ -1,3 +1,10 @@
+# [0.11.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.10.1...0.11.0) (2026-09-06)
+
+
+### Features
+
+* **catalog:** add NIST CSF security function contract ([#96](https://github.com/AlbanAndrieu/nabla-compose/issues/96)) ([0f55a70](https://github.com/AlbanAndrieu/nabla-compose/commit/0f55a70748d1f4f837a1787ba1dc477b5ea0d198))
+
 ## [0.10.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.10.0...0.10.1) (2026-09-06)
 
 
