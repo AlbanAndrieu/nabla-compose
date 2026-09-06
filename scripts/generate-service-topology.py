@@ -104,10 +104,14 @@ def topology_node(
             fail(f"{context}.presentationRole must be one of: {supported}")
         node["presentationRole"] = presentation_role
     criticality = optional_text(metadata, "criticality")
+    if criticality is not None and criticality not in CRITICALITIES:
+        supported = ", ".join(sorted(CRITICALITIES))
+        fail(f"{context}.criticality must be one of: {supported}")
+    if presentation_role == "core":
+        if criticality not in {None, "critical"}:
+            fail(f"{context}.criticality must be critical when presentationRole is core")
+        criticality = "critical"
     if criticality is not None:
-        if criticality not in CRITICALITIES:
-            supported = ", ".join(sorted(CRITICALITIES))
-            fail(f"{context}.criticality must be one of: {supported}")
         node["criticality"] = criticality
     return node
 
