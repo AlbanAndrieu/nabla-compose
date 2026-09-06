@@ -160,7 +160,7 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn('mode="plan"', configure)
         self.assertIn("--apply", configure)
         self.assertIn("/api/v2/status/logs/settings", configure)
-        self.assertIn('"X-API-Key: ${PFSENSE_API_KEY}"', configure)
+        self.assertIn('"X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"', configure)
         self.assertIn("dry_run: true", configure)
         self.assertIn("all three pfSense remote syslog slots are already occupied", configure)
         self.assertIn('PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"', configure)
