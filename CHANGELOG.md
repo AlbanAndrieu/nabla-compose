@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.7.0...0.8.0) (2026-09-06)
+
+
+### Features
+
+* **talos:** continue cluster bootstrap and homelab hardening ([#87](https://github.com/AlbanAndrieu/nabla-compose/issues/87)) ([3776860](https://github.com/AlbanAndrieu/nabla-compose/commit/37768600ea2a411af2d4274bc0621e0293c72de0))
+
 # [0.7.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.6.0...0.7.0) (2026-09-05)
 
 
