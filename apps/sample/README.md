@@ -232,6 +232,23 @@ Run the read-only preflight after every recreate/network change:
 scripts/security/verify-truenas-observer-access.sh
 ```
 
+If the observer `/32` is missing, use the separate fail-safe configurator:
+
+```bash
+scripts/security/configure-truenas-observer-allowlist.sh
+```
+
+It performs one `system.general.update` with a 300-second rollback window,
+waits for the UI/API restart, proves both persisted and active allowlist state,
+runs the FastAPI TrueNAS WebSocket adapter, and only then calls
+`system.general.checkin`.
+
+Do not interpret the return value of `system.general.checkin` as confirmation:
+in TrueNAS 26.0.0-BETA.2 the method returns `null` whether or not a rollback
+timer was pending. Use `system.general.checkin_waiting` before the check-in to
+prove that a rollback timer exists, and after the check-in to prove it has been
+cancelled.
+
 Do not allow the whole shared Docker subnet merely to make this observer work.
 The Compose service pins the observer source to
 `${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}` on `intranet`, matching the
