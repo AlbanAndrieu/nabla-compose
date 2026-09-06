@@ -80,6 +80,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         self.assertIn("clickhouse-server:26.8.2.7", clickhouse)
         self.assertIn('user: "101:101"', clickhouse)
+        self.assertIn('CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"', clickhouse)
         self.assertIn("/mnt/cpool/clickhouse/.env.secrets", clickhouse)
         self.assertIn("/mnt/cpool/clickhouse:/var/lib/clickhouse", clickhouse)
         self.assertIn('"172.17.0.24:8123:8123"', clickhouse)
