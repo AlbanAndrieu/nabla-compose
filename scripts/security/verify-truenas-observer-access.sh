@@ -3,7 +3,7 @@ set -euo pipefail
 
 CONTAINER="${FASTAPI_SAMPLE_CONTAINER:-fastapi-sample}"
 NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-intranet}"
-TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
+TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
 
 fail() {
