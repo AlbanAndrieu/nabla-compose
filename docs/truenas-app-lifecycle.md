@@ -141,7 +141,7 @@ GRAYLOG_ROOT_PASSWORD_SHA2="$(
 cat > /mnt/cpool/graylog/.env.secrets <<EOF
 GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
 GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
-GRAYLOG_MONGODB_URI=mongodb://graylog:${MONGO_PASSWORD}@mongo:27017/graylog?authSource=admin
+GRAYLOG_MONGODB_URI=mongodb://graylog:${MONGO_PASSWORD}@mongo:27017/graylog?authSource=graylog
 EOF
 chmod 600 /mnt/cpool/graylog/.env.secrets
 unset MONGO_PASSWORD MONGO_ROOT_PASSWORD GRAYLOG_MONGO_PASSWORD
