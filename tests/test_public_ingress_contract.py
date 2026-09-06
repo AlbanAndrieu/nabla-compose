@@ -8,12 +8,14 @@ ROOT = Path(__file__).parents[1]
 
 
 class PublicIngressContractTests(unittest.TestCase):
-    def test_sample_internal_traefik_hosts_are_canonical_and_compatible(self) -> None:
+    def test_sample_internal_traefik_host_is_canonical_for_pihole_sync(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
         self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
+        self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
         self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
-        self.assertIn("Host(`fastapi-sample.int.albandrieu.com`)", compose)
+        self.assertNotIn("fastapi-sample.int.albandrieu.com", compose)
+        self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 1)
         self.assertIn(
             "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080",
             compose,
@@ -34,6 +36,14 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("- intranet", compose)
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", compose)
         self.assertNotIn("172.17.0.24:2375", compose)
+
+    def test_pihole_sync_uses_shared_read_only_docker_proxy(self) -> None:
+        compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
+
+        self.assertIn("DOCKER_HOST: tcp://docker-socket-proxy:2375", compose)
+        pihole = compose.split("  pihole-dns-sync:", 1)[1].split("  ddns-updater:", 1)[0]
+        self.assertNotIn("/var/run/docker.sock", pihole)
+        self.assertIn("- intranet", pihole)
 
     def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
         script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(
