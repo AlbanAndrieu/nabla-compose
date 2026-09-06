@@ -99,6 +99,8 @@ class PublicIngressContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("system.general.config", script)
+        self.assertIn("system.general.get_ui_allowlist", script)
+        self.assertIn("runtime ui_allowlist (authoritative for /api/current)", script)
         self.assertIn("ui_allowlist", script)
         self.assertIn("/32", script)
         self.assertIn(
