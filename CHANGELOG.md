@@ -1,3 +1,10 @@
+# [0.15.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.5...0.15.0) (2026-09-06)
+
+
+### Features
+
+* **langfuse:** install v4 on fresh isolated state ([#109](https://github.com/AlbanAndrieu/nabla-compose/issues/109)) ([7f77314](https://github.com/AlbanAndrieu/nabla-compose/commit/7f77314e514c920b7ef0ef843a47de5223b7f3b1))
+
 ## [0.14.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.4...0.14.5) (2026-09-06)
 
 
