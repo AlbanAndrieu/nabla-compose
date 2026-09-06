@@ -1,3 +1,10 @@
+## [0.14.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.14.0...0.14.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **ingress:** align FastAPI Sample with Cloudflare Tunnel and internal DNS ([#104](https://github.com/AlbanAndrieu/nabla-compose/issues/104)) ([059d658](https://github.com/AlbanAndrieu/nabla-compose/commit/059d658e770fffd269353961ad144124a4c59f9c))
+
 # [0.14.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.13.0...0.14.0) (2026-09-06)
 
 
