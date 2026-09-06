@@ -231,7 +231,7 @@
       "sourcePath": "apps/homarr/compose.yml",
       "composeService": "homarr",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:7575",
+      "href": "http://172.17.0.24:30100",
       "syncEligible": true,
       "description": "Homelab application dashboard generated from the Nabla service inventory."
     },
