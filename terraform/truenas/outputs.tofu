@@ -38,3 +38,18 @@ output "talos_bootstrap_inventory" {
     }
   }
 }
+
+output "kubernetes_nfs_share_id" {
+  description = "TrueNAS NFS share identifier for the Kubernetes CSI export, or null when disabled."
+  value       = try(truenas_share_nfs.kubernetes_csi[0].id, null)
+}
+
+output "kubernetes_nfs_share_path" {
+  description = "TrueNAS filesystem path exported to democratic-csi."
+  value       = local.kubernetes_csi_nfs_path
+}
+
+output "kubernetes_nfs_allowed_hosts" {
+  description = "Talos node addresses authorized for the Kubernetes NFS export."
+  value       = var.kubernetes_nfs_allowed_hosts
+}
