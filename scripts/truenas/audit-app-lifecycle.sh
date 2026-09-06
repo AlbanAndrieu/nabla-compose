@@ -624,8 +624,8 @@ function probe_ntopng_clickhouse_contract_if_running {
 
   local grant_check
   if ! grant_check="$(
-    docker exec \
-      -e NTOPNG_CLICKHOUSE_PASSWORD="${password}" \
+    NTOPNG_CLICKHOUSE_PASSWORD="${password}" docker exec \
+      -e NTOPNG_CLICKHOUSE_PASSWORD \
       "${clickhouse_container}" sh -c '
         clickhouse-client \
           --user ntopng \
