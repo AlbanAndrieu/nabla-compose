@@ -1,5 +1,8 @@
 ---
 metrics: true
+storage:
+  type: sqlite
+  path: /data/gatus.db
 endpoints:
 - name: 2FAuth
   group: security
