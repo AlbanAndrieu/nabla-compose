@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.8.0...0.9.0) (2026-09-06)
+
+
+### Features
+
+* **observability:** monitor TrueNAS and harden Talos health ([#90](https://github.com/AlbanAndrieu/nabla-compose/issues/90)) ([0fed760](https://github.com/AlbanAndrieu/nabla-compose/commit/0fed760598fc3d64e9efd476b0a69c42dbf05408))
+
 # [0.8.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.7.0...0.8.0) (2026-09-06)
 
 

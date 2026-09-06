@@ -119,6 +119,37 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("pfsense_info", rules)
 
+    def test_core_recording_rules_separate_platform_and_telemetry_signals(self) -> None:
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+
+        for metric in (
+            "nabla:core:truenas_memory_available_ratio",
+            "nabla:core:truenas_cpu_busy_ratio",
+            "nabla:telemetry:pfsense_metrics_up",
+            "nabla:telemetry:truenas_node_up",
+            "nabla:telemetry:truenas_cadvisor_up",
+            "nabla:observability:prometheus_up",
+        ):
+            self.assertIn(metric, rules)
+
+    def test_exporter_loss_is_a_telemetry_warning_not_platform_failure(self) -> None:
+        rules_dir = ROOT / "apps" / "prometheus" / "rules"
+        for relative in (
+            "pfsense.rules.yml",
+            "node-exporter.rules.yml",
+            "cadvisor.rules.yml",
+        ):
+            rules = (rules_dir / relative).read_text(encoding="utf-8")
+            self.assertIn("impact: blind_spot", rules)
+
+        node_rules = (rules_dir / "node-exporter.rules.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("TrueNASHostMemoryCritical", node_rules)
+        self.assertIn("severity: critical", node_rules)
+
     def test_syslog_preserves_sender_identity_for_live_source_checks(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
 

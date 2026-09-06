@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Alloy / Loki / dashboard contract
+    name: Alloy / Loki / Prometheus contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,6 +43,18 @@ jobs:
       - name: Validate observability shell scripts
         shell: bash
         run: bash -n scripts/observability/*.sh
+
+      - name: Validate Prometheus configuration
+        shell: bash
+        run: |
+          docker run --rm \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --entrypoint /bin/promtool \
+            -v "${PWD}/apps/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.13.2 \
+            check config /etc/prometheus/prometheus.yml
 
       - name: Validate Alloy configuration
         shell: bash
