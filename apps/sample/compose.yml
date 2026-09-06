@@ -98,8 +98,11 @@ services:
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
     networks:
-      - intranet
-      - traefik_network
+      intranet:
+        # Stable source address required by TrueNAS system.general.ui_allowlist.
+        # Override only after reviewing the matching TrueNAS /32 allowlist entry.
+        ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}
+      traefik_network: {}
 
 networks:
   intranet:
