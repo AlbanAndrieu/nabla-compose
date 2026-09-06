@@ -33,8 +33,6 @@ services:
     environment:
       SCRUTINY_WEB_INFLUXDB_HOST: influxdb
       SCRUTINY_WEB_INFLUXDB_PORT: "8086"
-      SCRUTINY_WEB_INFLUXDB_ORG: ${INFLUXDB_ORG:-nabla}
-      SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_INFLUXDB_BUCKET:-scrutiny}
       TZ: Europe/Paris
     volumes:
       - /mnt/cpool/scrutiny/config:/opt/scrutiny/config
