@@ -113,7 +113,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             wrapper,
         )
         self.assertIn("/run/secrets/ntopng_runtime_env", wrapper)
-        self.assertIn("clickhouse|default", wrapper)
+        self.assertIn(
+            "NTOPNG_CLICKHOUSE_PASSWORD must be exactly 64 hexadecimal characters",
+            wrapper,
+        )
         self.assertIn('config="/run/nabla-ntopng.conf"', wrapper)
         self.assertIn("--dump-flows=clickhouse;", wrapper)
         self.assertIn("--strict-startup=", wrapper)
@@ -263,7 +266,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("partial LANGFUSE_INIT_* set", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
-        self.assertIn("NTOPNG_CLICKHOUSE_PASSWORD must be at least 32 characters", audit)
+        self.assertIn(
+            "NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters",
+            audit,
+        )
         self.assertIn("global *.* privileges are forbidden", audit)
         self.assertIn("password absent from Docker Config.Env", audit)
         self.assertIn("password exposed in Docker Config.Env", audit)
