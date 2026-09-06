@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:fbc65f4cbd593402bd4fba8b7a093a8d486f358cfef9e4fa1436d31dd04f0081",
+  "catalogRevision": "sha256:20e4365490f762cbf31d9cb4a2f6527a7ecd6d2e01e72ec5d9d0cf2f9be8cf0c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -530,6 +530,18 @@
         "containerService": "prometheus"
       },
       "icon": "📊"
+    },
+    {
+      "id": "prometheus-alertmanager",
+      "name": "Alertmanager",
+      "kind": "alerting",
+      "category": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "alertmanager",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alertmanager"
+      }
     },
     {
       "id": "redis",

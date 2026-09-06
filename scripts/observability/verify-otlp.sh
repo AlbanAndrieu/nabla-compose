@@ -30,9 +30,8 @@ if ((errors > 0)); then
 fi
 
 marker="nabla-otlp-smoke-$(date +%s)-$$"
-trace_id="$(
+read -r trace_id metric_value < <(
   python3 - "${tmp_dir}" "${marker}" <<'PY'
-import base64
 import json
 import os
 import sys
@@ -41,6 +40,7 @@ import time
 out = sys.argv[1]
 marker = sys.argv[2]
 now = time.time_ns()
+metric_value = (now // 1_000_000_000) % 1_000_000
 
 trace_bytes = os.urandom(16)
 span_bytes = os.urandom(8)
@@ -97,7 +97,7 @@ metrics = {
                                 "dataPoints": [
                                     {
                                         "timeUnixNano": str(now),
-                                        "asDouble": 1.0,
+                                        "asInt": str(metric_value),
                                     }
                                 ]
                             },
@@ -118,8 +118,8 @@ traces = {
                     "scope": {"name": "nabla-observability-smoke"},
                     "spans": [
                         {
-                            "traceId": base64.b64encode(trace_bytes).decode(),
-                            "spanId": base64.b64encode(span_bytes).decode(),
+                            "traceId": trace_bytes.hex(),
+                            "spanId": span_bytes.hex(),
                             "name": marker,
                             "kind": 1,
                             "startTimeUnixNano": str(now),
@@ -141,9 +141,9 @@ for name, payload in (
     with open(os.path.join(out, f"{name}.json"), "w", encoding="utf-8") as handle:
         json.dump(payload, handle)
 
-print(trace_id)
+print(trace_id, metric_value)
 PY
-)"
+)
 
 post_otlp() {
   local signal="$1"
@@ -183,11 +183,11 @@ while ((waited < OTLP_SMOKE_TIMEOUT)); do
   fi
 
   if [[ "${mimir_ok}" == "false" ]]; then
-    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode 'query=nabla_observability_smoke'       --output "${tmp_dir}/mimir.json"       "${MIMIR_URL%/}/prometheus/api/v1/query" 2>/dev/null &&
-      jq -e '
+    if curl --silent --show-error --get --connect-timeout 4 --max-time 10       --data-urlencode 'query={__name__=~"nabla_observability_smoke.*"}'       --output "${tmp_dir}/mimir.json"       "${MIMIR_URL%/}/prometheus/api/v1/query" 2>/dev/null &&
+      jq -e --arg expected "${metric_value}" '
         .status == "success"
         and (.data.result | length) > 0
-        and any(.data.result[]; .value[1] == "1")
+        and any(.data.result[]; .value[1] == $expected)
       ' "${tmp_dir}/mimir.json" >/dev/null 2>&1; then
       mimir_ok=true
       ok "OTLP metric reached Mimir"
@@ -196,9 +196,7 @@ while ((waited < OTLP_SMOKE_TIMEOUT)); do
 
   if [[ "${tempo_ok}" == "false" ]]; then
     status="$(curl --silent --show-error --connect-timeout 4 --max-time 10       --output "${tmp_dir}/tempo.json" --write-out '%{http_code}'       "${TEMPO_URL%/}/api/traces/${trace_id}" 2>/dev/null || true)"
-    if [[ "${status}" == "200" ]] && jq -e '
-      (.batches // .resourceSpans // .trace // empty) != null
-    ' "${tmp_dir}/tempo.json" >/dev/null 2>&1; then
+    if [[ "${status}" == "200" ]] && jq -e '(.batches // .resourceSpans // .trace // empty) != null' "${tmp_dir}/tempo.json" >/dev/null 2>&1; then
       tempo_ok=true
       ok "OTLP trace reached Tempo"
     fi

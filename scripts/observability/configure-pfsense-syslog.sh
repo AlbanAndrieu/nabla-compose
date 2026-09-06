@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mode="plan"
+mode="check"
 case "${1:-}" in
-  "") ;;
-  --apply) mode="apply" ;;
+  "" | --check) mode="check" ;;
   --plan) mode="plan" ;;
+  --apply) mode="apply" ;;
   *)
-    echo "usage: $0 [--plan|--apply]" >&2
+    echo "usage: $0 [--check|--plan|--apply]" >&2
     exit 2
     ;;
 esac
@@ -18,6 +18,7 @@ PFSENSE_API_URL="${PFSENSE_API_URL:-https://172.17.0.1:10443}"
 PFSENSE_SYSLOG_TARGET="${PFSENSE_SYSLOG_TARGET:-172.17.0.24:1514}"
 PFSENSE_SYSLOG_SOURCE_INTERFACE="${PFSENSE_SYSLOG_SOURCE_INTERFACE:-}"
 PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"
+PFSENSE_RESTAPI_MIN_VERSION="v2.9.0"
 
 errors=0
 warnings=0
@@ -34,6 +35,33 @@ fail() {
   errors=$((errors + 1))
 }
 
+version_at_least() {
+  local current="$1"
+  local required="$2"
+  local current_major current_minor current_patch
+  local required_major required_minor required_patch
+
+  if [[ ! "${current}" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    return 2
+  fi
+  current_major="${BASH_REMATCH[1]}"
+  current_minor="${BASH_REMATCH[2]}"
+  current_patch="${BASH_REMATCH[3]}"
+
+  if [[ ! "${required}" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    return 2
+  fi
+  required_major="${BASH_REMATCH[1]}"
+  required_minor="${BASH_REMATCH[2]}"
+  required_patch="${BASH_REMATCH[3]}"
+
+  ((current_major > required_major)) && return 0
+  ((current_major < required_major)) && return 1
+  ((current_minor > required_minor)) && return 0
+  ((current_minor < required_minor)) && return 1
+  ((current_patch >= required_patch))
+}
+
 for command in curl jq mktemp; do
   if command -v "${command}" >/dev/null 2>&1; then
     ok "command available: ${command}"
@@ -43,7 +71,7 @@ for command in curl jq mktemp; do
 done
 
 if [[ -z "${PFSENSE_OBSERVABILITY_API_KEY:-}" ]]; then
-  fail "PFSENSE_OBSERVABILITY_API_KEY is required; use a dedicated local operator key with only GET/PATCH access to status/logs/settings"
+  fail "PFSENSE_OBSERVABILITY_API_KEY is required; use a dedicated local operator key with GET restapi/version and GET/PATCH status/logs/settings only"
 fi
 
 if ((errors > 0)); then
@@ -54,7 +82,7 @@ if [[ "${mode}" == "apply" ]]; then
   printf '\n🔒 Running strict observability preflight before any pfSense mutation\n'
   "${SCRIPT_DIR}/verify-stack.sh" --strict
 else
-  printf '\n🔎 Running observability preflight before pfSense dry-run\n'
+  printf '\n🔎 Running read-only observability preflight\n'
   "${SCRIPT_DIR}/verify-stack.sh"
 fi
 
@@ -78,6 +106,32 @@ elif [[ "${PFSENSE_API_INSECURE_SKIP_VERIFY}" != "false" ]]; then
 fi
 
 if ((errors > 0)); then
+  exit 1
+fi
+
+version_url="${PFSENSE_API_URL%/}/api/v2/system/restapi/version"
+version_file="${tmp_dir}/restapi-version.json"
+status="$(
+  curl "${curl_common[@]}" \
+    --output "${version_file}" \
+    --write-out '%{http_code}' \
+    "${version_url}" || true
+)"
+
+if [[ "${status}" != "200" ]]; then
+  fail "unable to read pfREST version (HTTP ${status:-none})"
+  exit 1
+fi
+if ! jq -e '.data.current_version | type == "string"' "${version_file}" >/dev/null 2>&1; then
+  fail "pfREST version response does not contain data.current_version"
+  exit 1
+fi
+
+current_restapi_version="$(jq -r '.data.current_version' "${version_file}")"
+if version_at_least "${current_restapi_version}" "${PFSENSE_RESTAPI_MIN_VERSION}"; then
+  ok "pfREST version ${current_restapi_version} satisfies security floor ${PFSENSE_RESTAPI_MIN_VERSION}"
+else
+  fail "pfREST ${current_restapi_version} is below required security floor ${PFSENSE_RESTAPI_MIN_VERSION}; upgrade pfREST before granting the PATCH window"
   exit 1
 fi
 
@@ -132,6 +186,12 @@ fi
 
 printf '\n🧭 Desired pfSense remote logging contract\n'
 jq . <<<"${desired}"
+
+if [[ "${mode}" == "check" ]]; then
+  ok "read-only pfSense inspection completed; no PATCH request was sent"
+  printf '\nCurrent configuration was read successfully. Re-run with --plan to validate the desired PATCH through pfREST dry-run.\n'
+  exit 0
+fi
 
 request_file="${tmp_dir}/request.json"
 response_file="${tmp_dir}/response.json"

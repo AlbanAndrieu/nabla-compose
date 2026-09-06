@@ -20,6 +20,7 @@ LOKI_URL="${LOKI_URL:-http://${OBSERVABILITY_HOST}:3100}"
 MIMIR_URL="${MIMIR_URL:-http://${OBSERVABILITY_HOST}:9009}"
 TEMPO_URL="${TEMPO_URL:-http://${OBSERVABILITY_HOST}:3200}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://${OBSERVABILITY_HOST}:9090}"
+ALERTMANAGER_URL="${ALERTMANAGER_URL:-http://${OBSERVABILITY_HOST}:9093}"
 PFSENSE_EXPORTER_URL="${PFSENSE_EXPORTER_URL:-http://${OBSERVABILITY_HOST}:9945}"
 
 errors=0
@@ -46,13 +47,20 @@ require_command() {
 }
 
 check_http_200() {
-  local name="$1" url="$2" body="${tmp_dir}/body-${RANDOM}"
+  local name="$1"
+  local url="$2"
+  local body="${tmp_dir}/body-${RANDOM}"
   local status
-  status="$(curl --silent --show-error --connect-timeout 4 --max-time 12     --output "${body}" --write-out '%{http_code}' "${url}" || true)"
+
+  status="$(
+    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${url}" || true
+  )"
+
   if [[ "${status}" == "200" ]]; then
     ok "${name} functional endpoint: ${url}"
     return 0
   fi
+
   fail "${name} endpoint failed: ${url} (HTTP ${status:-none})"
   return 1
 }
@@ -60,11 +68,16 @@ check_http_200() {
 check_grafana_health() {
   local body="${tmp_dir}/grafana-health.json"
   local status
-  status="$(curl --silent --show-error --connect-timeout 4 --max-time 12     --output "${body}" --write-out '%{http_code}'     "${GRAFANA_URL%/}/api/health" || true)"
+
+  status="$(
+    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${GRAFANA_URL%/}/api/health" || true
+  )"
+
   if [[ "${status}" != "200" ]]; then
     fail "Grafana /api/health failed (HTTP ${status:-none})"
     return
   fi
+
   if jq -e '.database == "ok"' "${body}" >/dev/null 2>&1; then
     ok "Grafana API and database are healthy"
   else
@@ -75,11 +88,16 @@ check_grafana_health() {
 check_exporter_target() {
   local body="${tmp_dir}/pfsense-exporter.metrics"
   local status
-  status="$(curl --silent --show-error --get --connect-timeout 4 --max-time 30     --data-urlencode "target=${PFSENSE_TARGET}"     --output "${body}" --write-out '%{http_code}'     "${PFSENSE_EXPORTER_URL%/}/metrics" || true)"
+
+  status="$(
+    curl --silent --show-error --get       --connect-timeout 4       --max-time 30       --data-urlencode "target=${PFSENSE_TARGET}"       --output "${body}"       --write-out '%{http_code}'       "${PFSENSE_EXPORTER_URL%/}/metrics" || true
+  )"
+
   if [[ "${status}" != "200" ]]; then
     fail "pfSense exporter could not scrape ${PFSENSE_TARGET} (HTTP ${status:-none})"
     return
   fi
+
   if grep -Eq '^pfsense_system_[a-zA-Z0-9_:]+' "${body}"; then
     ok "pfSense exporter returned pfSense system metrics"
   else
@@ -88,13 +106,21 @@ check_exporter_target() {
 }
 
 check_prom_query() {
-  local name="$1" base_url="$2" query="$3" body="${tmp_dir}/query-${RANDOM}.json"
+  local name="$1"
+  local base_url="$2"
+  local query="$3"
+  local body="${tmp_dir}/query-${RANDOM}.json"
   local status
-  status="$(curl --silent --show-error --get --connect-timeout 4 --max-time 12     --data-urlencode "query=${query}"     --output "${body}" --write-out '%{http_code}'     "${base_url}" || true)"
+
+  status="$(
+    curl --silent --show-error --get       --connect-timeout 4       --max-time 12       --data-urlencode "query=${query}"       --output "${body}"       --write-out '%{http_code}'       "${base_url}" || true
+  )"
+
   if [[ "${status}" != "200" ]]; then
     fail "${name} query failed (HTTP ${status:-none})"
     return
   fi
+
   if jq -e '
     .status == "success"
     and (.data.result | length) > 0
@@ -106,9 +132,63 @@ check_prom_query() {
   fi
 }
 
+check_prometheus_targets() {
+  local body="${tmp_dir}/prometheus-targets.json"
+  local status
+  local job
+
+  status="$(
+    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${PROMETHEUS_URL%/}/api/v1/targets?state=active" || true
+  )"
+
+  if [[ "${status}" != "200" ]]; then
+    fail "Prometheus active-target query failed (HTTP ${status:-none})"
+    return
+  fi
+
+  for job in     prometheus     grafana     alloy     loki     mimir     tempo     alertmanager     pfsense_exporter; do
+    if jq -e --arg job "${job}" '
+      .status == "success"
+      and any(
+        .data.activeTargets[];
+        .labels.job == $job and .health == "up"
+      )
+    ' "${body}" >/dev/null 2>&1; then
+      ok "Prometheus target is up: ${job}"
+    else
+      fail "Prometheus target is missing or unhealthy: ${job}"
+    fi
+  done
+}
+
+check_prometheus_alertmanager() {
+  local body="${tmp_dir}/prometheus-alertmanagers.json"
+  local status
+
+  status="$(
+    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${PROMETHEUS_URL%/}/api/v1/alertmanagers" || true
+  )"
+
+  if [[ "${status}" != "200" ]]; then
+    fail "Prometheus Alertmanager discovery failed (HTTP ${status:-none})"
+    return
+  fi
+
+  if jq -e '
+    .status == "success"
+    and (.data.activeAlertmanagers | length) > 0
+  ' "${body}" >/dev/null 2>&1; then
+    ok "Prometheus has an active Alertmanager"
+  else
+    fail "Prometheus has no active Alertmanager"
+  fi
+}
+
 grafana_api_get() {
-  local path="$1" body="$2"
-  curl --silent --show-error --connect-timeout 4 --max-time 12     --header "Authorization: Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}"     --output "${body}" --write-out '%{http_code}'     "${GRAFANA_URL%/}${path}" || true
+  local path="$1"
+  local body="$2"
+
+  curl --silent --show-error     --connect-timeout 4     --max-time 12     --header "Authorization: Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}"     --output "${body}"     --write-out '%{http_code}'     "${GRAFANA_URL%/}${path}" || true
 }
 
 check_grafana_integrations() {
@@ -121,13 +201,15 @@ check_grafana_integrations() {
     return
   fi
 
-  local uid body status
+  local uid
+  local body
+  local status
+
   for uid in loki mimir tempo; do
     body="${tmp_dir}/grafana-datasource-${uid}.json"
     status="$(grafana_api_get "/api/datasources/uid/${uid}/health" "${body}")"
-    if [[ "${status}" == "200" ]] && jq -e '
-      (.status // "") | ascii_downcase == "ok"
-    ' "${body}" >/dev/null 2>&1; then
+
+    if [[ "${status}" == "200" ]] && jq -e '(.status // "") | ascii_downcase == "ok"' "${body}" >/dev/null 2>&1; then
       ok "Grafana datasource healthy: ${uid}"
     else
       fail "Grafana datasource health failed: ${uid} (HTTP ${status:-none})"
@@ -144,9 +226,11 @@ check_grafana_integrations() {
     pfsense_carp
     pfsense_logs
   )
+
   for uid in "${dashboard_uids[@]}"; do
     body="${tmp_dir}/grafana-dashboard-${uid}.json"
     status="$(grafana_api_get "/api/dashboards/uid/${uid}" "${body}")"
+
     if [[ "${status}" == "200" ]] && jq -e '.dashboard.uid != null' "${body}" >/dev/null 2>&1; then
       ok "Grafana dashboard provisioned: ${uid}"
     else
@@ -156,7 +240,7 @@ check_grafana_integrations() {
 }
 
 printf '🔎 Homelab observability integration preflight\n'
-printf 'Host: %s | pfSense target: %s\n\n' "${OBSERVABILITY_HOST}" "${PFSENSE_TARGET}"
+printf 'Host: %s | pfSense target: %s\n\n'   "${OBSERVABILITY_HOST}" "${PFSENSE_TARGET}"
 
 for command in curl grep jq mktemp; do
   require_command "${command}"
@@ -175,6 +259,11 @@ check_http_200 "Loki readiness" "${LOKI_URL%/}/ready"
 check_http_200 "Mimir readiness" "${MIMIR_URL%/}/ready"
 check_http_200 "Tempo readiness" "${TEMPO_URL%/}/ready"
 check_http_200 "Prometheus readiness" "${PROMETHEUS_URL%/}/-/ready"
+check_http_200 "Alertmanager readiness" "${ALERTMANAGER_URL%/}/-/ready"
+
+printf '\n🔗 Prometheus integration\n'
+check_prometheus_targets
+check_prometheus_alertmanager
 
 printf '\n🔥 pfSense metrics path\n'
 check_exporter_target

@@ -239,11 +239,20 @@ Prepared in `apps/grafana`:
 - [x] add a local/stdio Grafana MCP configuration using a dedicated rotatable
       service-account token stored in Vaultwarden;
 - [x] avoid any new continuously running container for MCP access;
-- [x] preserve the transport sender address as the low-cardinality Loki
-      `sender` label so genuine pfSense traffic can be distinguished from
-      synthetic smoke events;
+- [x] classify only the known pfSense transport sender `172.17.0.1` as the
+      stable low-cardinality Loki label `device="pfsense"`; do not persist
+      arbitrary sender IPs as labels;
 - [x] replace TCP-only Gatus/AutoKuma checks for Grafana, Alloy, Loki, Mimir,
-      Tempo, Prometheus and pfSense Exporter with functional HTTP checks;
+      Tempo, Prometheus, Alertmanager and pfSense Exporter with functional HTTP
+      checks;
+- [x] scrape Grafana, Alloy, Loki, Mimir, Tempo and Alertmanager internal
+      Prometheus metrics every 30 seconds using the existing Prometheus/Mimir
+      path;
+- [x] alert at critical severity when a core observability scrape target stays
+      down for two minutes;
+- [x] provision a lightweight `Nabla Observability Stack Health` Grafana
+      dashboard from Mimir for target availability, pfSense telemetry,
+      critical alerts, scrape cost and Prometheus remote-write pressure;
 - [x] replace the stale `pfsense_info` alert with Prometheus scrape health
       plus an expected real pfSense system metric;
 - [x] add `scripts/observability/verify-stack.sh` for read-only service,
@@ -264,15 +273,23 @@ Runtime work still required on pfSense. The repository helper prepares and
 validates these changes, but the private LAN path has not been exercised by
 public CI:
 
-- [x] prepare a pfREST GET/PATCH helper for
-      `/api/v2/status/logs/settings` with `dry_run=true` by default;
+- [x] prepare a three-stage pfREST helper:
+      `--check` is GET-only by default, `--plan` uses PATCH with
+      `dry_run=true`, and only `--apply` persists the settings;
 - [x] refuse to overwrite any of the three existing remote-syslog slots;
+- [x] enforce pfREST `>= v2.9.0` before any syslog settings PATCH and never
+      auto-upgrade the pfREST package;
 - [x] require the complete strict observability preflight before
       `--apply`;
 - [ ] create/import the dedicated least-privilege
       `PFSENSE_OBSERVABILITY_API_KEY` in
       `nabla/prod/pfsense-observability`;
-- [ ] run the helper `--plan` from the trusted LAN and review the accepted
+- [ ] grant that identity only
+      `GET /api/v2/system/restapi/version` and
+      `GET/PATCH /api/v2/status/logs/settings`;
+- [ ] run the helper `--check` from the trusted LAN while pfREST remains
+      globally read-only and review the desired contract;
+- [ ] run `--plan` during a supervised PATCH window and review the accepted
       pfREST dry-run;
 - [ ] set/apply **Status > System Logs > Settings > Log Message Format** to RFC5424;
 - [ ] enable remote logging to `172.17.0.24:1514`;
@@ -296,8 +313,8 @@ public CI:
       datastore;
 - [ ] run `verify-stack.sh --strict` and retain the pass/fail summary as the
       acceptance evidence;
-- [ ] run `verify-pfsense-syslog.sh --live-only` and prove the sender is
-      `172.17.0.1`;
+- [ ] run `verify-pfsense-syslog.sh --live-only` and prove real records are
+      classified as `device="pfsense"`;
 - [ ] re-enable pfSense REST API global read-only mode immediately after the
       supervised PATCH window.
 

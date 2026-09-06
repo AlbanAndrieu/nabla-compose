@@ -84,6 +84,19 @@ services:
     network_mode: bridge
     image: prom/alertmanager
     restart: unless-stopped
+    x-nabla:
+      id: prometheus-alertmanager
+      name: Alertmanager
+      kind: alerting
+      category: observability
+      runtime:
+        provider: truenas-app
+        containerService: alertmanager
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9093/-/ready
+        conditions:
+          - "[STATUS] == 200"
     ports:
       - "172.17.0.24:9093:9093"
     volumes:

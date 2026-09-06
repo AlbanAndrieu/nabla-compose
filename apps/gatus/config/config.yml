@@ -333,11 +333,11 @@ endpoints:
   conditions:
   - '[STATUS] == 200'
 - name: Alertmanager
-  group: prometheus
+  group: observability
   interval: 60s
-  url: tcp://172.17.0.24:9093
+  url: http://172.17.0.24:9093/-/ready
   conditions:
-  - '[CONNECTED] == true'
+  - '[STATUS] == 200'
 - name: Cadvisor
   group: prometheus
   interval: 60s
