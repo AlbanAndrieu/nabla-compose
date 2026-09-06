@@ -74,8 +74,9 @@ PY
 }
 
 verify_synthetic() {
-  local marker="nabla-observability-smoke-$(date +%s)-$$"
+  local marker
   local output="${tmp_dir}/synthetic.json"
+  marker="nabla-observability-smoke-$(date +%s)-$"
   local waited=0
   local query
 
