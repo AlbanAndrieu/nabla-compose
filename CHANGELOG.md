@@ -1,3 +1,10 @@
+## [0.15.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.4...0.15.5) (2026-09-06)
+
+
+### Bug Fixes
+
+* **langfuse:** grant ClickHouse ALTER SETTINGS ([#114](https://github.com/AlbanAndrieu/nabla-compose/issues/114)) ([59aeff9](https://github.com/AlbanAndrieu/nabla-compose/commit/59aeff937fe4166ef8720556aa86ecbe0a3b167d))
+
 ## [0.15.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.3...0.15.4) (2026-09-06)
 
 
