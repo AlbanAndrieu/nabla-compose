@@ -5,6 +5,7 @@ x-nabla:
       name: pfSense
       kind: firewall
       category: network
+      presentationRole: core
       description: External pfSense firewall running the lightweight CrowdSec remediation component.
 
 services:
