@@ -567,6 +567,12 @@ Acceptance after every shared ClickHouse change:
 - [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
 - [ ] Langfuse web database-aware health and worker health pass after clean
       initialization in database `langfuse`;
+- [x] classify Sentry `/_health/` as web-process health only; current
+      `apps/sentry/compose.yml` has no `snuba-api`/Snuba consumers, so the
+      lifecycle audit warns instead of claiming ClickHouse compatibility and
+      probes Snuba -> ClickHouse TCP only when a Snuba API container exists;
+- [ ] restore/adopt a supported Snuba topology or explicitly decouple Sentry
+      before treating it as a validated shared ClickHouse consumer;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba after the shared-server change, or explicitly decouple Sentry;
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
