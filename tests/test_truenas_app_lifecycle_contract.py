@@ -94,6 +94,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/scrutiny/.env.secrets", scrutiny)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN:?", scrutiny)
         self.assertNotIn("SCRUTINY_WEB_INFLUXDB_TOKEN:", scrutiny)
+        self.assertNotIn("SCRUTINY_WEB_INFLUXDB_ORG:", scrutiny)
+        self.assertNotIn("SCRUTINY_WEB_INFLUXDB_BUCKET:", scrutiny)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_HOST: influxdb", scrutiny)
         self.assertIn('SCRUTINY_WEB_INFLUXDB_PORT: "8086"', scrutiny)
 
