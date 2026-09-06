@@ -396,89 +396,74 @@ The repository Compose no longer contains production-like fallback passwords.
 
 ## Langfuse ClickHouse dirty migration recovery
 
-If Langfuse PostgreSQL migrations are clean but startup reports
-`Dirty database version 39`, the failure is in the golang-migrate ClickHouse
-state, not PostgreSQL, Redis, or MinIO.
+If the deployed Langfuse v3 image reports a ClickHouse schema version newer
+than its bundled migrations, do not keep forcing migration markers. Langfuse
+v3.225.7 ships ClickHouse migrations through version 37. A database that initially reported `39 (dirty)` therefore proves that a Langfuse
+v4/preview migration set touched the ClickHouse database. If an operator has
+already run `force 38`, treat `38` as the current recovery position; do not run
+another force command. The remaining safe operation is the official `goto 37`
+rewind with the matching v4/preview migration set.
 
-Keep Langfuse stopped and snapshot `cpool/clickhouse` before manipulating the
-migration marker. If the marker has already been forced back to version 38,
-do not run another `force` command.
+For the current homelab, ClickHouse is pinned to 25.8. Langfuse v4 requires
+ClickHouse >=25.12, so an attempted v4 startup against 25.8 can fail during the
+v4 schema upgrade and leave a dirty migration marker.
 
-Do not guess a migration source directory from the image. Also do not rely on
-the image's pre-materialized `migrations/unclustered` directory during dirty
-recovery: an image can contain a delivered tree that is incomplete for the
-current migration marker. This presents as:
-
-```text
-no migration found for version 38: read down for version 38
-```
-
-First inspect the exact image and verify that its canonical templates contain
-both directions for the current and next versions:
+The official Langfuse v4 rollback procedure is to rewind the ClickHouse schema
+to version 37 with the migration files from the **same v4 web image/version
+that applied the newer schema**:
 
 ```bash
-LANGFUSE_IMAGE_ID="$(
-  docker image inspect langfuse/langfuse:3 --format '{{.Id}}'
-)"
+cd /app/packages/shared
 
-docker run --rm \
-  --entrypoint sh \
-  "${LANGFUSE_IMAGE_ID}" \
-  -lc '
-find /app/packages/shared/clickhouse/migrations \
-  -maxdepth 2 -type f \
+migrate -source file://clickhouse/migrations/unclustered \
+  -database "${CLICKHOUSE_MIGRATION_URL}?username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}&database=${CLICKHOUSE_DB:-default}&x-multi-statement=true&x-migrations-table-engine=MergeTree" \
+  goto 37
+```
+
+Do not use the v3.225.7 migration directory for this rewind: it only contains
+versions 1..37 and therefore cannot traverse down from 39. Do not use
+`force 37`; `goto 37` executes the v4 down migrations required to remove the
+new v4 tables/recreate superseded objects before resetting the schema marker.
+
+Before running the rewind:
+
+1. keep Langfuse web stopped;
+2. retain a ZFS snapshot of `cpool/clickhouse`;
+3. inspect locally cached Langfuse images and their OCI labels to identify the
+   exact v4 image/version that ran before v3.225.7;
+4. confirm that image contains migration files 0038 and 0039 in both up/down
+   directions.
+
+Example image inventory:
+
+```bash
+docker image ls --digests --no-trunc langfuse/langfuse
+
+for image in $(docker image ls --no-trunc --format '{{.ID}}' langfuse/langfuse | sort -u); do
+  printf '%s\t' "$image"
+  docker image inspect "$image" \
+    --format 'version={{ index .Config.Labels "org.opencontainers.image.version" }} revision={{ index .Config.Labels "org.opencontainers.image.revision" }}'
+done
+```
+
+Once the matching v4 image is identified, inspect its migration tree:
+
+```bash
+docker run --rm --entrypoint sh <MATCHING_V4_IMAGE> -lc '
+find /app/packages/shared/clickhouse/migrations/unclustered \
+  -maxdepth 1 -type f \
   \( -name "0038_*" -o -name "0039_*" \) \
   -print | sort
 '
 ```
 
-The Langfuse runtime image may contain `clickhouse/scripts/up.sh` without the
-canonical migration sources or `prepare-migrations.mjs`. If
-`prepare-migrations.mjs` is absent, do not attempt to reconstruct migrations
-from guessed image paths. Use the Langfuse source revision matching the deployed
-image, as recommended by the upstream manual-migration procedure.
+Only then run the official `goto 37` command inside that same image using the
+existing ClickHouse credentials. After a successful rewind, redeploy the latest
+v3 image and validate both Langfuse web and worker health endpoints.
 
-First inspect the OCI metadata without exposing secrets:
-
-```bash
-docker image inspect langfuse/langfuse:3 \
-  --format '{{json .Config.Labels}}' | jq
-```
-
-Prefer `org.opencontainers.image.revision` as the exact source revision. If it
-is absent, record `org.opencontainers.image.version` and the image digest and
-resolve the matching Langfuse source release before continuing.
-
-Clone/check out that exact revision outside the application dataset:
-
-```bash
-mkdir -p /mnt/cpool/compose/vendor
-cd /mnt/cpool/compose/vendor
-
-git clone https://github.com/langfuse/langfuse.git langfuse-recovery
-cd langfuse-recovery
-git checkout <IMAGE_REVISION_OR_TAG>
-```
-
-Validate that the checked-out source contains complete migration pairs around
-the current marker:
-
-```bash
-find packages/shared/clickhouse/migrations/canonical \
-  -maxdepth 1 -type f \
-  \( -name '0038_*' -o -name '0039_*' \) \
-  -print | sort
-```
-
-Only after both `.up.sql` and `.down.sql` files exist for versions 38 and 39,
-run the upstream migration helper from that source checkout. Do not run another
-`force` command and never force the marker forward merely to clear the dirty
-flag. If the source revision cannot be matched exactly, stop and keep the
-ClickHouse snapshot rather than mixing migration files from a different
-Langfuse revision.
-
-If the canonical recovery succeeds, restart Langfuse and validate both the web
-health endpoint with database checking enabled and the worker health endpoint.
+If the matching v4 image cannot be identified, prefer restoring ClickHouse from
+a snapshot taken before the attempted v4 migration over mixing migration files
+from an arbitrary v4 release.
 
 ## Homarr permissions
 
