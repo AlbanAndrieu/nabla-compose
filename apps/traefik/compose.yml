@@ -5,6 +5,7 @@ x-nabla:
       name: pfSense HAProxy
       kind: reverse-proxy
       category: network
+      presentationRole: core
       description: pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.
 
 services:
@@ -17,6 +18,7 @@ services:
       name: Traefik
       kind: edge
       category: network
+      presentationRole: core
       description: Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.
       runtime:
         provider: truenas-app
