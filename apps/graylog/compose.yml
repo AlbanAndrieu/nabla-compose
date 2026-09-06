@@ -47,7 +47,6 @@ services:
       GRAYLOG_TRANSPORT_SUBJECT_PREFIX: "${GRAYLOG_TRANSPORT_SUBJECT_PREFIX:-[graylog]}"
     entrypoint: /usr/bin/tini -- wait-for-it opensearch-security:9200 -- /docker-entrypoint.sh
     volumes:
-      - /mnt/cpool/compose/nabla-compose/apps/graylog/config/graylog:/usr/share/graylog/data/config:ro
       - /mnt/cpool/graylog/data/journal:/usr/share/graylog/data/journal
     networks:
       - intranet
