@@ -30,7 +30,6 @@ services:
       - /mnt/cpool/clickhouse:/var/lib/clickhouse
       - /mnt/cpool/logs/clickhouse-server:/var/log/clickhouse-server
       - ./config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
-      - ./config/admin-grants.xml:/etc/clickhouse-server/users.d/admin-grants.xml:ro
     ports:
       - "172.17.0.24:8123:8123"
       - "172.17.0.24:9000:9000"
