@@ -101,6 +101,11 @@ function app_is_running {
   [[ "${states[${app_id}]-MISSING}" == "RUNNING" ]]
 }
 
+function app_is_present {
+  local app_id="$1"
+  [[ "${states[${app_id}]-MISSING}" != "MISSING" ]]
+}
+
 function probe_http_if_running {
   local app_id="$1"
   local label="$2"
@@ -146,13 +151,13 @@ function probe_intranet_tcp_if_running {
   fi
 }
 
-function probe_secret_if_running {
+function probe_secret_if_present {
   local app_id="$1"
   local label="$2"
   local file="$3"
   local variable="$4"
 
-  if ! app_is_running "${app_id}"; then
+  if ! app_is_present "${app_id}"; then
     return
   fi
 
@@ -160,6 +165,76 @@ function probe_secret_if_running {
     functional_ok "${label}: ${variable} configured"
   else
     functional_fail "${label}: ${variable} missing or empty in ${file}"
+  fi
+}
+
+function normalize_env_value {
+  local value="$1"
+  local first
+  local last
+
+  if (("${#value}" >= 2)); then
+    first="${value:0:1}"
+    last="${value: -1}"
+    if [[ "${first}" == '"' && "${last}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "${first}" == "'" && "${last}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+
+  printf '%s' "${value}"
+}
+
+function probe_secret_min_length_if_present {
+  local app_id="$1"
+  local label="$2"
+  local file="$3"
+  local variable="$4"
+  local minimum_length="$5"
+  local value
+
+  if ! app_is_present "${app_id}"; then
+    return
+  fi
+
+  if [[ ! -r "${file}" ]]; then
+    functional_fail "${label}: ${file} is not readable"
+    return
+  fi
+
+  value="$(sed -n "s/^${variable}=//p" "${file}" | tail -n 1)"
+  value="$(normalize_env_value "${value}")"
+  if (("${#value}" >= minimum_length)); then
+    functional_ok "${label}: ${variable} length contract satisfied"
+  else
+    functional_fail "${label}: ${variable} must be at least ${minimum_length} characters"
+  fi
+}
+
+function probe_secret_regex_if_present {
+  local app_id="$1"
+  local label="$2"
+  local file="$3"
+  local variable="$4"
+  local regex="$5"
+  local value
+
+  if ! app_is_present "${app_id}"; then
+    return
+  fi
+
+  if [[ ! -r "${file}" ]]; then
+    functional_fail "${label}: ${file} is not readable"
+    return
+  fi
+
+  value="$(sed -n "s/^${variable}=//p" "${file}" | tail -n 1)"
+  value="$(normalize_env_value "${value}")"
+  if [[ "${value}" =~ ^${regex}$ ]]; then
+    functional_ok "${label}: ${variable} format contract satisfied"
+  else
+    functional_fail "${label}: ${variable} has an invalid format"
   fi
 }
 
@@ -198,12 +273,14 @@ function probe_log_absence_if_running {
 }
 
 printf '\n🔎 runtime secret contracts\n'
-probe_secret_if_running homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
-probe_secret_if_running langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
-probe_secret_if_running scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
-probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
-probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
-probe_secret_if_running graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
 probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
 
 printf '\n🔎 functional service checks\n'

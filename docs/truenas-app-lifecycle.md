@@ -90,9 +90,10 @@ success.
 HTTP health is not sufficient when Bichon logs a recurring OAuth2 decryption
 failure. Compare the current encryption password with the pre-migration
 snapshot without printing either value. If they differ, recover the original
-secret before allowing token refreshes. If they match, keep the data snapshot
-and re-authorize the affected OAuth2 account(s) through Bichon rather than
-editing encrypted token records directly.
+secret before allowing token refreshes. If they match, keep the data snapshot and use the Bichon UI for the affected
+account: open **OAuth2 Tokens**, choose **Delete Token** for the unusable token,
+then repeat the OAuth2 authorization flow. Do not edit encrypted token records
+directly.
 
 ## Shared MongoDB then Graylog
 
@@ -169,6 +170,38 @@ chmod 600 /mnt/cpool/graylog/.env.secrets
 unset MONGO_PASSWORD MONGO_ROOT_PASSWORD GRAYLOG_MONGO_PASSWORD
 unset GRAYLOG_PASSWORD_SECRET GRAYLOG_ADMIN_PASSWORD GRAYLOG_ROOT_PASSWORD_SHA2
 ```
+
+Before redeploying, validate the secret contract without printing either value:
+
+```bash
+sudo awk -F= '
+  $1 == "GRAYLOG_PASSWORD_SECRET" {
+    value = substr($0, index($0, "=") + 1)
+    printf "GRAYLOG_PASSWORD_SECRET length=%d\n", length(value)
+  }
+  $1 == "GRAYLOG_ROOT_PASSWORD_SHA2" {
+    value = substr($0, index($0, "=") + 1)
+    printf "GRAYLOG_ROOT_PASSWORD_SHA2 length=%d\n", length(value)
+  }
+' /mnt/cpool/graylog/.env.secrets
+```
+
+`GRAYLOG_PASSWORD_SECRET` must be at least 16 effective characters and
+`GRAYLOG_ROOT_PASSWORD_SHA2` must be a 64-character hexadecimal SHA-256
+digest. Matching outer single/double quotes in an env file are syntax, not part
+of the effective secret value; a raw length of 17 can therefore represent only
+15 effective characters.
+
+Before replacing `GRAYLOG_PASSWORD_SECRET`, inspect whether the target Graylog
+MongoDB database already contains application collections. When reusing an
+existing Graylog database, preserve the historical `GRAYLOG_PASSWORD_SECRET`
+if it can be recovered; changing it can make previously encrypted Graylog
+settings unreadable.
+
+If the Graylog database is genuinely empty because this is a new migration
+target that has never booted successfully, generate a new high-entropy password
+secret (96 hexadecimal characters is sufficient) and normalize any matching
+outer quotes around `GRAYLOG_ROOT_PASSWORD_SHA2`. Do not print either value.
 
 Graylog keeps port `9000` inside the container but defaults to host port
 `9003` because ClickHouse already publishes host TCP/9000. Verify TCP/9003 is
@@ -297,7 +330,9 @@ If no existing bucket contains those measurements, create a new dedicated
 in this InfluxDB datastore.
 
 The recovery/operator token is only for administration; do not reuse it for
-Scrutiny. Scrutiny's bring-your-own-InfluxDB mode needs the base bucket plus
+Scrutiny. In particular, `nabla's Recovery Token` is a temporary recovery
+credential and must not be stored as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
+Scrutiny's bring-your-own-InfluxDB mode needs the base bucket plus
 three downsampling buckets (`<base>_weekly`, `<base>_monthly`,
 `<base>_yearly`) and the three corresponding aggregation tasks. Its restricted
 application token needs read access to the organization plus scoped read/write
@@ -369,36 +404,81 @@ Keep Langfuse stopped and snapshot `cpool/clickhouse` before manipulating the
 migration marker. If the marker has already been forced back to version 38,
 do not run another `force` command.
 
-Do not guess a migration source directory from the image. Langfuse's own
-`clickhouse/scripts/up.sh` selects a delivered migration tree when present,
-or renders the canonical migration templates into a temporary directory. This
-is the same path used by the application entrypoint and remains valid when a
-specific materialized file path is absent from the image.
+Do not guess a migration source directory from the image. Also do not rely on
+the image's pre-materialized `migrations/unclustered` directory during dirty
+recovery: an image can contain a delivered tree that is incomplete for the
+current migration marker. This presents as:
 
-Use the exact stopped web image and existing runtime secrets:
+```text
+no migration found for version 38: read down for version 38
+```
+
+First inspect the exact image and verify that its canonical templates contain
+both directions for the current and next versions:
 
 ```bash
 LANGFUSE_IMAGE_ID="$(
-  docker inspect ix-langfuse-langfuse-web-1 --format '{{.Image}}'
+  docker image inspect langfuse/langfuse:3 --format '{{.Id}}'
 )"
 
 docker run --rm \
-  --network host \
-  --env-file /mnt/cpool/langfuse/.env.secrets \
-  -e CLICKHOUSE_MIGRATION_URL=clickhouse://127.0.0.1:9000 \
-  -e CLICKHOUSE_URL=http://127.0.0.1:8123 \
-  -e CLICKHOUSE_USER=clickhouse \
-  -e CLICKHOUSE_DB=default \
-  -e CLICKHOUSE_CLUSTER_ENABLED=false \
   --entrypoint sh \
   "${LANGFUSE_IMAGE_ID}" \
-  -lc 'cd /app/packages/shared && sh ./clickhouse/scripts/up.sh'
+  -lc '
+find /app/packages/shared/clickhouse/migrations \
+  -maxdepth 2 -type f \
+  \( -name "0038_*" -o -name "0039_*" \) \
+  -print | sort
+'
 ```
 
-If that command succeeds, restart Langfuse and validate both the web health
-endpoint with database checking enabled and the worker health endpoint. If it
-fails, retain the snapshot and diagnose that exact migration error; do not
-advance the migration marker with another `force`.
+The Langfuse runtime image may contain `clickhouse/scripts/up.sh` without the
+canonical migration sources or `prepare-migrations.mjs`. If
+`prepare-migrations.mjs` is absent, do not attempt to reconstruct migrations
+from guessed image paths. Use the Langfuse source revision matching the deployed
+image, as recommended by the upstream manual-migration procedure.
+
+First inspect the OCI metadata without exposing secrets:
+
+```bash
+docker image inspect langfuse/langfuse:3 \
+  --format '{{json .Config.Labels}}' | jq
+```
+
+Prefer `org.opencontainers.image.revision` as the exact source revision. If it
+is absent, record `org.opencontainers.image.version` and the image digest and
+resolve the matching Langfuse source release before continuing.
+
+Clone/check out that exact revision outside the application dataset:
+
+```bash
+mkdir -p /mnt/cpool/compose/vendor
+cd /mnt/cpool/compose/vendor
+
+git clone https://github.com/langfuse/langfuse.git langfuse-recovery
+cd langfuse-recovery
+git checkout <IMAGE_REVISION_OR_TAG>
+```
+
+Validate that the checked-out source contains complete migration pairs around
+the current marker:
+
+```bash
+find packages/shared/clickhouse/migrations/canonical \
+  -maxdepth 1 -type f \
+  \( -name '0038_*' -o -name '0039_*' \) \
+  -print | sort
+```
+
+Only after both `.up.sql` and `.down.sql` files exist for versions 38 and 39,
+run the upstream migration helper from that source checkout. Do not run another
+`force` command and never force the marker forward merely to clear the dirty
+flag. If the source revision cannot be matched exactly, stop and keep the
+ClickHouse snapshot rather than mixing migration files from a different
+Langfuse revision.
+
+If the canonical recovery succeeds, restart Langfuse and validate both the web
+health endpoint with database checking enabled and the worker health endpoint.
 
 ## Homarr permissions
 
