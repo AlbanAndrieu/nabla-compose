@@ -125,9 +125,7 @@ check_grafana_integrations() {
   for uid in loki mimir tempo; do
     body="${tmp_dir}/grafana-datasource-${uid}.json"
     status="$(grafana_api_get "/api/datasources/uid/${uid}/health" "${body}")"
-    if [[ "${status}" == "200" ]] && jq -e '
-      (.status // "") | ascii_downcase == "ok"
-    ' "${body}" >/dev/null 2>&1; then
+    if [[ "${status}" == "200" ]] && jq -e '((.status // "") | ascii_downcase) == "ok"' "${body}" >/dev/null 2>&1; then
       ok "Grafana datasource healthy: ${uid}"
     else
       fail "Grafana datasource health failed: ${uid} (HTTP ${status:-none})"
