@@ -398,9 +398,11 @@ The repository Compose no longer contains production-like fallback passwords.
 
 If the deployed Langfuse v3 image reports a ClickHouse schema version newer
 than its bundled migrations, do not keep forcing migration markers. Langfuse
-v3.225.7 ships ClickHouse migrations through version 37. A database at
-`39 (dirty)` therefore proves that a Langfuse v4/preview migration set touched
-the ClickHouse database.
+v3.225.7 ships ClickHouse migrations through version 37. A database that initially reported `39 (dirty)` therefore proves that a Langfuse
+v4/preview migration set touched the ClickHouse database. If an operator has
+already run `force 38`, treat `38` as the current recovery position; do not run
+another force command. The remaining safe operation is the official `goto 37`
+rewind with the matching v4/preview migration set.
 
 For the current homelab, ClickHouse is pinned to 25.8. Langfuse v4 requires
 ClickHouse >=25.12, so an attempted v4 startup against 25.8 can fail during the
