@@ -23,15 +23,23 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    env_file:
+      - /mnt/cpool/ntopng/.env.secrets
     environment:
       TZ: ${TZ:-Europe/Paris}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-172.17.0.24}
+      NTOPNG_CLICKHOUSE_DATABASE: ntopng
+      NTOPNG_CLICKHOUSE_USER: ntopng
+    entrypoint:
+      - /bin/sh
+      - /usr/local/bin/nabla-ntopng-entrypoint.sh
     command:
       - -i
       - ${NTOPNG_INTERFACE:-eth0}
       - -w
       - ${NTOPNG_HTTP_PORT:-3000}
-      - -F
-      - "clickhouse;${CLICKHOUSE_HOST:-172.17.0.24};${NTOPNG_CLICKHOUSE_DATABASE:-ntopng};${CLICKHOUSE_USER:-clickhouse};${CLICKHOUSE_PASSWORD:-clickhouse}"
+      - --strict-startup
     volumes:
       - /mnt/cpool/ntopng:/var/lib/ntopng
       - /mnt/cpool/ntopng/redis:/var/lib/redis
+      - /mnt/cpool/compose/nabla-compose/apps/ntopng/entrypoint.sh:/usr/local/bin/nabla-ntopng-entrypoint.sh:ro
