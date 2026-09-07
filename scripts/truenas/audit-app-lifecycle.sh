@@ -484,6 +484,10 @@ function probe_sentry_snuba_clickhouse_if_running {
   local snuba_container
   local clickhouse_host
   local clickhouse_port
+  local contract
+  local clickhouse_user
+  local clickhouse_database
+  local table_count
 
   if ! app_is_running sentry; then
     printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
@@ -496,7 +500,7 @@ function probe_sentry_snuba_clickhouse_if_running {
   )"
 
   if [[ -z "${snuba_container}" ]]; then
-    functional_warn "Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated."
+    functional_fail "Sentry is RUNNING but no running Snuba API container was found"
     return
   fi
 
@@ -523,7 +527,44 @@ function probe_sentry_snuba_clickhouse_if_running {
     functional_ok "Sentry/Snuba -> ClickHouse TCP ${clickhouse_host}:${clickhouse_port}"
   else
     functional_fail "Sentry/Snuba -> ClickHouse TCP failed (${clickhouse_host}:${clickhouse_port})"
+    return
   fi
+
+  if ! contract="$(
+    docker exec -i "${snuba_container}" python3 - 2>/dev/null <<'PY'
+import os
+from clickhouse_driver import Client
+
+client = Client(
+    host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
+    port=int(os.environ.get("CLICKHOUSE_PORT", "9000")),
+    user=os.environ.get("CLICKHOUSE_USER", "default"),
+    password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+    database=os.environ.get("CLICKHOUSE_DATABASE", "default"),
+)
+user, database = client.execute("SELECT currentUser(), currentDatabase()")[0]
+tables = client.execute(
+    "SELECT count() FROM system.tables WHERE database = currentDatabase()"
+)[0][0]
+print(f"{user}|{database}|{tables}")
+PY
+  )"; then
+    functional_fail "Sentry/Snuba -> ClickHouse authenticated query failed"
+    return
+  fi
+
+  IFS='|' read -r clickhouse_user clickhouse_database table_count <<<"${contract}"
+  if [[ "${clickhouse_user}" != "sentry" || "${clickhouse_database}" != "sentry" ]]; then
+    functional_fail "Sentry/Snuba ClickHouse identity expected sentry|sentry, got ${clickhouse_user}|${clickhouse_database}"
+    return
+  fi
+
+  if [[ ! "${table_count}" =~ ^[0-9]+$ ]] || ((table_count < 1)); then
+    functional_fail "Sentry/Snuba ClickHouse schema has no tables in database sentry"
+    return
+  fi
+
+  functional_ok "Sentry/Snuba ClickHouse auth: user=sentry database=sentry tables=${table_count}"
 }
 
 function probe_ntopng_clickhouse_contract_if_running {
