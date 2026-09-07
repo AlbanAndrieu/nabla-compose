@@ -743,6 +743,16 @@
       "syncEligible": false
     },
     {
+      "id": "sentry-clickhouse",
+      "name": "Sentry ClickHouse",
+      "group": "data",
+      "sourcePath": "apps/sentry-clickhouse/compose.yml",
+      "composeService": "sentry-clickhouse",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "sentry-memcached",
       "name": "Memcached",
       "group": "sentry",
