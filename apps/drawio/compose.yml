@@ -3,6 +3,21 @@ services:
   drawio:
     image: jgraph/drawio
     container_name: drawio
+    x-nabla:
+      id: drawio
+      name: Draw.io
+      kind: diagramming
+      category: productivity
+      presentationRole: service
+      criticality: low
+      description: Self-hosted diagrams.net editor.
+      runtime:
+        provider: truenas-app
+        containerService: drawio
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9080
     restart: unless-stopped
     ports:
       - 9080:8080
