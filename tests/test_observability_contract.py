@@ -171,6 +171,14 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn(binding, compose)
         self.assertNotIn('"0.0.0.0:31057:8080/tcp"', compose)
         self.assertNotIn('"0.0.0.0:31058:8080/tcp"', compose)
+        self.assertIn(
+            "target: http://172.17.0.24:31057/api/v0/healthcheck",
+            compose,
+        )
+        self.assertIn(
+            "target: http://172.17.0.24:31058/api/v0/healthcheck",
+            compose,
+        )
 
         for job, target in (
             ("akvorado_inlet", "172.17.0.24:31057"),
@@ -222,6 +230,28 @@ class ObservabilityContractTests(unittest.TestCase):
         for panel in dashboard["panels"]:
             for target in panel.get("targets", []):
                 self.assertEqual(target["datasource"]["uid"], "mimir")
+
+        gatus = (
+            ROOT / "apps" / "gatus" / "config" / "config.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "http://172.17.0.24:31057/api/v0/healthcheck",
+            gatus,
+        )
+        self.assertIn(
+            "http://172.17.0.24:31058/api/v0/healthcheck",
+            gatus,
+        )
+
+        homarr = json.loads(
+            (
+                ROOT / "apps" / "homarr" / "generated" / "apps.json"
+            ).read_text(encoding="utf-8")
+        )
+        by_id = {app["id"]: app for app in homarr["applications"]}
+        for service_id in ("akvorado-inlet", "akvorado-outlet"):
+            self.assertIsNone(by_id[service_id]["href"])
+            self.assertFalse(by_id[service_id]["syncEligible"])
 
     def test_core_recording_rules_separate_platform_and_telemetry_signals(self) -> None:
         rules = (
