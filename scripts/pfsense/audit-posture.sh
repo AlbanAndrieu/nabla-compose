@@ -270,9 +270,18 @@ for file in /var/db/pfblockerng/dnsbl/*.txt; do
 done
 
 loaded_entries=0
-if [ -r /var/unbound/pfb_py_count ]; then
-  loaded_entries="$(number_or_zero "$(tr -dc '0-9' </var/unbound/pfb_py_count 2>/dev/null)")"
+count_semantics="unknown"
+if grep -Fq '$dnsbl_cnt = $dnsbl_cnt - $tld_cnt' /usr/local/pkg/pfblockerng/pfblockerng.inc 2>/dev/null; then
+  count_semantics="legacy-collapse"
+  loaded_entries="$(awk 'FNR==1{files++} {count++} END{print count+0}' /var/unbound/pfb_py_data.txt /var/unbound/pfb_py_zone.txt 2>/dev/null || printf '0')"
+  loaded_entries="$(number_or_zero "$loaded_entries")"
+else
+  count_semantics="loaded-total"
+  if [ -r /var/unbound/pfb_py_count ]; then
+    loaded_entries="$(number_or_zero "$(tr -dc '0-9' </var/unbound/pfb_py_count 2>/dev/null)")"
+  fi
 fi
+emit INFO pfblocker.dnsbl_count_semantics "$count_semantics" "version-aware interpretation of pfBlockerNG Python DNSBL counters"
 
 if [ "$loaded_entries" -ge "$dnsbl_fail_lines" ]; then
   emit FAIL pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot exceeds the fail guardrail"
