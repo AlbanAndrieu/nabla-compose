@@ -50,6 +50,30 @@ services:
   pihole-dns-sync:
     image: ghcr.io/cajuclc/traefik-pihole-sync:v0.0.1
     container_name: pihole-dns-sync
+    x-nabla:
+      id: pihole-dns-sync
+      name: Pi-hole DNS Sync
+      kind: configuration-reconciler
+      category: network
+      presentationRole: support
+      criticality: high
+      description: Synchronizes repository-managed Docker/Traefik service names into Pi-hole private DNS.
+      runtime:
+        provider: truenas-app
+        containerService: pihole-dns-sync
+      relations:
+        - target: pihole
+          type: automates
+          strength: required
+          description: DNS Sync reconciles private service records through the Pi-hole API.
+          evidence:
+            - apps/pihole/compose.yml:PIHOLE_URL=http://pihole
+        - target: docker
+          type: consumesApi
+          strength: required
+          description: DNS Sync discovers services through the restricted Docker socket proxy.
+          evidence:
+            - apps/pihole/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
     restart: unless-stopped
     depends_on:
       pihole:
@@ -77,6 +101,28 @@ services:
   pihole-exporter:
     image: docker.io/ekofr/pihole-exporter:latest
     container_name: pihole-exporter
+    x-nabla:
+      id: pihole-exporter
+      name: Pi-hole Exporter
+      kind: metrics-exporter
+      category: observability
+      presentationRole: support
+      criticality: medium
+      description: Prometheus-compatible metrics exporter for Pi-hole.
+      runtime:
+        provider: truenas-app
+        containerService: pihole-exporter
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9617
+      relations:
+        - target: pihole
+          type: dependsOn
+          strength: required
+          description: The exporter reads Pi-hole runtime statistics.
+          evidence:
+            - apps/pihole/compose.yml:PIHOLE_HOSTNAME=pihole
     restart: unless-stopped
     env_file:
       - /mnt/cpool/pihole/.env.secrets
