@@ -862,7 +862,7 @@ probe_clickhouse_langfuse_contract_if_present
 probe_sentry_snuba_clickhouse_if_running
 probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
-probe_http_if_running sentry "Sentry web health (Snuba/ClickHouse not validated)" "http://172.17.0.24:9005/_health/"
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 
