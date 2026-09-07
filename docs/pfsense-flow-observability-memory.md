@@ -605,6 +605,8 @@ nabla:telemetry:akvorado_outlet_up
 nabla:network_flow:pfsense_packets_per_second
 nabla:network_flow:pfsense_bytes_per_second
 nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
 nabla:network_flow:clickhouse_batches_per_second
 ```
 
