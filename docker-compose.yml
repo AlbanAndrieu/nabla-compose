@@ -24,9 +24,9 @@ services:
         containerService: docker-socket-proxy
       relations:
         - target: docker
-          type: providesApi
+          type: consumesApi
           strength: required
-          description: The proxy exposes an allowlisted subset of the local Docker Engine API.
+          description: The proxy consumes the local Docker Engine API and exposes an allowlisted subset to trusted clients.
           evidence:
             - docker-compose.yml:/var/run/docker.sock:ro
     restart: unless-stopped
