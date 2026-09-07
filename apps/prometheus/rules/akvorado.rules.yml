@@ -21,6 +21,14 @@ groups:
         expr: >-
           sum(rate(akvorado_inlet_kafka_sent_messages_total{job="akvorado_inlet",exporter="172.17.0.1"}[5m]))
 
+      - record: nabla:network_flow:outlet_kafka_messages_per_second
+        expr: >-
+          sum(rate(akvorado_outlet_kafkainput_received_messages_total{job="akvorado_outlet"}[5m]))
+
+      - record: nabla:network_flow:clickhouse_flows_per_second
+        expr: >-
+          sum(rate(akvorado_outlet_clickhouse_flow_per_batch_sum{job="akvorado_outlet"}[5m]))
+
       - record: nabla:network_flow:clickhouse_batches_per_second
         expr: >-
           sum(rate(akvorado_outlet_clickhouse_flow_per_batch_count{job="akvorado_outlet"}[5m]))
@@ -118,6 +126,22 @@ groups:
           description: >-
             Kafka send errors increased in the Akvorado inlet during the last five minutes.
 
+      - alert: AkvoradoOutletKafkaConsumerStalled
+        expr: >-
+          (sum(increase(akvorado_inlet_kafka_sent_messages_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) > 0)
+          and on()
+          (sum(increase(akvorado_outlet_kafkainput_received_messages_total{job="akvorado_outlet"}[10m])) == 0)
+        for: 10m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado inlet publishes flows but the outlet consumes none
+          description: >-
+            Inlet Kafka messages are increasing while the Outlet Kafka input
+            counter is stalled. Check the Kafka topic, consumer group and Outlet.
+
       - alert: AkvoradoOutletClickHouseErrors
         expr: >-
           sum(increase(akvorado_outlet_clickhouse_errors_total{job="akvorado_outlet"}[5m])) > 0
@@ -136,7 +160,7 @@ groups:
         expr: >-
           (sum(increase(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) > 0)
           and on()
-          (sum(increase(akvorado_outlet_clickhouse_flow_per_batch_count{job="akvorado_outlet"}[10m])) == 0)
+          (sum(increase(akvorado_outlet_clickhouse_flow_per_batch_sum{job="akvorado_outlet"}[10m])) == 0)
         for: 10m
         labels:
           severity: warning
