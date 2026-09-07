@@ -195,6 +195,15 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: Apache Kafka
+  group: data
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: kafka
+    nabla_service_id: kafka
+  url: tcp://kafka:9092
+  conditions:
+  - '[CONNECTED] == true'
 - name: Kibana
   group: observability
   interval: 60s
