@@ -52,7 +52,7 @@
     },
     "fastapi-sample": {
       "type": "http",
-      "url": "https://fastapi-sample.fastapicloud.dev/mcp"
+      "url": "http://172.17.0.24:8091/mcp"
     },
     "grafana": {
       "type": "stdio",
