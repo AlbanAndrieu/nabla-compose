@@ -90,8 +90,7 @@ run_compact() {
 
 collect_changed_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] &&
-      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=ACMR "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=ACMR
@@ -210,7 +209,9 @@ if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" != "1" && "${BASE_REF}" != "HEAD" ]];
     fi
   done
 fi
-((large_deletion_failed == 0)) || exit 1
+if ((large_deletion_failed != 0)); then
+  exit 1
+fi
 printf '✅ destructive-diff guard\n'
 
 exec_bit_failed=0
@@ -230,7 +231,9 @@ for file in "${CHANGED_FILES[@]}"; do
     exec_bit_failed=1
   fi
 done
-((exec_bit_failed == 0)) || exit 1
+if ((exec_bit_failed != 0)); then
+  exit 1
+fi
 printf '✅ executable-script contract\n'
 
 run_compact "declared service topology is synchronized" \
