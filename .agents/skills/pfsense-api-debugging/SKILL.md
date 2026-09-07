@@ -429,6 +429,53 @@ sudo tcpdump -ni br0 -c 30 'udp dst port 2055 and src host 172.17.0.1'
 Do not run softflowd and pflow for the same destination without an explicit
 migration/comparison reason.
 
+### NetFlow/IPFIX end-to-end monitoring
+
+Do not treat `pflowctl ... socket: connected` as proof that local flow analytics
+is healthy. Use it only as exporter-side evidence.
+
+The current local monitoring chain is:
+
+```text
+pfSense pflow domain 1
+  -> 172.17.0.24:2055/udp
+  -> Akvorado Inlet
+  -> Kafka topic akvorado-flows
+  -> Akvorado Outlet
+  -> ClickHouse database akvorado
+```
+
+TrueNAS Prometheus scrapes:
+
+```text
+job="akvorado_inlet"  172.17.0.24:31057/api/v0/metrics
+job="akvorado_outlet" 172.17.0.24:31058/api/v0/metrics
+```
+
+Use the stable recording rules when available:
+
+```promql
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+Interpretation:
+
+- exporter missing/silent: pfSense/pflow or UDP-path degradation;
+- UDP receive errors/drops: Akvorado Inlet pressure;
+- Kafka errors: Inlet-to-Kafka failure;
+- ClickHouse errors or stalled batches while Inlet traffic rises:
+  Outlet/persistence failure;
+- scrape failure: telemetry blind spot, not proof that pfSense is down.
+
+The provisioned Grafana drill-down is
+`pfSense NetFlow/IPFIX → Akvorado`. Cloudflare Network Flow remains an
+independent second collector for exporter corroboration.
+
 ## REST API v2 authentication
 
 FastAPI Sample production uses two dedicated identities over shared transport defaults:
