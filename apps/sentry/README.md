@@ -98,8 +98,9 @@ Use two identities:
 
 The migration identity may be granted broad privileges **only inside**
 `sentry.*` during the compatibility/bootstrap phase, without
-`WITH GRANT OPTION` and without any global `*.*` privilege. The runtime
-identity should remain narrower.
+`WITH GRANT OPTION`. The only global privileges allowed are the explicitly
+required `CREATE WORKLOAD` and `DROP WORKLOAD` rights on `*.*`; `ALL ON *.*`
+remains forbidden. The runtime identity should remain narrower.
 
 Initial runtime contract:
 
