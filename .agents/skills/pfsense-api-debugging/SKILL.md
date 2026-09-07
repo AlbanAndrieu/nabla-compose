@@ -312,6 +312,31 @@ PASSED/ENDED markers and the new RSS/free-memory baseline.
 `/var/unbound`. Exactly one instance should own `10.10.10.1:443`; do not
 manually start another copy.
 
+### Validated restored-service baseline
+
+After the 2026-09-07 DNSBL reduction, Snort WAN and Zabbix were successfully
+restored while preserving memory headroom:
+
+```text
+Unbound RSS              ~111-113 MiB
+Snort WAN RSS            ~47 MiB
+free RAM                 ~171-188 MiB
+page-out                 0
+Zabbix agent             running
+snort2c                  empty
+```
+
+Snort WAN runs with DAQ pcap in passive mode. TCP 7000 is present in
+`SSL_PORTS` and the SSL preprocessor but absent from the active
+`http_inspect_server` block, which currently inspects only TCP 80. Preserve
+that classification: the public 7000 listener carries TLS before HAProxy
+termination.
+
+The expected pfSense Zabbix process is
+`/usr/local/sbin/zabbix_agentd -c /usr/local/etc/zabbix7/zabbix_agentd.conf`.
+Do not use a workstation/container `zabbix_agent2` process as proof of the
+pfSense service state.
+
 ### Snort memory posture
 
 Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
