@@ -14,7 +14,7 @@ services:
         - protect
       runtime:
         provider: truenas-app
-        containerService: 2fauth
+        appId: twofactor-auth
     environment:
       APP_ENV: ${TWOFAUTH_APP_ENV:-local}
       APP_KEY: ${TWOFAUTH_APP_KEY}
