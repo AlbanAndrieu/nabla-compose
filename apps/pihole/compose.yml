@@ -68,7 +68,7 @@ services:
           description: DNS Sync reconciles private service records through the Pi-hole API.
           evidence:
             - apps/pihole/compose.yml:PIHOLE_URL=http://pihole
-        - target: docker
+        - target: docker-socket-proxy
           type: consumesApi
           strength: required
           description: DNS Sync discovers services through the restricted Docker socket proxy.
