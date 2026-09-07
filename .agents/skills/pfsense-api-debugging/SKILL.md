@@ -228,6 +228,18 @@ feed can be disabled without affecting the Talos Kubernetes cluster.
 Prefer disabling a broken or disproportionate **source/category** over
 disabling an entire provider when useful categories remain.
 
+Do not estimate memory savings by subtracting one processed feed's current line
+count. pfBlockerNG deduplicates across feeds, so disabling one source can cause
+domains previously attributed to it to reappear under another source. Also do
+not sum every file in `dnsblorig`: helper artifacts such as `.md5.raw` are
+not independent active domain sets.
+
+A validated 2026-09-07 example illustrates this: `UT1_malware` contributed
+about 672k of 923k processed entries, while `UT1_phishing.orig` contained
+about 688k source lines but only about 621 processed entries because of heavy
+overlap. Re-measure the **final processed total after each controlled feed
+change** instead of predicting the new total from subtraction alone.
+
 ### Snort memory posture
 
 Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
