@@ -347,7 +347,17 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:31055/health", audit)
         self.assertIn("http://172.17.0.24:9003/api/system/lbstatus", audit)
         self.assertIn("http://172.17.0.24:4040/ready", audit)
-        self.assertIn("Pyroscope readiness", audit)
+        self.assertIn("function probe_pyroscope_fastapi_profile", audit)
+        self.assertIn("service_name=fastapi-sample observed in last 15m", audit)
+        self.assertIn(
+            "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+            audit,
+        )
+        self.assertIn("FastAPI CPU flamegraph contains recent samples", audit)
+        self.assertNotIn(
+            'probe_http_if_running pyroscope "Pyroscope readiness"',
+            audit,
+        )
         self.assertIn("repository applications missing from TrueNAS app.query", audit)
         self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
         self.assertIn("RUNTIME-ONLY:", audit)
