@@ -1,0 +1,19 @@
+---
+geoip:
+  optional: true
+
+networks:
+  networks:
+    172.17.0.0/24:
+      name: homelab-lan
+      role: internal
+  network-sources: []
+
+core:
+  exporter-classifiers:
+    - ClassifySite("homelab")
+    - ClassifyRegion("europe")
+    - ClassifyTenant("nabla")
+    - ClassifyRole("edge")
+  interface-classifiers:
+    - ClassifyInternal()
