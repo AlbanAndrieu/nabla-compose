@@ -28,7 +28,7 @@ configuration:
 
 - PostgreSQL: `172.17.0.24:5432`, dedicated database/role `sentry`;
 - Redis: `redis:6379` on the external `intranet` network, dedicated DB 3;
-- ClickHouse: `clickhouse:9000` / `:8123`, dedicated database and users;
+- ClickHouse: dedicated `sentry-clickhouse:9000` instance from `apps/sentry-clickhouse/compose.yml`, pinned to the Sentry 26.8.0 upstream-supported Altinity 25.3 line;
 - Kafka: shared `kafka:9092` broker from `apps/kafka/compose.yml`.
 
 Memcached, Snuba, Relay, Taskbroker, and NGINX remain scoped to the Sentry
@@ -125,8 +125,7 @@ Never grant either Sentry identity `ALL ON *.*` or `WITH GRANT OPTION`.
 
 ## ClickHouse compatibility gate
 
-Sentry self-hosted 26.8.0 is not shipped against the homelab's shared
-ClickHouse 26.8.2.7. Treat this integration as a compatibility test.
+Runtime testing proved that Snuba 26.8.0 cannot complete its migrations on the homelab shared ClickHouse 26.8.2.7 without enabling a new ClickHouse 26.x MergeTree compatibility setting globally. Sentry therefore uses a dedicated ClickHouse pinned to the exact Altinity line used by upstream self-hosted 26.8.0. The shared ClickHouse remains untouched for Langfuse and other consumers.
 
 The acceptance gate is not an HTTP listener check. It requires:
 
@@ -136,9 +135,7 @@ The acceptance gate is not an HTTP listener check. It requires:
 4. Relay, Kafka, Sentry consumers, and Snuba consumers stay healthy;
 5. a synthetic SDK event is accepted and becomes queryable through Sentry.
 
-If Snuba bootstrap or normal queries fail because of ClickHouse version
-incompatibility, do **not** downgrade or reset the shared ClickHouse datastore.
-Move Sentry to a dedicated ClickHouse version supported by that Sentry release.
+Do **not** point Sentry back at the shared ClickHouse 26.8.x datastore unless a future Snuba release explicitly supports that version and the full migration/ingestion/query gate is re-run.
 
 ## TrueNAS Custom App
 
