@@ -208,7 +208,16 @@ them separate when troubleshooting; each has a different remediation.
    taskworker RPC path and `intranet` for Kafka. The taskworker gRPC
    `connection refused` / `no route to host` messages were a downstream
    symptom of Taskbroker restart-looping.
-9. **Validated outcome.**
+9. **NGINX host port requested but not activated on an internal-only network.**
+   The first full runtime start showed NGINX healthy internally and
+   `HostConfig.PortBindings` requesting `172.17.0.24:9005 -> 80/tcp`, while
+   `NetworkSettings.Ports["80/tcp"]` was null, `docker port` returned
+   nothing, and host curls were refused. The container was attached only to the
+   project network declared with `internal: true`. NGINX now joins external
+   `intranet` with `gw_priority: 1` and keeps the `sentry` network for
+   service-to-service routing. Runtime acceptance requires the active Docker
+   port mapping, not merely the requested HostConfig mapping.
+10. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
    `sentry-clickhouse:9000`. The `sentry` database contains 85 tables and the
