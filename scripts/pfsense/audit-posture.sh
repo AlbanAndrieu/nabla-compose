@@ -257,7 +257,9 @@ emit INFO memory.swap_used_kb "$(number_or_zero "$swap_used_kb")" "swap is not u
 oom_count="$(dmesg 2>/dev/null | egrep -ic 'killed|failed to reclaim|waited too long|out of swap' || true)"
 oom_count="$(number_or_zero "$oom_count")"
 if [ "$oom_count" -gt 0 ]; then
-  emit WARN kernel.oom_evidence "$oom_count" "current boot log contains OOM/reclaim evidence"
+  latest_oom="$(grep -Ei 'killed:|failed to reclaim|waited too long|out of swap' /var/log/system.log 2>/dev/null | tail -n 1 | tr '\t\r\n' '   ')"
+  emit INFO kernel.oom_evidence "$oom_count" "historical current-boot OOM/reclaim evidence remains until reboot"
+  emit INFO kernel.latest_oom "${latest_oom:-unknown}" "compare this timestamp after changes; historical evidence alone is not a steady-state failure"
 else
   emit PASS kernel.oom_evidence "0" "no OOM/reclaim signature found in current dmesg"
 fi
@@ -431,9 +433,27 @@ fi
 
 watchdog_unbound="$(sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | grep -Ei '<name>unbound</name>|<service>unbound</service>|<description>DNS Resolver</description>' || true)"
 if [ -z "$watchdog_unbound" ]; then
-  emit PASS servicewatchdog.unbound absent "Unbound is not managed by Service Watchdog during memory remediation"
+  emit PASS servicewatchdog.unbound absent "Unbound is intentionally not managed by Service Watchdog on this memory-constrained appliance"
 else
   emit FAIL servicewatchdog.unbound configured "Service Watchdog can recreate the Unbound OOM restart loop"
+fi
+
+lighttpd_count="$(number_or_zero "$(pgrep -x lighttpd_pfb 2>/dev/null | wc -l | tr -d ' ')")"
+if [ "$lighttpd_count" -eq 1 ]; then
+  emit PASS service.lighttpd_pfb "$lighttpd_count" "exactly one pfBlockerNG DNSBL web service is running"
+elif [ "$lighttpd_count" -gt 1 ]; then
+  emit FAIL service.lighttpd_pfb "$lighttpd_count" "multiple lighttpd_pfb processes can race for the DNSBL VIP"
+else
+  emit WARN service.lighttpd_pfb 0 "pfBlockerNG DNSBL web service is not running"
+fi
+
+dnsbl_listener_count="$(number_or_zero "$(sockstat -4 -l 2>/dev/null | awk '$1 ~ /^root$/ && $2 ~ /^lighttpd_p/ && $6 == "10.10.10.1:443" {count++} END {print count + 0}')")"
+if [ "$dnsbl_listener_count" -eq 1 ]; then
+  emit PASS service.lighttpd_pfb_listener "$dnsbl_listener_count" "DNSBL VIP 10.10.10.1:443 has exactly one lighttpd_pfb listener"
+elif [ "$dnsbl_listener_count" -gt 1 ]; then
+  emit FAIL service.lighttpd_pfb_listener "$dnsbl_listener_count" "multiple listeners detected for DNSBL VIP 10.10.10.1:443"
+else
+  emit WARN service.lighttpd_pfb_listener 0 "no lighttpd_pfb listener detected on DNSBL VIP 10.10.10.1:443"
 fi
 
 pfb_filter_count="$(number_or_zero "$(pgrep -f 'php_pfb.*filterlog' 2>/dev/null | wc -l | tr -d ' ')")"
