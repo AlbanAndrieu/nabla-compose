@@ -311,6 +311,9 @@ scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 --json
 The full SSH audit is read-only and checks the settings and runtime conditions
 that matter for the Netgate 1100 incident class, including:
 
+- the installed pfBlockerNG DNSBL RAM swap gate
+  (`pfb_unbound_py_swap_fits_ram`), which should reject a ~2x hot swap when
+  headroom is insufficient and use an Unbound restart instead;
 - PHP `memory_limit=128M`;
 - pfBlockerNG `dnsbl_python`, TLD posture and expected-disabled heavy feeds;
 - processed DNSBL line count and `/var/unbound/pfb_py_data.txt` size;
