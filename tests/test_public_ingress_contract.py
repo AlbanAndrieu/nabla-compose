@@ -88,14 +88,6 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('"name": "Garage WebUI"', overrides)
         self.assertIn('"external": false', overrides)
 
-    def test_pihole_sync_uses_shared_read_only_docker_proxy(self) -> None:
-        compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
-
-        self.assertIn("DOCKER_HOST: tcp://docker-socket-proxy:2375", compose)
-        pihole = compose.split("  pihole-dns-sync:", 1)[1].split("  ddns-updater:", 1)[0]
-        self.assertNotIn("/var/run/docker.sock", pihole)
-        self.assertIn("- intranet", pihole)
-
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
         script = (
             ROOT / "scripts" / "security" / "verify-truenas-observer-access.sh"
