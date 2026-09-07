@@ -3,6 +3,20 @@ services:
   vaultwarden:
     image: vaultwarden/server:latest
     container_name: vaultwarden
+    x-nabla:
+      id: vaultwarden
+      name: Vaultwarden
+      kind: password-manager
+      category: security
+      presentationRole: service
+      criticality: high
+      securityFunctions:
+        - protect
+      url: https://vaultwarden.albandrieu.com
+      description: Self-hosted Bitwarden-compatible password and secret vault.
+      runtime:
+        provider: truenas-app
+        containerService: vaultwarden
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     environment:
@@ -51,6 +65,26 @@ services:
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
+    x-nabla:
+      id: vaultwarden-rest-api
+      name: Vaultwarden REST API Adapter
+      kind: compatibility-api
+      category: security
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - protect
+      description: Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval.
+      runtime:
+        provider: truenas-app
+        containerService: bitwarden-api
+      relations:
+        - target: vaultwarden
+          type: consumesApi
+          strength: required
+          description: The compatibility adapter authenticates against Vaultwarden.
+          evidence:
+            - apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com
     restart: unless-stopped
     init: true
     user: "568:568" # TrueNAS apps user
