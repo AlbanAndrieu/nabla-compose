@@ -1,20 +1,15 @@
 ---
 APPLY_FIXES: none
 DEFAULT_BRANCH: master
+# Keep only checks that add coverage beyond the canonical pre-commit gate.
+# JSON/YAML/Shell/Make/Dockerfile formatting and linting already run locally
+# and in the universal PR preflight.
 ENABLE_LINTERS:
   - ACTION_ZIZMOR
   - COPYPASTE_JSCPD
   - EDITORCONFIG_EDITORCONFIG_CHECKER
-  - JSON_JSONLINT
-  - JSON_PRETTIER
   - REPOSITORY_CHECKOV
   - SPELL_CODESPELL
-  - YAML_PRETTIER
-  - YAML_YAMLLINT
-  - BASH_SHELLCHECK
-  - MAKEFILE_CHECKMAKE
-  - GIT_GIT_DIFF
-  - DOCKERFILE_HADOLINT
 DISABLE:
   - CLOUDFORMATION
   - MARKDOWN

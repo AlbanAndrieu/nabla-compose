@@ -154,7 +154,16 @@ repos:
         entry: python -m unittest tests.test_truenas_app_lifecycle_contract -v
         pass_filenames: false
         files: >-
-          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/truenas-app-lifecycle[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
+          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/(?:truenas-app-lifecycle|homelab-platform-migration-roadmap)[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
+
+      - id: agent-quality-gate-contract
+        name: "✅ quality · Validate agent-first gate contract"
+        language: python
+        entry: python -m unittest tests.test_agent_quality_gate_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(scripts/agent-quality-gate[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
 
       - id: pfsense-posture-audit-contract
         name: "🛡️ pfSense · Parse posture regression audit"
@@ -167,7 +176,7 @@ repos:
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python
-        entry: python scripts/generate-service-topology.py
+        entry: python scripts/generate-service-topology.py --check
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
