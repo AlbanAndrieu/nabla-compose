@@ -68,6 +68,66 @@ The TrueNAS host should observe packets with:
 sudo tcpdump -ni br0 'udp dst port 2055 and src host 172.17.0.1'
 ```
 
+## Prometheus / NetFlow pipeline monitoring
+
+Akvorado exposes native Prometheus metrics from each component. The deployment
+publishes only the two flow-path metric endpoints needed by the TrueNAS
+Prometheus instance:
+
+```text
+Akvorado Inlet   172.17.0.24:31057/api/v0/metrics
+Akvorado Outlet  172.17.0.24:31058/api/v0/metrics
+```
+
+These ports are bound to the TrueNAS LAN address. Do not expose them to WAN.
+
+Prometheus scrapes the endpoints as:
+
+```text
+job="akvorado_inlet"
+job="akvorado_outlet"
+```
+
+Stable recording rules provide the bounded flow-monitoring contract:
+
+```promql
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+Alerts cover:
+
+- Inlet or Outlet scrape loss;
+- exporter `172.17.0.1` disappearing from Akvorado;
+- a known pfSense exporter becoming silent;
+- UDP receive errors;
+- kernel UDP receive-queue drops;
+- Kafka publish errors;
+- ClickHouse insertion errors;
+- Inlet traffic increasing while Outlet ClickHouse batches stall.
+
+The provisioned Grafana dashboard
+`pfSense NetFlow/IPFIX → Akvorado` correlates flow throughput with pfSense
+memory headroom and pipeline errors.
+
+After deployment, validate:
+
+```promql
+up{job="akvorado_inlet"}
+up{job="akvorado_outlet"}
+akvorado_inlet_flow_input_udp_packets_total{exporter="172.17.0.1"}
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+A successful HTTP scrape proves telemetry availability. It does not by itself
+prove that flows are moving end-to-end; require the exporter packet counter and
+ClickHouse batch counter to advance.
+
 ## Validation
 
 Before runtime deployment:
