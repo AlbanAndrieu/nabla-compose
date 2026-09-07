@@ -448,9 +448,18 @@ Zabbix validation must be performed on pfSense itself. The expected daemon is:
 
 Do not confuse this with a workstation/container `zabbix_agent2` process.
 
-With Snort and Zabbix restored, the appliance remained above the preferred
-128 MiB free-memory guardrail with no observed page-out. Keep ntopng disabled,
-softflowd disabled and Unbound out of Service Watchdog.
+With Snort and Zabbix restored, an initial observation stayed around
+171-188 MiB free with no page-out. A later full posture audit measured
+76,012 KiB free while Unbound remained healthy at about 114 MiB RSS. The
+services were still functional, but that later value is **below the preferred
+128 MiB steady-state guardrail**.
+
+Therefore treat the restored state as operational but capacity-constrained:
+keep ntopng disabled, softflowd disabled and Unbound out of Service Watchdog;
+do not add heavyweight analytics back to pfSense. Prometheus now alerts when
+pfSense memory usage remains above approximately 87% (warning) or 94%
+(critical), corresponding roughly to the 128 MiB and 64 MiB free-memory
+guardrails on this Netgate 1100.
 
 ### Remaining non-OOM feed hygiene
 
@@ -458,7 +467,9 @@ The successful update still showed feed hygiene items that are **not** the
 current Unbound memory root cause:
 
 - `MaxMind_BD_Proxy_v4` returned HTTP 404 and restored its previous local
-  contents;
+  contents; the legacy PRI3 row was subsequently disabled. The separate
+  "disable MaxMind CSV updates" GeoIP setting is not a substitute for disabling
+  this discontinued feed;
 - several IP/DNSBL lists have old last-updated timestamps and should be reviewed
   for current upstream validity;
 - `Spamhaus_eDrop_v4` remains a known invalid/obsolete feed candidate and
@@ -556,6 +567,54 @@ kernel memory-reclaim kills.
 The DNSBL phase has been observed reaching `PASSED` after the Adult feed and
 memory changes. Do not infer that every future full reload is healthy without
 checking the current run's completion and kernel log.
+
+## NetFlow/IPFIX monitoring
+
+The local pflow exporter is now monitored end-to-end through Akvorado rather
+than by adding a collector to pfSense.
+
+Prometheus scrapes the Akvorado Inlet and Outlet native metric endpoints on the
+TrueNAS LAN address:
+
+```text
+172.17.0.24:31057/api/v0/metrics  # inlet
+172.17.0.24:31058/api/v0/metrics  # outlet
+```
+
+The monitoring contract distinguishes:
+
+```text
+pfSense exporter present / packets increasing
+        |
+        v
+Inlet UDP receive errors / receive-queue drops
+        |
+        v
+Kafka publish errors / messages per second
+        |
+        v
+Outlet ClickHouse insertion errors / batches per second
+```
+
+Stable recording rules include:
+
+```promql
+nabla:core:pfsense_memory_available_ratio
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+The provisioned Grafana dashboard is
+`pfSense NetFlow/IPFIX → Akvorado`.
+
+Keep telemetry semantics explicit: an Akvorado scrape failure is a blind spot,
+a silent exporter is flow degradation, and neither proves the firewall itself
+is down. Cloudflare Network Flow remains an independent second collector for
+corroborating exporter behavior.
 
 ## Security and observability follow-ups
 
