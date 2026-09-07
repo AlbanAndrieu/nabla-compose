@@ -449,14 +449,16 @@ endpoints:
   url: http://172.17.0.24:9945/metrics?target=172.17.0.1
   conditions:
   - '[STATUS] == 200'
-- name: Pihole
-  group: pihole
+- name: Pi-hole
+  group: network
   interval: 60s
   extra-labels:
     nabla_monitor_id: pihole
-  url: tcp://172.17.0.24:53
+    nabla_service_id: pihole
+  url: http://172.17.0.24:20720/admin/
   conditions:
-  - '[CONNECTED] == true'
+  - '[STATUS] >= 200'
+  - '[STATUS] < 400'
 - name: Pihole Exporter
   group: pihole
   interval: 60s

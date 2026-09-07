@@ -1,12 +1,18 @@
 ---
 services:
   pyroscope:
-    image: grafana/pyroscope:latest
+    image: grafana/pyroscope:2.3.0
     container_name: pyroscope
     restart: unless-stopped
     ports:
-      # open port to access frontend
       - "4040:4040"
     command:
-      # run pyroscope in server mode
       - "server"
+      # Pyroscope v2 keeps its metastore Raft WAL/state on disk. Keep both
+      # v1 compatibility data and v2 metadata outside the container layer so
+      # restarts/recreates do not reuse or lose opaque ephemeral state.
+      - "-pyroscopedb.data-path=/var/lib/pyroscope/v1"
+      - "-metastore.raft.dir=/var/lib/pyroscope/v2/metastore/raft"
+      - "-metastore.data-dir=/var/lib/pyroscope/v2/metastore/data"
+    volumes:
+      - /mnt/cpool/pyroscope/data:/var/lib/pyroscope

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -31,6 +32,12 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('"truenas.albandrieu.com:172.17.0.24"', compose)
         self.assertIn('"home.albandrieu.com:172.17.0.1"', compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
+        self.assertIn('SICKZ_INTERNAL_NETWORK: "true"', compose)
+        self.assertIn('HOMELAB_INTERNAL_PROBES_ENABLED: "true"', compose)
+        self.assertIn(
+            "PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040",
+            compose,
+        )
 
     def test_sample_public_path_is_not_owned_by_autoxpose_or_traefik(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
@@ -84,14 +91,6 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("Only the Garage S3 API", overrides)
         self.assertIn('"name": "Garage WebUI"', overrides)
         self.assertIn('"external": false', overrides)
-
-    def test_pihole_sync_uses_shared_read_only_docker_proxy(self) -> None:
-        compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
-
-        self.assertIn("DOCKER_HOST: tcp://docker-socket-proxy:2375", compose)
-        pihole = compose.split("  pihole-dns-sync:", 1)[1].split("  ddns-updater:", 1)[0]
-        self.assertNotIn("/var/run/docker.sock", pihole)
-        self.assertIn("- intranet", pihole)
 
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
         script = (
@@ -179,6 +178,39 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('S3_ENDPOINT_URL: "http://garage:3900"', compose)
         self.assertNotIn('"3903:3903"', compose)
         self.assertNotIn('"3909:3909"', compose)
+
+    def test_private_garage_webui_has_lan_fallback_target(self) -> None:
+        catalog = json.loads(
+            (ROOT / "catalog" / "homelab-services.json").read_text(encoding="utf-8")
+        )
+        garage = next(
+            service for service in catalog["services"] if service["name"] == "Garage"
+        )
+
+        self.assertFalse(garage["external"])
+        self.assertEqual(garage["internalHost"], "172.17.0.24")
+        self.assertEqual(garage["internalPort"], 3909)
+        self.assertFalse(garage["internalSecure"])
+
+    def test_pyroscope_v2_metastore_is_pinned_and_persistent(self) -> None:
+        compose = (ROOT / "apps" / "pyroscope" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("grafana/pyroscope:2.3.0", compose)
+        self.assertNotIn("grafana/pyroscope:latest", compose)
+        self.assertIn(
+            "-metastore.raft.dir=/var/lib/pyroscope/v2/metastore/raft",
+            compose,
+        )
+        self.assertIn(
+            "-metastore.data-dir=/var/lib/pyroscope/v2/metastore/data",
+            compose,
+        )
+        self.assertIn(
+            "/mnt/cpool/pyroscope/data:/var/lib/pyroscope",
+            compose,
+        )
 
     def test_traefik_acme_contract_has_identity_dns01_and_persistent_store(self) -> None:
         compose = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")

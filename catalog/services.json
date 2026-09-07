@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:8f7ccba7aa37d819a155c6a61ecf46883dc42b51584b8333e1737e0648eb2f2d",
+  "catalogRevision": "sha256:b4e5efd5d85365f9d3b2000fa3300b337e1ee5456f81095194ddfeb12e7be047",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -620,6 +620,21 @@
         "containerService": "pfsense-exporter"
       },
       "icon": "📡"
+    },
+    {
+      "id": "pihole",
+      "name": "Pi-hole",
+      "kind": "dns",
+      "category": "network",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole",
+      "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer.",
+      "presentationRole": "core",
+      "criticality": "critical",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole"
+      }
     },
     {
       "id": "prometheus",

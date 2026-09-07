@@ -43,6 +43,38 @@ REDIS_URL=redis://:REPLACE_WITH_REDIS_PASSWORD@redis:6379/0
 
 There is deliberately no Compose `depends_on` from FastAPI Sample to Redis because they are separate Compose projects. Service discovery is provided by the shared external `intranet` network.
 
+## Homelab runtime probes
+
+The TrueNAS Compose deployment intentionally enables the internal observer path:
+
+```yaml
+FASTAPI_RUNTIME_MODE: homelab
+SICKZ_INTERNAL_NETWORK: "true"
+HOMELAB_INTERNAL_PROBES_ENABLED: "true"
+PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040
+```
+
+Keep these values aligned. `SICKZ_INTERNAL_NETWORK` describes the runtime/network posture, while `HOMELAB_INTERNAL_PROBES_ENABLED` independently enables the LAN service probes. Pyroscope must use the TrueNAS LAN endpoint rather than `localhost:4040`, because `localhost` inside the FastAPI container refers to FastAPI itself.
+
+The health observer is deliberately local-first on the homelab runtime:
+
+- when a catalog service has `external: false`, FastAPI does not schedule a public HTTPS probe for that service; if `internalHost` and `internalPort` exist, the LAN target is probed instead;
+- when `external: true`, the public and LAN targets are probed independently; a failed public endpoint with a healthy LAN target is reported as degraded/warning rather than as a locally failed service;
+- a stale `tunnelUrl` never overrides `external: false`.
+
+Garage WebUI is the regression example: `external=false`,
+`internalHost=172.17.0.24`, `internalPort=3909`, and
+`internalSecure=false`.
+
+After deployment, verify the effective runtime without printing unrelated secrets:
+
+```bash
+docker exec fastapi-sample env | \
+  grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
+```
+
+For self-hosted Sentry, keep the project DSN in `/mnt/cpool/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
+
 ## Prometheus / core health metrics
 
 FastAPI Sample can optionally enrich the service-first health board from the
