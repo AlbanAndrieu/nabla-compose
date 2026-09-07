@@ -65,7 +65,7 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
             ],
         )
 
-    def test_non_compose_runtime_does_not_derive_docker_placement(self) -> None:
+    def test_truenas_app_id_runtime_derives_hosted_by_docker(self) -> None:
         relation = MODULE.runtime_placement_relation(
             {
                 "id": "native-app",
@@ -75,7 +75,16 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
             "apps/native/compose.yml",
         )
 
-        self.assertIsNone(relation)
+        self.assertIsNotNone(relation)
+        assert relation is not None
+        self.assertEqual(
+            (relation["source"], relation["target"], relation["type"]),
+            ("native-app", "docker", "hostedBy"),
+        )
+        self.assertEqual(
+            relation["evidence"],
+            ["apps/native/compose.yml:native-app.x-nabla.runtime.appId"],
+        )
 
     def test_document_level_relation_requires_explicit_source(self) -> None:
         relation = MODULE.document_topology_relation(

@@ -1025,7 +1025,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/2fauth/compose.yml:2fauth.x-nabla.runtime.containerService"
+        "apps/2fauth/compose.yml:2fauth.x-nabla.runtime.appId"
       ]
     },
     {

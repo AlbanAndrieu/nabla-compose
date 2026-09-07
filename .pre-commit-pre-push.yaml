@@ -5,7 +5,7 @@ repos:
       - id: quality-gate-pre-push
         name: "✅ quality · Run repository quality gate before push"
         language: system
-        entry: bash scripts/quality-gate.sh
+        entry: bash scripts/quality-gate.sh --publish
         pass_filenames: false
         always_run: true
         stages: [pre-push]
