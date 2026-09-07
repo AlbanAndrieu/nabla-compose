@@ -371,6 +371,18 @@ Before migrating more applications, create a repeatable inventory from both desi
 - `apps/gatus/config/config.yml`
 - `apps/autokuma/static/generated-monitors.json`
 
+Current reconciliation gates:
+
+- [x] every tracked top-level `apps/*/compose.yml` declares at least one
+      `x-nabla` catalog service;
+- [x] generated service catalog/topology and Homarr/Gatus/AutoKuma consumers are
+      committed from the same declarations;
+- [x] `scripts/truenas/audit-app-lifecycle.sh` reports repository applications
+      missing from `app.query` separately from runtime-only TrueNAS Apps;
+- [ ] run the enhanced audit on TrueNAS after PR #128 is deployed and reconcile
+      every remaining `MISSING`, `STOPPED`, `CRASHED` or `RUNTIME-ONLY`
+      entry before retiring native applications.
+
 ### FastAPI Sample runtime sources
 
 Base URL: `https://fastapi-sample.fastapicloud.dev`
