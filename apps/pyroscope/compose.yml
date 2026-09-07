@@ -14,5 +14,6 @@ services:
       - "-pyroscopedb.data-path=/var/lib/pyroscope/v1"
       - "-metastore.raft.dir=/var/lib/pyroscope/v2/metastore/raft"
       - "-metastore.data-dir=/var/lib/pyroscope/v2/metastore/data"
+      - "-storage.filesystem.dir=/var/lib/pyroscope/v2/shared"
     volumes:
       - /mnt/cpool/pyroscope/data:/var/lib/pyroscope
