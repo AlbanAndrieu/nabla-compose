@@ -1259,7 +1259,7 @@ function probe_pyroscope_fastapi_profile {
 
   if jq -e '
     (.flamebearer.names | length) > 0 and
-    ([.timeline.samples[]? | select(. > 0)] | length) > 0
+    any(.timeline.samples[]?; . > 0)
   ' <<<"${render}" >/dev/null; then
     functional_ok "Pyroscope query: FastAPI CPU flamegraph contains recent samples"
   else
