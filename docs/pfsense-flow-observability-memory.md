@@ -293,6 +293,51 @@ swap                     none
 The appliance must remain a firewall/security edge first. Heavy analytics,
 historical queries and flow retention belong on TrueNAS.
 
+## Automated regression audit
+
+Use the repository audit from a trusted workstation for the full appliance
+contract:
+
+```bash
+scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+```
+
+Machine-readable output:
+
+```bash
+scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 --json
+```
+
+The full SSH audit is read-only and checks the settings and runtime conditions
+that matter for the Netgate 1100 incident class, including:
+
+- PHP `memory_limit=128M`;
+- pfBlockerNG `dnsbl_python`, TLD posture and expected-disabled heavy feeds;
+- processed DNSBL line count and `/var/unbound/pfb_py_data.txt` size;
+- Unbound RSS, native cache counters, free memory and current-boot OOM evidence;
+- WAN Snort HTTP Inspect 32 MiB memcap;
+- ntopng/softflowd offload policy;
+- native pflow exporters to TrueNAS/Akvorado and Cloudflare;
+- Kea, Zabbix and duplicate `pfb_filter` helper state;
+- the latest pfBlockerNG PASSED/completion markers.
+
+The guardrails are deliberately conservative and can be overridden through the
+documented `PFSENSE_*_WARN_*` / `PFSENSE_*_FAIL_*` environment variables.
+They are capacity contracts for this Netgate 1100, not generic pfSense limits.
+
+A partial external check is available through FastAPI Sample:
+
+```bash
+scripts/pfsense/audit-posture.sh --api https://fastapi-sample.fastapicloud.dev
+```
+
+The API mode validates the existing bounded pfSense observer and explicitly
+returns `SKIP` for appliance-local evidence that FastAPI Sample does not expose
+today, such as `config.xml`, process RSS, DNSBL files, Snort generated config
+and `pflowctl`. Do not expand the FastAPI identity to write access merely to
+make the remote audit complete; full posture is currently obtained over
+read-only SSH from the trusted workstation.
+
 ## Runtime checks
 
 ### Memory pressure
