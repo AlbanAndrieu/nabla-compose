@@ -179,7 +179,15 @@ them separate when troubleshooting; each has a different remediation.
    rollback for `0052` is idempotent
    (`DROP WORKLOAD IF EXISTS low_priority_deletes`; `DROP WORKLOAD IF EXISTS all`).
    Manual edits of migration tracking state are forbidden.
-6. **Validated outcome.**
+6. **Legacy PostgreSQL migration graph may block Sentry 26.8 upgrade.**
+   The first `sentry upgrade --noinput --create-kafka-topics` reached Django
+   migration planning but failed while constructing `ProjectState` with lazy
+   references such as `feedback.Feedback.environment -> sentry.environment`
+   and the message `app 'sentry' isn't installed`. Upstream Sentry 26.8 does
+   include `sentry` in `INSTALLED_APPS`; therefore treat this as a migration
+   state/history problem until PostgreSQL inspection proves otherwise. Do not
+   patch `INSTALLED_APPS` to hide it.
+7. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
    `sentry-clickhouse:9000`. The `sentry` database contains 85 tables and the
