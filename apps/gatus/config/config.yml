@@ -31,6 +31,24 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: Akvorado Inlet
+  group: observability
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: akvorado-inlet
+    nabla_service_id: akvorado-inlet
+  url: tcp://172.17.0.24:31057
+  conditions:
+  - '[CONNECTED] == true'
+- name: Akvorado Outlet
+  group: observability
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: akvorado-outlet
+    nabla_service_id: akvorado-outlet
+  url: tcp://172.17.0.24:31058
+  conditions:
+  - '[CONNECTED] == true'
 - name: Grafana Alloy
   group: observability
   interval: 60s
