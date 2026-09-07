@@ -102,7 +102,7 @@ jobs:
               echo "- SARIF upload is skipped because the report contains no runs."
             fi
             if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
-              echo "- Raw reports are not archived for successful runs; the job summary and PR report remain available."
+              echo "- Raw reports are not archived for successful runs; the job summary remains available."
             else
               echo "- The full raw MegaLinter output is attached as a short-lived workflow artifact."
             fi
