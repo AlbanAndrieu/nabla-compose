@@ -274,6 +274,9 @@ nabla:core:truenas_cpu_busy_ratio
 nabla:telemetry:truenas_node_up
 nabla:telemetry:truenas_cadvisor_up
 nabla:telemetry:pfsense_metrics_up
+nabla:core:pfsense_memory_available_ratio
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
 nabla:observability:prometheus_up
 ```
 
@@ -284,6 +287,52 @@ unavailable / blind spot**, not as TrueNAS or pfSense down.
 Filesystem/ZFS capacity is intentionally not collapsed into one stable
 recording rule yet. First inspect the actual TrueNAS filesystem/ZFS label set
 so an irrelevant mount cannot become the fleet-wide minimum by accident.
+
+### NetFlow/IPFIX pipeline metrics
+
+The TrueNAS Prometheus instance also scrapes Akvorado's native Inlet and Outlet
+Prometheus endpoints. This keeps flow monitoring off the memory-constrained
+Netgate while still giving historical visibility into the complete path:
+
+```text
+pfSense pflow/IPFIX
+  -> Akvorado Inlet
+  -> Kafka
+  -> Akvorado Outlet
+  -> ClickHouse
+```
+
+The primary jobs are:
+
+```promql
+up{job="akvorado_inlet"}
+up{job="akvorado_outlet"}
+```
+
+The stable recording rules are:
+
+```promql
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+Treat these layers separately:
+
+- missing Akvorado metrics is a telemetry blind spot;
+- a missing/silent exporter is a flow-export degradation;
+- UDP drops/errors are collector pressure;
+- Kafka errors indicate transport failure inside the pipeline;
+- ClickHouse errors/stalled batches indicate persistence failure;
+- none of these signals by itself means PF/routing is down.
+
+The provisioned Grafana dashboard `pfSense NetFlow/IPFIX → Akvorado` is the
+operator drill-down. Cloudflare Network Flow remains an independent external
+consumer of the second pflow exporter and should be used as corroborating
+evidence, not as the local Akvorado health source.
 
 ### Gatus synthetic service metrics
 
