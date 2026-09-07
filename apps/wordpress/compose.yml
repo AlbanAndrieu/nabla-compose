@@ -41,6 +41,24 @@ services:
   wordpress:
     image: ntninja/wordpress-postgresql:latest
     container_name: wordpress
+    x-nabla:
+      id: wordpress
+      name: WordPress
+      kind: cms
+      category: development
+      presentationRole: service
+      criticality: low
+      description: Lab WordPress deployment backed by PostgreSQL through PG4WP.
+      runtime:
+        provider: truenas-app
+        containerService: wordpress
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: WordPress stores application state in PostgreSQL through PG4WP.
+          evidence:
+            - apps/wordpress/compose.yml:WORDPRESS_DB_HOST=postgres:5432
     restart: unless-stopped
     depends_on:
       postgres:
