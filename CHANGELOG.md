@@ -1,3 +1,10 @@
+# [0.21.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.20.1...0.21.0) (2026-09-07)
+
+
+### Features
+
+* **k8s:** prepare FastAPI smoke, CSI preflight and infra secrets ([#130](https://github.com/AlbanAndrieu/nabla-compose/issues/130)) ([f9e508e](https://github.com/AlbanAndrieu/nabla-compose/commit/f9e508e5fde70291422eea091dc811f0d9f9d63f))
+
 ## [0.20.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.20.0...0.20.1) (2026-09-07)
 
 
