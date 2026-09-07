@@ -3,6 +3,21 @@ services:
   nexus:
     container_name: nexus
     image: sonatype/nexus3:3.92.3-alpine # 3.87.1-01
+    x-nabla:
+      id: nexus
+      name: Nexus Repository
+      kind: artifact-repository
+      category: development
+      presentationRole: service
+      criticality: medium
+      description: Repository manager for development artifacts and package proxies.
+      runtime:
+        provider: truenas-app
+        containerService: nexus
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8081
     restart: unless-stopped
     user: "1002:1002" # TrueNAS nexus user
     ports:
