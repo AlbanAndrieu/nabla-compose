@@ -3,6 +3,21 @@ services:
   dockhand:
     image: fnsys/dockhand:latest
     container_name: dockhand
+    x-nabla:
+      id: dockhand
+      name: Dockhand
+      kind: container-management
+      category: operations
+      presentationRole: service
+      criticality: medium
+      description: Docker container management UI.
+      runtime:
+        provider: truenas-app
+        containerService: dockhand
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 3050
     restart: unless-stopped
     ports:
       - 3050:3000
