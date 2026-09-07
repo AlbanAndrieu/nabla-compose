@@ -52,4 +52,3 @@ groups:
             pfSense memory usage has remained above 94% for two minutes,
             approximately the 64 MiB critical free-memory guardrail on the
             current Netgate 1100. OOM/reclaim failures are likely if pressure grows.
-
