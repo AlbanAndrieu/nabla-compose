@@ -45,7 +45,9 @@ services:
       GRAYLOG_TRANSPORT_EMAIL_USE_SSL: "${GRAYLOG_TRANSPORT_EMAIL_USE_SSL:-false}"
       GRAYLOG_TRANSPORT_FROM_EMAIL: "${GRAYLOG_TRANSPORT_FROM_EMAIL:-graylog@albandrieu.com}"
       GRAYLOG_TRANSPORT_SUBJECT_PREFIX: "${GRAYLOG_TRANSPORT_SUBJECT_PREFIX:-[graylog]}"
-    entrypoint: /usr/bin/tini -- wait-for-it opensearch-security:9200 -- /docker-entrypoint.sh
+    entrypoint: >-
+      /usr/bin/tini -- wait-for-it mongo:27017 --
+      wait-for-it opensearch-security:9200 -- /docker-entrypoint.sh
     volumes:
       - /mnt/cpool/graylog/data/journal:/usr/share/graylog/data/journal
     networks:
