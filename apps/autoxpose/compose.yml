@@ -3,6 +3,27 @@ services:
   autoxpose:
     image: mostafawahied/autoxpose:0.4.2
     container_name: autoxpose
+    x-nabla:
+      id: autoxpose
+      name: AutoXpose
+      kind: exposure-automation
+      category: operations
+      presentationRole: support
+      criticality: medium
+      description: Reconciles Docker service exposure and DNS/proxy provider state.
+      runtime:
+        provider: truenas-app
+        containerService: autoxpose
+      monitoring:
+        type: http
+        target: http://172.17.0.24:4949/api/settings/status
+      relations:
+        - target: docker-socket-proxy
+          type: consumesApi
+          strength: required
+          description: AutoXpose discovers containers through the restricted Docker API proxy.
+          evidence:
+            - apps/autoxpose/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     ports:
