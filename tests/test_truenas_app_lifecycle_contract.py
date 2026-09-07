@@ -431,7 +431,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("apps/sentry/compose.yml", roadmap)
         self.assertIn("snuba-api", roadmap)
         self.assertIn("web-process health only", roadmap)
-        self.assertIn("restore/adopt a supported Snuba topology", roadmap)
+        self.assertIn("one shared ClickHouse service", roadmap)
+        self.assertIn("0041_adjust_partitioning_meta_tables", roadmap)
+        self.assertIn("allow_dimensions_outside_sorting_key=1", roadmap)
+        self.assertIn("25.3.6.10034.altinitystable", roadmap)
+        self.assertIn("retire `apps/sentry-clickhouse`", roadmap)
         self.assertIn("database `ntopng`", roadmap)
 
     def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
