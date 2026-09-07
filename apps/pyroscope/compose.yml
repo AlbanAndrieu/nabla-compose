@@ -3,6 +3,27 @@ services:
   pyroscope:
     image: grafana/pyroscope:2.3.0
     container_name: pyroscope
+    x-nabla:
+      id: pyroscope
+      name: Grafana Pyroscope
+      kind: continuous-profiler
+      category: observability
+      presentationRole: support
+      criticality: medium
+      description: Continuous profiling backend with persistent Pyroscope v2 metastore state.
+      runtime:
+        provider: truenas-app
+        containerService: pyroscope
+      monitoring:
+        type: http
+        target: http://172.17.0.24:4040/ready
+      relations:
+        - target: grafana
+          type: observedBy
+          strength: optional
+          description: Grafana queries Pyroscope as a profiling data source.
+          evidence:
+            - apps/pyroscope/compose.yml:TCP/4040
     restart: unless-stopped
     ports:
       - "4040:4040"
