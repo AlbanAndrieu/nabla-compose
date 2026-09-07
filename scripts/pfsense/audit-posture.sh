@@ -13,6 +13,7 @@ readonly DEFAULT_FREE_FAIL_KB=65536
 
 mode=""
 ssh_target="${PFSENSE_SSH_TARGET:-}"
+ssh_port="${PFSENSE_SSH_PORT:-}"
 api_url="${PFSENSE_FASTAPI_URL:-${DEFAULT_API_URL}}"
 output_format="text"
 strict=0
@@ -31,12 +32,16 @@ usage() {
 Audit the pfSense posture established after the Netgate 1100 memory incident.
 
 Usage:
-  scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 [--json] [--strict]
+  scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com [--json] [--strict]
+  scripts/pfsense/audit-posture.sh --ssh HOST --port PORT [--json] [--strict]
   scripts/pfsense/audit-posture.sh --api [URL] [--json] [--strict]
   scripts/pfsense/audit-posture.sh --local [--json] [--strict]
 
 Modes:
-  --ssh TARGET   Full read-only audit over SSH from a workstation.
+  --ssh TARGET   Full read-only audit over SSH from a workstation. SSH aliases
+                 from ~/.ssh/config are supported and preferred.
+  --port PORT    Override the SSH port when the target is not configured in
+                 ~/.ssh/config.
   --api [URL]    Partial audit through fastapi-sample.
   --local        Pipe the same POSIX collector through local /bin/sh.
 
@@ -63,6 +68,11 @@ while (($# > 0)); do
       [[ $# -ge 2 ]] || { echo "ERROR: --ssh requires a target" >&2; exit 64; }
       mode="ssh"
       ssh_target="$2"
+      shift 2
+      ;;
+    --port)
+      [[ $# -ge 2 ]] || { echo "ERROR: --port requires a port" >&2; exit 64; }
+      ssh_port="$2"
       shift 2
       ;;
     --api)
@@ -115,6 +125,14 @@ fi
 if [[ "${mode}" == "ssh" && -z "${ssh_target}" ]]; then
   echo "ERROR: SSH mode requires a target" >&2
   exit 64
+fi
+
+if [[ -n "${ssh_port}" ]]; then
+  if [[ ! "${ssh_port}" =~ ^[0-9]+$ ]] || ((ssh_port < 1 || ssh_port > 65535)); then
+    echo "ERROR: --port/PFSENSE_SSH_PORT must be an integer between 1 and 65535" >&2
+    exit 64
+  fi
+  ssh_options+=(-p "${ssh_port}")
 fi
 
 remote_collector() {
