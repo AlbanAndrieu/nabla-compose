@@ -1,3 +1,10 @@
+## [0.21.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.21.0...0.21.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **catalog:** bind 2FAuth and Open WebUI to TrueNAS runtime ([#131](https://github.com/AlbanAndrieu/nabla-compose/issues/131)) ([2a0ecf1](https://github.com/AlbanAndrieu/nabla-compose/commit/2a0ecf149cddd875363e97a2fb1b2a48164d2445))
+
 # [0.21.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.20.1...0.21.0) (2026-09-07)
 
 
