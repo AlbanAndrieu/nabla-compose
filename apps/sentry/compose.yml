@@ -439,6 +439,8 @@ services:
       RELAY_PROCESSING_ENABLED: "true"
       RELAY_KAFKA_BROKER_URL: kafka:9092
       RELAY_LOG_LEVEL: WARN
+    volumes:
+      - /mnt/cpool/sentry/relay:/work/.relay
     depends_on:
       sentry-web:
         condition: service_healthy
