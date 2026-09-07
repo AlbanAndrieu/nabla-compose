@@ -26,8 +26,10 @@ services:
           evidence:
             - apps/postgres/compose.yml:DATA_SOURCE_NAME
     restart: unless-stopped
+    env_file:
+      - /mnt/cpool/postgres/.env.secrets
     environment:
-      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/postgres?sslmode=disable"
+      DATA_SOURCE_NAME: "${POSTGRES_EXPORTER_DSN}"
     ports:
       - 9187:9187
     networks:
