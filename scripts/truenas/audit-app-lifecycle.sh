@@ -1160,6 +1160,114 @@ function probe_langfuse_worker_clickhouse_credentials_if_running {
 }
 
 
+function probe_pyroscope_fastapi_profile {
+  local pyroscope_container
+  local fastapi_container
+  local fastapi_env
+  local now_ms
+  local start_ms
+  local labels
+  local series
+  local render
+
+  pyroscope_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "pyroscope" { print; exit }'
+  )"
+
+  if [[ -z "${pyroscope_container}" ]]; then
+    functional_fail "Pyroscope runtime: repository-managed container pyroscope is not running"
+    return
+  fi
+
+  if ! curl --fail --silent --show-error --max-time 8     http://172.17.0.24:4040/ready >/dev/null; then
+    functional_fail "Pyroscope runtime: /ready is not HTTP 200"
+    return
+  fi
+  functional_ok "Pyroscope runtime: /ready HTTP 200"
+
+  fastapi_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "fastapi-sample" { print; exit }'
+  )"
+
+  if [[ -z "${fastapi_container}" ]]; then
+    printf 'SKIP: Pyroscope FastAPI profile contract (fastapi-sample container is not running)\n'
+    return
+  fi
+
+  fastapi_env="$(docker inspect "${fastapi_container}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'PYROSCOPE_SERVER_ADDRESS=http://172.17.0.24:4040' <<<"${fastapi_env}"; then
+    functional_ok "FastAPI Sample -> Pyroscope endpoint configured"
+  else
+    functional_fail "FastAPI Sample -> Pyroscope endpoint must be http://172.17.0.24:4040"
+    return
+  fi
+
+  now_ms="$(date +%s)000"
+  start_ms="$(( ${now_ms} - 900000 ))"
+
+  if ! labels="$(
+    curl --fail --silent --show-error --max-time 8       --header 'Content-Type: application/json'       --data "{
+        \"start\": ${start_ms},
+        \"end\": ${now_ms},
+        \"name\": \"service_name\"
+      }"       http://172.17.0.24:4040/querier.v1.QuerierService/LabelValues
+  )"; then
+    functional_fail "Pyroscope query: service_name LabelValues request failed"
+    return
+  fi
+
+  if jq -e '.names | index("fastapi-sample") != null' <<<"${labels}" >/dev/null; then
+    functional_ok "Pyroscope query: service_name=fastapi-sample observed in last 15m"
+  else
+    functional_fail "Pyroscope query: service_name=fastapi-sample absent in last 15m"
+    return
+  fi
+
+  if ! series="$(
+    curl --fail --silent --show-error --max-time 8       --header 'Content-Type: application/json'       --header 'Accept: */*; allow-utf8-labelnames=true'       --data "{
+        \"start\": ${start_ms},
+        \"end\": ${now_ms},
+        \"matchers\": [\"{service_name=\\\"fastapi-sample\\\"}\"],
+        \"labelNames\": [\"service_name\", \"__profile_type__\", \"__name__\"]
+      }"       http://172.17.0.24:4040/querier.v1.QuerierService/Series
+  )"; then
+    functional_fail "Pyroscope query: FastAPI profile Series request failed"
+    return
+  fi
+
+  if jq -e '
+    any(
+      .labelsSet[]?.labels[]?;
+      .name == "__profile_type__" and
+      .value == "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+    )
+  ' <<<"${series}" >/dev/null; then
+    functional_ok "Pyroscope query: FastAPI CPU profile series present"
+  else
+    functional_fail "Pyroscope query: FastAPI CPU profile series missing"
+    return
+  fi
+
+  if ! render="$(
+    curl --fail --silent --show-error --max-time 8 --get       --data-urlencode 'query=process_cpu:cpu:nanoseconds:cpu:nanoseconds{service_name="fastapi-sample"}'       --data-urlencode 'from=now-15m'       http://172.17.0.24:4040/pyroscope/render
+  )"; then
+    functional_fail "Pyroscope query: FastAPI CPU flamegraph render failed"
+    return
+  fi
+
+  if jq -e '
+    (.flamebearer.names | length) > 0 and
+    ([.timeline.samples[]? | select(. > 0)] | length) > 0
+  ' <<<"${render}" >/dev/null; then
+    functional_ok "Pyroscope query: FastAPI CPU flamegraph contains recent samples"
+  else
+    functional_fail "Pyroscope query: FastAPI CPU flamegraph has no recent samples"
+  fi
+}
+
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -1217,7 +1325,7 @@ probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryptio
 probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
 probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
-probe_http_if_running pyroscope "Pyroscope readiness" "http://172.17.0.24:4040/ready"
+probe_pyroscope_fastapi_profile
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
