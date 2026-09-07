@@ -538,6 +538,33 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 - [ ] treat ClickHouse as shared platform infrastructure and validate every
       deployed consumer before/after version or permission changes.
 
+##### Shared Memcached evaluation
+
+Sentry currently runs its own ephemeral `memcached:1.6.45-alpine` cache. Memcached
+is technically reusable by other homelab services, but unlike PostgreSQL,
+Redis, Kafka and ClickHouse it provides no durable namespace or database
+isolation. Sharing one daemon can therefore create cross-application eviction,
+memory-pressure and noisy-neighbour coupling.
+
+Target decision:
+
+- [ ] inventory all current and planned Memcached consumers in the repository;
+- [ ] measure whether any non-Sentry workload would materially benefit from a
+      shared daemon instead of its own small cache;
+- [ ] if multiple consumers justify sharing, extract a reusable
+      `apps/memcached/compose.yml` TrueNAS app on the external `intranet`
+      network, with explicit memory limit, connection limit and monitoring;
+- [ ] before moving Sentry, define per-consumer key prefixes where supported and
+      prove eviction of one consumer cannot create unacceptable failure modes
+      for another;
+- [ ] keep Memcached internal-only with no host/WAN port exposure;
+- [ ] if isolation is more valuable than the small memory saving, retain the
+      Sentry-local Memcached and document that decision rather than forcing
+      infrastructure consolidation.
+
+This is an optimization/consolidation task, not a prerequisite for the Sentry
+26.8 migration.
+
 ##### Shared ClickHouse consumer compatibility gate
 
 Long-term architecture target: **one shared ClickHouse service** for homelab
