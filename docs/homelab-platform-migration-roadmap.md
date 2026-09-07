@@ -26,6 +26,48 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
 - [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
+### Workstation SSH agent forwarding to TrueNAS and pfSense
+
+Keep operator SSH credentials anchored on the trusted workstation instead of
+copying private keys or passphrases onto infrastructure appliances. Evaluate
+OpenSSH agent forwarding as the preferred interactive administration path for
+TrueNAS and pfSense, while keeping it disabled for unrelated/untrusted hosts.
+
+Target flow:
+
+```text
+trusted workstation ssh-agent
+        |
+        +-- ForwardAgent --> TrueNAS SSH (albandrieu:9922)
+        |                       |
+        |                       +-- sudo with SSH_AUTH_SOCK preserved when
+        |                           repository maintenance needs root
+        |
+        +-- ForwardAgent --> pfSense SSH (trusted LAN/VPN only)
+```
+
+- [ ] validate workstation `ssh-agent` contains only the intended operator
+  identities and that no private key/passphrase is copied to TrueNAS or pfSense;
+- [ ] configure `ForwardAgent yes` only on explicit TrueNAS/pfSense host
+  stanzas, never as a global SSH default;
+- [ ] prove TrueNAS login through the canonical `albandrieu` account on
+  TCP/9922 and confirm the forwarded agent with `ssh-add -l`;
+- [ ] validate repository GitHub fetch/pull from the TrueNAS checkout using the
+  forwarded agent, including the root-owned maintenance case with an explicitly
+  preserved `SSH_AUTH_SOCK` rather than storing `SSH_PASSPHRASE`;
+- [ ] normalize ownership of repository checkouts intended for interactive
+  maintenance so routine Git operations do not require root merely because a
+  historical clone created root-owned `.git/objects`;
+- [ ] test pfSense agent forwarding over its trusted SSH path without changing
+  the WAN exposure contract: SSH remains LAN/VPN/trusted-source only and must
+  stay blocked from generic Internet origins;
+- [ ] document and test agent teardown/expiry (`ssh-add -D`, shell/session
+  close or bounded key lifetime) and verify that forwarded-agent sockets are not
+  exposed to containers or unattended services;
+- [ ] prefer API-specific least-privilege identities for unattended automation;
+  forwarded human SSH agents are an interactive operator mechanism, not a
+  service credential or CI/CD secret source.
+
 ### TrueNAS FastAPI observer boundary — 2026-09-06
 
 The internal FastAPI production observer now uses a dedicated TrueNAS identity:
