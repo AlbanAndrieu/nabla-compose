@@ -198,6 +198,60 @@ must not be treated as evidence that the services are intentionally public.
 - [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
   critical `*.int` names, with Pi-hole synchronization retained as an
   optional secondary consumer.
+- [ ] **Diagnose and fix TrueNAS internal DNS resolution:** workstation resolution
+  of `*.int.albandrieu.com` currently works while the TrueNAS host cannot resolve
+  the same private names. Compare the effective resolver path on both systems
+  (DHCP/static DNS servers, search domains, pfSense/Unbound forwarding, Pi-hole,
+  `/etc/resolv.conf`, systemd/resolver state where applicable, and split-horizon
+  answers) before changing records;
+- [ ] prove from TrueNAS that `dig`/equivalent queries against the configured
+  resolver return the expected private address for representative names such as
+  `sample.int.albandrieu.com`, and that direct queries to pfSense/Unbound and
+  Pi-hole produce the intended authoritative/forwarded result;
+- [ ] add a read-only DNS smoke check that compares workstation/LAN expectations
+  with the TrueNAS resolver path and fails on public leakage, NXDOMAIN, resolver
+  mismatch or an unexpected address for critical `*.int.albandrieu.com` names;
+- [ ] document the final resolver ownership and fallback path so TrueNAS does not
+  depend accidentally on a workstation-only DNS configuration.
+
+### Centralized syslog -> Graylog
+
+Treat host/network logs as security telemetry rather than ad-hoc troubleshooting
+output. The next observability wave should centralize pfSense and workstation
+syslog in the repository-managed Graylog stack.
+
+Target flow:
+
+```text
+pfSense ---------+
+                 +--> Graylog input --> streams/pipelines --> search/alerts
+workstation -----+
+```
+
+- [ ] enable/review **pfSense Remote Logging** toward a dedicated Graylog Syslog
+  input, initially on the trusted LAN only; include firewall/filter, system,
+  resolver/DHCP and relevant security package logs without exposing the input to
+  WAN;
+- [ ] configure the workstation to forward system/security syslog to Graylog,
+  using a transport supported by both endpoints; prefer TCP/TLS where practical
+  and keep UDP only where a source cannot reliably use TCP;
+- [ ] define explicit Graylog inputs/ports, source allowlists and firewall rules;
+  never publish a syslog receiver to the public Internet;
+- [ ] normalize source identity, timestamp/timezone, facility/severity and common
+  fields through Graylog pipelines/extractors so pfSense and workstation events
+  can be correlated;
+- [ ] create separate streams for at least `pfsense` and `workstation`, with
+  retention/index policy sized for homelab storage rather than unlimited log
+  growth;
+- [ ] add health/acceptance checks proving that a generated test event from each
+  source reaches Graylog, is parsed with the expected source/timestamp fields,
+  is searchable in the correct stream and survives a Graylog restart;
+- [ ] add alerts/dashboards only after ingestion quality is proven, prioritizing
+  pfSense firewall denies/security events and workstation authentication or
+  privilege-related events;
+- [ ] document data sensitivity and retention: workstation logs can contain user,
+  process, path, hostname and network metadata and therefore should remain on the
+  trusted observability plane.
 
 ### Cloudflare Tunnel + Access reconciliation
 
