@@ -216,7 +216,11 @@ them separate when troubleshooting; each has a different remediation.
    project network declared with `internal: true`. NGINX now joins external
    `intranet` with `gw_priority: 1` and keeps the `sentry` network for
    service-to-service routing. Runtime acceptance requires the active Docker
-   port mapping, not merely the requested HostConfig mapping.
+   port mapping in `NetworkSettings.Ports`, not merely the requested
+   `HostConfig.PortBindings`. On TrueNAS/Docker in this deployment, `docker port`
+   may still print nothing even when `NetworkSettings.Ports` contains the active
+   mapping and the host HTTP probe succeeds, so `docker port` is not used as the
+   acceptance source of truth.
 10. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
