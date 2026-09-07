@@ -302,6 +302,8 @@ contract:
 scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
 ```
 
+If the pfSense SSH endpoint is not on TCP/22, prefer an existing workstation SSH alias in `~/.ssh/config`. Otherwise pass an explicit port with `--port PORT`; do not assume TCP/22.
+
 Machine-readable output:
 
 ```bash
