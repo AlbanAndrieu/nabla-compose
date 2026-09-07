@@ -215,6 +215,46 @@ FastAPI Sample is the external read-only observer and `nabla-compose` is the inf
 
 The broad WAN Easy Rule removal remains a hardening task even while current TrueNAS health is green.
 
+## P2 — pfBlockerNG feed hygiene
+
+Track stale or discontinued pfBlockerNG feeds independently from the resolved
+Unbound/DNSBL memory incident.
+
+### Remove or replace `MaxMind_BD_Proxy_v4`
+
+The installed feed currently uses the historical MaxMind
+`high-risk-ip-sample-list` endpoint. Current pfBlockerNG upstream marks
+`MaxMind_BD_Proxy` as **discontinued**; the historical URL is a web/sample
+page rather than a supported raw block feed. The observed HTTP 404 is therefore
+not evidence of a missing pfSense credential.
+
+Action:
+
+- disable/remove `MaxMind_BD_Proxy_v4` from the active pfBlockerNG IPv4
+  sources so stale cached contents are not silently reused;
+- do not add MaxMind credentials to the discontinued URL;
+- if proxy/anonymizer intelligence is still required, evaluate a supported
+  replacement separately. MaxMind's current GeoIP Anonymous IP database uses
+  authenticated database downloads and requires a MaxMind account ID/license
+  key; treat that as a new licensed integration rather than a repair of the
+  legacy feed;
+- keep any MaxMind account/license key out of `config.xml`, logs, repository
+  files and command output unless the pfSense integration provides an
+  appropriate secret-storage mechanism;
+- after removing the feed, run a bounded pfBlockerNG update and confirm no
+  `MaxMind_BD_Proxy_v4 ... Download FAIL` remains.
+
+Acceptance criteria:
+
+1. `MaxMind_BD_Proxy_v4` no longer appears as an active pfBlockerNG source.
+2. A subsequent update does not restore stale cached data for this feed.
+3. No credential is added to the discontinued endpoint.
+4. Any replacement feed has a documented owner, authentication model, update
+   cadence, expected size and memory/table impact.
+
+Also review other stale/failed feeds surfaced by the successful 2026-09-07
+update before increasing PF table usage further.
+
 ## P4 — optional HAProxy → Traefik TLS backend verification
 
 Very low priority. The current direct Garage ingress has now been proven as:
