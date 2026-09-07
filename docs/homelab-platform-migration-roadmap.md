@@ -561,6 +561,7 @@ Current/planned consumers have different compatibility contracts:
   pinned to upstream self-hosted 26.8.0's Altinity
   `25.3.6.10034.altinitystable` image. `apps/sentry/compose.yml` remains the
   Sentry application source of truth and points Snuba at `sentry-clickhouse`;
+  runtime acceptance must include a healthy `snuba-api`, not just Sentry web health;
 - **ntopng** — planned historical flow consumer using its own `ntopng`
   database and dedicated `ntopng` user. The repository Compose refuses the
   shared `clickhouse` / `default` identities, loads the password only from
