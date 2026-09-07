@@ -42,6 +42,7 @@ mise.local.toml
 .env.test.local
 .env.production.local
 .env.secrets
+.env.*.secrets
 .env.local
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
