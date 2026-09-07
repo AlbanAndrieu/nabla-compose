@@ -77,5 +77,18 @@ Then run the repository lifecycle audit:
 scripts/truenas/audit-app-lifecycle.sh
 ```
 
-A running container with a 503 readiness response is still degraded and must
-not be reported as healthy.
+The audit follows the repository-managed Docker container rather than the legacy
+TrueNAS App state. When `fastapi-sample` is running it also proves the profiling
+data path, not merely TCP/HTTP reachability:
+
+1. `PYROSCOPE_SERVER_ADDRESS=http://172.17.0.24:4040` is configured in the
+   FastAPI runtime;
+2. `LabelValues` contains `service_name=fastapi-sample` in the last 15 minutes;
+3. the expected Python CPU profile series
+   `process_cpu:cpu:nanoseconds:cpu:nanoseconds` exists;
+4. `/pyroscope/render` returns a non-empty flamegraph with recent non-zero
+   timeline samples.
+
+A running container with a 503 readiness response, or a ready Pyroscope server
+that receives no usable FastAPI profiles, is still degraded and must not be
+reported as healthy.
