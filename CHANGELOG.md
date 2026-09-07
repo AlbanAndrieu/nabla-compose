@@ -1,3 +1,10 @@
+# [0.19.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.18.1...0.19.0) (2026-09-07)
+
+
+### Features
+
+* **access:** verify Sentry with Cloudflare Service Auth ([#125](https://github.com/AlbanAndrieu/nabla-compose/issues/125)) ([e532993](https://github.com/AlbanAndrieu/nabla-compose/commit/e532993948b9b3b8e7d187e970f912534196f9c7))
+
 ## [0.18.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.18.0...0.18.1) (2026-09-07)
 
 
