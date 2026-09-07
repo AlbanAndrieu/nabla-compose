@@ -28,6 +28,46 @@
       "syncEligible": true
     },
     {
+      "id": "akvorado-console",
+      "name": "Akvorado",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-console",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31056",
+      "syncEligible": true
+    },
+    {
+      "id": "akvorado-inlet",
+      "name": "Akvorado Inlet",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-inlet",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "akvorado-orchestrator",
+      "name": "Akvorado Orchestrator",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-orchestrator",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "akvorado-outlet",
+      "name": "Akvorado Outlet",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-outlet",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "alloy",
       "name": "Grafana Alloy",
       "group": "observability",
