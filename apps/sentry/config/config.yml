@@ -1,0 +1,9 @@
+---
+system.internal-url-prefix: http://sentry-web:9000
+
+filestore.backend: filesystem
+filestore.options:
+  location: /data/files
+
+symbolicator.enabled: false
+transaction-events.force-disable-internal-project: true

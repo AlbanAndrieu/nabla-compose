@@ -1,0 +1,61 @@
+---
+configs:
+  sentry_clickhouse_config:
+    file: ./config.xml
+
+services:
+  sentry-clickhouse:
+    image: altinity/clickhouse-server:25.3.6.10034.altinitystable
+    x-nabla:
+      id: sentry-clickhouse
+      name: Sentry ClickHouse
+      kind: database
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: sentry-clickhouse
+      presentationRole: support
+      criticality: critical
+      monitoring:
+        type: port
+        host: sentry-clickhouse
+        port: 9000
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/sentry-clickhouse/.env.secrets
+    environment:
+      CLICKHOUSE_DB: sentry
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      MAX_MEMORY_USAGE_RATIO: "0.3"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - /mnt/cpool/sentry-clickhouse/data:/var/lib/clickhouse
+      - /mnt/cpool/sentry-clickhouse/logs:/var/log/clickhouse-server
+    configs:
+      - source: sentry_clickhouse_config
+        target: /etc/clickhouse-server/config.d/sentry.xml
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          HTTP_PROXY='' http_proxy=''
+          wget -nv -t1 --spider
+          'http://127.0.0.1:8123/ping'
+          || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    networks:
+      intranet:
+        aliases:
+          - sentry-clickhouse
+
+networks:
+  intranet:
+    external: true
+    name: intranet

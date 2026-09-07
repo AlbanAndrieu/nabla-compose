@@ -1,0 +1,149 @@
+---
+x-akvorado-service: &akvorado-service
+  image: quay.io/akvorado/akvorado:v2026.8.1
+  restart: unless-stopped
+  networks:
+    - intranet
+  volumes:
+    - ./config:/etc/akvorado:ro
+
+services:
+  akvorado-orchestrator:
+    <<: *akvorado-service
+    x-nabla:
+      id: akvorado-orchestrator
+      name: Akvorado Orchestrator
+      kind: network-flow-controller
+      category: observability
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - identify
+        - detect
+      runtime:
+        provider: truenas-app
+        containerService: akvorado-orchestrator
+      relations:
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Akvorado uses the shared Kafka broker for its dedicated flow topic.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:kafka
+        - target: clickhouse
+          type: storesIn
+          strength: required
+          description: Akvorado manages and queries its dedicated schema in the shared ClickHouse service.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:clickhousedb
+    env_file:
+      - /mnt/cpool/akvorado/.env.secrets
+    environment:
+      AKVORADO_CFG_ORCHESTRATOR_CLICKHOUSEDB_PASSWORD: ${AKVORADO_CLICKHOUSE_PASSWORD}
+    command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
+  akvorado-inlet:
+    <<: *akvorado-service
+    x-nabla:
+      id: akvorado-inlet
+      name: Akvorado Inlet
+      kind: network-flow-collector
+      category: observability
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - identify
+        - detect
+      runtime:
+        provider: truenas-app
+        containerService: akvorado-inlet
+      relations:
+        - target: kafka
+          type: routesTo
+          strength: required
+          description: Decoded IPFIX/NetFlow records are published to the dedicated Akvorado Kafka topic.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:kafka.topic
+    command: ["inlet", "http://akvorado-orchestrator:8080"]
+    ports:
+      - "172.17.0.24:2055:2055/udp"
+    depends_on:
+      akvorado-orchestrator:
+        condition: service_healthy
+  akvorado-outlet:
+    <<: *akvorado-service
+    x-nabla:
+      id: akvorado-outlet
+      name: Akvorado Outlet
+      kind: network-flow-processor
+      category: observability
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - identify
+        - detect
+      runtime:
+        provider: truenas-app
+        containerService: akvorado-outlet
+      relations:
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Akvorado Outlet consumes the dedicated flow topic from shared Kafka.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:kafka
+        - target: clickhouse
+          type: storesIn
+          strength: required
+          description: Enriched network-flow records are persisted in the dedicated Akvorado ClickHouse database.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:clickhousedb
+    command: ["outlet", "http://akvorado-orchestrator:8080"]
+    depends_on:
+      akvorado-orchestrator:
+        condition: service_healthy
+    volumes:
+      - ./config:/etc/akvorado:ro
+      - /mnt/cpool/akvorado/run:/run/akvorado
+    environment:
+      AKVORADO_CFG_OUTLET_METADATA_CACHEPERSISTFILE: /run/akvorado/metadata.cache
+      AKVORADO_CFG_OUTLET_FLOW_STATEPERSISTFILE: /run/akvorado/flow.state
+  akvorado-console:
+    <<: *akvorado-service
+    x-nabla:
+      id: akvorado-console
+      name: Akvorado
+      kind: network-observability
+      category: observability
+      presentationRole: service
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+      runtime:
+        provider: truenas-app
+        containerService: akvorado-console
+      monitoring:
+        type: http
+        url: http://172.17.0.24:31056/
+      relations:
+        - target: clickhouse
+          type: dependsOn
+          strength: required
+          description: The Akvorado console queries flow history from the shared ClickHouse service.
+          evidence:
+            - apps/akvorado/config/akvorado.yaml:clickhousedb
+    command: ["console", "http://akvorado-orchestrator:8080"]
+    ports:
+      - "172.17.0.24:31056:8080"
+    volumes:
+      - ./config:/etc/akvorado:ro
+      - /mnt/cpool/akvorado/console:/run/akvorado
+    environment:
+      AKVORADO_CFG_CONSOLE_DATABASE_DSN: /run/akvorado/console.sqlite
+    depends_on:
+      akvorado-orchestrator:
+        condition: service_healthy
+networks:
+  intranet:
+    external: true
+    name: intranet

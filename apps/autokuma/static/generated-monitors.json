@@ -21,6 +21,15 @@
   },
   {
     "type": "http",
+    "name": "Akvorado",
+    "description": "Nabla generated monitor: akvorado-console",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31056/"
+  },
+  {
+    "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
     "interval": 60,
@@ -214,6 +223,16 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "https://homeassistant.albanandrieu.com"
+  },
+  {
+    "type": "port",
+    "name": "Apache Kafka",
+    "description": "Nabla generated monitor: kafka",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "kafka",
+    "port": 9092
   },
   {
     "type": "port",
@@ -611,8 +630,18 @@
   },
   {
     "type": "port",
-    "name": "Sentry Web",
-    "description": "Nabla generated monitor: sentry-sentry-web",
+    "name": "Sentry ClickHouse",
+    "description": "Nabla generated monitor: sentry-clickhouse",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "sentry-clickhouse",
+    "port": 9000
+  },
+  {
+    "type": "port",
+    "name": "Nginx",
+    "description": "Nabla generated monitor: sentry-nginx",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

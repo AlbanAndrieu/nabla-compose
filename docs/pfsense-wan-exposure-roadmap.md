@@ -27,6 +27,18 @@ Acceptance tests after the Easy Rule is replaced:
 5. The HAProxy TrueNAS backend remains `UP`, `L7OK`, and HTTP `200`.
 6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
 
+
+## P1 — flow telemetry and Netgate 1100 memory budget
+
+The pfSense flow-export and memory-hardening architecture is documented in
+[`docs/pfsense-flow-observability-memory.md`](./pfsense-flow-observability-memory.md).
+
+The steady-state edge design uses native pflow/IPFIX for both Cloudflare Network
+Flow and the TrueNAS/Akvorado collector while keeping legacy softflowd and
+native ntopng disabled. This is intentionally separate from WAN exposure policy:
+flow export is telemetry and must not be interpreted as an allow rule or proof
+that an application listener is safely restricted.
+
 ## P1 — verify HAProxy → TrueNAS backend TLS
 
 The public TrueNAS path intentionally uses TLS termination and re-encryption:

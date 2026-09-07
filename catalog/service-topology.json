@@ -15,6 +15,58 @@
       "icon": "🔐"
     },
     {
+      "id": "akvorado-console",
+      "name": "Akvorado",
+      "kind": "network-observability",
+      "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ]
+    },
+    {
+      "id": "akvorado-inlet",
+      "name": "Akvorado Inlet",
+      "kind": "network-flow-collector",
+      "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ]
+    },
+    {
+      "id": "akvorado-orchestrator",
+      "name": "Akvorado Orchestrator",
+      "kind": "network-flow-controller",
+      "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ]
+    },
+    {
+      "id": "akvorado-outlet",
+      "name": "Akvorado Outlet",
+      "kind": "network-flow-processor",
+      "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ]
+    },
+    {
       "id": "alloy",
       "name": "Grafana Alloy",
       "kind": "telemetry-collector",
@@ -171,6 +223,13 @@
       "category": "data",
       "sourcePath": "apps/influxdb/compose.yml",
       "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+    },
+    {
+      "id": "kafka",
+      "name": "Apache Kafka",
+      "kind": "message-broker",
+      "category": "data",
+      "sourcePath": "apps/kafka/compose.yml"
     },
     {
       "id": "kibana",
@@ -467,6 +526,15 @@
       "icon": "🌐"
     },
     {
+      "id": "sentry-clickhouse",
+      "name": "Sentry ClickHouse",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/sentry-clickhouse/compose.yml",
+      "presentationRole": "support",
+      "criticality": "critical"
+    },
+    {
       "id": "sonarqube",
       "name": "SonarQube",
       "kind": "code-quality",
@@ -605,6 +673,106 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/2fauth/compose.yml:2fauth.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "akvorado-console",
+      "target": "clickhouse",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "The Akvorado console queries flow history from the shared ClickHouse service.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:clickhousedb"
+      ]
+    },
+    {
+      "source": "akvorado-console",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/akvorado/compose.yml:akvorado-console.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "akvorado-inlet",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/akvorado/compose.yml:akvorado-inlet.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "akvorado-inlet",
+      "target": "kafka",
+      "type": "routesTo",
+      "strength": "required",
+      "description": "Decoded IPFIX/NetFlow records are published to the dedicated Akvorado Kafka topic.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:kafka.topic"
+      ]
+    },
+    {
+      "source": "akvorado-orchestrator",
+      "target": "clickhouse",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Akvorado manages and queries its dedicated schema in the shared ClickHouse service.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:clickhousedb"
+      ]
+    },
+    {
+      "source": "akvorado-orchestrator",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/akvorado/compose.yml:akvorado-orchestrator.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "akvorado-orchestrator",
+      "target": "kafka",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Akvorado uses the shared Kafka broker for its dedicated flow topic.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:kafka"
+      ]
+    },
+    {
+      "source": "akvorado-outlet",
+      "target": "clickhouse",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Enriched network-flow records are persisted in the dedicated Akvorado ClickHouse database.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:clickhousedb"
+      ]
+    },
+    {
+      "source": "akvorado-outlet",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/akvorado/compose.yml:akvorado-outlet.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "akvorado-outlet",
+      "target": "kafka",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Akvorado Outlet consumes the dedicated flow topic from shared Kafka.",
+      "evidence": [
+        "apps/akvorado/config/akvorado.yaml:kafka"
       ]
     },
     {
@@ -1032,6 +1200,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/influxdb/compose.yml:influxdb.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "kafka",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -1725,6 +1903,16 @@
       "description": "The collector posts SMART inventory and metrics to the Scrutiny web/API service.",
       "evidence": [
         "apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT"
+      ]
+    },
+    {
+      "source": "sentry-clickhouse",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sentry-clickhouse/compose.yml:sentry-clickhouse.x-nabla.runtime.containerService"
       ]
     },
     {

@@ -1,0 +1,60 @@
+---
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.6
+    x-nabla:
+      id: kafka
+      name: Apache Kafka
+      kind: message-broker
+      category: data
+      runtime:
+        provider: truenas-app
+        containerService: kafka
+      monitoring:
+        type: port
+        host: kafka
+        port: 9092
+    restart: unless-stopped
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1001@127.0.0.1:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_NODE_ID: "1001"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_LISTENERS: BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: BROKER://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: BROKER:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_MESSAGE_MAX_BYTES: "50000000"
+      KAFKA_REPLICA_FETCH_MAX_BYTES: "50000000"
+      CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
+      KAFKA_LOG4J_LOGGERS: kafka.cluster=WARN,kafka.controller=WARN,kafka.coordinator=WARN,kafka.log=WARN,kafka.server=WARN,state.change.logger=WARN
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: WARN
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    volumes:
+      - /mnt/cpool/kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    networks:
+      intranet:
+        aliases:
+          - kafka
+
+networks:
+  intranet:
+    external: true
+    name: intranet

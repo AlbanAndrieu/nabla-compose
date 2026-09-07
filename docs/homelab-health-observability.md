@@ -81,6 +81,16 @@ Core components explain shared failure domains. Important examples include:
 
 For these components, capacity and pressure are valid first-class signals.
 
+### pfSense edge capacity
+
+The Netgate 1100 is a constrained critical edge component. Its memory budget,
+pfBlockerNG feed hardening, Snort memcap tuning and pflow/IPFIX offload to
+TrueNAS/Akvorado are documented in
+[`docs/pfsense-flow-observability-memory.md`](./pfsense-flow-observability-memory.md).
+
+Treat kernel memory-reclaim kills as a critical platform-pressure symptom even
+when an individual firewall daemon later restarts successfully.
+
 ### Security controls
 
 Security tooling needs two independent states:
