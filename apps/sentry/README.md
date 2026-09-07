@@ -200,7 +200,15 @@ them separate when troubleshooting; each has a different remediation.
    `InconsistentMigrationHistory`, permission error or PostgreSQL fatal error
    remained. Sentry created its internal project successfully and shared Kafka
    contained 87 topics after the migration.
-8. **Validated outcome.**
+8. **Taskbroker could not resolve shared Kafka.**
+   The first full runtime start showed `taskbroker` restarting with
+   `Failed to resolve 'kafka:9092'`. The service had been attached only to the
+   Sentry-internal network even though shared Kafka lives on external
+   `intranet`. Taskbroker must join both networks: `sentry` for the Sentry
+   taskworker RPC path and `intranet` for Kafka. The taskworker gRPC
+   `connection refused` / `no route to host` messages were a downstream
+   symptom of Taskbroker restart-looping.
+9. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
    `sentry-clickhouse:9000`. The `sentry` database contains 85 tables and the
