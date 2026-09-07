@@ -1,0 +1,72 @@
+---
+configs:
+  poll-config.yml:
+    content: |
+      - url: https://github.com/albanandrieu/nabla-compose.git
+        reference: master
+        interval: 3600
+        deployments:
+          - name: vaultwarden
+            compose_file: apps/vaultwarden/compose.yml
+          - name: garage
+            compose_file: apps/garage/compose.yml
+
+services:
+  doco-cd:
+    image: ghcr.io/kimdre/doco-cd:0.85.1
+    container_name: doco-cd
+    restart: unless-stopped
+    x-nabla:
+      id: doco-cd
+      name: Doco-CD
+      kind: deployment-controller
+      category: operations
+      runtime:
+        provider: truenas-app
+        containerService: doco-cd
+      relations:
+        - target: docker
+          type: controls
+          strength: required
+          description: Doco-CD reconciles Docker deployments through the shared restricted Docker socket proxy.
+          evidence:
+            - apps/doco-cd/compose.yml:DOCKER_HOST
+    env_file:
+      - /mnt/cpool/dococd/.env.secrets
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      POLL_CONFIG_FILE: /poll-config.yml
+      SECRET_PROVIDER: webhook
+      SECRET_PROVIDER_WEBHOOK_STORES_FILE: /secret-store.yml
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    configs:
+      - source: poll-config.yml
+        target: /poll-config.yml
+    volumes:
+      - /mnt/cpool/dococd:/data
+      - /mnt/cpool/compose/nabla-compose/secret-store.yml:/secret-store.yml:ro
+    ports:
+      - "172.17.0.24:30080:80"
+      - "172.17.0.24:9120:9120"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, /doco-cd, healthcheck]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - intranet
+      - secrets-backend
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+  secrets-backend:
+    external: true
+    name: secrets-backend
