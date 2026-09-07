@@ -3,6 +3,28 @@ services:
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
+    x-nabla:
+      id: postgres-exporter
+      name: PostgreSQL Exporter
+      kind: metrics-exporter
+      category: observability
+      presentationRole: support
+      criticality: medium
+      description: Prometheus exporter for the shared PostgreSQL service.
+      runtime:
+        provider: truenas-app
+        containerService: postgres_exporter
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9187
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: The exporter queries the shared PostgreSQL service.
+          evidence:
+            - apps/postgres/compose.yml:DATA_SOURCE_NAME
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/postgres?sslmode=disable"
