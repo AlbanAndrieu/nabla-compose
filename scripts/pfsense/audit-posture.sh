@@ -420,6 +420,13 @@ else
   emit WARN service.zabbix_agentd stopped "restore monitoring only after core memory headroom is stable"
 fi
 
+watchdog_unbound="$(sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | grep -Ei '<name>unbound</name>|<service>unbound</service>|<description>DNS Resolver</description>' || true)"
+if [ -z "$watchdog_unbound" ]; then
+  emit PASS servicewatchdog.unbound absent "Unbound is not managed by Service Watchdog during memory remediation"
+else
+  emit FAIL servicewatchdog.unbound configured "Service Watchdog can recreate the Unbound OOM restart loop"
+fi
+
 pfb_filter_count="$(number_or_zero "$(pgrep -f 'php_pfb.*filterlog' 2>/dev/null | wc -l | tr -d ' ')")"
 if [ "$pfb_filter_count" -eq 1 ]; then
   emit PASS service.pfb_filter "$pfb_filter_count" "exactly one pfBlockerNG filterlog helper runs"
