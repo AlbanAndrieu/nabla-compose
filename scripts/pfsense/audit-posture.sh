@@ -295,7 +295,7 @@ else
 fi
 
 ut1_selected="$(sed -n '/<pfblockerngblacklist>/,/<\/pfblockerngblacklist>/p' /conf/config.xml 2>/dev/null | sed -n 's:.*<selected>\(.*\)</selected>.*:\1:p' | head -n 1)"
-for category in adult malware gambling games dating; do
+for category in adult malware gambling games dating phishing; do
   if printf ',%s,' "$ut1_selected" | grep -q ",${category},"; then
     emit FAIL "pfblocker.ut1_category.${category}" enabled "UT1 category is expected disabled for the Netgate 1100 memory policy"
   else
@@ -315,6 +315,14 @@ if [ -f "$py_data" ]; then
   fi
 else
   emit FAIL pfblocker.python_loader_bytes "missing" "pfb_py_data.txt was not found"
+fi
+
+if grep -q '<aliasname>Phishing</aliasname>' /conf/config.xml 2>/dev/null &&
+  grep -q '<header>OpenPhish</header>' /conf/config.xml 2>/dev/null &&
+  grep -q '<header>PhishTank</header>' /conf/config.xml 2>/dev/null; then
+  emit PASS pfblocker.phishing_targeted_sources configured "targeted Phishing group contains OpenPhish and PhishTank"
+else
+  emit WARN pfblocker.phishing_targeted_sources missing "expected targeted Phishing group with OpenPhish and PhishTank"
 fi
 
 for feed in Gambling EasyList_Norwegian_Danish_Icelandic; do
