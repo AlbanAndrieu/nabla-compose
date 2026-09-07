@@ -59,6 +59,10 @@ to the separate one-shot `sentry_migrator` identity.
 `RELAY_REDIS_URL` must reference the shared authenticated Redis service. Do
 not print this URL in diagnostics because it contains the Redis password.
 
+Relay 26.8 accepts `RELAY_ID`, `RELAY_PUBLIC_KEY`, and `RELAY_SECRET_KEY`
+directly. Generate them once and keep them in the secret file; do not depend on
+the repository `sentry/` submodule or an ephemeral Relay credentials file.
+
 ## ClickHouse identities
 
 Create the database before starting Sentry because Snuba opens its configured
