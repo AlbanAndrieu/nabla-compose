@@ -90,6 +90,7 @@ services:
     <<: *snuba-service
     restart: "no"
     env_file:
+      - /mnt/cpool/sentry/.env.secrets
       - /mnt/cpool/sentry/.env.migrator.secrets
     environment:
       <<: *snuba-env
@@ -100,6 +101,36 @@ services:
 
   snuba-api:
     <<: *snuba-service
+    x-nabla:
+      id: sentry-snuba-api
+      name: Sentry Snuba API
+      kind: analytics-api
+      category: observability
+      presentationRole: support
+      criticality: high
+      description: Sentry query API backed by the dedicated temporary Sentry ClickHouse.
+      runtime:
+        provider: truenas-app
+        containerService: snuba-api
+      relations:
+        - target: sentry-clickhouse
+          type: dependsOn
+          strength: required
+          description: Snuba reads and writes Sentry analytical state in ClickHouse.
+          evidence:
+            - apps/sentry/compose.yml:CLICKHOUSE_HOST=sentry-clickhouse
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Snuba consumes Sentry event streams from shared Kafka.
+          evidence:
+            - apps/sentry/compose.yml:DEFAULT_BROKERS=kafka:9092
+        - target: redis
+          type: dependsOn
+          strength: required
+          description: Snuba uses the shared Redis service for runtime state.
+          evidence:
+            - apps/sentry/compose.yml:REDIS_HOST=redis
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
@@ -253,6 +284,46 @@ services:
 
   sentry-web:
     <<: *sentry-service
+    x-nabla:
+      id: sentry
+      name: Sentry
+      kind: error-tracking
+      category: observability
+      presentationRole: service
+      criticality: high
+      url: https://sentry.albandrieu.com
+      description: Self-hosted Sentry 26.8 errors-only application service.
+      runtime:
+        provider: truenas-app
+        containerService: sentry-web
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9005/_health/
+      relations:
+        - target: sentry-snuba-api
+          type: dependsOn
+          strength: required
+          description: Sentry queries event data through Snuba.
+          evidence:
+            - apps/sentry/compose.yml:SNUBA=http://snuba-api:1218
+        - target: redis
+          type: dependsOn
+          strength: required
+          description: Sentry uses the shared Redis database 3.
+          evidence:
+            - apps/sentry/compose.yml:SENTRY_REDIS_HOST=redis
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Sentry publishes and consumes event streams through shared Kafka.
+          evidence:
+            - apps/sentry/compose.yml:SENTRY_EVENTSTREAM
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Sentry application metadata is stored in the dedicated sentry PostgreSQL database.
+          evidence:
+            - apps/sentry/compose.yml:SENTRY_POSTGRES_HOST=172.17.0.24
     command: ["run", "web"]
     depends_on:
       sentry-migrate:
@@ -336,6 +407,23 @@ services:
 
   taskbroker:
     image: ghcr.io/getsentry/taskbroker:26.8.0
+    x-nabla:
+      id: sentry-taskbroker
+      name: Sentry Taskbroker
+      kind: task-broker
+      category: observability
+      presentationRole: support
+      criticality: high
+      runtime:
+        provider: truenas-app
+        containerService: taskbroker
+      relations:
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Taskbroker persists task streams through shared Kafka.
+          evidence:
+            - apps/sentry/compose.yml:TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS=kafka:9092
     restart: unless-stopped
     environment:
       TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092
@@ -359,6 +447,23 @@ services:
 
   sentry-taskworker:
     <<: *sentry-service
+    x-nabla:
+      id: sentry-taskworker
+      name: Sentry Taskworker
+      kind: worker
+      category: observability
+      presentationRole: support
+      criticality: high
+      runtime:
+        provider: truenas-app
+        containerService: sentry-taskworker
+      relations:
+        - target: sentry-taskbroker
+          type: dependsOn
+          strength: required
+          description: Taskworker receives RPC work from Taskbroker.
+          evidence:
+            - apps/sentry/compose.yml:--rpc-host=taskbroker:50051
     command:
       - run
       - taskworker
@@ -375,6 +480,35 @@ services:
 
   relay:
     image: ghcr.io/getsentry/relay:26.8.0
+    x-nabla:
+      id: sentry-relay
+      name: Sentry Relay
+      kind: ingestion-relay
+      category: observability
+      presentationRole: support
+      criticality: high
+      runtime:
+        provider: truenas-app
+        containerService: relay
+      relations:
+        - target: sentry
+          type: routesTo
+          strength: required
+          description: Relay forwards accepted traffic to Sentry web.
+          evidence:
+            - apps/sentry/compose.yml:RELAY_UPSTREAM_URL=http://sentry-web:9000/
+        - target: kafka
+          type: dependsOn
+          strength: required
+          description: Relay publishes processing traffic to shared Kafka.
+          evidence:
+            - apps/sentry/compose.yml:RELAY_KAFKA_BROKER_URL=kafka:9092
+        - target: redis
+          type: dependsOn
+          strength: required
+          description: Relay uses the shared Redis service.
+          evidence:
+            - /mnt/cpool/sentry/.env.secrets:RELAY_REDIS_URL
     restart: unless-stopped
     env_file:
       - /mnt/cpool/sentry/.env.secrets
@@ -394,6 +528,32 @@ services:
 
   nginx:
     image: nginx:1.31.3-alpine
+    x-nabla:
+      id: sentry-edge
+      name: Sentry Edge
+      kind: reverse-proxy
+      category: network
+      presentationRole: support
+      criticality: high
+      runtime:
+        provider: truenas-app
+        containerService: nginx
+      monitoring:
+        type: http
+        target: http://172.17.0.24:9005/_health/
+      relations:
+        - target: sentry-relay
+          type: routesTo
+          strength: required
+          description: The Sentry edge routes ingestion traffic through Relay.
+          evidence:
+            - apps/sentry/config/nginx.conf:relay_upstream
+        - target: sentry
+          type: routesTo
+          strength: required
+          description: The Sentry edge routes application traffic to Sentry web.
+          evidence:
+            - apps/sentry/config/nginx.conf:sentry_upstream
     restart: unless-stopped
     ports:
       - "172.17.0.24:9005:80"
