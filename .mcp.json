@@ -84,7 +84,8 @@
       "args": [
         "-y",
         "@sentry/mcp-server@0.39.0",
-        "--host=sentry.albandrieu.com",
+        "--host=172.17.0.24:9005",
+        "--insecure-http",
         "--skills=inspect",
         "--disable-skills=seer",
         "--sentry-dsn="
