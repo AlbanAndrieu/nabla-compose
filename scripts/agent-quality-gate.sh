@@ -108,8 +108,7 @@ mapfile -t CHANGED_FILES < <(collect_changed_files)
 
 collect_deleted_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] &&
-      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=D "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=D
@@ -120,6 +119,27 @@ collect_deleted_files() {
 }
 
 mapfile -t DELETED_FILES < <(collect_deleted_files)
+
+agent_gate_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
+    agent_gate_changed=true
+    break
+  fi
+done
+
+if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
+  command -v pre-commit >/dev/null 2>&1 || {
+    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    exit 1
+  }
+  run_compact "agent gate shell formatting" \
+    pre-commit run shfmt-docker --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell lint" \
+    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell style" \
+    pre-commit run bashate --files scripts/agent-quality-gate.sh
+fi
 
 if [[ "${MODE}" == "fix" ]]; then
   command -v python >/dev/null 2>&1 || {
