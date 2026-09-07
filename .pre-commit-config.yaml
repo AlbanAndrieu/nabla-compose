@@ -156,6 +156,14 @@ repos:
         files: >-
           ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/truenas-app-lifecycle[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
 
+      - id: pfsense-posture-audit-contract
+        name: "🛡️ pfSense · Parse posture regression audit"
+        language: system
+        entry: bash scripts/pfsense/audit-posture.sh --help
+        pass_filenames: false
+        files: >-
+          ^(scripts/pfsense/audit-posture[.]sh|[.]agents/skills/pfsense-api-debugging/SKILL[.]md|docs/pfsense-flow-observability-memory[.]md)$
+
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python
