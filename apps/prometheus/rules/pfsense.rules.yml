@@ -25,3 +25,31 @@ groups:
           description: >-
             The expected pfSense system metric has been absent for five
             minutes even though the exporter service may still be reachable.
+      - alert: pfSenseMemoryHeadroomLow
+        expr: pfsense_system_memory_usage_ratio{job="pfsense_exporter"} > 0.87
+        for: 5m
+        labels:
+          severity: warning
+          scope: platform
+          impact: pressure
+        annotations:
+          summary: pfSense memory headroom is low
+          description: >-
+            pfSense memory usage has remained above 87% for five minutes,
+            approximately the 128 MiB free-memory guardrail on the current
+            Netgate 1100. Avoid heavy reloads or adding local analytics.
+
+      - alert: pfSenseMemoryHeadroomCritical
+        expr: pfsense_system_memory_usage_ratio{job="pfsense_exporter"} > 0.94
+        for: 2m
+        labels:
+          severity: critical
+          scope: platform
+          impact: pressure
+        annotations:
+          summary: pfSense memory headroom is critical
+          description: >-
+            pfSense memory usage has remained above 94% for two minutes,
+            approximately the 64 MiB critical free-memory guardrail on the
+            current Netgate 1100. OOM/reclaim failures are likely if pressure grows.
+
