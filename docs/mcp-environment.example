@@ -26,6 +26,11 @@ BW_SESSION=
 FASTAPI_SAMPLE_MCP_URL=https://fastapi-sample.fastapicloud.dev/mcp
 
 
-# Self-hosted Sentry MCP (inspect-only). Create a dedicated User Auth Token in
-# sentry.albandrieu.com and keep the token outside Git.
+# Self-hosted Sentry MCP (inspect-only). The repository MCP clients use the
+# direct LAN endpoint http://172.17.0.24:9005 so Cloudflare Access/challenges do
+# not interfere with Sentry API calls.
+#
+# IMPORTANT: use a Sentry User Auth Token, not a project DSN/security key.
+# Minimum read-only scopes for the upstream inspect skill:
+# org:read, project:read, team:read, event:read.
 SENTRY_ACCESS_TOKEN=
