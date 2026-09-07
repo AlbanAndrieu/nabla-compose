@@ -603,8 +603,10 @@ Acceptance after every shared ClickHouse change:
       runtime evidence before claiming ClickHouse compatibility;
 - [x] prove the shared ClickHouse 26.8.2.7 incompatibility with Snuba 26.8.0 at
       migration `generic_metrics:0041_adjust_partitioning_meta_tables`;
-- [ ] complete Snuba bootstrap on the temporary dedicated
-      `altinity/clickhouse-server:25.3.6.10034.altinitystable` instance;
+- [x] complete Snuba bootstrap on the temporary dedicated
+      `altinity/clickhouse-server:25.3.6.10034.altinitystable` instance; validated
+      on 2026-09-07 with `snuba bootstrap --force` exit code 0, 85 Sentry tables,
+      and workloads `all` / `low_priority_deletes`;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba on the temporary supported ClickHouse;
 - [ ] later repeat the same synthetic-event gate on the **single shared
@@ -622,6 +624,8 @@ Acceptance after every shared ClickHouse change:
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
       persistence across restarts;
 - [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
+
+Bootstrap troubleshooting and recovery are documented in `apps/sentry/README.md`.
 
 A successful ClickHouse `/ping` alone is not sufficient to approve a shared
 ClickHouse upgrade.
