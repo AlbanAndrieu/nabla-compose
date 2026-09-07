@@ -211,6 +211,10 @@ class PublicIngressContractTests(unittest.TestCase):
             compose,
         )
         self.assertIn(
+            "-storage.filesystem.dir=/var/lib/pyroscope/v2/shared",
+            compose,
+        )
+        self.assertIn(
             "/mnt/cpool/pyroscope/data:/var/lib/pyroscope",
             compose,
         )
