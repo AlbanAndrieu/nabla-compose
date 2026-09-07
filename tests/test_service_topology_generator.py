@@ -286,7 +286,7 @@ services:
             "securityFunctions": ["protect", "prevent"],
         }
 
-        with self.assertRaisesRegex(ValueError, "securityFunctions\[1\] must be one of"):
+        with self.assertRaisesRegex(ValueError, r"securityFunctions\[1\] must be one of"):
             MODULE.topology_node(
                 metadata,
                 "apps/security-fixture/compose.yml",
