@@ -234,6 +234,23 @@ The repository file is therefore the only Compose source of truth.
 Apply the wrapper with `app.update` while the app is stopped whenever the
 stored TrueNAS configuration needs repair.
 
+For a TrueNAS Custom App, `app.query` with
+`extra.retrieve_config=true` returns the **parsed Compose mapping itself** in
+`.config`; it does not echo the API input field
+`custom_compose_config_string`. Verify an include wrapper with:
+
+```bash
+sudo midclt call app.query \
+  '[["id","=","sentry"]]' \
+  '{"extra":{"retrieve_config":true}}' |
+jq -r '.[0].config.include[]?'
+```
+
+During PR validation this should point at the PR worktree. After merge, update
+the wrapper back to the canonical
+`/mnt/cpool/compose/nabla-compose/apps/sentry/compose.yml` path before
+removing the worktree.
+
 ## First deployment
 
 Before deployment:
