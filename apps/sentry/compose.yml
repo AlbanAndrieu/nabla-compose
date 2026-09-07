@@ -86,41 +86,6 @@ services:
     networks:
       - sentry
 
-  kafka:
-    image: confluentinc/cp-kafka:7.6.6
-    restart: unless-stopped
-    environment:
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1001@127.0.0.1:29093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_NODE_ID: "1001"
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:29092,INTERNAL://kafka:9093,EXTERNAL://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
-      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: "1"
-      KAFKA_LOG_RETENTION_HOURS: "3"
-      KAFKA_MESSAGE_MAX_BYTES: "50000000"
-      KAFKA_MAX_REQUEST_SIZE: "50000000"
-      CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
-      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
-    ulimits:
-      nofile:
-        soft: 100000
-        hard: 100000
-    volumes:
-      - /mnt/cpool/sentry/kafka:/var/lib/kafka/data
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 9092"]
-      interval: 10s
-      timeout: 10s
-      retries: 30
-      start_period: 20s
-    networks:
-      - sentry
-
   snuba-migrate:
     <<: *snuba-service
     restart: "no"
@@ -138,8 +103,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -173,8 +136,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   snuba-outcomes-consumer:
@@ -196,8 +157,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   snuba-outcomes-billing-consumer:
@@ -221,8 +180,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   snuba-group-attributes-consumer:
@@ -244,8 +201,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   snuba-replacer:
@@ -263,8 +218,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   snuba-subscription-consumer-events:
@@ -286,8 +239,6 @@ services:
     depends_on:
       snuba-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   sentry-migrate:
@@ -296,8 +247,6 @@ services:
     command: ["upgrade", "--noinput", "--create-kafka-topics"]
     depends_on:
       memcached:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
       snuba-api:
         condition: service_healthy
@@ -311,8 +260,6 @@ services:
       snuba-api:
         condition: service_healthy
       memcached:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
     healthcheck:
       test:
@@ -345,8 +292,6 @@ services:
     depends_on:
       sentry-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   sentry-attachments-consumer:
@@ -366,8 +311,6 @@ services:
     depends_on:
       sentry-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   sentry-post-process-forwarder-errors:
@@ -389,8 +332,6 @@ services:
     depends_on:
       sentry-migrate:
         condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
     healthcheck: *consumer-health
 
   taskbroker:
@@ -403,9 +344,6 @@ services:
     volumes:
       - /mnt/cpool/sentry/taskbroker:/opt/sqlite
       - ./config/taskbroker.yml:/etc/taskbroker/config.yml:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
     networks:
       - sentry
 
@@ -448,8 +386,6 @@ services:
       RELAY_LOG_LEVEL: WARN
     depends_on:
       sentry-web:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
     networks:
       - sentry
