@@ -3,6 +3,17 @@ services:
   homeassistant:
     container_name: homeassistant
     image: ghcr.io/home-assistant/home-assistant:stable
+    x-nabla:
+      id: homeassistant
+      name: Home Assistant
+      kind: home-automation
+      category: automation
+      presentationRole: service
+      criticality: medium
+      description: Home automation control plane exposed through the dedicated IoT network.
+      runtime:
+        provider: truenas-app
+        containerService: homeassistant
     pull_policy: always
     restart: unless-stopped
     env_file:
