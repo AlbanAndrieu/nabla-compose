@@ -1,0 +1,8 @@
+---
+flow:
+  inputs:
+    - type: udp
+      decoder: netflow
+      listen: :2055
+      workers: 2
+      receive-buffer: 212992
