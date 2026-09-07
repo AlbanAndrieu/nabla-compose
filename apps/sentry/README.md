@@ -116,7 +116,7 @@ GRANT SELECT ON system.tables TO sentry_migrator;
 GRANT SELECT ON system.replicas TO sentry_migrator;
 GRANT SELECT ON system.columns TO sentry_migrator;
 GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;
-
+```
 
 If a Snuba bootstrap is interrupted after a migration has been marked
 `IN PROGRESS`, do not edit Snuba's migration tracking tables manually. Use
@@ -136,13 +136,53 @@ For migration `0052_create_deletes_workload`, the reverse operations are
 `DROP WORKLOAD IF EXISTS all`, so recovering from a failure before or during
 workload creation is idempotent. Rerun `snuba bootstrap --force` only after the
 migration status is back to `NOT_STARTED`.
-```
 
 The database-scoped `ALL` is deliberately isolated to the short-lived
 migration identity. After the first successful Snuba bootstrap, inspect the
 effective migration queries and narrow the migrator grants if possible.
 
 Never grant either Sentry identity `ALL ON *.*` or `WITH GRANT OPTION`.
+
+## Bootstrap incident log — 2026-09-07
+
+The first Sentry 26.8 bootstrap uncovered several distinct failure modes. Keep
+them separate when troubleshooting; each has a different remediation.
+
+1. **Shared ClickHouse 26.8.2.7 incompatible with Snuba 26.8 migrations.**
+   Snuba reached `generic_metrics:0041_adjust_partitioning_meta_tables`, where
+   ClickHouse 26.x rejected an `AggregatingMergeTree` layout unless
+   `allow_dimensions_outside_sorting_key=1` is enabled. We deliberately did
+   not enable that compatibility setting globally. Sentry was moved to the
+   upstream-supported Altinity ClickHouse
+   `25.3.6.10034.altinitystable` compatibility bridge.
+2. **Dedicated ClickHouse config unreadable.**
+   The worktree file `apps/sentry-clickhouse/config.xml` inherited mode
+   `0600`, so ClickHouse failed before opening TCP/9000 with
+   `Access to file denied`. The Compose definition now uses `configs:` rather
+   than a direct bind mount so checkout file permissions cannot reproduce this
+   failure.
+3. **Snuba metadata reads denied.**
+   Bootstrap required `SELECT` on `system.tables`, `system.replicas`, and
+   `system.columns` for the short-lived `sentry_migrator` identity. These are
+   explicitly granted without widening the runtime `sentry` user.
+4. **Snuba workload DDL denied.**
+   Migration `events_analytics_platform:0052_create_deletes_workload` required
+   `CREATE WORKLOAD ON *.*`; migration `0053` uses
+   `CREATE OR REPLACE WORKLOAD` and therefore also requires
+   `DROP WORKLOAD ON *.*`. Only these two global workload privileges are
+   granted to `sentry_migrator`; `ALL ON *.*` remains forbidden.
+5. **Migration left IN PROGRESS after privilege failure.**
+   After `0052` failed, a plain bootstrap rerun stopped with
+   `MigrationInProgress`. Recovery used the native Snuba command
+   `migrations reverse-in-progress --group events_analytics_platform`, whose
+   rollback for `0052` is idempotent
+   (`DROP WORKLOAD IF EXISTS low_priority_deletes`; `DROP WORKLOAD IF EXISTS all`).
+   Manual edits of migration tracking state are forbidden.
+6. **Validated outcome.**
+   After the scoped grants and native recovery flow, `snuba bootstrap --force`
+   completed successfully with exit code 0 against
+   `sentry-clickhouse:9000`. The `sentry` database contains 85 tables and the
+   ClickHouse workloads `all` and `low_priority_deletes` exist.
 
 ## ClickHouse compatibility gate
 
