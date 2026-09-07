@@ -44,8 +44,8 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-inlet",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:31057",
-      "syncEligible": true
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "akvorado-orchestrator",
@@ -64,8 +64,8 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-outlet",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:31058",
-      "syncEligible": true
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "alloy",
