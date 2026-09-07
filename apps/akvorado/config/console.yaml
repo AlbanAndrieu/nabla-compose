@@ -1,0 +1,5 @@
+---
+database:
+  saved-filters:
+    - description: Homelab LAN
+      content: SrcNetName = "homelab-lan" OR DstNetName = "homelab-lan"
