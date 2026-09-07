@@ -292,6 +292,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("/mnt/cpool/sentry/kafka", compose)
         self.assertIn("DEFAULT_BROKERS: kafka:9092", compose)
         self.assertIn("TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092", compose)
+        taskbroker_section = compose.split("\n  taskbroker:\n", 1)[1].split("\n  sentry-taskscheduler:\n", 1)[0]
+        self.assertIn("      - sentry\n      - intranet", taskbroker_section, "taskbroker must join intranet to reach shared Kafka")
         self.assertIn("RELAY_KAFKA_BROKER_URL: kafka:9092", compose)
         self.assertIn("\n  relay:\n", compose)
         self.assertIn("\n  nginx:\n", compose)
