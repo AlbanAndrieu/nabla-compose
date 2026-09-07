@@ -3,6 +3,20 @@ services:
   languagetool:
     image: erikvl87/languagetool
     container_name: languagetool
+    x-nabla:
+      id: languagetool
+      name: LanguageTool
+      kind: language-service
+      category: productivity
+      presentationRole: service
+      criticality: medium
+      description: Self-hosted grammar and style checking API.
+      runtime:
+        provider: truenas-app
+        containerService: languagetool
+      monitoring:
+        type: http
+        target: http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck
     healthcheck:
       test:
         [
