@@ -29,7 +29,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pre-commit:
+  quality-gate:
+    name: pre-commit
+    outputs:
+      run_megalinter: ${{ steps.scope.outputs.run_megalinter }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -38,6 +41,21 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Detect MegaLinter scope
+        id: scope
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only --diff-filter=ACMRTUXB "${BASE_SHA}...HEAD")"
+          if grep -Eq '([.](ya?ml|json5?|sh)$|(^|/)Dockerfile[^/]*$|^Makefile$|^Taskfile[.]yml$|^[.]mega-linter[.]yml$|^[.]github/workflows/)' <<< "${changed}"; then
+            echo "run_megalinter=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "run_megalinter=false" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
@@ -53,13 +71,6 @@ jobs:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - name: Validate generated service catalog contracts
-        if: github.event_name == 'pull_request'
-        run: |
-          pre-commit run service-topology-sync --all-files --show-diff-on-failure
-          python -m json.tool catalog/services.json >/dev/null
-          python -m json.tool catalog/service-topology.json >/dev/null
-
       - name: Run repository quality gate on PR changes
         if: github.event_name == 'pull_request'
         env:
@@ -69,3 +80,130 @@ jobs:
       - name: Run pre-commit on all files
         if: github.event_name != 'pull_request'
         run: pre-commit run --all-files --show-diff-on-failure
+
+  build-mega-linter:
+    needs: quality-gate
+    if: >-
+      needs.quality-gate.outputs.run_megalinter == 'true' &&
+      github.actor != 'dependabot[bot]' &&
+      github.actor != 'dependabot-preview[bot]'
+    name: MegaLinter
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # MegaLinter <= 10.0.0 can build `checkov --file` without a value when a
+      # pull request contains only deleted files (oxsecurity/megalinter#8802).
+      # Upstream's fix skips Checkov in exactly that case; mirror that behavior
+      # until we adopt a MegaLinter release containing the fix.
+      - name: Guard Checkov on deletion-only pull requests
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          base="origin/${BASE_REF}"
+
+          if git diff --quiet --diff-filter=ACMRTUXB "${base}...HEAD" --; then
+            sed -i '/^[[:space:]]*- REPOSITORY_CHECKOV$/d' .mega-linter.yml
+            echo "No non-deleted files in the PR; skipping REPOSITORY_CHECKOV (upstream #8802)."
+          fi
+
+      - name: MegaLinter
+        id: ml
+        continue-on-error: true
+        uses: oxsecurity/megalinter@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        env:
+          APPLY_FIXES: none
+          VALIDATE_ALL_CODEBASE: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inspect MegaLinter SARIF
+        id: sarif
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sarif="megalinter-reports/megalinter-report.sarif"
+
+          if [[ -f "${sarif}" ]] && jq -e '(.runs | type == "array") and ((.runs | length) > 0)' "${sarif}" >/dev/null 2>&1; then
+            echo "has_runs=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_runs=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Publish MegaLinter job summary
+        if: always()
+        shell: bash
+        env:
+          MEGALINTER_OUTCOME: ${{ steps.ml.outcome }}
+          SARIF_HAS_RUNS: ${{ steps.sarif.outputs.has_runs }}
+        run: |
+          set -euo pipefail
+          report="megalinter-reports/megalinter-report.md"
+
+          {
+            echo "## 🧹 MegaLinter"
+            echo
+            if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
+              echo "> ✅ All enabled MegaLinter checks passed."
+            else
+              echo "> ❌ MegaLinter found issues. See the table below and Code Scanning annotations."
+            fi
+            echo
+
+            if [[ -f "${report}" ]]; then
+              cat "${report}"
+            else
+              echo "MegaLinter did not produce its Markdown report."
+            fi
+
+            echo
+            echo "### GitHub reporting"
+            if [[ "${SARIF_HAS_RUNS}" == "true" ]]; then
+              echo "- SARIF findings are uploaded to **Code Scanning**."
+            else
+              echo "- SARIF upload is skipped because the report contains no runs."
+            fi
+            if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
+              echo "- Raw reports are not archived for successful runs; the job summary and PR report remain available."
+            else
+              echo "- The full raw MegaLinter output is attached as a short-lived workflow artifact."
+            fi
+            echo "- MegaLinter also maintains a summary comment on pull requests."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload MegaLinter SARIF to GitHub Code Scanning
+        if: always() && steps.sarif.outputs.has_runs == 'true'
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: megalinter-reports/megalinter-report.sarif
+          category: megalinter
+          wait-for-processing: true
+
+      - name: Archive MegaLinter reports on failure
+        if: steps.ml.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: MegaLinter reports
+          path: |
+            megalinter-reports
+            mega-linter.log
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Fail when MegaLinter found errors
+        if: steps.ml.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error title=MegaLinter failed::See the job summary, Code Scanning findings, and MegaLinter artifact for details."
+          exit 1

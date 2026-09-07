@@ -79,13 +79,13 @@ Do not repeatedly poll workflow, deployment, job, check, or observability status
 
 For a focused change, run the closest relevant formatter/linter first.
 
-Before considering a substantial change complete, and always before publishing repository changes, run:
+Immediately after making repository changes, run:
 
 ```bash
 bash scripts/quality-gate.sh
 ```
 
-The gate validates files touched by the branch **and** staged, unstaged, or untracked working-tree files. It invokes the repository `pre-commit` stage, including safe formatters and base linters such as Biome, Prettier, shell checks, YAML parsing, GitHub workflow validation, Hadolint, Gitleaks, catalog generation, and Compose configuration validation where applicable.
+The normal gate is intentionally **dirty-tree aware** so an agent can run it before committing. It validates files touched by the branch **and** staged, unstaged, or untracked working-tree files. It invokes the repository `pre-commit` stage, including safe formatters and base linters such as Biome, Prettier, shell checks, YAML parsing, GitHub workflow validation, Hadolint, Gitleaks, catalog generation, service-consumer regression tests, and Compose configuration validation where applicable. If a formatter or generator changes a file, the gate fails so the agent must review the deterministic change and rerun it rather than publishing a trial fix.
 
 Compose files are validated during the normal `pre-commit` stage with:
 
@@ -93,7 +93,9 @@ Compose files are validated during the normal `pre-commit` stage with:
 docker compose config --quiet --no-interpolate --no-env-resolution
 ```
 
-This means Compose/YAML failures must be caught at commit time and again by the pre-push quality gate before CI. Do not start the homelab stack in order to validate configuration. Do not run MegaLinter locally unless diagnosing a CI-specific failure.
+This means Compose/YAML failures must be caught locally before CI. Compose/catalog changes also run the service-consumer generator plus the repository unit-test contract from the same pre-commit environment, so generated drift and consumer regressions must not require a remote build to discover. Do not start the homelab stack in order to validate configuration. Do not run MegaLinter locally unless diagnosing a CI-specific failure.
+
+Keep validation output compact: rely on the first failing local hook, fix it, and rerun the gate until it passes. Do not inspect green workflow logs or download green artifacts. Accumulate deterministic fixes locally and publish them in one push whenever practical; GitHub concurrency cancellation limits overlap but does not make trial pushes free.
 
 ## Mandatory agent publish policy
 
@@ -101,14 +103,14 @@ Agents must never publish changes immediately after editing files.
 
 Before every `git push`, GitHub API file update, or other remote repository mutation:
 
-1. Run `bash scripts/quality-gate.sh` from a local checkout whenever shell access is available.
-2. Fix every formatter, linter, YAML, Compose, workflow, configuration, generated-file, or security-check failure caused by the change.
-3. If the gate modifies files, review and commit those changes.
-4. Run `bash scripts/quality-gate.sh` again until it exits successfully with a clean working tree.
+1. After editing, run `bash scripts/quality-gate.sh` from a local checkout whenever shell access is available.
+2. Fix every formatter, linter, YAML, Compose, workflow, configuration, generated-file, unit-test, or security-check failure caused by the change, rerunning the normal gate until it passes.
+3. Review and commit all deterministic formatter/generator output.
+4. Run `bash scripts/quality-gate.sh --publish`; this publication mode requires a clean working tree.
 5. Verify `git status --short` is empty.
-6. Only then publish the changes.
+6. Publish the complete validated batch once rather than using remote CI as an edit/test loop.
 
-When `mise run hooks` has been run, the normal Git `pre-commit` hook validates the commit and `quality-gate-pre-push` invokes the full gate automatically before push.
+When `mise run hooks` has been run, the normal Git `pre-commit` hook validates the commit and `quality-gate-pre-push` invokes `scripts/quality-gate.sh --publish` automatically before push.
 
 An API-only agent must not silently treat remote API writes as a way to bypass local hooks. If its runtime cannot obtain or execute a checkout, it must explicitly report that limitation, reproduce the closest deterministic validations available, keep the remote patch minimal, and inspect the resulting CI immediately. It must never claim that the local quality gate passed when it was not executed.
 

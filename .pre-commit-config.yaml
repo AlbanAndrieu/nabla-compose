@@ -172,6 +172,15 @@ repos:
         pass_filenames: false
         files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
 
+      - id: service-consumer-contract
+        name: "🧩 catalog · Validate service consumers and unit tests"
+        language: python
+        entry: bash scripts/quality/check-service-consumers.sh
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|apps/[^/]+/(?:compose|docker-compose)(?:[.][^.]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_topology_generator)[.]py)$
+
       - id: compose-config
         name: "🐳 compose · Validate Compose configuration"
         language: system

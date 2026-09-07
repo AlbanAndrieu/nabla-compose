@@ -5,20 +5,6 @@ permissions:
   contents: read
 
 on:
-  pull_request:
-    branches: [master]
-    types: [opened, synchronize, reopened]
-    paths:
-      - ".mega-linter.yml"
-      - ".github/workflows/**"
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "**/*.json"
-      - "**/*.json5"
-      - "**/*.sh"
-      - "**/Dockerfile*"
-      - "Makefile"
-      - "Taskfile.yml"
   workflow_dispatch:
 
 concurrency:
@@ -33,8 +19,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
       security-events: write
     steps:
       - name: Checkout code
@@ -100,7 +84,7 @@ jobs:
             if [[ "${MEGALINTER_OUTCOME}" == "success" ]]; then
               echo "> ✅ All enabled MegaLinter checks passed."
             else
-              echo "> ❌ MegaLinter found issues. See the table below, PR report, and Code Scanning annotations."
+              echo "> ❌ MegaLinter found issues. See the table below and Code Scanning annotations."
             fi
             echo
 
@@ -148,5 +132,5 @@ jobs:
         if: steps.ml.outcome == 'failure'
         shell: bash
         run: |
-          echo "::error title=MegaLinter failed::See the PR summary, Code Scanning findings, and MegaLinter artifact for details."
+          echo "::error title=MegaLinter failed::See the job summary, Code Scanning findings, and MegaLinter artifact for details."
           exit 1
