@@ -883,6 +883,7 @@ probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/heal
 
 probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
 probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
 probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
 
 if app_is_running minio; then
