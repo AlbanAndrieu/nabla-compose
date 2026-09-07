@@ -1,4 +1,8 @@
 ---
+configs:
+  sentry_clickhouse_config:
+    file: ./config.xml
+
 services:
   sentry-clickhouse:
     image: altinity/clickhouse-server:25.3.6.10034.altinitystable
@@ -31,7 +35,9 @@ services:
     volumes:
       - /mnt/cpool/sentry-clickhouse/data:/var/lib/clickhouse
       - /mnt/cpool/sentry-clickhouse/logs:/var/log/clickhouse-server
-      - ./config.xml:/etc/clickhouse-server/config.d/sentry.xml:ro
+    configs:
+      - source: sentry_clickhouse_config
+        target: /etc/clickhouse-server/config.d/sentry.xml
     healthcheck:
       test:
         - CMD-SHELL
