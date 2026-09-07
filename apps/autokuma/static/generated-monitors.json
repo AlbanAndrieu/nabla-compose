@@ -621,6 +621,16 @@
   },
   {
     "type": "port",
+    "name": "Sentry ClickHouse",
+    "description": "Nabla generated monitor: sentry-clickhouse",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "sentry-clickhouse",
+    "port": 9000
+  },
+  {
+    "type": "port",
     "name": "Nginx",
     "description": "Nabla generated monitor: sentry-nginx",
     "interval": 60,
