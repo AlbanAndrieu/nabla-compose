@@ -364,6 +364,21 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertNotIn("streamable-http", grafana["args"])
             self.assertNotIn("sse", grafana["args"])
 
+    def test_fastapi_sample_mcp_prefers_truenas_runtime(self) -> None:
+        root_config = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        cursor_config = json.loads(
+            (ROOT / ".cursor" / "mcp.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(
+            root_config["mcpServers"]["fastapi-sample"]["url"],
+            "${FASTAPI_SAMPLE_MCP_URL:-http://172.17.0.24:8091/mcp}",
+        )
+        self.assertEqual(
+            cursor_config["mcpServers"]["fastapi-sample"]["url"],
+            "http://172.17.0.24:8091/mcp",
+        )
+
     def test_sentry_mcp_is_self_hosted_inspect_only(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
