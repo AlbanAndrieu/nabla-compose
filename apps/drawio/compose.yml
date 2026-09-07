@@ -30,11 +30,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
-    #  - "traefik.http.routers.drawio.entrypoints=websecure"
-    #  - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
-    #  - "traefik.http.routers.drawio.service=drawio"
-    #  - "traefik.http.services.drawio.loadbalancer.server.scheme=http"
-    #  # - "traefik.http.services.drawio.loadbalancer.server.port=30425"
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
+    #   - "traefik.http.routers.drawio.entrypoints=websecure"
+    #   - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
+    #   - "traefik.http.routers.drawio.service=drawio"
+    #   - "traefik.http.services.drawio.loadbalancer.server.scheme=http"
+    #   # - "traefik.http.services.drawio.loadbalancer.server.port=30425"
