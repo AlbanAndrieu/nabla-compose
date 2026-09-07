@@ -815,6 +815,36 @@ function probe_fastapi_sample_sentry_if_running {
   else
     functional_fail "FastAPI Sample -> Sentry edge health failed"
   fi
+
+  if [[ -n "${SENTRY_ACCESS_TOKEN:-}" ]]; then
+    local sentry_api_body
+    local sentry_api_status
+
+    sentry_api_body="$(mktemp)"
+    sentry_api_status="$(
+      curl \
+        --silent \
+        --show-error \
+        --max-time 5 \
+        --output "${sentry_api_body}" \
+        --write-out '%{http_code}' \
+        --header "Authorization: Bearer ${SENTRY_ACCESS_TOKEN}" \
+        http://172.17.0.24:9005/api/0/organizations/ || true
+    )"
+
+    if [[ "${sentry_api_status}" == "200" ]] &&
+      jq -e 'type == "array"' "${sentry_api_body}" >/dev/null 2>&1; then
+      functional_ok "Sentry MCP API token: direct LAN /api/0/organizations/ accepted"
+    elif [[ "${sentry_api_status}" == "401" || "${sentry_api_status}" == "403" ]]; then
+      functional_fail "Sentry MCP API token: rejected by direct LAN API (HTTP ${sentry_api_status}); use a User Auth Token with inspect scopes"
+    else
+      functional_fail "Sentry MCP API token: direct LAN API returned unexpected HTTP ${sentry_api_status}"
+    fi
+
+    rm -f "${sentry_api_body}"
+  else
+    printf 'SKIP: Sentry MCP API token check (SENTRY_ACCESS_TOKEN is not exported)\n'
+  fi
 }
 
 function probe_ntopng_clickhouse_contract_if_running {
