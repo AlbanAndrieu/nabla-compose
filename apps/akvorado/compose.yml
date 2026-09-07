@@ -56,6 +56,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: akvorado-inlet
+      monitoring:
+        type: http
+        target: http://172.17.0.24:31057/api/v0/healthcheck
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: kafka
           type: routesTo
@@ -85,6 +90,11 @@ services:
       runtime:
         provider: truenas-app
         containerService: akvorado-outlet
+      monitoring:
+        type: http
+        target: http://172.17.0.24:31058/api/v0/healthcheck
+        conditions:
+          - "[STATUS] == 200"
       relations:
         - target: kafka
           type: dependsOn
