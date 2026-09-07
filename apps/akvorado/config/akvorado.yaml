@@ -21,6 +21,35 @@ clickhouse:
   orchestrator-url: http://akvorado-orchestrator:8080
   prometheus-endpoint: /metrics
 
-inlet: !include "inlet.yaml"
-outlet: !include "outlet.yaml"
-console: !include "console.yaml"
+inlet:
+  flow:
+    inputs:
+      - type: udp
+        decoder: netflow
+        listen: :2055
+        workers: 2
+        receive-buffer: 212992
+
+outlet:
+  geoip:
+    optional: true
+  networks:
+    networks:
+      172.17.0.0/24:
+        name: homelab-lan
+        role: internal
+    network-sources: []
+  core:
+    exporter-classifiers:
+      - ClassifySite("homelab")
+      - ClassifyRegion("europe")
+      - ClassifyTenant("nabla")
+      - ClassifyRole("edge")
+    interface-classifiers:
+      - ClassifyInternal()
+
+console:
+  database:
+    saved-filters:
+      - description: Homelab LAN
+        content: SrcNetName = "homelab-lan" OR DstNetName = "homelab-lan"
