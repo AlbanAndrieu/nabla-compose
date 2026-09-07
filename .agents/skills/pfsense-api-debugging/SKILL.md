@@ -1,9 +1,35 @@
 ---
 name: pfsense-api-debugging
-description: Diagnose pfSense networking, HAProxy, firewall paths and REST API v2 access safely, with pfSense csh/tcsh shell conventions.
+description: >-
+  Diagnose pfSense networking, HAProxy, firewall/NAT, Snort, pfBlockerNG,
+  Unbound/Kea, pflow/IPFIX and REST API v2 safely, with copy/paste-safe
+  pfSense csh/tcsh shell conventions.
 ---
 
 # pfSense API and network debugging
+
+## Cross-chat portability and trigger
+
+This skill is the self-contained pfSense operational contract shared by the
+Nabla repositories. Load it whenever a task touches pfSense/Netgate, PF,
+HAProxy, Snort, pfBlockerNG, Unbound, Kea, pflow/IPFIX, softflowd, the pfSense
+REST API, or an Internet-to-homelab path that traverses pfSense.
+
+Do not rely on facts remembered from another chat. Separate:
+
+- **policy/invariants** in this skill, which are reusable;
+- **observed runtime facts**, which can become stale after an upgrade, reboot,
+  package change, VLAN change, DHCP event, or service restart.
+
+Revalidate volatile facts with the narrowest read-only command before acting.
+Examples include current PIDs, RSS, free memory, interface names, pflow
+exporters, firewall tables, service status, WAN source addresses and generated
+package configuration.
+
+When this file changes in one Nabla repository, keep the corresponding
+`.agents/skills/pfsense-api-debugging/SKILL.md` in the other repository
+semantically aligned. The portable operational sections should remain
+byte-for-byte identical whenever practical.
 
 Use this skill for pfSense routing, firewall, NAT, HAProxy, interface, TLS, Snort/PF attribution and REST API v2 diagnostics in the Nabla homelab.
 
@@ -64,6 +90,224 @@ setenv PFSENSE_SECURITY_API_KEY "<redacted security key>"
 ```
 
 On a bash/zsh workstation use normal `export` instead. Never echo the actual key values.
+
+### Copy/paste-safe command contract
+
+The interactive pfSense shell is `tcsh`/csh. Commands sent to an operator in
+chat must be safe to paste into that shell.
+
+Rules:
+
+- Prefer **one command per code block**.
+- Prefer **single-line commands** for loops, compound tests and pipelines.
+- Do not send a multiline single-quoted `/bin/sh -c '...'` body unless the user
+  explicitly asks for a script file.
+- Avoid trailing `\` continuations in operator-facing commands when an
+  equivalent one-liner is reasonable; pasted newlines and duplicated fragments
+  are a recurring failure mode.
+- When Bourne/POSIX syntax is useful, run it explicitly through
+  `/bin/sh -c '...'`.
+- Remember that unmatched globs in `tcsh` fail with `No match`; use
+  `/bin/sh -c` plus `2>/dev/null` for optional paths.
+- Never concatenate several independent commands into one pasted block when a
+  typo could transform a pathname (for example `/conf/config.xmlsed`).
+- For read-only discovery, use bounded output such as `tail`, targeted
+  `grep`, and filtered `tcpdump` rather than dumping entire logs/rulesets.
+
+Portable loop example for pfBlockerNG feed sizing:
+
+```csh
+/bin/sh -c 'for f in /var/db/pfblockerng/dnsblorig/*; do [ -f "$f" ] || continue; lines=$(wc -l < "$f"); bytes=$(stat -f %z "$f"); printf "%10d lines %10d bytes  %s\n" "$lines" "$bytes" "$(basename "$f")"; done'
+```
+
+Equivalent processed-list inventory:
+
+```csh
+/bin/sh -c 'for f in /var/db/pfblockerng/dnsbl/*; do [ -f "$f" ] || continue; lines=$(wc -l < "$f"); bytes=$(stat -f %z "$f"); printf "%10d lines %10d bytes  %s\n" "$lines" "$bytes" "$(basename "$f")"; done'
+```
+
+## Netgate 1100 memory and service-safety contract
+
+The current edge appliance is a memory-constrained Netgate 1100 with roughly
+1 GiB of RAM and no swap. Treat the firewall as a critical appliance first and
+an analytics host second.
+
+Before restarting several services or running a heavy pfBlockerNG reload,
+capture evidence first:
+
+```csh
+date
+```
+
+```csh
+dmesg | egrep -i 'killed|failed to reclaim|waited too long|out of swap' | tail -80
+```
+
+```csh
+ps axo pid,rss,vsz,pcpu,pmem,command | sort -nr -k2 | head -25
+```
+
+```csh
+vmstat 2
+```
+
+Stop `vmstat` after a bounded sample. Do not interpret one successful daemon
+restart as proof that the system is healthy if the kernel is still reclaiming
+aggressively or killing processes.
+
+Observed failure signatures that indicate global memory pressure include:
+
+```text
+was killed: failed to reclaim memory
+was killed: a thread waited too long to allocate a page
+out of swap
+```
+
+Service restoration priority after an OOM is normally:
+
+1. PF/routing and DNS/DHCP prerequisites;
+2. Unbound and Kea;
+3. HAProxy and required security helpers;
+4. Snort only after memory headroom is stable;
+5. monitoring agents such as Zabbix;
+6. optional analytics.
+
+Do not start ntopng on this appliance. Keep legacy softflowd disabled when
+native pflow is providing the required exports.
+
+### Unbound and pfBlockerNG DNSBL
+
+Current stable design uses pfBlockerNG DNSBL Python mode:
+
+```text
+dnsbl_mode = dnsbl_python
+module-config: "python validator iterator"
+python-script: pfb_unbound.py
+```
+
+Revalidate before relying on this:
+
+```csh
+grep -nEi '<dnsbl_mode>|<pfb_tld>|<regdhcp>|<regdhcpstatic>' /conf/config.xml
+```
+
+```csh
+grep -nE 'module-config|python-script|msg-cache-size|rrset-cache-size' /var/unbound/unbound.conf
+```
+
+Do not assume a high Unbound RSS is caused by the native rrset/message caches.
+Measure them:
+
+```csh
+unbound-control -c /var/unbound/unbound.conf stats_noreset | egrep '^mem\.'
+```
+
+The Python DNSBL data structures can dominate process RSS even when the source
+text is much smaller on disk. A validated 2026-09-07 state with about 923k
+DNSBL entries produced Unbound RSS above 300 MiB and was associated with
+kernel OOM kills during reload/rebuild activity. Treat this as an observed
+capacity warning, not as a universal hard threshold.
+
+Before a Force Reload:
+
+- keep PHP `memory_limit` at 128M unless a separately justified test requires
+  a temporary change;
+- do not use 256M/512M as a permanent workaround for oversized feeds;
+- check current Unbound RSS and free memory;
+- check for recent kernel OOM evidence;
+- inventory feed sizes/line counts;
+- reduce unnecessary feeds before forcing a rebuild;
+- temporarily keep Snort stopped when memory headroom is marginal;
+- verify the final pfBlockerNG completion marker and absence of new OOM kills.
+
+The UT1 `adult` category was disabled after an oversized source triggered PHP
+memory exhaustion. `Talos_BL_v4` is a Cisco Talos threat-intelligence feed;
+it is unrelated to Sidero Labs Talos Linux/Kubernetes. A failed/403 Cisco Talos
+feed can be disabled without affecting the Talos Kubernetes cluster.
+
+Prefer disabling a broken or disproportionate **source/category** over
+disabling an entire provider when useful categories remain.
+
+### Snort memory posture
+
+Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
+Inspect memcap was reduced from roughly 144 MiB to 32 MiB; validate the
+generated configuration rather than hand-editing it.
+
+```csh
+grep -n 'http_inspect: global' -A8 /usr/local/etc/snort/snort_56408_mvneta0.4090/snort.conf
+```
+
+A configured preprocessor memcap is a ceiling, not proof of resident usage.
+Measure actual RSS with `ps`.
+
+If Unbound/pfBlockerNG is under memory pressure, stopping Snort temporarily is
+an acceptable diagnostic/headroom measure. Restore Snort only after
+`vmstat`, process RSS and kernel logs show stable headroom.
+
+### Kea and Zabbix after memory incidents
+
+Do not trust a stale UI status alone. Confirm process state and recent logs.
+
+Kea:
+
+```csh
+pgrep -af kea-dhcp4
+```
+
+```csh
+tail -80 /var/log/dhcpd.log
+```
+
+Service Watchdog may restart Kea after a memory incident, so a later running
+PID does not disprove an earlier outage.
+
+Zabbix is monitoring, not a routing/DNS prerequisite. If memory is constrained,
+leave it stopped until core services are stable:
+
+```csh
+ps axww | grep '[z]abbix'
+```
+
+```csh
+/bin/sh -c 'ls -l /var/run/zabbix-agent/zabbix_agentd.pid 2>/dev/null'
+```
+
+### Native pflow/IPFIX offload
+
+Prefer pfSense Plus native Packet Flow Data / pflow over running ntopng or
+softflowd locally for flow analytics.
+
+Read-only runtime inventory:
+
+```csh
+pflowctl -v -l
+```
+
+The validated dual-export design is:
+
+```text
+pflow0: IPFIX domain 1, 172.17.0.1 -> 172.17.0.24:2055 (TrueNAS/Akvorado)
+pflow1: IPFIX domain 2, WAN -> 162.159.65.1:2055 (Cloudflare Network Flow)
+```
+
+Revalidate these values because exporter IDs/source addresses can change.
+
+WAN proof for Cloudflare:
+
+```csh
+tcpdump -ni mvneta0.4090 -c 20 'udp and dst host 162.159.65.1 and dst port 2055'
+```
+
+TrueNAS-side proof uses the actual host interface selected by its route to
+pfSense; in the current topology this has been `br0`:
+
+```bash
+sudo tcpdump -ni br0 -c 30 'udp dst port 2055 and src host 172.17.0.1'
+```
+
+Do not run softflowd and pflow for the same destination without an explicit
+migration/comparison reason.
 
 ## REST API v2 authentication
 
