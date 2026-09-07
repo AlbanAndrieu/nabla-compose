@@ -94,8 +94,8 @@ groups:
 
       - alert: AkvoradoInletUDPDrops
         expr: >-
-          max(akvorado_inlet_flow_input_udp_in_dropped_packets_total{job="akvorado_inlet"}) > 0
-        for: 5m
+          sum(increase(akvorado_inlet_flow_input_udp_in_dropped_packets_total{job="akvorado_inlet"}[5m])) > 0
+        for: 2m
         labels:
           severity: warning
           scope: network-flow
