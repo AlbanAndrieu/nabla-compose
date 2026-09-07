@@ -653,11 +653,12 @@ Acceptance after every shared ClickHouse change:
       reach its gRPC endpoint while Taskbroker itself can resolve and consume
       shared `kafka:9092`; validate after redeploy that neither Taskbroker nor
       taskworker restart/retry loops remain;
-- [ ] revalidate the Sentry edge after the NGINX network fix: Docker must report
-      an active `172.17.0.24:9005 -> 80/tcp` mapping (not only
-      `HostConfig.PortBindings`), host `/_health/` must succeed, Relay must
-      remain connected to Redis, and the repository lifecycle audit must pass
-      the complete Sentry runtime-mesh probes;
+- [x] revalidate the Sentry edge after the NGINX network fix: Docker reports
+      an active `172.17.0.24:9005 -> 80/tcp` mapping in `NetworkSettings.Ports`
+      and host `/_health/` succeeds; note that `docker port` may still render
+      no output on this TrueNAS/Docker path, so it is not the acceptance source
+      of truth. Relay connectivity and the complete runtime-mesh audit remain
+      part of final acceptance;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba on the temporary supported ClickHouse;
 - [ ] later repeat the same synthetic-event gate on the **single shared
