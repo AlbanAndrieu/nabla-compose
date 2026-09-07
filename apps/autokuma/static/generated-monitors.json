@@ -502,14 +502,13 @@
     "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"
   },
   {
-    "type": "port",
-    "name": "Pihole",
-    "description": "Nabla generated monitor: pihole",
+    "type": "http",
+    "name": "Pi-hole",
+    "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 53
+    "url": "http://172.17.0.24:20720/admin/"
   },
   {
     "type": "port",

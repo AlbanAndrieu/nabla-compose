@@ -652,7 +652,7 @@
     },
     {
       "id": "pihole",
-      "name": "Pihole",
+      "name": "Pi-hole",
       "group": "network",
       "sourcePath": "apps/pihole/compose.yml",
       "composeService": "pihole",
@@ -660,6 +660,16 @@
       "href": "http://172.17.0.24:20720/admin/",
       "syncEligible": true,
       "description": "Pi-hole DNS filtering and administration."
+    },
+    {
+      "id": "pihole-pihole-dns-sync",
+      "name": "Pihole Dns Sync",
+      "group": "pihole",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole-dns-sync",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "pihole-pihole-exporter",
@@ -1069,16 +1079,6 @@
       "group": "traefik",
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "dnsupdater",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "traefik-pihole-dns-sync",
-      "name": "Pihole Dns Sync",
-      "group": "traefik",
-      "sourcePath": "apps/traefik/compose.yml",
-      "composeService": "pihole-dns-sync",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false

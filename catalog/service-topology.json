@@ -471,6 +471,16 @@
       "icon": "⚖️"
     },
     {
+      "id": "pihole",
+      "name": "Pi-hole",
+      "kind": "dns",
+      "category": "network",
+      "sourcePath": "apps/pihole/compose.yml",
+      "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer.",
+      "presentationRole": "core",
+      "criticality": "critical"
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
@@ -1823,6 +1833,16 @@
       "description": "Prometheus scrapes the pfSense exporter.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=pfsense_exporter"
+      ]
+    },
+    {
+      "source": "pihole",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/pihole/compose.yml:pihole.x-nabla.runtime.containerService"
       ]
     },
     {

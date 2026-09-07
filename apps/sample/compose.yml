@@ -56,6 +56,8 @@ services:
       FASTAPI_CLOUD_APP_ID: ""
       EXPOSE_PORT: "8080"
       SICKZ_INTERNAL_NETWORK: "true"
+      HOMELAB_INTERNAL_PROBES_ENABLED: "true"
+      PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040
       SICKZ_NETWORK_LABEL: nabla
       APP_DOMAIN: sample.int.albandrieu.com
 
