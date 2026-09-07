@@ -17,11 +17,21 @@ class AgentQualityGateContractTests(unittest.TestCase):
         text = gate.read_text(encoding="utf-8")
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
+        self.assertIn("diff-filter=D", text)
         self.assertIn("QG_EXEC_BIT", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("python -m unittest discover -s tests -p 'test_*.py' -q", text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
+        self.assertIn("service-topology-sync,service-consumer-contract", text)
+        self.assertIn('env SKIP="${CANONICAL_SKIP}"', text)
+
+    def test_mise_exposes_fix_check_and_publish_workflow(self) -> None:
+        config = (ROOT / "mise.toml").read_text(encoding="utf-8")
+        self.assertIn("[tasks.agent-fix]", config)
+        self.assertIn("[tasks.agent-quality]", config)
+        self.assertIn("[tasks.agent-publish]", config)
+        self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
 
     def test_pre_push_uses_agent_publication_gate(self) -> None:
         config = (ROOT / ".pre-commit-pre-push.yaml").read_text(encoding="utf-8")

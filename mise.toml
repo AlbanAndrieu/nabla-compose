@@ -55,6 +55,10 @@ run = "bash scripts/agent-quality-gate.sh"
 description = "Regenerate deterministic artifacts and apply local pre-commit fixes"
 run = "bash scripts/agent-quality-gate.sh --fix"
 
+[tasks.agent-publish]
+description = "Run the strict agent gate and clean-tree publication check"
+run = "bash scripts/agent-quality-gate.sh --publish"
+
 [tasks.info]
 description = "Show repository tooling context"
 run = '''

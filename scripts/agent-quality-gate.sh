@@ -107,6 +107,21 @@ collect_changed_files() {
 
 mapfile -t CHANGED_FILES < <(collect_changed_files)
 
+collect_deleted_files() {
+  {
+    if [[ "${BASE_REF}" != "HEAD" ]] &&
+      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+      git diff --name-only --diff-filter=D "${BASE_REF}...HEAD"
+    fi
+    git diff --name-only --diff-filter=D
+    git diff --cached --name-only --diff-filter=D
+  } |
+    awk 'NF' |
+    sort -u
+}
+
+mapfile -t DELETED_FILES < <(collect_deleted_files)
+
 if [[ "${MODE}" == "fix" ]]; then
   command -v python >/dev/null 2>&1 || {
     echo "❌ python is required" >&2
@@ -173,6 +188,27 @@ if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" != "1" && "${BASE_REF}" != "HEAD" ]];
       large_deletion_failed=1
     fi
   done
+
+  for file in "${DELETED_FILES[@]}"; do
+    case "${file}" in
+      catalog/service-topology.json|catalog/services.json|apps/homarr/generated/apps.json|apps/autokuma/static/generated-monitors.json|apps/gatus/config/config.yml|package-lock.json)
+        continue
+        ;;
+      *.md|*.py|*.sh|*.yml|*.yaml|*.json|*.toml|*.hcl|*.tofu|Dockerfile*|Makefile)
+        ;;
+      *)
+        continue
+        ;;
+    esac
+
+    git cat-file -e "${BASE_REF}:${file}" 2>/dev/null || continue
+    base_lines="$(git show "${BASE_REF}:${file}" | wc -l | tr -d ' ')"
+    if ((base_lines >= 200)); then
+      printf '❌ QG_LARGE_DELETION: %s was deleted (%d lines); set QUALITY_ALLOW_LARGE_DELETION=1 only after explicit review\n' \
+        "${file}" "${base_lines}" >&2
+      large_deletion_failed=1
+    fi
+  done
 fi
 ((large_deletion_failed == 0)) || exit 1
 printf '✅ destructive-diff guard\n'
@@ -203,12 +239,18 @@ run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
   python scripts/generate-service-consumers.py --check
 run_compact "repository unit/contract tests" \
   python -m unittest discover -s tests -p 'test_*.py' -q
+
+CANONICAL_SKIP="service-topology-sync,service-consumer-contract"
+if [[ -n "${SKIP:-}" ]]; then
+  CANONICAL_SKIP="${SKIP},${CANONICAL_SKIP}"
+fi
+
 if [[ "${PUBLISH}" == true ]]; then
   run_compact "canonical formatter/linter/security publication gate" \
-    bash scripts/quality-gate.sh --publish
+    env SKIP="${CANONICAL_SKIP}" bash scripts/quality-gate.sh --publish
   echo "✅ Agent publication gate passed; repository is clean and safe to publish."
 else
   run_compact "canonical formatter/linter/security gate" \
-    bash scripts/quality-gate.sh
+    env SKIP="${CANONICAL_SKIP}" bash scripts/quality-gate.sh
   echo "✅ Agent quality gate passed."
 fi
