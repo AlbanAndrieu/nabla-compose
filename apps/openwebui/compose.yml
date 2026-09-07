@@ -24,6 +24,7 @@ services:
       category: ai
       runtime:
         provider: truenas-app
+        appId: openwebui
         containerService: open-webui
       relations:
         - target: litellm
