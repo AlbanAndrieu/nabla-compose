@@ -1490,7 +1490,7 @@ The platform sequence now prioritizes making the existing Talos/Kubernetes clust
 usable before broad application migration. Application cutovers must not displace
 the Kubernetes network/storage and infrastructure-secret gates below.
 
-### P0 — Kubernetes DNS, CNI and service networking
+### P0 — Kubernetes DNS, CNI and explicit FastAPI Sample smoke
 
 1. run `scripts/talos/validate-cluster.sh` and retain the all-nodes-`Ready`,
    kubelet and etcd health gate;
@@ -1500,12 +1500,24 @@ the Kubernetes network/storage and infrastructure-secret gates below.
    disposable service;
 4. prove cross-node pod-to-pod routing between workers `.51` and `.52`;
 5. prove ClusterIP/service DNS routing;
-6. keep the smoke namespace restricted and disposable;
-7. do not proceed to persistent workloads until this gate is green.
+6. deploy a minimal FastAPI Sample workload in Kubernetes as the explicit
+   application smoke target, using the existing sample application rather than
+   an unrelated hello-world image;
+7. expose that Kubernetes smoke workload through the dedicated hostname
+   `test.albandrieu.com` with an explicit ingress/gateway route;
+8. verify `https://test.albandrieu.com/health` (and a small API endpoint) from
+   outside the cluster and correlate the request with the expected Kubernetes
+   Service/Pod;
+9. keep `test.albandrieu.com` isolated from the production
+   `sample.albandrieu.com` deployment so the smoke workload can be recreated,
+   upgraded or removed without affecting the current TrueNAS FastAPI Sample;
+10. keep the smoke namespace restricted and disposable;
+11. do not proceed to persistent workloads until both the internal network smoke
+    and the external FastAPI Sample smoke are green.
 
 ### P0.1 — TrueNAS-backed Kubernetes CSI storage
 
-After the network/DNS smoke gate:
+After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
 
 1. select and pin the reviewed CSI implementation and chart/manifests;
 2. create a dedicated least-privilege TrueNAS CSI identity/API credential rather
@@ -1513,12 +1525,15 @@ After the network/DNS smoke gate:
 3. provision below the existing `cpool/k8s/csi` parent;
 4. deploy the CSI controller/node components;
 5. create an explicit StorageClass;
-6. create a disposable PVC and pod, write a marker, delete/recreate the pod and
-   prove the marker survives;
-7. verify PV/PVC lifecycle, reclaim policy, dataset/zvol ownership and cleanup;
-8. validate snapshot/restore where supported;
-9. test one rollback/uninstall path before introducing production workloads;
-10. bootstrap GitOps only after CSI persistence and rollback are proven.
+6. attach a disposable PVC to the Kubernetes FastAPI Sample smoke workload;
+7. write a marker through the application or a tightly scoped init/test path,
+   delete/recreate the pod and prove the marker survives;
+8. verify PV/PVC lifecycle, reclaim policy, dataset/zvol ownership and cleanup;
+9. validate snapshot/restore where supported;
+10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
+    recovery to prove application + ingress + CSI together;
+11. test one rollback/uninstall path before introducing production workloads;
+12. bootstrap GitOps only after CSI persistence and rollback are proven.
 
 Prefer NFS as the first persistence smoke path because Talos workers require no
 additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node
@@ -1582,11 +1597,27 @@ target once Kubernetes storage is proven.
 6. preserve git-crypt as encrypted recovery material;
 7. do not rotate migration-critical encryption keys during cutover.
 
-### P2 — runtime reconciliation and broken/stopped services
+### P2 — runtime reconciliation and core observability/security services
 
 Use FastAPI Sample runtime endpoints plus the TrueNAS observer as the canonical
-runtime reconciliation source. Current repository/runtime evidence already
-identifies these actionable states:
+runtime reconciliation source. Reconcile the service catalog before treating a
+declared Compose service as deployed.
+
+The following services are considered **expected-running core services** and
+should be verified/stabilized before broad application migrations:
+
+- **CrowdSec:** expected running; verify LAPI/agent health, collections/bouncers,
+  log acquisition and decision flow;
+- **Langflow:** expected running; verify application health, persistence and
+  external/internal route behavior;
+- **Graylog:** expected running; verify server health, OpenSearch/backend
+  connectivity and inputs before adding pfSense/workstation syslog;
+- **Prometheus:** priority monitoring service; verify scrape targets, rule
+  evaluation and retention;
+- **Grafana:** priority monitoring service; complete runtime cutover, datasource
+  health and the read-only service-account/MCP secret work.
+
+Current repository/runtime evidence also identifies these actionable states:
 
 - **Scrutiny:** native application intentionally STOPPED; repository Compose
   migration is prepared but not yet completed;
@@ -1609,23 +1640,45 @@ classify it as `running`, `degraded/restarting`, `stopped`,
 `declared-not-deployed` or `unknown`. Do not infer `not deployed` merely
 from lack of an external URL.
 
-### P3 — application/services queue after Kubernetes + infrastructure secrets
+### P3 — service priority after Kubernetes + infrastructure secrets
 
-1. complete Scrutiny + standalone InfluxDB cutover;
-2. complete Pi-hole repository cutover and TrueNAS `*.int.albandrieu.com` DNS
-   correction;
-3. connect pfSense and workstation syslog to Graylog;
-4. validate NPMplus without replacing native Nginx Proxy Manager;
-5. OpenTerminal — add/complete the repository Compose target, then migrate;
-6. complete Grafana and 2FAuth cutovers;
-7. Karakeep — add repository target and migrate;
-8. FreshRSS — add repository target and migrate;
-9. Reactive Resume;
-10. Paperless-ngx + Paperless-AI — add repository targets, then execute the
+**Priority A — monitoring and security platform**
+
+1. verify/stabilize **Prometheus**;
+2. verify/stabilize **Grafana**, including datasources, dashboards, Alertmanager
+   visibility and the dedicated read-only service-account token;
+3. verify/stabilize **Graylog**, then connect pfSense and workstation syslog;
+4. verify/stabilize **CrowdSec** and its log acquisition/bouncer decision path;
+5. complete **Scrutiny + standalone InfluxDB** cutover;
+6. verify **Langflow** as an expected-running application and add monitoring for
+   it.
+
+**Priority B — next security/network observability services**
+
+7. deploy/enable **OpenRAG** after its storage/model dependencies are reviewed;
+8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
+   conflict with the existing OpenSearch/Graylog observability plane;
+9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
+   Akvorado) for flow telemetry after pfSense/exporter/collector routing is
+   defined;
+10. continue **ntopng / Suricata** integration only after deciding which flow/IDS
+    sources are authoritative to avoid duplicate telemetry without purpose.
+
+**Priority C — platform/application migrations**
+
+11. complete Pi-hole repository cutover and TrueNAS
+    `*.int.albandrieu.com` DNS correction;
+12. validate NPMplus without replacing native Nginx Proxy Manager;
+13. OpenTerminal — add/complete the repository Compose target, then migrate;
+14. complete 2FAuth cutover;
+15. Karakeep — add repository target and migrate;
+16. FreshRSS — add repository target and migrate;
+17. Reactive Resume;
+18. Paperless-ngx + Paperless-AI — add repository targets, then execute the
     database/data migration;
-11. shared PostgreSQL consolidation only after application-specific database
+19. shared PostgreSQL consolidation only after application-specific database
     ownership is understood;
-12. native Nginx Proxy Manager -> proven NPMplus.
+20. native Nginx Proxy Manager -> proven NPMplus.
 
 ### P4 — identity and long-term machine secrets
 
