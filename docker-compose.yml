@@ -9,6 +9,26 @@ services:
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:0.3.0
     container_name: docker-socket-proxy
+    x-nabla:
+      id: docker-socket-proxy
+      name: Docker Socket Proxy
+      kind: security-proxy
+      category: infrastructure
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - protect
+      description: Restricted read-only Docker Engine API boundary for repository automation.
+      runtime:
+        provider: truenas-app
+        containerService: docker-socket-proxy
+      relations:
+        - target: docker
+          type: providesApi
+          strength: required
+          description: The proxy exposes an allowlisted subset of the local Docker Engine API.
+          evidence:
+            - docker-compose.yml:/var/run/docker.sock:ro
     restart: unless-stopped
     environment:
       CONTAINERS: 1
@@ -32,6 +52,28 @@ services:
   doco-cd:
     image: ghcr.io/kimdre/doco-cd:0.85.1
     container_name: doco-cd
+    x-nabla:
+      id: doco-cd
+      name: Doco-CD
+      kind: deployment-automation
+      category: operations
+      presentationRole: support
+      criticality: medium
+      description: Git-driven Compose deployment automation for the TrueNAS Docker runtime.
+      runtime:
+        provider: truenas-app
+        containerService: doco-cd
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9120
+      relations:
+        - target: docker-socket-proxy
+          type: consumesApi
+          strength: required
+          description: Doco-CD performs Docker discovery and deployments through the restricted proxy.
+          evidence:
+            - docker-compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
     restart: unless-stopped
     ports:
       - "30080:80"
