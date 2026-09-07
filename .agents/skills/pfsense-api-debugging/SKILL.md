@@ -186,7 +186,8 @@ scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
 ```
 
 Use `--json` for automation and `--strict` when warnings should fail a
-scheduled check. The script emits the `nabla.pfsense.posture.v1` JSON schema.
+scheduled check. Do not assume pfSense SSH uses TCP/22: prefer the workstation's
+existing `~/.ssh/config` alias, or pass `--port PORT` explicitly. The script emits the `nabla.pfsense.posture.v1` JSON schema.
 
 A partial API-only view is available without SSH:
 
