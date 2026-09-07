@@ -16,21 +16,6 @@ services:
     image: ghcr.io/kimdre/doco-cd:0.85.1
     container_name: doco-cd
     restart: unless-stopped
-    x-nabla:
-      id: doco-cd
-      name: Doco-CD
-      kind: deployment-controller
-      category: operations
-      runtime:
-        provider: truenas-app
-        containerService: doco-cd
-      relations:
-        - target: docker
-          type: controls
-          strength: required
-          description: Doco-CD reconciles Docker deployments through the shared restricted Docker socket proxy.
-          evidence:
-            - apps/doco-cd/compose.yml:DOCKER_HOST
     env_file:
       - /mnt/cpool/dococd/.env.secrets
     environment:
