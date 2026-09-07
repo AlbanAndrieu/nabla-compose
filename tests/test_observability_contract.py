@@ -364,6 +364,21 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertNotIn("streamable-http", grafana["args"])
             self.assertNotIn("sse", grafana["args"])
 
+    def test_sentry_mcp_is_self_hosted_inspect_only(self) -> None:
+        for relative in (".mcp.json", ".cursor/mcp.json"):
+            config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            sentry = config["mcpServers"]["sentry"]
+
+            self.assertEqual(sentry["type"], "stdio")
+            self.assertEqual(sentry["command"], "npx")
+            self.assertIn("@sentry/mcp-server@0.39.0", sentry["args"])
+            self.assertIn("--host=sentry.albandrieu.com", sentry["args"])
+            self.assertIn("--skills=inspect", sentry["args"])
+            self.assertIn("--disable-skills=seer", sentry["args"])
+            self.assertIn("--sentry-dsn=", sentry["args"])
+            self.assertIn("SENTRY_ACCESS_TOKEN", sentry["env"])
+            self.assertNotIn("SENTRY_ACCESS_TOKEN=", " ".join(sentry["args"]))
+
     def test_grafana_mcp_token_is_metadata_only_vaultwarden_secret(self) -> None:
         manifest = json.loads(
             (ROOT / "config" / "secrets" / "manifest.json").read_text(

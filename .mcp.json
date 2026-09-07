@@ -77,6 +77,21 @@
         "GRAFANA_URL": "${GRAFANA_URL}",
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${GRAFANA_SERVICE_ACCOUNT_TOKEN}"
       }
+    },
+    "sentry": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sentry/mcp-server@0.39.0",
+        "--host=sentry.albandrieu.com",
+        "--skills=inspect",
+        "--disable-skills=seer",
+        "--sentry-dsn="
+      ],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}"
+      }
     }
   }
 }

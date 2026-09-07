@@ -24,3 +24,8 @@ BW_SESSION=
 
 # Optional override for root .mcp.json; Cursor currently points directly to production.
 FASTAPI_SAMPLE_MCP_URL=https://fastapi-sample.fastapicloud.dev/mcp
+
+
+# Self-hosted Sentry MCP (inspect-only). Create a dedicated User Auth Token in
+# sentry.albandrieu.com and keep the token outside Git.
+SENTRY_ACCESS_TOKEN=
