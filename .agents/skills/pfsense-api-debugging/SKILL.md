@@ -182,7 +182,7 @@ versioned audit over manually reconstructing the complete posture from chat
 history:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
 ```
 
 Use `--json` for automation and `--strict` when warnings should fail a
@@ -270,6 +270,48 @@ Keep the targeted DNSBL group enabled and the UT1 `phishing` category disabled
 once the migration has been validated. This avoids carrying two overlapping
 phishing datasets and reduces Unbound Python memory pressure.
 
+### Validated 2026-09-07 stabilized baseline
+
+The successful remediation baseline was:
+
+```text
+DNSBL final entries        190804
+Unbound RSS                ~108-111 MiB
+pfb_py_data.txt             ~10 MiB
+free RAM                   ~199-203 MiB
+PHP memory_limit           128M
+TLD                        off
+UT1 adult                  disabled
+UT1 malware                disabled
+UT1 gambling               disabled
+UT1 games                  disabled
+UT1 dating                 disabled
+UT1 phishing               disabled
+targeted phishing          OpenPhish + PhishTank
+StevenBlack Gambling       disabled
+Unbound Service Watchdog   absent
+Snort                      stopped during validation
+Zabbix                     stopped during validation
+ntopng                      stopped
+softflowd                  disabled
+pflow/IPFIX                enabled
+```
+
+The previous state was roughly 923k DNSBL entries and 331-340 MiB Unbound RSS,
+with repeated kernel OOM kills. A controlled DNSBL-only rebuild with Unbound
+stopped reduced the dataset by about 79% and Unbound RSS by about two thirds.
+
+The installed pfBlockerNG `3.2.17_1` lacks the newer
+`pfb_unbound_py_swap_fits_ram` guard. For a future large DNSBL rebuild on this
+box, do not assume zero-downtime hot swap is safe. Reuse the proven sequence:
+stop optional consumers, keep Unbound out of Service Watchdog, stop Unbound,
+verify memory headroom, run **Force Reload -> DNSBL only**, then validate the
+PASSED/ENDED markers and the new RSS/free-memory baseline.
+
+`lighttpd_pfb` is not Unbound even though its command line references
+`/var/unbound`. Exactly one instance should own `10.10.10.1:443`; do not
+manually start another copy.
+
 ### Snort memory posture
 
 Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
@@ -309,9 +351,11 @@ processes such as `lighttpd_pfb` may match because their arguments contain
 `/var/unbound/...`. Prefer `pgrep -x unbound` or match the exact daemon command
 `/usr/local/sbin/unbound -c /var/unbound/unbound.conf`.
 
-During an Unbound memory-remediation/rebuild, remove Unbound from Service
-Watchdog temporarily. Otherwise the watchdog can recreate the OOM loop by
-restarting the resolver immediately after the kernel kills or an operator stop.
+On the current Netgate 1100, keep Unbound out of Service Watchdog unless the
+memory policy is deliberately reassessed. During the 2026-09-07 incident,
+Service Watchdog repeatedly restarted Unbound after kernel OOM kills and
+recreated the same allocation pressure; parallel restart attempts also produced
+address-in-use races.
 
 Zabbix is monitoring, not a routing/DNS prerequisite. If memory is constrained,
 leave it stopped until core services are stable:
