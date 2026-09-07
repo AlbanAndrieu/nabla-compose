@@ -544,11 +544,16 @@ Sentry currently runs its own ephemeral `memcached:1.6.45-alpine` cache. Memcach
 is technically reusable by other homelab services, but unlike PostgreSQL,
 Redis, Kafka and ClickHouse it provides no durable namespace or database
 isolation. Sharing one daemon can therefore create cross-application eviction,
-memory-pressure and noisy-neighbour coupling.
+memory-pressure and noisy-neighbour coupling. Repository inventory on
+2026-09-07 found no other active Memcached consumer; the remaining references
+are documentation/examples or commented Telegraf input configuration. Sentry is
+therefore the only current runtime consumer and should keep its local cache for
+this migration.
 
 Target decision:
 
-- [ ] inventory all current and planned Memcached consumers in the repository;
+- [x] inventory current Memcached consumers: Sentry is the only active runtime
+      consumer as of 2026-09-07; keep the cache local for this migration;
 - [ ] measure whether any non-Sentry workload would materially benefit from a
       shared daemon instead of its own small cache;
 - [ ] if multiple consumers justify sharing, extract a reusable
