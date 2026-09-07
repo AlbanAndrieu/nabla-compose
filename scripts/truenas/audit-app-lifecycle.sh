@@ -832,8 +832,7 @@ function probe_fastapi_sample_sentry_if_running {
         http://172.17.0.24:9005/api/0/organizations/ || true
     )"
 
-    if [[ "${sentry_api_status}" == "200" ]] &&
-      jq -e 'type == "array"' "${sentry_api_body}" >/dev/null 2>&1; then
+    if [[ "${sentry_api_status}" == "200" ]] && jq -e 'type == "array"' "${sentry_api_body}" >/dev/null 2>&1; then
       functional_ok "Sentry MCP API token: direct LAN /api/0/organizations/ accepted"
     elif [[ "${sentry_api_status}" == "401" || "${sentry_api_status}" == "403" ]]; then
       functional_fail "Sentry MCP API token: rejected by direct LAN API (HTTP ${sentry_api_status}); use a User Auth Token with inspect scopes"
@@ -867,11 +866,9 @@ function probe_fastapi_sample_sentry_if_running {
             https://sentry.albandrieu.com/api/0/organizations/ || true
         )"
 
-        if [[ "${sentry_public_status}" == "200" ]] &&
-          jq -e 'type == "array"' "${sentry_public_body}" >/dev/null 2>&1; then
+        if [[ "${sentry_public_status}" == "200" ]] && jq -e 'type == "array"' "${sentry_public_body}" >/dev/null 2>&1; then
           functional_ok "Sentry public Access: Cloudflare Service Auth + Sentry User Auth accepted"
-        elif [[ "${sentry_public_status}" == "302" ]] &&
-          grep -Eqi 'cloudflareaccess\.com/cdn-cgi/access/login' "${sentry_public_headers}"; then
+        elif [[ "${sentry_public_status}" == "302" ]] && grep -Eqi 'cloudflareaccess\.com/cdn-cgi/access/login' "${sentry_public_headers}"; then
           functional_fail "Sentry public Access: Cloudflare Service Auth policy did not accept the service token"
         elif [[ "${sentry_public_status}" == "401" || "${sentry_public_status}" == "403" ]]; then
           functional_fail "Sentry public Access: Cloudflare passed but Sentry rejected the User Auth Token (HTTP ${sentry_public_status})"
