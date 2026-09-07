@@ -186,6 +186,8 @@ class ObservabilityContractTests(unittest.TestCase):
             "nabla:network_flow:pfsense_packets_per_second",
             "nabla:network_flow:pfsense_bytes_per_second",
             "nabla:network_flow:pfsense_kafka_messages_per_second",
+            "nabla:network_flow:outlet_kafka_messages_per_second",
+            "nabla:network_flow:clickhouse_flows_per_second",
             "nabla:network_flow:clickhouse_batches_per_second",
         ):
             self.assertIn(metric, rules)
@@ -199,6 +201,7 @@ class ObservabilityContractTests(unittest.TestCase):
             "AkvoradoInletUDPErrors",
             "AkvoradoInletUDPDrops",
             "AkvoradoInletKafkaErrors",
+            "AkvoradoOutletKafkaConsumerStalled",
             "AkvoradoOutletClickHouseErrors",
             "AkvoradoFlowPipelineStalled",
         ):
@@ -213,6 +216,8 @@ class ObservabilityContractTests(unittest.TestCase):
         ]
         joined = "\n".join(expressions)
         self.assertIn("nabla:network_flow:pfsense_packets_per_second", joined)
+        self.assertIn("nabla:network_flow:outlet_kafka_messages_per_second", joined)
+        self.assertIn("nabla:network_flow:clickhouse_flows_per_second", joined)
         self.assertIn("nabla:core:pfsense_memory_available_ratio", joined)
         for panel in dashboard["panels"]:
             for target in panel.get("targets", []):
