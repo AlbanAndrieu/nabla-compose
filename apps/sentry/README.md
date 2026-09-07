@@ -64,10 +64,13 @@ containing only the one-shot migration credentials:
 CLICKHOUSE_PASSWORD=
 CLICKHOUSE_READONLY_PASSWORD=
 CLICKHOUSE_TRACE_PASSWORD=
+REDIS_PASSWORD=
 ```
 
-These values belong to `sentry_migrator` and must not be copied into the
-runtime `.env.secrets` file.
+The ClickHouse values belong to `sentry_migrator`; `REDIS_PASSWORD` is the
+shared Redis credential required while Snuba initializes. None of the
+migrator ClickHouse credentials must be copied into the runtime
+`.env.secrets` file.
 
 `RELAY_REDIS_URL` must reference the shared authenticated Redis service. Do
 not print this URL in diagnostics because it contains the Redis password.
