@@ -502,6 +502,13 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("--param_event_uuid", smoke)
         self.assertIn("edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse", smoke)
 
+    def test_sentry_smoke_script_is_executable(self) -> None:
+        mode = (ROOT / "scripts/truenas/smoke-sentry-event.sh").stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 

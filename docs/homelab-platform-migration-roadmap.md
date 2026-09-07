@@ -659,9 +659,10 @@ Acceptance after every shared ClickHouse change:
       no output on this TrueNAS/Docker path, so it is not the acceptance source
       of truth. Relay connectivity and the complete runtime-mesh audit remain
       part of final acceptance;
-- [ ] send a synthetic Sentry event with `scripts/truenas/smoke-sentry-event.sh`
+- [x] send a synthetic Sentry event with `scripts/truenas/smoke-sentry-event.sh`
       and prove it is accepted through the host edge and queryable by exact
       `event_id` in `sentry.errors_local` on the temporary supported ClickHouse;
+      validated on 2026-09-07 with HTTP 200 and one matching ClickHouse row;
 - [ ] later repeat the same synthetic-event gate on the **single shared
       ClickHouse** before removing the temporary Sentry ClickHouse;
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
