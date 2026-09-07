@@ -350,10 +350,13 @@ for feed in Gambling EasyList_Norwegian_Danish_Icelandic; do
   fi
 done
 
-if grep -q '<header>MaxMind_BD_Proxy</header>' /conf/config.xml 2>/dev/null; then
-  emit WARN pfblocker.feed_legacy.MaxMind_BD_Proxy present "legacy MaxMind_BD_Proxy definition remains in config; upstream marks it discontinued, so verify it is disabled/removed"
-else
+maxmind_legacy_row="$(awk '/<row>/{block=""} {block=block $0 "\n"} /<\/row>/{if (block ~ /<header>MaxMind_BD_Proxy<\/header>/) print block}' /conf/config.xml 2>/dev/null)"
+if [ -z "$maxmind_legacy_row" ]; then
   emit PASS pfblocker.feed_legacy.MaxMind_BD_Proxy absent "discontinued MaxMind_BD_Proxy definition is absent from config"
+elif printf '%s\n' "$maxmind_legacy_row" | grep -q '<state><!\[CDATA\[Disabled\]\]></state>'; then
+  emit PASS pfblocker.feed_legacy.MaxMind_BD_Proxy disabled "discontinued MaxMind_BD_Proxy source is present but disabled"
+else
+  emit FAIL pfblocker.feed_legacy.MaxMind_BD_Proxy enabled "discontinued MaxMind_BD_Proxy source is still enabled; disable the PRI3 row, not only MaxMind GeoIP CSV updates"
 fi
 
 last_dnsbl_pass="$(grep -E 'DNSBL update.*PASSED' /var/log/pfblockerng/pfblockerng.log 2>/dev/null | tail -n 1 | tr '\t\r\n' '   ')"
@@ -386,10 +389,24 @@ else
   emit WARN snort.http_inspect_memcap missing "WAN generated snort.conf was not found"
 fi
 
-if pgrep -x snort >/dev/null 2>&1; then
-  emit INFO service.snort running "keep WAN-only and verify memory headroom"
+snort_runtime="$(ps axo command 2>/dev/null | grep '/usr/local/bin/snort ' | grep 'snort_56408_mvneta0.4090/snort.conf' | grep -v grep || true)"
+if [ -n "$snort_runtime" ]; then
+  emit PASS service.snort running "WAN Snort process is running in passive mode"
 else
-  emit INFO service.snort stopped "acceptable during memory remediation"
+  emit WARN service.snort stopped "WAN Snort process was not found"
+fi
+
+if [ -n "$snort_conf" ]; then
+  http_inspect_block="$(awk '
+    /^preprocessor http_inspect_server/ {capture=1}
+    capture {print}
+    capture && $0 !~ /\\[[:space:]]*$/ {exit}
+  ' "$snort_conf" 2>/dev/null)"
+  if printf '%s\n' "$http_inspect_block" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+    emit FAIL snort.http_inspect_port_7000 present "TLS listener 7000 must not be classified as clear-text HTTP by http_inspect_server"
+  else
+    emit PASS snort.http_inspect_port_7000 absent "TLS listener 7000 is not in http_inspect_server"
+  fi
 fi
 
 if pgrep -x ntopng >/dev/null 2>&1; then
