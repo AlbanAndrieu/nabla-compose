@@ -1,3 +1,10 @@
+## [0.16.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.16.0...0.16.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **sentry:** mark runtime smoke test executable ([#118](https://github.com/AlbanAndrieu/nabla-compose/issues/118)) ([4ac3259](https://github.com/AlbanAndrieu/nabla-compose/commit/4ac32592d8c69d3e8f106feaa3554a5bf0708e94))
+
 # [0.16.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.7...0.16.0) (2026-09-07)
 
 
