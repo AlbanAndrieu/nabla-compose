@@ -1205,7 +1205,7 @@ function probe_pyroscope_fastapi_profile {
   fi
 
   now_ms="$(date +%s)000"
-  start_ms="$(( ${now_ms} - 900000 ))"
+  start_ms="$((now_ms - 900000))"
 
   if ! labels="$(
     curl --fail --silent --show-error --max-time 8       --header 'Content-Type: application/json'       --data "{
