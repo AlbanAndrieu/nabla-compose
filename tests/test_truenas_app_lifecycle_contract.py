@@ -268,8 +268,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
         self.assertIn("/mnt/cpool/sentry/.env.secrets", compose)
         self.assertIn("CLICKHOUSE_USER: sentry_migrator", compose)
-        self.assertIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
-        self.assertIn("exec snuba bootstrap --force", compose)
+        self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", compose)
+        self.assertIn('command: ["bootstrap", "--force"]', compose)
+        self.assertNotIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
         self.assertIn('command: ["upgrade", "--noinput", "--create-kafka-topics"]', compose)
         self.assertIn("SENTRY_EVENTSTREAM = \"sentry.eventstream.kafka.KafkaEventStream\"", sentry_conf)
         self.assertIn("SENTRY_SEARCH = \"sentry.search.snuba.EventsDatasetSnubaSearchBackend\"", sentry_conf)
@@ -277,6 +278,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("events-subscription-results:", taskbroker)
         self.assertIn("Do not deploy the repository submodule", readme)
         self.assertIn("sentry_migrator", readme)
+        self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
 
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
