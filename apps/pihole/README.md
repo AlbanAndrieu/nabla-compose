@@ -27,8 +27,7 @@ Pi-hole HTTPS   https://172.17.0.24:30132/
 Exporter        http://172.17.0.24:9617
 ```
 
-Inside the Compose project, Pi-hole uses standard HTTP/HTTPS ports `80/443`.
-Host mappings preserve the existing `20720/30132` contract.
+The native TrueNAS App already uses `webserver.port=20720`. The first Compose cutover therefore preserves `20720` both inside and outside the container so the migration changes ownership without also changing the Pi-hole listener contract.
 
 ## Emergency recovery of an exhausted API session pool
 
@@ -62,7 +61,7 @@ Do not use a larger permanent value as the fix for a restarting API client.
 Do not stop or remove the native TrueNAS application until its storage has been
 identified and backed up.
 
-Record the native image/version and mounts:
+Record the native image/version and mounts. On the 2026-09-07 appliance these were proven as `pihole/pihole:2026.07.2`, `/mnt/cpool/pihole/config -> /etc/pihole`, and `/mnt/cpool/pihole/dnsmasq -> /etc/dnsmasq.d`:
 
 ```bash
 sudo docker inspect ix-pihole-pihole-1 \
@@ -85,21 +84,7 @@ sudo docker exec ix-pihole-pihole-1 \
   pihole-FTL --config dns.listeningMode
 ```
 
-Create the destination datasets/directories before copying data:
-
-```bash
-sudo install -d -m 700 /mnt/cpool/pihole
-sudo install -d -m 700 /mnt/cpool/pihole/config
-sudo install -d -m 700 /mnt/cpool/pihole/dnsmasq
-```
-
-Copy the native `/etc/pihole` data from the exact source path discovered by
-`docker inspect`. Do not guess the ixVolume path. Preserve ownership, modes,
-timestamps and extended metadata where the backing filesystem supports them.
-
-If the native deployment has meaningful `/etc/dnsmasq.d` contents, migrate
-those as well. The directory is retained in the target Compose specifically to
-make the first v6 cutover conservative.
+No data copy is required on this host: the native TrueNAS App already mounts the repository target datasets directly. Back them up before cutover, but do not duplicate or rsync them into a second location merely for the migration.
 
 ## Secrets
 
@@ -143,7 +128,7 @@ sudo docker exec docker-socket-proxy wget -qO- http://127.0.0.1:2375/_ping
 
 1. Back up native Pi-hole configuration/data.
 2. Stop `pihole-dns-sync` and the native Pi-hole application.
-3. Confirm host ports `53`, `20720`, `30132` and `9617` are free.
+3. Confirm host ports `53`, `20720` and `9617` are free.
 4. Start the repository-managed Compose project.
 5. Validate DNS, UI/API, synchronization and exporter.
 6. Keep the native TrueNAS app stopped but recoverable until the acceptance
