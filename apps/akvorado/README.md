@@ -47,6 +47,49 @@ GRANT ALL ON akvorado.* TO akvorado;
 The grant is intentionally database-scoped. Do not grant `akvorado` global
 `*.*` privileges or `WITH GRANT OPTION`.
 
+### TrueNAS Custom App deployment
+
+The repository Compose file is included by the TrueNAS Custom App. The
+secret file must also be supplied as the **include-level `env_file`** so
+`${AKVORADO_CLICKHOUSE_PASSWORD}` is available for Compose interpolation.
+A service-level `env_file` only populates the container environment and does
+not provide the variable used to render the Compose model. Docker Compose
+supports this include-level `env_file` form, and TrueNAS Custom Apps support
+`include:` for external Compose files. citeturn8search0turn7search0
+
+Use this Custom App YAML:
+
+```yaml
+include:
+  - path: /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
+    env_file:
+      - /mnt/cpool/akvorado/.env.secrets
+services: {}
+```
+
+Then **Save/Deploy** the `akvorado` Custom App. Do not paste a copy of
+`apps/akvorado/compose.yml` into the UI: the external include preserves the
+repository-relative `./config` bind mount.
+
+After deployment, verify the application before enabling any legacy flow
+collector:
+
+```bash
+midclt call app.query | jq '.[] | select(.name == "akvorado") | {name,state,version}'
+docker ps --format '{{.Names}}\t{{.Status}}' | grep -E '^akvorado-'
+```
+
+Functional checks:
+
+```bash
+curl -fsS http://172.17.0.24:31057/api/v0/healthcheck
+curl -fsS http://172.17.0.24:31058/api/v0/healthcheck
+curl -fsS http://172.17.0.24:31056/
+```
+
+Do not consider the deployment successful from container state alone; the
+Inlet/Outlet healthchecks and the end-to-end flow counters below must advance.
+
 ## pfSense
 
 Use native **Firewall -> Packet Flow Data** / pflow exporters. The local
