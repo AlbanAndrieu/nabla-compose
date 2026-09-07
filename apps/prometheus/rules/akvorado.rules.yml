@@ -1,0 +1,149 @@
+---
+groups:
+  - name: AkvoradoFlowPipeline
+    interval: 30s
+    rules:
+      - record: nabla:telemetry:akvorado_inlet_up
+        expr: max(up{job="akvorado_inlet"})
+
+      - record: nabla:telemetry:akvorado_outlet_up
+        expr: max(up{job="akvorado_outlet"})
+
+      - record: nabla:network_flow:pfsense_packets_per_second
+        expr: >-
+          sum(rate(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[5m]))
+
+      - record: nabla:network_flow:pfsense_bytes_per_second
+        expr: >-
+          sum(rate(akvorado_inlet_flow_input_udp_bytes_total{job="akvorado_inlet",exporter="172.17.0.1"}[5m]))
+
+      - record: nabla:network_flow:pfsense_kafka_messages_per_second
+        expr: >-
+          sum(rate(akvorado_inlet_kafka_sent_messages_total{job="akvorado_inlet",exporter="172.17.0.1"}[5m]))
+
+      - record: nabla:network_flow:clickhouse_batches_per_second
+        expr: >-
+          sum(rate(akvorado_outlet_clickhouse_flow_per_batch_count{job="akvorado_outlet"}[5m]))
+
+      - alert: AkvoradoInletMetricsDown
+        expr: up{job="akvorado_inlet"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
+        annotations:
+          summary: Akvorado inlet metrics are unavailable
+          description: >-
+            Prometheus cannot scrape the Akvorado inlet for two minutes.
+            This is a telemetry-path failure, not proof that pfSense itself is down.
+
+      - alert: AkvoradoOutletMetricsDown
+        expr: up{job="akvorado_outlet"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
+        annotations:
+          summary: Akvorado outlet metrics are unavailable
+          description: >-
+            Prometheus cannot scrape the Akvorado outlet for two minutes.
+
+      - alert: AkvoradoPfSenseExporterMissing
+        expr: >-
+          absent(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"})
+        for: 5m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: pfSense exporter is missing from Akvorado
+          description: >-
+            Akvorado has exposed no UDP packet counter for exporter 172.17.0.1
+            for five minutes. Verify pflow and the 172.17.0.24:2055/udp path.
+
+      - alert: AkvoradoPfSenseFlowSilent
+        expr: >-
+          sum(increase(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: pfSense IPFIX flow stream is silent
+          description: >-
+            The expected pfSense exporter is known to Akvorado but its UDP
+            packet counter has not increased for ten minutes.
+
+      - alert: AkvoradoInletUDPErrors
+        expr: >-
+          sum(increase(akvorado_inlet_flow_input_udp_errors_total{job="akvorado_inlet"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado inlet is seeing UDP receive errors
+          description: >-
+            The Akvorado inlet UDP receive error counter increased in the last
+            five minutes.
+
+      - alert: AkvoradoInletUDPDrops
+        expr: >-
+          max(akvorado_inlet_flow_input_udp_in_dropped_packets_total{job="akvorado_inlet"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado inlet kernel receive queue is dropping packets
+          description: >-
+            The inlet reports packets dropped because its UDP receive queue is full.
+
+      - alert: AkvoradoInletKafkaErrors
+        expr: >-
+          sum(increase(akvorado_inlet_kafka_errors_total{job="akvorado_inlet"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado inlet cannot reliably publish to Kafka
+          description: >-
+            Kafka send errors increased in the Akvorado inlet during the last five minutes.
+
+      - alert: AkvoradoOutletClickHouseErrors
+        expr: >-
+          sum(increase(akvorado_outlet_clickhouse_errors_total{job="akvorado_outlet"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado outlet cannot reliably write to ClickHouse
+          description: >-
+            ClickHouse insertion errors increased in the Akvorado outlet during
+            the last five minutes.
+
+      - alert: AkvoradoFlowPipelineStalled
+        expr: >-
+          (sum(increase(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) > 0)
+          and on()
+          (sum(increase(akvorado_outlet_clickhouse_flow_per_batch_count{job="akvorado_outlet"}[10m])) == 0)
+        for: 10m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: Akvorado receives pfSense flows but ClickHouse writes are stalled
+          description: >-
+            Inlet traffic is increasing while the outlet has not completed a
+            ClickHouse flow batch for ten minutes. Check Kafka, Outlet and ClickHouse.
