@@ -1,3 +1,10 @@
+# [0.20.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.19.0...0.20.0) (2026-09-07)
+
+
+### Features
+
+* **truenas:** reconcile runtime health and service catalog ([#128](https://github.com/AlbanAndrieu/nabla-compose/issues/128)) ([292246d](https://github.com/AlbanAndrieu/nabla-compose/commit/292246d11c24de7278b119d271a584a9f180ba5f))
+
 # [0.19.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.18.1...0.19.0) (2026-09-07)
 
 
