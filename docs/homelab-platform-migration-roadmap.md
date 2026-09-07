@@ -540,17 +540,26 @@ Prefer dedicated datasets over unrelated applications sharing the same database 
 
 ##### Shared ClickHouse consumer compatibility gate
 
+Long-term architecture target: **one shared ClickHouse service** for homelab
+consumers, with a dedicated database/user per product. A second ClickHouse
+instance is therefore a temporary compatibility exception, not the desired
+steady state.
+
 Current/planned consumers have different compatibility contracts:
 
 - **Langfuse** — use dedicated ClickHouse database `langfuse`; Langfuse v4
   requires ClickHouse >=25.12 and recommends 26.4, so the live 26.8.2.7 server
   satisfies Langfuse's version floor;
-- **Sentry/Snuba** — currently points at the shared host, but upstream Sentry
-  self-hosted still builds its own Altinity ClickHouse 25.8 line. Do not claim
-  26.8 compatibility from a simple Sentry web health check: validate synthetic
-  event ingestion through Snuba and searchability. If that fails, decouple
-  Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
-  Langfuse/ntopng server;
+- **Sentry/Snuba** — runtime testing on 2026-09-07 proved that Snuba 26.8.0
+  cannot complete its migrations against the shared ClickHouse 26.8.2.7.
+  Bootstrap reaches `generic_metrics:0041_adjust_partitioning_meta_tables`
+  and ClickHouse rejects the `AggregatingMergeTree` DDL because
+  `retention_days` is outside the sorting key. ClickHouse 26.7+ requires
+  `allow_dimensions_outside_sorting_key=1` to preserve the older behavior.
+  Do not enable that compatibility setting globally on the shared ClickHouse
+  merely for Sentry. The temporary safe path is a dedicated Sentry ClickHouse
+  pinned to upstream self-hosted 26.8.0's Altinity
+  `25.3.6.10034.altinitystable` image;
 - **ntopng** — planned historical flow consumer using its own `ntopng`
   database and dedicated `ntopng` user. The repository Compose refuses the
   shared `clickhouse` / `default` identities, loads the password only from
@@ -559,22 +568,45 @@ Current/planned consumers have different compatibility contracts:
   only with the required ntopng Enterprise M-or-higher license and validate flow
   persistence across both ntopng and ClickHouse restarts.
 
+Convergence roadmap back to **one ClickHouse**:
+
+- [ ] keep the current shared ClickHouse 26.8.x as the platform source of truth
+      for compatible consumers such as Langfuse and future ntopng;
+- [ ] run Sentry on the dedicated upstream-supported ClickHouse only as a
+      temporary compatibility bridge;
+- [ ] track Sentry/Snuba releases until the supported ClickHouse range includes
+      the shared platform version or a newer common version suitable for all
+      consumers;
+- [ ] when support converges, provision a fresh `sentry` database/user on the
+      shared ClickHouse and rerun the full Snuba migration, ingestion, query,
+      restart and retention gates before any cutover;
+- [ ] migrate Sentry from the temporary dedicated ClickHouse only after that
+      end-to-end validation succeeds; do not copy partial/incompatible Snuba
+      schema state from the failed 26.8 bootstrap;
+- [ ] retire `apps/sentry-clickhouse` and `/mnt/cpool/sentry-clickhouse`
+      only after Sentry is proven healthy on the shared ClickHouse and rollback
+      is no longer required;
+- [ ] never globally enable `allow_dimensions_outside_sorting_key=1` on the
+      shared ClickHouse solely to make an unsupported Snuba release migrate.
+
 Acceptance after every shared ClickHouse change:
 
 - [x] `SELECT version(), timezone(), currentDatabase()` succeeds through
       `clickhouse-client` and reports `26.8.2.7 / UTC / default`;
 - [x] HTTP `/ping` on TCP/8123 succeeds;
 - [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
-- [ ] Langfuse web database-aware health and worker health pass after clean
-      initialization in database `langfuse`;
-- [x] classify Sentry `/_health/` as web-process health only; current
-      `apps/sentry/compose.yml` has no `snuba-api`/Snuba consumers, so the
-      lifecycle audit warns instead of claiming ClickHouse compatibility and
-      probes Snuba -> ClickHouse TCP only when a Snuba API container exists;
-- [ ] restore/adopt a supported Snuba topology or explicitly decouple Sentry
-      before treating it as a validated shared ClickHouse consumer;
+- [x] Langfuse web database-aware health and worker health pass against database
+      `langfuse`;
+- [x] classify Sentry `/_health/` as web-process health only and require Snuba
+      runtime evidence before claiming ClickHouse compatibility;
+- [x] prove the shared ClickHouse 26.8.2.7 incompatibility with Snuba 26.8.0 at
+      migration `generic_metrics:0041_adjust_partitioning_meta_tables`;
+- [ ] complete Snuba bootstrap on the temporary dedicated
+      `altinity/clickhouse-server:25.3.6.10034.altinitystable` instance;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
-      Snuba after the shared-server change, or explicitly decouple Sentry;
+      Snuba on the temporary supported ClickHouse;
+- [ ] later repeat the same synthetic-event gate on the **single shared
+      ClickHouse** before removing the temporary Sentry ClickHouse;
 - [x] repository ntopng configuration enforces a dedicated `ntopng`
       database/user, a Compose-mounted runtime secret absent from Docker
       `Config.Env`, a mode-`0600` ephemeral ntopng configuration with the
@@ -583,15 +615,15 @@ Acceptance after every shared ClickHouse change:
       `/mnt/cpool/ntopng/ntopng.license`, create the dedicated ClickHouse
       database/user, store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate
       authenticated access with only `SELECT`, `INSERT`, `TRUNCATE`,
-      `CREATE TABLE`,
-      `DROP TABLE` and `ALTER` on `ntopng.*`; explicitly reject both
-      database-scoped `ALL` and global `*.*` grants;
+      `CREATE TABLE`, `DROP TABLE` and `ALTER` on `ntopng.*`; explicitly
+      reject both database-scoped `ALL` and global `*.*` grants;
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
       persistence across restarts;
 - [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
 
 A successful ClickHouse `/ping` alone is not sufficient to approve a shared
 ClickHouse upgrade.
+
 
 #### Langfuse v4 fresh reset
 
