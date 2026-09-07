@@ -317,6 +317,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("sentry_migrator", readme)
         self.assertIn("GRANT SELECT ON system.replicas TO sentry_migrator;", readme)
         self.assertIn("GRANT SELECT ON system.columns TO sentry_migrator;", readme)
+        self.assertIn("GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;", readme)
         self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
 
