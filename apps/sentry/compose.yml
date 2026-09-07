@@ -18,7 +18,7 @@ x-sentry-env: &sentry-env
 
 x-snuba-env: &snuba-env
   SNUBA_SETTINGS: self_hosted
-  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_HOST: sentry-clickhouse
   CLICKHOUSE_PORT: "9000"
   CLICKHOUSE_HTTP_PORT: "8123"
   CLICKHOUSE_USER: sentry
