@@ -241,6 +241,20 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("/usr/share/graylog/data/config", graylog)
         self.assertNotIn("/mnt/cpool/graylog/data:/usr/share/graylog/data", graylog)
 
+    def test_sentry_clickhouse_is_pinned_to_upstream_supported_version(self) -> None:
+        compose = self.read("apps/sentry-clickhouse/compose.yml")
+        config = self.read("apps/sentry-clickhouse/config.xml")
+
+        self.assertIn(
+            "altinity/clickhouse-server:25.3.6.10034.altinitystable",
+            compose,
+        )
+        self.assertIn("/mnt/cpool/sentry-clickhouse/data:/var/lib/clickhouse", compose)
+        self.assertIn("/mnt/cpool/sentry-clickhouse/logs:/var/log/clickhouse-server", compose)
+        self.assertIn("sentry-clickhouse", compose)
+        self.assertNotIn("/mnt/cpool/clickhouse", compose)
+        self.assertIn("<enable_mixed_granularity_parts>1</enable_mixed_granularity_parts>", config)
+
     def test_shared_kafka_is_pinned_and_independent_from_sentry(self) -> None:
         kafka = self.read("apps/kafka/compose.yml")
         readme = self.read("apps/kafka/README.md")
@@ -282,6 +296,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("\n  sentry-cron:\n", compose)
         self.assertIn("CLICKHOUSE_USER: sentry", compose)
         self.assertIn("CLICKHOUSE_DATABASE: sentry", compose)
+        self.assertIn("CLICKHOUSE_HOST: sentry-clickhouse", compose)
+        self.assertNotIn("CLICKHOUSE_HOST: clickhouse\n", compose)
         self.assertIn("SENTRY_DB_USER: sentry", compose)
         self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
         self.assertIn("/mnt/cpool/sentry/.env.secrets", compose)
