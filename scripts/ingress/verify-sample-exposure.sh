@@ -43,7 +43,7 @@ check_certificate() {
 printf '==> TrueNAS FastAPI health\n'
 curl --fail --silent --show-error --max-time 10 "${LOCAL_HEALTH_URL}" >/dev/null
 
-printf '==> internal Pi-hole DNS\n'
+printf '==> internal Pi-hole DNS (authoritative private record)\n'
 internal_ips="$(getent ahostsv4 "${INTERNAL_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
 [[ -n "${internal_ips}" ]] || fail "${INTERNAL_HOST} does not resolve"
 grep -Fxq "${TRUENAS_HOST}" <<<"${internal_ips}" || {
