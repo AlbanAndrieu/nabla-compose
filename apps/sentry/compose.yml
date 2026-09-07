@@ -346,6 +346,7 @@ services:
       - ./config/taskbroker.yml:/etc/taskbroker/config.yml:ro
     networks:
       - sentry
+      - intranet
 
   sentry-taskscheduler:
     <<: *sentry-service
