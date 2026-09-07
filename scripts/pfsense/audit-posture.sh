@@ -268,13 +268,40 @@ for file in /var/db/pfblockerng/dnsbl/*.txt; do
   lines="$(number_or_zero "$(wc -l <"$file" 2>/dev/null || printf '0')")"
   dnsbl_lines=$((dnsbl_lines + lines))
 done
-if [ "$dnsbl_lines" -ge "$dnsbl_fail_lines" ]; then
-  emit FAIL pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL exceeds the fail guardrail"
-elif [ "$dnsbl_lines" -ge "$dnsbl_warn_lines" ]; then
-  emit WARN pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL remains large for 1 GiB RAM"
-else
-  emit PASS pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL is below the warning guardrail"
+
+loaded_entries=0
+if [ -r /var/unbound/pfb_py_count ]; then
+  loaded_entries="$(number_or_zero "$(tr -dc '0-9' </var/unbound/pfb_py_count 2>/dev/null)")"
 fi
+
+if [ "$loaded_entries" -ge "$dnsbl_fail_lines" ]; then
+  emit FAIL pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot exceeds the fail guardrail"
+elif [ "$loaded_entries" -ge "$dnsbl_warn_lines" ]; then
+  emit WARN pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot remains large for 1 GiB RAM"
+elif [ "$loaded_entries" -gt 0 ]; then
+  emit PASS pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot is below the warning guardrail"
+else
+  emit WARN pfblocker.dnsbl_loaded_entries 0 "pfb_py_count is absent or empty; use the latest DNSBL PASSED marker as fallback evidence"
+fi
+
+if [ "$dnsbl_lines" -eq 0 ] && [ "$loaded_entries" -gt 0 ]; then
+  emit INFO pfblocker.dnsbl_staged_lines 0 "no staged *.txt lines are present, but the previous Python snapshot is still active"
+elif [ "$dnsbl_lines" -ge "$dnsbl_fail_lines" ]; then
+  emit FAIL pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines exceed the fail guardrail"
+elif [ "$dnsbl_lines" -ge "$dnsbl_warn_lines" ]; then
+  emit WARN pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines remain large for 1 GiB RAM"
+else
+  emit PASS pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines are below the warning guardrail"
+fi
+
+ut1_selected="$(sed -n '/<pfblockerngblacklist>/,/<\/pfblockerngblacklist>/p' /conf/config.xml 2>/dev/null | sed -n 's:.*<selected>\(.*\)</selected>.*:\1:p' | head -n 1)"
+for category in adult malware gambling games dating; do
+  if printf ',%s,' "$ut1_selected" | grep -q ",${category},"; then
+    emit FAIL "pfblocker.ut1_category.${category}" enabled "UT1 category is expected disabled for the Netgate 1100 memory policy"
+  else
+    emit PASS "pfblocker.ut1_category.${category}" disabled "UT1 category is not selected"
+  fi
+done
 
 py_data="/var/unbound/pfb_py_data.txt"
 if [ -f "$py_data" ]; then
@@ -290,7 +317,7 @@ else
   emit FAIL pfblocker.python_loader_bytes "missing" "pfb_py_data.txt was not found"
 fi
 
-for feed in UT1_adult UT1_malware Gambling UT1_gambling UT1_games UT1_dating EasyList_Norwegian_Danish_Icelandic; do
+for feed in Gambling EasyList_Norwegian_Danish_Icelandic; do
   path="/var/db/pfblockerng/dnsbl/${feed}.txt"
   if [ -f "$path" ]; then
     lines="$(number_or_zero "$(wc -l <"$path" 2>/dev/null || printf '0')")"
@@ -298,9 +325,9 @@ for feed in UT1_adult UT1_malware Gambling UT1_gambling UT1_games UT1_dating Eas
     lines=0
   fi
   if [ "$lines" -gt 0 ]; then
-    emit FAIL "pfblocker.feed.${feed}" "$lines" "feed is expected disabled but still contributes processed entries"
+    emit WARN "pfblocker.feed_artifact.${feed}" "$lines" "staged artifact still contributes entries; verify group/source state after reload"
   else
-    emit PASS "pfblocker.feed.${feed}" "0" "feed contributes no processed entries"
+    emit PASS "pfblocker.feed_artifact.${feed}" 0 "feed artifact contributes no staged entries"
   fi
 done
 
