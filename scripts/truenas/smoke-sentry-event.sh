@@ -93,8 +93,8 @@ for _ in {1..15}; do
           --user "$CLICKHOUSE_USER" \
           --password "$CLICKHOUSE_PASSWORD" \
           --database sentry \
-          --param_event_uuid "$SMOKE_EVENT_UUID" \
-          --param_project_id "$SMOKE_PROJECT_ID" \
+          --param_event_uuid="$SMOKE_EVENT_UUID" \
+          --param_project_id="$SMOKE_PROJECT_ID" \
           --query "
             SELECT count()
             FROM errors_local
