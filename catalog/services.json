@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:d78c2f9da0c4a01cf536bf725fdb3c0b4adbb317ff2d2b78cc85b1bc93c94713",
+  "catalogRevision": "sha256:8f7ccba7aa37d819a155c6a61ecf46883dc42b51584b8333e1737e0648eb2f2d",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -20,6 +20,78 @@
         "containerService": "2fauth"
       },
       "icon": "🔐"
+    },
+    {
+      "id": "akvorado-console",
+      "name": "Akvorado",
+      "kind": "network-observability",
+      "category": "observability",
+      "composeService": "akvorado-console",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-console"
+      }
+    },
+    {
+      "id": "akvorado-inlet",
+      "name": "Akvorado Inlet",
+      "kind": "network-flow-collector",
+      "category": "observability",
+      "composeService": "akvorado-inlet",
+      "presentationRole": "support",
+      "criticality": "high",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-inlet"
+      }
+    },
+    {
+      "id": "akvorado-orchestrator",
+      "name": "Akvorado Orchestrator",
+      "kind": "network-flow-controller",
+      "category": "observability",
+      "composeService": "akvorado-orchestrator",
+      "presentationRole": "support",
+      "criticality": "high",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-orchestrator"
+      }
+    },
+    {
+      "id": "akvorado-outlet",
+      "name": "Akvorado Outlet",
+      "kind": "network-flow-processor",
+      "category": "observability",
+      "composeService": "akvorado-outlet",
+      "presentationRole": "support",
+      "criticality": "high",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-outlet"
+      }
     },
     {
       "id": "alloy",
