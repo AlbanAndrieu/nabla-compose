@@ -851,6 +851,7 @@ probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets C
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets REDIS_PASSWORD
 probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
