@@ -268,6 +268,16 @@
       "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
     },
     {
+      "id": "kafka",
+      "name": "Apache Kafka",
+      "group": "data",
+      "sourcePath": "apps/kafka/compose.yml",
+      "composeService": "kafka",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "group": "observability",
@@ -728,16 +738,6 @@
       "group": "observability",
       "sourcePath": "apps/scrutiny/compose.yml",
       "composeService": "scrutiny-collector",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "sentry-kafka",
-      "name": "Kafka",
-      "group": "sentry",
-      "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "kafka",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
