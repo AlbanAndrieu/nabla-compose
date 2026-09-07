@@ -620,8 +620,7 @@ function probe_sentry_runtime_mesh_if_running {
       --format '{{.Names}}' | head -n 1
   )"
 
-  if [[ -z "${taskbroker}" || -z "${taskworker}" || -z "${relay}" ||
-    -z "${sentry_web}" || -z "${snuba_api}" || -z "${nginx}" ]]; then
+  if [[ -z "${taskbroker}" || -z "${taskworker}" || -z "${relay}" || -z "${sentry_web}" || -z "${snuba_api}" || -z "${nginx}" ]]; then
     functional_fail "Sentry runtime mesh: one or more required runtime containers are missing"
     return
   fi
@@ -755,6 +754,96 @@ function probe_sentry_runtime_mesh_if_running {
     functional_ok "Sentry NGINX -> Web health"
   else
     functional_fail "Sentry NGINX -> Web health failed"
+  fi
+}
+
+function probe_fastapi_sample_sentry_if_running {
+  local container
+  local env
+
+  if ! app_is_running sample; then
+    printf 'SKIP: FastAPI Sample Sentry app state is %s\n' "${states[sample]-MISSING}"
+    return
+  fi
+
+  container="$(
+    docker ps --filter 'label=com.docker.compose.project=ix-sample' \
+      --filter 'label=com.docker.compose.service=fastapi-sample' \
+      --format '{{.Names}}' | head -n 1
+  )"
+  if [[ -z "${container}" ]]; then
+    container="$(docker ps --format '{{.Names}}' | awk '$0 == "fastapi-sample" { print; exit }')"
+  fi
+
+  if [[ -z "${container}" ]]; then
+    functional_fail "FastAPI Sample Sentry: runtime container not found"
+    return
+  fi
+
+  env="$(docker inspect "${container}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+
+  if grep -q '^SENTRY_LOCAL_DSN=.' <<<"${env}"; then
+    functional_ok "FastAPI Sample Sentry: SENTRY_LOCAL_DSN configured"
+  else
+    functional_fail "FastAPI Sample Sentry: SENTRY_LOCAL_DSN missing"
+  fi
+
+  if grep -Fxq 'SENTRY_ENVIRONMENT=homelab' <<<"${env}"; then
+    functional_ok "FastAPI Sample Sentry: environment=homelab"
+  else
+    functional_fail "FastAPI Sample Sentry: SENTRY_ENVIRONMENT must be homelab"
+  fi
+
+  if grep -Fxq 'SENTRY_AI_INTEGRATIONS_ENABLED=true' <<<"${env}"; then
+    functional_ok "FastAPI Sample Sentry: MCP/AI SDK integrations enabled"
+  else
+    functional_fail "FastAPI Sample Sentry: SENTRY_AI_INTEGRATIONS_ENABLED must be true"
+  fi
+
+  if docker exec "${container}" python3 -c \
+    'import socket; s=socket.create_connection(("172.17.0.24",9005),3); s.close()' \
+    >/dev/null 2>&1; then
+    functional_ok "FastAPI Sample -> Sentry edge TCP/9005"
+  else
+    functional_fail "FastAPI Sample -> Sentry edge TCP/9005 failed"
+  fi
+
+  if docker exec "${container}" python3 -c \
+    'import urllib.request; urllib.request.urlopen("http://172.17.0.24:9005/_health/",timeout=3).read()' \
+    >/dev/null 2>&1; then
+    functional_ok "FastAPI Sample -> Sentry edge health"
+  else
+    functional_fail "FastAPI Sample -> Sentry edge health failed"
+  fi
+
+  if [[ -n "${SENTRY_ACCESS_TOKEN:-}" ]]; then
+    local sentry_api_body
+    local sentry_api_status
+
+    sentry_api_body="$(mktemp)"
+    sentry_api_status="$(
+      curl \
+        --silent \
+        --show-error \
+        --max-time 5 \
+        --output "${sentry_api_body}" \
+        --write-out '%{http_code}' \
+        --header "Authorization: Bearer ${SENTRY_ACCESS_TOKEN}" \
+        http://172.17.0.24:9005/api/0/organizations/ || true
+    )"
+
+    if [[ "${sentry_api_status}" == "200" ]] &&
+      jq -e 'type == "array"' "${sentry_api_body}" >/dev/null 2>&1; then
+      functional_ok "Sentry MCP API token: direct LAN /api/0/organizations/ accepted"
+    elif [[ "${sentry_api_status}" == "401" || "${sentry_api_status}" == "403" ]]; then
+      functional_fail "Sentry MCP API token: rejected by direct LAN API (HTTP ${sentry_api_status}); use a User Auth Token with inspect scopes"
+    else
+      functional_fail "Sentry MCP API token: direct LAN API returned unexpected HTTP ${sentry_api_status}"
+    fi
+
+    rm -f "${sentry_api_body}"
+  else
+    printf 'SKIP: Sentry MCP API token check (SENTRY_ACCESS_TOKEN is not exported)\n'
   fi
 }
 
@@ -1067,6 +1156,7 @@ probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
 probe_sentry_snuba_clickhouse_if_running
 probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
 probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
 probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"

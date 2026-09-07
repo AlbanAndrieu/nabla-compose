@@ -60,6 +60,9 @@ services:
       PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040
       SICKZ_NETWORK_LABEL: nabla
       APP_DOMAIN: sample.int.albandrieu.com
+      SENTRY_ENABLED: "true"
+      SENTRY_ENVIRONMENT: homelab
+      SENTRY_AI_INTEGRATIONS_ENABLED: "true"
 
     # Keep appliance probes on the trusted LAN while preserving public DNS
     # names for TLS hostname verification.

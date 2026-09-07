@@ -364,6 +364,37 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertNotIn("streamable-http", grafana["args"])
             self.assertNotIn("sse", grafana["args"])
 
+    def test_fastapi_sample_mcp_prefers_truenas_runtime(self) -> None:
+        root_config = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        cursor_config = json.loads(
+            (ROOT / ".cursor" / "mcp.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(
+            root_config["mcpServers"]["fastapi-sample"]["url"],
+            "${FASTAPI_SAMPLE_MCP_URL:-http://172.17.0.24:8091/mcp}",
+        )
+        self.assertEqual(
+            cursor_config["mcpServers"]["fastapi-sample"]["url"],
+            "http://172.17.0.24:8091/mcp",
+        )
+
+    def test_sentry_mcp_is_self_hosted_inspect_only(self) -> None:
+        for relative in (".mcp.json", ".cursor/mcp.json"):
+            config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            sentry = config["mcpServers"]["sentry"]
+
+            self.assertEqual(sentry["type"], "stdio")
+            self.assertEqual(sentry["command"], "npx")
+            self.assertIn("@sentry/mcp-server@0.39.0", sentry["args"])
+            self.assertIn("--host=172.17.0.24:9005", sentry["args"])
+            self.assertIn("--insecure-http", sentry["args"])
+            self.assertIn("--skills=inspect", sentry["args"])
+            self.assertIn("--disable-skills=seer", sentry["args"])
+            self.assertIn("--sentry-dsn=", sentry["args"])
+            self.assertIn("SENTRY_ACCESS_TOKEN", sentry["env"])
+            self.assertNotIn("SENTRY_ACCESS_TOKEN=", " ".join(sentry["args"]))
+
     def test_grafana_mcp_token_is_metadata_only_vaultwarden_secret(self) -> None:
         manifest = json.loads(
             (ROOT / "config" / "secrets" / "manifest.json").read_text(

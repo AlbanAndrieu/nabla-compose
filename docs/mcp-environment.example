@@ -22,5 +22,16 @@ UPTIME_KUMA_PASSWORD=
 # then export the short-lived token returned by `bw unlock --raw`.
 BW_SESSION=
 
-# Optional override for root .mcp.json; Cursor currently points directly to production.
-FASTAPI_SAMPLE_MCP_URL=https://fastapi-sample.fastapicloud.dev/mcp
+# Optional override for root .mcp.json. The homelab default is the local TrueNAS runtime.
+# Override with FastAPI Cloud only when the client is outside the trusted LAN.
+FASTAPI_SAMPLE_MCP_URL=http://172.17.0.24:8091/mcp
+
+
+# Self-hosted Sentry MCP (inspect-only). The repository MCP clients use the
+# direct LAN endpoint http://172.17.0.24:9005 so Cloudflare Access/challenges do
+# not interfere with Sentry API calls.
+#
+# IMPORTANT: use a Sentry User Auth Token, not a project DSN/security key.
+# Minimum read-only scopes for the upstream inspect skill:
+# org:read, project:read, team:read, event:read.
+SENTRY_ACCESS_TOKEN=

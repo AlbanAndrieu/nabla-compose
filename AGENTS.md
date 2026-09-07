@@ -38,7 +38,8 @@ The goal is to minimize the context required to reach a reliable result, never t
 
 **On-demand integrations** — keep available, but discover/load/invoke only for tasks that need them:
 
-- MCP servers in `.mcp.json` / `.cursor/mcp.json`: `truenas-readonly`, `fastapi-sample`, `bitwarden-local`/`bitwarden`, Homarr, Gatus, and Uptime Kuma;
+- MCP servers in `.mcp.json` / `.cursor/mcp.json`: `truenas-readonly`, `fastapi-sample`, `sentry`, `bitwarden-local`/`bitwarden`, Homarr, Gatus, and Uptime Kuma;
+  the Sentry MCP uses the direct LAN endpoint on TrueNAS rather than the Cloudflare-protected public hostname; keep its User Auth Token outside Git and use the read-only `inspect` skill by default;
 - pfSense API/network diagnostics and `.agents/skills/pfsense-api-debugging/SKILL.md`; whenever a task touches pfSense/Netgate, PF, HAProxy, Snort, pfBlockerNG, Unbound, Kea or pflow/IPFIX, read that skill before proposing appliance commands and do not depend on prior-chat context;
 - Homarr/Gatus/Uptime Kuma runtime APIs when generated repository contracts are insufficient to diagnose their live state;
 - AWS/ECR, Renovate, Kubernetes/Talos, Helm, Argo CD, Keycloak, Vault, and other platform-specific tooling outside a task that touches those systems;

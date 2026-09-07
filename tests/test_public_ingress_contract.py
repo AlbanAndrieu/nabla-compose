@@ -13,6 +13,9 @@ class PublicIngressContractTests(unittest.TestCase):
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
         self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
+        self.assertIn('SENTRY_ENABLED: "true"', compose)
+        self.assertIn("SENTRY_ENVIRONMENT: homelab", compose)
+        self.assertIn('SENTRY_AI_INTEGRATIONS_ENABLED: "true"', compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
         self.assertIn(
             "ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}",
