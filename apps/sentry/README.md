@@ -193,7 +193,14 @@ them separate when troubleshooting; each has a different remediation.
    drop/recreate of database `sentry` owned by role `sentry`; no other
    PostgreSQL database was changed and no code-level `INSTALLED_APPS` workaround
    was introduced.
-7. **Validated outcome.**
+7. **Fresh PostgreSQL migration validated.**
+   After recreating only database `sentry`, `sentry upgrade --noinput
+   --create-kafka-topics` completed with exit code 0. The fresh schema contains
+   323 public tables and 490 Django migration rows; no `Traceback`,
+   `InconsistentMigrationHistory`, permission error or PostgreSQL fatal error
+   remained. Sentry created its internal project successfully and shared Kafka
+   contained 87 topics after the migration.
+8. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
    `sentry-clickhouse:9000`. The `sentry` database contains 85 tables and the
