@@ -566,10 +566,19 @@ A fresh smoke-test trace must be ingestible and queryable before the reset is
 considered complete.
 
 Because ClickHouse is shared, also validate Sentry/Snuba after the change.
-Sentry self-hosted upstream still vendors an Altinity ClickHouse 25.8 baseline;
-if synthetic Sentry event ingestion/search fails against the shared 26.8.2.7
-server, decouple Sentry onto its own vendor-supported ClickHouse. When ntopng is
-enabled later, validate its dedicated `ntopng` database and flow persistence.
+Current upstream Sentry self-hosted routes Sentry through `snuba-api` and runs
+multiple Snuba consumers that depend directly on ClickHouse. The repository
+`apps/sentry/compose.yml` currently contains only Sentry web/worker/cron and
+does **not** define `snuba-api` or Snuba consumers. Therefore a successful
+Sentry `/_health/` response proves only the Sentry web process; it must not be
+reported as proof of Snuba/ClickHouse compatibility.
+
+Sentry self-hosted upstream currently vendors an Altinity ClickHouse 25.8
+baseline. Before the shared 26.8.2.7 server can be considered compatible,
+either restore/adopt a supported Snuba topology and prove a synthetic event is
+ingested and queryable, or explicitly decouple Sentry onto its own
+vendor-supported ClickHouse. When ntopng is enabled later, validate its
+dedicated `ntopng` database and flow persistence.
 
 
 ## Homarr permissions

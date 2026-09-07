@@ -169,6 +169,57 @@ Future ClickHouse consumers such as ntopng must receive a dedicated
 database/user contract and must be added to the same compatibility gate rather
 than reusing the administrative `clickhouse` identity.
 
+## 6. Planned consumers must not inherit the ClickHouse administrator
+
+### Risk
+
+The historical ntopng Compose configuration defaulted to the shared
+`clickhouse` identity and even supplied `clickhouse` as a password fallback.
+That contradicts the shared-database isolation model: compromise or
+misconfiguration of ntopng would inherit privileges unrelated to flow storage.
+
+### Guard
+
+The repository ntopng application now fixes the database/user identity to
+`ntopng`, obtains only `NTOPNG_CLICKHOUSE_PASSWORD` from the runtime secret
+file through a Compose secret rather than `Config.Env`, renders an ephemeral
+mode-`0600` ntopng configuration, removes the password from the child process
+environment/argv, rejects known shared/default
+passwords, requires a persistent Enterprise license file, and enables
+`--strict-startup`. The TrueNAS lifecycle audit validates the mounted secret and absence from Docker `Config.Env`, validates
+the license file and Enterprise M/L/XL/XXL edition, validates the config mode
+and argv exposure,
+validates the dedicated database/user, forbids
+global `*.*` grants and database-scoped `ALL`, then uses ClickHouse
+`CHECK GRANT` to prove the required scoped DML/DDL privileges when ntopng is
+running.
+
+The runtime flow-persistence test is still required before ntopng can be
+considered production-ready.
+
+## 7. Sentry web health is not Snuba / ClickHouse health
+
+### Risk
+
+The repository Sentry app currently defines Sentry web, worker and cron
+containers but no `snuba-api` or Snuba consumers. Current upstream Sentry
+self-hosted uses Snuba as the ClickHouse-facing storage/query layer. Treating
+`http://172.17.0.24:9005/_health/` as a ClickHouse consumer test therefore
+creates a false positive.
+
+### Guard
+
+The lifecycle audit labels the HTTP probe as Sentry **web** health only. When
+Sentry is running without a Snuba API container it emits an explicit warning
+that ClickHouse ingestion/query compatibility has not been validated. If a
+Snuba API container is present, the audit performs a non-mutating TCP
+connectivity check from that container to its configured `CLICKHOUSE_HOST`
+and `CLICKHOUSE_PORT`.
+
+TCP reachability is still only an intermediate gate. A synthetic Sentry event
+must be ingested and queryable through Snuba before the shared ClickHouse
+consumer contract is considered proven.
+
 ## Regression policy
 
 The incident is considered closed only when the repository audit and contract

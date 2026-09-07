@@ -86,6 +86,7 @@ fi
 
 
 probe_failures=0
+probe_warnings=0
 
 function functional_ok {
   printf '✅ %s\n' "$*"
@@ -94,6 +95,11 @@ function functional_ok {
 function functional_fail {
   printf '❌ %s\n' "$*" >&2
   probe_failures=$((probe_failures + 1))
+}
+
+function functional_warn {
+  printf '⚠️ %s\n' "$*" >&2
+  probe_warnings=$((probe_warnings + 1))
 }
 
 function app_is_running {
@@ -474,6 +480,232 @@ function probe_clickhouse_langfuse_contract_if_present {
   fi
 }
 
+function probe_sentry_snuba_clickhouse_if_running {
+  local snuba_container
+  local clickhouse_host
+  local clickhouse_port
+
+  if ! app_is_running sentry; then
+    printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  snuba_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "snuba-api" || /(^|-)snuba-api(-|$)/ { print; exit }'
+  )"
+
+  if [[ -z "${snuba_container}" ]]; then
+    functional_warn "Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated."
+    return
+  fi
+
+  clickhouse_host="$(
+    docker inspect "${snuba_container}" \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+      sed -n 's/^CLICKHOUSE_HOST=//p' |
+      tail -n 1
+  )"
+  clickhouse_port="$(
+    docker inspect "${snuba_container}" \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+      sed -n 's/^CLICKHOUSE_PORT=//p' |
+      tail -n 1
+  )"
+
+  clickhouse_host="${clickhouse_host:-clickhouse}"
+  clickhouse_port="${clickhouse_port:-9000}"
+
+  if docker exec "${snuba_container}" \
+    python3 -c \
+      'import socket, sys; s = socket.create_connection((sys.argv[1], int(sys.argv[2])), 3); s.close()' \
+      "${clickhouse_host}" "${clickhouse_port}" >/dev/null 2>&1; then
+    functional_ok "Sentry/Snuba -> ClickHouse TCP ${clickhouse_host}:${clickhouse_port}"
+  else
+    functional_fail "Sentry/Snuba -> ClickHouse TCP failed (${clickhouse_host}:${clickhouse_port})"
+  fi
+}
+
+function probe_ntopng_clickhouse_contract_if_running {
+  local clickhouse_container
+  local ntopng_container
+  local secret_file="/mnt/cpool/ntopng/.env.secrets"
+  local password
+  local edition
+  local metadata
+  local grants
+
+  if ! app_is_running ntopng; then
+    printf 'SKIP: ntopng ClickHouse contract app state is %s\n' "${states[ntopng]-MISSING}"
+    return
+  fi
+
+  if ! app_is_running clickhouse; then
+    functional_fail "ntopng ClickHouse contract: ClickHouse app is not RUNNING"
+    return
+  fi
+
+  if [[ ! -r "${secret_file}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ${secret_file} is not readable"
+    return
+  fi
+
+  password="$(sed -n 's/^NTOPNG_CLICKHOUSE_PASSWORD=//p' "${secret_file}" | tail -n 1)"
+  password="$(normalize_env_value "${password}")"
+  if [[ ! "${password}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    functional_fail "ntopng ClickHouse contract: NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters"
+    return
+  fi
+
+  ntopng_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "ntopng" || /^ix-ntopng-ntopng-/ { print; exit }'
+  )"
+
+  if [[ -z "${ntopng_container}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ntopng container not found"
+    return
+  fi
+
+  if docker inspect "${ntopng_container}" \
+    --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -q '^NTOPNG_CLICKHOUSE_PASSWORD='; then
+    functional_fail "ntopng ClickHouse contract: password exposed in Docker Config.Env"
+    return
+  else
+    functional_ok "ntopng ClickHouse contract: password absent from Docker Config.Env"
+  fi
+
+  if docker exec "${ntopng_container}" test -s /run/secrets/ntopng_runtime_env 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: runtime secret mounted"
+  else
+    functional_fail "ntopng ClickHouse contract: runtime secret mount missing or empty"
+    return
+  fi
+
+  if docker exec "${ntopng_container}" test -s /etc/ntopng.license 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: Enterprise license file mounted"
+  else
+    functional_fail "ntopng ClickHouse contract: /etc/ntopng.license missing or empty"
+    return
+  fi
+
+  if ! edition="$(
+    docker exec "${ntopng_container}" ntopng -V 2>&1 |
+      sed -n 's/^Edition:[[:space:]]*//p' |
+      head -n 1
+  )"; then
+    functional_fail "ntopng ClickHouse contract: unable to determine ntopng edition"
+    return
+  fi
+
+  case "${edition}" in
+    Enterprise\ M*|Enterprise\ L*|Enterprise\ XL*|Enterprise\ XXL*)
+      functional_ok "ntopng ClickHouse contract: supported Enterprise edition detected"
+      ;;
+    *)
+      functional_fail "ntopng ClickHouse contract: Enterprise M-or-higher edition required"
+      return
+      ;;
+  esac
+
+  if docker exec "${ntopng_container}" sh -c '
+    test -f /run/nabla-ntopng.conf &&
+      test "$(stat -c %a /run/nabla-ntopng.conf)" = 600
+  ' 2>/dev/null; then
+    functional_ok "ntopng ClickHouse contract: ephemeral config is a mode-0600 file"
+  else
+    functional_fail "ntopng ClickHouse contract: ephemeral config missing or not mode 0600"
+    return
+  fi
+
+  if docker top "${ntopng_container}" -eo args 2>/dev/null |
+    grep -Fq -f <(printf '%s\n' "${password}"); then
+    functional_fail "ntopng ClickHouse contract: password is exposed in process argv"
+    return
+  else
+    functional_ok "ntopng ClickHouse contract: password absent from process argv"
+  fi
+
+  clickhouse_container="$(
+    docker ps --format '{{.Names}}' |
+      awk '$0 == "clickhouse" || /^ix-clickhouse-clickhouse-/ { print; exit }'
+  )"
+
+  if [[ -z "${clickhouse_container}" ]]; then
+    functional_fail "ntopng ClickHouse contract: ClickHouse container not found"
+    return
+  fi
+
+  if ! metadata="$(
+    docker exec "${clickhouse_container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "
+          SELECT concat(
+            toString((SELECT count() FROM system.databases WHERE name = '"'"'ntopng'"'"')),
+            '"'"'|'"'"',
+            toString((SELECT count() FROM system.users WHERE name = '"'"'ntopng'"'"'))
+          )
+        "
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: metadata query failed"
+    return
+  fi
+
+  if [[ "${metadata}" != "1|1" ]]; then
+    functional_fail "ntopng ClickHouse contract: expected dedicated database/user ntopng (got ${metadata})"
+    return
+  fi
+
+  if ! grants="$(
+    docker exec "${clickhouse_container}" sh -c '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --query "SHOW GRANTS FOR ntopng"
+    ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: SHOW GRANTS failed"
+    return
+  fi
+
+  if grep -F ' ON *.* TO ntopng' <<<"${grants}" |
+    grep -Fvq 'GRANT USAGE ON *.* TO ntopng'; then
+    functional_fail "ntopng ClickHouse contract: global *.* privileges are forbidden"
+    return
+  fi
+
+  if grep -Eq 'GRANT ALL( PRIVILEGES)? ON ntopng[.][*] TO ntopng' <<<"${grants}"; then
+    functional_fail "ntopng ClickHouse contract: ALL ON ntopng.* is broader than required"
+    return
+  fi
+
+  local grant_check
+  if ! grant_check="$(
+    NTOPNG_CLICKHOUSE_PASSWORD="${password}" docker exec \
+      -e NTOPNG_CLICKHOUSE_PASSWORD \
+      "${clickhouse_container}" sh -c '
+        clickhouse-client \
+          --user ntopng \
+          --password "$NTOPNG_CLICKHOUSE_PASSWORD" \
+          --database ntopng \
+          --query "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*"
+      ' 2>/dev/null
+  )"; then
+    functional_fail "ntopng ClickHouse contract: dedicated credentials or CHECK GRANT failed"
+    return
+  fi
+
+  if [[ "${grant_check}" == "1" ]]; then
+    functional_ok "ntopng ClickHouse contract: required database-scoped DML/DDL grants present"
+  else
+    functional_fail "ntopng ClickHouse contract: required database-scoped DML/DDL grants missing"
+  fi
+}
+
 function probe_langfuse_worker_clickhouse_credentials_if_running {
   local container
 
@@ -586,8 +818,10 @@ probe_clickhouse_runtime_if_running
 probe_clickhouse_config_mounts_if_running
 probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
-probe_http_if_running sentry "Sentry health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running sentry "Sentry web health (Snuba/ClickHouse not validated)" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 
@@ -609,8 +843,13 @@ else
 fi
 
 if ((probe_failures > 0)); then
-  printf '\n❌ functional verification failed: %d probe(s) failed\n' "${probe_failures}" >&2
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
   exit 1
 fi
 
-printf '\n✅ functional verification passed\n'
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi

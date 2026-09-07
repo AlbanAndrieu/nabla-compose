@@ -552,8 +552,12 @@ Current/planned consumers have different compatibility contracts:
   Sentry onto its vendor-pinned ClickHouse rather than downgrading the shared
   Langfuse/ntopng server;
 - **ntopng** — planned historical flow consumer using its own `ntopng`
-  database. Enable only with the required ntopng Enterprise M-or-higher license
-  and validate flow persistence across both ntopng and ClickHouse restarts.
+  database and dedicated `ntopng` user. The repository Compose refuses the
+  shared `clickhouse` / `default` identities, loads the password only from
+  `/mnt/cpool/ntopng/.env.secrets`, and uses `--strict-startup` so ClickHouse
+  initialization failure cannot silently disable historical persistence. Enable
+  only with the required ntopng Enterprise M-or-higher license and validate flow
+  persistence across both ntopng and ClickHouse restarts.
 
 Acceptance after every shared ClickHouse change:
 
@@ -563,8 +567,25 @@ Acceptance after every shared ClickHouse change:
 - [x] internal Docker DNS/TCP `clickhouse:9000` succeeds;
 - [ ] Langfuse web database-aware health and worker health pass after clean
       initialization in database `langfuse`;
+- [x] classify Sentry `/_health/` as web-process health only; current
+      `apps/sentry/compose.yml` has no `snuba-api`/Snuba consumers, so the
+      lifecycle audit warns instead of claiming ClickHouse compatibility and
+      probes Snuba -> ClickHouse TCP only when a Snuba API container exists;
+- [ ] restore/adopt a supported Snuba topology or explicitly decouple Sentry
+      before treating it as a validated shared ClickHouse consumer;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba after the shared-server change, or explicitly decouple Sentry;
+- [x] repository ntopng configuration enforces a dedicated `ntopng`
+      database/user, a Compose-mounted runtime secret absent from Docker
+      `Config.Env`, a mode-`0600` ephemeral ntopng configuration with the
+      password removed from ntopng argv/environment, and `--strict-startup`;
+- [ ] before enabling ntopng, install a valid Enterprise M/L/XL/XXL license at
+      `/mnt/cpool/ntopng/ntopng.license`, create the dedicated ClickHouse
+      database/user, store `NTOPNG_CLICKHOUSE_PASSWORD` outside Git and validate
+      authenticated access with only `SELECT`, `INSERT`, `TRUNCATE`,
+      `CREATE TABLE`,
+      `DROP TABLE` and `ALTER` on `ntopng.*`; explicitly reject both
+      database-scoped `ALL` and global `*.*` grants;
 - [ ] when ntopng is enabled, prove new flow rows in database `ntopng` and
       persistence across restarts;
 - [ ] keep Prometheus/Gatus ClickHouse checks green and track disk/memory growth.
