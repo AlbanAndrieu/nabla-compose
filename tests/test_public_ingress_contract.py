@@ -194,5 +194,15 @@ class PublicIngressContractTests(unittest.TestCase):
         )
 
 
+    def test_pihole_dns_sync_uses_shared_read_only_docker_proxy(self) -> None:
+        pihole = (ROOT / "apps" / "pihole" / "compose.yml").read_text(encoding="utf-8")
+        traefik = (ROOT / "apps" / "traefik" / "compose.yml").read_text(encoding="utf-8")
+
+        self.assertIn("pihole-dns-sync:", pihole)
+        self.assertIn("DOCKER_HOST: tcp://docker-socket-proxy:2375", pihole)
+        self.assertIn("- intranet", pihole)
+        self.assertNotIn("pihole-dns-sync:", traefik)
+
+
 if __name__ == "__main__":
     unittest.main()
