@@ -644,6 +644,10 @@ Acceptance after every shared ClickHouse change:
       rows incompatible with the Sentry 26.8 migration graph; recreate only
       database `sentry` with owner `sentry`, leaving all other shared
       PostgreSQL databases untouched;
+- [x] complete the fresh Sentry 26.8 PostgreSQL migration with
+      `upgrade --noinput --create-kafka-topics`; validated on 2026-09-07 with
+      exit code 0, 323 public tables, 490 Django migration rows, internal Sentry
+      project creation, and 87 Kafka topics;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba on the temporary supported ClickHouse;
 - [ ] later repeat the same synthetic-event gate on the **single shared
