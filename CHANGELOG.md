@@ -1,3 +1,10 @@
+## [0.15.7](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.6...0.15.7) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ntopng:** require dedicated ClickHouse identity ([#116](https://github.com/AlbanAndrieu/nabla-compose/issues/116)) ([4da44b1](https://github.com/AlbanAndrieu/nabla-compose/commit/4da44b15de0d7587315e5bb8b6a50050589b1f42))
+
 ## [0.15.6](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.5...0.15.6) (2026-09-06)
 
 
