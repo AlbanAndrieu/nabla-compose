@@ -547,6 +547,15 @@ endpoints:
   url: http://172.17.0.24:31054/api/health
   conditions:
   - '[STATUS] == 200'
+- name: Sentry ClickHouse
+  group: data
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: sentry-clickhouse
+    nabla_service_id: sentry-clickhouse
+  url: tcp://sentry-clickhouse:9000
+  conditions:
+  - '[CONNECTED] == true'
 - name: Nginx
   group: sentry
   interval: 60s
