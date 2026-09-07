@@ -1,92 +1,477 @@
 ---
+x-sentry-env: &sentry-env
+  COMPOSE_PROFILES: errors-only
+  SENTRY_CONF: /etc/sentry
+  SENTRY_SYSTEM_URL_PREFIX: https://sentry.albandrieu.com
+  SENTRY_EVENT_RETENTION_DAYS: "90"
+  SENTRY_POSTGRES_HOST: 172.17.0.24
+  SENTRY_POSTGRES_PORT: "5432"
+  SENTRY_DB_USER: sentry
+  SENTRY_DB_NAME: sentry
+  SENTRY_REDIS_HOST: redis
+  SENTRY_REDIS_PORT: "6379"
+  SENTRY_REDIS_DB: "3"
+  SENTRY_MEMCACHED_HOST: memcached
+  SENTRY_MEMCACHED_PORT: "11211"
+  SNUBA: http://snuba-api:1218
+  SENTRY_KAFKA_MAX_POLL_INTERVAL_MS: "300000"
+
+x-snuba-env: &snuba-env
+  SNUBA_SETTINGS: self_hosted
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_PORT: "9000"
+  CLICKHOUSE_HTTP_PORT: "8123"
+  CLICKHOUSE_USER: sentry
+  CLICKHOUSE_DATABASE: sentry
+  CLICKHOUSE_READONLY_USER: sentry
+  CLICKHOUSE_TRACE_USER: sentry
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_DB: "3"
+  DEFAULT_BROKERS: kafka:9092
+  SENTRY_EVENT_RETENTION_DAYS: "90"
+  SENTRY_KAFKA_MAX_POLL_INTERVAL_MS: "300000"
+
+x-sentry-service: &sentry-service
+  image: ghcr.io/getsentry/sentry:26.8.0
+  restart: unless-stopped
+  env_file:
+    - /mnt/cpool/sentry/.env.secrets
+  environment:
+    <<: *sentry-env
+  volumes:
+    - /mnt/cpool/sentry/data:/data
+    - ./config/sentry.conf.py:/etc/sentry/sentry.conf.py:ro
+    - ./config/config.yml:/etc/sentry/config.yml:ro
+  networks:
+    - sentry
+    - intranet
+
+x-snuba-service: &snuba-service
+  image: ghcr.io/getsentry/snuba:26.8.0
+  restart: unless-stopped
+  env_file:
+    - /mnt/cpool/sentry/.env.secrets
+  environment:
+    <<: *snuba-env
+  networks:
+    - sentry
+    - intranet
+
+x-consumer-health: &consumer-health
+  test:
+    - CMD
+    - python3
+    - -c
+    - >-
+      import os,sys;
+      p="/tmp/health.txt";
+      os.path.exists(p) and os.remove(p) is None or sys.exit(1)
+  interval: 60s
+  timeout: 10s
+  retries: 3
+  start_period: 600s
+
 services:
+  memcached:
+    image: memcached:1.6.45-alpine
+    restart: unless-stopped
+    command: ["-I", "1M"]
+    healthcheck:
+      test: ["CMD-SHELL", "echo stats | nc 127.0.0.1 11211 >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    networks:
+      - sentry
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.6
+    restart: unless-stopped
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1001@127.0.0.1:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_NODE_ID: "1001"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:29092,INTERNAL://kafka:9093,EXTERNAL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: "1"
+      KAFKA_LOG_RETENTION_HOURS: "3"
+      KAFKA_MESSAGE_MAX_BYTES: "50000000"
+      KAFKA_MAX_REQUEST_SIZE: "50000000"
+      CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    volumes:
+      - /mnt/cpool/sentry/kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    networks:
+      - sentry
+
+  snuba-migrate:
+    <<: *snuba-service
+    restart: "no"
+    command: ["bootstrap", "--force"]
+
+  snuba-api:
+    <<: *snuba-service
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import urllib.request;
+          body=urllib.request.urlopen("http://127.0.0.1:1218/health",timeout=3).read().decode();
+          raise SystemExit(0 if "ok" in body else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  snuba-errors-consumer:
+    <<: *snuba-service
+    command:
+      - rust-consumer
+      - --storage
+      - errors
+      - --consumer-group
+      - snuba-consumers
+      - --auto-offset-reset=latest
+      - --max-batch-time-ms
+      - "750"
+      - --no-strict-offset-reset
+      - --health-check-file
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  snuba-outcomes-consumer:
+    <<: *snuba-service
+    command:
+      - rust-consumer
+      - --storage
+      - outcomes_raw
+      - --consumer-group
+      - snuba-consumers
+      - --auto-offset-reset=earliest
+      - --max-batch-time-ms
+      - "750"
+      - --no-strict-offset-reset
+      - --health-check-file
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  snuba-outcomes-billing-consumer:
+    <<: *snuba-service
+    command:
+      - rust-consumer
+      - --storage
+      - outcomes_raw
+      - --consumer-group
+      - snuba-consumers
+      - --auto-offset-reset=earliest
+      - --max-batch-time-ms
+      - "750"
+      - --no-strict-offset-reset
+      - --raw-events-topic
+      - outcomes-billing
+      - --health-check-file
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  snuba-group-attributes-consumer:
+    <<: *snuba-service
+    command:
+      - rust-consumer
+      - --storage
+      - group_attributes
+      - --consumer-group
+      - snuba-group-attributes-consumers
+      - --auto-offset-reset=latest
+      - --max-batch-time-ms
+      - "750"
+      - --no-strict-offset-reset
+      - --health-check-file
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  snuba-replacer:
+    <<: *snuba-service
+    command:
+      - replacer
+      - --storage
+      - errors
+      - --auto-offset-reset=latest
+      - --no-strict-offset-reset
+      - --health-check-file
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  snuba-subscription-consumer-events:
+    <<: *snuba-service
+    command:
+      - subscriptions-scheduler-executor
+      - --dataset
+      - events
+      - --entity
+      - events
+      - --auto-offset-reset=latest
+      - --no-strict-offset-reset
+      - --consumer-group=snuba-events-subscriptions-consumers
+      - --followed-consumer-group=snuba-consumers
+      - --schedule-ttl=60
+      - --stale-threshold-seconds=900
+      - --health-check-file
+      - /tmp/health.txt
+    depends_on:
+      snuba-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  sentry-migrate:
+    <<: *sentry-service
+    restart: "no"
+    command: ["upgrade", "--noinput", "--create-kafka-topics"]
+    depends_on:
+      memcached:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      snuba-api:
+        condition: service_healthy
+
   sentry-web:
-    image: getsentry/sentry:latest
-    container_name: sentry-web
-    env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env
+    <<: *sentry-service
+    command: ["run", "web"]
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      snuba-api:
+        condition: service_healthy
+      memcached:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /_health/ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q ok <&3
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+
+  sentry-events-consumer:
+    <<: *sentry-service
+    command:
+      - run
+      - consumer
+      - ingest-events
+      - --consumer-group
+      - ingest-consumer
+      - --auto-offset-reset=earliest
+      - --no-strict-offset-reset
+      - --healthcheck-file-path
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  sentry-attachments-consumer:
+    <<: *sentry-service
+    command:
+      - run
+      - consumer
+      - ingest-attachments
+      - --consumer-group
+      - ingest-consumer
+      - --auto-offset-reset=earliest
+      - --no-strict-offset-reset
+      - --healthcheck-file-path
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  sentry-post-process-forwarder-errors:
+    <<: *sentry-service
+    command:
+      - run
+      - consumer
+      - post-process-forwarder-errors
+      - --auto-offset-reset=earliest
+      - --no-strict-offset-reset
+      - --consumer-group
+      - post-process-forwarder
+      - --synchronize-commit-log-topic=snuba-commit-log
+      - --synchronize-commit-group=snuba-consumers
+      - --healthcheck-file-path
+      - /tmp/health.txt
+      - --max-poll-interval-ms
+      - "300000"
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck: *consumer-health
+
+  taskbroker:
+    image: ghcr.io/getsentry/taskbroker:26.8.0
+    restart: unless-stopped
     environment:
-      # SENTRY_SECRET_KEY: "XXX"
-      SENTRY_REDIS_HOST: 172.17.0.24
-      SENTRY_REDIS_PORT: 30059
-      # SENTRY_REDIS_PASSWORD: XXX
-      # SENTRY_REDIS_URL: "redis://default:XXX@172.17.0.24:30059/0"
-      SENTRY_POSTGRES_HOST: 172.17.0.24
-      SENTRY_POSTGRES_PORT: 5432
-      SENTRY_DB_USER: sentry
-      # SENTRY_DB_PASSWORD: XXX
-      SENTRY_DB_NAME: sentry
-      # For ClickHouse
-      SENTRY_CLICKHOUSE_HOST: 172.17.0.24
-      SENTRY_CLICKHOUSE_PORT: 8123
-      SENTRY_CLICKHOUSE_USER: clickhouse
-      # SENTRY_CLICKHOUSE_PASSWORD: clickhouse
-      # Add SENTRY_FILESTORE_* for Minio if you wish
+      TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092
+      TASKBROKER_DB_PATH: /opt/sqlite/taskbroker-activations.sqlite
+    command: ["/opt/taskbroker", "-c", "/etc/taskbroker/config.yml"]
+    volumes:
+      - /mnt/cpool/sentry/taskbroker:/opt/sqlite
+      - ./config/taskbroker.yml:/etc/taskbroker/config.yml:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - sentry
+
+  sentry-taskscheduler:
+    <<: *sentry-service
+    command: ["run", "taskworker-scheduler"]
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      taskbroker:
+        condition: service_started
+
+  sentry-taskworker:
+    <<: *sentry-service
+    command:
+      - run
+      - taskworker
+      - --concurrency=2
+      - --rpc-host=taskbroker:50051
+      - --health-check-file-path=/tmp/health.txt
+      - --max-child-task-count=10000
+    depends_on:
+      sentry-migrate:
+        condition: service_completed_successfully
+      taskbroker:
+        condition: service_started
+    healthcheck: *consumer-health
+
+  relay:
+    image: ghcr.io/getsentry/relay:26.8.0
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/sentry/.env.secrets
+    environment:
+      RELAY_UPSTREAM_URL: http://sentry-web:9000/
+      RELAY_HOST: 0.0.0.0
+      RELAY_PORT: "3000"
+      RELAY_PROCESSING_ENABLED: "true"
+      RELAY_KAFKA_BROKER_URL: kafka:9092
+      RELAY_LOG_LEVEL: WARN
+    depends_on:
+      sentry-web:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - sentry
+      - intranet
+
+  nginx:
+    image: nginx:1.31.3-alpine
+    restart: unless-stopped
     ports:
-      - 9005:9000
-    restart: unless-stopped
+      - "172.17.0.24:9005:80"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      sentry-web:
+        condition: service_healthy
+      relay:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/_health/ | grep -q ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
     networks:
-      - default
-      - traefik_network
-
-  sentry-worker:
-    image: getsentry/sentry:latest
-    container_name: sentry-worker
-    command: run worker
-    env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env
-    environment:
-      # SENTRY_SECRET_KEY: "XXX"
-      SENTRY_REDIS_HOST: 172.17.0.24
-      SENTRY_REDIS_PORT: 30059
-      # SENTRY_REDIS_PASSWORD: XXX
-      # SENTRY_REDIS_URL: "redis://default:XXX@172.17.0.24:30059/0"
-      SENTRY_POSTGRES_HOST: 172.17.0.24
-      SENTRY_POSTGRES_PORT: 5432
-      SENTRY_DB_USER: sentry
-      # SENTRY_DB_PASSWORD: XXX
-      SENTRY_DB_NAME: sentry
-      SENTRY_CLICKHOUSE_HOST: 172.17.0.24
-      SENTRY_CLICKHOUSE_PORT: 8123
-      SENTRY_CLICKHOUSE_USER: clickhouse
-      # SENTRY_CLICKHOUSE_PASSWORD: clickhouse
-    restart: unless-stopped
-    networks:
-      - default
-      - traefik_network
-
-  sentry-cron:
-    image: getsentry/sentry:latest
-    container_name: sentry-cron
-    command: run cron
-    env_file:
-      - /mnt/cpool/compose/nabla-compose/apps/sentry/.env
-    environment:
-      # SENTRY_SECRET_KEY: "XXX"
-      SENTRY_REDIS_HOST: 172.17.0.24
-      SENTRY_REDIS_PORT: 30059
-      # SENTRY_REDIS_PASSWORD: XXX
-      # SENTRY_REDIS_URL: "redis://default:XXX@172.17.0.24:30059/0"
-      SENTRY_POSTGRES_HOST: 172.17.0.24
-      SENTRY_POSTGRES_PORT: 5432
-      SENTRY_DB_USER: sentry
-      # SENTRY_DB_PASSWORD: XXX
-      SENTRY_DB_NAME: sentry
-      SENTRY_CLICKHOUSE_HOST: 172.17.0.24
-      SENTRY_CLICKHOUSE_PORT: 8123
-      SENTRY_CLICKHOUSE_USER: clickhouse
-      # SENTRY_CLICKHOUSE_PASSWORD: clickhouse
-    restart: unless-stopped
-    networks:
-      - default
-      - traefik_network
+      - sentry
 
 networks:
-  secrets-backend:
+  sentry:
+    internal: true
+  intranet:
     external: true
-  traefik_network:
-    external: true
-#volumes:
-#  sentry_redis_data:
-#  sentry_postgres_data:
-#  sentry_clickhouse_data:
+    name: intranet
