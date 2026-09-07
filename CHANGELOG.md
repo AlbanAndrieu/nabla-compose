@@ -1,3 +1,10 @@
+# [0.16.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.7...0.16.0) (2026-09-07)
+
+
+### Features
+
+* **sentry:** deploy self-hosted 26.8 errors-only stack ([#117](https://github.com/AlbanAndrieu/nabla-compose/issues/117)) ([ff2232d](https://github.com/AlbanAndrieu/nabla-compose/commit/ff2232d51f037b092d1350cffed9406d4ec21fdb))
+
 ## [0.15.7](https://github.com/AlbanAndrieu/nabla-compose/compare/0.15.6...0.15.7) (2026-09-07)
 
 
