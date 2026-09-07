@@ -1,3 +1,10 @@
+# [0.17.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.16.1...0.17.0) (2026-09-07)
+
+
+### Features
+
+* **pihole:** migrate native app to repository Compose ([#122](https://github.com/AlbanAndrieu/nabla-compose/issues/122)) ([7c3510c](https://github.com/AlbanAndrieu/nabla-compose/commit/7c3510c2b2608bbd06df36f3520111cdb8e51e2c))
+
 ## [0.16.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.16.0...0.16.1) (2026-09-07)
 
 
