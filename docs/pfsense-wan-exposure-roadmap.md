@@ -28,70 +28,6 @@ Acceptance tests after the Easy Rule is replaced:
 6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
 
 
-
-## P0/P1 — target local FastAPI out-of-band observer
-
-The long-term target is to remove FastAPI Cloud's dependency on direct WAN access to
-the pfSense administration/API listener on `10443/tcp`. The TrueNAS-hosted FastAPI
-Sample is the preferred local observer because it already has trusted-LAN reachability
-to both appliances and can preserve their TLS hostnames through split DNS / explicit
-host mappings.
-
-Target architecture:
-
-```text
-FastAPI Cloud
-    |
-    | authenticated application-to-application request
-    v
-Cloudflare Access
-    |
-    v
-sample.albandrieu.com
-FastAPI Sample on TrueNAS
-    |
-    +--> pfSense LAN https://home.albandrieu.com:10443
-    |      GET-only posture/security API identities
-    |
-    +--> TrueNAS LAN https://truenas.albandrieu.com:7000
-           dedicated read-only observer identity
-```
-
-Security constraints:
-
-- do **not** implement a generic reverse proxy to arbitrary pfSense API paths,
-  methods, query parameters, or request bodies;
-- expose only bounded, sanitized observer endpoints for the exact posture/security
-  evidence required by FastAPI Cloud;
-- keep pfSense API credentials and TrueNAS API credentials local to the homelab;
-  FastAPI Cloud should authenticate only to the observer/relay;
-- keep pfSense REST API global read-only mode enabled during steady state;
-- keep TrueNAS `system.general.ui_allowlist` scoped to the stable FastAPI observer
-  container address (`172.16.55.9/32` unless deliberately changed and reviewed);
-- preserve `sample.albandrieu.com` behind Cloudflare Tunnel + Access and keep
-  direct WAN `:8091` closed;
-- do not treat the current Cloudflare Service Token alone as the final trust
-  boundary. Before enabling pfSense/TrueNAS relay endpoints, implement and validate
-  an additional application-level authentication/authorization mechanism suitable
-  for service-to-service access, then require both controls where appropriate;
-- keep external negative probes for `10443/tcp` so a reachable webConfigurator/API
-  listener from FastAPI Cloud or another untrusted Internet vantage remains a policy
-  failure.
-
-Migration sequence:
-
-1. Replace the broad WAN Easy Rule with explicit per-listener rules.
-2. Keep `7000/tcp` as the intentional HAProxy publication and log accepted traffic.
-3. Keep `10443/tcp` reachable only from explicitly approved stable administration
-   sources while the local observer is being prepared.
-4. Implement the bounded local observer API on the TrueNAS FastAPI Sample.
-5. Add application-level service authentication/authorization in addition to
-   Cloudflare Access before exposing relay endpoints to FastAPI Cloud.
-6. Move posture/Snort/PF telemetry from direct FastAPI Cloud -> pfSense WAN access
-   to FastAPI Cloud -> local observer -> pfSense LAN.
-7. Remove any remaining FastAPI Cloud exception for WAN `10443/tcp` and keep the
-   canonical external probe negative.
-
 ## P1 — flow telemetry and Netgate 1100 memory budget
 
 The pfSense flow-export and memory-hardening architecture is documented in
@@ -278,6 +214,46 @@ FastAPI Sample is the external read-only observer and `nabla-compose` is the inf
 - HAProxy backend health must not be treated as proof that pfSense/Snort/pfBlockerNG/CrowdSec will accept a specific source.
 
 The broad WAN Easy Rule removal remains a hardening task even while current TrueNAS health is green.
+
+## P2 — pfBlockerNG feed hygiene
+
+Track stale or discontinued pfBlockerNG feeds independently from the resolved
+Unbound/DNSBL memory incident.
+
+### Remove or replace `MaxMind_BD_Proxy_v4`
+
+The installed feed currently uses the historical MaxMind
+`high-risk-ip-sample-list` endpoint. Current pfBlockerNG upstream marks
+`MaxMind_BD_Proxy` as **discontinued**; the historical URL is a web/sample
+page rather than a supported raw block feed. The observed HTTP 404 is therefore
+not evidence of a missing pfSense credential.
+
+Action:
+
+- disable/remove `MaxMind_BD_Proxy_v4` from the active pfBlockerNG IPv4
+  sources so stale cached contents are not silently reused;
+- do not add MaxMind credentials to the discontinued URL;
+- if proxy/anonymizer intelligence is still required, evaluate a supported
+  replacement separately. MaxMind's current GeoIP Anonymous IP database uses
+  authenticated database downloads and requires a MaxMind account ID/license
+  key; treat that as a new licensed integration rather than a repair of the
+  legacy feed;
+- keep any MaxMind account/license key out of `config.xml`, logs, repository
+  files and command output unless the pfSense integration provides an
+  appropriate secret-storage mechanism;
+- after removing the feed, run a bounded pfBlockerNG update and confirm no
+  `MaxMind_BD_Proxy_v4 ... Download FAIL` remains.
+
+Acceptance criteria:
+
+1. `MaxMind_BD_Proxy_v4` no longer appears as an active pfBlockerNG source.
+2. A subsequent update does not restore stale cached data for this feed.
+3. No credential is added to the discontinued endpoint.
+4. Any replacement feed has a documented owner, authentication model, update
+   cadence, expected size and memory/table impact.
+
+Also review other stale/failed feeds surfaced by the successful 2026-09-07
+update before increasing PF table usage further.
 
 ## P4 — optional HAProxy → Traefik TLS backend verification
 

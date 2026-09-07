@@ -293,19 +293,153 @@ swap                     none
 The appliance must remain a firewall/security edge first. Heavy analytics,
 historical queries and flow retention belong on TrueNAS.
 
+## Validated stabilization baseline — 2026-09-07
+
+The memory incident was considered **operationally stabilized** after a
+controlled DNSBL rebuild with Unbound stopped and removed from Service Watchdog.
+
+Validated before/after measurements:
+
+| Metric | Before remediation | After remediation |
+| --- | ---: | ---: |
+| DNSBL final entries | 923,534 | 190,804 |
+| Unbound RSS | ~331-340 MiB | ~108-111 MiB |
+| pfBlockerNG Python loader | ~43.8 MiB | ~10.0 MiB |
+| Free RAM | ~80 MiB, with repeated collapse to single-digit MiB | ~199 MiB |
+| Kernel OOM behavior | repeated Unbound/php-fpm/netstat kills | no new OOM observed during the successful rebuild |
+| DNSBL reload result | unstable / prior failures | `190804 | PASSED` |
+| Update lifecycle | incomplete during incidents | `UPDATE PROCESS ENDED` |
+| Snort | stopped for remediation | still intentionally stopped |
+| Zabbix | stopped for remediation | still intentionally stopped |
+
+The DNSBL dataset therefore fell by roughly 79%, while Unbound RSS fell by
+roughly two thirds. These are observed values for this Netgate 1100 and not
+generic sizing guarantees.
+
+The successful 2026-09-07 DNSBL distribution was dominated by:
+
+```text
+StevenBlack_ADs        82,125
+EasyList               54,875
+EasyPrivacy            41,020
+EasyList_Chinese        5,734
+EasyList_French         3,009
+EasyList_Russian        1,860
+remaining UT1/EasyList categories: small
+total                 190,804
+```
+
+The final update also completed the pfBlockerNG database sanity check and
+finished normally.
+
+### Root cause and remediation sequence
+
+The incident was not caused by Unbound's native message/rrset caches. The main
+memory load came from the pfBlockerNG Python DNSBL dataset, amplified by a
+memory-constrained 1 GiB/no-swap appliance.
+
+The stable remediation was:
+
+1. keep PHP `memory_limit=128M`;
+2. stop Snort, Zabbix and ntopng during recovery;
+3. keep native pflow/IPFIX and disable legacy softflowd;
+4. disable oversized/non-essential DNSBL categories:
+   - UT1 `adult`;
+   - UT1 `malware`;
+   - UT1 `gambling`;
+   - UT1 `games`;
+   - UT1 `dating`;
+   - UT1 `phishing`;
+5. disable the separate StevenBlack `Gambling` DNSBL source;
+6. keep targeted phishing coverage with OpenPhish + PhishTank;
+7. keep TLD processing disabled;
+8. remove Unbound from Service Watchdog during remediation;
+9. stop Unbound and verify with `pgrep -x unbound` rather than
+   `pgrep -af unbound`;
+10. verify memory headroom before rebuilding;
+11. run **Force Reload → DNSBL only**, not a full pfBlockerNG update;
+12. allow the installed legacy pfBlockerNG restart path to start Unbound with
+    the reduced dataset;
+13. verify the DNSBL `PASSED` marker, `UPDATE PROCESS ENDED`, Unbound RSS,
+    free memory, and absence of new OOM events.
+
+The installed pfBlockerNG version is `3.2.17_1` and does **not** contain the
+newer `pfb_unbound_py_swap_fits_ram` guard. On this appliance, a large
+rebuild must therefore not assume that a live zero-downtime swap is memory-safe.
+The proven recovery path is a controlled rebuild with Unbound stopped first.
+
+### Service Watchdog lesson
+
+Service Watchdog repeatedly restarted Unbound immediately after kernel OOM
+kills. This created a restart/OOM loop and occasionally parallel startup races
+that produced `bind: address already in use`.
+
+For this appliance, do **not** put Unbound back under Service Watchdog until the
+memory policy has been deliberately reassessed. A watchdog restart is harmful
+when the resolver is being killed by memory exhaustion because it recreates the
+same allocation pressure immediately.
+
+Kea remains a critical service and can be monitored separately.
+
+### DNSBL web service
+
+`lighttpd_pfb` is separate from the Unbound daemon and may legitimately have
+arguments under `/var/unbound`. This is why `pgrep -af unbound` is an unsafe
+process oracle.
+
+Expected steady state:
+
+```text
+/usr/local/sbin/unbound -c /var/unbound/unbound.conf
+/usr/local/sbin/lighttpd_pfb -f /var/unbound/pfb_dnsbl_lighty.conf
+```
+
+Only one `lighttpd_pfb` process should listen on the DNSBL VIP. Do not start
+another instance manually when `10.10.10.1:443` is already bound.
+
+Verification:
+
+```csh
+pgrep -x unbound
+ps axww | grep '[l]ighttpd_pfb'
+sockstat -4 -l | grep '10.10.10.1:443'
+```
+
+### Remaining non-OOM feed hygiene
+
+The successful update still showed feed hygiene items that are **not** the
+current Unbound memory root cause:
+
+- `MaxMind_BD_Proxy_v4` returned HTTP 404 and restored its previous local
+  contents;
+- several IP/DNSBL lists have old last-updated timestamps and should be reviewed
+  for current upstream validity;
+- `Spamhaus_eDrop_v4` remains a known invalid/obsolete feed candidate and
+  should stay disabled/reviewed separately.
+
+Treat these as maintenance debt, not as reasons to undo the stabilized memory
+configuration.
+
+The same successful update reported pfSense table usage of approximately
+266,681 entries against a hard limit of 400,000 (~66.7%). This is not the
+current memory incident, but it should be trended before adding substantially
+more IP reputation/geographic tables.
+
 ## Automated regression audit
 
 Use the repository audit from a trusted workstation for the full appliance
 contract:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
 ```
+
+If the pfSense SSH endpoint is not on TCP/22, prefer an existing workstation SSH alias in `~/.ssh/config`. Otherwise pass an explicit port with `--port PORT`; do not assume TCP/22.
 
 Machine-readable output:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 --json
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com --json
 ```
 
 The full SSH audit is read-only and checks the settings and runtime conditions
