@@ -837,6 +837,15 @@ probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.sec
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_MIGRATOR_PASSWORD
 probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
