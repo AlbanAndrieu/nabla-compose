@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:2c8abefd0ea7240607a80270b6af6e1ee15eaa3b40b1e618e36647ff6fbcd2b9",
+  "catalogRevision": "sha256:d6d1be7ddfdea530da60dc3c2551bfd22cfaf84336c2ee34dac2252bbc3ec249",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -17,7 +17,7 @@
       ],
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "2fauth"
+        "appId": "twofactor-auth"
       },
       "icon": "🔐"
     },
@@ -870,6 +870,7 @@
       "composeService": "open-webui",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "openwebui",
         "containerService": "open-webui"
       },
       "icon": "💬"
