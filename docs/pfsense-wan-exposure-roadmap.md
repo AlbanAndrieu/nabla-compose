@@ -28,6 +28,70 @@ Acceptance tests after the Easy Rule is replaced:
 6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
 
 
+
+## P0/P1 — target local FastAPI out-of-band observer
+
+The long-term target is to remove FastAPI Cloud's dependency on direct WAN access to
+the pfSense administration/API listener on `10443/tcp`. The TrueNAS-hosted FastAPI
+Sample is the preferred local observer because it already has trusted-LAN reachability
+to both appliances and can preserve their TLS hostnames through split DNS / explicit
+host mappings.
+
+Target architecture:
+
+```text
+FastAPI Cloud
+    |
+    | authenticated application-to-application request
+    v
+Cloudflare Access
+    |
+    v
+sample.albandrieu.com
+FastAPI Sample on TrueNAS
+    |
+    +--> pfSense LAN https://home.albandrieu.com:10443
+    |      GET-only posture/security API identities
+    |
+    +--> TrueNAS LAN https://truenas.albandrieu.com:7000
+           dedicated read-only observer identity
+```
+
+Security constraints:
+
+- do **not** implement a generic reverse proxy to arbitrary pfSense API paths,
+  methods, query parameters, or request bodies;
+- expose only bounded, sanitized observer endpoints for the exact posture/security
+  evidence required by FastAPI Cloud;
+- keep pfSense API credentials and TrueNAS API credentials local to the homelab;
+  FastAPI Cloud should authenticate only to the observer/relay;
+- keep pfSense REST API global read-only mode enabled during steady state;
+- keep TrueNAS `system.general.ui_allowlist` scoped to the stable FastAPI observer
+  container address (`172.16.55.9/32` unless deliberately changed and reviewed);
+- preserve `sample.albandrieu.com` behind Cloudflare Tunnel + Access and keep
+  direct WAN `:8091` closed;
+- do not treat the current Cloudflare Service Token alone as the final trust
+  boundary. Before enabling pfSense/TrueNAS relay endpoints, implement and validate
+  an additional application-level authentication/authorization mechanism suitable
+  for service-to-service access, then require both controls where appropriate;
+- keep external negative probes for `10443/tcp` so a reachable webConfigurator/API
+  listener from FastAPI Cloud or another untrusted Internet vantage remains a policy
+  failure.
+
+Migration sequence:
+
+1. Replace the broad WAN Easy Rule with explicit per-listener rules.
+2. Keep `7000/tcp` as the intentional HAProxy publication and log accepted traffic.
+3. Keep `10443/tcp` reachable only from explicitly approved stable administration
+   sources while the local observer is being prepared.
+4. Implement the bounded local observer API on the TrueNAS FastAPI Sample.
+5. Add application-level service authentication/authorization in addition to
+   Cloudflare Access before exposing relay endpoints to FastAPI Cloud.
+6. Move posture/Snort/PF telemetry from direct FastAPI Cloud -> pfSense WAN access
+   to FastAPI Cloud -> local observer -> pfSense LAN.
+7. Remove any remaining FastAPI Cloud exception for WAN `10443/tcp` and keep the
+   canonical external probe negative.
+
 ## P1 — flow telemetry and Netgate 1100 memory budget
 
 The pfSense flow-export and memory-hardening architecture is documented in
