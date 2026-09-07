@@ -405,6 +405,53 @@ ps axww | grep '[l]ighttpd_pfb'
 sockstat -4 -l | grep '10.10.10.1:443'
 ```
 
+### Restored steady-state services
+
+After the reduced DNSBL baseline was proven stable, Snort WAN and Zabbix were
+reintroduced successfully.
+
+Validated runtime state:
+
+```text
+Unbound                  ~111-113 MiB RSS
+Snort WAN                ~47 MiB RSS
+Snort DAQ                pcap / passive
+Snort treat-drop-as-alert enabled
+Zabbix agent             running
+CrowdSec                 running
+free RAM                 ~171-188 MiB during observation
+page-out                  0
+snort2c                   empty during validation
+```
+
+The WAN Snort generated configuration classifies TCP 7000 as TLS/SSL:
+
+```text
+portvar SSL_PORTS [443,7000,10443]
+
+preprocessor ssl:
+    ports { 443 7000 10443 },
+    trustservers,
+    noinspect_encrypted
+```
+
+The active `http_inspect_server` block contains only TCP 80. TCP 7000 must
+remain absent from that clear-text HTTP inspection block. This is the validated
+fix for the earlier false-positive chain that inserted FastAPI Cloud sources
+into `snort2c` and broke the public TrueNAS path.
+
+Zabbix validation must be performed on pfSense itself. The expected daemon is:
+
+```text
+/usr/local/sbin/zabbix_agentd -c /usr/local/etc/zabbix7/zabbix_agentd.conf
+```
+
+Do not confuse this with a workstation/container `zabbix_agent2` process.
+
+With Snort and Zabbix restored, the appliance remained above the preferred
+128 MiB free-memory guardrail with no observed page-out. Keep ntopng disabled,
+softflowd disabled and Unbound out of Service Watchdog.
+
 ### Remaining non-OOM feed hygiene
 
 The successful update still showed feed hygiene items that are **not** the
