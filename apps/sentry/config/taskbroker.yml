@@ -1,0 +1,21 @@
+---
+kafka_session_timeout_ms: 60000
+kafka_deadletter_topic: taskworker-dlq
+kafka_retry_topic: taskworker
+
+kafka_topics:
+  taskworker:
+    cluster: default
+    consumer_group: taskworker
+  taskworker-dlq:
+    cluster: default
+    consumer_group: taskworker
+    produce_only: true
+  events-subscription-results:
+    cluster: default
+    consumer_group: query-subscription-consumer
+    raw:
+      namespace: snuba.subscriptions.events.raw
+      application: sentry
+      taskname: sentry.snuba.query_subscriptions.run.process_events_subscription_from_kafka
+      processing_deadline_duration: 60
