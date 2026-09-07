@@ -241,6 +241,20 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("/usr/share/graylog/data/config", graylog)
         self.assertNotIn("/mnt/cpool/graylog/data:/usr/share/graylog/data", graylog)
 
+    def test_shared_kafka_is_pinned_and_independent_from_sentry(self) -> None:
+        kafka = self.read("apps/kafka/compose.yml")
+        readme = self.read("apps/kafka/README.md")
+
+        self.assertIn("confluentinc/cp-kafka:7.6.6", kafka)
+        self.assertIn("/mnt/cpool/kafka:/var/lib/kafka/data", kafka)
+        self.assertIn("KAFKA_PROCESS_ROLES: broker,controller", kafka)
+        self.assertIn("KAFKA_ADVERTISED_LISTENERS: BROKER://kafka:9092", kafka)
+        self.assertIn("name: intranet", kafka)
+        self.assertNotIn("KAFKA_LOG_RETENTION_HOURS", kafka)
+        self.assertNotIn("/mnt/cpool/sentry/kafka", kafka)
+        self.assertIn("Sentry is one consumer", readme)
+        self.assertIn("SASL/TLS", readme)
+
     def test_sentry_uses_pinned_26_8_errors_only_stack(self) -> None:
         compose = self.read("apps/sentry/compose.yml")
         sentry_conf = self.read("apps/sentry/config/sentry.conf.py")
@@ -257,7 +271,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("COMPOSE_PROFILES: errors-only", compose)
         self.assertIn("\n  snuba-api:\n", compose)
         self.assertIn("\n  snuba-errors-consumer:\n", compose)
-        self.assertIn("\n  kafka:\n", compose)
+        self.assertNotIn("\n  kafka:\n", compose)
+        self.assertNotIn("/mnt/cpool/sentry/kafka", compose)
+        self.assertIn("DEFAULT_BROKERS: kafka:9092", compose)
+        self.assertIn("TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092", compose)
+        self.assertIn("RELAY_KAFKA_BROKER_URL: kafka:9092", compose)
         self.assertIn("\n  relay:\n", compose)
         self.assertIn("\n  nginx:\n", compose)
         self.assertNotIn("\n  sentry-worker:\n", compose)
@@ -291,6 +309,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
 
         self.assertIn("probe_intranet_tcp_if_running redis", audit)
+        self.assertIn("probe_intranet_tcp_if_running kafka", audit)
         self.assertIn("probe_intranet_tcp_if_running opensearch", audit)
         self.assertIn("http://minio:9000/minio/health/live", audit)
         self.assertIn("http://172.17.0.24:8085/health", audit)
