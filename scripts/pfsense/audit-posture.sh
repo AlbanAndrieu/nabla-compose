@@ -16,6 +16,14 @@ ssh_target="${PFSENSE_SSH_TARGET:-}"
 api_url="${PFSENSE_FASTAPI_URL:-${DEFAULT_API_URL}}"
 output_format="text"
 strict=0
+dnsbl_warn_lines="${PFSENSE_DNSBL_WARN_LINES:-${DEFAULT_DNSBL_WARN_LINES}}"
+dnsbl_fail_lines="${PFSENSE_DNSBL_FAIL_LINES:-${DEFAULT_DNSBL_FAIL_LINES}}"
+py_data_warn_bytes="${PFSENSE_PY_DATA_WARN_BYTES:-${DEFAULT_PY_DATA_WARN_BYTES}}"
+py_data_fail_bytes="${PFSENSE_PY_DATA_FAIL_BYTES:-${DEFAULT_PY_DATA_FAIL_BYTES}}"
+unbound_warn_rss_kb="${PFSENSE_UNBOUND_WARN_RSS_KB:-${DEFAULT_UNBOUND_WARN_RSS_KB}}"
+unbound_fail_rss_kb="${PFSENSE_UNBOUND_FAIL_RSS_KB:-${DEFAULT_UNBOUND_FAIL_RSS_KB}}"
+free_warn_kb="${PFSENSE_FREE_WARN_KB:-${DEFAULT_FREE_WARN_KB}}"
+free_fail_kb="${PFSENSE_FREE_FAIL_KB:-${DEFAULT_FREE_FAIL_KB}}"
 declare -a ssh_options=(-o BatchMode=yes -o ConnectTimeout=8)
 
 usage() {
@@ -408,10 +416,30 @@ trap 'rm -f "${tmp}"' EXIT
 
 case "${mode}" in
   ssh)
-    remote_collector | ssh "${ssh_options[@]}" "${ssh_target}" /bin/sh >"${tmp}"
+    remote_collector |
+      ssh "${ssh_options[@]}" "${ssh_target}" env \
+        "PFSENSE_DNSBL_WARN_LINES=${dnsbl_warn_lines}" \
+        "PFSENSE_DNSBL_FAIL_LINES=${dnsbl_fail_lines}" \
+        "PFSENSE_PY_DATA_WARN_BYTES=${py_data_warn_bytes}" \
+        "PFSENSE_PY_DATA_FAIL_BYTES=${py_data_fail_bytes}" \
+        "PFSENSE_UNBOUND_WARN_RSS_KB=${unbound_warn_rss_kb}" \
+        "PFSENSE_UNBOUND_FAIL_RSS_KB=${unbound_fail_rss_kb}" \
+        "PFSENSE_FREE_WARN_KB=${free_warn_kb}" \
+        "PFSENSE_FREE_FAIL_KB=${free_fail_kb}" \
+        /bin/sh >"${tmp}"
     ;;
   local)
-    remote_collector | /bin/sh >"${tmp}"
+    remote_collector |
+      env \
+        "PFSENSE_DNSBL_WARN_LINES=${dnsbl_warn_lines}" \
+        "PFSENSE_DNSBL_FAIL_LINES=${dnsbl_fail_lines}" \
+        "PFSENSE_PY_DATA_WARN_BYTES=${py_data_warn_bytes}" \
+        "PFSENSE_PY_DATA_FAIL_BYTES=${py_data_fail_bytes}" \
+        "PFSENSE_UNBOUND_WARN_RSS_KB=${unbound_warn_rss_kb}" \
+        "PFSENSE_UNBOUND_FAIL_RSS_KB=${unbound_fail_rss_kb}" \
+        "PFSENSE_FREE_WARN_KB=${free_warn_kb}" \
+        "PFSENSE_FREE_FAIL_KB=${free_fail_kb}" \
+        /bin/sh >"${tmp}"
     ;;
   api)
     api_collector >"${tmp}"
