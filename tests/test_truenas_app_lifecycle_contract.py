@@ -296,6 +296,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("events-subscription-results:", taskbroker)
         self.assertIn("Do not deploy the repository submodule", readme)
         self.assertIn("sentry_migrator", readme)
+        self.assertIn("GRANT SELECT ON system.replicas TO sentry_migrator;", readme)
+        self.assertIn("GRANT SELECT ON system.columns TO sentry_migrator;", readme)
         self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
 
