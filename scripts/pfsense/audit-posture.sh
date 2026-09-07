@@ -350,6 +350,12 @@ for feed in Gambling EasyList_Norwegian_Danish_Icelandic; do
   fi
 done
 
+if grep -q '<header>MaxMind_BD_Proxy</header>' /conf/config.xml 2>/dev/null; then
+  emit WARN pfblocker.feed_legacy.MaxMind_BD_Proxy present "legacy MaxMind_BD_Proxy definition remains in config; upstream marks it discontinued, so verify it is disabled/removed"
+else
+  emit PASS pfblocker.feed_legacy.MaxMind_BD_Proxy absent "discontinued MaxMind_BD_Proxy definition is absent from config"
+fi
+
 last_dnsbl_pass="$(grep -E 'DNSBL update.*PASSED' /var/log/pfblockerng/pfblockerng.log 2>/dev/null | tail -n 1 | tr '\t\r\n' '   ')"
 if [ -n "$last_dnsbl_pass" ]; then
   emit INFO pfblocker.last_dnsbl_pass present "$last_dnsbl_pass"
