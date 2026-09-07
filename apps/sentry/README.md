@@ -28,10 +28,12 @@ configuration:
 
 - PostgreSQL: `172.17.0.24:5432`, dedicated database/role `sentry`;
 - Redis: `redis:6379` on the external `intranet` network, dedicated DB 3;
-- ClickHouse: `clickhouse:9000` / `:8123`, dedicated database and users.
+- ClickHouse: `clickhouse:9000` / `:8123`, dedicated database and users;
+- Kafka: shared `kafka:9092` broker from `apps/kafka/compose.yml`.
 
-Kafka, Memcached, Snuba, Relay, Taskbroker, and NGINX remain scoped to the
-Sentry Custom App.
+Memcached, Snuba, Relay, Taskbroker, and NGINX remain scoped to the Sentry
+Custom App. Kafka has its own TrueNAS lifecycle and must be healthy before
+Sentry is started or migrated.
 
 ## Secrets
 
@@ -158,8 +160,6 @@ Before deployment:
 install -d -m 700 \
   /mnt/cpool/sentry \
   /mnt/cpool/sentry/data \
-  /mnt/cpool/sentry/kafka \
-  /mnt/cpool/sentry/relay \
   /mnt/cpool/sentry/taskbroker
 
 chmod 600 /mnt/cpool/sentry/.env.secrets /mnt/cpool/sentry/.env.migrator.secrets
@@ -173,6 +173,19 @@ docker compose \
   config --quiet
 ```
 
+Ensure the shared Kafka app is healthy before Sentry:
+
+```bash
+sudo midclt call app.query '[["id","=","kafka"]]' |
+  jq -r '.[0] | [.id, .state] | @tsv'
+
+sudo docker exec ix-kafka-kafka-1 \
+  kafka-topics \
+  --bootstrap-server kafka:9092 \
+  --list >/dev/null &&
+  echo "Kafka API OK"
+```
+
 Then use the TrueNAS lifecycle:
 
 ```bash
@@ -180,8 +193,7 @@ sudo midclt call -j app.stop sentry
 sudo midclt call -j app.start sentry
 ```
 
-Do not remove ClickHouse, PostgreSQL, or Redis data as part of a Sentry
-deployment.
+Do not remove ClickHouse, PostgreSQL, Redis, or shared Kafka data as part of a Sentry deployment.
 
 ## Runtime verification
 
