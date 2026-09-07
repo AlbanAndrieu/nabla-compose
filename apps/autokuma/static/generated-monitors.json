@@ -1,6 +1,64 @@
 [
   {
     "type": "port",
+    "name": "Gatus",
+    "description": "Declarative status monitoring generated from Nabla Compose services.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8085
+  },
+  {
+    "type": "port",
+    "name": "Traefik",
+    "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 80
+  },
+  {
+    "type": "http",
+    "name": "Home Assistant",
+    "description": "Home Assistant routed through Traefik.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "https://homeassistant.albanandrieu.com"
+  },
+  {
+    "type": "port",
+    "name": "Homarr",
+    "description": "Homelab application dashboard generated from the Nabla service inventory.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30100
+  },
+  {
+    "type": "port",
+    "name": "ntopng",
+    "description": "Host-network ntopng web service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3000
+  },
+  {
+    "type": "http",
+    "name": "FastAPI Sample",
+    "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:8091/health"
+  },
+  {
+    "type": "port",
     "name": "2FAuth",
     "description": "Nabla generated monitor: 2fauth",
     "interval": 60,
@@ -80,16 +138,6 @@
   },
   {
     "type": "port",
-    "name": "Docker API",
-    "description": "Read-only Docker socket proxy used by Homarr and automation.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "docker-socket-proxy",
-    "port": 2375
-  },
-  {
-    "type": "port",
     "name": "Dockhand",
     "description": "Nabla generated monitor: dockhand",
     "interval": 60,
@@ -130,45 +178,6 @@
   },
   {
     "type": "http",
-    "name": "FastAPI Sample",
-    "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:8091/health"
-  },
-  {
-    "type": "port",
-    "name": "Garage",
-    "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3900
-  },
-  {
-    "type": "port",
-    "name": "Garage WebUI",
-    "description": "Web administration UI for Garage object storage.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3909
-  },
-  {
-    "type": "port",
-    "name": "Gatus",
-    "description": "Declarative status monitoring generated from Nabla Compose services.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8085
-  },
-  {
-    "type": "http",
     "name": "Grafana",
     "description": "Nabla generated monitor: grafana",
     "interval": 60,
@@ -198,22 +207,13 @@
   },
   {
     "type": "port",
-    "name": "Homarr",
-    "description": "Homelab application dashboard generated from the Nabla service inventory.",
+    "name": "Apache Kafka",
+    "description": "Nabla generated monitor: kafka",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30100
-  },
-  {
-    "type": "http",
-    "name": "Home Assistant",
-    "description": "Home Assistant routed through Traefik.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "https://homeassistant.albanandrieu.com"
+    "hostname": "kafka",
+    "port": 9092
   },
   {
     "type": "port",
@@ -332,16 +332,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 30020
-  },
-  {
-    "type": "port",
-    "name": "ntopng",
-    "description": "Host-network ntopng web service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3000
   },
   {
     "type": "port",
@@ -464,16 +454,6 @@
     "port": 9099
   },
   {
-    "type": "port",
-    "name": "pfSense",
-    "description": "pfSense endpoint already consumed by the Prometheus exporter.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.1",
-    "port": 10443
-  },
-  {
     "type": "http",
     "name": "pfSense Exporter",
     "description": "Nabla generated monitor: pfsense-exporter",
@@ -521,16 +501,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9187
-  },
-  {
-    "type": "port",
-    "name": "PostgreSQL",
-    "description": "Shared PostgreSQL service consumed by application stacks.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 5432
   },
   {
     "type": "http",
@@ -601,15 +571,6 @@
     "port": 9121
   },
   {
-    "type": "http",
-    "name": "Scrutiny",
-    "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:31054/api/health"
-  },
-  {
     "type": "port",
     "name": "Nginx",
     "description": "Nabla generated monitor: sentry-nginx",
@@ -660,16 +621,6 @@
   },
   {
     "type": "port",
-    "name": "Traefik",
-    "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 80
-  },
-  {
-    "type": "port",
     "name": "Ddns Updater",
     "description": "Nabla generated monitor: traefik-ddns-updater",
     "interval": 60,
@@ -677,16 +628,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8000
-  },
-  {
-    "type": "port",
-    "name": "TrueNAS",
-    "description": "TrueNAS HTTPS management endpoint.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 7000
   },
   {
     "type": "port",
@@ -717,5 +658,74 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8088
+  },
+  {
+    "type": "port",
+    "name": "pfSense",
+    "description": "pfSense endpoint already consumed by the Prometheus exporter.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.1",
+    "port": 10443
+  },
+  {
+    "type": "port",
+    "name": "Docker API",
+    "description": "Read-only Docker socket proxy used by Homarr and automation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "docker-socket-proxy",
+    "port": 2375
+  },
+  {
+    "type": "port",
+    "name": "Garage",
+    "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3900
+  },
+  {
+    "type": "port",
+    "name": "PostgreSQL",
+    "description": "Shared PostgreSQL service consumed by application stacks.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5432
+  },
+  {
+    "type": "http",
+    "name": "Scrutiny",
+    "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31054/api/health"
+  },
+  {
+    "type": "port",
+    "name": "TrueNAS",
+    "description": "TrueNAS HTTPS management endpoint.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 7000
+  },
+  {
+    "type": "port",
+    "name": "Garage WebUI",
+    "description": "Web administration UI for Garage object storage.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3909
   }
 ]
