@@ -66,6 +66,7 @@ services:
     command: ["inlet", "http://akvorado-orchestrator:8080"]
     ports:
       - "172.17.0.24:2055:2055/udp"
+      - "172.17.0.24:31057:8080/tcp" # Prometheus: /api/v0/metrics
     depends_on:
       akvorado-orchestrator:
         condition: service_healthy
@@ -98,6 +99,8 @@ services:
           evidence:
             - apps/akvorado/config/akvorado.yaml:clickhousedb
     command: ["outlet", "http://akvorado-orchestrator:8080"]
+    ports:
+      - "172.17.0.24:31058:8080/tcp" # Prometheus: /api/v0/metrics
     depends_on:
       akvorado-orchestrator:
         condition: service_healthy
