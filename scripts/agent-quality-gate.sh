@@ -152,7 +152,7 @@ if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" != "1" && "${BASE_REF}" != "HEAD" ]];
       catalog/service-topology.json|catalog/services.json|apps/homarr/generated/apps.json|apps/autokuma/static/generated-monitors.json|apps/gatus/config/config.yml|package-lock.json)
         continue
         ;;
-      *.md|*.py|*.sh|*.yml|*.yaml|*.json|*.toml|*.hcl|*.tofu|Dockerfile*|Makefile|Taskfile.yml)
+      *.md|*.py|*.sh|*.yml|*.yaml|*.json|*.toml|*.hcl|*.tofu|Dockerfile*|Makefile)
         ;;
       *)
         continue
