@@ -41,17 +41,6 @@ services:
     environment:
       AKVORADO_CFG_ORCHESTRATOR_CLICKHOUSEDB_PASSWORD: ${AKVORADO_CLICKHOUSE_PASSWORD}
     command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          wget -qO- http://127.0.0.1:8080/api/v0/orchestrator/health
-          >/dev/null
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   akvorado-inlet:
     <<: *akvorado-service
     x-nabla:
@@ -80,17 +69,6 @@ services:
     depends_on:
       akvorado-orchestrator:
         condition: service_healthy
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          wget -qO- http://127.0.0.1:8080/api/v0/inlet/health
-          >/dev/null
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   akvorado-outlet:
     <<: *akvorado-service
     x-nabla:
@@ -129,17 +107,6 @@ services:
     environment:
       AKVORADO_CFG_OUTLET_METADATA_CACHEPERSISTFILE: /run/akvorado/metadata.cache
       AKVORADO_CFG_OUTLET_FLOW_STATEPERSISTFILE: /run/akvorado/flow.state
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          wget -qO- http://127.0.0.1:8080/api/v0/outlet/health
-          >/dev/null
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   akvorado-console:
     <<: *akvorado-service
     x-nabla:
@@ -176,15 +143,6 @@ services:
     depends_on:
       akvorado-orchestrator:
         condition: service_healthy
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - wget -qO- http://127.0.0.1:8080/ >/dev/null
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
 networks:
   intranet:
     external: true
