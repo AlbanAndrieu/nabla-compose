@@ -264,6 +264,12 @@ about 688k source lines but only about 621 processed entries because of heavy
 overlap. Re-measure the **final processed total after each controlled feed
 change** instead of predicting the new total from subtraction alone.
 
+For the current Netgate 1100 posture, prefer a small targeted phishing
+group (OpenPhish + PhishTank) over the very large UT1 `phishing` category.
+Keep the targeted DNSBL group enabled and the UT1 `phishing` category disabled
+once the migration has been validated. This avoids carrying two overlapping
+phishing datasets and reduces Unbound Python memory pressure.
+
 ### Snort memory posture
 
 Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
