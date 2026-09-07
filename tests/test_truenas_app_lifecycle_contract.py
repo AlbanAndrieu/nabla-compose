@@ -364,6 +364,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("FastAPI Sample Sentry: SENTRY_LOCAL_DSN configured", audit)
         self.assertIn("FastAPI Sample -> Sentry edge TCP/9005", audit)
         self.assertIn("FastAPI Sample -> Sentry edge health", audit)
+        self.assertIn("Sentry MCP API token: direct LAN /api/0/organizations/ accepted", audit)
+        self.assertIn("use a User Auth Token with inspect scopes", audit)
         self.assertIn("Sentry Taskbroker -> Kafka", audit)
         self.assertIn("Sentry Taskworker -> Taskbroker DNS + TCP/50051", audit)
         self.assertIn("Sentry Web -> Kafka DNS + TCP/9092", audit)
