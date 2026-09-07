@@ -86,6 +86,69 @@ Track these independently from the Talos bridge/bootstrap:
   final consumer inventory confirms no rollback dependency remains;
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
+
+### Pi-hole native App -> repository Compose migration — 2026-09-07
+
+The Pi-hole cutover is now promoted because the internal DNS synchronizer exposed
+two coupled runtime faults:
+
+- the native Pi-hole API hit `webserver.api.max_sessions=16`, preventing even
+  administrator login with `api_seats_exceeded`;
+- `pihole-dns-sync` could authenticate but could not resolve
+  `docker-socket-proxy`, because its deployment ownership/networking was split
+  from the repository-managed Docker proxy. The resulting restart loop repeatedly
+  allocated API sessions without completing useful Docker/Traefik discovery.
+
+Target ownership:
+
+```text
+apps/pihole/compose.yml
+  +-- pihole
+  +-- pihole-dns-sync
+  +-- pihole-exporter
+
+shared intranet
+  +-- docker-socket-proxy
+  +-- pihole
+  +-- pihole-dns-sync
+  +-- pihole-exporter
+```
+
+- [x] make `apps/pihole/compose.yml` the migration target and pin the official
+  Pi-hole image instead of tracking `latest`;
+- [x] move `pihole-dns-sync` out of `apps/traefik/compose.yml` so DNS
+  synchronization is owned beside Pi-hole;
+- [x] attach the synchronizer to `intranet` so
+  `docker-socket-proxy:2375` resolves without publishing the Docker API on the
+  host/LAN;
+- [x] keep `webserver.api.max_sessions=16` as the normal budget; do not mask a
+  restart/authentication loop by permanently raising the limit;
+- [x] preserve LAN compatibility ports `53`, `20720`, `30132` and exporter
+  `9617`, while normalizing Pi-hole container web ports to `80/443`;
+- [x] add `apps/pihole/README.md` with mount discovery, data copy, secret
+  preservation, cutover, acceptance and rollback steps;
+- [ ] inventory the exact native `ix-pihole-pihole-1` mounts and image version
+  before copying any data;
+- [ ] back up and copy the native `/etc/pihole` dataset into
+  `/mnt/cpool/pihole/config` without guessing the ixVolume source path;
+- [ ] migrate legacy `/etc/dnsmasq.d` only when the native mount contains
+  meaningful custom configuration;
+- [ ] validate the current UI/API password with the repository-managed container
+  without rotating it during cutover;
+- [ ] start the Compose replacement only after the native app is stopped and
+  ports `53/20720/30132/9617` are free;
+- [ ] prove `pihole-dns-sync` stays running, resolves
+  `docker-socket-proxy`, and no longer grows API sessions continuously;
+- [ ] prove `sample.int.albandrieu.com -> 172.17.0.24` through Pi-hole and
+  `https://sample.int.albandrieu.com/health` through Traefik;
+- [ ] run the full dual-path FastAPI exposure test: private
+  `sample.int.albandrieu.com` over LAN and protected
+  `sample.albandrieu.com` through Cloudflare Access/Tunnel;
+- [ ] keep the native Pi-hole app stopped but recoverable until the Compose
+  replacement survives a normal observation window;
+- [ ] uninstall the native Pi-hole app only after rollback is no longer required.
+
+
 ### Internal DNS resilience and public `*.int` cleanup
 
 The private namespace contract is now:
