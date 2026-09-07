@@ -179,14 +179,20 @@ them separate when troubleshooting; each has a different remediation.
    rollback for `0052` is idempotent
    (`DROP WORKLOAD IF EXISTS low_priority_deletes`; `DROP WORKLOAD IF EXISTS all`).
    Manual edits of migration tracking state are forbidden.
-6. **Legacy PostgreSQL migration graph may block Sentry 26.8 upgrade.**
+6. **Legacy PostgreSQL migration graph blocked Sentry 26.8 upgrade.**
    The first `sentry upgrade --noinput --create-kafka-topics` reached Django
    migration planning but failed while constructing `ProjectState` with lazy
    references such as `feedback.Feedback.environment -> sentry.environment`
-   and the message `app 'sentry' isn't installed`. Upstream Sentry 26.8 does
-   include `sentry` in `INSTALLED_APPS`; therefore treat this as a migration
-   state/history problem until PostgreSQL inspection proves otherwise. Do not
-   patch `INSTALLED_APPS` to hide it.
+   and the message `app 'sentry' isn't installed`. PostgreSQL inspection then
+   proved that the supposedly disposable Sentry database was not fresh: it held
+   273 public tables and 687 `django_migrations` rows, including 469 `sentry`
+   migrations, with the latest migration wave dated 2026-08-03. Upstream Sentry
+   26.8 includes `sentry` in `INSTALLED_APPS`, so this was an incompatible
+   legacy migration history rather than a missing Django app. Because the old
+   Sentry instance was explicitly empty/disposable, recovery was a targeted
+   drop/recreate of database `sentry` owned by role `sentry`; no other
+   PostgreSQL database was changed and no code-level `INSTALLED_APPS` workaround
+   was introduced.
 7. **Validated outcome.**
    After the scoped grants and native recovery flow, `snuba bootstrap --force`
    completed successfully with exit code 0 against
