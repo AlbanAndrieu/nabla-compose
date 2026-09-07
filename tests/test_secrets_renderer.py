@@ -39,6 +39,8 @@ class SecretsRendererTests(unittest.TestCase):
             {item["app"] for item in manifest["items"]},
             {
                 "infrastructure-bootstrap",
+                "truenas-csi",
+                "nexus-infrastructure",
                 "grafana-observability",
                 "pfsense-observability",
                 "n8n",

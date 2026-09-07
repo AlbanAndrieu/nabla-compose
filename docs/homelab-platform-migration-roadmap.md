@@ -26,48 +26,6 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
 - [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
-### Workstation SSH agent forwarding to TrueNAS and pfSense
-
-Keep operator SSH credentials anchored on the trusted workstation instead of
-copying private keys or passphrases onto infrastructure appliances. Evaluate
-OpenSSH agent forwarding as the preferred interactive administration path for
-TrueNAS and pfSense, while keeping it disabled for unrelated/untrusted hosts.
-
-Target flow:
-
-```text
-trusted workstation ssh-agent
-        |
-        +-- ForwardAgent --> TrueNAS SSH (albandrieu:9922)
-        |                       |
-        |                       +-- sudo with SSH_AUTH_SOCK preserved when
-        |                           repository maintenance needs root
-        |
-        +-- ForwardAgent --> pfSense SSH (trusted LAN/VPN only)
-```
-
-- [ ] validate workstation `ssh-agent` contains only the intended operator
-  identities and that no private key/passphrase is copied to TrueNAS or pfSense;
-- [ ] configure `ForwardAgent yes` only on explicit TrueNAS/pfSense host
-  stanzas, never as a global SSH default;
-- [ ] prove TrueNAS login through the canonical `albandrieu` account on
-  TCP/9922 and confirm the forwarded agent with `ssh-add -l`;
-- [ ] validate repository GitHub fetch/pull from the TrueNAS checkout using the
-  forwarded agent, including the root-owned maintenance case with an explicitly
-  preserved `SSH_AUTH_SOCK` rather than storing `SSH_PASSPHRASE`;
-- [ ] normalize ownership of repository checkouts intended for interactive
-  maintenance so routine Git operations do not require root merely because a
-  historical clone created root-owned `.git/objects`;
-- [ ] test pfSense agent forwarding over its trusted SSH path without changing
-  the WAN exposure contract: SSH remains LAN/VPN/trusted-source only and must
-  stay blocked from generic Internet origins;
-- [ ] document and test agent teardown/expiry (`ssh-add -D`, shell/session
-  close or bounded key lifetime) and verify that forwarded-agent sockets are not
-  exposed to containers or unattended services;
-- [ ] prefer API-specific least-privilege identities for unattended automation;
-  forwarded human SSH agents are an interactive operator mechanism, not a
-  service credential or CI/CD secret source.
-
 ### TrueNAS FastAPI observer boundary — 2026-09-06
 
 The internal FastAPI production observer now uses a dedicated TrueNAS identity:
@@ -82,12 +40,17 @@ fastapi_observer
 Runtime validation proves `system.version` and `app.query` (86 apps) with the
 native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
-before method authorization.
+before authentication. The Docker observer reaches TrueNAS from its `intranet`
+container address.
 
-- [x] create `fastapi_observer` with no shell/home, group `fastapi-observer`,
-  role `APPS_READ` and a dedicated API key;
-- [x] prove the least-privilege identity can call `system.version` and
-  `app.query` but does not inherit administrator roles;
+- [x] create the dedicated `fastapi_observer` API-only user with
+  `APPS_READ`, password login disabled, SSH password login disabled and SMB
+  disabled;
+- [x] create/reset a dedicated user-linked API key and prove native
+  `system.version` + `app.query`;
+- [x] add the current FastAPI container source address as a narrow `/32` to
+  TrueNAS `ui_allowlist`, validate the WebSocket calls, then
+  `system.general.checkin`;
 - [x] add `scripts/security/verify-truenas-observer-access.sh` as a read-only
   preflight for container source IP, `ui_allowlist`, canonical credential
   variable selection, HTTPS version discovery and authenticated WebSocket
@@ -174,31 +137,13 @@ shared intranet
   without rotating it during cutover;
 - [ ] start the Compose replacement only after the native app is stopped and
   ports `53/20720/30132/9617` are free;
-- [x] prove `pihole-dns-sync` stays running, resolves
+- [ ] prove `pihole-dns-sync` stays running, resolves
   `docker-socket-proxy`, and no longer grows API sessions continuously;
-- [x] prove Pi-hole answers `sample.int.albandrieu.com -> 172.17.0.24` on
-  UDP/TCP 53 and that pfSense/Unbound forwards `int.albandrieu.com` to
-  `172.17.0.24`;
-- [x] fix pfSense Unbound split-DNS forwarding by keeping **Forwarding Mode**
-  disabled and allowing **Outgoing Network Interfaces = All**. The previous
-  WAN-only setting made Unbound mark the Pi-hole forwarder as expired even
-  though direct `dig @172.17.0.24` queries succeeded;
-- [x] configure TrueNAS resolver precedence persistently through **System ->
-  Network -> Network Configuration -> Settings** as `172.17.0.1` primary,
-  `9.9.9.9` secondary and `1.1.1.1` tertiary. pfSense/Unbound is therefore the
-  normal resolver and public resolvers are fallback-only; TrueNAS does not
-  depend directly on its locally hosted Pi-hole for system DNS;
-- [x] prove the TrueNAS system resolver returns both
-  `sample.int.albandrieu.com` and `garage.int.albandrieu.com` as `172.17.0.24`
-  while public `example.com` remains resolvable;
-- [x] prove `https://sample.int.albandrieu.com/health` works from TrueNAS
-  without `--resolve`; the observed FastAPI health status is `healthy`;
-- [x] run the dual-path FastAPI exposure test: private Pi-hole ->
-  pfSense/Unbound -> Traefik succeeds, while public `sample.albandrieu.com`
-  resolves through Cloudflare and Cloudflare Access enforces authentication;
-- [ ] repeat the public path with `CF_ACCESS_CLIENT_ID` and
-  `CF_ACCESS_CLIENT_SECRET` to prove an authenticated request reaches the
-  Tunnel origin, not only that Access challenges unauthenticated requests;
+- [ ] prove `sample.int.albandrieu.com -> 172.17.0.24` through Pi-hole and
+  `https://sample.int.albandrieu.com/health` through Traefik;
+- [ ] run the full dual-path FastAPI exposure test: private
+  `sample.int.albandrieu.com` over LAN and protected
+  `sample.albandrieu.com` through Cloudflare Access/Tunnel;
 - [ ] keep the native Pi-hole app stopped but recoverable until the Compose
   replacement survives a normal observation window;
 - [ ] uninstall the native Pi-hole app only after rollback is no longer required.
@@ -243,7 +188,31 @@ must not be treated as evidence that the services are intentionally public.
   private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
   Cloudflare Access Service Auth is appropriate only for automation that can
   explicitly send `CF-Access-Client-Id` and `CF-Access-Client-Secret`;
-  do not assume stock clients can add those headers.
+  do not assume stock Bitwarden clients can inject those headers;
+- [x] add `scripts/security/audit-public-int-dns.sh`, a read-only Cloudflare
+  DNS drift check that reports every public `*.int.albandrieu.com` record and
+  fails unless it appears in the reviewed temporary-exception allowlist;
+- [ ] keep pfSense/Unbound as the general LAN resolver and design the private
+  `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
+  point of failure;
+- [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
+  critical `*.int` names, with Pi-hole synchronization retained as an
+  optional secondary consumer.
+- [ ] **Diagnose and fix TrueNAS internal DNS resolution:** workstation resolution
+  of `*.int.albandrieu.com` currently works while the TrueNAS host cannot resolve
+  the same private names. Compare the effective resolver path on both systems
+  (DHCP/static DNS servers, search domains, pfSense/Unbound forwarding, Pi-hole,
+  `/etc/resolv.conf`, systemd/resolver state where applicable, and split-horizon
+  answers) before changing records;
+- [ ] prove from TrueNAS that `dig`/equivalent queries against the configured
+  resolver return the expected private address for representative names such as
+  `sample.int.albandrieu.com`, and that direct queries to pfSense/Unbound and
+  Pi-hole produce the intended authoritative/forwarded result;
+- [ ] add a read-only DNS smoke check that compares workstation/LAN expectations
+  with the TrueNAS resolver path and fails on public leakage, NXDOMAIN, resolver
+  mismatch or an unexpected address for critical `*.int.albandrieu.com` names;
+- [ ] document the final resolver ownership and fallback path so TrueNAS does not
+  depend accidentally on a workstation-only DNS configuration.
 
 ### Centralized syslog -> Graylog
 
@@ -1515,24 +1484,212 @@ Once Keycloak is stable:
 - support both Vault UI and CLI redirect URIs;
 - keep a non-OIDC break-glass Vault recovery path.
 
-## Execution order
+## Execution order — reprioritized 2026-09-07
 
-Recommended program order:
+The platform sequence now prioritizes making the existing Talos/Kubernetes cluster
+usable before broad application migration. Application cutovers must not displace
+the Kubernetes network/storage and infrastructure-secret gates below.
 
-1. P0 runtime-observability gap and inventory automation;
-2. validate NPMplus current Compose deployment without migrating native NPM;
-3. OpenTerminal;
-4. complete Grafana and 2FAuth cutovers;
-5. Karakeep;
-6. FreshRSS;
-7. Paperless-ngx + Paperless-AI;
-8. Reactive Resume;
-9. shared PostgreSQL;
-10. native Nginx Proxy Manager -> proven NPMplus;
-11. Vaultwarden/Bitwarden CLI secret normalization in parallel with waves 3-10;
-12. Keycloak GitHub SSO bootstrap;
-13. HashiCorp Vault and Keycloak OIDC integration;
-14. Talos/Kubernetes-specific workload auth after the cluster is production-ready.
+### P0 — Kubernetes DNS, CNI and explicit FastAPI Sample smoke
+
+1. run `scripts/talos/validate-cluster.sh` and retain the all-nodes-`Ready`,
+   kubelet and etcd health gate;
+2. run `scripts/talos/smoke-kubernetes-network.sh` from the workstation using
+   the generated kubeconfig;
+3. prove CoreDNS resolution for `kubernetes.default.svc.cluster.local` and a
+   disposable service;
+4. prove cross-node pod-to-pod routing between workers `.51` and `.52`;
+5. prove ClusterIP/service DNS routing;
+6. deploy a minimal FastAPI Sample workload in Kubernetes as the explicit
+   application smoke target, using the existing sample application rather than
+   an unrelated hello-world image;
+7. expose that Kubernetes smoke workload through the dedicated hostname
+   `test.albandrieu.com` with an explicit ingress/gateway route;
+8. verify `https://test.albandrieu.com/health` (and a small API endpoint) from
+   outside the cluster and correlate the request with the expected Kubernetes
+   Service/Pod;
+9. keep `test.albandrieu.com` isolated from the production
+   `sample.albandrieu.com` deployment so the smoke workload can be recreated,
+   upgraded or removed without affecting the current TrueNAS FastAPI Sample;
+10. keep the smoke namespace restricted and disposable;
+11. do not proceed to persistent workloads until both the internal network smoke
+    and the external FastAPI Sample smoke are green.
+
+### P0.1 — TrueNAS-backed Kubernetes CSI storage
+
+After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
+
+1. select and pin the reviewed CSI implementation and chart/manifests;
+2. create a dedicated least-privilege TrueNAS CSI identity/API credential rather
+   than reusing an operator credential;
+3. provision below the existing `cpool/k8s/csi` parent;
+4. deploy the CSI controller/node components;
+5. create an explicit StorageClass;
+6. attach a disposable PVC to the Kubernetes FastAPI Sample smoke workload;
+7. write a marker through the application or a tightly scoped init/test path,
+   delete/recreate the pod and prove the marker survives;
+8. verify PV/PVC lifecycle, reclaim policy, dataset/zvol ownership and cleanup;
+9. validate snapshot/restore where supported;
+10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
+    recovery to prove application + ingress + CSI together;
+11. test one rollback/uninstall path before introducing production workloads;
+12. bootstrap GitOps only after CSI persistence and rollback are proven.
+
+Prefer NFS as the first persistence smoke path because Talos workers require no
+additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node
+requirements and Talos extensions are deliberately reviewed. democratic-csi
+remains the roadmap baseline unless the newer TrueNAS CSI driver is selected in
+a separate reviewed architecture decision.
+
+### P1 — infrastructure secrets required for OpenTofu, TrueNAS, Nexus and Kubernetes
+
+Migrate these before unattended infrastructure automation or GitOps:
+
+**OpenTofu / Terragrunt / Garage backend**
+
+- `AWS_ACCESS_KEY_ID`;
+- `AWS_SECRET_ACCESS_KEY`;
+- `GARAGE_ADMIN_TOKEN` where administrative bootstrap/backup requires it;
+- keep non-secret `GARAGE_S3_ENDPOINT`, `GARAGE_STATE_BUCKET` and
+  `TRUENAS_URL` in normal configuration.
+
+**TrueNAS infrastructure automation**
+
+- `TRUENAS_API_KEY`;
+- move from the current operator identity toward the planned dedicated
+  least-privilege `tofu_truenas` identity;
+- keep `TRUENAS_USER`/service-account name as configuration where it is not
+  itself secret;
+- create a separate least-privilege CSI credential for Kubernetes storage;
+- keep the read-only `fastapi_observer` credential isolated from both OpenTofu
+  and CSI credentials.
+
+**Nexus OpenTofu provider/bootstrap**
+
+- `NEXUS_USERNAME` where the automation identity is treated as sensitive;
+- `NEXUS_PASSWORD`;
+- later prefer a dedicated automation token/API credential if Nexus support and
+  the provider path allow it, rather than a human administrator password.
+
+**Talos / Kubernetes**
+
+- Talos machine PKI, `talosconfig` and generated machine secrets remain
+  encrypted/restricted artifacts and must never be committed;
+- `kubeconfig` remains an operator credential and must stay outside Git;
+- the CSI TrueNAS API credential must become a Kubernetes Secret (and later a
+  Vault-managed secret), never inline in chart values committed to Git;
+- future GitOps deploy keys/tokens and registry pull credentials are migrated
+  only when the corresponding controller/registry is introduced.
+
+Use Vaultwarden as the current migration source of truth and a restricted
+automation collection. HashiCorp Vault/OpenBao remains the later machine-secret
+target once Kubernetes storage is proven.
+
+### P1.1 — secret migration execution
+
+1. inventory variable names/consumers only;
+2. import the infrastructure subset above into Vaultwarden with the existing
+   fail-closed importer;
+3. validate read-back locally without printing values;
+4. render only the minimum root-owned `0600` compatibility env files required
+   by current Compose/OpenTofu tooling;
+5. migrate Doco-CD to restricted Vaultwarden-backed secret resolution;
+6. preserve git-crypt as encrypted recovery material;
+7. do not rotate migration-critical encryption keys during cutover.
+
+### P2 — runtime reconciliation and core observability/security services
+
+Use FastAPI Sample runtime endpoints plus the TrueNAS observer as the canonical
+runtime reconciliation source. Reconcile the service catalog before treating a
+declared Compose service as deployed.
+
+The following services are considered **expected-running core services** and
+should be verified/stabilized before broad application migrations:
+
+- **CrowdSec:** expected running; verify LAPI/agent health, collections/bouncers,
+  log acquisition and decision flow;
+- **Langflow:** expected running; verify application health, persistence and
+  external/internal route behavior;
+- **Graylog:** expected running; verify server health, OpenSearch/backend
+  connectivity and inputs before adding pfSense/workstation syslog;
+- **Prometheus:** priority monitoring service; verify scrape targets, rule
+  evaluation and retention;
+- **Grafana:** priority monitoring service; complete runtime cutover, datasource
+  health and the read-only service-account/MCP secret work.
+
+Current repository/runtime evidence also identifies these actionable states:
+
+- **Scrutiny:** native application intentionally STOPPED; repository Compose
+  migration is prepared but not yet completed;
+- **Pi-hole:** native path was running but the API/session exhaustion and
+  `pihole-dns-sync` restart loop make the repository Compose cutover pending;
+- **Bichon:** repository Compose is RUNNING, but OAuth2 refresh is degraded and
+  requires token re-authorization without rotating `BICHON_ENCRYPT_PASSWORD`;
+- **NPMplus:** Compose target exists but the mandatory functional acceptance gate
+  has not yet proved it ready to replace native Nginx Proxy Manager;
+- **2FAuth:** Compose target exists; ixVolume/data cutover remains pending;
+- **Grafana:** repository observability foundation exists; complete runtime
+  cutover/service-account secret work remains;
+- **InfluxDB:** reusable standalone target is prepared; migration/cutover remains
+  to be completed for Scrutiny;
+- **Tailscale:** intentionally stopped/deferred, not a Kubernetes prerequisite.
+
+Before each migration wave, reconcile every directory under `apps/` against
+`/api/homelab/status`, `/api/homelab/runtime` and TrueNAS `app.query` and
+classify it as `running`, `degraded/restarting`, `stopped`,
+`declared-not-deployed` or `unknown`. Do not infer `not deployed` merely
+from lack of an external URL.
+
+### P3 — service priority after Kubernetes + infrastructure secrets
+
+**Priority A — monitoring and security platform**
+
+1. verify/stabilize **Prometheus**;
+2. verify/stabilize **Grafana**, including datasources, dashboards, Alertmanager
+   visibility and the dedicated read-only service-account token;
+3. verify/stabilize **Graylog**, then connect pfSense and workstation syslog;
+4. verify/stabilize **CrowdSec** and its log acquisition/bouncer decision path;
+5. complete **Scrutiny + standalone InfluxDB** cutover;
+6. verify **Langflow** as an expected-running application and add monitoring for
+   it.
+
+**Priority B — next security/network observability services**
+
+7. deploy/enable **OpenRAG** after its storage/model dependencies are reviewed;
+8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
+   conflict with the existing OpenSearch/Graylog observability plane;
+9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
+   Akvorado) for flow telemetry after pfSense/exporter/collector routing is
+   defined;
+10. continue **ntopng / Suricata** integration only after deciding which flow/IDS
+    sources are authoritative to avoid duplicate telemetry without purpose.
+
+**Priority C — platform/application migrations**
+
+11. complete Pi-hole repository cutover and TrueNAS
+    `*.int.albandrieu.com` DNS correction;
+12. validate NPMplus without replacing native Nginx Proxy Manager;
+13. OpenTerminal — add/complete the repository Compose target, then migrate;
+14. complete 2FAuth cutover;
+15. Karakeep — add repository target and migrate;
+16. FreshRSS — add repository target and migrate;
+17. Reactive Resume;
+18. Paperless-ngx + Paperless-AI — add repository targets, then execute the
+    database/data migration;
+19. shared PostgreSQL consolidation only after application-specific database
+    ownership is understood;
+20. native Nginx Proxy Manager -> proven NPMplus.
+
+### P4 — identity and long-term machine secrets
+
+1. Keycloak GitHub SSO bootstrap with local break-glass access;
+2. HashiCorp Vault/OpenBao on proven persistent storage;
+3. migrate machine secrets from Vaultwarden item-by-item;
+4. GitHub Actions OIDC/JWT where practical;
+5. Kubernetes auth for workloads;
+6. Keycloak OIDC for human Vault access;
+7. introduce GitOps secret integration only after the Vault/Kubernetes auth model
+   is proven.
 
 ## Definition of done
 
