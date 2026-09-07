@@ -474,6 +474,15 @@
       "icon": "🌐"
     },
     {
+      "id": "sentry-clickhouse",
+      "name": "Sentry ClickHouse",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "apps/sentry-clickhouse/compose.yml",
+      "presentationRole": "support",
+      "criticality": "critical"
+    },
+    {
       "id": "sonarqube",
       "name": "SonarQube",
       "kind": "code-quality",
@@ -1742,6 +1751,16 @@
       "description": "The collector posts SMART inventory and metrics to the Scrutiny web/API service.",
       "evidence": [
         "apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT"
+      ]
+    },
+    {
+      "source": "sentry-clickhouse",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sentry-clickhouse/compose.yml:sentry-clickhouse.x-nabla.runtime.containerService"
       ]
     },
     {
