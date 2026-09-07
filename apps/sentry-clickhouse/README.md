@@ -41,12 +41,10 @@ sudo install -d -m 750 -o 101 -g 101 \
   /mnt/cpool/sentry-clickhouse/logs
 ```
 
-The repository-mounted config file must be readable by the ClickHouse process.
-A mode such as `0644` is required for the bind-mounted file:
-
-```bash
-chmod 0644 apps/sentry-clickhouse/config.xml
-```
+The ClickHouse XML is delivered through Docker Compose `configs:` rather than
+a direct bind mount. This avoids inheriting restrictive checkout permissions
+such as mode `0600`, which previously caused ClickHouse to fail with
+`Access to file denied`.
 
 If startup remains in `DEPLOYING`, inspect:
 
