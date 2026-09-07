@@ -246,6 +246,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         sentry_conf = self.read("apps/sentry/config/sentry.conf.py")
         nginx = self.read("apps/sentry/config/nginx.conf")
         taskbroker = self.read("apps/sentry/config/taskbroker.yml")
+        readme = self.read("apps/sentry/README.md")
 
         self.assertIn("ghcr.io/getsentry/sentry:26.8.0", compose)
         self.assertIn("ghcr.io/getsentry/snuba:26.8.0", compose)
@@ -266,12 +267,17 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("SENTRY_DB_USER: sentry", compose)
         self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
         self.assertIn("/mnt/cpool/sentry/.env.secrets", compose)
-        self.assertIn('command: ["bootstrap", "--force"]', compose)
+        self.assertIn("CLICKHOUSE_USER: sentry_migrator", compose)
+        self.assertIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
+        self.assertIn("exec snuba bootstrap --force", compose)
         self.assertIn('command: ["upgrade", "--noinput", "--create-kafka-topics"]', compose)
         self.assertIn("SENTRY_EVENTSTREAM = \"sentry.eventstream.kafka.KafkaEventStream\"", sentry_conf)
         self.assertIn("SENTRY_SEARCH = \"sentry.search.snuba.EventsDatasetSnubaSearchBackend\"", sentry_conf)
         self.assertIn("proxy_pass http://relay_upstream;", nginx)
         self.assertIn("events-subscription-results:", taskbroker)
+        self.assertIn("Do not deploy the repository submodule", readme)
+        self.assertIn("sentry_migrator", readme)
+        self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
 
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
