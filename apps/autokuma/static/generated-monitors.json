@@ -29,24 +29,22 @@
     "url": "http://172.17.0.24:31056/"
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Akvorado Inlet",
     "description": "Nabla generated monitor: akvorado-inlet",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31057
+    "url": "http://172.17.0.24:31057/api/v0/healthcheck"
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Akvorado Outlet",
     "description": "Nabla generated monitor: akvorado-outlet",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31058
+    "url": "http://172.17.0.24:31058/api/v0/healthcheck"
   },
   {
     "type": "http",
