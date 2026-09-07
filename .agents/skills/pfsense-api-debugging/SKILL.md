@@ -460,6 +460,8 @@ nabla:telemetry:akvorado_outlet_up
 nabla:network_flow:pfsense_packets_per_second
 nabla:network_flow:pfsense_bytes_per_second
 nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
 nabla:network_flow:clickhouse_batches_per_second
 ```
 
@@ -467,8 +469,9 @@ Interpretation:
 
 - exporter missing/silent: pfSense/pflow or UDP-path degradation;
 - UDP receive errors/drops: Akvorado Inlet pressure;
-- Kafka errors: Inlet-to-Kafka failure;
-- ClickHouse errors or stalled batches while Inlet traffic rises:
+- Kafka publish errors: Inlet-to-Kafka failure;
+- Outlet Kafka input stalls: Kafka-to-Outlet consumer failure;
+- ClickHouse errors or stalled flow writes while Inlet traffic rises:
   Outlet/persistence failure;
 - scrape failure: telemetry blind spot, not proof that pfSense is down.
 
