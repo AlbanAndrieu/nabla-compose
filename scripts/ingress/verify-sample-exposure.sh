@@ -9,6 +9,10 @@ TRAEFIK_HOST="${TRAEFIK_HOST:-${TRUENAS_HOST}}"
 TRAEFIK_PORT="${TRAEFIK_PORT:-443}"
 ACME_FILE="${ACME_FILE:-/mnt/cpool/traefik/certs/acme.json}"
 CERT_MIN_SECONDS="${CERT_MIN_SECONDS:-604800}"
+PFSENSE_DNS="${PFSENSE_DNS:-172.17.0.1}"
+PIHOLE_DNS="${PIHOLE_DNS:-172.17.0.24}"
+
+warnings=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
