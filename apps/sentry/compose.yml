@@ -124,19 +124,14 @@ services:
   snuba-migrate:
     <<: *snuba-service
     restart: "no"
+    env_file:
+      - /mnt/cpool/sentry/.env.migrator.secrets
     environment:
       <<: *snuba-env
       CLICKHOUSE_USER: sentry_migrator
       CLICKHOUSE_READONLY_USER: sentry_migrator
       CLICKHOUSE_TRACE_USER: sentry_migrator
-    entrypoint: ["/bin/bash", "-ec"]
-    command:
-      - |
-        : "${CLICKHOUSE_MIGRATOR_PASSWORD:?CLICKHOUSE_MIGRATOR_PASSWORD is required}"
-        export CLICKHOUSE_PASSWORD="${CLICKHOUSE_MIGRATOR_PASSWORD}"
-        export CLICKHOUSE_READONLY_PASSWORD="${CLICKHOUSE_MIGRATOR_PASSWORD}"
-        export CLICKHOUSE_TRACE_PASSWORD="${CLICKHOUSE_MIGRATOR_PASSWORD}"
-        exec snuba bootstrap --force
+    command: ["bootstrap", "--force"]
 
   snuba-api:
     <<: *snuba-service
