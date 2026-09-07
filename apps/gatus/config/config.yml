@@ -538,11 +538,11 @@ endpoints:
   url: http://172.17.0.24:31054/api/health
   conditions:
   - '[STATUS] == 200'
-- name: Sentry Web
+- name: Nginx
   group: sentry
   interval: 60s
   extra-labels:
-    nabla_monitor_id: sentry-sentry-web
+    nabla_monitor_id: sentry-nginx
   url: tcp://172.17.0.24:9005
   conditions:
   - '[CONNECTED] == true'
