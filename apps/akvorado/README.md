@@ -96,6 +96,8 @@ nabla:telemetry:akvorado_outlet_up
 nabla:network_flow:pfsense_packets_per_second
 nabla:network_flow:pfsense_bytes_per_second
 nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
 nabla:network_flow:clickhouse_batches_per_second
 ```
 
@@ -107,6 +109,7 @@ Alerts cover:
 - UDP receive errors;
 - kernel UDP receive-queue drops;
 - Kafka publish errors;
+- Outlet Kafka consumer stalls;
 - ClickHouse insertion errors;
 - Inlet traffic increasing while Outlet ClickHouse batches stall.
 
