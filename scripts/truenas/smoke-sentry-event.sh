@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SENTRY_URL="${SENTRY_URL:-http://172.17.0.24:9005}"
+SENTRY_URL="${SENTRY_URL%/}"
 PROJECT_ID="${SENTRY_PROJECT_ID:-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-ix-postgres-postgres-1}"
 CLICKHOUSE_CONTAINER="${SENTRY_CLICKHOUSE_CONTAINER:-ix-sentry-clickhouse-sentry-clickhouse-1}"
@@ -40,17 +41,19 @@ PUBLIC_KEY="$(
 
 [[ -n "${PUBLIC_KEY}" ]] || fail "no project key found for Sentry project ${PROJECT_ID}"
 
-EVENT_ID="$(python3 - <<'PY'
+EVENT_UUID="$(python3 - <<'PY'
 import uuid
-print(uuid.uuid4().hex)
+print(uuid.uuid4())
 PY
 )"
+EVENT_ID="${EVENT_UUID//-/}"
+DSN="${SENTRY_URL/\/\//\/\/${PUBLIC_KEY}@}/${PROJECT_ID}"
 TIMESTAMP="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 MESSAGE="Nabla homelab Sentry smoke ${EVENT_ID}"
 
 ENVELOPE="$(
   cat <<EOF
-{"event_id":"${EVENT_ID}","dsn":"${SENTRY_URL}/${PROJECT_ID}","sent_at":"${TIMESTAMP}"}
+{"event_id":"${EVENT_ID}","dsn":"${DSN}","sent_at":"${TIMESTAMP}"}
 {"type":"event","content_type":"application/json"}
 {"event_id":"${EVENT_ID}","timestamp":"${TIMESTAMP}","platform":"other","level":"error","logger":"nabla.homelab.smoke","message":{"formatted":"${MESSAGE}"},"tags":{"nabla_smoke":"true","source":"truenas-runtime-audit"}}
 EOF
@@ -81,18 +84,24 @@ esac
 FOUND=0
 for _ in {1..15}; do
   FOUND="$(
-    docker exec "${CLICKHOUSE_CONTAINER}" bash -lc '
-      clickhouse-client \
-        --user "$CLICKHOUSE_USER" \
-        --password "$CLICKHOUSE_PASSWORD" \
-        --database sentry \
-        --query "
-          SELECT count()
-          FROM errors_local
-          WHERE project_id = '"${PROJECT_ID}"'
-            AND replaceAll(toString(event_id), '\''-'\'', '\'''\'') = '\''"${EVENT_ID}"'\'';
-        "
-    ' 2>/dev/null || printf '0'
+    docker exec \
+      -e SMOKE_EVENT_UUID="${EVENT_UUID}" \
+      -e SMOKE_PROJECT_ID="${PROJECT_ID}" \
+      "${CLICKHOUSE_CONTAINER}" \
+      bash -lc '
+        clickhouse-client \
+          --user "$CLICKHOUSE_USER" \
+          --password "$CLICKHOUSE_PASSWORD" \
+          --database sentry \
+          --param_event_uuid "$SMOKE_EVENT_UUID" \
+          --param_project_id "$SMOKE_PROJECT_ID" \
+          --query "
+            SELECT count()
+            FROM errors_local
+            WHERE project_id = {project_id:UInt64}
+              AND event_id = {event_uuid:UUID}
+          "
+      ' 2>/dev/null || printf '0'
   )"
 
   if [[ "${FOUND}" =~ ^[0-9]+$ ]] && ((FOUND > 0)); then
