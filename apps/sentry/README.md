@@ -116,6 +116,26 @@ GRANT SELECT ON system.tables TO sentry_migrator;
 GRANT SELECT ON system.replicas TO sentry_migrator;
 GRANT SELECT ON system.columns TO sentry_migrator;
 GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;
+
+
+If a Snuba bootstrap is interrupted after a migration has been marked
+`IN PROGRESS`, do not edit Snuba's migration tracking tables manually. Use
+the native recovery flow scoped to the affected migration group:
+
+```bash
+snuba migrations reverse-in-progress \
+  --group events_analytics_platform \
+  --dry-run
+
+snuba migrations reverse-in-progress \
+  --group events_analytics_platform
+```
+
+For migration `0052_create_deletes_workload`, the reverse operations are
+`DROP WORKLOAD IF EXISTS low_priority_deletes` and
+`DROP WORKLOAD IF EXISTS all`, so recovering from a failure before or during
+workload creation is idempotent. Rerun `snuba bootstrap --force` only after the
+migration status is back to `NOT_STARTED`.
 ```
 
 The database-scoped `ALL` is deliberately isolated to the short-lived
