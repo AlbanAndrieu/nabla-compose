@@ -733,11 +733,101 @@
       "syncEligible": false
     },
     {
-      "id": "sentry-sentry-cron",
-      "name": "Sentry Cron",
+      "id": "sentry-kafka",
+      "name": "Kafka",
       "group": "sentry",
       "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "sentry-cron",
+      "composeService": "kafka",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-memcached",
+      "name": "Memcached",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "memcached",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-nginx",
+      "name": "Nginx",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "nginx",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9005",
+      "syncEligible": true
+    },
+    {
+      "id": "sentry-relay",
+      "name": "Relay",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "relay",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-attachments-consumer",
+      "name": "Sentry Attachments Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-attachments-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-events-consumer",
+      "name": "Sentry Events Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-events-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-migrate",
+      "name": "Sentry Migrate",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-migrate",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-post-process-forwarder-errors",
+      "name": "Sentry Post Process Forwarder Errors",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-post-process-forwarder-errors",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-taskscheduler",
+      "name": "Sentry Taskscheduler",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-taskscheduler",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-taskworker",
+      "name": "Sentry Taskworker",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-taskworker",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
@@ -753,11 +843,91 @@
       "syncEligible": false
     },
     {
-      "id": "sentry-sentry-worker",
-      "name": "Sentry Worker",
+      "id": "sentry-snuba-api",
+      "name": "Snuba Api",
       "group": "sentry",
       "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "sentry-worker",
+      "composeService": "snuba-api",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-errors-consumer",
+      "name": "Snuba Errors Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-errors-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-group-attributes-consumer",
+      "name": "Snuba Group Attributes Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-group-attributes-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-migrate",
+      "name": "Snuba Migrate",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-migrate",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-outcomes-billing-consumer",
+      "name": "Snuba Outcomes Billing Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-outcomes-billing-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-outcomes-consumer",
+      "name": "Snuba Outcomes Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-outcomes-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-replacer",
+      "name": "Snuba Replacer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-replacer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-subscription-consumer-events",
+      "name": "Snuba Subscription Consumer Events",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-subscription-consumer-events",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-taskbroker",
+      "name": "Taskbroker",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "taskbroker",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
