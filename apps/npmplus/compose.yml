@@ -3,6 +3,21 @@ services:
   npmplus:
     container_name: npmplus
     image: docker.io/zoeyvid/npmplus:latest # or ghcr.io/zoeyvid/npmplus:latest
+    x-nabla:
+      id: npmplus
+      name: NPMplus
+      kind: reverse-proxy
+      category: network
+      presentationRole: support
+      criticality: high
+      description: Hardened Nginx Proxy Manager fork tracked as the repository migration target.
+      runtime:
+        provider: truenas-app
+        containerService: npmplus
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 30360
     restart: unless-stopped
     network_mode: host
     #    ipc: host # required when you want to use the openappsec attachment module

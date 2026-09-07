@@ -128,6 +128,13 @@ class PublicIngressContractTests(unittest.TestCase):
             'LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"',
             script,
         )
+        self.assertIn('PFSENSE_DNS="${PFSENSE_DNS:-172.17.0.1}"', script)
+        self.assertIn('PIHOLE_DNS="${PIHOLE_DNS:-172.17.0.24}"', script)
+        self.assertIn("internal Pi-hole DNS (authoritative private record)", script)
+        self.assertIn("pfSense/Unbound split DNS", script)
+        self.assertIn("system resolver view", script)
+        self.assertIn("prefer pfSense/Unbound", script)
+        self.assertIn("non-blocking warning", script)
         self.assertIn("CF-Access-Client-Id", script)
         self.assertIn("CF-Access-Client-Secret", script)
         self.assertIn("Cloudflare Access is enforcing authentication", script)

@@ -1,6 +1,21 @@
 services:
   app:
     image: "jc21/nginx-proxy-manager:2.15.0"
+    x-nabla:
+      id: nginx-proxy-manager
+      name: Nginx Proxy Manager
+      kind: reverse-proxy
+      category: network
+      presentationRole: support
+      criticality: medium
+      description: Legacy reverse-proxy administration service retained during NPMplus migration.
+      runtime:
+        provider: truenas-app
+        containerService: app
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 30021
     restart: unless-stopped
     environment:
       TZ: "Europe/Paris"

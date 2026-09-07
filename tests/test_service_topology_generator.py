@@ -141,6 +141,31 @@ services:
         self.assertNotIn("helper", services)
         self.assertIn(("declared", "docker", "hostedBy"), relations)
 
+    def test_each_tracked_app_compose_declares_a_catalog_service(self) -> None:
+        missing: list[str] = []
+
+        for relative_path in MODULE.tracked_compose_paths():
+            if not relative_path.parts or relative_path.parts[0] != "apps":
+                continue
+            document = MODULE.yaml.safe_load(
+                (ROOT / relative_path).read_text(encoding="utf-8")
+            ) or {}
+            services = document.get("services", {}) if isinstance(document, dict) else {}
+            declared = isinstance(services, dict) and any(
+                isinstance(service, dict)
+                and isinstance(service.get("x-nabla"), dict)
+                for service in services.values()
+            )
+            if not declared:
+                missing.append(relative_path.as_posix())
+
+        self.assertEqual(
+            missing,
+            [],
+            "Every tracked apps/* Compose definition must declare at least one "
+            "x-nabla catalog service",
+        )
+
     def test_presentation_role_and_criticality_propagate_to_service(self) -> None:
         metadata = {
             "id": "vaultwarden",
@@ -286,7 +311,7 @@ services:
             "securityFunctions": ["protect", "prevent"],
         }
 
-        with self.assertRaisesRegex(ValueError, "securityFunctions\[1\] must be one of"):
+        with self.assertRaisesRegex(ValueError, r"securityFunctions\[1\] must be one of"):
             MODULE.topology_node(
                 metadata,
                 "apps/security-fixture/compose.yml",

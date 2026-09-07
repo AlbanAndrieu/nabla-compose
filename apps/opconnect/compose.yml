@@ -2,6 +2,23 @@
 services:
   op-connect-api:
     image: 1password/connect-api:latest
+    x-nabla:
+      id: op-connect-api
+      name: 1Password Connect API
+      kind: secrets-api
+      category: security
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - protect
+      description: 1Password Connect API for machine-readable secret access.
+      runtime:
+        provider: truenas-app
+        containerService: op-connect-api
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8097
     restart: unless-stopped
     ports:
       - "8097:8080"
@@ -14,6 +31,26 @@ services:
 
   op-connect-sync:
     image: 1password/connect-sync:latest
+    x-nabla:
+      id: op-connect-sync
+      name: 1Password Connect Sync
+      kind: secrets-sync
+      category: security
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - protect
+      description: Synchronizes 1Password vault state for the Connect API.
+      runtime:
+        provider: truenas-app
+        containerService: op-connect-sync
+      relations:
+        - target: op-connect-api
+          type: partOf
+          strength: required
+          description: Sync and API form the 1Password Connect deployment.
+          evidence:
+            - apps/opconnect/compose.yml
     restart: unless-stopped
     ports:
       - "8098:8080"

@@ -26,6 +26,48 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
 - [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
+### Workstation SSH agent forwarding to TrueNAS and pfSense
+
+Keep operator SSH credentials anchored on the trusted workstation instead of
+copying private keys or passphrases onto infrastructure appliances. Evaluate
+OpenSSH agent forwarding as the preferred interactive administration path for
+TrueNAS and pfSense, while keeping it disabled for unrelated/untrusted hosts.
+
+Target flow:
+
+```text
+trusted workstation ssh-agent
+        |
+        +-- ForwardAgent --> TrueNAS SSH (albandrieu:9922)
+        |                       |
+        |                       +-- sudo with SSH_AUTH_SOCK preserved when
+        |                           repository maintenance needs root
+        |
+        +-- ForwardAgent --> pfSense SSH (trusted LAN/VPN only)
+```
+
+- [ ] validate workstation `ssh-agent` contains only the intended operator
+  identities and that no private key/passphrase is copied to TrueNAS or pfSense;
+- [ ] configure `ForwardAgent yes` only on explicit TrueNAS/pfSense host
+  stanzas, never as a global SSH default;
+- [ ] prove TrueNAS login through the canonical `albandrieu` account on
+  TCP/9922 and confirm the forwarded agent with `ssh-add -l`;
+- [ ] validate repository GitHub fetch/pull from the TrueNAS checkout using the
+  forwarded agent, including the root-owned maintenance case with an explicitly
+  preserved `SSH_AUTH_SOCK` rather than storing `SSH_PASSPHRASE`;
+- [ ] normalize ownership of repository checkouts intended for interactive
+  maintenance so routine Git operations do not require root merely because a
+  historical clone created root-owned `.git/objects`;
+- [ ] test pfSense agent forwarding over its trusted SSH path without changing
+  the WAN exposure contract: SSH remains LAN/VPN/trusted-source only and must
+  stay blocked from generic Internet origins;
+- [ ] document and test agent teardown/expiry (`ssh-add -D`, shell/session
+  close or bounded key lifetime) and verify that forwarded-agent sockets are not
+  exposed to containers or unattended services;
+- [ ] prefer API-specific least-privilege identities for unattended automation;
+  forwarded human SSH agents are an interactive operator mechanism, not a
+  service credential or CI/CD secret source.
+
 ### TrueNAS FastAPI observer boundary — 2026-09-06
 
 The internal FastAPI production observer now uses a dedicated TrueNAS identity:
@@ -40,17 +82,12 @@ fastapi_observer
 Runtime validation proves `system.version` and `app.query` (86 apps) with the
 native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
-before authentication. The Docker observer reaches TrueNAS from its `intranet`
-container address.
+before method authorization.
 
-- [x] create the dedicated `fastapi_observer` API-only user with
-  `APPS_READ`, password login disabled, SSH password login disabled and SMB
-  disabled;
-- [x] create/reset a dedicated user-linked API key and prove native
-  `system.version` + `app.query`;
-- [x] add the current FastAPI container source address as a narrow `/32` to
-  TrueNAS `ui_allowlist`, validate the WebSocket calls, then
-  `system.general.checkin`;
+- [x] create `fastapi_observer` with no shell/home, group `fastapi-observer`,
+  role `APPS_READ` and a dedicated API key;
+- [x] prove the least-privilege identity can call `system.version` and
+  `app.query` but does not inherit administrator roles;
 - [x] add `scripts/security/verify-truenas-observer-access.sh` as a read-only
   preflight for container source IP, `ui_allowlist`, canonical credential
   variable selection, HTTPS version discovery and authenticated WebSocket
@@ -137,13 +174,31 @@ shared intranet
   without rotating it during cutover;
 - [ ] start the Compose replacement only after the native app is stopped and
   ports `53/20720/30132/9617` are free;
-- [ ] prove `pihole-dns-sync` stays running, resolves
+- [x] prove `pihole-dns-sync` stays running, resolves
   `docker-socket-proxy`, and no longer grows API sessions continuously;
-- [ ] prove `sample.int.albandrieu.com -> 172.17.0.24` through Pi-hole and
-  `https://sample.int.albandrieu.com/health` through Traefik;
-- [ ] run the full dual-path FastAPI exposure test: private
-  `sample.int.albandrieu.com` over LAN and protected
-  `sample.albandrieu.com` through Cloudflare Access/Tunnel;
+- [x] prove Pi-hole answers `sample.int.albandrieu.com -> 172.17.0.24` on
+  UDP/TCP 53 and that pfSense/Unbound forwards `int.albandrieu.com` to
+  `172.17.0.24`;
+- [x] fix pfSense Unbound split-DNS forwarding by keeping **Forwarding Mode**
+  disabled and allowing **Outgoing Network Interfaces = All**. The previous
+  WAN-only setting made Unbound mark the Pi-hole forwarder as expired even
+  though direct `dig @172.17.0.24` queries succeeded;
+- [x] configure TrueNAS resolver precedence persistently through **System ->
+  Network -> Network Configuration -> Settings** as `172.17.0.1` primary,
+  `9.9.9.9` secondary and `1.1.1.1` tertiary. pfSense/Unbound is therefore the
+  normal resolver and public resolvers are fallback-only; TrueNAS does not
+  depend directly on its locally hosted Pi-hole for system DNS;
+- [x] prove the TrueNAS system resolver returns both
+  `sample.int.albandrieu.com` and `garage.int.albandrieu.com` as `172.17.0.24`
+  while public `example.com` remains resolvable;
+- [x] prove `https://sample.int.albandrieu.com/health` works from TrueNAS
+  without `--resolve`; the observed FastAPI health status is `healthy`;
+- [x] run the dual-path FastAPI exposure test: private Pi-hole ->
+  pfSense/Unbound -> Traefik succeeds, while public `sample.albandrieu.com`
+  resolves through Cloudflare and Cloudflare Access enforces authentication;
+- [ ] repeat the public path with `CF_ACCESS_CLIENT_ID` and
+  `CF_ACCESS_CLIENT_SECRET` to prove an authenticated request reaches the
+  Tunnel origin, not only that Access challenges unauthenticated requests;
 - [ ] keep the native Pi-hole app stopped but recoverable until the Compose
   replacement survives a normal observation window;
 - [ ] uninstall the native Pi-hole app only after rollback is no longer required.
@@ -188,31 +243,7 @@ must not be treated as evidence that the services are intentionally public.
   private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
   Cloudflare Access Service Auth is appropriate only for automation that can
   explicitly send `CF-Access-Client-Id` and `CF-Access-Client-Secret`;
-  do not assume stock Bitwarden clients can inject those headers;
-- [x] add `scripts/security/audit-public-int-dns.sh`, a read-only Cloudflare
-  DNS drift check that reports every public `*.int.albandrieu.com` record and
-  fails unless it appears in the reviewed temporary-exception allowlist;
-- [ ] keep pfSense/Unbound as the general LAN resolver and design the private
-  `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
-  point of failure;
-- [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
-  critical `*.int` names, with Pi-hole synchronization retained as an
-  optional secondary consumer.
-- [ ] **Diagnose and fix TrueNAS internal DNS resolution:** workstation resolution
-  of `*.int.albandrieu.com` currently works while the TrueNAS host cannot resolve
-  the same private names. Compare the effective resolver path on both systems
-  (DHCP/static DNS servers, search domains, pfSense/Unbound forwarding, Pi-hole,
-  `/etc/resolv.conf`, systemd/resolver state where applicable, and split-horizon
-  answers) before changing records;
-- [ ] prove from TrueNAS that `dig`/equivalent queries against the configured
-  resolver return the expected private address for representative names such as
-  `sample.int.albandrieu.com`, and that direct queries to pfSense/Unbound and
-  Pi-hole produce the intended authoritative/forwarded result;
-- [ ] add a read-only DNS smoke check that compares workstation/LAN expectations
-  with the TrueNAS resolver path and fails on public leakage, NXDOMAIN, resolver
-  mismatch or an unexpected address for critical `*.int.albandrieu.com` names;
-- [ ] document the final resolver ownership and fallback path so TrueNAS does not
-  depend accidentally on a workstation-only DNS configuration.
+  do not assume stock clients can add those headers.
 
 ### Centralized syslog -> Graylog
 
