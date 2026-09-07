@@ -1,3 +1,11 @@
+## [0.18.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.18.0...0.18.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **pfsense:** codify stabilized memory posture ([#127](https://github.com/AlbanAndrieu/nabla-compose/issues/127)) ([26ed0eb](https://github.com/AlbanAndrieu/nabla-compose/commit/26ed0eb03d1494a5a04cacd690941b6a49497710))
+* **pyroscope:** persist v2 filesystem storage ([#124](https://github.com/AlbanAndrieu/nabla-compose/issues/124)) ([1d01f33](https://github.com/AlbanAndrieu/nabla-compose/commit/1d01f335504885f4de6b98c1c4310adcd69c12e1))
+
 # [0.18.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.17.0...0.18.0) (2026-09-07)
 
 
