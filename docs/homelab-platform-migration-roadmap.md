@@ -639,6 +639,11 @@ Acceptance after every shared ClickHouse change:
       `altinity/clickhouse-server:25.3.6.10034.altinitystable` instance; validated
       on 2026-09-07 with `snuba bootstrap --force` exit code 0, 85 Sentry tables,
       and workloads `all` / `low_priority_deletes`;
+- [x] inspect and reset the disposable legacy PostgreSQL `sentry` database after
+      proving it contained 273 public tables and 687 historical Django migration
+      rows incompatible with the Sentry 26.8 migration graph; recreate only
+      database `sentry` with owner `sentry`, leaving all other shared
+      PostgreSQL databases untouched;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba on the temporary supported ClickHouse;
 - [ ] later repeat the same synthetic-event gate on the **single shared
