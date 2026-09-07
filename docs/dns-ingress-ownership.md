@@ -4,9 +4,89 @@ This document separates DNS publication from request routing. A DNS component
 decides **where a hostname resolves**. HAProxy and Traefik decide **what happens
 after a client has connected**; they do not publish DNS records.
 
+## Resolver architecture and precedence
+
+The validated LAN resolver contract is:
+
+```text
+TrueNAS / LAN client
+  resolver #1: pfSense Unbound 172.17.0.1
+  resolver #2: Quad9 9.9.9.9       (public fallback only)
+  resolver #3: Cloudflare 1.1.1.1  (public fallback only)
+          |
+          v
+pfSense / Unbound 172.17.0.1:53
+  Forwarding Mode: disabled
+  Outgoing Network Interfaces: All
+          |
+          +-- public names -----------------> recursive DNS resolution
+          |
+          `-- int.albandrieu.com override --> Pi-hole 172.17.0.24:53
+                                                |
+                                                `--> explicit private A records
+                                                     generated from Traefik labels
+```
+
+On TrueNAS the persistent resolver order is configured in **System -> Network ->
+Network Configuration -> Settings** and currently materializes as:
+
+```text
+nameserver 172.17.0.1
+nameserver 9.9.9.9
+nameserver 1.1.1.1
+```
+
+The order matters. `9.9.9.9` and `1.1.1.1` cannot resolve the private
+`*.int.albandrieu.com` namespace and must not precede pfSense. They are public
+fallback resolvers, not split-DNS authorities. Private-name availability therefore
+requires pfSense/Unbound; public DNS remains recoverable through the fallback
+resolvers when appropriate.
+
+Do not configure TrueNAS itself to use its locally hosted Pi-hole as the primary
+system resolver. Pi-hole runs on TrueNAS, so doing so would introduce a circular
+boot/runtime dependency. TrueNAS and normal LAN clients use pfSense/Unbound;
+Unbound selectively delegates only the private zone to Pi-hole.
+
+### pfSense / Unbound
+
+Unbound is the normal LAN resolver. **DNS Forwarder/dnsmasq is not part of this
+path.** Keep Unbound recursive mode enabled by leaving **Forwarding Mode disabled**.
+The private zone is configured as a Domain Override:
+
+```text
+int.albandrieu.com -> 172.17.0.24
+```
+
+The generated Unbound configuration also contains `private-domain` and
+`domain-insecure` handling for this split zone. **Outgoing Network Interfaces must
+include the LAN path; the validated setting is `All`.** A previous `WAN`-only
+setting caused Unbound to know the correct forwarder while timing out every query
+to `172.17.0.24`. `unbound-control lookup` exposed the forwarder as `expired`.
+Changing the outgoing interface policy to `All` and flushing the Unbound infra
+cache restored the private path.
+
+Useful layer-specific diagnostics are:
+
+```bash
+# Pi-hole authority / private records
+dig +time=2 +tries=1 @172.17.0.24 sample.int.albandrieu.com A
+
+# LAN resolver / Domain Override
+dig +time=2 +tries=1 @172.17.0.1 sample.int.albandrieu.com A
+
+# system resolver as applications actually see it
+getent hosts sample.int.albandrieu.com
+
+# Unbound runtime forwarding decision (on pfSense)
+unbound-control -c /var/unbound/unbound.conf lookup sample.int.albandrieu.com
+```
+
+These checks deliberately test different layers and must not be collapsed into a
+single `getent` result.
+
 ## Internal `*.int.albandrieu.com`
 
-The repository-managed internal DNS path is:
+The repository-managed internal DNS publication path is:
 
 ```text
 Traefik Docker labels
@@ -17,19 +97,28 @@ pihole-dns-sync
   TARGET_IP=172.17.0.24
         |
         v
-Pi-hole LAN DNS
+Pi-hole 172.17.0.24:53
         |
         v
-hello.int.albandrieu.com -> 172.17.0.24
+sample.int.albandrieu.com -> 172.17.0.24
+        |
+        v
+pfSense/Unbound Domain Override exposes that answer to LAN clients
         |
         v
 Traefik :443 -> service container
 ```
 
-For example, `hello.int.albandrieu.com` is declared by the nginx Traefik
-router. `pihole-dns-sync` is the component intended to make that hostname
-resolvable on the LAN. AutoXpose is not the authoritative publisher for this
-`*.int` namespace in the current repository.
+Pi-hole owns host port `53/tcp` and `53/udp` on TrueNAS. Docker's embedded DNS is
+used inside Docker networks and does not own the TrueNAS LAN `:53` listener.
+The existing AdGuard Home application maps its container DNS port to host port
+`553`, not `53`, so it is not in the normal LAN resolver path. Kubernetes/CoreDNS
+is likewise a cluster service and is not the authority for this LAN private zone.
+
+For example, `sample.int.albandrieu.com` and `garage.int.albandrieu.com` resolve to
+`172.17.0.24`. `pihole-dns-sync` derives private records from eligible Traefik
+Docker labels. AutoXpose is not the authoritative publisher for this `*.int`
+namespace.
 
 The legacy Traefik Cloudflare companion explicitly excludes the `int`
 subdomain tree so it must not publish `*.int.albandrieu.com` into public
@@ -44,20 +133,34 @@ hostname and an explicit Cloudflare Tunnel/Access or direct-ingress contract.
 
 ### DNS resilience
 
-Do not make general LAN DNS availability depend on Pi-hole running on TrueNAS.
-Clients should keep using pfSense/Unbound as their normal resolver. The target
-design is for pfSense to remain able to resolve public DNS independently and to
-serve or forward only the private `int.albandrieu.com` zone through a
-failure-contained mechanism.
+General LAN DNS availability must not depend on every query traversing Pi-hole.
+pfSense/Unbound resolves public DNS independently and delegates only
+`int.albandrieu.com` to Pi-hole. If Pi-hole or TrueNAS is unavailable, private
+services hosted there are expected to be unavailable, but unrelated public DNS
+must remain resolvable by Unbound/public fallback paths.
 
 Because the current `*.int` Traefik endpoints normally converge on
-`172.17.0.24`, evaluate making pfSense/Unbound authoritative for the critical
-internal zone (for example through reviewed host/local-zone data generated from
-the repository). Pi-hole can then remain an optional synchronized consumer for
-filtering and convenience rather than a single point of failure for all DNS.
+`172.17.0.24`, a future resilience improvement may make pfSense/Unbound
+authoritative for a small set of critical internal names using reviewed
+`local-zone`/`local-data` or host overrides generated from the repository. Pi-hole
+can then remain the dynamic synchronized publisher without being the only source
+for critical infrastructure names.
 
-If TrueNAS is down, services hosted on TrueNAS are unavailable anyway; that
-failure must not prevent clients from resolving unrelated public domains.
+### Verification contract
+
+`scripts/ingress/verify-sample-exposure.sh` separates the layers intentionally:
+
+1. direct Pi-hole DNS must resolve the private hostname to `172.17.0.24`;
+2. pfSense/Unbound must return the same answer through its Domain Override;
+3. the system resolver view is reported separately so resolver-order drift is
+   visible;
+4. internal TLS/SNI and FastAPI health are tested through Traefik;
+5. public DNS, Cloudflare TLS and Cloudflare Access/Tunnel are tested separately.
+
+Authoritative/split-DNS failures are blocking because they violate the private
+namespace contract. Environment-dependent observations that do not invalidate
+the architecture can be emitted as warnings rather than hiding the healthy
+layers behind one generic failure.
 
 ### Garage exception boundary
 
