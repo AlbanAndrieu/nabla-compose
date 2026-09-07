@@ -241,6 +241,64 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("/usr/share/graylog/data/config", graylog)
         self.assertNotIn("/mnt/cpool/graylog/data:/usr/share/graylog/data", graylog)
 
+    def test_shared_kafka_is_pinned_and_independent_from_sentry(self) -> None:
+        kafka = self.read("apps/kafka/compose.yml")
+        readme = self.read("apps/kafka/README.md")
+
+        self.assertIn("confluentinc/cp-kafka:7.6.6", kafka)
+        self.assertIn("/mnt/cpool/kafka:/var/lib/kafka/data", kafka)
+        self.assertIn("KAFKA_PROCESS_ROLES: broker,controller", kafka)
+        self.assertIn("KAFKA_ADVERTISED_LISTENERS: BROKER://kafka:9092", kafka)
+        self.assertIn("name: intranet", kafka)
+        self.assertNotIn("KAFKA_LOG_RETENTION_HOURS", kafka)
+        self.assertNotIn("/mnt/cpool/sentry/kafka", kafka)
+        self.assertIn("Sentry is one consumer", readme)
+        self.assertIn("SASL/TLS", readme)
+
+    def test_sentry_uses_pinned_26_8_errors_only_stack(self) -> None:
+        compose = self.read("apps/sentry/compose.yml")
+        sentry_conf = self.read("apps/sentry/config/sentry.conf.py")
+        nginx = self.read("apps/sentry/config/nginx.conf")
+        taskbroker = self.read("apps/sentry/config/taskbroker.yml")
+        readme = self.read("apps/sentry/README.md")
+
+        self.assertIn("ghcr.io/getsentry/sentry:26.8.0", compose)
+        self.assertIn("ghcr.io/getsentry/snuba:26.8.0", compose)
+        self.assertIn("ghcr.io/getsentry/relay:26.8.0", compose)
+        self.assertIn("ghcr.io/getsentry/taskbroker:26.8.0", compose)
+        self.assertNotIn("getsentry/sentry:latest", compose)
+        self.assertNotIn("/mnt/cpool/compose/nabla-compose/sentry/", compose)
+        self.assertIn("COMPOSE_PROFILES: errors-only", compose)
+        self.assertIn("\n  snuba-api:\n", compose)
+        self.assertIn("\n  snuba-errors-consumer:\n", compose)
+        self.assertNotIn("\n  kafka:\n", compose)
+        self.assertNotIn("/mnt/cpool/sentry/kafka", compose)
+        self.assertIn("DEFAULT_BROKERS: kafka:9092", compose)
+        self.assertIn("TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092", compose)
+        self.assertIn("RELAY_KAFKA_BROKER_URL: kafka:9092", compose)
+        self.assertIn("\n  relay:\n", compose)
+        self.assertIn("\n  nginx:\n", compose)
+        self.assertNotIn("\n  sentry-worker:\n", compose)
+        self.assertNotIn("\n  sentry-cron:\n", compose)
+        self.assertIn("CLICKHOUSE_USER: sentry", compose)
+        self.assertIn("CLICKHOUSE_DATABASE: sentry", compose)
+        self.assertIn("SENTRY_DB_USER: sentry", compose)
+        self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
+        self.assertIn("/mnt/cpool/sentry/.env.secrets", compose)
+        self.assertIn("CLICKHOUSE_USER: sentry_migrator", compose)
+        self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", compose)
+        self.assertIn('command: ["bootstrap", "--force"]', compose)
+        self.assertNotIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
+        self.assertIn('command: ["upgrade", "--noinput", "--create-kafka-topics"]', compose)
+        self.assertIn("SENTRY_EVENTSTREAM = \"sentry.eventstream.kafka.KafkaEventStream\"", sentry_conf)
+        self.assertIn("SENTRY_SEARCH = \"sentry.search.snuba.EventsDatasetSnubaSearchBackend\"", sentry_conf)
+        self.assertIn("proxy_pass http://relay_upstream;", nginx)
+        self.assertIn("events-subscription-results:", taskbroker)
+        self.assertIn("Do not deploy the repository submodule", readme)
+        self.assertIn("sentry_migrator", readme)
+        self.assertIn(".env.migrator.secrets", readme)
+        self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
+
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
 
@@ -251,6 +309,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
 
         self.assertIn("probe_intranet_tcp_if_running redis", audit)
+        self.assertIn("probe_intranet_tcp_if_running kafka", audit)
         self.assertIn("probe_intranet_tcp_if_running opensearch", audit)
         self.assertIn("http://minio:9000/minio/health/live", audit)
         self.assertIn("http://172.17.0.24:8085/health", audit)
@@ -270,12 +329,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("partial LANGFUSE_INIT_* set", audit)
         self.assertIn("function probe_clickhouse_langfuse_contract_if_present", audit)
         self.assertIn("function probe_sentry_snuba_clickhouse_if_running", audit)
-        self.assertIn(
-            "no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated",
-            audit,
-        )
+        self.assertIn("no running Snuba API container was found", audit)
         self.assertIn("Sentry/Snuba -> ClickHouse TCP", audit)
-        self.assertIn("Sentry web health (Snuba/ClickHouse not validated)", audit)
+        self.assertIn("Sentry/Snuba -> ClickHouse authenticated query failed", audit)
+        self.assertIn("Sentry/Snuba ClickHouse auth: user=sentry database=sentry tables=", audit)
+        self.assertIn("Sentry web health", audit)
         self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
         self.assertIn(
             "NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters",

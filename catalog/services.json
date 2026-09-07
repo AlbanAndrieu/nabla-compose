@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:307ae6860d8ef2987979737d138962e83301b2b383b1ae90684e0d7d50146f0c",
+  "catalogRevision": "sha256:f67ccddd0aede133702643fb0a59e435afeafab7787f1c1caa5428a0771a3fa0",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -236,6 +236,18 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "influxdb"
+      }
+    },
+    {
+      "id": "kafka",
+      "name": "Apache Kafka",
+      "kind": "message-broker",
+      "category": "data",
+      "sourcePath": "apps/kafka/compose.yml",
+      "composeService": "kafka",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "kafka"
       }
     },
     {

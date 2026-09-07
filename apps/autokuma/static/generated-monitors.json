@@ -217,6 +217,16 @@
   },
   {
     "type": "port",
+    "name": "Apache Kafka",
+    "description": "Nabla generated monitor: kafka",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "kafka",
+    "port": 9092
+  },
+  {
+    "type": "port",
     "name": "Kibana",
     "description": "Nabla generated monitor: kibana",
     "interval": 60,
@@ -611,8 +621,8 @@
   },
   {
     "type": "port",
-    "name": "Sentry Web",
-    "description": "Nabla generated monitor: sentry-sentry-web",
+    "name": "Nginx",
+    "description": "Nabla generated monitor: sentry-nginx",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

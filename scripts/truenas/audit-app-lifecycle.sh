@@ -484,6 +484,10 @@ function probe_sentry_snuba_clickhouse_if_running {
   local snuba_container
   local clickhouse_host
   local clickhouse_port
+  local contract
+  local clickhouse_user
+  local clickhouse_database
+  local table_count
 
   if ! app_is_running sentry; then
     printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
@@ -496,7 +500,7 @@ function probe_sentry_snuba_clickhouse_if_running {
   )"
 
   if [[ -z "${snuba_container}" ]]; then
-    functional_warn "Sentry web is RUNNING but no running Snuba API container was found; ClickHouse ingestion/query compatibility is not validated."
+    functional_fail "Sentry is RUNNING but no running Snuba API container was found"
     return
   fi
 
@@ -523,7 +527,44 @@ function probe_sentry_snuba_clickhouse_if_running {
     functional_ok "Sentry/Snuba -> ClickHouse TCP ${clickhouse_host}:${clickhouse_port}"
   else
     functional_fail "Sentry/Snuba -> ClickHouse TCP failed (${clickhouse_host}:${clickhouse_port})"
+    return
   fi
+
+  if ! contract="$(
+    docker exec -i "${snuba_container}" python3 - 2>/dev/null <<'PY'
+import os
+from clickhouse_driver import Client
+
+client = Client(
+    host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
+    port=int(os.environ.get("CLICKHOUSE_PORT", "9000")),
+    user=os.environ.get("CLICKHOUSE_USER", "default"),
+    password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+    database=os.environ.get("CLICKHOUSE_DATABASE", "default"),
+)
+user, database = client.execute("SELECT currentUser(), currentDatabase()")[0]
+tables = client.execute(
+    "SELECT count() FROM system.tables WHERE database = currentDatabase()"
+)[0][0]
+print(f"{user}|{database}|{tables}")
+PY
+  )"; then
+    functional_fail "Sentry/Snuba -> ClickHouse authenticated query failed"
+    return
+  fi
+
+  IFS='|' read -r clickhouse_user clickhouse_database table_count <<<"${contract}"
+  if [[ "${clickhouse_user}" != "sentry" || "${clickhouse_database}" != "sentry" ]]; then
+    functional_fail "Sentry/Snuba ClickHouse identity expected sentry|sentry, got ${clickhouse_user}|${clickhouse_database}"
+    return
+  fi
+
+  if [[ ! "${table_count}" =~ ^[0-9]+$ ]] || ((table_count < 1)); then
+    functional_fail "Sentry/Snuba ClickHouse schema has no tables in database sentry"
+    return
+  fi
+
+  functional_ok "Sentry/Snuba ClickHouse auth: user=sentry database=sentry tables=${table_count}"
 }
 
 function probe_ntopng_clickhouse_contract_if_running {
@@ -796,6 +837,21 @@ probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.sec
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets REDIS_PASSWORD
 probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
 probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
@@ -821,12 +877,13 @@ probe_clickhouse_langfuse_contract_if_present
 probe_sentry_snuba_clickhouse_if_running
 probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
-probe_http_if_running sentry "Sentry web health (Snuba/ClickHouse not validated)" "http://172.17.0.24:9005/_health/"
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 
 probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
 probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
 probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
 
 if app_is_running minio; then

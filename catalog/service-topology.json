@@ -173,6 +173,13 @@
       "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
     },
     {
+      "id": "kafka",
+      "name": "Apache Kafka",
+      "kind": "message-broker",
+      "category": "data",
+      "sourcePath": "apps/kafka/compose.yml"
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "kind": "dashboard",
@@ -1032,6 +1039,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/influxdb/compose.yml:influxdb.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "kafka",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
       ]
     },
     {
