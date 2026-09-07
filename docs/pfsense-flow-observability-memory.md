@@ -420,6 +420,11 @@ current Unbound memory root cause:
 Treat these as maintenance debt, not as reasons to undo the stabilized memory
 configuration.
 
+The same successful update reported pfSense table usage of approximately
+266,681 entries against a hard limit of 400,000 (~66.7%). This is not the
+current memory incident, but it should be trended before adding substantially
+more IP reputation/geographic tables.
+
 ## Automated regression audit
 
 Use the repository audit from a trusted workstation for the full appliance
