@@ -123,16 +123,12 @@ shared intranet
   host/LAN;
 - [x] keep `webserver.api.max_sessions=16` as the normal budget; do not mask a
   restart/authentication loop by permanently raising the limit;
-- [x] preserve LAN compatibility ports `53`, `20720`, `30132` and exporter
-  `9617`, while normalizing Pi-hole container web ports to `80/443`;
+- [x] preserve LAN compatibility ports `53`, `20720` and exporter `9617`; keep Pi-hole `webserver.port=20720` during the first cutover instead of changing its internal listener at the same time;
 - [x] add `apps/pihole/README.md` with mount discovery, data copy, secret
   preservation, cutover, acceptance and rollback steps;
-- [ ] inventory the exact native `ix-pihole-pihole-1` mounts and image version
-  before copying any data;
-- [ ] back up and copy the native `/etc/pihole` dataset into
-  `/mnt/cpool/pihole/config` without guessing the ixVolume source path;
-- [ ] migrate legacy `/etc/dnsmasq.d` only when the native mount contains
-  meaningful custom configuration;
+- [x] inventory the exact native `ix-pihole-pihole-1` image and mounts: `pihole/pihole:2026.07.2`, `/mnt/cpool/pihole/config -> /etc/pihole`, and `/mnt/cpool/pihole/dnsmasq -> /etc/dnsmasq.d`;
+- [x] confirm the native App already uses the target `/mnt/cpool/pihole` datasets, so the migration is zero-copy; back up these datasets before cutover rather than duplicating them;
+- [x] confirm native `webserver.port=20720` and `dns.listeningMode=ALL`; preserve the proven listener contract during the first Compose cutover;
 - [ ] validate the current UI/API password with the repository-managed container
   without rotating it during cutover;
 - [ ] start the Compose replacement only after the native app is stopped and
