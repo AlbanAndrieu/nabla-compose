@@ -164,6 +164,15 @@ else
   emit FAIL pfblocker.dnsbl_mode "${dnsbl_mode:-missing}" "expected dnsbl_python"
 fi
 
+pfb_inc="/usr/local/pkg/pfblockerng/pfblockerng.inc"
+if [ -r "$pfb_inc" ] &&
+  grep -q 'pfb_unbound_py_swap_fits_ram' "$pfb_inc" &&
+  grep -q 'RAM-constrained box.*using Unbound restart' "$pfb_inc"; then
+  emit PASS pfblocker.dnsbl_ram_swap_gate present "package can decline a ~2x hot swap and restart Unbound on constrained RAM"
+else
+  emit WARN pfblocker.dnsbl_ram_swap_gate missing "verify package version before a large DNSBL rebuild; RAM-safe hot-swap fallback was not detected"
+fi
+
 pfb_tld="$(xml_value pfb_tld)"
 if [ -z "$pfb_tld" ] || [ "$pfb_tld" = "off" ]; then
   emit PASS pfblocker.tld "${pfb_tld:-off}" "TLD expansion is disabled"
