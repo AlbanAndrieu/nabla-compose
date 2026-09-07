@@ -11,6 +11,21 @@ services:
   dozzle:
     container_name: dozzle
     image: amir20/dozzle:v10.6.3 # amir20/dozzle:latest
+    x-nabla:
+      id: dozzle
+      name: Dozzle
+      kind: log-viewer
+      category: observability
+      presentationRole: service
+      criticality: medium
+      description: Live Docker log viewer and MCP-enabled operations UI.
+      runtime:
+        provider: truenas-app
+        containerService: dozzle
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8888
     restart: unless-stopped
     ports:
       - "8888:8080"
