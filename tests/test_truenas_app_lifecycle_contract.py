@@ -492,6 +492,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("synthetic Sentry event", failure_modes)
         self.assertIn("ntopng", failure_modes)
 
+    def test_sentry_smoke_script_proves_clickhouse_ingestion(self) -> None:
+        smoke = self.read("scripts/truenas/smoke-sentry-event.sh")
+
+        self.assertIn("application/x-sentry-envelope", smoke)
+        self.assertIn("X-Sentry-Auth", smoke)
+        self.assertIn("sentry_projectkey", smoke)
+        self.assertIn("errors_local", smoke)
+        self.assertIn("--param_event_uuid", smoke)
+        self.assertIn("edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse", smoke)
+
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 
