@@ -346,6 +346,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:15630/", audit)
         self.assertIn("http://127.0.0.1:31055/health", audit)
         self.assertIn("http://172.17.0.24:9003/api/system/lbstatus", audit)
+        self.assertIn("http://172.17.0.24:4040/ready", audit)
+        self.assertIn("Pyroscope readiness", audit)
+        self.assertIn("repository applications missing from TrueNAS app.query", audit)
+        self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
+        self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("http://172.17.0.24:7860/health_check", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
@@ -442,6 +447,38 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             "Decryption failed, likely due to incorrect encryption key or corrupted data",
             audit,
         )
+
+    def test_sentry_migrator_reuses_shared_redis_secret(self) -> None:
+        compose = self.read("apps/sentry/compose.yml")
+        readme = self.read("apps/sentry/README.md")
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+
+        migrator = compose.split("\n  snuba-migrate:\n", 1)[1].split("\n  snuba-api:\n", 1)[0]
+        self.assertIn("/mnt/cpool/sentry/.env.secrets", migrator)
+        self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", migrator)
+        self.assertLess(
+            migrator.index("/mnt/cpool/sentry/.env.secrets"),
+            migrator.index("/mnt/cpool/sentry/.env.migrator.secrets"),
+        )
+        self.assertIn("shared `REDIS_PASSWORD` is reused", readme)
+        self.assertNotIn(
+            'probe_secret_if_present sentry "Sentry migrator secrets" '
+            "/mnt/cpool/sentry/.env.migrator.secrets REDIS_PASSWORD",
+            audit,
+        )
+
+    def test_pyroscope_recovery_contract_is_documented(self) -> None:
+        compose = self.read("apps/pyroscope/compose.yml")
+        readme = self.read("apps/pyroscope/README.md")
+
+        self.assertIn("/mnt/cpool/pyroscope/data:/var/lib/pyroscope", compose)
+        self.assertIn("-metastore.raft.dir=/var/lib/pyroscope/v2/metastore/raft", compose)
+        self.assertIn("-metastore.data-dir=/var/lib/pyroscope/v2/metastore/data", compose)
+        self.assertIn("-storage.filesystem.dir=/var/lib/pyroscope/v2/shared", compose)
+        self.assertIn("http://172.17.0.24:4040/ready", compose)
+        self.assertIn("Metastore not ready", readme)
+        self.assertIn("do not delete them", readme.lower())
+        self.assertIn("curl -fsS http://172.17.0.24:4040/ready", readme)
 
     def test_roadmap_tracks_bichon_oauth2_reauthorization(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
