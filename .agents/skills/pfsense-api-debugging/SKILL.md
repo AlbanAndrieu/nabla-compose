@@ -175,6 +175,29 @@ Service restoration priority after an OOM is normally:
 Do not start ntopng on this appliance. Keep legacy softflowd disabled when
 native pflow is providing the required exports.
 
+### Repository regression audit
+
+When a workstation checkout of `nabla-compose` is available, prefer the
+versioned audit over manually reconstructing the complete posture from chat
+history:
+
+```bash
+scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+```
+
+Use `--json` for automation and `--strict` when warnings should fail a
+scheduled check. The script emits the `nabla.pfsense.posture.v1` JSON schema.
+
+A partial API-only view is available without SSH:
+
+```bash
+scripts/pfsense/audit-posture.sh --api https://fastapi-sample.fastapicloud.dev
+```
+
+Treat API-mode `SKIP` rows as an explicit capability boundary, not success.
+The current FastAPI observer does not expose appliance-local DNSBL files,
+`config.xml`, Unbound RSS, Snort generated configuration or `pflowctl`.
+
 ### Unbound and pfBlockerNG DNSBL
 
 Current stable design uses pfBlockerNG DNSBL Python mode:
