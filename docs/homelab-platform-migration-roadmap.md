@@ -1484,24 +1484,212 @@ Once Keycloak is stable:
 - support both Vault UI and CLI redirect URIs;
 - keep a non-OIDC break-glass Vault recovery path.
 
-## Execution order
+## Execution order — reprioritized 2026-09-07
 
-Recommended program order:
+The platform sequence now prioritizes making the existing Talos/Kubernetes cluster
+usable before broad application migration. Application cutovers must not displace
+the Kubernetes network/storage and infrastructure-secret gates below.
 
-1. P0 runtime-observability gap and inventory automation;
-2. validate NPMplus current Compose deployment without migrating native NPM;
-3. OpenTerminal;
-4. complete Grafana and 2FAuth cutovers;
-5. Karakeep;
-6. FreshRSS;
-7. Paperless-ngx + Paperless-AI;
-8. Reactive Resume;
-9. shared PostgreSQL;
-10. native Nginx Proxy Manager -> proven NPMplus;
-11. Vaultwarden/Bitwarden CLI secret normalization in parallel with waves 3-10;
-12. Keycloak GitHub SSO bootstrap;
-13. HashiCorp Vault and Keycloak OIDC integration;
-14. Talos/Kubernetes-specific workload auth after the cluster is production-ready.
+### P0 — Kubernetes DNS, CNI and explicit FastAPI Sample smoke
+
+1. run `scripts/talos/validate-cluster.sh` and retain the all-nodes-`Ready`,
+   kubelet and etcd health gate;
+2. run `scripts/talos/smoke-kubernetes-network.sh` from the workstation using
+   the generated kubeconfig;
+3. prove CoreDNS resolution for `kubernetes.default.svc.cluster.local` and a
+   disposable service;
+4. prove cross-node pod-to-pod routing between workers `.51` and `.52`;
+5. prove ClusterIP/service DNS routing;
+6. deploy a minimal FastAPI Sample workload in Kubernetes as the explicit
+   application smoke target, using the existing sample application rather than
+   an unrelated hello-world image;
+7. expose that Kubernetes smoke workload through the dedicated hostname
+   `test.albandrieu.com` with an explicit ingress/gateway route;
+8. verify `https://test.albandrieu.com/health` (and a small API endpoint) from
+   outside the cluster and correlate the request with the expected Kubernetes
+   Service/Pod;
+9. keep `test.albandrieu.com` isolated from the production
+   `sample.albandrieu.com` deployment so the smoke workload can be recreated,
+   upgraded or removed without affecting the current TrueNAS FastAPI Sample;
+10. keep the smoke namespace restricted and disposable;
+11. do not proceed to persistent workloads until both the internal network smoke
+    and the external FastAPI Sample smoke are green.
+
+### P0.1 — TrueNAS-backed Kubernetes CSI storage
+
+After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
+
+1. select and pin the reviewed CSI implementation and chart/manifests;
+2. create a dedicated least-privilege TrueNAS CSI identity/API credential rather
+   than reusing an operator credential;
+3. provision below the existing `cpool/k8s/csi` parent;
+4. deploy the CSI controller/node components;
+5. create an explicit StorageClass;
+6. attach a disposable PVC to the Kubernetes FastAPI Sample smoke workload;
+7. write a marker through the application or a tightly scoped init/test path,
+   delete/recreate the pod and prove the marker survives;
+8. verify PV/PVC lifecycle, reclaim policy, dataset/zvol ownership and cleanup;
+9. validate snapshot/restore where supported;
+10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
+    recovery to prove application + ingress + CSI together;
+11. test one rollback/uninstall path before introducing production workloads;
+12. bootstrap GitOps only after CSI persistence and rollback are proven.
+
+Prefer NFS as the first persistence smoke path because Talos workers require no
+additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node
+requirements and Talos extensions are deliberately reviewed. democratic-csi
+remains the roadmap baseline unless the newer TrueNAS CSI driver is selected in
+a separate reviewed architecture decision.
+
+### P1 — infrastructure secrets required for OpenTofu, TrueNAS, Nexus and Kubernetes
+
+Migrate these before unattended infrastructure automation or GitOps:
+
+**OpenTofu / Terragrunt / Garage backend**
+
+- `AWS_ACCESS_KEY_ID`;
+- `AWS_SECRET_ACCESS_KEY`;
+- `GARAGE_ADMIN_TOKEN` where administrative bootstrap/backup requires it;
+- keep non-secret `GARAGE_S3_ENDPOINT`, `GARAGE_STATE_BUCKET` and
+  `TRUENAS_URL` in normal configuration.
+
+**TrueNAS infrastructure automation**
+
+- `TRUENAS_API_KEY`;
+- move from the current operator identity toward the planned dedicated
+  least-privilege `tofu_truenas` identity;
+- keep `TRUENAS_USER`/service-account name as configuration where it is not
+  itself secret;
+- create a separate least-privilege CSI credential for Kubernetes storage;
+- keep the read-only `fastapi_observer` credential isolated from both OpenTofu
+  and CSI credentials.
+
+**Nexus OpenTofu provider/bootstrap**
+
+- `NEXUS_USERNAME` where the automation identity is treated as sensitive;
+- `NEXUS_PASSWORD`;
+- later prefer a dedicated automation token/API credential if Nexus support and
+  the provider path allow it, rather than a human administrator password.
+
+**Talos / Kubernetes**
+
+- Talos machine PKI, `talosconfig` and generated machine secrets remain
+  encrypted/restricted artifacts and must never be committed;
+- `kubeconfig` remains an operator credential and must stay outside Git;
+- the CSI TrueNAS API credential must become a Kubernetes Secret (and later a
+  Vault-managed secret), never inline in chart values committed to Git;
+- future GitOps deploy keys/tokens and registry pull credentials are migrated
+  only when the corresponding controller/registry is introduced.
+
+Use Vaultwarden as the current migration source of truth and a restricted
+automation collection. HashiCorp Vault/OpenBao remains the later machine-secret
+target once Kubernetes storage is proven.
+
+### P1.1 — secret migration execution
+
+1. inventory variable names/consumers only;
+2. import the infrastructure subset above into Vaultwarden with the existing
+   fail-closed importer;
+3. validate read-back locally without printing values;
+4. render only the minimum root-owned `0600` compatibility env files required
+   by current Compose/OpenTofu tooling;
+5. migrate Doco-CD to restricted Vaultwarden-backed secret resolution;
+6. preserve git-crypt as encrypted recovery material;
+7. do not rotate migration-critical encryption keys during cutover.
+
+### P2 — runtime reconciliation and core observability/security services
+
+Use FastAPI Sample runtime endpoints plus the TrueNAS observer as the canonical
+runtime reconciliation source. Reconcile the service catalog before treating a
+declared Compose service as deployed.
+
+The following services are considered **expected-running core services** and
+should be verified/stabilized before broad application migrations:
+
+- **CrowdSec:** expected running; verify LAPI/agent health, collections/bouncers,
+  log acquisition and decision flow;
+- **Langflow:** expected running; verify application health, persistence and
+  external/internal route behavior;
+- **Graylog:** expected running; verify server health, OpenSearch/backend
+  connectivity and inputs before adding pfSense/workstation syslog;
+- **Prometheus:** priority monitoring service; verify scrape targets, rule
+  evaluation and retention;
+- **Grafana:** priority monitoring service; complete runtime cutover, datasource
+  health and the read-only service-account/MCP secret work.
+
+Current repository/runtime evidence also identifies these actionable states:
+
+- **Scrutiny:** native application intentionally STOPPED; repository Compose
+  migration is prepared but not yet completed;
+- **Pi-hole:** native path was running but the API/session exhaustion and
+  `pihole-dns-sync` restart loop make the repository Compose cutover pending;
+- **Bichon:** repository Compose is RUNNING, but OAuth2 refresh is degraded and
+  requires token re-authorization without rotating `BICHON_ENCRYPT_PASSWORD`;
+- **NPMplus:** Compose target exists but the mandatory functional acceptance gate
+  has not yet proved it ready to replace native Nginx Proxy Manager;
+- **2FAuth:** Compose target exists; ixVolume/data cutover remains pending;
+- **Grafana:** repository observability foundation exists; complete runtime
+  cutover/service-account secret work remains;
+- **InfluxDB:** reusable standalone target is prepared; migration/cutover remains
+  to be completed for Scrutiny;
+- **Tailscale:** intentionally stopped/deferred, not a Kubernetes prerequisite.
+
+Before each migration wave, reconcile every directory under `apps/` against
+`/api/homelab/status`, `/api/homelab/runtime` and TrueNAS `app.query` and
+classify it as `running`, `degraded/restarting`, `stopped`,
+`declared-not-deployed` or `unknown`. Do not infer `not deployed` merely
+from lack of an external URL.
+
+### P3 — service priority after Kubernetes + infrastructure secrets
+
+**Priority A — monitoring and security platform**
+
+1. verify/stabilize **Prometheus**;
+2. verify/stabilize **Grafana**, including datasources, dashboards, Alertmanager
+   visibility and the dedicated read-only service-account token;
+3. verify/stabilize **Graylog**, then connect pfSense and workstation syslog;
+4. verify/stabilize **CrowdSec** and its log acquisition/bouncer decision path;
+5. complete **Scrutiny + standalone InfluxDB** cutover;
+6. verify **Langflow** as an expected-running application and add monitoring for
+   it.
+
+**Priority B — next security/network observability services**
+
+7. deploy/enable **OpenRAG** after its storage/model dependencies are reviewed;
+8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
+   conflict with the existing OpenSearch/Graylog observability plane;
+9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
+   Akvorado) for flow telemetry after pfSense/exporter/collector routing is
+   defined;
+10. continue **ntopng / Suricata** integration only after deciding which flow/IDS
+    sources are authoritative to avoid duplicate telemetry without purpose.
+
+**Priority C — platform/application migrations**
+
+11. complete Pi-hole repository cutover and TrueNAS
+    `*.int.albandrieu.com` DNS correction;
+12. validate NPMplus without replacing native Nginx Proxy Manager;
+13. OpenTerminal — add/complete the repository Compose target, then migrate;
+14. complete 2FAuth cutover;
+15. Karakeep — add repository target and migrate;
+16. FreshRSS — add repository target and migrate;
+17. Reactive Resume;
+18. Paperless-ngx + Paperless-AI — add repository targets, then execute the
+    database/data migration;
+19. shared PostgreSQL consolidation only after application-specific database
+    ownership is understood;
+20. native Nginx Proxy Manager -> proven NPMplus.
+
+### P4 — identity and long-term machine secrets
+
+1. Keycloak GitHub SSO bootstrap with local break-glass access;
+2. HashiCorp Vault/OpenBao on proven persistent storage;
+3. migrate machine secrets from Vaultwarden item-by-item;
+4. GitHub Actions OIDC/JWT where practical;
+5. Kubernetes auth for workloads;
+6. Keycloak OIDC for human Vault access;
+7. introduce GitOps secret integration only after the Vault/Kubernetes auth model
+   is proven.
 
 ## Definition of done
 
