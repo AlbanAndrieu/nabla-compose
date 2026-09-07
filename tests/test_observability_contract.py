@@ -120,6 +120,104 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("pfsense_info", rules)
 
+    def test_pfsense_memory_headroom_alerts_match_capacity_contract(self) -> None:
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
+        ).read_text(encoding="utf-8")
+        core = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("pfSenseMemoryHeadroomLow", rules)
+        self.assertIn(
+            'pfsense_system_memory_usage_ratio{job="pfsense_exporter"} > 0.87',
+            rules,
+        )
+        self.assertIn("pfSenseMemoryHeadroomCritical", rules)
+        self.assertIn(
+            'pfsense_system_memory_usage_ratio{job="pfsense_exporter"} > 0.94',
+            rules,
+        )
+        self.assertIn("nabla:core:pfsense_memory_available_ratio", core)
+        self.assertIn(
+            '1 - max(pfsense_system_memory_usage_ratio{job="pfsense_exporter"})',
+            core,
+        )
+
+    def test_akvorado_netflow_pipeline_is_scraped_alerted_and_provisioned(self) -> None:
+        compose = (
+            ROOT / "apps" / "akvorado" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "akvorado.rules.yml"
+        ).read_text(encoding="utf-8")
+        dashboard = json.loads(
+            (
+                GRAFANA
+                / "config"
+                / "dashboards"
+                / "observability"
+                / "pfsense-netflow-akvorado.json"
+            ).read_text(encoding="utf-8")
+        )
+
+        for binding in (
+            '"172.17.0.24:31057:8080/tcp"',
+            '"172.17.0.24:31058:8080/tcp"',
+        ):
+            self.assertIn(binding, compose)
+        self.assertNotIn('"0.0.0.0:31057:8080/tcp"', compose)
+        self.assertNotIn('"0.0.0.0:31058:8080/tcp"', compose)
+
+        for job, target in (
+            ("akvorado_inlet", "172.17.0.24:31057"),
+            ("akvorado_outlet", "172.17.0.24:31058"),
+        ):
+            self.assertIn(f"- job_name: {job}", prometheus)
+            self.assertIn(target, prometheus)
+        self.assertGreaterEqual(prometheus.count("metrics_path: /api/v0/metrics"), 2)
+
+        for metric in (
+            "nabla:telemetry:akvorado_inlet_up",
+            "nabla:telemetry:akvorado_outlet_up",
+            "nabla:network_flow:pfsense_packets_per_second",
+            "nabla:network_flow:pfsense_bytes_per_second",
+            "nabla:network_flow:pfsense_kafka_messages_per_second",
+            "nabla:network_flow:clickhouse_batches_per_second",
+        ):
+            self.assertIn(metric, rules)
+
+        self.assertIn('exporter="172.17.0.1"', rules)
+        for alert in (
+            "AkvoradoInletMetricsDown",
+            "AkvoradoOutletMetricsDown",
+            "AkvoradoPfSenseExporterMissing",
+            "AkvoradoPfSenseFlowSilent",
+            "AkvoradoInletUDPErrors",
+            "AkvoradoInletUDPDrops",
+            "AkvoradoInletKafkaErrors",
+            "AkvoradoOutletClickHouseErrors",
+            "AkvoradoFlowPipelineStalled",
+        ):
+            self.assertIn(alert, rules)
+
+        self.assertEqual(dashboard["uid"], "nabla_pfsense_netflow_akvorado")
+        self.assertEqual(dashboard["title"], "pfSense NetFlow/IPFIX → Akvorado")
+        expressions = [
+            target.get("expr", "")
+            for panel in dashboard["panels"]
+            for target in panel.get("targets", [])
+        ]
+        joined = "\n".join(expressions)
+        self.assertIn("nabla:network_flow:pfsense_packets_per_second", joined)
+        self.assertIn("nabla:core:pfsense_memory_available_ratio", joined)
+        for panel in dashboard["panels"]:
+            for target in panel.get("targets", []):
+                self.assertEqual(target["datasource"]["uid"], "mimir")
+
     def test_core_recording_rules_separate_platform_and_telemetry_signals(self) -> None:
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
