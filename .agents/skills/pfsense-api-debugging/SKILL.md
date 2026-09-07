@@ -304,6 +304,15 @@ tail -80 /var/log/dhcpd.log
 Service Watchdog may restart Kea after a memory incident, so a later running
 PID does not disprove an earlier outage.
 
+For Unbound, do not use `pgrep -af unbound` as the sole oracle: unrelated
+processes such as `lighttpd_pfb` may match because their arguments contain
+`/var/unbound/...`. Prefer `pgrep -x unbound` or match the exact daemon command
+`/usr/local/sbin/unbound -c /var/unbound/unbound.conf`.
+
+During an Unbound memory-remediation/rebuild, remove Unbound from Service
+Watchdog temporarily. Otherwise the watchdog can recreate the OOM loop by
+restarting the resolver immediately after the kernel kills or an operator stop.
+
 Zabbix is monitoring, not a routing/DNS prerequisite. If memory is constrained,
 leave it stopped until core services are stable:
 
