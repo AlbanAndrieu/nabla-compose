@@ -26,10 +26,10 @@
       "name": "Akvorado",
       "kind": "network-observability",
       "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-console",
       "presentationRole": "service",
       "criticality": "medium",
-      "sourcePath": "apps/akvorado/compose.yml",
       "securityFunctions": [
         "identify",
         "detect"
@@ -44,10 +44,10 @@
       "name": "Akvorado Inlet",
       "kind": "network-flow-collector",
       "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-inlet",
       "presentationRole": "support",
       "criticality": "high",
-      "sourcePath": "apps/akvorado/compose.yml",
       "securityFunctions": [
         "identify",
         "detect"
@@ -62,10 +62,10 @@
       "name": "Akvorado Orchestrator",
       "kind": "network-flow-controller",
       "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-orchestrator",
       "presentationRole": "support",
       "criticality": "high",
-      "sourcePath": "apps/akvorado/compose.yml",
       "securityFunctions": [
         "identify",
         "detect"
@@ -80,10 +80,10 @@
       "name": "Akvorado Outlet",
       "kind": "network-flow-processor",
       "category": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-outlet",
       "presentationRole": "support",
       "criticality": "high",
-      "sourcePath": "apps/akvorado/compose.yml",
       "securityFunctions": [
         "identify",
         "detect"
