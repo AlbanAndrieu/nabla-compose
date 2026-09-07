@@ -1,3 +1,10 @@
+## [0.20.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.20.0...0.20.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **truenas:** stabilize Graylog and OpenRAG runtime ([#129](https://github.com/AlbanAndrieu/nabla-compose/issues/129)) ([9c77098](https://github.com/AlbanAndrieu/nabla-compose/commit/9c77098b7b85856fd083f13f9063c6dfa88834aa))
+
 # [0.20.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.19.0...0.20.0) (2026-09-07)
 
 
