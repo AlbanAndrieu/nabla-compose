@@ -3,6 +3,21 @@ services:
   drawio:
     image: jgraph/drawio
     container_name: drawio
+    x-nabla:
+      id: drawio
+      name: Draw.io
+      kind: diagramming
+      category: productivity
+      presentationRole: service
+      criticality: low
+      description: Self-hosted diagrams.net editor.
+      runtime:
+        provider: truenas-app
+        containerService: drawio
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9080
     restart: unless-stopped
     ports:
       - 9080:8080
@@ -15,11 +30,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
-    #  - "traefik.http.routers.drawio.entrypoints=websecure"
-    #  - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
-    #  - "traefik.http.routers.drawio.service=drawio"
-    #  - "traefik.http.services.drawio.loadbalancer.server.scheme=http"
-    #  # - "traefik.http.services.drawio.loadbalancer.server.port=30425"
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.drawio.rule=Host(`drawio.albandrieu.com`)"
+    #   - "traefik.http.routers.drawio.entrypoints=websecure"
+    #   - "traefik.http.routers.drawio.tls.certresolver=letsencrypt"
+    #   - "traefik.http.routers.drawio.service=drawio"
+    #   - "traefik.http.services.drawio.loadbalancer.server.scheme=http"
+    #   # - "traefik.http.services.drawio.loadbalancer.server.port=30425"

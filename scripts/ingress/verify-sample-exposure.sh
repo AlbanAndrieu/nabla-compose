@@ -9,10 +9,37 @@ TRAEFIK_HOST="${TRAEFIK_HOST:-${TRUENAS_HOST}}"
 TRAEFIK_PORT="${TRAEFIK_PORT:-443}"
 ACME_FILE="${ACME_FILE:-/mnt/cpool/traefik/certs/acme.json}"
 CERT_MIN_SECONDS="${CERT_MIN_SECONDS:-604800}"
+PFSENSE_DNS="${PFSENSE_DNS:-172.17.0.1}"
+PIHOLE_DNS="${PIHOLE_DNS:-172.17.0.24}"
+
+warnings=0
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
+}
+
+resolve_a_with_server() {
+  local server="$1"
+  local hostname="$2"
+
+  command -v dig >/dev/null 2>&1 ||
+    fail "dig is required for authoritative/split-DNS verification"
+
+  dig +time=3 +tries=1 +short @"${server}" "${hostname}" A 2>/dev/null |
+    awk '/^[0-9]+([.][0-9]+){3}$/ { print }' |
+    sort -u
+}
+
+require_truenas_answer() {
+  local label="$1"
+  local answers="$2"
+
+  [[ -n "${answers}" ]] || fail "${label}: ${INTERNAL_HOST} returned no IPv4 answer"
+  if ! grep -Fxq "${TRUENAS_HOST}" <<<"${answers}"; then
+    printf '%s resolved IPv4 addresses:\n%s\n' "${label}" "${answers}" >&2
+    fail "${label}: ${INTERNAL_HOST} does not resolve to TrueNAS ${TRUENAS_HOST}"
+  fi
 }
 
 check_certificate() {
@@ -39,13 +66,22 @@ check_certificate() {
 printf '==> TrueNAS FastAPI health\n'
 curl --fail --silent --show-error --max-time 10 "${LOCAL_HEALTH_URL}" >/dev/null
 
-printf '==> internal Pi-hole DNS\n'
-internal_ips="$(getent ahostsv4 "${INTERNAL_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
-[[ -n "${internal_ips}" ]] || fail "${INTERNAL_HOST} does not resolve"
-grep -Fxq "${TRUENAS_HOST}" <<<"${internal_ips}" || {
-  printf 'Resolved IPv4 addresses:\n%s\n' "${internal_ips}" >&2
-  fail "${INTERNAL_HOST} does not resolve to TrueNAS ${TRUENAS_HOST}"
-}
+printf '==> internal Pi-hole DNS (authoritative private record)\n'
+pihole_ips="$(resolve_a_with_server "${PIHOLE_DNS}" "${INTERNAL_HOST}")"
+require_truenas_answer "Pi-hole authoritative DNS" "${pihole_ips}"
+
+printf '==> pfSense/Unbound split DNS\n'
+pfsense_ips="$(resolve_a_with_server "${PFSENSE_DNS}" "${INTERNAL_HOST}")"
+require_truenas_answer "pfSense/Unbound split DNS" "${pfsense_ips}"
+
+printf '==> system resolver view (non-blocking warning; prefer pfSense/Unbound)\n'
+system_ips="$(getent ahostsv4 "${INTERNAL_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
+if [[ -n "${system_ips}" ]] && grep -Fxq "${TRUENAS_HOST}" <<<"${system_ips}"; then
+  printf 'OK: system resolver view resolves %s to TrueNAS %s\n' "${INTERNAL_HOST}" "${TRUENAS_HOST}"
+else
+  printf 'WARNING: system resolver view differs from private DNS; prefer pfSense/Unbound for clients (non-blocking warning)\n' >&2
+  warnings=$((warnings + 1))
+fi
 
 printf '==> internal Traefik TLS certificate\n'
 check_certificate "${TRAEFIK_HOST}:${TRAEFIK_PORT}" "${INTERNAL_HOST}" "Traefik internal ingress"
@@ -138,4 +174,8 @@ else
   printf 'INFO: set CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET to prove the full Tunnel origin path\n'
 fi
 
-printf 'OK: internal Pi-hole -> Traefik and public Cloudflare Access/Tunnel contracts are consistent for FastAPI Sample\n'
+if ((warnings > 0)); then
+  printf 'WARNING: acceptance completed with %d non-blocking warning(s)\n' "${warnings}" >&2
+fi
+
+printf 'OK: internal Pi-hole -> pfSense/Unbound -> Traefik and public Cloudflare Access/Tunnel contracts are consistent for FastAPI Sample\n'

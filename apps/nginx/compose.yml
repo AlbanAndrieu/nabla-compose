@@ -3,6 +3,21 @@ services:
   nginx:
     image: nginx:1-alpine
     container_name: nginx
+    x-nabla:
+      id: hello-nginx
+      name: Hello Nginx
+      kind: web-server
+      category: development
+      presentationRole: support
+      criticality: low
+      description: Small internal Nginx service used for ingress and routing experiments.
+      runtime:
+        provider: truenas-app
+        containerService: nginx
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8099
     restart: unless-stopped
     environment:
       UID: 1000

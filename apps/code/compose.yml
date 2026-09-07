@@ -3,6 +3,20 @@ services:
   code-server:
     image: lscr.io/linuxserver/code-server:latest
     container_name: code
+    x-nabla:
+      id: code-server
+      name: Code Server
+      kind: development-environment
+      category: development
+      presentationRole: service
+      criticality: medium
+      description: Browser-based development environment for homelab repositories.
+      runtime:
+        provider: truenas-app
+        containerService: code-server
+      monitoring:
+        type: http
+        target: http://172.17.0.24:8443/healthz
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8443/healthz"]
       interval: 30s

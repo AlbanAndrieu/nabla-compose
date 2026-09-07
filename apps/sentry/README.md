@@ -60,19 +60,20 @@ The three runtime ClickHouse password variables currently refer to the same
 dedicated runtime identity `sentry`.
 
 Create a second mode-`0600` file, `/mnt/cpool/sentry/.env.migrator.secrets`,
-containing only the one-shot migration credentials:
+containing only the one-shot ClickHouse migration credentials:
 
 ```dotenv
 CLICKHOUSE_PASSWORD=
 CLICKHOUSE_READONLY_PASSWORD=
 CLICKHOUSE_TRACE_PASSWORD=
-REDIS_PASSWORD=
 ```
 
-The ClickHouse values belong to `sentry_migrator`; `REDIS_PASSWORD` is the
-shared Redis credential required while Snuba initializes. None of the
-migrator ClickHouse credentials must be copied into the runtime
-`.env.secrets` file.
+The ClickHouse values belong to `sentry_migrator`. The one-shot
+`snuba-migrate` service loads the normal `.env.secrets` first and the
+migrator file second, so the shared `REDIS_PASSWORD` is reused without being
+duplicated while the three ClickHouse passwords are overridden by the
+restricted migrator identity. None of the migrator ClickHouse credentials
+must be copied into the runtime `.env.secrets` file.
 
 `RELAY_REDIS_URL` must reference the shared authenticated Redis service. Do
 not print this URL in diagnostics because it contains the Redis password.

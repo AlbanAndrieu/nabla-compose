@@ -6,6 +6,17 @@ services:
       dockerfile: Dockerfile
     image: openclaw-sandbox:bookworm-slim
     container_name: openclaw-sandbox
+    x-nabla:
+      id: openclaw-sandbox
+      name: OpenClaw Sandbox
+      kind: automation-sandbox
+      category: development
+      presentationRole: support
+      criticality: low
+      description: Isolated sandbox for OpenClaw skills and local calendar tooling.
+      runtime:
+        provider: truenas-app
+        containerService: openclaw-sandbox
     restart: unless-stopped
     volumes:
       - /home/albandrieu/.openclaw/workspace/skills:/workspace/skills

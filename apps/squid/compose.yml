@@ -1,6 +1,21 @@
 services:
   squid:
     image: sameersbn/squid:3.5.27-2
+    x-nabla:
+      id: squid
+      name: Squid Proxy
+      kind: forward-proxy
+      category: network
+      presentationRole: support
+      criticality: medium
+      description: Internal forward proxy for controlled HTTP(S) egress experiments.
+      runtime:
+        provider: truenas-app
+        containerService: squid
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 3128
     restart: unless-stopped
     ports:
       - "3128:3128"

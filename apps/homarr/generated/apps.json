@@ -19,13 +19,14 @@
     },
     {
       "id": "aistor",
-      "name": "Aistor",
-      "group": "aistor",
+      "name": "AIStor",
+      "group": "data",
       "sourcePath": "apps/aistor/compose.yml",
       "composeService": "aistor",
       "dockerManaged": true,
       "href": "http://172.17.0.24:9091",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "MinIO AIStor-compatible object storage service."
     },
     {
       "id": "akvorado-console",
@@ -90,13 +91,14 @@
     },
     {
       "id": "autoxpose",
-      "name": "Autoxpose",
-      "group": "autoxpose",
+      "name": "AutoXpose",
+      "group": "operations",
       "sourcePath": "apps/autoxpose/compose.yml",
       "composeService": "autoxpose",
       "dockerManaged": true,
       "href": "http://172.17.0.24:4949",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Reconciles Docker service exposure and DNS/proxy provider state."
     },
     {
       "id": "bichon",
@@ -119,14 +121,15 @@
       "syncEligible": false
     },
     {
-      "id": "code-code-server",
+      "id": "code-server",
       "name": "Code Server",
-      "group": "code",
+      "group": "development",
       "sourcePath": "apps/code/compose.yml",
       "composeService": "code-server",
       "dockerManaged": true,
       "href": "https://code.int.albandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Browser-based development environment for homelab repositories."
     },
     {
       "id": "crowdsec",
@@ -153,32 +156,35 @@
     {
       "id": "dockhand",
       "name": "Dockhand",
-      "group": "dockhand",
+      "group": "operations",
       "sourcePath": "apps/dockhand/compose.yml",
       "composeService": "dockhand",
       "dockerManaged": true,
       "href": "http://172.17.0.24:3050",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Docker container management UI."
     },
     {
       "id": "dozzle",
       "name": "Dozzle",
-      "group": "dozzle",
+      "group": "observability",
       "sourcePath": "apps/dozzle/compose.yml",
       "composeService": "dozzle",
       "dockerManaged": true,
       "href": "https://dozzle.int.albandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Live Docker log viewer and MCP-enabled operations UI."
     },
     {
       "id": "drawio",
-      "name": "Drawio",
-      "group": "drawio",
+      "name": "Draw.io",
+      "group": "productivity",
       "sourcePath": "apps/drawio/compose.yml",
       "composeService": "drawio",
       "dockerManaged": true,
       "href": "http://172.17.0.24:9080",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Self-hosted diagrams.net editor."
     },
     {
       "id": "elasticsearch",
@@ -265,6 +271,17 @@
       "syncEligible": false
     },
     {
+      "id": "hello-nginx",
+      "name": "Hello Nginx",
+      "group": "development",
+      "sourcePath": "apps/nginx/compose.yml",
+      "composeService": "nginx",
+      "dockerManaged": true,
+      "href": "https://hello.int.albandrieu.com",
+      "syncEligible": true,
+      "description": "Small internal Nginx service used for ingress and routing experiments."
+    },
+    {
       "id": "homarr",
       "name": "Homarr",
       "group": "operations",
@@ -288,13 +305,14 @@
     },
     {
       "id": "homeassistant",
-      "name": "Homeassistant",
-      "group": "homeassistant",
+      "name": "Home Assistant",
+      "group": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
       "composeService": "homeassistant",
       "dockerManaged": true,
       "href": "https://homeassistant.albanandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Home automation control plane exposed through the dedicated IoT network."
     },
     {
       "id": "influxdb",
@@ -359,13 +377,14 @@
     },
     {
       "id": "languagetool",
-      "name": "Languagetool",
-      "group": "languagetool",
+      "name": "LanguageTool",
+      "group": "productivity",
       "sourcePath": "apps/languagetool/compose.yml",
       "composeService": "languagetool",
       "dockerManaged": true,
       "href": "https://languagetool.int.albandrieu.com",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Self-hosted grammar and style checking API."
     },
     {
       "id": "litellm",
@@ -429,43 +448,36 @@
     },
     {
       "id": "nexus",
-      "name": "Nexus",
-      "group": "nexus",
+      "name": "Nexus Repository",
+      "group": "development",
       "sourcePath": "apps/nexus/compose.yml",
       "composeService": "nexus",
       "dockerManaged": true,
       "href": "http://172.17.0.24:8081",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Repository manager for development artifacts and package proxies."
     },
     {
-      "id": "nginx",
-      "name": "Nginx",
-      "group": "nginx",
-      "sourcePath": "apps/nginx/compose.yml",
-      "composeService": "nginx",
-      "dockerManaged": true,
-      "href": "https://hello.int.albandrieu.com",
-      "syncEligible": true
-    },
-    {
-      "id": "nginx-proxy-manager-app",
-      "name": "App",
-      "group": "nginx-proxy-manager",
+      "id": "nginx-proxy-manager",
+      "name": "Nginx Proxy Manager",
+      "group": "network",
       "sourcePath": "apps/nginx-proxy-manager/compose.yml",
       "composeService": "app",
       "dockerManaged": true,
       "href": "http://172.17.0.24:30020",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Legacy reverse-proxy administration service retained during NPMplus migration."
     },
     {
       "id": "npmplus",
-      "name": "Npmplus",
-      "group": "npmplus",
+      "name": "NPMplus",
+      "group": "network",
       "sourcePath": "apps/npmplus/compose.yml",
       "composeService": "npmplus",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target."
     },
     {
       "id": "ntopng",
@@ -499,44 +511,48 @@
       "syncEligible": true
     },
     {
-      "id": "opconnect-op-connect-api",
-      "name": "Op Connect Api",
-      "group": "opconnect",
+      "id": "op-connect-api",
+      "name": "1Password Connect API",
+      "group": "security",
       "sourcePath": "apps/opconnect/compose.yml",
       "composeService": "op-connect-api",
       "dockerManaged": true,
       "href": "http://172.17.0.24:8097",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "1Password Connect API for machine-readable secret access."
     },
     {
-      "id": "opconnect-op-connect-sync",
-      "name": "Op Connect Sync",
-      "group": "opconnect",
+      "id": "op-connect-sync",
+      "name": "1Password Connect Sync",
+      "group": "security",
       "sourcePath": "apps/opconnect/compose.yml",
       "composeService": "op-connect-sync",
       "dockerManaged": true,
       "href": "http://172.17.0.24:8098",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Synchronizes 1Password vault state for the Connect API."
     },
     {
-      "id": "openclaw-openclaw-sandbox",
-      "name": "Openclaw Sandbox",
-      "group": "openclaw",
+      "id": "openclaw-sandbox",
+      "name": "OpenClaw Sandbox",
+      "group": "development",
       "sourcePath": "apps/openclaw/compose.yml",
       "composeService": "openclaw-sandbox",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling."
     },
     {
       "id": "openhands",
-      "name": "Openhands",
-      "group": "openhands",
+      "name": "OpenHands",
+      "group": "ai",
       "sourcePath": "apps/openhands/compose.yml",
       "composeService": "openhands",
       "dockerManaged": true,
       "href": "http://172.17.0.24:3010",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Self-hosted coding-agent environment with Docker-backed sandboxes."
     },
     {
       "id": "openrag-backend",
@@ -662,44 +678,48 @@
       "description": "Pi-hole DNS filtering and administration."
     },
     {
-      "id": "pihole-pihole-dns-sync",
-      "name": "Pihole Dns Sync",
-      "group": "pihole",
+      "id": "pihole-dns-sync",
+      "name": "Pi-hole DNS Sync",
+      "group": "network",
       "sourcePath": "apps/pihole/compose.yml",
       "composeService": "pihole-dns-sync",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Synchronizes repository-managed Docker/Traefik service names into Pi-hole private DNS."
     },
     {
-      "id": "pihole-pihole-exporter",
-      "name": "Pihole Exporter",
-      "group": "pihole",
+      "id": "pihole-exporter",
+      "name": "Pi-hole Exporter",
+      "group": "observability",
       "sourcePath": "apps/pihole/compose.yml",
       "composeService": "pihole-exporter",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Prometheus-compatible metrics exporter for Pi-hole."
     },
     {
       "id": "portracker",
       "name": "Portracker",
-      "group": "portracker",
+      "group": "operations",
       "sourcePath": "apps/portracker/compose.yml",
       "composeService": "portracker",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Host and Docker port inventory used to detect exposure and allocation drift."
     },
     {
-      "id": "postgres-postgres-exporter",
-      "name": "Postgres Exporter",
-      "group": "postgres",
+      "id": "postgres-exporter",
+      "name": "PostgreSQL Exporter",
+      "group": "observability",
       "sourcePath": "apps/postgres/compose.yml",
       "composeService": "postgres_exporter",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Prometheus exporter for the shared PostgreSQL service."
     },
     {
       "id": "prometheus",
@@ -743,13 +763,14 @@
     },
     {
       "id": "pyroscope",
-      "name": "Pyroscope",
-      "group": "pyroscope",
+      "name": "Grafana Pyroscope",
+      "group": "observability",
       "sourcePath": "apps/pyroscope/compose.yml",
       "composeService": "pyroscope",
       "dockerManaged": true,
       "href": "http://172.17.0.24:4040",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state."
     },
     {
       "id": "redis",
@@ -793,6 +814,17 @@
       "syncEligible": false
     },
     {
+      "id": "sentry",
+      "name": "Sentry",
+      "group": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-web",
+      "dockerManaged": true,
+      "href": "https://sentry.albandrieu.com",
+      "syncEligible": true,
+      "description": "Self-hosted Sentry 26.8 errors-only application service."
+    },
+    {
       "id": "sentry-clickhouse",
       "name": "Sentry ClickHouse",
       "group": "data",
@@ -801,6 +833,16 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
+    },
+    {
+      "id": "sentry-edge",
+      "name": "Sentry Edge",
+      "group": "network",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "nginx",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9005",
+      "syncEligible": true
     },
     {
       "id": "sentry-memcached",
@@ -813,19 +855,9 @@
       "syncEligible": false
     },
     {
-      "id": "sentry-nginx",
-      "name": "Nginx",
-      "group": "sentry",
-      "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "nginx",
-      "dockerManaged": true,
-      "href": "http://172.17.0.24:9005",
-      "syncEligible": true
-    },
-    {
       "id": "sentry-relay",
-      "name": "Relay",
-      "group": "sentry",
+      "name": "Sentry Relay",
+      "group": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "relay",
       "dockerManaged": true,
@@ -883,34 +915,15 @@
       "syncEligible": false
     },
     {
-      "id": "sentry-sentry-taskworker",
-      "name": "Sentry Taskworker",
-      "group": "sentry",
-      "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "sentry-taskworker",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "sentry-sentry-web",
-      "name": "Sentry Web",
-      "group": "sentry",
-      "sourcePath": "apps/sentry/compose.yml",
-      "composeService": "sentry-web",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "sentry-snuba-api",
-      "name": "Snuba Api",
-      "group": "sentry",
+      "name": "Sentry Snuba API",
+      "group": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "snuba-api",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Sentry query API backed by the dedicated temporary Sentry ClickHouse."
     },
     {
       "id": "sentry-snuba-errors-consumer",
@@ -984,10 +997,20 @@
     },
     {
       "id": "sentry-taskbroker",
-      "name": "Taskbroker",
-      "group": "sentry",
+      "name": "Sentry Taskbroker",
+      "group": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "taskbroker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-taskworker",
+      "name": "Sentry Taskworker",
+      "group": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-taskworker",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
@@ -1004,13 +1027,14 @@
     },
     {
       "id": "squid",
-      "name": "Squid",
-      "group": "squid",
+      "name": "Squid Proxy",
+      "group": "network",
       "sourcePath": "apps/squid/compose.yml",
       "composeService": "squid",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Internal forward proxy for controlled HTTP(S) egress experiments."
     },
     {
       "id": "suricata",
@@ -1098,22 +1122,24 @@
     {
       "id": "vaultwarden",
       "name": "Vaultwarden",
-      "group": "vaultwarden",
+      "group": "security",
       "sourcePath": "apps/vaultwarden/compose.yml",
       "composeService": "vaultwarden",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:30032",
-      "syncEligible": true
+      "href": "https://vaultwarden.albandrieu.com",
+      "syncEligible": true,
+      "description": "Self-hosted Bitwarden-compatible password and secret vault."
     },
     {
-      "id": "vaultwarden-bitwarden-api",
-      "name": "Bitwarden Api",
-      "group": "vaultwarden",
+      "id": "vaultwarden-rest-api",
+      "name": "Vaultwarden REST API Adapter",
+      "group": "security",
       "sourcePath": "apps/vaultwarden/compose.yml",
       "composeService": "bitwarden-api",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval."
     },
     {
       "id": "wazuh-dashboard",
@@ -1157,13 +1183,14 @@
     },
     {
       "id": "wordpress",
-      "name": "Wordpress",
-      "group": "wordpress",
+      "name": "WordPress",
+      "group": "development",
       "sourcePath": "apps/wordpress/compose.yml",
       "composeService": "wordpress",
       "dockerManaged": true,
       "href": "http://172.17.0.24:8088",
-      "syncEligible": true
+      "syncEligible": true,
+      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP."
     },
     {
       "id": "wordpress-wordpress-initdb",

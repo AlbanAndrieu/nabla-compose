@@ -11,8 +11,8 @@
   },
   {
     "type": "port",
-    "name": "Aistor",
-    "description": "Nabla generated monitor: aistor",
+    "name": "AIStor",
+    "description": "MinIO AIStor-compatible object storage service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -56,14 +56,13 @@
     "url": "http://172.17.0.24:12345/-/healthy"
   },
   {
-    "type": "port",
-    "name": "Autoxpose",
-    "description": "Nabla generated monitor: autoxpose",
+    "type": "http",
+    "name": "AutoXpose",
+    "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 4949
+    "url": "http://172.17.0.24:4949/api/settings/status"
   },
   {
     "type": "port",
@@ -86,14 +85,13 @@
     "port": 8123
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Code Server",
-    "description": "Nabla generated monitor: code-code-server",
+    "description": "Browser-based development environment for homelab repositories.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8443
+    "url": "http://172.17.0.24:8443/healthz"
   },
   {
     "type": "port",
@@ -118,7 +116,7 @@
   {
     "type": "port",
     "name": "Dockhand",
-    "description": "Nabla generated monitor: dockhand",
+    "description": "Docker container management UI.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -128,7 +126,7 @@
   {
     "type": "port",
     "name": "Dozzle",
-    "description": "Nabla generated monitor: dozzle",
+    "description": "Live Docker log viewer and MCP-enabled operations UI.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -137,8 +135,8 @@
   },
   {
     "type": "port",
-    "name": "Drawio",
-    "description": "Nabla generated monitor: drawio",
+    "name": "Draw.io",
+    "description": "Self-hosted diagrams.net editor.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -225,6 +223,16 @@
   },
   {
     "type": "port",
+    "name": "Hello Nginx",
+    "description": "Small internal Nginx service used for ingress and routing experiments.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8099
+  },
+  {
+    "type": "port",
     "name": "Homarr",
     "description": "Homelab application dashboard generated from the Nabla service inventory.",
     "interval": 60,
@@ -283,14 +291,13 @@
     "port": 3000
   },
   {
-    "type": "port",
-    "name": "Languagetool",
-    "description": "Nabla generated monitor: languagetool",
+    "type": "http",
+    "name": "LanguageTool",
+    "description": "Self-hosted grammar and style checking API.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8010
+    "url": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
   },
   {
     "type": "port",
@@ -342,8 +349,8 @@
   },
   {
     "type": "port",
-    "name": "Nexus",
-    "description": "Nabla generated monitor: nexus",
+    "name": "Nexus Repository",
+    "description": "Repository manager for development artifacts and package proxies.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -352,23 +359,23 @@
   },
   {
     "type": "port",
-    "name": "Nginx",
-    "description": "Nabla generated monitor: nginx",
+    "name": "Nginx Proxy Manager",
+    "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 8099
+    "port": 30021
   },
   {
     "type": "port",
-    "name": "App",
-    "description": "Nabla generated monitor: nginx-proxy-manager-app",
+    "name": "NPMplus",
+    "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 30020
+    "port": 30360
   },
   {
     "type": "port",
@@ -402,8 +409,8 @@
   },
   {
     "type": "port",
-    "name": "Op Connect Api",
-    "description": "Nabla generated monitor: opconnect-op-connect-api",
+    "name": "1Password Connect API",
+    "description": "1Password Connect API for machine-readable secret access.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -412,8 +419,8 @@
   },
   {
     "type": "port",
-    "name": "Op Connect Sync",
-    "description": "Nabla generated monitor: opconnect-op-connect-sync",
+    "name": "1Password Connect Sync",
+    "description": "Synchronizes 1Password vault state for the Connect API.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -422,8 +429,8 @@
   },
   {
     "type": "port",
-    "name": "Openhands",
-    "description": "Nabla generated monitor: openhands",
+    "name": "OpenHands",
+    "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -530,8 +537,8 @@
   },
   {
     "type": "port",
-    "name": "Pihole Exporter",
-    "description": "Nabla generated monitor: pihole-pihole-exporter",
+    "name": "Pi-hole Exporter",
+    "description": "Prometheus-compatible metrics exporter for Pi-hole.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -541,7 +548,7 @@
   {
     "type": "port",
     "name": "Portracker",
-    "description": "Nabla generated monitor: portracker",
+    "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -550,8 +557,8 @@
   },
   {
     "type": "port",
-    "name": "Postgres Exporter",
-    "description": "Nabla generated monitor: postgres-postgres-exporter",
+    "name": "PostgreSQL Exporter",
+    "description": "Prometheus exporter for the shared PostgreSQL service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -607,14 +614,13 @@
     "port": 9100
   },
   {
-    "type": "port",
-    "name": "Pyroscope",
-    "description": "Nabla generated monitor: pyroscope",
+    "type": "http",
+    "name": "Grafana Pyroscope",
+    "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 4040
+    "url": "http://172.17.0.24:4040/ready"
   },
   {
     "type": "port",
@@ -646,6 +652,15 @@
     "url": "http://172.17.0.24:31054/api/health"
   },
   {
+    "type": "http",
+    "name": "Sentry",
+    "description": "Self-hosted Sentry 26.8 errors-only application service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9005/_health/"
+  },
+  {
     "type": "port",
     "name": "Sentry ClickHouse",
     "description": "Nabla generated monitor: sentry-clickhouse",
@@ -656,14 +671,13 @@
     "port": 9000
   },
   {
-    "type": "port",
-    "name": "Nginx",
-    "description": "Nabla generated monitor: sentry-nginx",
+    "type": "http",
+    "name": "Sentry Edge",
+    "description": "Nabla generated monitor: sentry-edge",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9005
+    "url": "http://172.17.0.24:9005/_health/"
   },
   {
     "type": "port",
@@ -677,8 +691,8 @@
   },
   {
     "type": "port",
-    "name": "Squid",
-    "description": "Nabla generated monitor: squid",
+    "name": "Squid Proxy",
+    "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -737,7 +751,7 @@
   {
     "type": "port",
     "name": "Vaultwarden",
-    "description": "Nabla generated monitor: vaultwarden",
+    "description": "Self-hosted Bitwarden-compatible password and secret vault.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -756,8 +770,8 @@
   },
   {
     "type": "port",
-    "name": "Wordpress",
-    "description": "Nabla generated monitor: wordpress",
+    "name": "WordPress",
+    "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

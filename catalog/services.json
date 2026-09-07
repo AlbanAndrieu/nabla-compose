@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:b4e5efd5d85365f9d3b2000fa3300b337e1ee5456f81095194ddfeb12e7be047",
+  "catalogRevision": "sha256:2c8abefd0ea7240607a80270b6af6e1ee15eaa3b40b1e618e36647ff6fbcd2b9",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -20,6 +20,21 @@
         "containerService": "2fauth"
       },
       "icon": "🔐"
+    },
+    {
+      "id": "aistor",
+      "name": "AIStor",
+      "kind": "object-storage",
+      "category": "data",
+      "sourcePath": "apps/aistor/compose.yml",
+      "composeService": "aistor",
+      "description": "MinIO AIStor-compatible object storage service.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "aistor"
+      }
     },
     {
       "id": "akvorado-console",
@@ -120,6 +135,21 @@
       }
     },
     {
+      "id": "autoxpose",
+      "name": "AutoXpose",
+      "kind": "exposure-automation",
+      "category": "operations",
+      "sourcePath": "apps/autoxpose/compose.yml",
+      "composeService": "autoxpose",
+      "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "autoxpose"
+      }
+    },
+    {
       "id": "bichon",
       "name": "Bichon",
       "kind": "application",
@@ -145,6 +175,21 @@
       "icon": "⚡"
     },
     {
+      "id": "code-server",
+      "name": "Code Server",
+      "kind": "development-environment",
+      "category": "development",
+      "sourcePath": "apps/code/compose.yml",
+      "composeService": "code-server",
+      "description": "Browser-based development environment for homelab repositories.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "code-server"
+      }
+    },
+    {
       "id": "crowdsec",
       "name": "CrowdSec",
       "kind": "security-agent",
@@ -160,6 +205,84 @@
         "containerService": "crowdsec"
       },
       "icon": "🛡️"
+    },
+    {
+      "id": "docker-socket-proxy",
+      "name": "Docker Socket Proxy",
+      "kind": "security-proxy",
+      "category": "infrastructure",
+      "sourcePath": "docker-compose.yml",
+      "composeService": "docker-socket-proxy",
+      "description": "Restricted read-only Docker Engine API boundary for repository automation.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "docker-socket-proxy"
+      }
+    },
+    {
+      "id": "dockhand",
+      "name": "Dockhand",
+      "kind": "container-management",
+      "category": "operations",
+      "sourcePath": "apps/dockhand/compose.yml",
+      "composeService": "dockhand",
+      "description": "Docker container management UI.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dockhand"
+      }
+    },
+    {
+      "id": "doco-cd",
+      "name": "Doco-CD",
+      "kind": "deployment-automation",
+      "category": "operations",
+      "sourcePath": "docker-compose.yml",
+      "composeService": "doco-cd",
+      "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "doco-cd"
+      }
+    },
+    {
+      "id": "dozzle",
+      "name": "Dozzle",
+      "kind": "log-viewer",
+      "category": "observability",
+      "sourcePath": "apps/dozzle/compose.yml",
+      "composeService": "dozzle",
+      "description": "Live Docker log viewer and MCP-enabled operations UI.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dozzle"
+      }
+    },
+    {
+      "id": "drawio",
+      "name": "Draw.io",
+      "kind": "diagramming",
+      "category": "productivity",
+      "sourcePath": "apps/drawio/compose.yml",
+      "composeService": "drawio",
+      "description": "Self-hosted diagrams.net editor.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "drawio"
+      }
     },
     {
       "id": "elasticsearch",
@@ -271,6 +394,21 @@
       "icon": "⚖️"
     },
     {
+      "id": "hello-nginx",
+      "name": "Hello Nginx",
+      "kind": "web-server",
+      "category": "development",
+      "sourcePath": "apps/nginx/compose.yml",
+      "composeService": "nginx",
+      "description": "Small internal Nginx service used for ingress and routing experiments.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx"
+      }
+    },
+    {
       "id": "homarr",
       "name": "Homarr",
       "kind": "dashboard",
@@ -295,6 +433,21 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "homarr-sync"
+      }
+    },
+    {
+      "id": "homeassistant",
+      "name": "Home Assistant",
+      "kind": "home-automation",
+      "category": "automation",
+      "sourcePath": "apps/homeassistant/compose.yml",
+      "composeService": "homeassistant",
+      "description": "Home automation control plane exposed through the dedicated IoT network.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homeassistant"
       }
     },
     {
@@ -375,6 +528,21 @@
       "icon": "⚙️"
     },
     {
+      "id": "languagetool",
+      "name": "LanguageTool",
+      "kind": "language-service",
+      "category": "productivity",
+      "sourcePath": "apps/languagetool/compose.yml",
+      "composeService": "languagetool",
+      "description": "Self-hosted grammar and style checking API.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "languagetool"
+      }
+    },
+    {
       "id": "litellm",
       "name": "LiteLLM",
       "kind": "gateway",
@@ -453,6 +621,51 @@
       "icon": "⚙️"
     },
     {
+      "id": "nexus",
+      "name": "Nexus Repository",
+      "kind": "artifact-repository",
+      "category": "development",
+      "sourcePath": "apps/nexus/compose.yml",
+      "composeService": "nexus",
+      "description": "Repository manager for development artifacts and package proxies.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nexus"
+      }
+    },
+    {
+      "id": "nginx-proxy-manager",
+      "name": "Nginx Proxy Manager",
+      "kind": "reverse-proxy",
+      "category": "network",
+      "sourcePath": "apps/nginx-proxy-manager/compose.yml",
+      "composeService": "app",
+      "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "app"
+      }
+    },
+    {
+      "id": "npmplus",
+      "name": "NPMplus",
+      "kind": "reverse-proxy",
+      "category": "network",
+      "sourcePath": "apps/npmplus/compose.yml",
+      "composeService": "npmplus",
+      "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "npmplus"
+      }
+    },
+    {
       "id": "ntopng",
       "name": "ntopng",
       "kind": "network-observability",
@@ -490,6 +703,72 @@
         "containerService": "ollama"
       },
       "icon": "🦙"
+    },
+    {
+      "id": "op-connect-api",
+      "name": "1Password Connect API",
+      "kind": "secrets-api",
+      "category": "security",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-api",
+      "description": "1Password Connect API for machine-readable secret access.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "op-connect-api"
+      }
+    },
+    {
+      "id": "op-connect-sync",
+      "name": "1Password Connect Sync",
+      "kind": "secrets-sync",
+      "category": "security",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-sync",
+      "description": "Synchronizes 1Password vault state for the Connect API.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "op-connect-sync"
+      }
+    },
+    {
+      "id": "openclaw-sandbox",
+      "name": "OpenClaw Sandbox",
+      "kind": "automation-sandbox",
+      "category": "development",
+      "sourcePath": "apps/openclaw/compose.yml",
+      "composeService": "openclaw-sandbox",
+      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openclaw-sandbox"
+      }
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "kind": "ai-coding-agent",
+      "category": "ai",
+      "sourcePath": "apps/openhands/compose.yml",
+      "composeService": "openhands",
+      "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openhands"
+      }
     },
     {
       "id": "openrag-backend",
@@ -637,6 +916,66 @@
       }
     },
     {
+      "id": "pihole-dns-sync",
+      "name": "Pi-hole DNS Sync",
+      "kind": "configuration-reconciler",
+      "category": "network",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole-dns-sync",
+      "description": "Synchronizes repository-managed Docker/Traefik service names into Pi-hole private DNS.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole-dns-sync"
+      }
+    },
+    {
+      "id": "pihole-exporter",
+      "name": "Pi-hole Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/pihole/compose.yml",
+      "composeService": "pihole-exporter",
+      "description": "Prometheus-compatible metrics exporter for Pi-hole.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole-exporter"
+      }
+    },
+    {
+      "id": "portracker",
+      "name": "Portracker",
+      "kind": "port-inventory",
+      "category": "operations",
+      "sourcePath": "apps/portracker/compose.yml",
+      "composeService": "portracker",
+      "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "portracker"
+      }
+    },
+    {
+      "id": "postgres-exporter",
+      "name": "PostgreSQL Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/postgres/compose.yml",
+      "composeService": "postgres_exporter",
+      "description": "Prometheus exporter for the shared PostgreSQL service.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "postgres_exporter"
+      }
+    },
+    {
       "id": "prometheus",
       "name": "Prometheus",
       "kind": "observability",
@@ -659,6 +998,21 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "alertmanager"
+      }
+    },
+    {
+      "id": "pyroscope",
+      "name": "Grafana Pyroscope",
+      "kind": "continuous-profiler",
+      "category": "observability",
+      "sourcePath": "apps/pyroscope/compose.yml",
+      "composeService": "pyroscope",
+      "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pyroscope"
       }
     },
     {
@@ -701,6 +1055,22 @@
       }
     },
     {
+      "id": "sentry",
+      "name": "Sentry",
+      "kind": "error-tracking",
+      "category": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-web",
+      "url": "https://sentry.albandrieu.com",
+      "description": "Self-hosted Sentry 26.8 errors-only application service.",
+      "presentationRole": "service",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-web"
+      }
+    },
+    {
       "id": "sentry-clickhouse",
       "name": "Sentry ClickHouse",
       "kind": "database",
@@ -715,6 +1085,77 @@
       }
     },
     {
+      "id": "sentry-edge",
+      "name": "Sentry Edge",
+      "kind": "reverse-proxy",
+      "category": "network",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "nginx",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx"
+      }
+    },
+    {
+      "id": "sentry-relay",
+      "name": "Sentry Relay",
+      "kind": "ingestion-relay",
+      "category": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "relay",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "relay"
+      }
+    },
+    {
+      "id": "sentry-snuba-api",
+      "name": "Sentry Snuba API",
+      "kind": "analytics-api",
+      "category": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-api",
+      "description": "Sentry query API backed by the dedicated temporary Sentry ClickHouse.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "snuba-api"
+      }
+    },
+    {
+      "id": "sentry-taskbroker",
+      "name": "Sentry Taskbroker",
+      "kind": "task-broker",
+      "category": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "taskbroker",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "taskbroker"
+      }
+    },
+    {
+      "id": "sentry-taskworker",
+      "name": "Sentry Taskworker",
+      "kind": "worker",
+      "category": "observability",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-taskworker",
+      "presentationRole": "support",
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-taskworker"
+      }
+    },
+    {
       "id": "sonarqube",
       "name": "SonarQube",
       "kind": "code-quality",
@@ -726,6 +1167,21 @@
         "containerService": "sonarqube"
       },
       "icon": "🧹"
+    },
+    {
+      "id": "squid",
+      "name": "Squid Proxy",
+      "kind": "forward-proxy",
+      "category": "network",
+      "sourcePath": "apps/squid/compose.yml",
+      "composeService": "squid",
+      "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "squid"
+      }
     },
     {
       "id": "suricata",
@@ -786,6 +1242,43 @@
       "icon": "🚦"
     },
     {
+      "id": "vaultwarden",
+      "name": "Vaultwarden",
+      "kind": "password-manager",
+      "category": "security",
+      "sourcePath": "apps/vaultwarden/compose.yml",
+      "composeService": "vaultwarden",
+      "url": "https://vaultwarden.albandrieu.com",
+      "description": "Self-hosted Bitwarden-compatible password and secret vault.",
+      "presentationRole": "service",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "vaultwarden"
+      }
+    },
+    {
+      "id": "vaultwarden-rest-api",
+      "name": "Vaultwarden REST API Adapter",
+      "kind": "compatibility-api",
+      "category": "security",
+      "sourcePath": "apps/vaultwarden/compose.yml",
+      "composeService": "bitwarden-api",
+      "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bitwarden-api"
+      }
+    },
+    {
       "id": "wazuh-dashboard",
       "name": "Wazuh Dashboard",
       "kind": "application",
@@ -839,6 +1332,21 @@
         "containerService": "wazuh.manager"
       },
       "icon": "🛡️"
+    },
+    {
+      "id": "wordpress",
+      "name": "WordPress",
+      "kind": "cms",
+      "category": "development",
+      "sourcePath": "apps/wordpress/compose.yml",
+      "composeService": "wordpress",
+      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wordpress"
+      }
     }
   ]
 }

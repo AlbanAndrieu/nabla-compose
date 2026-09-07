@@ -3,6 +3,21 @@ services:
   portracker:
     image: mostafawahied/portracker:latest
     container_name: portracker
+    x-nabla:
+      id: portracker
+      name: Portracker
+      kind: port-inventory
+      category: operations
+      presentationRole: support
+      criticality: medium
+      description: Host and Docker port inventory used to detect exposure and allocation drift.
+      runtime:
+        provider: truenas-app
+        containerService: portracker
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 4999
     restart: unless-stopped
     pid: "host" # Required for port detection
     # Required permissions for system ports service namespace access
