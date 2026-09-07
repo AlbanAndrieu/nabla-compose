@@ -1,3 +1,15 @@
+# [0.18.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.17.0...0.18.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **sample:** harden homelab internal dependency probes ([#123](https://github.com/AlbanAndrieu/nabla-compose/issues/123)) ([87afe76](https://github.com/AlbanAndrieu/nabla-compose/commit/87afe76af22eb6813276112f8ff411ce968c1e04))
+
+
+### Features
+
+* **mcp:** add self-hosted Sentry inspector ([#120](https://github.com/AlbanAndrieu/nabla-compose/issues/120)) ([3664d40](https://github.com/AlbanAndrieu/nabla-compose/commit/3664d40c2475a9f502487e2c044fe6525d92922d))
+
 # [0.17.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.16.1...0.17.0) (2026-09-07)
 
 
