@@ -115,6 +115,7 @@ GRANT ALL ON sentry.* TO sentry_migrator;
 GRANT SELECT ON system.tables TO sentry_migrator;
 GRANT SELECT ON system.replicas TO sentry_migrator;
 GRANT SELECT ON system.columns TO sentry_migrator;
+GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;
 ```
 
 The database-scoped `ALL` is deliberately isolated to the short-lived
