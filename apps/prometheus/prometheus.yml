@@ -91,6 +91,26 @@ scrape_configs:
           - __param_target
         target_label: instance
 
+  - job_name: akvorado_inlet
+    metrics_path: /api/v0/metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.24:31057
+        labels:
+          platform: truenas
+          role: network-flow-inlet
+
+  - job_name: akvorado_outlet
+    metrics_path: /api/v0/metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.24:31058
+        labels:
+          platform: truenas
+          role: network-flow-outlet
+
   - job_name: gatus
     metrics_path: /metrics
     scrape_interval: 30s
