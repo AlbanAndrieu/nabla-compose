@@ -215,7 +215,16 @@ def runtime_placement_relation(
     runtime = service.get("runtime")
     if not isinstance(runtime, dict):
         return None
-    if runtime.get("provider") != "truenas-app" or not runtime.get("containerService"):
+    if runtime.get("provider") != "truenas-app":
+        return None
+    identity_key = (
+        "containerService"
+        if runtime.get("containerService")
+        else "appId"
+        if runtime.get("appId")
+        else None
+    )
+    if identity_key is None:
         return None
     return {
         "source": service["id"],
@@ -224,7 +233,7 @@ def runtime_placement_relation(
         "strength": "required",
         "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
         "evidence": [
-            f"{source_path}:{service['composeService']}.x-nabla.runtime.containerService"
+            f"{source_path}:{service['composeService']}.x-nabla.runtime.{identity_key}"
         ],
     }
 
