@@ -648,6 +648,11 @@ Acceptance after every shared ClickHouse change:
       `upgrade --noinput --create-kafka-topics`; validated on 2026-09-07 with
       exit code 0, 323 public tables, 490 Django migration rows, internal Sentry
       project creation, and 87 Kafka topics;
+- [x] correct the first full-runtime Taskbroker network defect: Taskbroker must
+      join both internal `sentry` and external `intranet` so taskworkers can
+      reach its gRPC endpoint while Taskbroker itself can resolve and consume
+      shared `kafka:9092`; validate after redeploy that neither Taskbroker nor
+      taskworker restart/retry loops remain;
 - [ ] send a synthetic Sentry event and prove it is processed/queryable through
       Snuba on the temporary supported ClickHouse;
 - [ ] later repeat the same synthetic-event gate on the **single shared
