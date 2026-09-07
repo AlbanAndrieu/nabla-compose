@@ -26,14 +26,14 @@ services:
       # a loop instead of masking the fault with an ever-larger session pool.
       FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_webserver_api_max_sessions: "16"
-      # Standardize the container-side web ports. TrueNAS/LAN compatibility is
-      # kept through the host mappings below.
-      FTLCONF_webserver_port: "80o,443os,[::]:80o,[::]:443os"
+      # Preserve the native TrueNAS App web listener during the first cutover.
+      # The persisted configuration already uses 20720; avoid changing the
+      # application port and deployment ownership at the same time.
+      FTLCONF_webserver_port: "20720"
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      - "20720:80/tcp"
-      - "30132:443/tcp"
+      - "20720:20720/tcp"
     volumes:
       - /mnt/cpool/pihole/config:/etc/pihole
       # Keep during migration when legacy/custom dnsmasq snippets exist.
@@ -63,7 +63,7 @@ services:
       # intranet network. Missing this network caused the 2026-09-07 restart
       # loop and repeated Pi-hole API session allocation.
       DOCKER_HOST: tcp://docker-socket-proxy:2375
-      PIHOLE_URL: http://pihole
+      PIHOLE_URL: http://pihole:20720
       SKIP_TLS_VERIFY: "false"
       TARGET_IP: 172.17.0.24
       DOMAIN_SUFFIX: int.albandrieu.com
@@ -82,7 +82,7 @@ services:
       - /mnt/cpool/pihole/.env.secrets
     environment:
       PIHOLE_HOSTNAME: pihole
-      PIHOLE_PORT: "80"
+      PIHOLE_PORT: "20720"
     ports:
       - "9617:9617"
     networks:
