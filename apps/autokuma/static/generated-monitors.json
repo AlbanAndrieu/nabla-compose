@@ -21,6 +21,15 @@
   },
   {
     "type": "http",
+    "name": "Akvorado",
+    "description": "Nabla generated monitor: akvorado-console",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31056/"
+  },
+  {
+    "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
     "interval": 60,
