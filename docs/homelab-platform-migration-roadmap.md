@@ -137,10 +137,22 @@ shared intranet
   without rotating it during cutover;
 - [ ] start the Compose replacement only after the native app is stopped and
   ports `53/20720/30132/9617` are free;
-- [ ] prove `pihole-dns-sync` stays running, resolves
+- [x] prove `pihole-dns-sync` stays running, resolves
   `docker-socket-proxy`, and no longer grows API sessions continuously;
-- [ ] prove `sample.int.albandrieu.com -> 172.17.0.24` through Pi-hole and
-  `https://sample.int.albandrieu.com/health` through Traefik;
+- [x] prove Pi-hole answers `sample.int.albandrieu.com -> 172.17.0.24` on
+  UDP/TCP 53 and that pfSense/Unbound forwards `int.albandrieu.com` to
+  `172.17.0.24`;
+- [x] fix pfSense Unbound split-DNS forwarding by keeping **Forwarding Mode**
+  disabled and allowing **Outgoing Network Interfaces = All**. The previous
+  WAN-only setting made Unbound mark the Pi-hole forwarder as expired even
+  though direct `dig @172.17.0.24` queries succeeded;
+- [ ] make pfSense/Unbound `172.17.0.1` the TrueNAS primary resolver, with
+  public resolvers only as fallbacks. Current TrueNAS resolver order still
+  starts with `9.9.9.9` and `1.1.1.1`, so libc/getent and ordinary HTTPS
+  requests cannot resolve private `*.int.albandrieu.com` even though direct
+  queries to pfSense succeed;
+- [ ] prove `https://sample.int.albandrieu.com/health` works from TrueNAS
+  without `--resolve` after the resolver-order change;
 - [ ] run the full dual-path FastAPI exposure test: private
   `sample.int.albandrieu.com` over LAN and protected
   `sample.albandrieu.com` through Cloudflare Access/Tunnel;
