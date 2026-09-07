@@ -47,6 +47,49 @@ GRANT ALL ON akvorado.* TO akvorado;
 The grant is intentionally database-scoped. Do not grant `akvorado` global
 `*.*` privileges or `WITH GRANT OPTION`.
 
+### TrueNAS Custom App deployment
+
+The repository Compose file is included by the TrueNAS Custom App. The
+secret file must also be supplied as the **include-level `env_file`** so
+`${AKVORADO_CLICKHOUSE_PASSWORD}` is available for Compose interpolation.
+A service-level `env_file` only populates the container environment and does
+not provide the variable used to render the Compose model. Docker Compose
+supports this include-level `env_file` form, and TrueNAS Custom Apps support
+`include:` for external Compose files. citeturn8search0turn7search0
+
+Use this Custom App YAML:
+
+```yaml
+include:
+  - path: /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
+    env_file:
+      - /mnt/cpool/akvorado/.env.secrets
+services: {}
+```
+
+Then **Save/Deploy** the `akvorado` Custom App. Do not paste a copy of
+`apps/akvorado/compose.yml` into the UI: the external include preserves the
+repository-relative `./config` bind mount.
+
+After deployment, verify the application before enabling any legacy flow
+collector:
+
+```bash
+midclt call app.query | jq '.[] | select(.name == "akvorado") | {name,state,version}'
+docker ps --format '{{.Names}}\t{{.Status}}' | grep -E '^akvorado-'
+```
+
+Functional checks:
+
+```bash
+curl -fsS http://172.17.0.24:31057/api/v0/healthcheck
+curl -fsS http://172.17.0.24:31058/api/v0/healthcheck
+curl -fsS http://172.17.0.24:31056/
+```
+
+Do not consider the deployment successful from container state alone; the
+Inlet/Outlet healthchecks and the end-to-end flow counters below must advance.
+
 ## pfSense
 
 Use native **Firewall -> Packet Flow Data** / pflow exporters. The local
@@ -67,6 +110,69 @@ The TrueNAS host should observe packets with:
 ```bash
 sudo tcpdump -ni br0 'udp dst port 2055 and src host 172.17.0.1'
 ```
+
+## Prometheus / NetFlow pipeline monitoring
+
+Akvorado exposes native Prometheus metrics from each component. The deployment
+publishes only the two flow-path metric endpoints needed by the TrueNAS
+Prometheus instance:
+
+```text
+Akvorado Inlet   172.17.0.24:31057/api/v0/metrics
+Akvorado Outlet  172.17.0.24:31058/api/v0/metrics
+```
+
+These ports are bound to the TrueNAS LAN address. Do not expose them to WAN.
+
+Prometheus scrapes the endpoints as:
+
+```text
+job="akvorado_inlet"
+job="akvorado_outlet"
+```
+
+Stable recording rules provide the bounded flow-monitoring contract:
+
+```promql
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+Alerts cover:
+
+- Inlet or Outlet scrape loss;
+- exporter `172.17.0.1` disappearing from Akvorado;
+- a known pfSense exporter becoming silent;
+- UDP receive errors;
+- kernel UDP receive-queue drops;
+- Kafka publish errors;
+- Outlet Kafka consumer stalls;
+- ClickHouse insertion errors;
+- Inlet traffic increasing while Outlet ClickHouse batches stall.
+
+The provisioned Grafana dashboard
+`pfSense NetFlow/IPFIX → Akvorado` correlates flow throughput with pfSense
+memory headroom and pipeline errors.
+
+After deployment, validate:
+
+```promql
+up{job="akvorado_inlet"}
+up{job="akvorado_outlet"}
+akvorado_inlet_flow_input_udp_packets_total{exporter="172.17.0.1"}
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+A successful HTTP scrape proves telemetry availability. It does not by itself
+prove that flows are moving end-to-end; require the exporter packet counter and
+ClickHouse batch counter to advance.
 
 ## Validation
 

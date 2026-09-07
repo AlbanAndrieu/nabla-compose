@@ -30,6 +30,24 @@
   },
   {
     "type": "http",
+    "name": "Akvorado Inlet",
+    "description": "Nabla generated monitor: akvorado-inlet",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31057/api/v0/healthcheck"
+  },
+  {
+    "type": "http",
+    "name": "Akvorado Outlet",
+    "description": "Nabla generated monitor: akvorado-outlet",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31058/api/v0/healthcheck"
+  },
+  {
+    "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
     "interval": 60,

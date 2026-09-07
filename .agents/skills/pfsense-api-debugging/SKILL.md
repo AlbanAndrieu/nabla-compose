@@ -182,11 +182,12 @@ versioned audit over manually reconstructing the complete posture from chat
 history:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
 ```
 
 Use `--json` for automation and `--strict` when warnings should fail a
-scheduled check. The script emits the `nabla.pfsense.posture.v1` JSON schema.
+scheduled check. Do not assume pfSense SSH uses TCP/22: prefer the workstation's
+existing `~/.ssh/config` alias, or pass `--port PORT` explicitly. The script emits the `nabla.pfsense.posture.v1` JSON schema.
 
 A partial API-only view is available without SSH:
 
@@ -263,6 +264,79 @@ about 688k source lines but only about 621 processed entries because of heavy
 overlap. Re-measure the **final processed total after each controlled feed
 change** instead of predicting the new total from subtraction alone.
 
+For the current Netgate 1100 posture, prefer a small targeted phishing
+group (OpenPhish + PhishTank) over the very large UT1 `phishing` category.
+Keep the targeted DNSBL group enabled and the UT1 `phishing` category disabled
+once the migration has been validated. This avoids carrying two overlapping
+phishing datasets and reduces Unbound Python memory pressure.
+
+### Validated 2026-09-07 stabilized baseline
+
+The successful remediation baseline was:
+
+```text
+DNSBL final entries        190804
+Unbound RSS                ~108-111 MiB
+pfb_py_data.txt             ~10 MiB
+free RAM                   ~199-203 MiB
+PHP memory_limit           128M
+TLD                        off
+UT1 adult                  disabled
+UT1 malware                disabled
+UT1 gambling               disabled
+UT1 games                  disabled
+UT1 dating                 disabled
+UT1 phishing               disabled
+targeted phishing          OpenPhish + PhishTank
+StevenBlack Gambling       disabled
+Unbound Service Watchdog   absent
+Snort                      stopped during validation
+Zabbix                     stopped during validation
+ntopng                      stopped
+softflowd                  disabled
+pflow/IPFIX                enabled
+```
+
+The previous state was roughly 923k DNSBL entries and 331-340 MiB Unbound RSS,
+with repeated kernel OOM kills. A controlled DNSBL-only rebuild with Unbound
+stopped reduced the dataset by about 79% and Unbound RSS by about two thirds.
+
+The installed pfBlockerNG `3.2.17_1` lacks the newer
+`pfb_unbound_py_swap_fits_ram` guard. For a future large DNSBL rebuild on this
+box, do not assume zero-downtime hot swap is safe. Reuse the proven sequence:
+stop optional consumers, keep Unbound out of Service Watchdog, stop Unbound,
+verify memory headroom, run **Force Reload -> DNSBL only**, then validate the
+PASSED/ENDED markers and the new RSS/free-memory baseline.
+
+`lighttpd_pfb` is not Unbound even though its command line references
+`/var/unbound`. Exactly one instance should own `10.10.10.1:443`; do not
+manually start another copy.
+
+### Validated restored-service baseline
+
+After the 2026-09-07 DNSBL reduction, Snort WAN and Zabbix were successfully
+restored while preserving memory headroom:
+
+```text
+Unbound RSS              ~111-113 MiB
+Snort WAN RSS            ~47 MiB
+free RAM                 ~171-188 MiB
+page-out                 0
+Zabbix agent             running
+snort2c                  empty
+```
+
+Snort WAN runs with DAQ pcap in passive mode. TCP 7000 is present in
+`SSL_PORTS` and the SSL preprocessor but absent from the active
+`http_inspect_server` block, which currently inspects only TCP 80. Preserve
+that classification: the public 7000 listener carries TLS before HAProxy
+termination.
+
+The expected pfSense Zabbix process is
+`/usr/local/sbin/zabbix_agentd -c /usr/local/etc/zabbix7/zabbix_agentd.conf`.
+Do not use a workstation/container `zabbix_agent2` process as proof of the
+pfSense service state.
+
 ### Snort memory posture
 
 Run only the required WAN Snort instance on the Netgate 1100. The WAN HTTP
@@ -296,6 +370,17 @@ tail -80 /var/log/dhcpd.log
 
 Service Watchdog may restart Kea after a memory incident, so a later running
 PID does not disprove an earlier outage.
+
+For Unbound, do not use `pgrep -af unbound` as the sole oracle: unrelated
+processes such as `lighttpd_pfb` may match because their arguments contain
+`/var/unbound/...`. Prefer `pgrep -x unbound` or match the exact daemon command
+`/usr/local/sbin/unbound -c /var/unbound/unbound.conf`.
+
+On the current Netgate 1100, keep Unbound out of Service Watchdog unless the
+memory policy is deliberately reassessed. During the 2026-09-07 incident,
+Service Watchdog repeatedly restarted Unbound after kernel OOM kills and
+recreated the same allocation pressure; parallel restart attempts also produced
+address-in-use races.
 
 Zabbix is monitoring, not a routing/DNS prerequisite. If memory is constrained,
 leave it stopped until core services are stable:
@@ -343,6 +428,56 @@ sudo tcpdump -ni br0 -c 30 'udp dst port 2055 and src host 172.17.0.1'
 
 Do not run softflowd and pflow for the same destination without an explicit
 migration/comparison reason.
+
+### NetFlow/IPFIX end-to-end monitoring
+
+Do not treat `pflowctl ... socket: connected` as proof that local flow analytics
+is healthy. Use it only as exporter-side evidence.
+
+The current local monitoring chain is:
+
+```text
+pfSense pflow domain 1
+  -> 172.17.0.24:2055/udp
+  -> Akvorado Inlet
+  -> Kafka topic akvorado-flows
+  -> Akvorado Outlet
+  -> ClickHouse database akvorado
+```
+
+TrueNAS Prometheus scrapes:
+
+```text
+job="akvorado_inlet"  172.17.0.24:31057/api/v0/metrics
+job="akvorado_outlet" 172.17.0.24:31058/api/v0/metrics
+```
+
+Use the stable recording rules when available:
+
+```promql
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+Interpretation:
+
+- exporter missing/silent: pfSense/pflow or UDP-path degradation;
+- UDP receive errors/drops: Akvorado Inlet pressure;
+- Kafka publish errors: Inlet-to-Kafka failure;
+- Outlet Kafka input stalls: Kafka-to-Outlet consumer failure;
+- ClickHouse errors or stalled flow writes while Inlet traffic rises:
+  Outlet/persistence failure;
+- scrape failure: telemetry blind spot, not proof that pfSense is down.
+
+The provisioned Grafana drill-down is
+`pfSense NetFlow/IPFIX → Akvorado`. Cloudflare Network Flow remains an
+independent second collector for exporter corroboration.
 
 ## REST API v2 authentication
 

@@ -6,6 +6,9 @@ groups:
       - record: nabla:telemetry:pfsense_metrics_up
         expr: max(up{job="pfsense_exporter"})
 
+      - record: nabla:core:pfsense_memory_available_ratio
+        expr: 1 - max(pfsense_system_memory_usage_ratio{job="pfsense_exporter"})
+
       - record: nabla:telemetry:truenas_node_up
         expr: max(up{job="truenas_node"})
 

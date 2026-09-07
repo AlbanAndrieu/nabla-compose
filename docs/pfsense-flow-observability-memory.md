@@ -293,19 +293,211 @@ swap                     none
 The appliance must remain a firewall/security edge first. Heavy analytics,
 historical queries and flow retention belong on TrueNAS.
 
+## Validated stabilization baseline — 2026-09-07
+
+The memory incident was considered **operationally stabilized** after a
+controlled DNSBL rebuild with Unbound stopped and removed from Service Watchdog.
+
+Validated before/after measurements:
+
+| Metric | Before remediation | After remediation |
+| --- | ---: | ---: |
+| DNSBL final entries | 923,534 | 190,804 |
+| Unbound RSS | ~331-340 MiB | ~108-111 MiB |
+| pfBlockerNG Python loader | ~43.8 MiB | ~10.0 MiB |
+| Free RAM | ~80 MiB, with repeated collapse to single-digit MiB | ~199 MiB |
+| Kernel OOM behavior | repeated Unbound/php-fpm/netstat kills | no new OOM observed during the successful rebuild |
+| DNSBL reload result | unstable / prior failures | `190804 | PASSED` |
+| Update lifecycle | incomplete during incidents | `UPDATE PROCESS ENDED` |
+| Snort | stopped for remediation | still intentionally stopped |
+| Zabbix | stopped for remediation | still intentionally stopped |
+
+The DNSBL dataset therefore fell by roughly 79%, while Unbound RSS fell by
+roughly two thirds. These are observed values for this Netgate 1100 and not
+generic sizing guarantees.
+
+The successful 2026-09-07 DNSBL distribution was dominated by:
+
+```text
+StevenBlack_ADs        82,125
+EasyList               54,875
+EasyPrivacy            41,020
+EasyList_Chinese        5,734
+EasyList_French         3,009
+EasyList_Russian        1,860
+remaining UT1/EasyList categories: small
+total                 190,804
+```
+
+The final update also completed the pfBlockerNG database sanity check and
+finished normally.
+
+### Root cause and remediation sequence
+
+The incident was not caused by Unbound's native message/rrset caches. The main
+memory load came from the pfBlockerNG Python DNSBL dataset, amplified by a
+memory-constrained 1 GiB/no-swap appliance.
+
+The stable remediation was:
+
+1. keep PHP `memory_limit=128M`;
+2. stop Snort, Zabbix and ntopng during recovery;
+3. keep native pflow/IPFIX and disable legacy softflowd;
+4. disable oversized/non-essential DNSBL categories:
+   - UT1 `adult`;
+   - UT1 `malware`;
+   - UT1 `gambling`;
+   - UT1 `games`;
+   - UT1 `dating`;
+   - UT1 `phishing`;
+5. disable the separate StevenBlack `Gambling` DNSBL source;
+6. keep targeted phishing coverage with OpenPhish + PhishTank;
+7. keep TLD processing disabled;
+8. remove Unbound from Service Watchdog during remediation;
+9. stop Unbound and verify with `pgrep -x unbound` rather than
+   `pgrep -af unbound`;
+10. verify memory headroom before rebuilding;
+11. run **Force Reload → DNSBL only**, not a full pfBlockerNG update;
+12. allow the installed legacy pfBlockerNG restart path to start Unbound with
+    the reduced dataset;
+13. verify the DNSBL `PASSED` marker, `UPDATE PROCESS ENDED`, Unbound RSS,
+    free memory, and absence of new OOM events.
+
+The installed pfBlockerNG version is `3.2.17_1` and does **not** contain the
+newer `pfb_unbound_py_swap_fits_ram` guard. On this appliance, a large
+rebuild must therefore not assume that a live zero-downtime swap is memory-safe.
+The proven recovery path is a controlled rebuild with Unbound stopped first.
+
+### Service Watchdog lesson
+
+Service Watchdog repeatedly restarted Unbound immediately after kernel OOM
+kills. This created a restart/OOM loop and occasionally parallel startup races
+that produced `bind: address already in use`.
+
+For this appliance, do **not** put Unbound back under Service Watchdog until the
+memory policy has been deliberately reassessed. A watchdog restart is harmful
+when the resolver is being killed by memory exhaustion because it recreates the
+same allocation pressure immediately.
+
+Kea remains a critical service and can be monitored separately.
+
+### DNSBL web service
+
+`lighttpd_pfb` is separate from the Unbound daemon and may legitimately have
+arguments under `/var/unbound`. This is why `pgrep -af unbound` is an unsafe
+process oracle.
+
+Expected steady state:
+
+```text
+/usr/local/sbin/unbound -c /var/unbound/unbound.conf
+/usr/local/sbin/lighttpd_pfb -f /var/unbound/pfb_dnsbl_lighty.conf
+```
+
+Only one `lighttpd_pfb` process should listen on the DNSBL VIP. Do not start
+another instance manually when `10.10.10.1:443` is already bound.
+
+Verification:
+
+```csh
+pgrep -x unbound
+ps axww | grep '[l]ighttpd_pfb'
+sockstat -4 -l | grep '10.10.10.1:443'
+```
+
+### Restored steady-state services
+
+After the reduced DNSBL baseline was proven stable, Snort WAN and Zabbix were
+reintroduced successfully.
+
+Validated runtime state:
+
+```text
+Unbound                  ~111-113 MiB RSS
+Snort WAN                ~47 MiB RSS
+Snort DAQ                pcap / passive
+Snort treat-drop-as-alert enabled
+Zabbix agent             running
+CrowdSec                 running
+free RAM                 ~171-188 MiB during observation
+page-out                  0
+snort2c                   empty during validation
+```
+
+The WAN Snort generated configuration classifies TCP 7000 as TLS/SSL:
+
+```text
+portvar SSL_PORTS [443,7000,10443]
+
+preprocessor ssl:
+    ports { 443 7000 10443 },
+    trustservers,
+    noinspect_encrypted
+```
+
+The active `http_inspect_server` block contains only TCP 80. TCP 7000 must
+remain absent from that clear-text HTTP inspection block. This is the validated
+fix for the earlier false-positive chain that inserted FastAPI Cloud sources
+into `snort2c` and broke the public TrueNAS path.
+
+Zabbix validation must be performed on pfSense itself. The expected daemon is:
+
+```text
+/usr/local/sbin/zabbix_agentd -c /usr/local/etc/zabbix7/zabbix_agentd.conf
+```
+
+Do not confuse this with a workstation/container `zabbix_agent2` process.
+
+With Snort and Zabbix restored, an initial observation stayed around
+171-188 MiB free with no page-out. A later full posture audit measured
+76,012 KiB free while Unbound remained healthy at about 114 MiB RSS. The
+services were still functional, but that later value is **below the preferred
+128 MiB steady-state guardrail**.
+
+Therefore treat the restored state as operational but capacity-constrained:
+keep ntopng disabled, softflowd disabled and Unbound out of Service Watchdog;
+do not add heavyweight analytics back to pfSense. Prometheus now alerts when
+pfSense memory usage remains above approximately 87% (warning) or 94%
+(critical), corresponding roughly to the 128 MiB and 64 MiB free-memory
+guardrails on this Netgate 1100.
+
+### Remaining non-OOM feed hygiene
+
+The successful update still showed feed hygiene items that are **not** the
+current Unbound memory root cause:
+
+- `MaxMind_BD_Proxy_v4` returned HTTP 404 and restored its previous local
+  contents; the legacy PRI3 row was subsequently disabled. The separate
+  "disable MaxMind CSV updates" GeoIP setting is not a substitute for disabling
+  this discontinued feed;
+- several IP/DNSBL lists have old last-updated timestamps and should be reviewed
+  for current upstream validity;
+- `Spamhaus_eDrop_v4` remains a known invalid/obsolete feed candidate and
+  should stay disabled/reviewed separately.
+
+Treat these as maintenance debt, not as reasons to undo the stabilized memory
+configuration.
+
+The same successful update reported pfSense table usage of approximately
+266,681 entries against a hard limit of 400,000 (~66.7%). This is not the
+current memory incident, but it should be trended before adding substantially
+more IP reputation/geographic tables.
+
 ## Automated regression audit
 
 Use the repository audit from a trusted workstation for the full appliance
 contract:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
 ```
+
+If the pfSense SSH endpoint is not on TCP/22, prefer an existing workstation SSH alias in `~/.ssh/config`. Otherwise pass an explicit port with `--port PORT`; do not assume TCP/22.
 
 Machine-readable output:
 
 ```bash
-scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 --json
+scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com --json
 ```
 
 The full SSH audit is read-only and checks the settings and runtime conditions
@@ -375,6 +567,56 @@ kernel memory-reclaim kills.
 The DNSBL phase has been observed reaching `PASSED` after the Adult feed and
 memory changes. Do not infer that every future full reload is healthy without
 checking the current run's completion and kernel log.
+
+## NetFlow/IPFIX monitoring
+
+The local pflow exporter is now monitored end-to-end through Akvorado rather
+than by adding a collector to pfSense.
+
+Prometheus scrapes the Akvorado Inlet and Outlet native metric endpoints on the
+TrueNAS LAN address:
+
+```text
+172.17.0.24:31057/api/v0/metrics  # inlet
+172.17.0.24:31058/api/v0/metrics  # outlet
+```
+
+The monitoring contract distinguishes:
+
+```text
+pfSense exporter present / packets increasing
+        |
+        v
+Inlet UDP receive errors / receive-queue drops
+        |
+        v
+Kafka publish errors / messages per second
+        |
+        v
+Outlet ClickHouse insertion errors / batches per second
+```
+
+Stable recording rules include:
+
+```promql
+nabla:core:pfsense_memory_available_ratio
+nabla:telemetry:akvorado_inlet_up
+nabla:telemetry:akvorado_outlet_up
+nabla:network_flow:pfsense_packets_per_second
+nabla:network_flow:pfsense_bytes_per_second
+nabla:network_flow:pfsense_kafka_messages_per_second
+nabla:network_flow:outlet_kafka_messages_per_second
+nabla:network_flow:clickhouse_flows_per_second
+nabla:network_flow:clickhouse_batches_per_second
+```
+
+The provisioned Grafana dashboard is
+`pfSense NetFlow/IPFIX → Akvorado`.
+
+Keep telemetry semantics explicit: an Akvorado scrape failure is a blind spot,
+a silent exporter is flow degradation, and neither proves the firewall itself
+is down. Cloudflare Network Flow remains an independent second collector for
+corroborating exporter behavior.
 
 ## Security and observability follow-ups
 

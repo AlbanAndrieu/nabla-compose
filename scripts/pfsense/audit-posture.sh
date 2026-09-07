@@ -13,6 +13,7 @@ readonly DEFAULT_FREE_FAIL_KB=65536
 
 mode=""
 ssh_target="${PFSENSE_SSH_TARGET:-}"
+ssh_port="${PFSENSE_SSH_PORT:-}"
 api_url="${PFSENSE_FASTAPI_URL:-${DEFAULT_API_URL}}"
 output_format="text"
 strict=0
@@ -31,12 +32,16 @@ usage() {
 Audit the pfSense posture established after the Netgate 1100 memory incident.
 
 Usage:
-  scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 [--json] [--strict]
+  scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com [--json] [--strict]
+  scripts/pfsense/audit-posture.sh --ssh HOST --port PORT [--json] [--strict]
   scripts/pfsense/audit-posture.sh --api [URL] [--json] [--strict]
   scripts/pfsense/audit-posture.sh --local [--json] [--strict]
 
 Modes:
-  --ssh TARGET   Full read-only audit over SSH from a workstation.
+  --ssh TARGET   Full read-only audit over SSH from a workstation. SSH aliases
+                 from ~/.ssh/config are supported and preferred.
+  --port PORT    Override the SSH port when the target is not configured in
+                 ~/.ssh/config.
   --api [URL]    Partial audit through fastapi-sample.
   --local        Pipe the same POSIX collector through local /bin/sh.
 
@@ -63,6 +68,11 @@ while (($# > 0)); do
       [[ $# -ge 2 ]] || { echo "ERROR: --ssh requires a target" >&2; exit 64; }
       mode="ssh"
       ssh_target="$2"
+      shift 2
+      ;;
+    --port)
+      [[ $# -ge 2 ]] || { echo "ERROR: --port requires a port" >&2; exit 64; }
+      ssh_port="$2"
       shift 2
       ;;
     --api)
@@ -115,6 +125,14 @@ fi
 if [[ "${mode}" == "ssh" && -z "${ssh_target}" ]]; then
   echo "ERROR: SSH mode requires a target" >&2
   exit 64
+fi
+
+if [[ -n "${ssh_port}" ]]; then
+  if [[ ! "${ssh_port}" =~ ^[0-9]+$ ]] || ((ssh_port < 1 || ssh_port > 65535)); then
+    echo "ERROR: --port/PFSENSE_SSH_PORT must be an integer between 1 and 65535" >&2
+    exit 64
+  fi
+  ssh_options+=(-p "${ssh_port}")
 fi
 
 remote_collector() {
@@ -239,7 +257,9 @@ emit INFO memory.swap_used_kb "$(number_or_zero "$swap_used_kb")" "swap is not u
 oom_count="$(dmesg 2>/dev/null | egrep -ic 'killed|failed to reclaim|waited too long|out of swap' || true)"
 oom_count="$(number_or_zero "$oom_count")"
 if [ "$oom_count" -gt 0 ]; then
-  emit WARN kernel.oom_evidence "$oom_count" "current boot log contains OOM/reclaim evidence"
+  latest_oom="$(grep -Ei 'killed:|failed to reclaim|waited too long|out of swap' /var/log/system.log 2>/dev/null | tail -n 1 | tr '\t\r\n' '   ')"
+  emit INFO kernel.oom_evidence "$oom_count" "historical current-boot OOM/reclaim evidence remains until reboot"
+  emit INFO kernel.latest_oom "${latest_oom:-unknown}" "compare this timestamp after changes; historical evidence alone is not a steady-state failure"
 else
   emit PASS kernel.oom_evidence "0" "no OOM/reclaim signature found in current dmesg"
 fi
@@ -250,13 +270,49 @@ for file in /var/db/pfblockerng/dnsbl/*.txt; do
   lines="$(number_or_zero "$(wc -l <"$file" 2>/dev/null || printf '0')")"
   dnsbl_lines=$((dnsbl_lines + lines))
 done
-if [ "$dnsbl_lines" -ge "$dnsbl_fail_lines" ]; then
-  emit FAIL pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL exceeds the fail guardrail"
-elif [ "$dnsbl_lines" -ge "$dnsbl_warn_lines" ]; then
-  emit WARN pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL remains large for 1 GiB RAM"
+
+loaded_entries=0
+count_semantics="unknown"
+if grep -Fq '$dnsbl_cnt = $dnsbl_cnt - $tld_cnt' /usr/local/pkg/pfblockerng/pfblockerng.inc 2>/dev/null; then
+  count_semantics="legacy-collapse"
+  loaded_entries="$(awk 'FNR==1{files++} {count++} END{print count+0}' /var/unbound/pfb_py_data.txt /var/unbound/pfb_py_zone.txt 2>/dev/null || printf '0')"
+  loaded_entries="$(number_or_zero "$loaded_entries")"
 else
-  emit PASS pfblocker.dnsbl_processed_lines "$dnsbl_lines" "processed DNSBL is below the warning guardrail"
+  count_semantics="loaded-total"
+  if [ -r /var/unbound/pfb_py_count ]; then
+    loaded_entries="$(number_or_zero "$(tr -dc '0-9' </var/unbound/pfb_py_count 2>/dev/null)")"
+  fi
 fi
+emit INFO pfblocker.dnsbl_count_semantics "$count_semantics" "version-aware interpretation of pfBlockerNG Python DNSBL counters"
+
+if [ "$loaded_entries" -ge "$dnsbl_fail_lines" ]; then
+  emit FAIL pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot exceeds the fail guardrail"
+elif [ "$loaded_entries" -ge "$dnsbl_warn_lines" ]; then
+  emit WARN pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot remains large for 1 GiB RAM"
+elif [ "$loaded_entries" -gt 0 ]; then
+  emit PASS pfblocker.dnsbl_loaded_entries "$loaded_entries" "active Python DNSBL snapshot is below the warning guardrail"
+else
+  emit WARN pfblocker.dnsbl_loaded_entries 0 "pfb_py_count is absent or empty; use the latest DNSBL PASSED marker as fallback evidence"
+fi
+
+if [ "$dnsbl_lines" -eq 0 ] && [ "$loaded_entries" -gt 0 ]; then
+  emit INFO pfblocker.dnsbl_staged_lines 0 "no staged *.txt lines are present, but the previous Python snapshot is still active"
+elif [ "$dnsbl_lines" -ge "$dnsbl_fail_lines" ]; then
+  emit FAIL pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines exceed the fail guardrail"
+elif [ "$dnsbl_lines" -ge "$dnsbl_warn_lines" ]; then
+  emit WARN pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines remain large for 1 GiB RAM"
+else
+  emit PASS pfblocker.dnsbl_staged_lines "$dnsbl_lines" "staged DNSBL feed lines are below the warning guardrail"
+fi
+
+ut1_selected="$(sed -n '/<pfblockerngblacklist>/,/<\/pfblockerngblacklist>/p' /conf/config.xml 2>/dev/null | sed -n 's:.*<selected>\(.*\)</selected>.*:\1:p' | head -n 1)"
+for category in adult malware gambling games dating phishing; do
+  if printf ',%s,' "$ut1_selected" | grep -q ",${category},"; then
+    emit FAIL "pfblocker.ut1_category.${category}" enabled "UT1 category is expected disabled for the Netgate 1100 memory policy"
+  else
+    emit PASS "pfblocker.ut1_category.${category}" disabled "UT1 category is not selected"
+  fi
+done
 
 py_data="/var/unbound/pfb_py_data.txt"
 if [ -f "$py_data" ]; then
@@ -272,7 +328,15 @@ else
   emit FAIL pfblocker.python_loader_bytes "missing" "pfb_py_data.txt was not found"
 fi
 
-for feed in UT1_adult UT1_malware Gambling UT1_gambling UT1_games UT1_dating EasyList_Norwegian_Danish_Icelandic; do
+if grep -q '<aliasname>Phishing</aliasname>' /conf/config.xml 2>/dev/null &&
+  grep -q '<header>OpenPhish</header>' /conf/config.xml 2>/dev/null &&
+  grep -q '<header>PhishTank</header>' /conf/config.xml 2>/dev/null; then
+  emit PASS pfblocker.phishing_targeted_sources configured "targeted Phishing group contains OpenPhish and PhishTank"
+else
+  emit WARN pfblocker.phishing_targeted_sources missing "expected targeted Phishing group with OpenPhish and PhishTank"
+fi
+
+for feed in Gambling EasyList_Norwegian_Danish_Icelandic; do
   path="/var/db/pfblockerng/dnsbl/${feed}.txt"
   if [ -f "$path" ]; then
     lines="$(number_or_zero "$(wc -l <"$path" 2>/dev/null || printf '0')")"
@@ -280,11 +344,20 @@ for feed in UT1_adult UT1_malware Gambling UT1_gambling UT1_games UT1_dating Eas
     lines=0
   fi
   if [ "$lines" -gt 0 ]; then
-    emit FAIL "pfblocker.feed.${feed}" "$lines" "feed is expected disabled but still contributes processed entries"
+    emit WARN "pfblocker.feed_artifact.${feed}" "$lines" "staged artifact still contributes entries; verify group/source state after reload"
   else
-    emit PASS "pfblocker.feed.${feed}" "0" "feed contributes no processed entries"
+    emit PASS "pfblocker.feed_artifact.${feed}" 0 "feed artifact contributes no staged entries"
   fi
 done
+
+maxmind_legacy_row="$(awk '/<row>/{block=""} {block=block $0 "\n"} /<\/row>/{if (block ~ /<header>MaxMind_BD_Proxy<\/header>/) print block}' /conf/config.xml 2>/dev/null)"
+if [ -z "$maxmind_legacy_row" ]; then
+  emit PASS pfblocker.feed_legacy.MaxMind_BD_Proxy absent "discontinued MaxMind_BD_Proxy definition is absent from config"
+elif printf '%s\n' "$maxmind_legacy_row" | grep -q '<state><!\[CDATA\[Disabled\]\]></state>'; then
+  emit PASS pfblocker.feed_legacy.MaxMind_BD_Proxy disabled "discontinued MaxMind_BD_Proxy source is present but disabled"
+else
+  emit FAIL pfblocker.feed_legacy.MaxMind_BD_Proxy enabled "discontinued MaxMind_BD_Proxy source is still enabled; disable the PRI3 row, not only MaxMind GeoIP CSV updates"
+fi
 
 last_dnsbl_pass="$(grep -E 'DNSBL update.*PASSED' /var/log/pfblockerng/pfblockerng.log 2>/dev/null | tail -n 1 | tr '\t\r\n' '   ')"
 if [ -n "$last_dnsbl_pass" ]; then
@@ -316,10 +389,24 @@ else
   emit WARN snort.http_inspect_memcap missing "WAN generated snort.conf was not found"
 fi
 
-if pgrep -x snort >/dev/null 2>&1; then
-  emit INFO service.snort running "keep WAN-only and verify memory headroom"
+snort_runtime="$(ps axo command 2>/dev/null | grep '/usr/local/bin/snort ' | grep 'snort_56408_mvneta0.4090/snort.conf' | grep -v grep || true)"
+if [ -n "$snort_runtime" ]; then
+  emit PASS service.snort running "WAN Snort process is running in passive mode"
 else
-  emit INFO service.snort stopped "acceptable during memory remediation"
+  emit WARN service.snort stopped "WAN Snort process was not found"
+fi
+
+if [ -n "$snort_conf" ]; then
+  http_inspect_block="$(awk '
+    /^preprocessor http_inspect_server/ {capture=1}
+    capture {print}
+    capture && $0 !~ /\\[[:space:]]*$/ {exit}
+  ' "$snort_conf" 2>/dev/null)"
+  if printf '%s\n' "$http_inspect_block" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+    emit FAIL snort.http_inspect_port_7000 present "TLS listener 7000 must not be classified as clear-text HTTP by http_inspect_server"
+  else
+    emit PASS snort.http_inspect_port_7000 absent "TLS listener 7000 is not in http_inspect_server"
+  fi
 fi
 
 if pgrep -x ntopng >/dev/null 2>&1; then
@@ -365,6 +452,31 @@ if pgrep -x zabbix_agentd >/dev/null 2>&1; then
   emit PASS service.zabbix_agentd running "Zabbix agent is running"
 else
   emit WARN service.zabbix_agentd stopped "restore monitoring only after core memory headroom is stable"
+fi
+
+watchdog_unbound="$(sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | grep -Ei '<name>unbound</name>|<service>unbound</service>|<description>DNS Resolver</description>' || true)"
+if [ -z "$watchdog_unbound" ]; then
+  emit PASS servicewatchdog.unbound absent "Unbound is intentionally not managed by Service Watchdog on this memory-constrained appliance"
+else
+  emit FAIL servicewatchdog.unbound configured "Service Watchdog can recreate the Unbound OOM restart loop"
+fi
+
+lighttpd_count="$(number_or_zero "$(pgrep -x lighttpd_pfb 2>/dev/null | wc -l | tr -d ' ')")"
+if [ "$lighttpd_count" -eq 1 ]; then
+  emit PASS service.lighttpd_pfb "$lighttpd_count" "exactly one pfBlockerNG DNSBL web service is running"
+elif [ "$lighttpd_count" -gt 1 ]; then
+  emit FAIL service.lighttpd_pfb "$lighttpd_count" "multiple lighttpd_pfb processes can race for the DNSBL VIP"
+else
+  emit WARN service.lighttpd_pfb 0 "pfBlockerNG DNSBL web service is not running"
+fi
+
+dnsbl_listener_count="$(number_or_zero "$(sockstat -4 -l 2>/dev/null | awk '$1 ~ /^root$/ && $2 ~ /^lighttpd_p/ && $6 == "10.10.10.1:443" {count++} END {print count + 0}')")"
+if [ "$dnsbl_listener_count" -eq 1 ]; then
+  emit PASS service.lighttpd_pfb_listener "$dnsbl_listener_count" "DNSBL VIP 10.10.10.1:443 has exactly one lighttpd_pfb listener"
+elif [ "$dnsbl_listener_count" -gt 1 ]; then
+  emit FAIL service.lighttpd_pfb_listener "$dnsbl_listener_count" "multiple listeners detected for DNSBL VIP 10.10.10.1:443"
+else
+  emit WARN service.lighttpd_pfb_listener 0 "no lighttpd_pfb listener detected on DNSBL VIP 10.10.10.1:443"
 fi
 
 pfb_filter_count="$(number_or_zero "$(pgrep -f 'php_pfb.*filterlog' 2>/dev/null | wc -l | tr -d ' ')")"
