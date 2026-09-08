@@ -48,6 +48,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("https://ghcr.io/v2/", readme)
         self.assertIn("pfSense/Unbound", readme)
 
+    def test_keycloak_uses_shared_postgres_and_private_management_port(self) -> None:
+        compose = self.read("apps/keycloak/compose.yml")
+        readme = self.read("apps/keycloak/README.md")
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
+        self.assertIn("KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak", compose)
+        self.assertIn("KC_DB_USERNAME: keycloak", compose)
+        self.assertNotIn("\n  postgres:", compose)
+        self.assertIn('KC_HOSTNAME: https://keycloak.albandrieu.com', compose)
+        self.assertIn('"172.17.0.24:30238:8080"', compose)
+        self.assertIn('"172.17.0.24:30239:9000"', compose)
+        self.assertIn('KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"', compose)
+        self.assertIn("/mnt/cpool/keycloak/.env.secrets", compose)
+        self.assertIn("shared PostgreSQL", readme)
+        self.assertIn("database keycloak", readme)
+        self.assertIn("role     keycloak", readme)
+        self.assertIn("Keycloak native -> repository-managed migration", roadmap)
+        self.assertIn("global PostgreSQL service", roadmap)
+        self.assertIn("172.17.0.24:30239/health/ready", roadmap)
+
     def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
         compose = self.read("apps/squid/compose.yml")
 
