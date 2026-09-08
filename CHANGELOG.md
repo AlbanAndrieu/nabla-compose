@@ -1,3 +1,10 @@
+## [0.27.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.27.0...0.27.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **sentry:** keep runtime acceptance ahead of Docling ([#152](https://github.com/AlbanAndrieu/nabla-compose/issues/152)) ([642e96e](https://github.com/AlbanAndrieu/nabla-compose/commit/642e96ea4c1d4b129e1ff28316297471479dd192))
+
 # [0.27.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.26.0...0.27.0) (2026-09-08)
 
 
