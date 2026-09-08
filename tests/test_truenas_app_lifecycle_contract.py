@@ -848,7 +848,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("com.docker.compose.service=kafka", script)
         self.assertIn("confluentinc/cp-kafka:7.6.6", script)
         self.assertIn("Kafka runtime container:", script)
-        self.assertIn("Consumer process:", script)
+        self.assertIn("consumer_process:", script)
+        self.assertIn("midclt call core.get_jobs", script)
+        self.assertIn("starting_count", script)
+        self.assertIn("Sentry functional edge health", script)
+        self.assertIn("TrueNAS lifecycle and functional health", script)
         self.assertNotIn("docker compose down", script)
 
     def test_runtime_audit_script_is_executable(self) -> None:
