@@ -87,6 +87,14 @@ Track these independently from the Talos bridge/bootstrap:
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 
+### Garage WebUI Cloudflare exposure — 2026-09-08
+
+- [x] make `https://garage-admin.albandrieu.com` the canonical external Garage WebUI URL;
+- [ ] publish `garage-admin.albandrieu.com` through Cloudflare Tunnel with Cloudflare Access enabled;
+- [ ] require authenticated admin access (prefer MFA / explicit identity policy) and keep the Garage Admin API on TCP/3903 internal-only;
+- [ ] verify the tunnel origin targets the Garage WebUI service on port 3909 rather than exposing Garage Admin API port 3903;
+- [ ] add an external HTTPS health probe for the Access-protected WebUI and retain separate internal health probes for Garage S3/Admin APIs.
+
 ### pfSense WebGUI exposure roadmap — 2026-09-08
 
 - [x] use `https://home.albandrieu.com:10443/api/v2/system/version` as the canonical external pfSense REST API liveness endpoint; do not use `pfsense.albandrieu.com:10443` for API probing;
