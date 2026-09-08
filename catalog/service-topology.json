@@ -2451,7 +2451,7 @@
       "strength": "required",
       "description": "The exporter queries pfSense for firewall and system metrics.",
       "evidence": [
-        "apps/prometheus/compose.yml:exporter.config.yml"
+        "apps/prometheus/compose.yml:/mnt/cpool/prometheus/secrets/pfsense-exporter.yml"
       ]
     },
     {
