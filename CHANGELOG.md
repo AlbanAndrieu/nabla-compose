@@ -1,3 +1,10 @@
+## [0.23.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.0...0.23.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **observability:** stop cAdvisor auto-restart and plan shared services ([#137](https://github.com/AlbanAndrieu/nabla-compose/issues/137)) ([43fda83](https://github.com/AlbanAndrieu/nabla-compose/commit/43fda83f83d1ccdcd8aa55b363b24cda2006a9e7))
+
 # [0.23.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.3...0.23.0) (2026-09-08)
 
 
