@@ -166,13 +166,13 @@ eval "${selection}"
 printf 'Selected non-overlapping observer network: subnet=%s ip_range=%s observer_ip=%s\n' \
   "${SUBNET}" "${IP_RANGE}" "${OBSERVER_IP}"
 
+# Docker IPAM proved that the first address of the nested /29 (.8) is
+# allocatable, so reserve it explicitly; .9 is the only intended container IP.
 docker network create \
   --driver bridge \
   --subnet "${SUBNET}" \
   --gateway "${GATEWAY}" \
   --ip-range "${IP_RANGE}" \
-  # Docker IPAM proved that the first address of the nested /29 (.8) is
-  # allocatable, so reserve it explicitly; .9 is the only intended container IP.
   --aux-address "reserve8=${RESERVE_8}" \
   --aux-address "reserve10=${RESERVE_10}" \
   --aux-address "reserve11=${RESERVE_11}" \
