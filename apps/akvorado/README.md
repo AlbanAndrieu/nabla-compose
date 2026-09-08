@@ -31,7 +31,7 @@ sudo install -d -m 750 /mnt/cpool/akvorado/run /mnt/cpool/akvorado/console
 Create `/mnt/cpool/akvorado/.env.secrets` with mode `0600`:
 
 ```dotenv
-AKVORADO_CLICKHOUSE_PASSWORD=<dedicated-secret>
+AKVORADO_CFG_ORCHESTRATOR_CLICKHOUSEDB_PASSWORD=<dedicated-secret>
 ```
 
 Prepare the ClickHouse identity before starting Akvorado:
@@ -50,21 +50,26 @@ The grant is intentionally database-scoped. Do not grant `akvorado` global
 ### TrueNAS Custom App deployment
 
 The repository Compose file is included by the TrueNAS Custom App. The
-secret file must also be supplied as the **include-level `env_file`** so
-`${AKVORADO_CLICKHOUSE_PASSWORD}` is available for Compose interpolation.
-A service-level `env_file` only populates the container environment and does
-not provide the variable used to render the Compose model. Docker Compose
-supports this include-level `env_file` form, and TrueNAS Custom Apps support
-`include:` for external Compose files. citeturn8search0turn7search0
+Akvorado runtime variable is now read directly from the service-level
+`/mnt/cpool/akvorado/.env.secrets`; no include-level interpolation file is
+required.
+
+The canonical Vaultwarden manifest maps the existing import name
+`AKVORADO_CLICKHOUSE_PASSWORD` to the runtime name
+`AKVORADO_CFG_ORCHESTRATOR_CLICKHOUSEDB_PASSWORD`. Render the file with:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py \
+  --app akvorado \
+  --output-file /mnt/cpool/akvorado/.env.secrets
+chmod 600 /mnt/cpool/akvorado/.env.secrets
+```
 
 Use this Custom App YAML:
 
 ```yaml
 include:
-  - path: /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
-    env_file:
-      - /mnt/cpool/akvorado/.env.secrets
-services: {}
+  - /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
 ```
 
 Then **Save/Deploy** the `akvorado` Custom App. Do not paste a copy of
