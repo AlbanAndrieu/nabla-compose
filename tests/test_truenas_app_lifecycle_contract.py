@@ -106,6 +106,18 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("litellm_api_key", config)
         self.assertNotIn("bearer_token_file", config)
 
+    def test_prometheus_keeps_cadvisor_out_of_default_lifecycle(self) -> None:
+        compose = self.read("apps/prometheus/compose.yml")
+        config = self.read("apps/prometheus/prometheus.yml")
+
+        cadvisor = compose.split("\n  cadvisor:\n", 1)[1].split(
+            "\n  pfsense-exporter:\n",
+            1,
+        )[0]
+        self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
+        self.assertIn('restart: "no"', cadvisor)
+        self.assertNotIn("job_name: truenas_cadvisor", config)
+
     def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
         script = self.read("scripts/truenas/diagnose-performance.sh")
 
@@ -235,6 +247,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("global Langflow DNS + HTTP/7860", audit)
         self.assertIn("dedicated global Langflow API key configured", audit)
         self.assertIn("global Langflow authenticated API", audit)
+        self.assertNotIn("global Langflow app is not RUNNING", audit)
         self.assertIn("single-node OpenSearch count gate disabled", audit)
         self.assertIn("still waiting for a 3-node OpenSearch topology", audit)
         self.assertIn("OpenRAG backend: /health HTTP 200", audit)
@@ -548,7 +561,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
-        self.assertIn("http://172.17.0.24:7860/health_check", audit)
+        self.assertIn("function probe_langflow_runtime_if_present", audit)
+        self.assertIn("Langflow liveness: /health HTTP 200", audit)
+        self.assertIn("Langflow readiness: db=ok chat=ok", audit)
+        self.assertIn("db_status", audit)
+        self.assertIn("chat_status", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
         self.assertIn("function probe_clickhouse_config_mounts_if_running", audit)
