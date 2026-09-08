@@ -61,14 +61,18 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
 - [x] retire the unsafe shared-`intranet` reservation
   `172.16.55.9`; runtime proved Docker can legitimately allocate that address
   to another container while Sample is stopped;
-- [x] add the dedicated Compose-managed `sample-observer` bridge
-  `172.16.56.0/28`, pin FastAPI Sample to `172.16.56.9`, and give that
-  attachment the preferred gateway so LAN appliance calls use the stable
-  observer source while Redis/Traefik remain directly reachable on their own
-  networks;
-- [ ] migrate TrueNAS `ui_allowlist` from `172.16.55.9/32` to
-  `172.16.56.9/32`, prove authenticated WebSocket calls, then remove the
-  legacy /32 because it may now authorize an unrelated intranet container;
+- [x] reject the failed Compose-managed `172.16.56.0/28`
+  candidate after Docker proved it overlaps a broader existing address pool;
+- [x] make `sample-observer` an external repository-owned bridge prepared by
+  `scripts/truenas/prepare-sample-observer-network.sh`, with Docker-network
+  and host-route CIDR overlap checks, a constrained `ip_range`, and exactly
+  one allocatable observer address recorded in a network label;
+- [x] add explicit `--check/--apply` allowlist reconciliation from that network
+  label and automatically retire both obsolete Sample /32 values
+  (`172.16.55.9/32` and `172.16.56.9/32`);
+- [ ] prepare the new observer network, redeploy Sample, reconcile the selected
+  observer /32 into TrueNAS `ui_allowlist`, and prove authenticated WebSocket
+  calls with `verify-truenas-observer-access.sh`;
 - [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
   `truenas.albandrieu.com` certificate chain from inside the container;
 - [ ] never widen `ui_allowlist` to an entire Docker subnet merely to avoid
@@ -1734,12 +1738,12 @@ should be verified/stabilized before broad application migrations:
   node-exporter now start after removing the orphan LiteLLM secret mount;
   cAdvisor is profile-gated out of the default lifecycle because it is
   intentionally disabled on this host; the remaining blocker is the exited
-  `pfsense-exporter`, whose restart loop is now attributed to Docker having
-  created the missing `exporter.config.yml` bind source as a directory; move
-  the runtime config to
+  `pfsense-exporter`: the directory-bind restart loop is fixed and the
+  container is now running from
   `/mnt/cpool/prometheus/secrets/pfsense-exporter.yml` with
-  `create_host_path: false`, then prove the exporter scrape before considering
-  the TrueNAS Custom App fully healthy;
+  `create_host_path: false`; still prove that the scrape returns real
+  `pfsense_*` samples rather than merely HTTP 200 before considering the
+  TrueNAS Custom App fully healthy;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
@@ -1800,9 +1804,10 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 - [x] prove backend liveness, shared single-node OpenSearch readiness and
       frontend collective backend + global-Langflow health;
 - [x] prove the previous three-node OpenSearch wait loop is gone;
-- [ ] create/store a dedicated `LANGFLOW_KEY`, redeploy OpenRAG and remove the
-      stale runtime parent `/app/flows` bind that still masks image-bundled
-      flows;
+- [x] create/store the dedicated `LANGFLOW_KEY` without printing it,
+      redeploy OpenRAG, prove the authenticated global-Langflow call succeeds,
+      and prove the stale runtime parent `/app/flows` bind is gone while
+      `/app/flows/backup` remains;
 - [ ] review and deploy a repository-managed Docling service or another explicit
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
 - [ ] validate document ingestion, indexing and search end-to-end after Docling
