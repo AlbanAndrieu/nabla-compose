@@ -60,20 +60,20 @@
     {
       "name": "PostgreSQL",
       "external": false,
-      "tunnelUrl": null,
+      "tunnelUrl": "postgres://postgres.albandrieu.com:5432/",
       "tunnelSecure": false,
-      "endpointEnabled": false,
+      "endpointEnabled": true,
       "cloudflareAccessRequired": false,
-      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. PostgreSQL health is validated from the homelab with a TCP/5432 probe; lack of public reachability is intentional and must not degrade health."
+      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. The canonical endpoint is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/5432."
     },
     {
       "name": "ClamAV",
       "external": false,
-      "tunnelUrl": null,
-      "tunnelSecure": false,
-      "endpointEnabled": false,
+      "tunnelUrl": "https://clamav.albandrieu.com",
+      "tunnelSecure": true,
+      "endpointEnabled": true,
       "cloudflareAccessRequired": false,
-      "healthNote": "⚠️ Internal-only antivirus engine. No Cloudflare Tunnel or public ingress is expected. Validate clamd from the homelab on TCP/3310; lack of public reachability is intentional and must not degrade health."
+      "healthNote": "⚠️ Internal-only antivirus engine. The canonical URL is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/3310; internal DNS identity is https://clamav.int.albandrieu.com."
     }
   ]
 }
