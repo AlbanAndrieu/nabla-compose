@@ -40,7 +40,11 @@ if docker network inspect "${NETWORK_NAME}" >/dev/null 2>&1; then
   exit 0
 fi
 
-docker_json="$(docker network inspect $(docker network ls -q))"
+mapfile -t network_ids < <(docker network ls -q)
+[[ "${#network_ids[@]}" -gt 0 ]] ||
+  fail "Docker returned no networks to inspect"
+
+docker_json="$(docker network inspect "${network_ids[@]}")"
 route_json="$(ip -j -4 route show table all)"
 
 selection="$(
