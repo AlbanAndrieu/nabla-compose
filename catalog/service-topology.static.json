@@ -34,10 +34,7 @@
       "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
       "presentationRole": "support",
       "criticality": "high",
-      "securityFunctions": [
-        "protect",
-        "detect"
-      ]
+      "securityFunctions": ["protect", "detect"]
     },
     {
       "id": "postgresql",
