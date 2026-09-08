@@ -22,35 +22,51 @@ notes remain in the specialized roadmaps:
 - [x] authenticated TrueNAS WebSocket `system.version` and `app.query` succeed with TLS verification enabled.
 - [x] PR #144 fixed allowlist activation so persisted state is never treated as sufficient by itself.
 - [x] FastAPI Sample runtime promoted and validated on `1.13.3` (`a19676f`): health/version, observer source `10.254.255.9`, TLS verification and authenticated TrueNAS WebSocket calls are green.
-- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime now uses `TRUENAS_API_USERNAME=fastapi_observer`; `auth.me` has already matched that identity and the read gate sees 94 TrueNAS apps. RBAC-shape parsing and Cloud inventory parity remain before FastAPI Cloud switches from `albandrieu` to `fastapi_observer`.
+- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime now uses `TRUENAS_API_USERNAME=fastapi_observer`; `auth.me` has matched that identity and the read gate sees 94 TrueNAS apps. FastAPI Cloud temporarily keeps `albandrieu` until A/B inventory parity is green.
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [x] Sentry 26.8 is `RUNNING` and converged: no starting/unhealthy/unexpected-exited workloads, both one-shot migrations exited 0, required Kafka topics are present, the long-running consumers are healthy, and edge + Snuba API checks pass. Keep the synthetic-event smoke as a regression gate rather than a deployment blocker.
+- [ ] Sentry 26.8 is in its final supervised convergence pass. Latest runtime evidence shows all 19 workloads created, both one-shot migrations exited, `snuba-replacer` and `snuba-subscription-consumer-events` running, but TrueNAS still reports aggregate `DEPLOYING` while the long healthcheck grace completes. Do not mark Sentry complete until `scripts/truenas/diagnose-sentry.sh --check`, aggregate `RUNNING`, and the synthetic-event smoke are green.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 
 ## Immediate runtime stabilization gate
 
-The active wave is now **Talos P0**, with Wazuh and Scrutiny stabilization in
-parallel. Sentry is no longer a blocker.
+The active wave is **Talos P0 + Sentry final convergence**, with Wazuh and
+Scrutiny stabilization in parallel. **Docling and OpenRAG/LiteLLM activation
+remain blocked until Sentry acceptance is complete.**
 
 1. [x] **FastAPI Sample** — runtime/observer/TLS/API acceptance green.
 2. [x] **pfSense / Prometheus** — low-impact exporter profile and Prometheus runtime green.
-3. [x] **Sentry** — lifecycle and functional health converged; retain the synthetic-event smoke as a regression gate.
+3. [ ] **Sentry — finish before Docling/OpenRAG-LiteLLM** — allow the first-start grace to complete, run `sudo bash scripts/truenas/diagnose-sentry.sh --check`, require consumer heartbeats/topics and aggregate TrueNAS `RUNNING`, then rerun the synthetic event smoke.
 4. [ ] **Talos P0 — active** — apply/prove VM autostart, run the base-cluster validator, then DNS/CNI, CoreDNS, Service/ClusterIP, cross-node routing and the immutable FastAPI smoke on `test.albandrieu.com`.
 5. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material, deploy manager/indexer/dashboard, and require `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch forwarder.
 6. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository cutover/acceptance helper.
-7. [ ] **Docling for OpenRAG** — after the current platform/security stabilization wave, deploy Docling and prove document ingestion/index/search end-to-end.
-8. [ ] **OpenRAG ↔ LiteLLM** — only after Docling + one ingestion/search path are green, activate the workstation GPU route and prove chat/tool-calling + embeddings.
+7. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the Sentry acceptance gate above is green, then prove document ingestion/index/search end-to-end.
+8. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus Docling + one ingestion/search path are green, activate the workstation GPU route and prove chat/tool-calling + embeddings.
 9. [ ] **Secondary runtime debt** — AutoKuma registration, Pyroscope readiness, Bichon OAuth2 re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
 
-**Ordering gate:** CSI still waits for the complete Kubernetes P0 networking and
-ingress smoke. The minimal Kubara v0.14.0 bootstrap needed to provide Argo CD
-platform reconciliation plus the single intended Traefik ingress controller is
-allowed before CSI; do not expand that early bootstrap to persistent/stateful
-workloads until CSI persistence and rollback are proven. Wazuh/Scrutiny work may
-proceed in parallel because it does not replace that Kubernetes acceptance gate.
+**Ordering gate:** Sentry must be accepted before Docling/OpenRAG-LiteLLM.
+CSI still waits for the complete Kubernetes P0 networking and ingress smoke.
+The minimal Kubara v0.14.0 bootstrap needed for Argo CD platform reconciliation
+plus the single intended Traefik ingress controller is allowed before CSI;
+persistent/stateful workloads remain blocked until CSI persistence and rollback
+are proven. Wazuh/Scrutiny work may proceed in parallel because it does not
+replace either acceptance gate.
+
+### Sentry startup note — long 70% plateau
+
+A Sentry 26.8 deployment can remain around **70%** in TrueNAS for several
+minutes while the containers already exist and the aggregate app remains
+`DEPLOYING`. The percentage is an orchestration-progress value, not a Sentry
+readiness percentage.
+
+- consumer heartbeat healthchecks use a first-start grace of up to 600 seconds;
+- `snuba-migrate` and `sentry-migrate` are expected one-shot services and may already be exited while steady-state consumers continue starting;
+- do not repeatedly redeploy during that grace window;
+- `app.update` already applies a changed Custom App Compose definition and can start a deployment cycle. Do not immediately follow it with an unnecessary `app.redeploy`, because that starts another cycle and resets healthcheck grace;
+- use `app.redeploy` alone when the stored Compose configuration is unchanged and only a restart is intended;
+- after approximately 10 minutes, run `sudo bash scripts/truenas/diagnose-sentry.sh --check` before deciding that the deployment is stuck.
 
 ## FastAPI TrueNAS observer least-privilege migration
 
@@ -64,12 +80,10 @@ visibility.
       `TRUENAS_INFRA_*` credentials are ignored rather than used as fallbacks;
 - [x] finish the TrueNAS-local redeploy with
       `TRUENAS_API_USERNAME=fastapi_observer`; 2026-09-08 runtime evidence
-      confirms canonical username/key selection, TLS verification, 94 apps and
-      `auth.me.pw_name=fastapi_observer`;
-- [x] rerun
-      `scripts/security/verify-truenas-observer-access.sh --local` with the
-      TrueNAS role-collection parser fix; 2026-09-08 evidence confirms
-      `authenticated_username=fastapi_observer`,
+      confirms canonical username/key selection, TLS verification and 94 apps;
+- [x] run
+      `scripts/security/verify-truenas-observer-access.sh --local`; evidence
+      confirms `authenticated_username=fastapi_observer`,
       `roles=APPS_READ,CATALOG_READ`, `rbac_scope=apps_read`,
       `system.version` success and 94 apps from `app.query`;
 - [ ] inspect the effective roles: prefer the narrow `APPS_READ` scope if it
@@ -79,15 +93,15 @@ visibility.
 - [ ] while FastAPI Cloud still uses `TRUENAS_API_USERNAME=albandrieu`, run
       `scripts/security/verify-truenas-observer-access.sh --compare-cloud` and
       require the same catalog revision plus the exact same TrueNAS application
-      IDs from both runtimes; the first A/B attempt reached the comparison but
-      failed because at least one `/api/homelab/status` snapshot was unhealthy,
-      so the helper now prints which runtime and which configured/reachable/stale/
-      credential condition failed;
-- [ ] **switch FastAPI Cloud to `fastapi_observer`** only after the A/B
-      comparison is green: change `TRUENAS_API_USERNAME=fastapi_observer`
-      and the paired dedicated `TRUENAS_API_KEY` together, keep
-      `TRUENAS_API_VERIFY_SSL=true`, redeploy, then prove the same inventory
-      and production smoke before retiring the `albandrieu` FastAPI credential;
+      IDs from both runtimes; the first attempt reached comparison but one
+      `/api/homelab/status` snapshot failed the health predicate, so the helper
+      now reports the failing runtime and configured/reachable/stale/credential
+      condition explicitly;
+- [ ] **switch FastAPI Cloud to `fastapi_observer`** only after A/B parity:
+      change `TRUENAS_API_USERNAME=fastapi_observer` and its paired dedicated
+      `TRUENAS_API_KEY` together, keep `TRUENAS_API_VERIFY_SSL=true`,
+      redeploy and prove the same inventory/production smoke before retiring the
+      `albandrieu` FastAPI credential;
 - [ ] rerun the FastAPI Cloud production deployment/smoke and require homelab
       status, topology, TrueNAS runtime inventory and UI smoke to remain green;
 - [ ] remove the FastAPI workload's use of the `albandrieu` credential after
@@ -101,9 +115,8 @@ Do not start CSI installation until all items below are green.
 **Ingress/platform target:** Kubara `v0.14.0`. The current Talos cluster is a
 healthy raw Kubernetes base but has no `IngressClass` yet. Kubara defaults
 `ingressClassName` to `traefik` and generates a Traefik Helm component.
-Use that Kubara-managed Traefik path unless the generated Kubara configuration
-explicitly disables/replaces it; do not install a second standalone Traefik in
-parallel merely to satisfy the smoke gate.
+Use that Kubara-managed Traefik path unless the generated configuration
+explicitly replaces it; do not install a second standalone Traefik.
 
 Reboot incident resolved (2026-09-08): all three Talos VMs were found
 `STOPPED` after the TrueNAS reboot because their persisted VM configuration
@@ -122,13 +135,11 @@ in-place VM updates with zero create/replace/destroy actions.
 - [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
 - [x] record live pre-platform evidence: Kubernetes `v1.36.3` has all three
       Talos nodes `Ready`, `kubectl get ingressclass` returns no resources,
-      and `nabla-fastapi-smoke` does not exist before the smoke workload is deployed;
-- [ ] prepare the Kubara `v0.14.0` platform bootstrap and run
-      `kubara generate --helm`; inspect the generated Traefik values before
-      bootstrap and confirm there is exactly one intended ingress controller;
-- [ ] bootstrap/reconcile Kubara platform components and require
-      `kubectl get ingressclass traefik` plus a non-empty
-      `.spec.controller` before running the FastAPI ingress smoke;
+      and `nabla-fastapi-smoke` is absent before deployment;
+- [ ] prepare Kubara `v0.14.0`, run `kubara generate --helm`, inspect the
+      generated Traefik values and confirm exactly one intended ingress controller;
+- [ ] bootstrap/reconcile the minimal Kubara platform and require
+      `kubectl get ingressclass traefik` with non-empty `.spec.controller`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
 - [ ] prove disposable Service DNS and ClusterIP routing;
 - [ ] prove cross-node pod routing between workers `172.17.0.51` and `172.17.0.52`;
@@ -143,17 +154,18 @@ in-place VM updates with zero create/replace/destroy actions.
 - [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence;
 - [ ] clean up/recreate the smoke workload without affecting `sample.albandrieu.com`.
 
-## Sentry lifecycle convergence — completed
+## Sentry lifecycle convergence — final acceptance pending
 
-Sentry is no longer on the critical path for this wave.
+Sentry remains ahead of Docling/OpenRAG-LiteLLM until this gate is complete.
 
-- [x] both migrations exit 0;
-- [x] all required steady-state workloads are running with no starting or unhealthy containers;
-- [x] required Kafka topics are present;
-- [x] `snuba-replacer` and `snuba-subscription-consumer-events` are healthy with zero failing streak;
-- [x] Sentry edge, Snuba API, Kafka, Redis, dedicated Sentry ClickHouse, Taskbroker, web, NGINX and Relay checks pass;
-- [x] TrueNAS aggregate state is `RUNNING`;
-- [x] retain `scripts/truenas/diagnose-sentry.sh --check` plus the synthetic-event smoke as repeatable regression gates.
+- [x] both one-shot migrations have exited after the current redeploy;
+- [x] all 19 workloads are created;
+- [x] `snuba-replacer` and `snuba-subscription-consumer-events` are running in the current supervised snapshot;
+- [ ] allow the 600-second first-start healthcheck grace to elapse without another redeploy;
+- [ ] run `scripts/truenas/diagnose-sentry.sh --check` and prove the required Kafka topics plus consumer heartbeat health;
+- [ ] require no unexpected `starting`/`unhealthy` steady-state workload;
+- [ ] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING`;
+- [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
 
 ## P0.1 — TrueNAS-backed Kubernetes CSI
 
