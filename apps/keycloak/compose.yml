@@ -1,0 +1,60 @@
+---
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: keycloak
+    x-nabla:
+      id: keycloak
+      name: Keycloak
+      kind: identity-provider
+      category: security
+      presentationRole: core
+      criticality: high
+      description: Central OIDC/SAML identity provider backed by the shared PostgreSQL service.
+      runtime:
+        provider: truenas-app
+        containerService: keycloak
+      monitoring:
+        type: http
+        host: 172.17.0.24
+        port: 30239
+        path: /health/ready
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Keycloak stores realm, client and identity state in the shared PostgreSQL service.
+          evidence:
+            - apps/keycloak/compose.yml:KC_DB_URL
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes Keycloak metrics from the private management interface.
+          evidence:
+            - apps/keycloak/compose.yml:KC_METRICS_ENABLED
+    restart: unless-stopped
+    command: ["start"]
+    env_file:
+      - /mnt/cpool/keycloak/.env.secrets
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_HOSTNAME: https://keycloak.albandrieu.com
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HTTP_MANAGEMENT_PORT: "9000"
+      KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"
+    ports:
+      - "172.17.0.24:30238:8080"
+      - "172.17.0.24:30239:9000"
+    networks:
+      - intranet
+
+networks:
+  intranet:
+    external: true
+    name: intranet
