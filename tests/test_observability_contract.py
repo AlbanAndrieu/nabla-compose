@@ -152,8 +152,8 @@ class ObservabilityContractTests(unittest.TestCase):
             "\n  - job_name:",
             1,
         )[0]
-        self.assertIn("scrape_interval: 60s", job)
-        self.assertIn("scrape_timeout: 20s", job)
+        self.assertIn("scrape_interval: 120s", job)
+        self.assertIn("scrape_timeout: 30s", job)
         self.assertNotIn("scrape_interval: 15s", job)
 
         exporter = compose.split("\n  pfsense-exporter:\n", 1)[1].split(
@@ -167,13 +167,13 @@ class ObservabilityContractTests(unittest.TestCase):
         for collector in (
             "system",
             "gateways",
-            "interface",
             "service",
-            "firewall_states",
         ):
             self.assertIn(f"      - {collector}", example)
         self.assertIn("max_collector_concurrency: 1", example)
-        self.assertIn("timeout: 15", example)
+        self.assertIn("timeout: 8", example)
+        self.assertNotIn("      - interface", example)
+        self.assertNotIn("      - firewall_states", example)
         self.assertNotIn("      - package", example)
         self.assertNotIn("      - login_protection", example)
 
