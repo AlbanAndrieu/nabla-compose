@@ -3,8 +3,9 @@ set -euo pipefail
 
 CONTAINER="${FASTAPI_SAMPLE_CONTAINER:-fastapi-sample}"
 NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
-EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}"
+EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-}"
 LEGACY_SOURCE_IP="${FASTAPI_SAMPLE_LEGACY_OBSERVER_IP:-172.16.55.9}"
+FAILED_CANDIDATE_IP="${FASTAPI_SAMPLE_FAILED_OBSERVER_IP:-172.16.56.9}"
 TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
 
@@ -20,6 +21,27 @@ warn() {
 for command in docker jq midclt python3 curl; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
+
+printf '==> FastAPI observer network ownership\n'
+network_role="$(
+  docker network inspect "${NETWORK}" |
+    jq -r '.[0].Labels["com.nabla.role"] // empty'
+)"
+network_expected_ip="$(
+  docker network inspect "${NETWORK}" |
+    jq -r '.[0].Labels["com.nabla.observer-ip"] // empty'
+)"
+
+[[ "${network_role}" == "fastapi-sample-observer" ]] ||
+  fail "${NETWORK} is not the repository-managed FastAPI Sample observer network"
+[[ -n "${network_expected_ip}" ]] ||
+  fail "${NETWORK} has no com.nabla.observer-ip label"
+
+if [[ -z "${EXPECTED_SOURCE_IP}" ]]; then
+  EXPECTED_SOURCE_IP="${network_expected_ip}"
+elif [[ "${EXPECTED_SOURCE_IP}" != "${network_expected_ip}" ]]; then
+  fail "configured observer IP ${EXPECTED_SOURCE_IP} does not match network reservation ${network_expected_ip}"
+fi
 
 printf '==> FastAPI observer container source address\n'
 container_ip="$(
@@ -66,7 +88,11 @@ fi
 
 printf 'OK: TrueNAS ui_allowlist permits %s\n' "${container_ip}"
 
-if python3 - "${LEGACY_SOURCE_IP}" "${allowlist_json}" <<'PY'
+for forbidden_ip in "${LEGACY_SOURCE_IP}" "${FAILED_CANDIDATE_IP}"; do
+  if [[ "${forbidden_ip}" == "${container_ip}" ]]; then
+    continue
+  fi
+  if python3 - "${forbidden_ip}" "${allowlist_json}" <<'PY'
 import ipaddress
 import json
 import sys
@@ -81,9 +107,10 @@ for entry in allowlist:
         continue
 raise SystemExit(1)
 PY
-then
-  fail "legacy observer source ${LEGACY_SOURCE_IP} is still allowlisted; it belongs to the shared intranet pool and may be owned by another container"
-fi
+  then
+    fail "obsolete observer source ${forbidden_ip} is still allowlisted; remove stale/shared-pool observer /32 entries"
+  fi
+done
 
 printf '==> sanitized FastAPI TrueNAS credential selection\n'
 docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
