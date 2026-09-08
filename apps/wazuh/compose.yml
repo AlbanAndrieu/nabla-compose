@@ -222,6 +222,8 @@ services:
       - wazuh_dashboard_custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
 
   wazuh-forwarder:
+    profiles:
+      - forwarding
     build:
       context: .
       dockerfile: Dockerfile.logstash
