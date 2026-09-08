@@ -23,6 +23,8 @@ class PfSensePhpFpmHardeningContractTests(unittest.TestCase):
         self.assertIn('TARGET_SPARE=2', text)
         self.assertIn('TARGET_REQ=500', text)
         self.assertIn('/etc/rc.php_ini_setup', text)
+        self.assertIn('run_generator()', text)
+        self.assertIn('php "${SOURCE}"', text)
         self.assertIn('/etc/rc.php-fpm_restart', text)
         self.assertIn('/etc/rc.restart_webgui', text)
         self.assertIn('/var/run/php-fpm.socket', text)
