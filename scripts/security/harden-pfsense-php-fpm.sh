@@ -57,6 +57,31 @@ printf 'pfSense release: %s\n' "${release}"
 printf 'hw.realmem: %s\n' "${realmem}"
 printf 'hw.physmem: %s\n' "${physmem}"
 
+run_generator() {
+  if [ -x "${SOURCE}" ]; then
+    "${SOURCE}"
+    return
+  fi
+
+  interpreter=$(head -n 1 "${SOURCE}" 2>/dev/null | sed -n 's/^#![[:space:]]*//p' | awk '{print $1}')
+  case "${interpreter}" in
+    /usr/local/bin/php|/usr/bin/php|php)
+      command -v php >/dev/null 2>&1 || fail "php interpreter is required to run ${SOURCE}"
+      php "${SOURCE}"
+      ;;
+    /bin/sh|/usr/bin/sh|sh)
+      /bin/sh "${SOURCE}"
+      ;;
+    "")
+      fail "${SOURCE} is not executable and has no readable shebang"
+      ;;
+    *)
+      [ -x "${interpreter}" ] || fail "unsupported/non-executable generator interpreter: ${interpreter}"
+      "${interpreter}" "${SOURCE}"
+      ;;
+  esac
+}
+
 source_state() {
   awk '
     BEGIN { in_profile=0; max=""; idle=""; start=""; spare=""; req="" }
@@ -116,7 +141,7 @@ esac
 if [ "${MODE}" = "--restore" ]; then
   [ -f "${BACKUP}" ] || fail "backup not found: ${BACKUP}"
   cp -p "${BACKUP}" "${SOURCE}"
-  /etc/rc.php_ini_setup
+  run_generator
   /etc/rc.php-fpm_restart
   /etc/rc.restart_webgui
   printf 'OK: restored generator from %s\n' "${BACKUP}"
@@ -158,7 +183,7 @@ esac
 
 [ "$(source_state)" = "${expected}" ] || fail "source generator did not reach expected profile ${expected}"
 
-/etc/rc.php_ini_setup
+run_generator
 [ "$(generated_state)" = "${expected}" ] || fail "generated PHP-FPM config does not match expected profile ${expected}"
 
 /etc/rc.php-fpm_restart
