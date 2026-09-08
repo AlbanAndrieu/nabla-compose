@@ -1,3 +1,10 @@
+## [0.22.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.1...0.22.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **runtime:** recover Akvorado CrowdSec and exporter monitoring ([#134](https://github.com/AlbanAndrieu/nabla-compose/issues/134)) ([84db670](https://github.com/AlbanAndrieu/nabla-compose/commit/84db67044317dd618dffee159baae9456b24e2a0))
+
 ## [0.22.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.0...0.22.1) (2026-09-08)
 
 
