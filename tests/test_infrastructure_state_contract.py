@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import re
 import unittest
 from pathlib import Path
@@ -59,7 +61,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
         for name in (
             "TRUENAS_ENABLED",
             "TRUENAS_URL",
-            "TRUENAS_USER",
+            "TRUENAS_INFRA_API_USERNAME",
             "TRUENAS_POOL",
             "TRUENAS_VM_BRIDGE",
             "TALOS_ISO_PATH",
@@ -76,9 +78,54 @@ class InfrastructureStateContractTests(unittest.TestCase):
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
             "GARAGE_ADMIN_TOKEN",
-            "TRUENAS_API_KEY",
+            "TRUENAS_INFRA_API_KEY",
         ):
             self.assertNotRegex(template, rf"(?m)^(?:export\\s+)?{secret_name}=")
+
+    def test_truenas_provider_credentials_are_namespaced(self) -> None:
+        terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+        workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
+            encoding="utf-8"
+        )
+        manifest = json.loads(
+            (ROOT / "config" / "secrets" / "manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertIn('get_env("TRUENAS_INFRA_API_USERNAME", "")', terragrunt)
+        self.assertIn('get_env("TRUENAS_INFRA_API_KEY", "")', terragrunt)
+        self.assertNotIn('get_env("TRUENAS_USER"', terragrunt)
+        self.assertNotIn('get_env("TRUENAS_API_USERNAME"', terragrunt)
+        self.assertNotIn('get_env("TRUENAS_API_KEY"', terragrunt)
+
+        self.assertIn("TRUENAS_INFRA_API_USERNAME", preflight)
+        self.assertIn("TRUENAS_INFRA_API_KEY", preflight)
+        self.assertIn("ignored by infrastructure", preflight)
+
+        self.assertIn("TRUENAS_INFRA_API_USERNAME", workflow)
+        self.assertIn("TRUENAS_INFRA_API_KEY", workflow)
+        self.assertNotIn(" TRUENAS_USER ", workflow)
+        self.assertNotIn(" TRUENAS_API_KEY;", workflow)
+
+        infra = next(
+            item for item in manifest["items"]
+            if item["app"] == "infrastructure-bootstrap"
+        )
+        self.assertEqual(
+            {secret["env"] for secret in infra["secrets"]},
+            {
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "GARAGE_ADMIN_TOKEN",
+                "TRUENAS_INFRA_API_KEY",
+            },
+        )
 
     def test_truenas_bootstrap_defaults_are_consistent(self) -> None:
         terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
@@ -103,6 +150,32 @@ class InfrastructureStateContractTests(unittest.TestCase):
         )
         self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
         self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
+
+    def test_talos_vm_autostart_is_steady_state_default(self) -> None:
+        terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+        variables = (ROOT / "terraform/truenas/variables.tofu").read_text(
+            encoding="utf-8"
+        )
+        vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(
+            encoding="utf-8"
+        )
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('get_env("TALOS_VM_AUTOSTART", "true")', terragrunt)
+        self.assertRegex(
+            variables,
+            r'variable "talos_vm_autostart" \{[^}]*default\s*=\s*true',
+        )
+        self.assertIn("autostart             = var.talos_vm_autostart", vm_config)
+        self.assertNotIn("autostart             = false", vm_config)
+        self.assertIn(
+            'TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"',
+            preflight,
+        )
 
     def test_talos_vm_boot_order_is_deterministic(self) -> None:
         vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(

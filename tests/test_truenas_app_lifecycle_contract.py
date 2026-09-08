@@ -863,6 +863,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("starting_count", script)
         self.assertIn("Sentry functional edge health", script)
         self.assertIn("TrueNAS lifecycle and functional health", script)
+        self.assertIn("600-second first-start grace", script)
+        self.assertIn("Do not repeatedly redeploy during that window", script)
         self.assertNotIn("docker compose down", script)
 
     def test_runtime_audit_script_is_executable(self) -> None:

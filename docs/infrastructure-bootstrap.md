@@ -9,10 +9,11 @@ Keep durable, host-specific **non-secrets** in `.env.local`. Start from `config/
 ```dotenv
 TRUENAS_ENABLED=true
 TRUENAS_URL=https://truenas.example.internal
-TRUENAS_USER=albandrieu
+TRUENAS_INFRA_API_USERNAME=albandrieu
 # Optional overrides; defaults are cpool and br0.
 TRUENAS_POOL=cpool
 TRUENAS_VM_BRIDGE=br0
+TALOS_VM_AUTOSTART=true
 TALOS_ISO_PATH=/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
 TRUENAS_READ_ONLY=true
 TRUENAS_DESTROY_PROTECTION=true
@@ -32,7 +33,7 @@ set +a
 
 Do not move these values to Vaultwarden merely because they are environment variables. They are configuration, not credentials.
 
-For the current supervised bootstrap, the API key owner is `albandrieu`. Keep that as an explicit temporary operator choice; create a dedicated least-privilege `tofu_truenas` identity before unattended or recurring infrastructure automation.
+For the current supervised bootstrap, `TRUENAS_INFRA_API_USERNAME=albandrieu` owns the infrastructure API key. FastAPI Sample uses a different trust domain (`TRUENAS_API_USERNAME=fastapi_observer` + `TRUENAS_API_KEY`) and those observer credentials must never be used by OpenTofu/Terragrunt. Keep that as an explicit temporary operator choice; create a dedicated least-privilege `tofu_truenas` identity before unattended or recurring infrastructure automation.
 
 `TRUENAS_URL` must use a DNS name covered by the TrueNAS TLS certificate. Keep `TRUENAS_INSECURE_SKIP_VERIFY=false`; use split DNS or an equivalent local resolver override when the trusted hostname should resolve directly to the LAN address.
 
@@ -42,7 +43,7 @@ Move the following **bootstrap secrets** to the Vaultwarden item `nabla/prod/inf
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 GARAGE_ADMIN_TOKEN
-TRUENAS_API_KEY
+TRUENAS_INFRA_API_KEY
 ```
 
 `.env.secrets` may remain temporarily for compatibility, but it should become a generated `0600` cache rather than the source of truth.

@@ -26,7 +26,7 @@ resource "truenas_vm" "talos" {
   cores                 = each.value.cores
   threads               = 1
   bootloader            = "UEFI"
-  autostart             = false
+  autostart             = var.talos_vm_autostart
   ensure_display_device = false
   time                  = "UTC"
   cpu_mode              = "HOST-PASSTHROUGH"

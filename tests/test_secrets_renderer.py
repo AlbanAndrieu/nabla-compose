@@ -57,6 +57,21 @@ class SecretsRendererTests(unittest.TestCase):
         self.assertNotIn('"value"', serialized)
         self.assertNotIn('"secretValue"', serialized)
 
+    def test_infrastructure_truenas_key_is_namespaced(self) -> None:
+        manifest = renderer.load_manifest(ROOT / "config" / "secrets" / "manifest.json")
+        infra = next(
+            item for item in manifest["items"]
+            if item["app"] == "infrastructure-bootstrap"
+        )
+        by_env = {secret["env"]: secret for secret in infra["secrets"]}
+
+        self.assertIn("TRUENAS_INFRA_API_KEY", by_env)
+        self.assertNotIn("TRUENAS_API_KEY", by_env)
+        self.assertEqual(
+            by_env["TRUENAS_INFRA_API_KEY"]["importEnv"],
+            "TRUENAS_INFRA_API_KEY",
+        )
+
     def test_manifest_rejects_duplicate_environment_variables(self) -> None:
         manifest = {
             "schemaVersion": 1,

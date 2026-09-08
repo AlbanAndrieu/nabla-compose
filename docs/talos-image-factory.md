@@ -58,7 +58,7 @@ export TALOS_ISO_PATH='/mnt/<POOL>/iso/talos-amd64.iso'
 scripts/infra/terragrunt-safe.sh infrastructure/truenas plan
 ```
 
-The TrueNAS module keeps VM autostart disabled and the infrastructure CD workflow remains manual-dispatch and plan-only. Creating boot artifacts must never imply an automatic `terragrunt apply`.
+The steady-state TrueNAS module enables Talos VM autostart so the Kubernetes control plane and workers recover after a TrueNAS reboot. The infrastructure CD workflow remains manual-dispatch and plan-only: creating boot artifacts must never imply an automatic `terragrunt apply`. Set `TALOS_VM_AUTOSTART=false` only for deliberate maintenance/bootstrap work.
 
 ## First boot validation
 
