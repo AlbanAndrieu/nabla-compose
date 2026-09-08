@@ -490,6 +490,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             audit,
         )
         self.assertIn("repository applications missing from TrueNAS app.query", audit)
+        self.assertIn("Traefik legacy DDNS orphan", audit)
+        self.assertIn("ddns-updater-legacy", audit)
         self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
