@@ -138,6 +138,16 @@ scrape_configs:
       - targets:
           - 172.17.0.24:8085
 
+  - job_name: keycloak
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 172.17.0.24:30239
+        labels:
+          platform: truenas
+          role: identity-provider
+
   - job_name: crowdsec
     static_configs:
       - targets:
