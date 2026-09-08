@@ -1,7 +1,10 @@
 ---
 services:
   langflow:
-    image: docker.io/langflowai/openrag-langflow:latest
+    # Shared global Langflow runtime for OpenRAG; this is not a private
+    # openrag-langflow service. Pin the OpenRAG-compatible Langflow image to the
+    # same release as the OpenRAG backend/frontend.
+    image: docker.io/langflowai/openrag-langflow:${OPENRAG_VERSION:-0.7.1}
     container_name: langflow
     x-nabla:
       id: langflow
@@ -23,7 +26,9 @@ services:
     ports:
       - "7860:7860"
     volumes:
-      - ./flows:/app/flows:U,z
+      # Do not bind an unversioned/empty ./flows directory over /app/flows:
+      # the pinned OpenRAG Langflow image already contains the compatible flow
+      # definitions and custom components.
       - ./langflow-data:/app/langflow-data:U,z
     environment:
       OPENSEARCH_HOST: opensearch
@@ -38,9 +43,23 @@ services:
       LANGFLOW_CONFIG_DIR: /app/langflow-data
       LANGFLOW_DATABASE_URL: sqlite:////app/langflow-data/langflow.db?timeout=60
       LANGFLOW_ALLOW_CUSTOM_COMPONENTS: "false"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:7860/health_check', timeout=5).read()
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     networks:
-      - intranet
-      - traefik_network
+      intranet:
+        aliases:
+          - langflow
+      traefik_network: {}
     restart: unless-stopped
 
 networks:
