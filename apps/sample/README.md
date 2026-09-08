@@ -156,6 +156,314 @@ Docker will fail with `Address already in use`. Either free that address or
 select a reviewed new `FASTAPI_SAMPLE_OBSERVER_IP` and update the matching
 TrueNAS `system.general.ui_allowlist` `/32` in the same change.
 
+If the `intranet` lookup is empty but Docker still reports
+`failed to set up container networking: Address already in use`, check **all**
+Docker networks and the failed container before changing the reviewed observer
+address:
+
+```bash
+docker network inspect $(docker network ls -q) |
+jq -r '
+  .[] as $network |
+  ($network.Containers // {}) |
+  to_entries[]? |
+  select(.value.IPv4Address == "172.16.55.9/24") |
+  [$network.Name, .value.Name, .value.IPv4Address] |
+  @tsv
+'
+
+docker ps -a --filter 'name=^/fastapi-sampleBuild the pinned source before asking TrueNAS to redeploy the Custom App:
+
+```bash
+docker compose -f apps/sample/compose.yml \
+  build --pull fastapi-sample
+
+sudo midclt call -j app.update sample \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/sample/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy sample
+```
+
+Then prove the replacement container, health endpoint and effective version:
+
+```bash
+docker inspect fastapi-sample |
+jq '.[0] | {
+  image: .Config.Image,
+  image_id: .Image,
+  status: .State.Status,
+  health: (.State.Health.Status // "none")
+}'
+
+curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
+  http://127.0.0.1:8091/health |
+jq .
+
+curl -fsS --retry 5 --retry-delay 1 \
+  http://127.0.0.1:8091/v2/version |
+jq .
+```
+
+If `app.query` does not contain the expected `sample` application, stop
+before running `app.update` and inspect the actual application id:
+
+```bash
+midclt call app.query |
+jq -r '.[] | [.id, .state] | @tsv' |
+grep -E '(^|[[:space:]])(sample|fastapi)'
+```
+
+Do not run a second `docker compose up` project alongside the TrueNAS Custom
+App. Build the image from the repository, then let TrueNAS own the container
+lifecycle.
+
+## Validate and deploy
+
+Validate the manifests without expanding runtime secrets:
+
+```bash
+docker compose --project-directory apps/redis -f apps/redis/compose.yml config --quiet --no-interpolate --no-env-resolution
+docker compose --project-directory apps/sample -f apps/sample/compose.yml config --quiet --no-interpolate --no-env-resolution
+```
+
+Avoid pasting the output of a fully interpolated `docker compose config` command into tickets or chats because it can expand values from local environment files.
+
+Then deploy from the repository root:
+
+```bash
+docker compose -f apps/sample/compose.yml up -d --build
+```
+
+The local host port defaults to `8091`, mapped to container port `8080`:
+
+```bash
+curl -fsS http://127.0.0.1:8091/health
+```
+
+The internal Traefik route is `https://sample.int.albandrieu.com`.
+It is intentionally the only `Host(...)` router for this container because the
+current Pi-hole synchronizer extracts one hostname per Docker container.
+
+The protected public route is `https://sample.albandrieu.com`.
+
+### Ingress ownership
+
+Keep the LAN and public ingress paths separate:
+
+```text
+LAN workstation
+      |
+      v
+Pi-hole DNS
+sample.int.albandrieu.com -> 172.17.0.24
+      |
+      v
+Traefik :443
+      |
+      v
+fastapi-sample:8080
+```
+
+```text
+Internet
+   |
+   v
+Cloudflare Access
+   |
+   v
+Cloudflare Tunnel
+   |
+   v
+http://172.17.0.24:8091
+   |
+   v
+fastapi-sample:8080
+```
+
+For the Cloudflare Tunnel published application, use:
+
+- public hostname: `sample.albandrieu.com`;
+- service type: `HTTP`;
+- service URL: `http://172.17.0.24:8091`.
+
+The public Tunnel path deliberately bypasses pfSense HAProxy and Traefik.
+Cloudflare Tunnel establishes the origin connection outbound from the
+`cloudflared` connector, so there is no reason to publish the sample through
+the WAN HAProxy path as well.
+
+The account uses a Default-Deny Cloudflare Access posture. Therefore the
+hostname also needs a matching self-hosted Access application with at least
+one effective policy. A Tunnel route alone is not enough: without an Access
+application/policy, Cloudflare correctly blocks the request before it reaches
+the origin.
+
+Do not add AutoXpose labels to FastAPI Sample. AutoXpose may keep its persisted
+Nginx Proxy Manager provider for other services, but it is not an owner of
+either Sample hostname:
+
+- `sample.int.albandrieu.com` -> Pi-hole / Traefik;
+- `sample.albandrieu.com` -> Cloudflare Tunnel / Access.
+
+### TLS / Access acceptance
+
+Run the read-only acceptance check from TrueNAS or from a LAN workstation:
+
+```bash
+bash scripts/ingress/verify-sample-exposure.sh
+```
+
+The TrueNAS deployment sets `FASTAPI_RUNTIME_MODE=homelab`, so the API landing
+page identifies this runtime as **TrueNAS homelab production** rather than a
+local workstation. This mode is distinct from FastAPI Cloud production and is
+intended to use trusted LAN paths for TrueNAS, pfSense and Prometheus observers.
+
+The Compose service also applies container-local split DNS for the appliance
+hostnames:
+
+```text
+truenas.albandrieu.com -> 172.17.0.24
+home.albandrieu.com    -> 172.17.0.1
+```
+
+This keeps the existing TLS hostnames and certificate verification while
+bypassing public/WAN DNS routing from the internal observer. Keep
+`TRUENAS_API_VERIFY_SSL=true` and `PFSENSE_API_VERIFY_SSL=true` when the
+appliance certificates validate those hostnames. Do not replace this with
+`verify=false` merely to use a private IP.
+
+### TrueNAS WebSocket source allowlist
+
+TrueNAS 26.0.0-BETA.2 applies `system.general.ui_allowlist` to API/UI
+WebSocket source addresses **before API-key authentication**. A successful
+`GET /api/versions` therefore proves HTTPS reachability only; it does not prove
+that `/api/current` is permitted.
+
+For the Docker-hosted observer, TrueNAS sees the FastAPI container address on
+the shared `intranet` bridge, not the TrueNAS LAN address. A policy close such
+as:
+
+```text
+WebSocket connection closed with code=1008
+You are not allowed to access this resource
+```
+
+is a source-address allowlist denial, not an `APPS_READ` RBAC failure.
+
+The live 2026-09-06 recovery proved the sequence:
+
+```text
+/api/versions over HTTPS                         -> HTTP 200
+native BETA.2 midclt as fastapi_observer         -> system.version + app.query succeed
+FastAPI container before ui_allowlist change     -> WebSocket denied
+allow container intranet IP /32                  -> system.version + app.query = 86
+system.general.checkin                           -> change persisted
+```
+
+Run the read-only preflight after every recreate/network change:
+
+```bash
+scripts/security/verify-truenas-observer-access.sh
+```
+
+Do not allow the whole shared Docker subnet merely to make this observer work.
+The Compose service pins the observer source to
+`${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}` on `intranet`, matching the
+reviewed TrueNAS `/32` allowlist entry. A collision or subnet mismatch should
+fail deployment rather than silently move the observer to a different source
+address. Override `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed
+TrueNAS allowlist update. A future dedicated observer network can isolate this
+boundary further.
+
+The canonical runtime credentials are:
+
+```dotenv
+TRUENAS_API_USERNAME=fastapi_observer
+TRUENAS_API_KEY=<dedicated user-linked API key>
+```
+
+Remove stale `TRUENAS_USER` / `TRUENAS_USERNAME` aliases from the TrueNAS
+FastAPI runtime once migration is proven. The application intentionally prefers
+`TRUENAS_API_USERNAME`, but leaving an old alias creates a dangerous fallback:
+if the canonical variable disappears later, the old username could be paired
+with the new canonical API key.
+
+For Prometheus, keep the existing LAN-only setting in
+`/mnt/cpool/sample/.env`:
+
+```dotenv
+HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
+```
+
+The defaults target the TrueNAS runtime at `172.17.0.24` and validate:
+
+1. direct FastAPI health on `http://172.17.0.24:8091/health`;
+2. Pi-hole resolution of `sample.int.albandrieu.com` to `172.17.0.24`;
+3. direct Traefik routing/TLS for the internal hostname;
+4. public Cloudflare DNS and edge TLS;
+5. Cloudflare Access enforcement.
+
+Without a Cloudflare Access service token, a redirect/challenge from Access is
+the expected public result. To prove the full Tunnel path through Access, set
+both service-token variables:
+
+```bash
+CF_ACCESS_CLIENT_ID='...' \
+CF_ACCESS_CLIENT_SECRET='...' \
+  bash scripts/ingress/verify-sample-exposure.sh
+```
+
+The script then sends the standard Cloudflare Access service-token headers and
+requires `https://sample.albandrieu.com/health` to return successfully.
+
+A workstation-local FastAPI process listening on `0.0.0.0:8080` is a
+different runtime. To test it deliberately, override only the direct health
+probe:
+
+```bash
+LOCAL_HEALTH_URL=http://127.0.0.1:8080/health \
+  bash scripts/ingress/verify-sample-exposure.sh
+```
+
+
+## Persistence policy
+
+Do not mount the FastAPI source tree or an application-data directory into the production container unless a future feature introduces real local state. If that happens, create a dedicated TrueNAS dataset for that state and document its ownership, backup and restore policy separately.
+ \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+docker inspect fastapi-sample 2>/dev/null |
+jq '.[0] | {
+  status: .State.Status,
+  error: .State.Error,
+  networks: .NetworkSettings.Networks
+}'
+```
+
+The host-side port is `8091`; container port `8080` is internal to the
+mapping. A listener on host `:8080` does **not** conflict with
+`8091:8080`.
+
+When no container owns `172.16.55.9` on any Docker network and
+`fastapi-sample` is only a failed `created/exited` container, recover the
+stale endpoint without recreating `intranet`:
+
+```bash
+docker network disconnect -f intranet fastapi-sample 2>/dev/null || true
+docker rm -f fastapi-sample 2>/dev/null || true
+
+sudo midclt call -j app.redeploy sample
+```
+
+Do not delete/recreate the shared `intranet` network to clear one stale
+endpoint: many independent applications depend on that network and its fixed
+subnet.
+
 Build the pinned source before asking TrueNAS to redeploy the Custom App:
 
 ```bash
