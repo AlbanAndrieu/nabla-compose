@@ -79,17 +79,72 @@ The first apply stores the rollback copy at:
 The apply sequence then:
 
 1. changes only the reviewed high-memory generator branch;
-2. runs `/etc/rc.php_ini_setup` to regenerate `/usr/local/lib/php-fpm.conf`;
+2. runs the OS-managed `/etc/rc.php_ini_setup` through its shebang interpreter when the file is not executable;
 3. requires the generated profile to be exactly `4/30/1/2/500`;
 4. restarts PHP-FPM with `/etc/rc.php-fpm_restart`;
 5. requires `/var/run/php-fpm.socket` to exist;
 6. restarts the WebConfigurator with `/etc/rc.restart_webgui`;
-7. refuses success if runtime worker count exceeds four.
+7. counts `php-fpm: pool nginx` workers with portable `ps` + `awk` and refuses success above four.
 
 Do **not** replace these pfSense-native restart paths with a plain
 `php-fpm -y /usr/local/lib/php-fpm.conf`. During the incident that direct launch
 failed because the generated pool runs as root and the pfSense wrapper supplies
 the required runtime flags.
+
+## Runtime lessons from the first two applies
+
+Two portability failures were found by running the hardening on the actual
+26.07-RELEASE appliance and are kept here as regression knowledge:
+
+1. `/etc/rc.php_ini_setup` exists but is not directly executable on this host.
+   Invoking it as a command returned `Permission denied` after the source patch
+   had already been written. The helper is intentionally idempotent, so the next
+   run recognized source `4/30/1/2/500`, invoked the generator via its
+   interpreter and completed regeneration.
+2. FreeBSD/pfSense `pgrep` is not GNU `pgrep`. The original `pgrep -fc` worker
+   validation produced an empty/NaN value and a shell `bad number` error even
+   though the PHP-FPM restart itself succeeded. Worker validation now uses
+   `ps axww -o command=` piped to `awk`, always producing a numeric count.
+
+After the corrected generator invocation, the real generated runtime was:
+
+```text
+pm.process_idle_timeout = 30
+pm.max_children = 4
+pm.start_servers = 1
+pm.max_requests = 500
+pm.min_spare_servers = 1
+pm.max_spare_servers = 2
+```
+
+and the observed steady state immediately after restart was two nginx PHP-FPM
+workers around 35 MiB RSS each, instead of eight workers around 48-65 MiB each.
+Unbound remained up and `drill @172.17.0.1 example.com A` returned `NOERROR`.
+
+## FastCGI backlog evidence
+
+The incident log also contained repeated kernel messages of the form:
+
+```text
+sonewconn: ... local:/var/run/php-fpm.socket: Listen queue overflow: 193 already in queue awaiting acceptance
+```
+
+with bursts reaching dozens of additional rejected/queued connection attempts.
+This is evidence that the failure was not only resident-memory sizing: pfREST
+request fan-out was able to saturate the FastCGI socket backlog while PHP-FPM was
+resource constrained. The pfSense exporter must therefore remain stopped during
+stabilization. Re-enable telemetry only after PHP-FPM/Unbound memory headroom is
+stable, and keep exporter collection serialized and rate-limited.
+
+The historical `dmesg` tail still contains the earlier OOM kills:
+
+```text
+netstat ... killed: failed to reclaim memory
+unbound ... killed: failed to reclaim memory
+```
+
+Do not interpret those old lines as a new OOM event without comparing timestamps
+or collecting new kernel messages after the constrained profile was applied.
 
 ## Upgrade contract
 
@@ -122,7 +177,8 @@ pfREST core GET endpoints return 200
 Unbound process/control socket healthy
 public recursive DNS returns NOERROR
 private int.albandrieu.com delegation still resolves
-no new kernel OOM/reclaim kill events
+no new kernel OOM/reclaim kill events after the hardening timestamp
+no sustained php-fpm.socket listen queue overflow
 ```
 
 Keep Unbound out of Service Watchdog while memory pressure remains a plausible
