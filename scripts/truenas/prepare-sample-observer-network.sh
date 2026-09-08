@@ -4,6 +4,8 @@ set -euo pipefail
 NETWORK_NAME="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
 NETWORK_LABEL="com.nabla.role"
 NETWORK_ROLE="fastapi-sample-observer"
+NETWORK_CONTRACT="v2"
+MODE="${1:---prepare}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -12,6 +14,13 @@ fail() {
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so Docker network creation is deterministic"
+
+case "${MODE}" in
+  --prepare | --recreate) ;;
+  *)
+    fail "usage: sudo bash scripts/truenas/prepare-sample-observer-network.sh [--prepare|--recreate]"
+    ;;
+esac
 
 for command in docker python3 ip jq mktemp; do
   command -v "${command}" >/dev/null 2>&1 ||
@@ -23,21 +32,43 @@ if docker network inspect "${NETWORK_NAME}" >/dev/null 2>&1; then
     docker network inspect "${NETWORK_NAME}" |
       jq -r '.[0].Labels["com.nabla.role"] // empty'
   )"
+  contract="$(
+    docker network inspect "${NETWORK_NAME}" |
+      jq -r '.[0].Labels["com.nabla.observer-contract"] // empty'
+  )"
   [[ "${role}" == "${NETWORK_ROLE}" ]] ||
     fail "existing ${NETWORK_NAME} is not owned by this repository (label ${NETWORK_LABEL}=${role:-<missing>})"
 
-  docker network inspect "${NETWORK_NAME}" |
-    jq -r '
-      .[0] |
-      {
-        name: .Name,
-        subnet: (.IPAM.Config[0].Subnet // ""),
-        ip_range: (.IPAM.Config[0].IPRange // ""),
-        gateway: (.IPAM.Config[0].Gateway // ""),
-        observer_ip: (.Labels["com.nabla.observer-ip"] // "")
-      }
-    '
-  exit 0
+  if [[ "${contract}" == "${NETWORK_CONTRACT}" && "${MODE}" != "--recreate" ]]; then
+    docker network inspect "${NETWORK_NAME}" |
+      jq -r '
+        .[0] |
+        {
+          name: .Name,
+          subnet: (.IPAM.Config[0].Subnet // ""),
+          ip_range: (.IPAM.Config[0].IPRange // ""),
+          gateway: (.IPAM.Config[0].Gateway // ""),
+          observer_ip: (.Labels["com.nabla.observer-ip"] // ""),
+          contract: (.Labels["com.nabla.observer-contract"] // "")
+        }
+      '
+    exit 0
+  fi
+
+  attached="$(
+    docker network inspect "${NETWORK_NAME}" |
+      jq '.[0].Containers // {} | length'
+  )"
+  if [[ "${attached}" != "0" ]]; then
+    fail "existing ${NETWORK_NAME} uses obsolete/forced-recreate contract and still has ${attached} attached container(s); remove the failed FastAPI Sample container first, then rerun with --recreate"
+  fi
+
+  if [[ "${MODE}" != "--recreate" ]]; then
+    fail "existing ${NETWORK_NAME} uses obsolete observer contract ${contract:-<missing>}; rerun with --recreate after detaching/removing FastAPI Sample"
+  fi
+
+  docker network rm "${NETWORK_NAME}" >/dev/null
+  printf 'Removed obsolete observer network %s before safe recreation\n' "${NETWORK_NAME}"
 fi
 
 mapfile -t network_ids < <(docker network ls -q)
@@ -119,14 +150,14 @@ base = int(chosen.network_address)
 gateway = ipaddress.ip_address(base + 1)
 ip_range = ipaddress.ip_network(f"{ipaddress.ip_address(base + 8)}/29", strict=True)
 observer = ipaddress.ip_address(base + 9)
-reserved = [ipaddress.ip_address(base + offset) for offset in range(10, 15)]
+reserved_offsets = (8, 10, 11, 12, 13, 14)
 
 print(f"SUBNET={chosen}")
 print(f"GATEWAY={gateway}")
 print(f"IP_RANGE={ip_range}")
 print(f"OBSERVER_IP={observer}")
-for index, address in enumerate(reserved, start=10):
-    print(f"RESERVE_{index}={address}")
+for offset in reserved_offsets:
+    print(f"RESERVE_{offset}={ipaddress.ip_address(base + offset)}")
 PY
 )"
 
@@ -140,12 +171,16 @@ docker network create \
   --subnet "${SUBNET}" \
   --gateway "${GATEWAY}" \
   --ip-range "${IP_RANGE}" \
+  # Docker IPAM proved that the first address of the nested /29 (.8) is
+  # allocatable, so reserve it explicitly; .9 is the only intended container IP.
+  --aux-address "reserve8=${RESERVE_8}" \
   --aux-address "reserve10=${RESERVE_10}" \
   --aux-address "reserve11=${RESERVE_11}" \
   --aux-address "reserve12=${RESERVE_12}" \
   --aux-address "reserve13=${RESERVE_13}" \
   --aux-address "reserve14=${RESERVE_14}" \
   --label "${NETWORK_LABEL}=${NETWORK_ROLE}" \
+  --label "com.nabla.observer-contract=${NETWORK_CONTRACT}" \
   --label "com.nabla.observer-ip=${OBSERVER_IP}" \
   "${NETWORK_NAME}" >/dev/null
 
@@ -153,6 +188,7 @@ docker network inspect "${NETWORK_NAME}" |
   jq -e --arg observer "${OBSERVER_IP}" '
     .[0] |
     .Labels["com.nabla.role"] == "fastapi-sample-observer" and
+    .Labels["com.nabla.observer-contract"] == "v2" and
     .Labels["com.nabla.observer-ip"] == $observer and
     (.IPAM.Config[0].Subnet | length > 0) and
     (.IPAM.Config[0].IPRange | length > 0)
