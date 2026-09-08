@@ -87,6 +87,50 @@ Only explicit `--apply` performs a mutation. Apply first runs
 `verify-stack.sh --strict`, then patches and re-reads the pfSense settings,
 runs the synthetic log path test, and finally looks for real pfSense records.
 
+## pfSense probe budget on Netgate 1100
+
+The Netgate 1100 is a constrained edge appliance. Do not treat pfREST-backed
+Prometheus exporters like local in-memory exporters: every `/metrics?target=...`
+request fans out into multiple pfSense REST API calls.
+
+Steady-state budget:
+
+- Prometheus is the **only** component allowed to invoke the pfSense exporter
+  metrics endpoint automatically;
+- `pfsense_exporter` scrape interval is 60 seconds with a 20-second scrape
+  timeout;
+- exporter collector concurrency is 1 to avoid bursts of simultaneous pfREST /
+  php-fpm work;
+- steady-state collectors are limited to `system`, `gateways`, `interface`,
+  `service` and `firewall_states`;
+- package inventory, login-protection table, CARP and firewall-schedule
+  collectors stay disabled unless a focused diagnostic explicitly needs them;
+- Gatus and AutoKuma check TCP/9945 only. They must never call
+  `/metrics?target=172.17.0.1` because that would trigger another full
+  collector pass.
+
+This changes the approximate steady-state fan-out from six exporter scrapes per
+minute (Prometheus 15s + Gatus 60s + AutoKuma 60s), each with all collectors and
+up to four concurrent requests, to one serialized five-collector scrape per
+minute.
+
+After updating the repository, harden an existing runtime file without exposing
+its API key:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/harden-pfsense-exporter-config.sh
+```
+
+Then reconcile/redeploy Prometheus so the 60-second scrape interval takes
+effect. Reconcile Gatus and AutoKuma as well so their old HTTP metrics monitors
+are replaced by lightweight TCP checks.
+
+If the firewall still shows observable load spikes, increase the Prometheus
+pfSense scrape interval to 120 seconds before re-enabling any optional
+collector. Do not increase collector concurrency to compensate for slow pfREST
+responses; that moves the pressure back onto pfSense.
+
 ## pfSense exporter runtime configuration
 
 The pfSense exporter runtime configuration is deliberately outside the Git
