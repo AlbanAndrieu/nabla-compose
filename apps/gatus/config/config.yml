@@ -250,6 +250,16 @@ endpoints:
   url: tcp://kafka:9092
   conditions:
   - '[CONNECTED] == true'
+- name: Keycloak
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: keycloak
+    nabla_service_id: keycloak
+  url: http://172.17.0.24:30239/health/ready
+  conditions:
+  - '[STATUS] >= 200'
+  - '[STATUS] < 400'
 - name: Kibana
   group: observability
   interval: 60s

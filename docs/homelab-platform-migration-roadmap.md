@@ -87,6 +87,21 @@ Track these independently from the Talos bridge/bootstrap:
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 
+### Garage WebUI Cloudflare exposure — 2026-09-08
+
+- [x] make `https://garage-admin.albandrieu.com` the canonical external Garage WebUI URL;
+- [ ] publish `garage-admin.albandrieu.com` through Cloudflare Tunnel with Cloudflare Access enabled;
+- [ ] require authenticated admin access (prefer MFA / explicit identity policy) and keep the Garage Admin API on TCP/3903 internal-only;
+- [ ] verify the tunnel origin targets the Garage WebUI service on port 3909 rather than exposing Garage Admin API port 3903;
+- [ ] add an external HTTPS health probe for the Access-protected WebUI and retain separate internal health probes for Garage S3/Admin APIs.
+
+### pfSense WebGUI exposure roadmap — 2026-09-08
+
+- [x] use `https://home.albandrieu.com:10443/api/v2/system/version` as the canonical external pfSense REST API liveness endpoint; do not use `pfsense.albandrieu.com:10443` for API probing;
+- [ ] evaluate a dedicated `https://pfsense.albandrieu.com` WebGUI path through Cloudflare Tunnel + Access, with no direct WAN exposure of the administration listener;
+- [ ] before enabling that UI tunnel, validate WebSocket/session compatibility, certificate/origin handling, Cloudflare Access policy, MFA, CSRF behavior and emergency LAN-only rollback;
+- [ ] keep the pfSense REST API identity and WebGUI identity logically separate even if they ultimately share the same firewall origin.
+
 ### Pi-hole native App -> repository Compose migration — 2026-09-07
 
 The Pi-hole cutover is now promoted because the internal DNS synchronizer exposed
@@ -212,10 +227,14 @@ must not be treated as evidence that the services are intentionally public.
 - [ ] reconsider Service Watchdog for Unbound only after a measured observation
   window proves stable memory headroom and the outage cause is non-memory-related;
   if enabled later, add an alert/incident counter so repeated restarts remain visible;
-- [ ] add a critical functional DNS health check that independently verifies
-  `172.17.0.1:53` process/listener state and resolution of a public hostname;
-  separately verify the `int.albandrieu.com -> 172.17.0.24:53` delegation so a
-  Pi-hole outage cannot be confused with loss of general LAN DNS;
+- [x] add a critical functional Unbound health check: the SSH/local pfSense
+  posture audit now fails when the `unbound` process is absent, its control
+  socket is unhealthy, or a direct localhost query cannot resolve
+  `example.com`; API mode now fails when FastAPI Sample reports
+  `.pfsense.dns.reachable=false`;
+- [ ] add a separate split-DNS delegation check for
+  `int.albandrieu.com -> 172.17.0.24:53` so a Pi-hole/private-zone outage
+  cannot be confused with loss of general LAN DNS;
 - [ ] alert on Unbound down, resolver failure rate and pfSense memory guardrails,
   and surface the state in the homelab/FastAPI status presentation so Android
   "connected without Internet" incidents can be attributed quickly;
@@ -1703,6 +1722,56 @@ from lack of an external URL.
 19. shared PostgreSQL consolidation only after application-specific database
     ownership is understood;
 20. native Nginx Proxy Manager -> proven NPMplus.
+
+### Keycloak native -> repository-managed migration — 2026-09-08
+
+The previous native Keycloak application has been removed and contained no
+identity configuration worth migrating. Preserve the existing
+`/mnt/cpool/keycloak` dataset and the established public hostname
+`https://keycloak.albandrieu.com`, but rebuild the runtime from the repository.
+
+Target architecture:
+
+```text
+https://keycloak.albandrieu.com
+  -> trusted reverse proxy / tunnel
+  -> 172.17.0.24:30238
+  -> Keycloak 26.7.3
+  -> shared PostgreSQL 172.17.0.24:5432
+       database: keycloak
+       role: keycloak
+
+172.17.0.24:30239
+  -> Keycloak management only
+  -> /health/*
+  -> /metrics
+  -> Prometheus
+```
+
+- [x] record that the removed native Keycloak instance was empty and therefore
+  requires no realm/client/user data migration;
+- [x] preserve `/mnt/cpool/keycloak` as the explicit Keycloak runtime dataset;
+- [x] preserve `https://keycloak.albandrieu.com` as the canonical external
+  hostname;
+- [x] add `apps/keycloak/compose.yml` pinned to Keycloak `26.7.3`;
+- [x] use the **global PostgreSQL service** on `172.17.0.24:5432`; do not deploy
+  a dedicated PostgreSQL container for Keycloak;
+- [ ] create dedicated PostgreSQL database `keycloak` and role `keycloak`
+  with database-scoped ownership only;
+- [ ] import/render `KC_DB_PASSWORD` and
+  `KC_BOOTSTRAP_ADMIN_PASSWORD` through Vaultwarden into
+  `/mnt/cpool/keycloak/.env.secrets` mode `0600`;
+- [ ] register the repository definition as the TrueNAS Custom App `keycloak`;
+- [ ] prove `http://172.17.0.24:30239/health/ready` and management metrics;
+- [ ] prove the OIDC discovery issuer is
+  `https://keycloak.albandrieu.com/realms/master`, never the internal host;
+- [ ] scrape the private management metrics endpoint from Prometheus;
+- [ ] expose only application/OIDC traffic on `30238`; never expose management
+  port `30239` publicly;
+- [ ] configure GitHub as the first external identity provider;
+- [ ] retain a local break-glass administrator until GitHub SSO and recovery are
+  both tested;
+- [ ] later use Keycloak OIDC for Vault/OpenBao human authentication.
 
 ### P4 — identity and long-term machine secrets
 

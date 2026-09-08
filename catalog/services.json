@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:e36c46e769f61df84448057a0b570327f8c1764ba9a6b5e2ce3d2e4cfd32f797",
+  "catalogRevision": "sha256:f304356e8e8412051de816693d1b3ebc8ff516cf9218a7375f4b6e787d510e73",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -332,7 +332,7 @@
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "webui",
-      "url": "https://garage.int.albandrieu.com",
+      "url": "https://garage-admin.albandrieu.com",
       "description": "Web administration UI for Garage object storage.",
       "runtime": {
         "provider": "truenas-app",
@@ -473,6 +473,21 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "kafka"
+      }
+    },
+    {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "kind": "identity-provider",
+      "category": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "composeService": "keycloak",
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+      "presentationRole": "core",
+      "criticality": "critical",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "keycloak"
       }
     },
     {

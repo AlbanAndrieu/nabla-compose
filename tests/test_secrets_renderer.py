@@ -50,6 +50,7 @@ class SecretsRendererTests(unittest.TestCase):
                 "reactive-resume",
                 "akvorado",
                 "crowdsec",
+                "keycloak",
             },
         )
         serialized = json.dumps(manifest)

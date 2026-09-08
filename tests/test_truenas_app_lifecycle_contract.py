@@ -48,6 +48,68 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("https://ghcr.io/v2/", readme)
         self.assertIn("pfSense/Unbound", readme)
 
+    def test_keycloak_uses_shared_postgres_and_private_management_port(self) -> None:
+        compose = self.read("apps/keycloak/compose.yml")
+        readme = self.read("apps/keycloak/README.md")
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
+        self.assertIn("KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak", compose)
+        self.assertIn("KC_DB_USERNAME: keycloak", compose)
+        self.assertIn("KC_BOOTSTRAP_ADMIN_USERNAME: admin", compose)
+        self.assertNotIn("\n  postgres:", compose)
+        self.assertIn('KC_HOSTNAME: https://keycloak.albandrieu.com', compose)
+        self.assertIn('"172.17.0.24:30238:8080"', compose)
+        self.assertIn('"172.17.0.24:30239:9000"', compose)
+        self.assertIn('KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"', compose)
+        self.assertIn("/mnt/cpool/keycloak/.env.secrets", compose)
+        self.assertIn("shared PostgreSQL", readme)
+        self.assertIn("database keycloak", readme)
+        self.assertIn("role     keycloak", readme)
+        self.assertIn("ix-postgres-postgres-", readme)
+        self.assertIn("docker exec -i", readme)
+        self.assertIn("\\getenv keycloak_password KEYCLOAK_DB_PASSWORD", readme)
+        self.assertIn("Keycloak native -> repository-managed migration", roadmap)
+        self.assertIn("global PostgreSQL service", roadmap)
+        self.assertIn("172.17.0.24:30239/health/ready", roadmap)
+
+    def test_runtime_recovery_fixes_crowdsec_akvorado_and_openhands(self) -> None:
+        crowdsec = self.read("apps/crowdsec/compose.yml")
+        crowdsec_readme = self.read("apps/crowdsec/README.md")
+        akvorado = self.read("apps/akvorado/compose.yml")
+        openhands_readme = self.read("apps/openhands/README.md")
+
+        self.assertIn("required: false", crowdsec)
+        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", crowdsec)
+        self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", crowdsec)
+        self.assertNotIn("apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY", crowdsec)
+        self.assertIn("can bootstrap without a bouncer secret", crowdsec_readme)
+
+        self.assertIn(
+            "image: ghcr.io/akvorado/akvorado:2026.8.0",
+            akvorado,
+        )
+        self.assertNotIn("quay.io/akvorado/akvorado:v2026.8.1", akvorado)
+
+        self.assertIn("app.update openhands", openhands_readme)
+        self.assertIn(
+            "/mnt/cpool/compose/nabla-compose/apps/openhands/compose.yml",
+            openhands_readme,
+        )
+        self.assertIn("app.redeploy openhands", openhands_readme)
+
+    def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
+        script = self.read("scripts/truenas/diagnose-performance.sh")
+
+        self.assertIn("/proc/pressure/", script)
+        self.assertIn("docker stats --no-stream", script)
+        self.assertIn("zpool iostat -v cpool 1 3", script)
+        self.assertIn("midclt call app.query", script)
+        self.assertIn("journalctl -k -b", script)
+        self.assertNotIn("docker restart", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertNotIn("zpool clear", script)
+
     def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
         compose = self.read("apps/squid/compose.yml")
 
@@ -432,6 +494,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             audit,
         )
         self.assertIn("repository applications missing from TrueNAS app.query", audit)
+        self.assertIn("Traefik legacy DDNS orphan", audit)
+        self.assertIn("ddns-updater-legacy", audit)
         self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)

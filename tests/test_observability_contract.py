@@ -127,6 +127,8 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn(f"- job_name: {job}", prometheus)
             self.assertIn(target, prometheus)
 
+        self.assertIn("- job_name: keycloak", prometheus)
+        self.assertIn("172.17.0.24:30239", prometheus)
         self.assertIn("- job_name: crowdsec", prometheus)
         self.assertIn("172.17.0.24:6060", prometheus)
         self.assertIn("- job_name: truenas_node", prometheus)

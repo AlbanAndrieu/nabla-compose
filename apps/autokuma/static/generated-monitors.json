@@ -261,6 +261,15 @@
     "port": 9092
   },
   {
+    "type": "http",
+    "name": "Keycloak",
+    "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:30239/health/ready"
+  },
+  {
     "type": "port",
     "name": "Kibana",
     "description": "Nabla generated monitor: kibana",

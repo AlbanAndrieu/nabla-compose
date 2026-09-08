@@ -71,6 +71,42 @@ cached, an unrelated registry outage does not prevent a normal container
 restart. OpenHands will still need the Agent Server image available locally or
 reachable through GHCR to create agent sessions.
 
+## Repair a stale TrueNAS Custom App wrapper
+
+If TrueNAS still logs the legacy `docker.all-hands.dev` registry or warns that
+`HOME` is unset, the app is executing an old inline Compose snapshot rather
+than the repository file above. Reconcile the Custom App back to the canonical
+include:
+
+```bash
+sudo midclt call -j app.update openhands \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/openhands/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy openhands
+```
+
+Then prove the effective runtime no longer contains the legacy registry or
+`${HOME}` paths:
+
+```bash
+midclt call app.query \
+  '[["id","=","openhands"]]' \
+  '{"extra":{"retrieve_config":true}}' |
+jq '.[0] | {state,config,active_workloads}'
+
+docker inspect openhands-app |
+jq '.[0] | {
+  image: .Config.Image,
+  mounts: [.Mounts[] | {source: .Source, destination: .Destination}]
+}'
+```
+
 ## Validation
 
 ```bash

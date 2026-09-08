@@ -1,5 +1,11 @@
 # Akvorado network-flow observability
 
+> Runtime image note: upstream released source tag `v2026.8.1`, but the
+> corresponding container manifest was not available on the configured Quay
+> registry during the 2026-09-08 recovery. The deployment therefore pins the
+> published GHCR image `ghcr.io/akvorado/akvorado:2026.8.0` until a newer
+> container tag is verified before promotion.
+
 Akvorado replaces the resource-heavy native ntopng workload on the Netgate 1100
 for homelab flow collection.
 

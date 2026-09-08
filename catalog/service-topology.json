@@ -110,6 +110,22 @@
       "sourcePath": "apps/bichon/compose.yml"
     },
     {
+      "id": "clamav",
+      "name": "ClamAV",
+      "kind": "antivirus-engine",
+      "category": "security",
+      "sourcePath": "catalog/homelab-services.json",
+      "url": "https://clamav.albandrieu.com",
+      "internalUrl": "https://clamav.int.albandrieu.com",
+      "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect",
+        "detect"
+      ]
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -245,7 +261,7 @@
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
-      "url": "https://garage.int.albandrieu.com",
+      "url": "https://garage-admin.albandrieu.com",
       "description": "Web administration UI for Garage object storage.",
       "icon": "🖥️"
     },
@@ -333,6 +349,16 @@
       "kind": "message-broker",
       "category": "data",
       "sourcePath": "apps/kafka/compose.yml"
+    },
+    {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "kind": "identity-provider",
+      "category": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+      "presentationRole": "core",
+      "criticality": "critical"
     },
     {
       "id": "kibana",
@@ -1297,7 +1323,7 @@
       "description": "CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.",
       "evidence": [
         "apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT",
-        "apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY"
+        "apps/crowdsec/compose.yml:BOUNCER_KEY_PFSENSE_FIREWALL"
       ]
     },
     {
@@ -1499,7 +1525,7 @@
       "target": "traefik",
       "type": "exposedBy",
       "strength": "optional",
-      "description": "Traefik routes garage.int.albandrieu.com to Garage WebUI.",
+      "description": "Traefik routes the Garage WebUI origin; public exposure is provided through Cloudflare Tunnel.",
       "evidence": [
         "apps/garage/compose.yml:traefik.http.routers.garage-webui.rule",
         "apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port"
@@ -1693,6 +1719,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/keycloak/compose.yml:keycloak.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Keycloak stores realm, client and identity state in the shared PostgreSQL service.",
+      "evidence": [
+        "apps/keycloak/compose.yml:KC_DB_URL"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes Keycloak metrics from the private management interface.",
+      "evidence": [
+        "apps/keycloak/compose.yml:KC_METRICS_ENABLED"
       ]
     },
     {

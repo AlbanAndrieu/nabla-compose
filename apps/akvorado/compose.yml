@@ -1,6 +1,6 @@
 ---
 x-akvorado-service: &akvorado-service
-  image: quay.io/akvorado/akvorado:v2026.8.1
+  image: ghcr.io/akvorado/akvorado:2026.8.0
   restart: unless-stopped
   networks:
     - intranet

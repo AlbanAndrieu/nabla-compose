@@ -69,7 +69,7 @@ services:
       name: Garage WebUI
       kind: application
       category: data
-      url: https://garage.int.albandrieu.com
+      url: https://garage-admin.albandrieu.com
       description: Web administration UI for Garage object storage.
       runtime:
         provider: truenas-app
@@ -85,7 +85,7 @@ services:
         - target: traefik
           type: exposedBy
           strength: optional
-          description: Traefik routes garage.int.albandrieu.com to Garage WebUI.
+          description: Traefik routes the Garage WebUI origin; public exposure is provided through Cloudflare Tunnel.
           evidence:
             - apps/garage/compose.yml:traefik.http.routers.garage-webui.rule
             - apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port
@@ -104,7 +104,7 @@ services:
     networks: ["traefik_network"]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.garage-webui.rule=Host(`garage.int.albandrieu.com`)"
+      - "traefik.http.routers.garage-webui.rule=Host(`garage-admin.albandrieu.com`)"
       - "traefik.http.routers.garage-webui.entrypoints=websecure"
       - "traefik.http.routers.garage-webui.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-webui.service=garage-webui"

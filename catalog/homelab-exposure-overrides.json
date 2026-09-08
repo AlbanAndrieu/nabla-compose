@@ -31,10 +31,12 @@
     },
     {
       "name": "Garage WebUI",
-      "external": false,
-      "tunnelSecure": false,
-      "cloudflareAccessRequired": false,
-      "securityException": "Garage WebUI is an administration surface and must remain LAN/VPN-only. Public DNS, direct WAN ingress or a public Cloudflare hostname is configuration drift unless a separately reviewed Access-protected design is introduced."
+      "external": true,
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true,
+      "tunnelUrl": "https://garage-admin.albandrieu.com",
+      "endpointEnabled": true,
+      "healthNote": "Garage WebUI is intentionally exposed through Cloudflare at https://garage-admin.albandrieu.com. The Garage Admin API on port 3903 remains an internal backend and must not be exposed directly."
     },
     {
       "name": "Bichon",
@@ -56,6 +58,33 @@
       "tunnelUrl": "https://scrutiny.albandrieu.com",
       "tunnelSecure": true,
       "cloudflareAccessRequired": true
+    },
+    {
+      "name": "PostgreSQL",
+      "external": false,
+      "tunnelUrl": "postgres://postgres.albandrieu.com:5432/",
+      "tunnelSecure": false,
+      "endpointEnabled": true,
+      "cloudflareAccessRequired": false,
+      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. The canonical endpoint is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/5432."
+    },
+    {
+      "name": "ClamAV",
+      "external": false,
+      "tunnelUrl": "https://clamav.albandrieu.com",
+      "tunnelSecure": true,
+      "endpointEnabled": true,
+      "cloudflareAccessRequired": false,
+      "healthNote": "⚠️ Internal-only antivirus engine. The canonical URL is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/3310; internal DNS identity is https://clamav.int.albandrieu.com."
+    },
+    {
+      "name": "Reactive Resume",
+      "external": true,
+      "tunnelUrl": "https://reactive.albandrieu.com",
+      "tunnelSecure": true,
+      "endpointEnabled": true,
+      "cloudflareAccessRequired": false,
+      "healthNote": "Reactive Resume is intentionally exposed at https://reactive.albandrieu.com. Runtime, public HTTPS reachability and tunnel/edge evidence should reconcile to green when healthy."
     }
   ]
 }

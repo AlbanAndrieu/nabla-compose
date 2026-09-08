@@ -225,7 +225,7 @@
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "webui",
       "dockerManaged": true,
-      "href": "https://garage.int.albandrieu.com",
+      "href": "https://garage-admin.albandrieu.com",
       "syncEligible": true,
       "description": "Web administration UI for Garage object storage."
     },
@@ -334,6 +334,17 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
+    },
+    {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "group": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "composeService": "keycloak",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30238",
+      "syncEligible": true,
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service."
     },
     {
       "id": "kibana",
