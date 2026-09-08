@@ -34,7 +34,7 @@ services:
           description: CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.
           evidence:
             - apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT
-            - apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY
+            - apps/crowdsec/compose.yml:BOUNCER_KEY_PFSENSE_FIREWALL
         - target: suricata
           type: dependsOn
           strength: optional
@@ -49,8 +49,9 @@ services:
           evidence:
             - apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT
             - apps/prometheus/prometheus.yml:job_name=crowdsec
+    env_file:
+      - /mnt/cpool/crowdsec/.env.secrets
     environment:
-      BOUNCER_KEY_pfsense_firewall: ${CROWDSEC_PFSENSE_BOUNCER_KEY}
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
       TZ: ${TZ:-Europe/Paris}
     ports:
