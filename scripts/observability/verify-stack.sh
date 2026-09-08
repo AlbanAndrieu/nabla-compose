@@ -175,8 +175,28 @@ check_prometheus_targets() {
       )
     ' "${body}" >/dev/null 2>&1; then
       ok "Prometheus target is up: ${job}"
+      continue
+    fi
+
+    if jq -e --arg job "${job}" '
+      .status == "success"
+      and any(.data.activeTargets[]; .labels.job == $job)
+    ' "${body}" >/dev/null 2>&1; then
+      local last_error
+      last_error="$(
+        jq -r --arg job "${job}" '
+          [
+            .data.activeTargets[]
+            | select(.labels.job == $job)
+            | .lastError
+            | select(. != null and . != "")
+          ]
+          | first // "scrape unhealthy without lastError"
+        ' "${body}"
+      )"
+      fail "Prometheus target is unhealthy: ${job} (${last_error})"
     else
-      fail "Prometheus target is missing or unhealthy: ${job}"
+      fail "Prometheus target is absent from active configuration: ${job}"
     fi
   done
 }

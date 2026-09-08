@@ -72,6 +72,28 @@ include:
   - /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
 ```
 
+If the app is not registered yet (`app.redeploy akvorado` returns `ENOENT`),
+create it from the canonical include wrapper:
+
+```bash
+AKVORADO_WRAPPER="$(
+  cat <<'EOF'
+include:
+  - /mnt/cpool/compose/nabla-compose/apps/akvorado/compose.yml
+EOF
+)"
+
+sudo midclt call -j app.create "$(
+  jq -cn \
+    --arg compose "${AKVORADO_WRAPPER}" \
+    '{
+      app_name: "akvorado",
+      custom_app: true,
+      custom_compose_config_string: $compose
+    }'
+)"
+```
+
 Then **Save/Deploy** the `akvorado` Custom App. Do not paste a copy of
 `apps/akvorado/compose.yml` into the UI: the external include preserves the
 repository-relative `./config` bind mount.

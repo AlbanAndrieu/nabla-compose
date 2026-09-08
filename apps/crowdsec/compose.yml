@@ -49,8 +49,10 @@ services:
           evidence:
             - apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT
             - apps/prometheus/prometheus.yml:job_name=crowdsec
+    # Vaultwarden import alias: CROWDSEC_PFSENSE_BOUNCER_KEY
+    env_file:
+      - /mnt/cpool/crowdsec/.env.secrets
     environment:
-      BOUNCER_KEY_pfsense_firewall: ${CROWDSEC_PFSENSE_BOUNCER_KEY}
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
       TZ: ${TZ:-Europe/Paris}
     ports:

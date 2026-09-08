@@ -512,6 +512,9 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("/api/v1/alertmanagers", stack)
         self.assertIn("Alertmanager readiness", stack)
         self.assertIn("Prometheus target is up", stack)
+        self.assertIn("Prometheus target is unhealthy", stack)
+        self.assertIn("Prometheus target is absent from active configuration", stack)
+        self.assertIn(".lastError", stack)
         for exporter_job in (
             "pihole_exporter",
             "postgres_exporter",

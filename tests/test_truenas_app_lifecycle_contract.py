@@ -21,6 +21,69 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/bichon/.env.secrets", compose)
         self.assertIn('user: "568:568"', compose)
 
+    def test_openhands_uses_current_upstream_runtime_contract(self) -> None:
+        compose = self.read("apps/openhands/compose.yml")
+        readme = self.read("apps/openhands/README.md")
+
+        self.assertNotIn("${HOME}", compose)
+        self.assertIn("pull_policy: missing", compose)
+        self.assertIn(
+            "image: docker.openhands.dev/openhands/openhands:1.8",
+            compose,
+        )
+        self.assertIn(
+            "AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server",
+            compose,
+        )
+        self.assertIn("AGENT_SERVER_IMAGE_TAG: 1.26.0-python", compose)
+        self.assertIn(
+            "/mnt/cpool/openhands/state:/.openhands",
+            compose,
+        )
+        self.assertNotIn("SANDBOX_RUNTIME_CONTAINER_IMAGE", compose)
+        self.assertNotIn("WORKSPACE_MOUNT_PATH", compose)
+        self.assertNotIn(".openhands-state", compose)
+        self.assertIn('"172.17.0.24:3010:3000"', compose)
+        self.assertIn("docker.openhands.dev/v2/", readme)
+        self.assertIn("https://ghcr.io/v2/", readme)
+        self.assertIn("pfSense/Unbound", readme)
+
+    def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
+        compose = self.read("apps/squid/compose.yml")
+
+        self.assertIn('"172.17.0.24:3128:3128"', compose)
+        self.assertIn("    networks:\n      - intranet", compose)
+        self.assertIn(
+            "networks:\n  intranet:\n    external: true\n    name: intranet",
+            compose,
+        )
+
+    def test_crowdsec_secret_and_first_install_are_runtime_safe(self) -> None:
+        compose = self.read("apps/crowdsec/compose.yml")
+        readme = self.read("apps/crowdsec/README.md")
+        akvorado_readme = self.read("apps/akvorado/README.md")
+
+        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", compose)
+        self.assertNotIn("${CROWDSEC_PFSENSE_BOUNCER_KEY}", compose)
+        self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", readme)
+        self.assertIn('app_name: "crowdsec"', readme)
+        self.assertIn("custom_compose_config_string", readme)
+        self.assertIn('app_name: "akvorado"', akvorado_readme)
+        self.assertIn("custom_compose_config_string", akvorado_readme)
+
+    def test_pihole_exporter_does_not_own_dns_lifecycle(self) -> None:
+        compose = self.read("apps/pihole/compose.yml")
+        readme = self.read("apps/pihole/README.md")
+
+        exporter = compose.split("\n  pihole-exporter:\n", 1)[1].split(
+            "\nnetworks:\n",
+            1,
+        )[0]
+        self.assertNotIn("depends_on:", exporter)
+        self.assertIn("up -d --no-deps pihole-exporter", readme)
+        self.assertIn("com.docker.compose.project.working_dir", readme)
+        self.assertIn("http://172.17.0.24:9617/metrics", readme)
+
     def test_gatus_persists_generated_history(self) -> None:
         compose = self.read("apps/gatus/compose.yml")
         config = self.read("apps/gatus/config/config.yml")
@@ -328,6 +391,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("MigrationInProgress", readme)
         self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
+
+    def test_failure_report_covers_non_running_apps_and_focus_services(self) -> None:
+        report = self.read("scripts/truenas/report-app-failures.sh")
+
+        self.assertIn('select(.state != "RUNNING")', report)
+        self.assertIn("core.get_jobs", report)
+        self.assertIn("com.docker.compose.project=ix-", report)
+        self.assertIn('select(.id == "traefik")', report)
+        self.assertIn('select(.id == "keycloak")', report)
+        self.assertIn("172.17.0.24:30238", report)
 
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
