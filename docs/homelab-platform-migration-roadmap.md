@@ -1745,8 +1745,11 @@ should be verified/stabilized before broad application migrations:
   `pfsense_*` samples rather than merely HTTP 200 before considering the
   TrueNAS Custom App fully healthy;
   keep the Netgate 1100 exporter in a low-impact steady-state profile:
-  Prometheus scrape every 60 seconds, five essential collectors only,
-  `max_collector_concurrency=1`, and TCP-only Gatus/AutoKuma liveness checks;
+  Prometheus scrape every 120 seconds, only `system`, `gateways` and
+  `service`, `max_collector_concurrency=1`, an 8-second pfREST target
+  timeout, and TCP-only Gatus/AutoKuma liveness checks; runtime evidence showed
+  `firewall_states` and `interface` timing out while pfSense had 0% idle CPU,
+  so they stay disabled until the appliance is demonstrably stable;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
