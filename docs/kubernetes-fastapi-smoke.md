@@ -19,7 +19,7 @@ The smoke test is intentionally separate from the TrueNAS deployment behind
    `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`) exists and has a
    non-empty `.spec.controller`.
 5. `test.albandrieu.com` resolves before deployment.
-5. The FastAPI Sample image reference is immutable by digest. Mutable tags,
+6. The FastAPI Sample image reference is immutable by digest. Mutable tags,
    including version tags and `:latest`, are not accepted by the smoke gate.
 
 The FastAPI Sample repository publishes GHCR images. Supply the exact image ref:
