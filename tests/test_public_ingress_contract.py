@@ -134,6 +134,9 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("ip -j -4 route show table all", script)
         self.assertIn("--ip-range", script)
         self.assertIn("--aux-address", script)
+        self.assertIn('--aux-address "reserve8=${RESERVE_8}"', script)
+        self.assertIn("com.nabla.observer-contract", script)
+        self.assertIn("--recreate", script)
         self.assertIn("com.nabla.observer-ip", script)
         self.assertNotIn("172.16.56.0/28", script)
 
