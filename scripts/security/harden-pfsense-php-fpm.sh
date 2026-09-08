@@ -116,6 +116,13 @@ generated_state() {
   ' "${GENERATED}"
 }
 
+worker_count() {
+  ps axww -o command= | awk '
+    /^php-fpm: pool nginx/ { count++ }
+    END { print count + 0 }
+  '
+}
+
 expected="${TARGET_MAX}/${TARGET_IDLE}/${TARGET_START}/${TARGET_SPARE}/${TARGET_REQ}"
 upstream="8/3600/2/7/5000"
 current_source=$(source_state)
@@ -191,7 +198,10 @@ run_generator
 
 /etc/rc.restart_webgui
 
-workers=$(pgrep -fc '^php-fpm: pool nginx' || true)
+workers=$(worker_count)
+case "${workers}" in
+  ''|*[!0-9]*) fail "unable to determine numeric PHP-FPM worker count: ${workers:-empty}" ;;
+esac
 [ "${workers}" -le "${TARGET_MAX}" ] || fail "PHP-FPM worker count ${workers} exceeds target ${TARGET_MAX}"
 
 printf 'OK: pfSense PHP-FPM constrained profile applied: %s\n' "${expected}"
