@@ -134,6 +134,12 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("- job_name: truenas_cadvisor", prometheus)
         self.assertIn("172.17.0.24:8089", prometheus)
 
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("NablaExporterTargetDown", rules)
+        self.assertIn("impact: blind_spot", rules)
+
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
