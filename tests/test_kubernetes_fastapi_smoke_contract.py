@@ -75,7 +75,9 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
     def test_validation_covers_rollout_service_image_and_public_endpoints(self) -> None:
         required = (
             "kubectl rollout status deployment/fastapi-sample",
-            "Service has no ready endpoints",
+            "kubectl get endpointslice",
+            "--selector kubernetes.io/service-name=fastapi-sample",
+            "Service has no ready EndpointSlice addresses",
             "deployed image drift",
             'https://${HOST}/health',
             "K8S_FASTAPI_SMOKE_API_PATH",
