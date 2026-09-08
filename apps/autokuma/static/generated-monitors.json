@@ -1,6 +1,26 @@
 [
   {
     "type": "port",
+    "name": "1Password Connect API",
+    "description": "1Password Connect API for machine-readable secret access.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8097
+  },
+  {
+    "type": "port",
+    "name": "1Password Connect Sync",
+    "description": "Synchronizes 1Password vault state for the Connect API.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8098
+  },
+  {
+    "type": "port",
     "name": "2FAuth",
     "description": "Nabla generated monitor: 2fauth",
     "interval": 60,
@@ -48,12 +68,22 @@
   },
   {
     "type": "http",
-    "name": "Grafana Alloy",
-    "description": "Nabla generated monitor: alloy",
+    "name": "Alertmanager",
+    "description": "Nabla generated monitor: prometheus-alertmanager",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:12345/-/healthy"
+    "url": "http://172.17.0.24:9093/-/ready"
+  },
+  {
+    "type": "port",
+    "name": "Apache Kafka",
+    "description": "Nabla generated monitor: kafka",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "kafka",
+    "port": 9092
   },
   {
     "type": "http",
@@ -73,6 +103,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 15630
+  },
+  {
+    "type": "port",
+    "name": "Cadvisor",
+    "description": "Nabla generated monitor: prometheus-cadvisor",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8089
   },
   {
     "type": "port",
@@ -102,6 +142,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8084
+  },
+  {
+    "type": "port",
+    "name": "Ddns Updater",
+    "description": "Nabla generated monitor: traefik-ddns-updater",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8000
   },
   {
     "type": "port",
@@ -202,6 +252,24 @@
     "url": "http://172.17.0.24:30037/api/health"
   },
   {
+    "type": "http",
+    "name": "Grafana Alloy",
+    "description": "Nabla generated monitor: alloy",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:12345/-/healthy"
+  },
+  {
+    "type": "http",
+    "name": "Grafana Pyroscope",
+    "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:4040/ready"
+  },
+  {
     "type": "port",
     "name": "Graylog",
     "description": "Nabla generated monitor: graylog",
@@ -210,16 +278,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9003
-  },
-  {
-    "type": "port",
-    "name": "pfSense HAProxy Exporter",
-    "description": "Nabla generated monitor: haproxy-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9101
   },
   {
     "type": "port",
@@ -251,14 +309,13 @@
     "url": "https://homeassistant.albanandrieu.com"
   },
   {
-    "type": "port",
-    "name": "Apache Kafka",
-    "description": "Nabla generated monitor: kafka",
+    "type": "http",
+    "name": "Keycloak",
+    "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "kafka",
-    "port": 9092
+    "url": "http://172.17.0.24:30239/health/ready"
   },
   {
     "type": "port",
@@ -369,6 +426,16 @@
   },
   {
     "type": "port",
+    "name": "Node Exporter",
+    "description": "Nabla generated monitor: prometheus-node-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9100
+  },
+  {
+    "type": "port",
     "name": "NPMplus",
     "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
     "interval": 60,
@@ -409,23 +476,23 @@
   },
   {
     "type": "port",
-    "name": "1Password Connect API",
-    "description": "1Password Connect API for machine-readable secret access.",
+    "name": "Open WebUI",
+    "description": "Nabla generated monitor: openwebui",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 8097
+    "port": 31028
   },
   {
     "type": "port",
-    "name": "1Password Connect Sync",
-    "description": "Synchronizes 1Password vault state for the Connect API.",
+    "name": "Open WebUI Pipelines",
+    "description": "Nabla generated monitor: openwebui-pipelines",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 8098
+    "port": 9099
   },
   {
     "type": "port",
@@ -489,26 +556,6 @@
   },
   {
     "type": "port",
-    "name": "Open WebUI",
-    "description": "Nabla generated monitor: openwebui",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31028
-  },
-  {
-    "type": "port",
-    "name": "Open WebUI Pipelines",
-    "description": "Nabla generated monitor: openwebui-pipelines",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9099
-  },
-  {
-    "type": "port",
     "name": "pfSense",
     "description": "pfSense endpoint already consumed by the Prometheus exporter.",
     "interval": 60,
@@ -525,6 +572,16 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"
+  },
+  {
+    "type": "port",
+    "name": "pfSense HAProxy Exporter",
+    "description": "Nabla generated monitor: haproxy-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9101
   },
   {
     "type": "http",
@@ -557,16 +614,6 @@
   },
   {
     "type": "port",
-    "name": "PostgreSQL Exporter",
-    "description": "Prometheus exporter for the shared PostgreSQL service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9187
-  },
-  {
-    "type": "port",
     "name": "PostgreSQL",
     "description": "Shared PostgreSQL service consumed by application stacks.",
     "interval": 60,
@@ -576,6 +623,16 @@
     "port": 5432
   },
   {
+    "type": "port",
+    "name": "PostgreSQL Exporter",
+    "description": "Prometheus exporter for the shared PostgreSQL service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9187
+  },
+  {
     "type": "http",
     "name": "Prometheus",
     "description": "Nabla generated monitor: prometheus",
@@ -583,44 +640,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:9090/-/ready"
-  },
-  {
-    "type": "http",
-    "name": "Alertmanager",
-    "description": "Nabla generated monitor: prometheus-alertmanager",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9093/-/ready"
-  },
-  {
-    "type": "port",
-    "name": "Cadvisor",
-    "description": "Nabla generated monitor: prometheus-cadvisor",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8089
-  },
-  {
-    "type": "port",
-    "name": "Node Exporter",
-    "description": "Nabla generated monitor: prometheus-node-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9100
-  },
-  {
-    "type": "http",
-    "name": "Grafana Pyroscope",
-    "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:4040/ready"
   },
   {
     "type": "port",
@@ -727,16 +746,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 80
-  },
-  {
-    "type": "port",
-    "name": "Ddns Updater",
-    "description": "Nabla generated monitor: traefik-ddns-updater",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8000
   },
   {
     "type": "port",
