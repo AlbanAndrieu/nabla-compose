@@ -65,14 +65,6 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
-  - job_name: truenas_cadvisor
-    static_configs:
-      - targets:
-          - 172.17.0.24:8089
-        labels:
-          platform: truenas
-          role: container-runtime
-
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
