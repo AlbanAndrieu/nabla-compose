@@ -154,6 +154,11 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('172.16.55.9/32', script)
         self.assertIn('172.16.56.9/32', script)
         self.assertIn("system.general.update", script)
+        self.assertIn("system.general.get_ui_allowlist", script)
+        self.assertIn("ui_restart_delay", script)
+        self.assertIn("rollback_timeout", script)
+        self.assertIn("system.general.ui_restart", script)
+        self.assertIn("rollback remains armed", script)
         self.assertIn("system.general.checkin", script)
 
     def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
