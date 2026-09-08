@@ -1322,7 +1322,7 @@ function probe_pfsense_exporter_runtime_if_present {
     sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
       head -n 1 |
       xargs |
-      tr -d "\\\"'"
+      tr -d "\"'"
   )"
 
   case "${auth_method}" in
