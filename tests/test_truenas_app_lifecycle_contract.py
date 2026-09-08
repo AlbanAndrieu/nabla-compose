@@ -56,6 +56,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
         self.assertIn("KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak", compose)
         self.assertIn("KC_DB_USERNAME: keycloak", compose)
+        self.assertIn("KC_BOOTSTRAP_ADMIN_USERNAME: admin", compose)
         self.assertNotIn("\n  postgres:", compose)
         self.assertIn('KC_HOSTNAME: https://keycloak.albandrieu.com', compose)
         self.assertIn('"172.17.0.24:30238:8080"', compose)
