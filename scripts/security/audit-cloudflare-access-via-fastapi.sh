@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep interactive diagnostics compact while preserving full CI/non-TTY output.
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
+      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
+      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
+  NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
+  exec "${NABLA_DIAGNOSTIC_WRAPPER}"     "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
+fi
+
 BASE_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
 SICKZ_URL="${BASE_URL%/}/sickz"
 DIAGNOSTICS_KEY="${FASTAPI_SAMPLE_DIAGNOSTICS_KEY:-}"
