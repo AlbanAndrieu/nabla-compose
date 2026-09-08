@@ -335,6 +335,16 @@
       "sourcePath": "apps/kafka/compose.yml"
     },
     {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "kind": "identity-provider",
+      "category": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+      "presentationRole": "core",
+      "criticality": "critical"
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "kind": "dashboard",
@@ -1297,7 +1307,7 @@
       "description": "CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.",
       "evidence": [
         "apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT",
-        "apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY"
+        "apps/crowdsec/compose.yml:BOUNCER_KEY_PFSENSE_FIREWALL"
       ]
     },
     {
@@ -1693,6 +1703,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/keycloak/compose.yml:keycloak.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Keycloak stores realm, client and identity state in the shared PostgreSQL service.",
+      "evidence": [
+        "apps/keycloak/compose.yml:KC_DB_URL"
+      ]
+    },
+    {
+      "source": "keycloak",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes Keycloak metrics from the private management interface.",
+      "evidence": [
+        "apps/keycloak/compose.yml:KC_METRICS_ENABLED"
       ]
     },
     {
