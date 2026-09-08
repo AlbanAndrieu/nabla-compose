@@ -25,7 +25,8 @@ elif [ -f /etc/debian_version ]; then
   OS="Debian"
   VER="$(cat /etc/debian_version)"
 elif [ -f /etc/SuSe-release ]; then
-    # SuSe not handled
+  OS="SUSE"
+  VER="$(head -n 1 /etc/SuSe-release)"
 elif [ -f /etc/redhat-release ]; then
   OS=$(uname -s)
   VER=$(uname -r)
