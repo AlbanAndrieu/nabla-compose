@@ -824,6 +824,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", script)
         self.assertIn("max_collector_concurrency: 1", script)
+        self.assertIn("timeout: 8", script)
+        self.assertIn("Prometheus (120s)", script)
+        self.assertNotIn('"      - interface"', script)
+        self.assertNotIn('"      - firewall_states"', script)
         self.assertIn("without printing the API key", script)
         self.assertNotIn("echo \"$key\"", script)
 
