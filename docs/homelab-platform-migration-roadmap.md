@@ -195,6 +195,30 @@ must not be treated as evidence that the services are intentionally public.
 - [ ] keep pfSense/Unbound as the general LAN resolver and design the private
   `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
   point of failure;
+- [ ] **Diagnose the current Unbound outage before enabling any watchdog:** capture
+  the exact daemon state with `pgrep -x unbound`, recent resolver/system logs,
+  current free memory and top RSS consumers, and current-boot kernel OOM/reclaim
+  evidence before restarting the resolver;
+- [ ] classify every Unbound outage as one of: kernel OOM/memory-pressure kill,
+  pfBlockerNG DNSBL reload/rebuild failure, invalid/generated Unbound configuration,
+  bind/listener conflict, operator/package restart, or unexplained daemon exit;
+- [ ] verify the stabilized pfBlockerNG memory baseline has not regressed: reduced
+  DNSBL dataset, heavy UT1 categories still disabled, PHP `memory_limit=128M`,
+  ntopng/softflowd disabled, Snort sizing preserved, and adequate free-memory
+  headroom before restoring optional services;
+- [ ] **keep Unbound out of Service Watchdog while OOM/memory pressure remains a
+  plausible root cause**: automatic restarts can recreate allocation pressure
+  and hide restart/bind races;
+- [ ] reconsider Service Watchdog for Unbound only after a measured observation
+  window proves stable memory headroom and the outage cause is non-memory-related;
+  if enabled later, add an alert/incident counter so repeated restarts remain visible;
+- [ ] add a critical functional DNS health check that independently verifies
+  `172.17.0.1:53` process/listener state and resolution of a public hostname;
+  separately verify the `int.albandrieu.com -> 172.17.0.24:53` delegation so a
+  Pi-hole outage cannot be confused with loss of general LAN DNS;
+- [ ] alert on Unbound down, resolver failure rate and pfSense memory guardrails,
+  and surface the state in the homelab/FastAPI status presentation so Android
+  "connected without Internet" incidents can be attributed quickly;
 - [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
   critical `*.int` names, with Pi-hole synchronization retained as an
   optional secondary consumer.
