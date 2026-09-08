@@ -14,7 +14,7 @@ notes remain in the specialized roadmaps:
 ## Current platform state
 
 - [x] Talos control plane and both workers are Kubernetes `Ready`.
-- [x] kubelet/flannel are healthy and the single-control-plane etcd member is healthy.
+- [x] kubelet, kube-proxy, CoreDNS and the Talos-managed default Flannel CNI are running; all three nodes report `NetworkUnavailable=False` / `FlannelIsUp`, and the single-control-plane etcd member is healthy.
 - [x] `scripts/talos/validate-cluster.sh` provides the read-only base-cluster gate.
 - [x] FastAPI Sample uses the repository-owned `sample-observer` bridge.
 - [x] TrueNAS observer source is pinned to `10.254.255.9/32`.
@@ -91,10 +91,11 @@ green cloud observation must not mask a broken local path.
    convergence is proven (`exit=0`, aggregate `RUNNING`, zero
    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
    healthy); finish the synthetic event proof as part of the local FastAPI gate.
-10. [ ] **Talos P0 — resumes after FastAPI local dependency convergence** —
-    apply/prove VM autostart, run the base-cluster validator, then DNS/CNI,
-    CoreDNS, Service/ClusterIP, cross-node routing and the immutable FastAPI smoke
-    on `test.albandrieu.com`.
+10. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
+    finish VM-autostart persistence, rerun the Talos/CoreDNS/Flannel network
+    regression gate, then make TrueNAS NFS + CSI persistence green before
+    Kubara/Traefik and the immutable FastAPI ingress smoke on
+    `test.albandrieu.com`.
 11. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material,
     deploy manager/indexer/dashboard, and require
     `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch
@@ -112,15 +113,16 @@ green cloud observation must not mask a broken local path.
     re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
 
 **Ordering gate:** the FastAPI local dependency convergence above is the first
-blocking gate. Talos/Kubara implementation work may be prepared, but Kubernetes
-P0 acceptance and CSI progression resume only after the local FastAPI runtime
-can prove its critical TrueNAS/pfSense/Cloudflare/Prometheus/Sentry/Pyroscope
-dependencies. Sentry must also be accepted before Docling/OpenRAG-LiteLLM.
-The minimal Kubara v0.14.0 bootstrap needed for Argo CD platform reconciliation
-plus the single intended Traefik ingress controller remains allowed before CSI;
-persistent/stateful workloads remain blocked until CSI persistence and rollback
-are proven. Wazuh/Scrutiny work may proceed in parallel because it does not
-replace either acceptance gate.
+blocking gate. Kubernetes implementation work may be prepared, but P0
+acceptance resumes only after the local FastAPI runtime can prove its critical
+TrueNAS/pfSense/Cloudflare/Prometheus/Sentry/Pyroscope dependencies. Once that
+gate is green, treat the already-installed Talos/Flannel/CoreDNS path as a
+regression gate and make **TrueNAS NFS + CSI the first remaining Kubernetes
+implementation gate, before Kubara/Traefik and the external FastAPI ingress
+smoke**. Persistent/stateful workloads remain blocked until CSI provisioning,
+persistence, reclaim and rollback are proven. Sentry must also be accepted
+before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work may proceed in parallel
+because it does not replace either acceptance gate.
 
 ### Sentry startup note — long 70% plateau
 
@@ -176,55 +178,72 @@ visibility.
       rollback evidence is retained; keep human/infrastructure credentials
       outside the application observer boundary.
 
-## P0 — Kubernetes DNS/CNI + FastAPI Sample acceptance
+## P0 — Kubernetes platform: TrueNAS NFS + CSI first
 
-Do not start CSI installation until all items below are green.
+The Talos/Kubernetes base is already operational. Talos v1.13 installs Flannel
+as its default CNI unless explicitly disabled, and CoreDNS is deployed during
+cluster bootstrap unless explicitly disabled. Repository runtime evidence
+already confirms CoreDNS, kube-proxy and Flannel are running, all three nodes
+are `Ready`, and `NetworkUnavailable=False` reports `FlannelIsUp`.
 
-**Ingress/platform target:** Kubara `v0.14.0`. The current Talos cluster is a
-healthy raw Kubernetes base but has no `IngressClass` yet. Kubara defaults
-`ingressClassName` to `traefik` and generates a Traefik Helm component.
-Use that Kubara-managed Traefik path unless the generated configuration
-explicitly replaces it; do not install a second standalone Traefik.
+Do **not** reinstall Flannel or CoreDNS. Keep the network checks as a regression
+gate around storage changes. The first remaining implementation phase is
+TrueNAS-backed NFS/CSI persistence.
 
-Reboot incident resolved (2026-09-08): all three Talos VMs were found
-`STOPPED` after the TrueNAS reboot because their persisted VM configuration
-still had `autostart=false`. Manual start restored direct LAN reachability,
-ICMP and Talos API TCP/50000 on `.50`, `.51` and `.52`.
+### P0.A — Talos/Kubernetes baseline — already present
 
-Steady-state remediation is now tracked in IaC with
-`TALOS_VM_AUTOSTART=true`. Apply only if the reviewed plan is exactly three
-in-place VM updates with zero create/replace/destroy actions.
-
-- [x] restore and prove Talos API TCP/50000 reachability on `.50`, `.51` and `.52` after manual VM start;
+- [x] Kubernetes `v1.36.3` runs on all three Talos `v1.13.9` nodes;
+- [x] control plane `172.17.0.50` and workers `172.17.0.51` / `172.17.0.52` are `Ready`;
+- [x] Talos-managed Flannel is installed and all nodes report `NetworkUnavailable=False` / `FlannelIsUp`;
+- [x] CoreDNS, kube-proxy and Flannel pods are running;
+- [x] Talos API TCP/50000 reachability is restored on all three nodes;
 - [ ] apply the IaC autostart change only if the plan is exactly 3 in-place VM updates, 0 create and 0 destroy;
 - [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` and require all three VMs to report `autostart=true` and `RUNNING`;
-- [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot and rerun the persistence gate;
-- [ ] run `scripts/talos/validate-cluster.sh` immediately before the network smoke;
-- [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
-- [x] record live pre-platform evidence: Kubernetes `v1.36.3` has all three
-      Talos nodes `Ready`, `kubectl get ingressclass` returns no resources,
-      and `nabla-fastapi-smoke` is absent before deployment;
-- [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and add the read-only
-      `scripts/talos/preflight-kubara.sh` contract for clean pre-bootstrap and
-      single-owner post-bootstrap ingress states;
-- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then
-      `kubara generate --helm`, inspect the generated Traefik values and confirm
-      exactly one intended ingress controller;
-- [ ] bootstrap/reconcile the minimal Kubara platform and require
-      `kubectl get ingressclass traefik` with non-empty `.spec.controller`;
-- [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
-- [ ] prove disposable Service DNS and ClusterIP routing;
-- [ ] prove cross-node pod routing between workers `172.17.0.51` and `172.17.0.52`;
+- [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot;
+- [ ] rerun `scripts/talos/validate-cluster.sh` and `scripts/talos/smoke-kubernetes-network.sh` immediately before CSI changes as regression proof for CoreDNS, Service/ClusterIP and cross-node routing;
+- [ ] before production workload migration, decide whether to enable Talos 1.13 Flannel NetworkPolicy enforcement with `kubeNetworkPoliciesEnabled: true`; without it, NetworkPolicy objects are accepted but not enforced by the default Flannel path.
+
+### P0.B — TrueNAS NFS + CSI — active first implementation gate
+
+TrueNAS already exposes NFSv4 on `172.17.0.24:2049`, and the parent dataset
+`cpool/k8s/csi` already exists. Talos ships the NFS client in its maintained
+kubelet image, so the first NFS-backed CSI path does not require an extra
+`nfs-utils` Talos system extension.
+
+Prefer the reviewed NFSv4.x path for this homelab. Do not select NFSv3 merely
+because an example chart uses it; Talos does not run `rpc.statd`, so NFSv3
+locking needs special handling such as `nolock`.
+
+- [ ] run the read-only `scripts/talos/validate-csi-prereqs.sh`;
+- [ ] verify the chosen NFS export/path and allowed client networks cover both workers, not only the workstation running the preflight;
+- [ ] select and pin the reviewed `democratic-csi` release/chart and NFS driver values;
+- [ ] create a dedicated least-privilege TrueNAS CSI identity; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
+- [ ] keep CSI API credentials in a Kubernetes Secret rendered from the approved secret source, never in Git;
+- [ ] constrain dynamic provisioning below `cpool/k8s/csi` and document the corresponding TrueNAS NFS share/export contract;
+- [ ] create an explicit `StorageClass` (initial target: `nabla-truenas-nfs`) and decide separately whether it should become the default class;
+- [ ] dynamically provision a disposable PVC/PV and require `Bound`;
+- [ ] mount the PVC on a worker Pod, write a marker and prove read/write;
+- [ ] recreate the Pod and prove the marker survives;
+- [ ] reschedule the persistence smoke onto the other worker and prove the NFS-backed volume remains usable;
+- [ ] prove reclaim/cleanup behavior and retain at least one rollback path before allowing stateful workloads.
+
+### P0.C — Kubara/Traefik + FastAPI ingress — only after CSI
+
+Kubara remains pinned to `v0.14.0`, but ingress is no longer a prerequisite
+for CSI. Start this phase only after P0.B persistence and rollback are green.
+
+- [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and retain the read-only `scripts/talos/preflight-kubara.sh` ownership contract;
+- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then `kubara generate --helm`;
+- [ ] inspect the generated Traefik Service exposure mode. On this local/bare-metal cluster, do not assume a cloud `LoadBalancer` implementation exists: explicitly select the existing HAProxy/NodePort or host-network path, or deliberately add a reviewed bare-metal load-balancer implementation such as MetalLB/kube-vip if the generated platform requires `type: LoadBalancer`;
+- [ ] bootstrap/reconcile the minimal Kubara platform and require exactly one intended Traefik `IngressClass`/controller;
 - [ ] run `scripts/talos/smoke-fastapi-sample.sh --preflight`;
-- [ ] prove the selected Kubernetes IngressClass has a controller and no existing
-      Ingress already claims `test.albandrieu.com`;
-- [ ] prove `test.albandrieu.com` resolves before deployment;
+- [ ] prove no existing Ingress claims `test.albandrieu.com` and prove its DNS/edge route;
 - [ ] deploy FastAPI Sample from an immutable `@sha256:` image;
 - [ ] prove Deployment rollout and ready Service EndpointSlice addresses;
 - [ ] prove external `https://test.albandrieu.com/health`;
 - [ ] prove external `https://test.albandrieu.com/v2/version`;
-- [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence;
-- [ ] clean up/recreate the smoke workload without affecting `sample.albandrieu.com`.
+- [ ] attach the already-proven CSI StorageClass/PVC to the final acceptance workload when useful, without making storage debugging depend on ingress;
+- [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence and clean up/recreate the smoke workload without affecting `sample.albandrieu.com`.
 
 ## Sentry lifecycle convergence — final acceptance pending
 
@@ -239,21 +258,6 @@ Sentry remains ahead of Docling/OpenRAG-LiteLLM until this gate is complete.
 - [x] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING`;
 - [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
 
-## P0.1 — TrueNAS-backed Kubernetes CSI
-
-Start only after the complete P0 network/ingress smoke is green.
-
-- [ ] run the read-only CSI preflight;
-- [ ] select/pin the reviewed CSI implementation;
-- [ ] create a dedicated least-privilege TrueNAS CSI identity;
-- [ ] provision storage below `cpool/k8s/csi`;
-- [ ] create an explicit StorageClass;
-- [ ] attach a disposable PVC to the FastAPI Sample smoke;
-- [ ] prove data survives Pod recreation;
-- [ ] prove reclaim/cleanup and at least one rollback path.
-
-NFS remains the first persistence smoke path unless a separate architecture
-review selects another transport.
 
 ## P1 — infrastructure secrets
 
