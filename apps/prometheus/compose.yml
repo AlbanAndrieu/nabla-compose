@@ -146,7 +146,7 @@ services:
           strength: required
           description: The exporter queries pfSense for firewall and system metrics.
           evidence:
-            - apps/prometheus/compose.yml:exporter.config.yml
+            - apps/prometheus/compose.yml:/mnt/cpool/prometheus/secrets/pfsense-exporter.yml
         - target: prometheus
           type: observedBy
           strength: required
@@ -154,7 +154,15 @@ services:
           evidence:
             - apps/prometheus/prometheus.yml:job_name=pfsense_exporter
     volumes:
-      - ./secrets/exporter.config.yml:/pfsense_exporter/config.yml:ro
+      - type: bind
+        source: /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+        target: /pfsense_exporter/config.yml
+        read_only: true
+        bind:
+          # Fail closed: short bind syntax creates a directory when the source
+          # file is absent, which makes pfSense Exporter restart forever with
+          # "config.yml: is a directory".
+          create_host_path: false
     ports:
       - "9945:9945"
 
