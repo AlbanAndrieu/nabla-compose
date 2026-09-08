@@ -1,8 +1,4 @@
 ---
-secrets:
-  litellm_api_key:
-    file: ./secrets/litellm_api_key
-
 services:
   prometheus:
     network_mode: bridge
@@ -39,10 +35,6 @@ services:
       - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090" # 30104
-    secrets:
-      - source: litellm_api_key
-        target: litellm_api_key
-        mode: "0444"
     volumes:
       - type: bind
         source: ./prometheus.yml
