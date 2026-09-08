@@ -95,8 +95,9 @@ mapfile -t container_ids < <(
   docker ps -a     --filter "label=com.docker.compose.project=${PROJECT}"     --format '{{.ID}}'
 )
 
-(("${#container_ids[@]}" > 0)) ||
+if [[ "${#container_ids[@]}" -eq 0 ]]; then
   fail "no containers found for Compose project ${PROJECT}"
+fi
 
 starting_count=0
 unhealthy_count=0
@@ -288,13 +289,16 @@ elif [[ "${app_state}" == "DEPLOYING" && "${starting_count}" -eq 0 && "${unhealt
   printf '   Inspect the recent app lifecycle jobs above for a stuck/failed middleware lifecycle operation or stale app state.\n'
 fi
 
-if [[ "${app_state}" != "RUNNING" ]] ||
-   ((unhealthy_count > 0)) ||
-   ((unexpected_exit_count > 0)) ||
-   ((one_shot_failure_count > 0)) ||
-   ((kafka_topic_failure_count > 0)) ||
-   [[ "${edge_failed:-0}" -ne 0 ]] ||
-   [[ "${snuba_failed:-0}" -ne 0 ]]; then
+if [[ "${app_state}" != "RUNNING" ]]; then
+  exit 1
+fi
+if [[ "${unhealthy_count}" -gt 0 ||
+      "${unexpected_exit_count}" -gt 0 ||
+      "${one_shot_failure_count}" -gt 0 ||
+      "${kafka_topic_failure_count}" -gt 0 ]]; then
+  exit 1
+fi
+if [[ "${edge_failed:-0}" -ne 0 || "${snuba_failed:-0}" -ne 0 ]]; then
   exit 1
 fi
 
