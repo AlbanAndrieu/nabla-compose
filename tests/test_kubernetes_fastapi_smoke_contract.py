@@ -29,6 +29,18 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         )
         self.assertEqual(0, syntax.returncode, syntax.stderr)
 
+    def test_runbook_targets_kubara_managed_traefik(self) -> None:
+        required = (
+            "Kubara `v0.14.0`",
+            "kubara generate --helm",
+            "platform-configs/<cluster>/helm/traefik/values.generated.yaml",
+            "do **not** install a second standalone Traefik chart",
+            "kubectl get ingressclass traefik -o yaml",
+        )
+        for marker in required:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.doc)
+
     def test_smoke_uses_dedicated_test_hostname(self) -> None:
         self.assertIn("test.albandrieu.com", self.smoke)
         self.assertIn("test.albandrieu.com", self.doc)
