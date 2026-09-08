@@ -108,6 +108,38 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
 
+    def test_declared_exporters_are_scraped_by_prometheus(self) -> None:
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+
+        expected_exporters = {
+            "pihole_exporter": "172.17.0.24:9617",
+            "postgres_exporter": "172.17.0.24:9187",
+            "pfsense_exporter": "172.17.0.24:9945",
+            "haproxy": "172.17.0.24:9101",
+            "sybase": "172.17.0.24:9113",
+            "opensearch": "172.17.0.24:9114",
+            "opensearch-security": "172.17.0.24:9115",
+        }
+
+        for job, target in expected_exporters.items():
+            self.assertIn(f"- job_name: {job}", prometheus)
+            self.assertIn(target, prometheus)
+
+        self.assertIn("- job_name: crowdsec", prometheus)
+        self.assertIn("172.17.0.24:6060", prometheus)
+        self.assertIn("- job_name: truenas_node", prometheus)
+        self.assertIn("172.17.0.24:9100", prometheus)
+        self.assertIn("- job_name: truenas_cadvisor", prometheus)
+        self.assertIn("172.17.0.24:8089", prometheus)
+
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("NablaExporterTargetDown", rules)
+        self.assertIn("impact: blind_spot", rules)
+
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
@@ -480,6 +512,19 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("/api/v1/alertmanagers", stack)
         self.assertIn("Alertmanager readiness", stack)
         self.assertIn("Prometheus target is up", stack)
+        for exporter_job in (
+            "pihole_exporter",
+            "postgres_exporter",
+            "pfsense_exporter",
+            "haproxy",
+            "sybase",
+            "opensearch",
+            "opensearch-security",
+            "crowdsec",
+            "truenas_node",
+            "truenas_cadvisor",
+        ):
+            self.assertIn(exporter_job, stack)
 
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):
