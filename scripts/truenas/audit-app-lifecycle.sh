@@ -1354,11 +1354,19 @@ function probe_pfsense_exporter_runtime_if_present {
   esac
 
   if [[ "${state}" == "running" ]]; then
-    if curl --fail --silent --show-error --max-time 10 \
-      'http://172.17.0.24:9945/metrics?target=172.17.0.1' >/dev/null; then
-      functional_ok "pfSense exporter: metrics path reachable for 172.17.0.1"
-    else
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
       functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
     fi
   fi
 }
