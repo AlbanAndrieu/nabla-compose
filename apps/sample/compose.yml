@@ -69,7 +69,8 @@ services:
     #
     # TrueNAS 26 also applies system.general.ui_allowlist to /api/current
     # WebSocket source addresses before API-key authentication. The source
-    # observed by TrueNAS is this container's intranet IP, not 172.17.0.24.
+    # observed by TrueNAS is this container's sample-observer IP, not
+    # 172.17.0.24 and not its shared-intranet address.
     # Validate the current /32 with:
     # scripts/security/verify-truenas-observer-access.sh
     extra_hosts:
@@ -108,21 +109,19 @@ services:
       # hand an unused intranet address to another application (as happened
       # with Langflow taking 172.16.55.9).
       sample_observer:
-        ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}
+        # The external sample-observer network is prepared so only one
+        # container address is allocatable. No static IP is hard-coded here.
         gw_priority: 1
       intranet: {}
       traefik_network: {}
 
 networks:
   sample_observer:
-    # Compose-managed, single-consumer bridge. The stable /32 belongs only to
-    # FastAPI Sample and cannot collide with dynamic intranet allocations.
+    # Prepared by scripts/truenas/prepare-sample-observer-network.sh. Keeping
+    # the network external prevents Compose from guessing a subnet that may
+    # overlap a broader TrueNAS/Docker pool.
+    external: true
     name: sample-observer
-    driver: bridge
-    ipam:
-      config:
-        - subnet: ${FASTAPI_SAMPLE_OBSERVER_SUBNET:-172.16.56.0/28}
-          gateway: ${FASTAPI_SAMPLE_OBSERVER_GATEWAY:-172.16.56.1}
   intranet:
     external: true
     name: intranet
