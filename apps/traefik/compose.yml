@@ -123,7 +123,7 @@ services:
     # healthcheck could make the whole TrueNAS Traefik Custom App CRASHED.
     #
     # Re-enable only explicitly with COMPOSE_PROFILES=legacy-ddns. The legacy
-    # service uses an isolated container name, loopback-only UI port, and a
+    # service uses an isolated container name, LAN-bound legacy UI port, and a
     # separate data directory so reactivation cannot reuse the old
     # int.albandrieu.com configuration or collide with Traefik's lifecycle.
     # Never copy the old int.albandrieu.com setting into ddns-legacy: private
@@ -135,7 +135,7 @@ services:
     restart: unless-stopped
     network_mode: bridge
     ports:
-      - "127.0.0.1:8001:8000/tcp"
+      - "172.17.0.24:8000:8000/tcp"
     volumes:
       - /mnt/cpool/traefik/ddns-legacy:/updater/data
     env_file:
