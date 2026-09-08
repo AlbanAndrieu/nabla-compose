@@ -34,7 +34,10 @@
       "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
       "presentationRole": "support",
       "criticality": "high",
-      "securityFunctions": ["protect", "detect"]
+      "securityFunctions": [
+        "protect",
+        "detect"
+      ]
     },
     {
       "id": "postgresql",
@@ -50,6 +53,26 @@
       "sourcePath": "docs/truenas-talos-bootstrap.md",
       "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS.",
       "icon": "🔷",
+      "presentationRole": "core",
+      "criticality": "critical"
+    },
+    {
+      "id": "cloudflared",
+      "name": "Cloudflare Tunnel Connector",
+      "kind": "tunnel-connector",
+      "category": "network",
+      "sourcePath": "docs/dns-ingress-ownership.md",
+      "description": "TrueNAS-hosted cloudflared connector for outbound-established Cloudflare Tunnel ingress that bypasses Traefik.",
+      "presentationRole": "support",
+      "criticality": "high"
+    },
+    {
+      "id": "pfsense-unbound",
+      "name": "pfSense Unbound",
+      "kind": "dns-resolver",
+      "category": "network",
+      "sourcePath": "docs/dns-ingress-ownership.md",
+      "description": "Primary LAN recursive resolver at 172.17.0.1:53; delegates int.albandrieu.com to Pi-hole with Forwarding Mode disabled and outgoing interfaces set to All.",
       "presentationRole": "core",
       "criticality": "critical"
     }
@@ -94,6 +117,17 @@
       "evidence": [
         "docs/truenas-talos-bootstrap.md:TrueNAS VM bridge and default Talos VM topology",
         "terraform/truenas/main.tf:truenas_vm"
+      ]
+    },
+    {
+      "source": "pfsense-unbound",
+      "target": "pihole",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Private int.albandrieu.com resolution through pfSense/Unbound depends on the Pi-hole authority at 172.17.0.24:53; public recursion remains independent.",
+      "evidence": [
+        "docs/dns-ingress-ownership.md:Resolver architecture and precedence",
+        "docs/dns-ingress-ownership.md:pfSense / Unbound"
       ]
     }
   ]
