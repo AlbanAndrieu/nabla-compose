@@ -1,3 +1,15 @@
+# [0.28.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.27.2...0.28.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **ops:** align TrueNAS observer RBAC and Kubara ingress ([#153](https://github.com/AlbanAndrieu/nabla-compose/issues/153)) ([605a01d](https://github.com/AlbanAndrieu/nabla-compose/commit/605a01d5326497a224c4841e02ce4f6cf4a9e6e1))
+
+
+### Features
+
+* **diagnostics:** keep large checks compact in terminals ([#154](https://github.com/AlbanAndrieu/nabla-compose/issues/154)) ([7b9fa50](https://github.com/AlbanAndrieu/nabla-compose/commit/7b9fa5023004178babd645c9f2fe790382793bf7))
+
 # [0.27.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.26.0...0.27.0) (2026-09-08)
 
 
