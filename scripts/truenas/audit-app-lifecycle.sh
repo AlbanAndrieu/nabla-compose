@@ -1280,11 +1280,47 @@ function probe_pyroscope_fastapi_profile {
 function probe_openrag_runtime_if_present {
   local backend="openrag-backend"
   local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
   local collective
+  local image
 
   if ! app_is_present openrag; then
     printf 'SKIP: OpenRAG runtime app is MISSING\n'
     return
+  fi
+
+  if ! app_is_running langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is not RUNNING (state ${states[langflow]-MISSING})"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
   fi
 
   if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
@@ -1292,51 +1328,96 @@ function probe_openrag_runtime_if_present {
     return
   fi
 
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
   if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
     functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
     return
   fi
 
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
   if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
     grep -Fxq 'LANGFLOW_HOST=langflow'; then
-    functional_ok "OpenRAG frontend: shared Langflow hostname configured"
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
   else
-    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be langflow; stale/default openrag-langflow keeps collective health degraded"
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
   fi
 
   if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
     grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
-    functional_ok "OpenRAG frontend: Langflow health path configured"
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
   else
     functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8 \
-    http://127.0.0.1:8000/health >/dev/null; then
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
     functional_ok "OpenRAG backend: /health HTTP 200"
   else
     functional_fail "OpenRAG backend: /health failed"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8 \
-    http://127.0.0.1:8000/search/health >/dev/null; then
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
     functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
   else
     functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
   fi
 
   if collective="$(
-    curl --fail --silent --show-error --max-time 8 \
-      http://172.17.0.24:31060/health/collective_health 2>/dev/null
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
   )" &&
     jq -e '
       .status == "ok" and
       .pods.backend.alive == true and
       .pods.langflow.alive == true
     ' <<<"${collective}" >/dev/null; then
-    functional_ok "OpenRAG frontend: collective backend + Langflow health HTTP 200"
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
   else
-    functional_fail "OpenRAG frontend: collective health failed; inspect backend/Langflow resolution before redeploy loops"
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
   fi
 
   if docker exec "${backend}" sh -lc '
