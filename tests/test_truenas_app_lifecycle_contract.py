@@ -196,26 +196,44 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("ES_HOST=elasticsearch", openrag)
         self.assertNotIn("      - elasticsearch", openrag)
         self.assertNotIn("      - langflow\n", openrag)
+        self.assertNotIn("\n  openrag-langflow:\n", openrag)
         self.assertIn("OPENRAG_FRONTEND_PORT:-31060", openrag)
         self.assertNotIn('"3000:3000"', openrag)
+        self.assertIn("LANGFLOW_URL: http://langflow:7860", openrag)
         self.assertIn("LANGFLOW_HOST: langflow", openrag)
         self.assertIn("LANGFLOW_HEALTH_PATH: /health_check", openrag)
         self.assertIn("http://127.0.0.1:8000/health", openrag)
         self.assertIn("/health/collective_health", openrag)
         self.assertIn("host.docker.internal:host-gateway", openrag)
+        self.assertNotIn("- ./flows:/app/flows", openrag)
+
+        self.assertIn(
+            "image: docker.io/langflowai/openrag-langflow:${OPENRAG_VERSION:-0.7.1}",
+            langflow,
+        )
+        self.assertNotIn("openrag-langflow:latest", langflow)
+        self.assertNotIn("- ./flows:/app/flows", langflow)
+        self.assertIn("aliases:\n          - langflow", langflow)
+        self.assertIn("http://127.0.0.1:7860/health_check", langflow)
         self.assertIn("OPENSEARCH_HOST: opensearch", langflow)
         self.assertNotIn("ES_HOST=elasticsearch", langflow)
+
         self.assertIn("aliases:\n          - opensearch", opensearch)
         self.assertIn("external: true\n    name: intranet", opensearch)
         self.assertIn("external: true\n    name: nabla-security", opensearch)
 
         self.assertIn("function probe_openrag_runtime_if_present", audit)
+        self.assertIn("global Langflow URL configured", audit)
+        self.assertIn("global Langflow DNS + HTTP/7860", audit)
+        self.assertIn("single-node OpenSearch count gate disabled", audit)
+        self.assertIn("still waiting for a 3-node OpenSearch topology", audit)
         self.assertIn("OpenRAG backend: /health HTTP 200", audit)
         self.assertIn("OpenRAG backend: OpenSearch readiness HTTP 200", audit)
-        self.assertIn("collective backend + Langflow health HTTP 200", audit)
+        self.assertIn("collective backend + global Langflow health HTTP 200", audit)
         self.assertIn("Docling is not reachable", audit)
 
         self.assertIn("LANGFLOW_HOST=langflow", openrag_readme)
+        self.assertIn("global Langflow", openrag_readme)
         self.assertIn("DOCLING_SERVE_URL", openrag_readme)
         self.assertIn("stabilize **OpenRAG**", roadmap)
 
