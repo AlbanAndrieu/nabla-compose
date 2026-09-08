@@ -841,7 +841,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn('REF="${FASTAPI_SAMPLE_REF:-master}"', script)
         self.assertIn('fetch --prune origin "${REF}"', script)
-        self.assertIn('build \\\n  --pull \\\n  fastapi-sample', script)
+        normalized = " ".join(script.split())
+        self.assertIn(
+            "docker compose -f apps/sample/compose.yml build --pull fastapi-sample",
+            normalized,
+        )
         self.assertIn('docker rm -f "${CONTAINER}"', script)
         self.assertIn('app.update "${APP_ID}"', script)
         self.assertIn('app.redeploy "${APP_ID}"', script)
