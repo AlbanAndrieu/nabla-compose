@@ -9,18 +9,19 @@ The smoke test is intentionally separate from the TrueNAS deployment behind
 ## Preconditions
 
 1. `scripts/talos/validate-cluster.sh` is green.
-2. `scripts/talos/smoke-kubernetes-network.sh` is green.
-3. `scripts/talos/preflight-kubara.sh --pre-bootstrap` is green with the repository pin in `config/kubara/VERSION` (`0.14.0`).
-4. The target platform bootstrap is Kubara `v0.14.0`. Before installing any
+2. `scripts/talos/smoke-kubernetes-network.sh` is green as a regression gate; Flannel and CoreDNS are already part of the Talos base.
+3. The TrueNAS NFS + CSI gate is green: the reviewed StorageClass can dynamically bind a PVC, persist data across Pod recreation and survive rescheduling to the other worker.
+4. `scripts/talos/preflight-kubara.sh --pre-bootstrap` is green with the repository pin in `config/kubara/VERSION` (`0.14.0`).
+5. The target platform bootstrap is Kubara `v0.14.0`. Before installing any
    ingress controller manually, run the Kubara Helm generation flow and inspect
    the generated Traefik component. Kubara defaults `ingressClassName` to
    `traefik`; use that Kubara-managed controller unless the selected
    configuration explicitly replaces it.
-5. The resulting `IngressClass` for
+6. The resulting `IngressClass` for
    `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`) exists and has a
    non-empty `.spec.controller`.
-6. `test.albandrieu.com` resolves before deployment.
-7. The FastAPI Sample image reference is immutable by digest. Mutable tags,
+7. `test.albandrieu.com` resolves before deployment.
+8. The FastAPI Sample image reference is immutable by digest. Mutable tags,
    including version tags and `:latest`, are not accepted by the smoke gate.
 
 The FastAPI Sample repository publishes GHCR images. Supply the exact image ref:
@@ -151,12 +152,14 @@ bash scripts/talos/smoke-fastapi-sample.sh --cleanup
   before deploying the smoke; do not rely on controller-specific rule merging;
 - public DNS lookup failure: create/reconcile the dedicated
   `test.albandrieu.com` DNS/edge route before application acceptance;
-- network smoke failure: stop before CSI; diagnose CoreDNS/CNI/Service routing;
+- network regression failure: stop before changing CSI or ingress; diagnose the already-installed CoreDNS/Flannel/Service path;
 - rollout failure: inspect Pod events/logs and image compatibility;
 - public `/health` or API failure with a healthy rollout: diagnose the
   ingress/edge path separately from Kubernetes workload health.
 
-Do not make CSI compensate for a networking or ingress failure.
+Do not use ingress to diagnose storage, and do not make CSI compensate for a
+networking failure. CSI persistence must already be green before this external
+ingress acceptance begins.
 
 ## Security boundary
 
@@ -170,7 +173,7 @@ The smoke workload:
 - contains no TrueNAS, pfSense, Nexus, Vaultwarden or Cloudflare credentials;
 - requires an immutable image digest for reproducible acceptance evidence.
 
-CSI persistence is deliberately a later gate. Once the complete
-network/ingress smoke is green, the same workload will receive a disposable PVC
-below the reviewed TrueNAS CSI StorageClass and will be used to prove
-persistence across Pod recreation.
+CSI persistence is deliberately an earlier gate. This ingress smoke may mount a
+disposable PVC from the already-proven TrueNAS StorageClass as an additional
+end-to-end check, but CSI provisioning/persistence must not depend on
+`test.albandrieu.com` or Traefik.
