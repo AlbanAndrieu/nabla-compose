@@ -25,7 +25,7 @@ notes remain in the specialized roadmaps:
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [x] Sentry lifecycle and functional health are converged: TrueNAS `RUNNING`, 19 workloads, `starting=0`, `unhealthy=0`, both one-shot migrations `exit 0`, all five required Kafka topics present, Sentry edge healthy and Snuba API healthy.
+- [ ] Sentry is in its final supervised convergence pass: the 2026-09-08 redeploy created all 19 workloads, both one-shot migrations exited, `snuba-replacer` and `snuba-subscription-consumer-events` are running, but TrueNAS still reports aggregate `DEPLOYING` while healthchecks complete. Final acceptance requires `diagnose-sentry.sh --check`, healthy consumer heartbeats/topics, `RUNNING`, then the synthetic event smoke.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 
@@ -36,14 +36,25 @@ Finish these before expanding the platform further:
 1. [x] **FastAPI Sample** — 1.13.3 deployed and observer/TLS/API acceptance green.
 2. [x] **pfSense / Prometheus** — exporter pressure reduced, Prometheus RUNNING, cAdvisor removed from the active lifecycle.
 3. [x] **OpenRAG runtime** — backend/OpenSearch/Langflow/frontend collective health green.
-4. [x] **Sentry — completed first** — TrueNAS lifecycle, consumer heartbeats, Kafka topics, edge health and Snuba API are all converged.
-5. [ ] **Docling for OpenRAG — next** — deploy a repository-managed Docling service (or an explicit supported `DOCLING_SERVE_URL`), prove Docling health from `openrag-backend`, then validate document ingestion, indexing and search end-to-end.
-6. [ ] **OpenRAG ↔ LiteLLM integration** — after Docling is installed/healthy, activate the prepared workstation GPU route `OpenRAG -> 172.17.0.57:4000/v1`, run `bootstrap_litellm.py` then `--apply`, prove `qwen` tool-capable chat and `embedding` vectors, and finally validate the optional TrueNAS LiteLLM proxy/fallback aliases.
+4. [ ] **Sentry — finish first** — allow the long first-start grace to complete, run `sudo bash scripts/truenas/diagnose-sentry.sh --check`, require all consumer heartbeats/topics and aggregate TrueNAS `RUNNING`, then rerun the synthetic event smoke.
+5. [ ] **Docling for OpenRAG — only after Sentry** — deploy a repository-managed Docling service (or an explicit supported `DOCLING_SERVE_URL`), prove Docling health from `openrag-backend`, then validate document ingestion, indexing and search end-to-end.
+6. [ ] **OpenRAG ↔ LiteLLM integration** — after Sentry is accepted and Docling is installed/healthy, activate the prepared workstation GPU route `OpenRAG -> 172.17.0.57:4000/v1`, run `bootstrap_litellm.py` then `--apply`, prove `qwen` tool-capable chat and `embedding` vectors, and finally validate the optional TrueNAS LiteLLM proxy/fallback aliases.
 7. [ ] **Wazuh** — run the corrected bootstrap, create/verify the TLS material and API secret, deploy manager/indexer/dashboard, then validate the full chain before enabling optional forwarding.
 8. [ ] **AutoKuma** — bootstrap the Uptime Kuma JWT and register the repository-managed Custom App.
 9. [ ] **Secondary runtime debt** — repair Pyroscope readiness and Bichon OAuth2 token re-authorization; keep Suricata/pihole-dns-sync restart loops tracked separately.
 
-**Ordering gate:** Sentry is complete. Continue with Docling now; do **not** run the LiteLLM `--apply` step until Docling health and one end-to-end ingestion/search path are green.
+**Ordering gate:** finish Sentry before starting Docling or applying the OpenRAG/LiteLLM provider configuration. Do **not** run the LiteLLM `--apply` step until Sentry acceptance is green, Docling health is green, and one end-to-end ingestion/search path is proven.
+
+### Sentry startup note
+
+Sentry 26.8 is intentionally slow to converge on this TrueNAS host. A deployment can remain around **70%** while the containers already exist and the aggregate app remains `DEPLOYING`; this is an orchestration-progress value, not a Sentry readiness percentage.
+
+- consumer heartbeat healthchecks use a `start_period` of up to 600 seconds;
+- one-shot `snuba-migrate` and `sentry-migrate` complete before dependent consumers converge;
+- do not repeatedly redeploy while the 10-minute first-start grace is still active;
+- `app.update` already applies the new Custom App Compose configuration and can start a deployment cycle. Do not immediately follow it with `app.redeploy` unless a second restart is explicitly required, because that resets the healthcheck grace window;
+- for an unchanged Compose definition, use `app.redeploy` alone;
+- after the grace window, run `sudo bash scripts/truenas/diagnose-sentry.sh --check` before deciding that the deployment is stuck.
 
 Once Sentry and Wazuh are converged, resume the Kubernetes platform gate below.
 
@@ -85,14 +96,14 @@ Functional Sentry health and TrueNAS lifecycle state remain separate gates.
 - [x] inventory every Sentry container state and health while TrueNAS reports `DEPLOYING`;
 - [x] distinguish successful one-shot migrations (`snuba-migrate=0`, `sentry-migrate=0`) from required steady-state services;
 - [x] prove Snuba API, Sentry web, Kafka/Redis/ClickHouse network paths and Sentry ClickHouse authentication are healthy;
-- [x] isolate the remaining unhealthy services to `snuba-replacer` and `snuba-subscription-consumer-events`;
+- [x] isolate the previously unhealthy services to `snuba-replacer` and `snuba-subscription-consumer-events`;
 - [x] align consumer startup with upstream 26.8 ordering so long-running Snuba consumers wait for `sentry-migrate --create-kafka-topics`;
 - [x] redeploy Sentry from the corrected repository Compose; the supervised 2026-09-08 restart created all 19 workloads, both migration jobs exited, and the previously blocked Snuba processes are running while healthchecks converge;
-- [x] allow the consumer healthcheck first-start grace (`start_period: 600s`) to elapse instead of repeatedly redeploying while TrueNAS reports approximately 70% progress;
-- [x] run `scripts/truenas/diagnose-sentry.sh --check` after the startup grace and prove all required Kafka topics;
-- [x] require both consumer heartbeat files/healthchecks to converge to healthy;
+- [ ] allow the consumer healthcheck first-start grace (`start_period: 600s`) to elapse without another redeploy;
+- [ ] run `scripts/truenas/diagnose-sentry.sh --check` after the startup grace and prove all required Kafka topics;
+- [ ] require both consumer heartbeat files/healthchecks to converge to healthy;
+- [ ] require TrueNAS app state to converge from `DEPLOYING` to `RUNNING`;
 - [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
-- [x] require TrueNAS app state to converge from `DEPLOYING` to `RUNNING`.
 
 ## P0.1 — TrueNAS-backed Kubernetes CSI
 
