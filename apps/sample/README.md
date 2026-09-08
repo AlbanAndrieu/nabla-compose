@@ -140,6 +140,22 @@ git -C fastapi-sample rev-parse --short HEAD
 For this recovery branch the expected FastAPI Sample revision is
 `3e945146` (release `1.13.2`).
 
+Before rebuilding/redeploying, verify that the stable observer address required by
+the TrueNAS allowlist is not currently owned by another container:
+
+```bash
+docker network inspect intranet |
+jq -r '.[0].Containers | to_entries[]? |
+  [.value.Name, .value.IPv4Address] | @tsv' |
+grep -F '172.16.55.9/' || true
+```
+
+The expected owner is `fastapi-sample` (or no owner while it is stopped).
+If another container owns `172.16.55.9`, do not loop `app.redeploy sample`:
+Docker will fail with `Address already in use`. Either free that address or
+select a reviewed new `FASTAPI_SAMPLE_OBSERVER_IP` and update the matching
+TrueNAS `system.general.ui_allowlist` `/32` in the same change.
+
 Build the pinned source before asking TrueNAS to redeploy the Custom App:
 
 ```bash
