@@ -56,6 +56,24 @@
       "tunnelUrl": "https://scrutiny.albandrieu.com",
       "tunnelSecure": true,
       "cloudflareAccessRequired": true
+    },
+    {
+      "name": "PostgreSQL",
+      "external": false,
+      "tunnelUrl": null,
+      "tunnelSecure": false,
+      "endpointEnabled": false,
+      "cloudflareAccessRequired": false,
+      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. PostgreSQL health is validated from the homelab with a TCP/5432 probe; lack of public reachability is intentional and must not degrade health."
+    },
+    {
+      "name": "ClamAV",
+      "external": false,
+      "tunnelUrl": null,
+      "tunnelSecure": false,
+      "endpointEnabled": false,
+      "cloudflareAccessRequired": false,
+      "healthNote": "⚠️ Internal-only antivirus engine. No Cloudflare Tunnel or public ingress is expected. Validate clamd from the homelab on TCP/3310; lack of public reachability is intentional and must not degrade health."
     }
   ]
 }
