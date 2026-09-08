@@ -1,3 +1,10 @@
+## [0.23.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.3...0.23.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **pfsense:** support non-executable PHP-FPM generator ([#141](https://github.com/AlbanAndrieu/nabla-compose/issues/141)) ([a26d7fc](https://github.com/AlbanAndrieu/nabla-compose/commit/a26d7fcc16ea486120b11ba10a8fecbd3e5b6032))
+
 ## [0.23.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.2...0.23.3) (2026-09-08)
 
 
