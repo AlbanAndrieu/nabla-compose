@@ -392,6 +392,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
 
+    def test_failure_report_covers_non_running_apps_and_focus_services(self) -> None:
+        report = self.read("scripts/truenas/report-app-failures.sh")
+
+        self.assertIn('select(.state != "RUNNING")', report)
+        self.assertIn("core.get_jobs", report)
+        self.assertIn("com.docker.compose.project=ix-", report)
+        self.assertIn('select(.id == "traefik")', report)
+        self.assertIn('select(.id == "keycloak")', report)
+        self.assertIn("172.17.0.24:30238", report)
+
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
 
