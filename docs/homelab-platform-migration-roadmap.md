@@ -1767,11 +1767,22 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 - [x] pin backend/frontend to OpenRAG 0.7.1 instead of floating `latest`;
 - [x] configure frontend collective health for
       `langflow:7860/health_check`;
+- [x] reuse the single global `langflow` TrueNAS application; do not deploy a
+      second `openrag-langflow` service inside the OpenRAG app;
+- [x] pin the global OpenRAG-compatible Langflow image to the same `0.7.1`
+      release as backend/frontend;
+- [x] stop bind-mounting unversioned `./flows` directories over
+      image-bundled OpenRAG flow definitions;
 - [x] add backend liveness and frontend collective Docker healthchecks;
 - [x] add runtime probes for backend liveness, OpenSearch readiness and
       frontend -> backend/Langflow collective health;
 - [x] make the upstream Linux `host.docker.internal` route explicit for the
       current Docling default;
+- [ ] reconcile/redeploy global Langflow first, then OpenRAG, and prove all
+      three OpenRAG-compatible images are `0.7.1` rather than stale `:latest`;
+- [ ] prove the backend no longer logs
+      `OpenSearch healthy but cluster has not reached expected node count` on
+      the shared single-node OpenSearch runtime;
 - [ ] run the TrueNAS runtime probes and confirm whether the application leaves
       `DEPLOYING/starting`;
 - [ ] review and deploy a repository-managed Docling service or another explicit
