@@ -48,3 +48,17 @@ groups:
           description: >-
             The {{ $labels.job }} observability target has been unreachable by
             Prometheus for at least two minutes.
+
+      - alert: NablaExporterTargetDown
+        expr: >-
+          up{job=~"pihole_exporter|postgres_exporter|pfsense_exporter|haproxy|sybase|opensearch|opensearch-security|crowdsec|truenas_node|truenas_cadvisor"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: observability
+          impact: blind_spot
+        annotations:
+          summary: Metrics exporter is unavailable
+          description: >-
+            Prometheus has been unable to scrape exporter job {{ $labels.job }}
+            for at least two minutes.
