@@ -58,6 +58,20 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
   preflight for container source IP, `ui_allowlist`, canonical credential
   variable selection, HTTPS version discovery and authenticated WebSocket
   calls;
+- [x] align the preflight with FastAPI Sample #223: only
+  `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` can authenticate the
+  application observer; legacy usernames, MCP keys and `TRUENAS_INFRA_*`
+  credentials are ignored and reported only as configuration drift;
+- [ ] finish the FastAPI Sample `1.13.5` TrueNAS redeploy with
+  `TRUENAS_API_USERNAME=fastapi_observer`, then require `auth.me` to prove
+  the effective identity and reject any write/admin role while retaining
+  `system.version` + `app.query`;
+- [ ] run the `--compare-cloud` A/B gate while FastAPI Cloud still uses
+  `TRUENAS_API_USERNAME=albandrieu`: require the same catalog revision and
+  exact TrueNAS application-ID inventory from both runtimes;
+- [ ] after A/B parity is green, switch FastAPI Cloud to a dedicated
+  `fastapi_observer` key, rerun the production API/topology/UI smoke, then
+  retire the FastAPI workload's use of the human/admin credential;
 - [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
   2026-09-08 verification selects only `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`
   with no shadowed username/API-key variables;

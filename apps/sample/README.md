@@ -151,20 +151,22 @@ From the canonical TrueNAS checkout:
 cd /mnt/cpool/compose/nabla-compose
 
 git fetch origin
-git switch fix/openrag-runtime-diagnostics
-git pull --ff-only
+git switch master
+git pull --ff-only origin master
 
 git submodule sync --recursive
 git submodule update --init --recursive fastapi-sample
 
 printf 'nabla-compose: '
 git rev-parse --short HEAD
-printf 'fastapi-sample: '
+printf 'fastapi-sample pinned: '
 git -C fastapi-sample rev-parse --short HEAD
 ```
 
-For this recovery branch the expected FastAPI Sample revision is
-`3e945146` (release `1.13.2`).
+For a runtime refresh, prefer `scripts/truenas/update-fastapi-sample.sh`.
+It deliberately fetches the current FastAPI Sample `origin/master`, reports
+the deployed SHA, and separately reports the parent gitlink when the runtime
+revision is newer than the reviewed submodule pin.
 
 The previous design pinned `172.16.55.9` directly on the shared
 `intranet` network. Runtime evidence proved that address was not reserved:
@@ -483,13 +485,14 @@ Run the read-only preflight after every recreate/network change:
 scripts/security/verify-truenas-observer-access.sh
 ```
 
-Do not allow an entire Docker subnet merely to make this observer work. The
-Compose service pins the observer source to
-`${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}` on the dedicated
-`sample-observer` bridge (`172.16.56.0/28` by default), matching one reviewed
-TrueNAS `/32` allowlist entry. The historical `172.16.55.9/32` entry is
-forbidden because that address belongs to the shared `intranet` allocation
-pool and can be reassigned to unrelated containers.
+Do not allow an entire Docker subnet merely to make this observer work.
+`prepare-sample-observer-network.sh` selects a non-overlapping reviewed
+`/28`, reserves every allocatable address except one and records that single
+observer address in the `com.nabla.observer-ip` network label. The current
+runtime contract selected `10.254.255.9/32`; the verification/reconciliation
+helpers derive the address from the network label rather than hard-coding it.
+The historical `172.16.55.9/32` and failed `172.16.56.9/32` entries remain
+forbidden because those addresses were not safe durable observer identities.
 
 The canonical runtime credentials are:
 
@@ -498,11 +501,49 @@ TRUENAS_API_USERNAME=fastapi_observer
 TRUENAS_API_KEY=<dedicated user-linked API key>
 ```
 
-Remove stale `TRUENAS_USER` / `TRUENAS_USERNAME` aliases from the TrueNAS
-FastAPI runtime once migration is proven. The application intentionally prefers
-`TRUENAS_API_USERNAME`, but leaving an old alias creates a dangerous fallback:
-if the canonical variable disappears later, the old username could be paired
-with the new canonical API key.
+FastAPI Sample #223 made this boundary strict: the application accepts only
+`TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`. It does **not** fall back to
+`TRUENAS_USERNAME`, `TRUENAS_USER`, `TRUENAS_MCP_API_KEY` or any
+`TRUENAS_INFRA_*` variable. Remove stale aliases anyway so runtime
+configuration remains unambiguous, but they can no longer silently become the
+active FastAPI credential.
+
+Use the restricted identity first on the TrueNAS-local runtime:
+
+```dotenv
+TRUENAS_API_USERNAME=fastapi_observer
+```
+
+Keep FastAPI Cloud temporarily on `TRUENAS_API_USERNAME=albandrieu` only as
+the comparison baseline. After the local redeploy, prove the effective
+identity, source allowlist, TLS and required read calls:
+
+```bash
+sudo bash scripts/security/verify-truenas-observer-access.sh --local
+```
+
+Then compare the local restricted observer with the FastAPI Cloud baseline:
+
+```bash
+sudo bash scripts/security/verify-truenas-observer-access.sh --compare-cloud
+```
+
+The comparison requires both runtimes to expose a fresh reachable TrueNAS
+snapshot, the same FastAPI catalog revision and the exact same TrueNAS
+application IDs. Application-state differences are reported as timing drift
+because the two snapshots are not atomic.
+
+The current FastAPI TrueNAS adapter only needs `system.version` and
+`app.query`; the local gate additionally calls `auth.me` to prove which
+identity and RBAC roles are effective. TrueNAS 26 documents `app.query` as
+requiring `APPS_READ`. Prefer an identity limited to the smallest set that
+satisfies these calls. `READONLY_ADMIN` is still substantially safer than an
+administrator identity but is broader than the target `APPS_READ` scope.
+
+Do not switch FastAPI Cloud to `fastapi_observer` until the local identity
+gate and the A/B inventory comparison are green. After the switch, rerun the
+FastAPI Cloud production smoke before revoking/removing the old FastAPI use of
+the `albandrieu` credential.
 
 For Prometheus, keep the existing LAN-only setting in
 `/mnt/cpool/sample/.env`:

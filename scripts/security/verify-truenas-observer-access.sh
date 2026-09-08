@@ -8,6 +8,10 @@ LEGACY_SOURCE_IP="${FASTAPI_SAMPLE_LEGACY_OBSERVER_IP:-172.16.55.9}"
 FAILED_CANDIDATE_IP="${FASTAPI_SAMPLE_FAILED_OBSERVER_IP:-172.16.56.9}"
 TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
+EXPECTED_USERNAME="${TRUENAS_OBSERVER_EXPECTED_USERNAME:-fastapi_observer}"
+MODE="${1:---local}"
+LOCAL_BASE_URL="${TRUENAS_OBSERVER_LOCAL_BASE_URL:-http://127.0.0.1:8091}"
+CLOUD_BASE_URL="${TRUENAS_OBSERVER_CLOUD_BASE_URL:-https://fastapi-sample.fastapicloud.dev}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -18,7 +22,12 @@ warn() {
   printf 'WARN: %s\n' "$*" >&2
 }
 
-for command in docker jq midclt python3 curl; do
+case "${MODE}" in
+  --local | --compare-cloud) ;;
+  *) fail "usage: sudo bash scripts/security/verify-truenas-observer-access.sh [--local|--compare-cloud]" ;;
+esac
+
+for command in docker jq midclt python3 curl mktemp; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -144,104 +153,201 @@ PY
   fi
 done
 
-printf '==> sanitized FastAPI TrueNAS credential selection\n'
-docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+printf '==> canonical FastAPI TrueNAS observer credential\n'
+docker exec -i \
+  -e TRUENAS_OBSERVER_EXPECTED_USERNAME="${EXPECTED_USERNAME}" \
+  "${CONTAINER}" /code/.venv/bin/python - <<'PY'
 import os
 
 from nabla.settings.homelab import TrueNASProviderSettings
 
 settings = TrueNASProviderSettings()
-key = settings.adapter_api_key
-key_id = key.split("-", 1)[0] if "-" in key else "<unknown>"
+expected_username = os.environ["TRUENAS_OBSERVER_EXPECTED_USERNAME"].strip()
 
-username_candidates = (
-    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
-    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
-    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
-)
-selected_username_variable = next(
-    (name for name, value in username_candidates if value),
-    "TRUENAS_API_USERNAME",
-)
-shadowed_username_variables = [
-    name
-    for name, value in username_candidates
-    if value and name != selected_username_variable
-]
-
-api_key_candidates = (
-    ("TRUENAS_API_KEY", os.getenv("TRUENAS_API_KEY", "").strip()),
-    ("TRUENAS_MCP_API_KEY", os.getenv("TRUENAS_MCP_API_KEY", "").strip()),
-)
-selected_api_key_variable = next(
-    (name for name, value in api_key_candidates if value),
-    "TRUENAS_API_KEY",
-)
-shadowed_api_key_variables = [
-    name
-    for name, value in api_key_candidates
-    if value and name != selected_api_key_variable
-]
-
-print("username_variable =", selected_username_variable)
-print("api_key_variable  =", selected_api_key_variable)
-print("api_key_id        =", key_id)
+print("username_variable =", settings.adapter_username_environment)
+print("api_key_variable  =", settings.adapter_api_key_environment)
 print("verify_ssl        =", settings.verify_ssl)
 print(
-    "shadowed_username_variables =",
-    ",".join(shadowed_username_variables) or "<none>",
+    "ignored_username_variables =",
+    ",".join(settings.shadowed_username_environments) or "<none>",
 )
 print(
-    "shadowed_api_key_variables  =",
-    ",".join(shadowed_api_key_variables) or "<none>",
+    "ignored_api_key_variables  =",
+    ",".join(settings.shadowed_api_key_environments) or "<none>",
 )
 
-if selected_username_variable != "TRUENAS_API_USERNAME":
-    raise SystemExit("canonical TRUENAS_API_USERNAME is not selected")
-if selected_api_key_variable != "TRUENAS_API_KEY":
-    raise SystemExit("canonical TRUENAS_API_KEY is not selected")
+if settings.adapter_username != expected_username:
+    raise SystemExit(
+        f"authenticated observer username is not the expected {expected_username!r}"
+    )
+if settings.adapter_username_environment != "TRUENAS_API_USERNAME":
+    raise SystemExit("FastAPI must use canonical TRUENAS_API_USERNAME")
+if settings.adapter_api_key_environment != "TRUENAS_API_KEY":
+    raise SystemExit("FastAPI must use canonical TRUENAS_API_KEY")
+if not settings.adapter_api_key:
+    raise SystemExit("TRUENAS_API_KEY is missing")
 if not settings.verify_ssl:
     raise SystemExit(
         "TRUENAS_API_VERIFY_SSL must be true for the hostname-validated homelab observer"
     )
 PY
 
-shadowed_user="$(
-  docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
-import os
-
-selected = "TRUENAS_API_USERNAME" if os.getenv("TRUENAS_API_USERNAME", "").strip() else (
-    "TRUENAS_USERNAME" if os.getenv("TRUENAS_USERNAME", "").strip() else "TRUENAS_USER"
-)
-configured = (
-    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
-    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
-    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
-)
-print(",".join(name for name, value in configured if value and name != selected))
-PY
-)"
-if [[ -n "${shadowed_user}" ]]; then
-  warn "legacy TrueNAS username aliases remain configured and shadowed: ${shadowed_user}"
-fi
-
 printf '==> TrueNAS HTTPS version discovery from container\n'
 docker exec "${CONTAINER}" curl --fail --silent --show-error   "https://${TRUENAS_NAME}:${TRUENAS_PORT}/api/versions" |
   jq .
 
-printf '==> authenticated TrueNAS WebSocket observer calls\n'
-docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+printf '==> authenticated TrueNAS WebSocket observer identity and calls\n'
+docker exec -i \
+  -e TRUENAS_OBSERVER_EXPECTED_USERNAME="${EXPECTED_USERNAME}" \
+  "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+import os
+
 from nabla.integrations.truenas_client import build_truenas_adapter
 
 adapter = build_truenas_adapter()
 if adapter is None:
     raise SystemExit("TrueNAS adapter is not configured")
 
+expected_username = os.environ["TRUENAS_OBSERVER_EXPECTED_USERNAME"].strip()
+identity = adapter._call("auth.me")
+if not isinstance(identity, dict):
+    raise SystemExit("auth.me returned an unexpected payload")
+
+authenticated_username = str(identity.get("pw_name") or "")
+if authenticated_username != expected_username:
+    raise SystemExit(
+        f"auth.me identity mismatch: expected {expected_username!r}, got {authenticated_username!r}"
+    )
+
+privilege = identity.get("privilege")
+if not isinstance(privilege, dict):
+    raise SystemExit("auth.me did not expose the expected privilege object")
+
+raw_roles = privilege.get("roles")
+if not isinstance(raw_roles, list):
+    raise SystemExit("auth.me did not expose the expected privilege.roles list")
+
+roles = set(map(str, raw_roles))
+if not roles:
+    raise SystemExit("auth.me did not expose any effective RBAC roles")
+
+dangerous_roles = sorted(
+    filter(
+        lambda role: (
+            role in {"FULL_ADMIN", "SHARING_ADMIN", "REPLICATION_ADMIN"}
+            or "_WRITE" in role
+            or "_DELETE" in role
+            or role.endswith("_FULL_CONTROL")
+        ),
+        roles,
+    )
+)
+if dangerous_roles:
+    raise SystemExit(
+        "observer has write/admin roles and is not least-privilege: "
+        + ",".join(dangerous_roles)
+    )
+
 version = adapter.system_version()
 apps = adapter.list_apps()
+scope = "broad_readonly" if "READONLY_ADMIN" in roles else "least_privilege_candidate"
 
+print(f"authenticated_username={authenticated_username}")
+print(f"rbac_scope={scope}")
+print(f"roles={','.join(sorted(roles))}")
 print(f"version={version}")
 print(f"apps={len(apps)}")
 PY
 
 printf 'OK: TrueNAS observer source allowlist, credential selection and read-only API calls are valid\n'
+
+if [[ "${MODE}" == "--compare-cloud" ]]; then
+  printf '==> comparing TrueNAS observer visibility with FastAPI Cloud baseline\n'
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+
+  local_status="${tmpdir}/local.json"
+  cloud_status="${tmpdir}/cloud.json"
+
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 35 \
+    "${LOCAL_BASE_URL%/}/api/homelab/status" >"${local_status}"
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 35 \
+    "${CLOUD_BASE_URL%/}/api/homelab/status" >"${cloud_status}"
+
+  for status_file in "${local_status}" "${cloud_status}"; do
+    jq -e '
+      .runtime.configured == true
+      and .runtime.reachable == true
+      and (.runtime.stale != true)
+      and .providerCredentials.truenas.configured == true
+      and .providerCredentials.truenas.credential_mode == "dedicated_observer"
+    ' "${status_file}" >/dev/null ||
+      fail "one runtime does not expose a healthy dedicated TrueNAS observer"
+  done
+
+  local_catalog="$(jq -r '.catalogRevision // empty' "${local_status}")"
+  cloud_catalog="$(jq -r '.catalogRevision // empty' "${cloud_status}")"
+  if [[ -n "${local_catalog}" && -n "${cloud_catalog}" && "${local_catalog}" != "${cloud_catalog}" ]]; then
+    fail "catalog revisions differ; redeploy the same FastAPI revision before comparing observer identities"
+  fi
+
+  local_ids="$(jq -cS '[.runtime.apps[]?.app_id] | sort' "${local_status}")"
+  cloud_ids="$(jq -cS '[.runtime.apps[]?.app_id] | sort' "${cloud_status}")"
+  if [[ "${local_ids}" != "${cloud_ids}" ]]; then
+    printf 'Local app ids:\n'
+    printf '%s\n' "${local_ids}" | jq .
+    printf 'Cloud app ids:\n'
+    printf '%s\n' "${cloud_ids}" | jq .
+    fail "TrueNAS app inventory differs between fastapi_observer and the FastAPI Cloud baseline"
+  fi
+
+  state_drift="$(
+    jq -n \
+      --slurpfile local "${local_status}" \
+      --slurpfile cloud "${cloud_status}" '
+        ($local[0].runtime.apps | map({key: .app_id, value: .state}) | from_entries) as $local_states
+        | ($cloud[0].runtime.apps | map({key: .app_id, value: .state}) | from_entries) as $cloud_states
+        | [
+            ($local_states | keys[]) as $id
+            | select($local_states[$id] != $cloud_states[$id])
+            | {
+                app_id: $id,
+                local: $local_states[$id],
+                cloud: $cloud_states[$id]
+              }
+          ]
+      '
+  )"
+
+  if [[ "$(jq 'length' <<<"${state_drift}")" -gt 0 ]]; then
+    warn "runtime state changed between observations; complete inventory visibility still matches"
+    printf '%s\n' "${state_drift}" | jq .
+  fi
+
+  printf 'Local observer summary:\n'
+  jq '{
+    checkedAt,
+    catalogRevision,
+    appCount: (.runtime.apps | length),
+    driftSummary,
+    truenasCredentialMode: .providerCredentials.truenas.credential_mode
+  }' "${local_status}"
+
+  printf 'FastAPI Cloud baseline summary:\n'
+  jq '{
+    checkedAt,
+    catalogRevision,
+    appCount: (.runtime.apps | length),
+    driftSummary,
+    truenasCredentialMode: .providerCredentials.truenas.credential_mode
+  }' "${cloud_status}"
+
+  printf 'NOTE: Cloud credential_mode proves canonical variable selection, not the configured username value.\n'
+  printf '      Treat this as capability parity; change Cloud username + dedicated API key together before the final production smoke.\n'
+  printf 'OK: fastapi_observer has parity with the FastAPI Cloud TrueNAS inventory baseline\n'
+  printf '    Keep the Cloud runtime on albandrieu until this comparison is green, then switch it to fastapi_observer and rerun production smoke.\n'
+fi

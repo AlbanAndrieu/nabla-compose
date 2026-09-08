@@ -22,6 +22,7 @@ notes remain in the specialized roadmaps:
 - [x] authenticated TrueNAS WebSocket `system.version` and `app.query` succeed with TLS verification enabled.
 - [x] PR #144 fixed allowlist activation so persisted state is never treated as sufficient by itself.
 - [x] FastAPI Sample runtime promoted and validated on `1.13.3` (`a19676f`): health/version, observer source `10.254.255.9`, TLS verification and authenticated TrueNAS WebSocket calls are green.
+- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime is being redeployed on FastAPI Sample `1.13.5` with `TRUENAS_API_USERNAME=fastapi_observer`; FastAPI Cloud temporarily keeps `albandrieu` as the comparison baseline until identity/RBAC and inventory-parity gates are green.
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
@@ -48,6 +49,38 @@ parallel. Sentry is no longer a blocker.
 ingress smoke. Wazuh/Scrutiny work may proceed in parallel because it does not
 replace that Kubernetes acceptance gate.
 
+## FastAPI TrueNAS observer least-privilege migration
+
+This security hardening runs in parallel with Talos P0 and does not change the
+platform execution order above. The goal is to remove the human/admin identity
+from FastAPI after proving that the dedicated observer has complete read
+visibility.
+
+- [x] FastAPI Sample #223 requires only the canonical
+      `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` pair; legacy, MCP and
+      `TRUENAS_INFRA_*` credentials are ignored rather than used as fallbacks;
+- [ ] finish the TrueNAS-local redeploy on FastAPI Sample `1.13.5` with
+      `TRUENAS_API_USERNAME=fastapi_observer`;
+- [ ] run
+      `scripts/security/verify-truenas-observer-access.sh --local` and require
+      `auth.me` to report `fastapi_observer`, no write/admin RBAC role,
+      TLS verification, `system.version` success and `app.query` success;
+- [ ] inspect the effective roles: prefer the narrow `APPS_READ` scope if it
+      satisfies the complete FastAPI observer contract; accept
+      `READONLY_ADMIN` only as an intermediate read-only state because it is
+      broader than required;
+- [ ] while FastAPI Cloud still uses `TRUENAS_API_USERNAME=albandrieu`, run
+      `scripts/security/verify-truenas-observer-access.sh --compare-cloud` and
+      require the same catalog revision plus the exact same TrueNAS application
+      IDs from both runtimes;
+- [ ] switch FastAPI Cloud to a dedicated `fastapi_observer` API key only
+      after the A/B comparison is green;
+- [ ] rerun the FastAPI Cloud production deployment/smoke and require homelab
+      status, topology, TrueNAS runtime inventory and UI smoke to remain green;
+- [ ] remove the FastAPI workload's use of the `albandrieu` credential after
+      rollback evidence is retained; keep human/infrastructure credentials
+      outside the application observer boundary.
+
 ## P0 — Kubernetes DNS/CNI + FastAPI Sample acceptance
 
 Do not start CSI installation until all items below are green.
@@ -71,10 +104,11 @@ in-place VM updates with zero create/replace/destroy actions.
 - [ ] prove disposable Service DNS and ClusterIP routing;
 - [ ] prove cross-node pod routing between workers `172.17.0.51` and `172.17.0.52`;
 - [ ] run `scripts/talos/smoke-fastapi-sample.sh --preflight`;
-- [ ] prove the selected Kubernetes IngressClass exists;
+- [ ] prove the selected Kubernetes IngressClass has a controller and no existing
+      Ingress already claims `test.albandrieu.com`;
 - [ ] prove `test.albandrieu.com` resolves before deployment;
 - [ ] deploy FastAPI Sample from an immutable `@sha256:` image;
-- [ ] prove Deployment rollout and ready Service endpoints;
+- [ ] prove Deployment rollout and ready Service EndpointSlice addresses;
 - [ ] prove external `https://test.albandrieu.com/health`;
 - [ ] prove external `https://test.albandrieu.com/v2/version`;
 - [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence;

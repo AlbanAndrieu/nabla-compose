@@ -69,13 +69,39 @@ PY
 
 check_ingress_preflight() {
   require_cluster
-  kubectl get ingressclass "${INGRESS_CLASS}" >/dev/null ||
-    fail "IngressClass not found: ${INGRESS_CLASS}"
+  require_command jq
+
+  local ingress_controller
+  ingress_controller="$(
+    kubectl get ingressclass "${INGRESS_CLASS}" -o jsonpath='{.spec.controller}' 2>/dev/null
+  )" || fail "IngressClass not found: ${INGRESS_CLASS}"
+  [[ -n "${ingress_controller}" ]] ||
+    fail "IngressClass ${INGRESS_CLASS} has no spec.controller"
+
+  local host_claims
+  host_claims="$(
+    kubectl get ingress --all-namespaces -o json |
+      jq -r --arg host "${HOST}" --arg namespace "${NAMESPACE}" '
+        .items[]
+        | select(any(.spec.rules[]?; .host == $host))
+        | select(
+            .metadata.namespace != $namespace
+            or .metadata.name != "fastapi-sample"
+          )
+        | "\(.metadata.namespace)/\(.metadata.name)"
+      '
+  )"
+  [[ -z "${host_claims}" ]] ||
+    fail "Ingress host ${HOST} is already claimed by: ${host_claims}"
 
   local addresses
-  addresses="$(resolve_public_host)" || fail "public DNS lookup failed for ${HOST}"
-  [[ -n "${addresses}" ]] || fail "public DNS lookup returned no address for ${HOST}"
-  printf '✅ ingress preflight: class=%s host=%s addresses=%s\n'     "${INGRESS_CLASS}" "${HOST}" "${addresses}"
+  addresses="$(resolve_public_host)" ||
+    fail "public DNS lookup failed for ${HOST}"
+  [[ -n "${addresses}" ]] ||
+    fail "public DNS lookup returned no address for ${HOST}"
+
+  printf '✅ ingress preflight: class=%s controller=%s host=%s addresses=%s\n' \
+    "${INGRESS_CLASS}" "${ingress_controller}" "${HOST}" "${addresses}"
 }
 
 case "${MODE}" in
@@ -249,14 +275,18 @@ case "${MODE}" in
       --timeout=180s
 
     endpoint_count="$(
-      kubectl get endpoints fastapi-sample \
+      kubectl get endpointslice \
         --namespace "${NAMESPACE}" \
-        -o jsonpath='{.subsets[*].addresses[*].ip}' |
-        wc -w |
-        tr -d ' '
+        --selector kubernetes.io/service-name=fastapi-sample \
+        -o json |
+        jq '[
+          .items[]?.endpoints[]?
+          | select(.conditions.ready == true)
+          | .addresses[]?
+        ] | length'
     )"
     [[ "${endpoint_count}" -ge 1 ]] ||
-      fail "fastapi-sample Service has no ready endpoints"
+      fail "fastapi-sample Service has no ready EndpointSlice addresses"
 
     observed_image="$(
       kubectl get deployment fastapi-sample \

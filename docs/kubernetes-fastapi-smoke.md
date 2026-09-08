@@ -36,12 +36,17 @@ Then prove CoreDNS, Service DNS, ClusterIP routing and cross-node pod routing:
 bash scripts/talos/smoke-kubernetes-network.sh
 ```
 
-Before deploying the application, verify the selected IngressClass and public
-DNS without mutating the cluster:
+Before deploying the application, verify the selected IngressClass/controller,
+prove that no other Ingress already claims `test.albandrieu.com`, and resolve
+public DNS without mutating the cluster:
 
 ```bash
 bash scripts/talos/smoke-fastapi-sample.sh --preflight
 ```
+
+The host-ownership check is deliberate: the smoke must not merge or compete
+with an existing virtual-host rule. Reuse of the same hostname by a different
+Ingress is treated as a configuration error before any workload is created.
 
 Render only:
 
@@ -55,7 +60,7 @@ Validate against the live Kubernetes API without persisting objects:
 bash scripts/talos/smoke-fastapi-sample.sh --server-dry-run
 ```
 
-Deploy and verify rollout, Service endpoints, exact image digest,
+Deploy and verify rollout, ready Service `EndpointSlice` addresses, exact image digest,
 `https://test.albandrieu.com/health`, and the API acceptance endpoint
 `https://test.albandrieu.com/v2/version`:
 
@@ -63,7 +68,8 @@ Deploy and verify rollout, Service endpoints, exact image digest,
 bash scripts/talos/smoke-fastapi-sample.sh --apply
 ```
 
-The successful apply output retains correlation evidence for the selected Pod,
+The Service readiness gate uses `discovery.k8s.io/v1 EndpointSlice` rather than
+the deprecated core `Endpoints` API. The successful apply output retains correlation evidence for the selected Pod,
 Kubernetes node, Pod IP, Service ClusterIP, published Ingress address when
 available, and exact deployed image digest.
 
@@ -82,8 +88,10 @@ bash scripts/talos/smoke-fastapi-sample.sh --cleanup
 
 ## Failure interpretation
 
-- missing `IngressClass`: install/configure the reviewed Kubernetes ingress
-  controller before exposing the smoke workload;
+- missing/invalid `IngressClass` controller: install/configure the reviewed
+  Kubernetes ingress controller before exposing the smoke workload;
+- existing Ingress claiming `test.albandrieu.com`: resolve hostname ownership
+  before deploying the smoke; do not rely on controller-specific rule merging;
 - public DNS lookup failure: create/reconcile the dedicated
   `test.albandrieu.com` DNS/edge route before application acceptance;
 - network smoke failure: stop before CSI; diagnose CoreDNS/CNI/Service routing;

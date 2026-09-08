@@ -1,4 +1,6 @@
 from pathlib import Path
+import stat
+import subprocess
 import unittest
 
 
@@ -12,6 +14,20 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.smoke = SMOKE.read_text(encoding="utf-8")
         cls.doc = DOC.read_text(encoding="utf-8")
+
+    def test_smoke_script_is_executable_and_syntax_valid(self) -> None:
+        mode = SMOKE.stat().st_mode
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(SMOKE)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_smoke_uses_dedicated_test_hostname(self) -> None:
         self.assertIn("test.albandrieu.com", self.smoke)
@@ -46,6 +62,9 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         required = (
             "--preflight",
             'kubectl get ingressclass "${INGRESS_CLASS}"',
+            "spec.controller",
+            "kubectl get ingress --all-namespaces -o json",
+            "Ingress host ${HOST} is already claimed by",
             "socket.getaddrinfo",
             "public DNS lookup failed",
         )
@@ -56,7 +75,9 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
     def test_validation_covers_rollout_service_image_and_public_endpoints(self) -> None:
         required = (
             "kubectl rollout status deployment/fastapi-sample",
-            "Service has no ready endpoints",
+            "kubectl get endpointslice",
+            "--selector kubernetes.io/service-name=fastapi-sample",
+            "Service has no ready EndpointSlice addresses",
             "deployed image drift",
             'https://${HOST}/health',
             "K8S_FASTAPI_SMOKE_API_PATH",
