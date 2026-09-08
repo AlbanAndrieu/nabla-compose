@@ -102,6 +102,9 @@ class PublicIngressContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("system.general.config", script)
+        self.assertIn("system.general.get_ui_allowlist", script)
+        self.assertIn("active TrueNAS ui_allowlist", script)
+        self.assertIn("system.general.ui_restart", script)
         self.assertIn("ui_allowlist", script)
         self.assertIn("/32", script)
         self.assertIn(
