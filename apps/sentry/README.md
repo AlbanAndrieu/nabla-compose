@@ -386,6 +386,24 @@ as `DEPLOYING`, use the repository read-only diagnostic:
 bash scripts/truenas/diagnose-sentry.sh --check
 ```
 
+By default the command keeps the terminal compact. The complete evidence is
+written to a root-readable temporary report such as:
+
+```text
+/tmp/sentry-diagnose-20260908-194700.log
+```
+
+The terminal only prints the lifecycle state, container/error counters, Kafka
+topic verification status, Sentry edge/Snuba status and the report path. Inspect
+the detailed evidence only when needed:
+
+```bash
+sudo less /tmp/sentry-diagnose-*.log
+```
+
+Override the destination for automation with
+`SENTRY_DIAGNOSTIC_REPORT=/tmp/my-sentry-report.log`.
+
 The diagnostic separates:
 
 - TrueNAS `app.query` lifecycle state;
