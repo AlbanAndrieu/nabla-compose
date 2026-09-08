@@ -103,7 +103,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: crowdsec
     nabla_service_id: crowdsec
-  url: tcp://172.17.0.24:8080
+  url: tcp://172.17.0.24:8084
   conditions:
   - '[CONNECTED] == true'
 - name: Docker API
