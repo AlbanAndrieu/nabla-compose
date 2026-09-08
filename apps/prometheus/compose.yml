@@ -102,6 +102,11 @@ services:
       - "--storage.path=/alertmanager"
 
   cadvisor:
+    # Disabled from the default TrueNAS application lifecycle. Starting a
+    # deliberately non-restarting cAdvisor and letting it crash makes the whole
+    # multi-service Custom App CRASHED even when Prometheus itself is healthy.
+    profiles:
+      - cadvisor-manual
     network_mode: bridge
     image: gcr.io/cadvisor/cadvisor
     # cAdvisor is intentionally non-restarting: on this TrueNAS host it can
