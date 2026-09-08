@@ -589,8 +589,18 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("runtime config must be a regular file", audit)
         self.assertIn("v0.0.10 target schema present", audit)
         self.assertIn("auth_method=key but key is missing", audit)
-        self.assertIn("non-empty pfsense_* metric samples returned for 172.17.0.1", audit)
-        self.assertIn("HTTP scrape succeeded but returned no pfsense_* metric samples", audit)
+        self.assertIn(
+            "deep /metrics probe skipped by default to avoid pfREST load",
+            audit,
+        )
+        self.assertIn(
+            "supervised scrape returned non-empty pfsense_* samples",
+            audit,
+        )
+        self.assertIn(
+            "supervised scrape succeeded but returned no pfsense_* samples",
+            audit,
+        )
         self.assertIn("function probe_langflow_runtime_if_present", audit)
         self.assertIn("Langflow liveness: /health HTTP 200", audit)
         self.assertIn("Langflow readiness: db=ok chat=ok", audit)
