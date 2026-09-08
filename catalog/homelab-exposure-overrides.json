@@ -23,20 +23,30 @@
       "securityException": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. This source-aware policy permits only approved stable administration sources; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used."
     },
     {
-      "name": "Garage",
+      "name": "Garage S3",
       "external": true,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "Only the Garage S3 API at s3.int.albandrieu.com retains a temporary direct-public exception for the OpenTofu state backend. OpenTofu uses path-style S3 requests, so public bucket subdomains are not required. garage-admin.int.albandrieu.com, garage.int.albandrieu.com and *.s3.int.albandrieu.com must remain private; any public DNS record for them is configuration drift."
+      "securityException": "Garage S3 at s3.int.albandrieu.com retains the temporary direct-public HAProxy -> TLS re-encryption -> Traefik exception for the OpenTofu state backend. Garage WebUI and Garage Admin use dedicated Cloudflare Tunnel hostnames and are not routed by Traefik.",
+      "tunnelUrl": "https://s3.int.albandrieu.com"
     },
     {
-      "name": "Garage WebUI",
+      "name": "Garage",
+      "external": true,
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true,
+      "tunnelUrl": "https://garage.albandrieu.com",
+      "endpointEnabled": true,
+      "healthNote": "Garage WebUI is exposed through Cloudflare Tunnel at https://garage.albandrieu.com and forwards directly to 172.17.0.24:3909 without Traefik."
+    },
+    {
+      "name": "Garage Admin",
       "external": true,
       "tunnelSecure": true,
       "cloudflareAccessRequired": true,
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "endpointEnabled": true,
-      "healthNote": "Garage WebUI is intentionally exposed through Cloudflare at https://garage-admin.albandrieu.com. The Garage Admin API on port 3903 remains an internal backend and must not be exposed directly."
+      "healthNote": "Garage Admin API is exposed through Cloudflare Tunnel at https://garage-admin.albandrieu.com and forwards directly to 172.17.0.24:3903 without Traefik."
     },
     {
       "name": "Bichon",
