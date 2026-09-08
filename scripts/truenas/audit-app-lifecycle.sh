@@ -1277,6 +1277,79 @@ function probe_pyroscope_fastapi_profile {
 }
 
 
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]] &&
+    jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+    functional_ok "Langflow readiness: db=ok chat=ok"
+    return
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
 function probe_openrag_runtime_if_present {
   local backend="openrag-backend"
   local frontend="openrag-frontend"
@@ -1290,8 +1363,8 @@ function probe_openrag_runtime_if_present {
     return
   fi
 
-  if ! app_is_running langflow; then
-    functional_fail "OpenRAG dependency: global Langflow app is not RUNNING (state ${states[langflow]-MISSING})"
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
     return
   fi
 
@@ -1505,7 +1578,7 @@ probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
 probe_pyroscope_fastapi_profile
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
-probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
+probe_langflow_runtime_if_present
 probe_openrag_runtime_if_present
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
