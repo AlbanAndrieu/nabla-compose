@@ -5,9 +5,15 @@ APP_ID="${SENTRY_TRUENAS_APP_ID:-sentry}"
 PROJECT="${SENTRY_COMPOSE_PROJECT:-ix-sentry}"
 EDGE_URL="${SENTRY_EDGE_HEALTH_URL:-http://172.17.0.24:9005/_health/}"
 MODE="${1:---check}"
+REPORT_FILE="${SENTRY_DIAGNOSTIC_REPORT:-/tmp/sentry-diagnose-$(date +%Y%m%d-%H%M%S).log}"
+REPORT_ACTIVE=0
 
 fail() {
   printf '❌ %s\n' "$*" >&2
+  if [[ "${REPORT_ACTIVE}" -eq 1 ]]; then
+    printf '❌ Sentry diagnosis failed: %s\n' "$*" >&3
+    printf 'Detailed report: %s\n' "${REPORT_FILE}" >&3
+  fi
   exit 1
 }
 
@@ -20,7 +26,12 @@ usage() {
 Usage:
   bash scripts/truenas/diagnose-sentry.sh [--check]
 
-This command is read-only. It inspects:
+This command is read-only. Detailed diagnostics are written to:
+  /tmp/sentry-diagnose-<timestamp>.log
+
+The terminal prints only a compact summary and the report path.
+
+It inspects:
 - TrueNAS app.query state
 - recent app lifecycle jobs without printing their arguments
 - Docker service state / health / restart counters
@@ -47,6 +58,11 @@ esac
 for command in midclt jq docker curl; do
   require_command "${command}"
 done
+
+exec 3>&1
+install -m 600 /dev/null "${REPORT_FILE}"
+exec >"${REPORT_FILE}" 2>&1
+REPORT_ACTIVE=1
 
 printf '==> TrueNAS Sentry application state\n'
 app_json="$(
@@ -275,6 +291,19 @@ printf '\n==> lifecycle diagnosis\n'
 printf 'TrueNAS state=%s starting_health=%d unhealthy=%d unexpected_exited=%d one_shot_failures=%d kafka_topic_failures=%d\n' \
   "${app_state}" "${starting_count}" "${unhealthy_count}" \
   "${unexpected_exit_count}" "${one_shot_failure_count}" "${kafka_topic_failure_count}"
+printf '\n==> compact terminal summary\n' >&3
+printf 'Sentry state=%s containers=%d starting=%d unhealthy=%d unexpected_exited=%d one_shot_failures=%d kafka_topic_failures=%d\n' \
+  "${app_state}" "${#container_ids[@]}" "${starting_count}" "${unhealthy_count}" \
+  "${unexpected_exit_count}" "${one_shot_failure_count}" "${kafka_topic_failure_count}" >&3
+if ((kafka_topic_probe_available == 1)); then
+  printf 'Kafka topics=verified\n' >&3
+else
+  printf 'Kafka topics=not-verified\n' >&3
+fi
+printf 'Sentry edge=%s Snuba API=%s\n' \
+  "$([[ "${edge_failed:-0}" -eq 0 ]] && printf ok || printf failed)" \
+  "$([[ "${snuba_failed:-0}" -eq 0 ]] && printf ok || printf failed)" >&3
+printf 'Detailed report: %s\n' "${REPORT_FILE}" >&3
 if ((kafka_topic_probe_available == 0)); then
   printf '⚠️ Kafka topic verification was unavailable; connectivity checks remain diagnostic evidence only.\n'
 fi
@@ -312,3 +341,4 @@ if [[ "${snuba_failed:-0}" -ne 0 ]]; then
 fi
 
 printf '✅ Sentry TrueNAS lifecycle and functional health are converged\n'
+printf '✅ Sentry lifecycle and functional health are converged\n' >&3
