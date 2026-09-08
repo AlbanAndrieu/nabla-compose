@@ -1768,6 +1768,10 @@ Current repository/runtime evidence also identifies these actionable states:
   cutover/service-account secret work remains;
 - **InfluxDB:** reusable standalone target is prepared; migration/cutover remains
   to be completed for Scrutiny;
+- **AutoKuma:** repository monitor generation exists but the TrueNAS Custom App
+  is not registered yet; migration is now prepared with
+  `/mnt/cpool/autokuma/.env.secrets` and the idempotent
+  `scripts/truenas/deploy-autokuma.sh` create-or-update helper;
 - **Tailscale:** intentionally stopped/deferred, not a Kubernetes prerequisite.
 
 Before each migration wave, reconcile every directory under `apps/` against
@@ -1837,17 +1841,20 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 5. complete **Scrutiny + standalone InfluxDB** cutover;
 6. verify **Langflow** as an expected-running application and add monitoring for
    it.
+7. register **AutoKuma** as the repository-managed TrueNAS Custom App and prove
+   it reconciles the generated Nabla monitor inventory into the existing Uptime
+   Kuma instance without reintroducing pfSense metrics scrapes.
 
 **Priority B — next security/network observability services**
 
-7. stabilize **OpenRAG** by proving backend, shared Langflow and OpenSearch
+8. stabilize **OpenRAG** by proving backend, shared Langflow and OpenSearch
    readiness, then review/enable its Docling ingestion and model dependencies;
-8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
+9. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
    conflict with the existing OpenSearch/Graylog observability plane;
-9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
+10. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
    Akvorado) for flow telemetry after pfSense/exporter/collector routing is
    defined;
-10. continue **ntopng / Suricata** integration only after deciding which flow/IDS
+11. continue **ntopng / Suricata** integration only after deciding which flow/IDS
     sources are authoritative to avoid duplicate telemetry without purpose.
 
 **Priority C — platform/application migrations**
