@@ -131,6 +131,64 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn('auth_method: "key"', example)
         self.assertIn("REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY", example)
 
+    def test_pfsense_exporter_is_low_impact_on_firewall(self) -> None:
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        example = (
+            ROOT / "apps" / "prometheus" / "pfsense-exporter.example.yml"
+        ).read_text(encoding="utf-8")
+        gatus = (
+            ROOT / "apps" / "gatus" / "config" / "config.yml"
+        ).read_text(encoding="utf-8")
+        autokuma = (
+            ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
+        ).read_text(encoding="utf-8")
+
+        job = prometheus.split("- job_name: pfsense_exporter", 1)[1].split(
+            "\n  - job_name:",
+            1,
+        )[0]
+        self.assertIn("scrape_interval: 60s", job)
+        self.assertIn("scrape_timeout: 20s", job)
+        self.assertNotIn("scrape_interval: 15s", job)
+
+        exporter = compose.split("\n  pfsense-exporter:\n", 1)[1].split(
+            "\nnetworks:",
+            1,
+        )[0]
+        self.assertIn("type: port", exporter)
+        self.assertIn("target: tcp://172.17.0.24:9945", exporter)
+        self.assertNotIn("metrics?target=172.17.0.1", exporter)
+
+        for collector in (
+            "system",
+            "gateways",
+            "interface",
+            "service",
+            "firewall_states",
+        ):
+            self.assertIn(f"      - {collector}", example)
+        self.assertIn("max_collector_concurrency: 1", example)
+        self.assertIn("timeout: 15", example)
+        self.assertNotIn("      - package", example)
+        self.assertNotIn("      - login_protection", example)
+
+        self.assertIn("url: tcp://172.17.0.24:9945", gatus)
+        self.assertNotIn(
+            "url: http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            gatus,
+        )
+        self.assertIn('"hostname": "172.17.0.24"', autokuma)
+        self.assertIn('"port": 9945', autokuma)
+        self.assertNotIn(
+            '"url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"',
+            autokuma,
+        )
+
     def test_declared_exporters_are_scraped_by_prometheus(self) -> None:
         prometheus = (
             ROOT / "apps" / "prometheus" / "prometheus.yml"
