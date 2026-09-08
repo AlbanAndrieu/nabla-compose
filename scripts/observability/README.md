@@ -131,6 +131,62 @@ pfSense scrape interval to 120 seconds before re-enabling any optional
 collector. Do not increase collector concurrency to compensate for slow pfREST
 responses; that moves the pressure back onto pfSense.
 
+## pfSense PHP-FPM / WebGUI recovery incident — 2026-09-08
+
+Runtime evidence on the Netgate 1100 showed a coupled resource-pressure incident:
+
+- the kernel had repeatedly killed memory-intensive processes, including Unbound;
+- pfSense nginx remained bound on TCP/10443 while the FastCGI Unix socket stopped accepting connections;
+- nginx returned HTTP 502 with `connect() to unix:/var/run/php-fpm.socket failed (61: Connection refused)`;
+- requests came primarily from TrueNAS `172.17.0.24`; `Go-http-client/1.1` identified the pfREST-backed exporter traffic and Uptime Kuma appeared separately;
+- the generated PHP-FPM pool had eight long-lived workers consuming roughly 34-55 MiB RSS each;
+- the pfSense WebGUI displayed the crash page and was unusable.
+
+A temporary supervised recovery reduced the generated runtime pool from:
+
+```text
+pm.max_children = 8
+pm.max_spare_servers = 7
+```
+
+to:
+
+```text
+pm.max_children = 4
+pm.max_spare_servers = 2
+```
+
+The direct `pfSsh.php playback svc restart php-fpm` invocation did not replace the existing master/workers in this incident. The successful pfSense-native recovery path was:
+
+```csh
+/etc/rc.php-fpm_restart
+```
+
+followed by:
+
+```csh
+/etc/rc.restart_webgui
+```
+
+Acceptance evidence after recovery:
+
+- a new PHP-FPM master started and the FastCGI socket `/var/run/php-fpm.socket` was recreated;
+- nginx remained bound on TCP/10443;
+- pfREST endpoints returned HTTP 200 again;
+- the WebGUI at `https://172.17.0.1:10443/` became accessible;
+- Unbound remained running and public recursion recovered after flushing the stale `example.com` cache entry.
+
+Do not start pfSense PHP-FPM manually with plain `/usr/local/sbin/php-fpm -y ...`. The generated pool intentionally runs as root and the pfSense restart wrapper supplies the required runtime flags. A plain manual start failed with:
+
+```text
+[pool nginx] please specify user and group other than root
+FPM initialization failed
+```
+
+The 4/2 pool edit is a **temporary incident-recovery measure**, not the permanent configuration. `/etc/rc.php_ini_setup` regenerates `/usr/local/lib/php-fpm.conf` and can restore the platform-selected 8/7 values. The permanent fix must therefore use the supported pfSense configuration source or a reviewed generated-config mechanism, not a persistent hand-edit of `/usr/local/lib/php-fpm.conf`.
+
+The exporter fan-out remains part of the permanent fix. Keep the low-impact budget documented above (60-second scrape, serialized essential collectors, no duplicate Gatus/AutoKuma metrics scrape) before re-enabling optional high-memory services such as Snort.
+
 ## pfSense exporter runtime configuration
 
 The pfSense exporter runtime configuration is deliberately outside the Git
