@@ -36,10 +36,14 @@ Finish these before expanding the platform further:
 1. [x] **FastAPI Sample** — 1.13.3 deployed and observer/TLS/API acceptance green.
 2. [x] **pfSense / Prometheus** — exporter pressure reduced, Prometheus RUNNING, cAdvisor removed from the active lifecycle.
 3. [x] **OpenRAG runtime** — backend/OpenSearch/Langflow/frontend collective health green.
-4. [ ] **Sentry** — redeploy the corrected Snuba consumer ordering, prove required Kafka topics, require both remaining consumers to become healthy, then rerun the synthetic event smoke.
-5. [ ] **Wazuh** — run the corrected bootstrap, create/verify the TLS material and API secret, deploy manager/indexer/dashboard, then validate the full chain before enabling optional forwarding.
-6. [ ] **AutoKuma** — bootstrap the Uptime Kuma JWT and register the repository-managed Custom App.
-7. [ ] **Secondary runtime debt** — repair Pyroscope readiness and Bichon OAuth2 token re-authorization; keep Suricata/pihole-dns-sync restart loops tracked separately.
+4. [ ] **Docling for OpenRAG** — deploy a repository-managed Docling service (or an explicit supported `DOCLING_SERVE_URL`), prove Docling health from `openrag-backend`, then validate document ingestion, indexing and search end-to-end.
+5. [ ] **OpenRAG ↔ LiteLLM integration** — only after OpenRAG is stable **and Docling is installed/healthy**, activate the prepared workstation GPU route `OpenRAG -> 172.17.0.57:4000/v1`, run `bootstrap_litellm.py` then `--apply`, prove `qwen` tool-capable chat and `embedding` vectors, and finally validate the optional TrueNAS LiteLLM proxy/fallback aliases.
+6. [ ] **Sentry** — redeploy the corrected Snuba consumer ordering, prove required Kafka topics, require both remaining consumers to become healthy, then rerun the synthetic event smoke.
+7. [ ] **Wazuh** — run the corrected bootstrap, create/verify the TLS material and API secret, deploy manager/indexer/dashboard, then validate the full chain before enabling optional forwarding.
+8. [ ] **AutoKuma** — bootstrap the Uptime Kuma JWT and register the repository-managed Custom App.
+9. [ ] **Secondary runtime debt** — repair Pyroscope readiness and Bichon OAuth2 token re-authorization; keep Suricata/pihole-dns-sync restart loops tracked separately.
+
+OpenRAG model-provider activation is intentionally gated behind Docling: do **not** run the LiteLLM `--apply` step until Docling health and one end-to-end ingestion/search path are green.
 
 Once Sentry and Wazuh are converged, resume the Kubernetes platform gate below.
 
