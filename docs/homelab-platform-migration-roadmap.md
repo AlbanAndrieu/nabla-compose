@@ -1726,8 +1726,12 @@ should be verified/stabilized before broad application migrations:
   external/internal route behavior;
 - **Graylog:** expected running; verify server health, OpenSearch/backend
   connectivity and inputs before adding pfSense/workstation syslog;
-- **Prometheus:** priority monitoring service; verify scrape targets, rule
-  evaluation and retention;
+- **Prometheus:** priority monitoring service; core Prometheus/Alertmanager/
+  node-exporter now start after removing the orphan LiteLLM secret mount;
+  cAdvisor is profile-gated out of the default lifecycle because it is
+  intentionally disabled on this host; the remaining blocker is the exited
+  `pfsense-exporter`, which must be diagnosed from its runtime log/config before
+  the TrueNAS Custom App can be considered fully healthy;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
@@ -1778,8 +1782,14 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       frontend -> backend/Langflow collective health;
 - [x] make the upstream Linux `host.docker.internal` route explicit for the
       current Docling default;
-- [ ] reconcile/redeploy global Langflow first, then OpenRAG, and prove all
-      three OpenRAG-compatible images are `0.7.1` rather than stale `:latest`;
+- [x] reconcile the global Langflow runtime to
+      `langflowai/openrag-langflow:0.7.1` and prove no `/app/flows` bind masks
+      the image-bundled flows;
+- [x] distinguish Langflow liveness (`/health`) from readiness
+      (`/health_check` = DB + chat/cache) and add a first-start grace window
+      plus deploy-time diagnostics;
+- [ ] reconcile/redeploy OpenRAG backend/frontend and prove both images are
+      `0.7.1` rather than stale `:latest`;
 - [ ] prove the backend no longer logs
       `OpenSearch healthy but cluster has not reached expected node count` on
       the shared single-node OpenSearch runtime;
