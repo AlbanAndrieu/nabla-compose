@@ -1,3 +1,10 @@
+# [0.24.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.6...0.24.0) (2026-09-08)
+
+
+### Features
+
+* **sentry:** diagnose TrueNAS DEPLOYING lifecycle ([#146](https://github.com/AlbanAndrieu/nabla-compose/issues/146)) ([af19e6e](https://github.com/AlbanAndrieu/nabla-compose/commit/af19e6e3fb59ab3f585164f3092ab6994560bbd5))
+
 ## [0.23.6](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.5...0.23.6) (2026-09-08)
 
 
