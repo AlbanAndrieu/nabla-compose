@@ -316,6 +316,67 @@ sudo midclt call -j app.start sentry
 
 Do not remove ClickHouse, PostgreSQL, Redis, or shared Kafka data as part of a Sentry deployment.
 
+## Long first start and the TrueNAS 70% plateau
+
+A full Sentry restart is expected to take materially longer than a small
+single-container TrueNAS Custom App. Do not repeatedly call `app.update` or
+`app.redeploy` merely because the TrueNAS job appears to remain around 70%.
+
+The current 26.8 errors-only stack has deliberately conservative first-start
+health windows:
+
+- Sentry/Snuba consumer heartbeat healthchecks: `start_period: 600s`;
+- Sentry web: `start_period: 120s`;
+- NGINX starts only after Sentry web is healthy and Relay has started.
+
+In addition, the one-shot `snuba-migrate` and `sentry-migrate` jobs run before
+the long-running consumers that depend on the generated Kafka topics. This
+creates a serial startup path where Docker containers can already be
+`running` while TrueNAS still reports the aggregate app as `DEPLOYING`.
+
+A TrueNAS progress value near 70% is therefore an orchestration progress
+indicator, **not** a Sentry readiness percentage. During the 2026-09-08
+supervised restart, all 19 workloads had already been created, both one-shot
+migration services had exited, and the previously blocked
+`snuba-replacer` / `snuba-subscription-consumer-events` services were
+running while the aggregate app still showed `DEPLOYING`.
+
+Recommended operator sequence after a configuration update:
+
+```bash
+sudo midclt call -j app.update sentry \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/sentry/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy sentry
+```
+
+If the application remains `DEPLOYING` around 70%, do **not** immediately
+redeploy again. Allow approximately the 10-minute consumer first-start grace
+to elapse, then run the read-only diagnostic:
+
+```bash
+sudo bash scripts/truenas/diagnose-sentry.sh --check
+```
+
+While waiting, a non-destructive status check is sufficient:
+
+```bash
+sudo midclt call app.query '[["id","=","sentry"]]' |
+  jq '.[0] | {id,state,active_workloads}'
+```
+
+Escalate only if, after the grace window, the diagnostic reports missing Kafka
+topics, failed one-shot migrations, unhealthy/starting consumers that no longer
+produce heartbeats, failed Sentry edge/Snuba health, or a stale TrueNAS
+lifecycle job. Repeated redeploys reset healthcheck grace windows and make
+startup diagnosis harder.
+
 ## TrueNAS DEPLOYING diagnostic
 
 When Sentry is functionally reachable but TrueNAS still reports the Custom App
