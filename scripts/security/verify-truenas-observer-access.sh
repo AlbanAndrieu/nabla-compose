@@ -8,6 +8,7 @@ LEGACY_SOURCE_IP="${FASTAPI_SAMPLE_LEGACY_OBSERVER_IP:-172.16.55.9}"
 FAILED_CANDIDATE_IP="${FASTAPI_SAMPLE_FAILED_OBSERVER_IP:-172.16.56.9}"
 TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
+EXPECTED_USERNAME="${TRUENAS_OBSERVER_EXPECTED_USERNAME:-fastapi_observer}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -144,102 +145,112 @@ PY
   fi
 done
 
-printf '==> sanitized FastAPI TrueNAS credential selection\n'
-docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+printf '==> canonical FastAPI TrueNAS observer credential\n'
+docker exec -i \
+  -e TRUENAS_OBSERVER_EXPECTED_USERNAME="${EXPECTED_USERNAME}" \
+  "${CONTAINER}" /code/.venv/bin/python - <<'PY'
 import os
 
 from nabla.settings.homelab import TrueNASProviderSettings
 
 settings = TrueNASProviderSettings()
-key = settings.adapter_api_key
-key_id = key.split("-", 1)[0] if "-" in key else "<unknown>"
+expected_username = os.environ["TRUENAS_OBSERVER_EXPECTED_USERNAME"].strip()
 
-username_candidates = (
-    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
-    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
-    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
-)
-selected_username_variable = next(
-    (name for name, value in username_candidates if value),
-    "TRUENAS_API_USERNAME",
-)
-shadowed_username_variables = [
-    name
-    for name, value in username_candidates
-    if value and name != selected_username_variable
-]
-
-api_key_candidates = (
-    ("TRUENAS_API_KEY", os.getenv("TRUENAS_API_KEY", "").strip()),
-    ("TRUENAS_MCP_API_KEY", os.getenv("TRUENAS_MCP_API_KEY", "").strip()),
-)
-selected_api_key_variable = next(
-    (name for name, value in api_key_candidates if value),
-    "TRUENAS_API_KEY",
-)
-shadowed_api_key_variables = [
-    name
-    for name, value in api_key_candidates
-    if value and name != selected_api_key_variable
-]
-
-print("username_variable =", selected_username_variable)
-print("api_key_variable  =", selected_api_key_variable)
-print("api_key_id        =", key_id)
+print("username_variable =", settings.adapter_username_environment)
+print("api_key_variable  =", settings.adapter_api_key_environment)
 print("verify_ssl        =", settings.verify_ssl)
 print(
-    "shadowed_username_variables =",
-    ",".join(shadowed_username_variables) or "<none>",
+    "ignored_username_variables =",
+    ",".join(settings.shadowed_username_environments) or "<none>",
 )
 print(
-    "shadowed_api_key_variables  =",
-    ",".join(shadowed_api_key_variables) or "<none>",
+    "ignored_api_key_variables  =",
+    ",".join(settings.shadowed_api_key_environments) or "<none>",
 )
 
-if selected_username_variable != "TRUENAS_API_USERNAME":
-    raise SystemExit("canonical TRUENAS_API_USERNAME is not selected")
-if selected_api_key_variable != "TRUENAS_API_KEY":
-    raise SystemExit("canonical TRUENAS_API_KEY is not selected")
+if settings.adapter_username != expected_username:
+    raise SystemExit(
+        f"authenticated observer username is not the expected {expected_username!r}"
+    )
+if settings.adapter_username_environment != "TRUENAS_API_USERNAME":
+    raise SystemExit("FastAPI must use canonical TRUENAS_API_USERNAME")
+if settings.adapter_api_key_environment != "TRUENAS_API_KEY":
+    raise SystemExit("FastAPI must use canonical TRUENAS_API_KEY")
+if not settings.adapter_api_key:
+    raise SystemExit("TRUENAS_API_KEY is missing")
 if not settings.verify_ssl:
     raise SystemExit(
         "TRUENAS_API_VERIFY_SSL must be true for the hostname-validated homelab observer"
     )
 PY
 
-shadowed_user="$(
-  docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
-import os
-
-selected = "TRUENAS_API_USERNAME" if os.getenv("TRUENAS_API_USERNAME", "").strip() else (
-    "TRUENAS_USERNAME" if os.getenv("TRUENAS_USERNAME", "").strip() else "TRUENAS_USER"
-)
-configured = (
-    ("TRUENAS_API_USERNAME", os.getenv("TRUENAS_API_USERNAME", "").strip()),
-    ("TRUENAS_USERNAME", os.getenv("TRUENAS_USERNAME", "").strip()),
-    ("TRUENAS_USER", os.getenv("TRUENAS_USER", "").strip()),
-)
-print(",".join(name for name, value in configured if value and name != selected))
-PY
-)"
-if [[ -n "${shadowed_user}" ]]; then
-  warn "legacy TrueNAS username aliases remain configured and shadowed: ${shadowed_user}"
-fi
-
 printf '==> TrueNAS HTTPS version discovery from container\n'
 docker exec "${CONTAINER}" curl --fail --silent --show-error   "https://${TRUENAS_NAME}:${TRUENAS_PORT}/api/versions" |
   jq .
 
-printf '==> authenticated TrueNAS WebSocket observer calls\n'
-docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+printf '==> authenticated TrueNAS WebSocket observer identity and calls\n'
+docker exec -i \
+  -e TRUENAS_OBSERVER_EXPECTED_USERNAME="${EXPECTED_USERNAME}" \
+  "${CONTAINER}" /code/.venv/bin/python - <<'PY'
+import os
+
 from nabla.integrations.truenas_client import build_truenas_adapter
 
 adapter = build_truenas_adapter()
 if adapter is None:
     raise SystemExit("TrueNAS adapter is not configured")
 
+expected_username = os.environ["TRUENAS_OBSERVER_EXPECTED_USERNAME"].strip()
+identity = adapter._call("auth.me")
+if not isinstance(identity, dict):
+    raise SystemExit("auth.me returned an unexpected payload")
+
+authenticated_username = str(identity.get("pw_name") or "")
+if authenticated_username != expected_username:
+    raise SystemExit(
+        f"auth.me identity mismatch: expected {expected_username!r}, got {authenticated_username!r}"
+    )
+
+roles: set[str] = set()
+
+
+def collect_roles(value: object) -> None:
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            if key == "roles" and isinstance(nested, list):
+                roles.update(str(role) for role in nested)
+            else:
+                collect_roles(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            collect_roles(nested)
+
+
+collect_roles(identity.get("privilege"))
+if not roles:
+    raise SystemExit("auth.me did not expose any effective RBAC roles")
+
+dangerous_roles = sorted(
+    role
+    for role in roles
+    if role in {"FULL_ADMIN", "SHARING_ADMIN", "REPLICATION_ADMIN"}
+    or "_WRITE" in role
+    or "_DELETE" in role
+    or role.endswith("_FULL_CONTROL")
+)
+if dangerous_roles:
+    raise SystemExit(
+        "observer has write/admin roles and is not least-privilege: "
+        + ",".join(dangerous_roles)
+    )
+
 version = adapter.system_version()
 apps = adapter.list_apps()
+scope = "broad_readonly" if "READONLY_ADMIN" in roles else "least_privilege_candidate"
 
+print(f"authenticated_username={authenticated_username}")
+print(f"rbac_scope={scope}")
+print(f"roles={','.join(sorted(roles))}")
 print(f"version={version}")
 print(f"apps={len(apps)}")
 PY
