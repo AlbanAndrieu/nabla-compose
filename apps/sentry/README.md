@@ -316,6 +316,30 @@ sudo midclt call -j app.start sentry
 
 Do not remove ClickHouse, PostgreSQL, Redis, or shared Kafka data as part of a Sentry deployment.
 
+## TrueNAS DEPLOYING diagnostic
+
+When Sentry is functionally reachable but TrueNAS still reports the Custom App
+as `DEPLOYING`, use the repository read-only diagnostic:
+
+```bash
+bash scripts/truenas/diagnose-sentry.sh --check
+```
+
+The diagnostic separates:
+
+- TrueNAS `app.query` lifecycle state;
+- recent app lifecycle jobs, without printing job arguments;
+- steady-state containers from the expected one-shot `snuba-migrate` and
+  `sentry-migrate` jobs;
+- Docker `starting` / `unhealthy` healthchecks and restart counters;
+- Sentry edge health from Snuba API health.
+
+The Sentry 26.8 consumer healthchecks are heartbeat-file based. A container can
+be running while Docker health remains `starting`; if TrueNAS is still
+`DEPLOYING`, the diagnostic identifies those services without restarting or
+redeploying anything. Do not remove the upstream-style healthchecks merely to
+make the aggregate state turn green.
+
 ## Runtime verification
 
 List the complete Sentry project:
