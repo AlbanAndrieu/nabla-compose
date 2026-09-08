@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-09.
 
 This is the concise operational index. Detailed design, evidence and rollback
 notes remain in the specialized roadmaps:
@@ -10,6 +10,7 @@ notes remain in the specialized roadmaps:
 - [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
+- [Runtime baseline tests](./runtime-baseline-tests.md)
 
 ## Current platform state
 
@@ -87,29 +88,36 @@ green cloud observation must not mask a broken local path.
    configured/reachable/authenticated/application-result/stale/error-stage
    evidence. The comparison must identify which runtime failed instead of using
    generic messages such as “one runtime is unhealthy”.
-9. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
+9. [ ] **Runtime validation baseline** — before calling the local FastAPI runtime
+   stable, run the bounded integration, non-destructive HTTP pentest and basic
+   performance modes from `scripts/testing/runtime-baseline.py`. Require
+   `/health` + `/v2/version` integration success, the HTTP security baseline
+   to pass, and a low-volume latency/error smoke with explicit p95/error-rate
+   thresholds. CI proves the harness against a deterministic local fixture; the
+   live TrueNAS/public targets are explicit/manual runs.
+10. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
    convergence is proven (`exit=0`, aggregate `RUNNING`, zero
    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
    healthy); finish the synthetic event proof as part of the local FastAPI gate.
-10. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
+11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
     finish VM-autostart persistence, rerun the Talos/CoreDNS/Flannel network
     regression gate, then make TrueNAS NFS + CSI persistence green before
     Kubara/Traefik and the immutable FastAPI ingress smoke on
     `test.albandrieu.com`.
-11. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material,
+12. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material,
     deploy manager/indexer/dashboard, and require
     `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch
     forwarder.
-12. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision
+13. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision
     a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository
     cutover/acceptance helper.
-13. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the
+14. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the
     Sentry acceptance gate above is green, then prove document
     ingestion/index/search end-to-end.
-14. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus
+15. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus
     Docling + one ingestion/search path are green, activate the workstation GPU
     route and prove chat/tool-calling + embeddings.
-15. [ ] **Secondary runtime debt** — AutoKuma registration, Bichon OAuth2
+16. [ ] **Secondary runtime debt** — AutoKuma registration, Bichon OAuth2
     re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
 
 **Ordering gate:** the FastAPI local dependency convergence above is the first
