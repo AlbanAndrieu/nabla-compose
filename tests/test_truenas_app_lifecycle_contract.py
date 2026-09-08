@@ -225,6 +225,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("function probe_openrag_runtime_if_present", audit)
         self.assertIn("global Langflow URL configured", audit)
         self.assertIn("global Langflow DNS + HTTP/7860", audit)
+        self.assertIn("dedicated global Langflow API key configured", audit)
+        self.assertIn("global Langflow authenticated API", audit)
         self.assertIn("single-node OpenSearch count gate disabled", audit)
         self.assertIn("still waiting for a 3-node OpenSearch topology", audit)
         self.assertIn("OpenRAG backend: /health HTTP 200", audit)
@@ -233,6 +235,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("Docling is not reachable", audit)
 
         self.assertIn("LANGFLOW_HOST=langflow", openrag_readme)
+        self.assertIn("LANGFLOW_KEY", openrag_readme)
+        self.assertIn("Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD`", openrag_readme)
         self.assertIn("global Langflow", openrag_readme)
         self.assertIn("DOCLING_SERVE_URL", openrag_readme)
         self.assertIn("stabilize **OpenRAG**", roadmap)
