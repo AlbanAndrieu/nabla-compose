@@ -1,3 +1,10 @@
+# [0.23.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.3...0.23.0) (2026-09-08)
+
+
+### Features
+
+* **keycloak:** migrate to repository runtime with shared PostgreSQL ([#136](https://github.com/AlbanAndrieu/nabla-compose/issues/136)) ([be43fef](https://github.com/AlbanAndrieu/nabla-compose/commit/be43fefc74251398376a050d17ce538530ed6958))
+
 ## [0.22.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.2...0.22.3) (2026-09-08)
 
 
