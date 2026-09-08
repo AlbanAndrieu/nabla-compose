@@ -104,6 +104,32 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
         self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
 
+    def test_talos_vm_autostart_is_steady_state_default(self) -> None:
+        terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
+            encoding="utf-8"
+        )
+        variables = (ROOT / "terraform/truenas/variables.tofu").read_text(
+            encoding="utf-8"
+        )
+        vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(
+            encoding="utf-8"
+        )
+        preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('get_env("TALOS_VM_AUTOSTART", "true")', terragrunt)
+        self.assertRegex(
+            variables,
+            r'variable "talos_vm_autostart" \{[^}]*default\s*=\s*true',
+        )
+        self.assertIn("autostart             = var.talos_vm_autostart", vm_config)
+        self.assertNotIn("autostart             = false", vm_config)
+        self.assertIn(
+            'TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"',
+            preflight,
+        )
+
     def test_talos_vm_boot_order_is_deterministic(self) -> None:
         vm_config = (ROOT / "terraform/truenas/talos-vms.tofu").read_text(
             encoding="utf-8"
