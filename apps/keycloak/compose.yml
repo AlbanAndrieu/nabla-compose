@@ -16,9 +16,7 @@ services:
         containerService: keycloak
       monitoring:
         type: http
-        host: 172.17.0.24
-        port: 30239
-        path: /health/ready
+        target: http://172.17.0.24:30239/health/ready
       relations:
         - target: postgresql
           type: dependsOn
