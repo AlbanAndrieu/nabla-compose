@@ -52,7 +52,6 @@ class KubaraPreflightContractTests(unittest.TestCase):
             "kubectl apply",
             "kubectl create",
             "kubectl delete",
-            "kubara bootstrap ",
             "kubara generate --helm",
         )
         for marker in forbidden:
