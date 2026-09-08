@@ -1279,7 +1279,7 @@ function probe_pyroscope_fastapi_profile {
 
 function probe_pfsense_exporter_runtime_if_present {
   local container="pfsense-exporter"
-  local config="/mnt/cpool/compose/nabla-compose/apps/prometheus/secrets/exporter.config.yml"
+  local config="/mnt/cpool/prometheus/secrets/pfsense-exporter.yml"
   local state
   local exit_code
   local auth_method
@@ -1303,8 +1303,18 @@ function probe_pfsense_exporter_runtime_if_present {
     functional_fail "pfSense exporter: container state=${state:-unknown} exit_code=${exit_code:-unknown}"
   fi
 
+  if [[ ! -e "${config}" ]]; then
+    functional_fail "pfSense exporter: runtime config is missing: ${config}"
+    return
+  fi
+
+  if [[ ! -f "${config}" ]]; then
+    functional_fail "pfSense exporter: runtime config must be a regular file, not a directory: ${config}"
+    return
+  fi
+
   if [[ ! -s "${config}" ]]; then
-    functional_fail "pfSense exporter: runtime config is missing or empty"
+    functional_fail "pfSense exporter: runtime config is empty: ${config}"
     return
   fi
 
