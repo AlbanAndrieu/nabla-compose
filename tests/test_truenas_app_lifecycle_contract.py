@@ -889,6 +889,18 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("without printing the API key", script)
         self.assertNotIn("echo \"$key\"", script)
 
+    def test_fastapi_sample_restart_uses_truenas_lifecycle(self) -> None:
+        path = ROOT / "scripts/restart-fastapi-sample.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn('app.redeploy "${APP_ID}"', script)
+        self.assertIn("midclt call app.query", script)
+        self.assertNotIn("docker compose -f \"${COMPOSE_FILE}\" up -d", script)
+
     def test_fastapi_sample_refresh_helper_is_safe_and_complete(self) -> None:
         path = ROOT / "scripts/truenas/update-fastapi-sample.sh"
         script = path.read_text(encoding="utf-8")
