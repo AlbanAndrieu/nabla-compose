@@ -480,7 +480,7 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn('ip route get "${node_ip}"', validator)
         self.assertIn('ip neigh show "${node_ip}"', validator)
         self.assertIn("socket.create_connection((host, 50000)", validator)
-        self.assertIn("autostart=false", validator)
+        self.assertIn("IaC autostart setting is enabled", validator)
 
     def test_syslog_classifies_known_pfsense_without_ip_label(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
