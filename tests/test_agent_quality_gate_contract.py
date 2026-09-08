@@ -59,6 +59,13 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("[tasks.agent-publish]", config)
         self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
 
+    def test_shell_formatter_matches_bashate_indentation_policy(self) -> None:
+        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+        self.assertIn("args: ['-ln=bash', '-i=2']", config)
+        self.assertIn('args: [-i, "E003,E006"]', config)
+        self.assertNotIn('args: [-i, "E002,E003,E006"]', config)
+
     def test_pre_push_uses_agent_publication_gate(self) -> None:
         config = (ROOT / ".pre-commit-pre-push.yaml").read_text(encoding="utf-8")
         self.assertIn("entry: bash scripts/agent-quality-gate.sh --publish", config)
