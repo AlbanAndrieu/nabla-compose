@@ -9,7 +9,7 @@ services:
       kind: identity-provider
       category: security
       presentationRole: core
-      criticality: high
+      criticality: critical
       description: Central OIDC/SAML identity provider backed by the shared PostgreSQL service.
       runtime:
         provider: truenas-app
