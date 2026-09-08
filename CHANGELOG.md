@@ -1,3 +1,10 @@
+## [0.25.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.1...0.25.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **ci:** repair post-143 pre-commit gate ([#148](https://github.com/AlbanAndrieu/nabla-compose/issues/148)) ([7a1dfef](https://github.com/AlbanAndrieu/nabla-compose/commit/7a1dfefaad05234bc4081913601ef81d91a9e8a5))
+
 ## [0.25.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.0...0.25.1) (2026-09-08)
 
 
