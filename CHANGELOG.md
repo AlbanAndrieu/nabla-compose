@@ -1,3 +1,10 @@
+## [0.23.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.2...0.23.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **garage:** align WebUI presentation catalog ([#140](https://github.com/AlbanAndrieu/nabla-compose/issues/140)) ([e48851b](https://github.com/AlbanAndrieu/nabla-compose/commit/e48851b2d94f66facc8959f53e014667e7fb6098))
+
 ## [0.23.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.1...0.23.2) (2026-09-08)
 
 
