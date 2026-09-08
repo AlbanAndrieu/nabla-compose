@@ -1,0 +1,13 @@
+# Copy to /mnt/cpool/prometheus/secrets/pfsense-exporter.yml on TrueNAS.
+# Keep the runtime copy root-owned mode 0600 and replace the placeholder with a
+# dedicated least-privilege pfSense REST API key. Do not commit the real key.
+address: 0.0.0.0
+port: 9945
+targets:
+  - host: "172.17.0.1"
+    port: 10443
+    scheme: "https"
+    auth_method: "key"
+    key: "REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY"
+    validate_cert: false
+    timeout: 30
