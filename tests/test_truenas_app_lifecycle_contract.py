@@ -831,6 +831,47 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("without printing the API key", script)
         self.assertNotIn("echo \"$key\"", script)
 
+    def test_fastapi_sample_refresh_helper_is_safe_and_complete(self) -> None:
+        path = ROOT / "scripts/truenas/update-fastapi-sample.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn('REF="${FASTAPI_SAMPLE_REF:-master}"', script)
+        self.assertIn('fetch --prune origin "${REF}"', script)
+        self.assertIn('build \\\n  --pull \\\n  fastapi-sample', script)
+        self.assertIn('docker rm -f "${CONTAINER}"', script)
+        self.assertIn('app.update "${APP_ID}"', script)
+        self.assertIn('app.redeploy "${APP_ID}"', script)
+        self.assertIn("reconcile-truenas-observer-allowlist.sh", script)
+        self.assertIn("verify-truenas-observer-access.sh", script)
+        self.assertIn("http://127.0.0.1:8091/health", script)
+        self.assertIn("http://127.0.0.1:8091/v2/version", script)
+
+    def test_autokuma_trueNAS_deploy_helper_and_runtime_contract(self) -> None:
+        compose = self.read("apps/autokuma/compose.yml")
+        path = ROOT / "scripts/truenas/deploy-autokuma.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("appId: autokuma", compose)
+        self.assertIn("/mnt/cpool/autokuma/.env.secrets", compose)
+        self.assertIn("required: false", compose)
+        self.assertNotIn("${UPTIME_KUMA_URL", compose)
+        self.assertNotIn("${UPTIME_KUMA_USERNAME", compose)
+        self.assertNotIn("${UPTIME_KUMA_PASSWORD", compose)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("app.create", script)
+        self.assertIn("app.update", script)
+        self.assertIn("app.redeploy", script)
+        self.assertIn("AUTOKUMA__KUMA__URL", script)
+        self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
+        self.assertIn("generated-monitors.json", script)
+
     def test_sample_observer_network_helpers_are_executable(self) -> None:
         for relative in (
             "scripts/truenas/prepare-sample-observer-network.sh",
