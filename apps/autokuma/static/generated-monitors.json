@@ -527,13 +527,14 @@
     "port": 10443
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "pfSense Exporter",
     "description": "Nabla generated monitor: pfsense-exporter",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"
+    "hostname": "172.17.0.24",
+    "port": 9945
   },
   {
     "type": "http",
