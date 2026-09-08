@@ -48,6 +48,7 @@ class SecretsRendererTests(unittest.TestCase):
                 "open-terminal",
                 "karakeep",
                 "reactive-resume",
+                "akvorado",
             },
         )
         serialized = json.dumps(manifest)
