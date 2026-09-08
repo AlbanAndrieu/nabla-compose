@@ -108,7 +108,7 @@ in-place VM updates with zero create/replace/destroy actions.
       Ingress already claims `test.albandrieu.com`;
 - [ ] prove `test.albandrieu.com` resolves before deployment;
 - [ ] deploy FastAPI Sample from an immutable `@sha256:` image;
-- [ ] prove Deployment rollout and ready Service endpoints;
+- [ ] prove Deployment rollout and ready Service EndpointSlice addresses;
 - [ ] prove external `https://test.albandrieu.com/health`;
 - [ ] prove external `https://test.albandrieu.com/v2/version`;
 - [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence;
