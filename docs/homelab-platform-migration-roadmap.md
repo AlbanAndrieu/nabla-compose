@@ -39,8 +39,9 @@ fastapi_observer
   -> dedicated user-linked API key
 ```
 
-Runtime validation proves `system.version` and `app.query` (86 apps) with the
-native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
+Runtime validation proves `system.version` and `app.query` with the native
+TrueNAS 26.0.0-BETA.2 client; the 2026-09-08 post-redeploy read gate observed
+94 apps. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
 before authentication. Runtime evidence on 2026-09-08 proved that a fixed /32
 must not be reserved inside the shared `intranet` pool: while Sample was
@@ -62,16 +63,21 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
   `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` can authenticate the
   application observer; legacy usernames, MCP keys and `TRUENAS_INFRA_*`
   credentials are ignored and reported only as configuration drift;
-- [ ] finish the FastAPI Sample `1.13.5` TrueNAS redeploy with
-  `TRUENAS_API_USERNAME=fastapi_observer`, then require `auth.me` to prove
-  the effective identity and reject any write/admin role while retaining
+- [x] finish the TrueNAS-local FastAPI redeploy with
+  `TRUENAS_API_USERNAME=fastapi_observer`; the 2026-09-08 gate reached RBAC
+  parsing only after `auth.me.pw_name` matched `fastapi_observer`, while the
+  read-only observer path reported 94 apps;
+- [ ] rerun the corrected RBAC parser and require `APPS_READ` (preferred) or
+  temporary `READONLY_ADMIN`, with no write/admin role, while retaining
   `system.version` + `app.query`;
 - [ ] run the `--compare-cloud` A/B gate while FastAPI Cloud still uses
   `TRUENAS_API_USERNAME=albandrieu`: require the same catalog revision and
   exact TrueNAS application-ID inventory from both runtimes;
-- [ ] after A/B parity is green, switch FastAPI Cloud to a dedicated
-  `fastapi_observer` key, rerun the production API/topology/UI smoke, then
-  retire the FastAPI workload's use of the human/admin credential;
+- [ ] after A/B parity is green, switch FastAPI Cloud to
+  `TRUENAS_API_USERNAME=fastapi_observer` plus its paired dedicated
+  `TRUENAS_API_KEY`, keep TLS verification enabled, rerun the production
+  API/topology/UI smoke, then retire the FastAPI workload's use of the
+  `albandrieu` credential;
 - [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
   2026-09-08 verification selects only `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`
   with no shadowed username/API-key variables;
