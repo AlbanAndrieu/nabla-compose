@@ -65,13 +65,36 @@ model_list:
       mode: chat
       supports_function_calling: true
 
-  # for opneweb ui chromadb
+  # Primary embedding route: proxy the request to the GPU workstation LiteLLM.
+  # The upstream workstation must expose the model alias "embedding".
   - model_name: embedding
+    litellm_params:
+      model: openai/embedding
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 300
+    model_info:
+      mode: embedding
+
+  # Explicit local fallback/rollback target. Keep this alias separate so the
+  # router never load-balances silently between GPU and TrueNAS CPU inference.
+  - model_name: embedding-local
     litellm_params:
       model: ollama/nomic-embed-text
       api_base: "http://172.17.0.24:30068"
     model_info:
       mode: embedding
+
+  # Future proxy path for consumers that should traverse TrueNAS LiteLLM first.
+  - model_name: workstation-qwen
+    litellm_params:
+      model: openai/qwen
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 900
+    model_info:
+      mode: chat
+      supports_function_calling: true
 
   - model_name: gemma3
     litellm_params:

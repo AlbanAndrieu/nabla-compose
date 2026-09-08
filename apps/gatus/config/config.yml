@@ -566,14 +566,6 @@ endpoints:
   url: http://172.17.0.24:9093/-/ready
   conditions:
   - '[STATUS] == 200'
-- name: Cadvisor
-  group: prometheus
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: prometheus-cadvisor
-  url: tcp://172.17.0.24:8089
-  conditions:
-  - '[CONNECTED] == true'
 - name: Node Exporter
   group: prometheus
   interval: 60s

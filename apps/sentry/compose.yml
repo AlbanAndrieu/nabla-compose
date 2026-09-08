@@ -164,8 +164,12 @@ services:
       - /tmp/health.txt
       - --max-poll-interval-ms
       - "300000"
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 
@@ -185,8 +189,12 @@ services:
       - /tmp/health.txt
       - --max-poll-interval-ms
       - "300000"
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 
@@ -208,8 +216,12 @@ services:
       - /tmp/health.txt
       - --max-poll-interval-ms
       - "300000"
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 
@@ -229,8 +241,12 @@ services:
       - /tmp/health.txt
       - --max-poll-interval-ms
       - "300000"
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 
@@ -246,8 +262,12 @@ services:
       - /tmp/health.txt
       - --max-poll-interval-ms
       - "300000"
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 
@@ -267,8 +287,12 @@ services:
       - --stale-threshold-seconds=900
       - --health-check-file
       - /tmp/health.txt
+    # Upstream self-hosted 26.8 bootstraps Snuba first, then runs
+    # "sentry upgrade --create-kafka-topics", and only afterwards starts
+    # long-running consumers. In a single TrueNAS Compose lifecycle, waiting
+    # only for snuba-migrate races consumers against Kafka topic creation.
     depends_on:
-      snuba-migrate:
+      sentry-migrate:
         condition: service_completed_successfully
     healthcheck: *consumer-health
 

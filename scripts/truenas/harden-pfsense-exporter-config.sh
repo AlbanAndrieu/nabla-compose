@@ -6,24 +6,24 @@ ROOT="$(git rev-parse --show-toplevel)"
 TEMPLATE="${ROOT}/apps/prometheus/pfsense-exporter.example.yml"
 
 fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
+	printf 'ERROR: %s\n' "$*" >&2
+	exit 1
 }
 
 [[ "${EUID}" -eq 0 ]] ||
-  fail "run with sudo so the runtime config remains root-owned mode 0600"
+	fail "run with sudo so the runtime config remains root-owned mode 0600"
 
 for command in python3 git; do
-  command -v "${command}" >/dev/null 2>&1 ||
-    fail "${command} is required"
+	command -v "${command}" >/dev/null 2>&1 ||
+		fail "${command} is required"
 done
 
 [[ -f "${RUNTIME_CONFIG}" ]] ||
-  fail "runtime config must be a regular file: ${RUNTIME_CONFIG}"
+	fail "runtime config must be a regular file: ${RUNTIME_CONFIG}"
 [[ -s "${RUNTIME_CONFIG}" ]] ||
-  fail "runtime config is empty: ${RUNTIME_CONFIG}"
+	fail "runtime config is empty: ${RUNTIME_CONFIG}"
 [[ -f "${TEMPLATE}" ]] ||
-  fail "reviewed template is missing: ${TEMPLATE}"
+	fail "reviewed template is missing: ${TEMPLATE}"
 
 python3 - "${RUNTIME_CONFIG}" "${TEMPLATE}" <<'PY'
 from __future__ import annotations
@@ -88,4 +88,13 @@ if missing:
 PY
 
 printf 'OK: pfSense exporter runtime config hardened without printing the API key\n'
-printf '    scrape pressure is controlled by Prometheus (120s) and collectors are serialized\n'
+printf '    scrape pressure is controlled by Prometheus (300s) and collectors are serialized\n'
+scripts/truenas/audit-app-lifecycle.sh:1858:1: `}` can only be used to close a block
+Unable to find image 'mvdan/shfmt:v3.13.1@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be' locally
+docker.io/mvdan/shfmt@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be: Pulling from mvdan/shfmt
+5b958e81722e: Pulling fs layer
+5b958e81722e: Verifying Checksum
+5b958e81722e: Download complete
+5b958e81722e: Pull complete
+Digest: sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be
+Status: Downloaded newer image for mvdan/shfmt@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be

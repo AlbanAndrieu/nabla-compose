@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import stat
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -28,6 +29,28 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)
         self.assertIn('env SKIP="${CANONICAL_SKIP}"', text)
+
+    def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
+        scripts = sorted((ROOT / "scripts").rglob("*.sh"))
+        self.assertTrue(scripts)
+
+        failures: list[str] = []
+        for path in scripts:
+            result = subprocess.run(
+                ["bash", "-n", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                failures.append(
+                    f"{path.relative_to(ROOT)}: {result.stderr.strip()}"
+                )
+
+        self.assertFalse(
+            failures,
+            "bash -n syntax failures:\n" + "\n".join(failures),
+        )
 
     def test_mise_exposes_fix_check_and_publish_workflow(self) -> None:
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")

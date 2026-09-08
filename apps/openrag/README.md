@@ -148,6 +148,92 @@ docker exec openrag-backend sh -lc '
 
 Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD` into the OpenRAG secrets.
 
+## Workstation LiteLLM GPU provider
+
+OpenRAG should currently use the more capable LiteLLM proxy on the workstation
+directly, without adding the TrueNAS LiteLLM proxy as an extra hop:
+
+```text
+OpenRAG backend (TrueNAS)
+  -> http://172.17.0.57:4000/v1
+       -> workstation LiteLLM
+            -> GPU-backed chat / embedding models
+```
+
+The repository exposes that endpoint as the custom OpenAI-compatible
+`openai_like` provider in `config/model_providers.yaml`. The defaults are:
+
+```text
+chat model alias:      qwen
+embedding model alias: embedding
+API base:              http://172.17.0.57:4000/v1
+```
+
+Override the aliases only if the workstation LiteLLM publishes different model
+names:
+
+```dotenv
+OPENRAG_LITELLM_API_BASE=http://172.17.0.57:4000/v1
+OPENRAG_LITELLM_CHAT_MODEL=qwen
+OPENRAG_LITELLM_EMBEDDING_MODEL=embedding
+```
+
+Reuse the existing `LITELLM_IDE_API_KEY`; do not create another copy in the
+repository. The OpenRAG runtime secret file must provide that key and a stable
+OpenRAG encryption key:
+
+```dotenv
+LITELLM_IDE_API_KEY=<existing key>
+OPENRAG_ENCRYPTION_KEY=<existing stable OpenRAG encryption key>
+```
+
+Both belong in `/mnt/cpool/openrag/.env.secrets`, mode `0600`. Never print
+their values.
+
+After redeploying the repository Compose definition, first run the read-only
+provider check:
+
+```bash
+docker exec openrag-backend \
+  python /app/config/bootstrap_litellm.py
+```
+
+The check fails closed unless the workstation exposes both requested aliases
+and accepts a real embeddings request plus a chat request carrying a tool
+definition. It does not change OpenRAG configuration.
+
+Only after that succeeds, activate the provider:
+
+```bash
+docker exec openrag-backend \
+  python /app/config/bootstrap_litellm.py --apply
+```
+
+`--apply` refuses to run without `OPENRAG_ENCRYPTION_KEY`. It selects
+`openai_like` for both chat and embeddings and lets OpenRAG persist the
+provider credential using its encrypted configuration path.
+
+The TrueNAS LiteLLM instance is also prepared as an optional second hop for
+other consumers:
+
+```text
+consumer
+  -> TrueNAS LiteLLM :4000
+       -> model "embedding"
+            -> workstation LiteLLM :4000/v1 / model "embedding"
+
+rollback
+  -> TrueNAS LiteLLM :4000
+       -> model "embedding-local"
+            -> TrueNAS Ollama / nomic-embed-text
+```
+
+Its `.env` must expose `LITELLM_IDE_API_KEY`; the optional
+`LITELLM_WORKSTATION_API_BASE` defaults to
+`http://172.17.0.57:4000/v1`. Keeping `embedding-local` as a separate alias
+prevents accidental load balancing between workstation GPU inference and the
+TrueNAS-local rollback path.
+
 ## Read-only diagnostic
 
 Run from TrueNAS:

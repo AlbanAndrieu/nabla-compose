@@ -753,16 +753,6 @@
       "syncEligible": false
     },
     {
-      "id": "prometheus-cadvisor",
-      "name": "Cadvisor",
-      "group": "prometheus",
-      "sourcePath": "apps/prometheus/compose.yml",
-      "composeService": "cadvisor",
-      "dockerManaged": true,
-      "href": "http://172.17.0.24:8089",
-      "syncEligible": true
-    },
-    {
       "id": "prometheus-node-exporter",
       "name": "Node Exporter",
       "group": "prometheus",

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import stat
+import subprocess
 import unittest
 from pathlib import Path
+
+import yaml
 
 
 ROOT = Path(__file__).parents[1]
@@ -106,17 +109,17 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("litellm_api_key", config)
         self.assertNotIn("bearer_token_file", config)
 
-    def test_prometheus_keeps_cadvisor_out_of_default_lifecycle(self) -> None:
-        compose = self.read("apps/prometheus/compose.yml")
-        config = self.read("apps/prometheus/prometheus.yml")
+    def test_cadvisor_is_retained_but_not_a_truenas_repository_app(self) -> None:
+        prometheus_compose = self.read("apps/prometheus/compose.yml")
+        prometheus_config = self.read("apps/prometheus/prometheus.yml")
+        cadvisor = self.read("apps/cadvisor/disabled.yml")
 
-        cadvisor = compose.split("\n  cadvisor:\n", 1)[1].split(
-            "\n  pfsense-exporter:\n",
-            1,
-        )[0]
+        self.assertFalse((ROOT / "apps/cadvisor/compose.yml").exists())
+        self.assertNotIn("\n  cadvisor:\n", prometheus_compose)
+        self.assertIn("apps/cadvisor/disabled.yml", prometheus_compose)
         self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
         self.assertIn('restart: "no"', cadvisor)
-        self.assertNotIn("job_name: truenas_cadvisor", config)
+        self.assertNotIn("job_name: truenas_cadvisor", prometheus_config)
 
     def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
         script = self.read("scripts/truenas/diagnose-performance.sh")
@@ -500,6 +503,21 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('command: ["bootstrap", "--force"]', compose)
         self.assertNotIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
         self.assertIn('command: ["upgrade", "--noinput", "--create-kafka-topics"]', compose)
+        sentry_compose = yaml.safe_load(compose)
+        for service in (
+            "snuba-errors-consumer",
+            "snuba-outcomes-consumer",
+            "snuba-outcomes-billing-consumer",
+            "snuba-group-attributes-consumer",
+            "snuba-replacer",
+            "snuba-subscription-consumer-events",
+        ):
+            depends_on = sentry_compose["services"][service]["depends_on"]
+            self.assertEqual(
+                depends_on["sentry-migrate"]["condition"],
+                "service_completed_successfully",
+            )
+            self.assertNotIn("snuba-migrate", depends_on)
         self.assertIn("SENTRY_EVENTSTREAM = \"sentry.eventstream.kafka.KafkaEventStream\"", sentry_conf)
         self.assertIn("SENTRY_SEARCH = \"sentry.search.snuba.EventsDatasetSnubaSearchBackend\"", sentry_conf)
         self.assertIn("proxy_pass http://relay_upstream;", nginx)
@@ -562,6 +580,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("function probe_pfsense_exporter_runtime_if_present", audit)
+        self.assertIn("PFSENSE_EXPORTER_DEEP_PROBE", audit)
+        self.assertIn("deep /metrics probe skipped by default", audit)
+        self.assertIn("function probe_sentry_unhealthy_consumers_if_present", audit)
+        self.assertIn("function probe_sentry_web_health_if_present", audit)
+        self.assertIn("run scripts/truenas/diagnose-sentry.sh --check", audit)
         self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", audit)
         self.assertIn("runtime config must be a regular file", audit)
         self.assertIn("v0.0.10 target schema present", audit)
@@ -807,6 +830,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
 
+    def test_sentry_diagnostic_script_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/diagnose-sentry.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("event-replacements", script)
+        self.assertIn("snuba-commit-log", script)
+        self.assertIn("scheduled-subscriptions-events", script)
+        self.assertNotIn("docker restart", script)
+        self.assertIn("sentry-clickhouse:9000", script)
+        self.assertIn("kafka:9092", script)
+        self.assertIn("redis:6379", script)
+        self.assertIn("com.docker.compose.service=kafka", script)
+        self.assertIn("confluentinc/cp-kafka:7.6.6", script)
+        self.assertIn("Kafka runtime container:", script)
+        self.assertIn("Consumer process:", script)
+        self.assertNotIn("docker compose down", script)
+
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 
@@ -825,7 +869,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", script)
         self.assertIn("max_collector_concurrency: 1", script)
         self.assertIn("timeout: 8", script)
-        self.assertIn("Prometheus (120s)", script)
+        self.assertIn("Prometheus (300s)", script)
         self.assertNotIn('"      - interface"', script)
         self.assertNotIn('"      - firewall_states"', script)
         self.assertIn("without printing the API key", script)
@@ -843,16 +887,73 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('fetch --prune origin "${REF}"', script)
         normalized = " ".join(script.split())
         self.assertIn(
-            "docker compose -f apps/sample/compose.yml build --pull fastapi-sample",
+            "run_docker compose -f apps/sample/compose.yml build --pull fastapi-sample",
             normalized,
         )
-        self.assertIn('docker rm -f "${CONTAINER}"', script)
+        self.assertIn('DOCKER=(sudo docker)', script)
+        self.assertIn('run_docker rm -f "${CONTAINER}"', script)
         self.assertIn('app.update "${APP_ID}"', script)
         self.assertIn('app.redeploy "${APP_ID}"', script)
         self.assertIn("reconcile-truenas-observer-allowlist.sh", script)
-        self.assertIn("verify-truenas-observer-access.sh", script)
+        self.assertIn("sudo bash scripts/security/verify-truenas-observer-access.sh", script)
         self.assertIn("http://127.0.0.1:8091/health", script)
         self.assertIn("http://127.0.0.1:8091/v2/version", script)
+        self.assertIn("wait_for_json_endpoint", script)
+        self.assertIn("curl --fail --silent --max-time 5", script)
+        self.assertIn("2>/dev/null", script)
+        self.assertIn("TrueNAS=%s", script)
+        self.assertIn("run_docker logs --tail 80", script)
+        self.assertNotIn("--retry-connrefused", script)
+
+    def test_autokuma_token_bootstrap_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/bootstrap-autokuma-token.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("/usr/local/bin/kuma", script)
+        self.assertIn("login", script)
+        self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
+        self.assertIn("/mnt/cpool/autokuma/.env.secrets", script)
+        self.assertIn("without printing credentials", script)
+        self.assertNotIn("printf '%s\\n' \"${token}\"", script)
+
+    def test_wazuh_runtime_bootstrap_is_fail_closed(self) -> None:
+        compose = self.read("apps/wazuh/compose.yml")
+        generator = self.read("apps/wazuh/generate-indexer-certs.yml")
+        path = ROOT / "scripts/truenas/bootstrap-wazuh.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("/mnt/cpool/wazuh/.env.secrets", compose)
+        self.assertIn("required: true", compose)
+        self.assertNotIn("API_PASSWORD: ${WAZUH_API_PASSWORD}", compose)
+        self.assertIn("/mnt/cpool/wazuh/certs/root-ca.pem", compose)
+        self.assertIn("create_host_path: false", compose)
+        self.assertNotIn("./config/wazuh_indexer_ssl_certs/root-ca.pem:", compose)
+        self.assertIn("${WAZUH_CERTS_DIR:-/mnt/cpool/wazuh/certs}", generator)
+        self.assertIn("wazuh/wazuh-certs-generator:0.0.4", generator)
+        self.assertIn("root-ca-manager.pem", script)
+        self.assertIn("wazuh.dashboard-key.pem", script)
+        self.assertIn("partial Wazuh TLS set", script)
+        self.assertIn("API_PASSWORD=", script)
+        self.assertIn("without printing it", script)
+        self.assertIn(
+            'SECRET_FILE="${WAZUH_SECRET_FILE:-${RUNTIME_DIR}/.env.secrets}"',
+            script,
+        )
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_autokuma_trueNAS_deploy_helper_and_runtime_contract(self) -> None:
         compose = self.read("apps/autokuma/compose.yml")
@@ -902,6 +1003,44 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("--rotate", script)
         self.assertIn("without printing it", script)
         self.assertNotIn("LANGFLOW_SUPERUSER_PASSWORD=", script)
+
+
+    def test_openrag_workstation_litellm_contract(self) -> None:
+        openrag_compose = self.read("apps/openrag/compose.yml")
+        provider_catalog = self.read("apps/openrag/config/model_providers.yaml")
+        bootstrap = self.read("apps/openrag/config/bootstrap_litellm.py")
+        litellm_compose = self.read("apps/litellm/compose.yml")
+        litellm_config = self.read("apps/litellm/config.yaml")
+        readme = self.read("apps/openrag/README.md")
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn(
+            "OPENRAG_MODEL_PROVIDERS_CONFIG: /app/config/model_providers.yaml",
+            openrag_compose,
+        )
+        self.assertIn("http://172.17.0.57:4000/v1", openrag_compose)
+        self.assertNotIn(
+            "OPENAI_LIKE_API_KEY: ${LITELLM_IDE_API_KEY}",
+            openrag_compose,
+        )
+        self.assertIn("name: openai_like", provider_catalog)
+        self.assertIn("LiteLLM Workstation GPU", provider_catalog)
+        self.assertIn("embedding_models:", provider_catalog)
+        self.assertIn('api_key = _required_env("LITELLM_IDE_API_KEY")', bootstrap)
+        self.assertIn("OPENRAG_ENCRYPTION_KEY", bootstrap)
+        self.assertIn('config.providers.set_credentials(', bootstrap)
+        self.assertNotIn("print(api_key", bootstrap)
+        self.assertIn("model: openai/embedding", litellm_config)
+        self.assertIn("model_name: embedding-local", litellm_config)
+        self.assertIn("model: openai/qwen", litellm_config)
+        self.assertIn("api_key: os.environ/LITELLM_IDE_API_KEY", litellm_config)
+        self.assertIn("LITELLM_WORKSTATION_API_BASE", litellm_compose)
+        self.assertNotIn(
+            "LITELLM_IDE_API_KEY: ${LITELLM_IDE_API_KEY}",
+            litellm_compose,
+        )
+        self.assertIn("Workstation LiteLLM GPU provider", readme)
+        self.assertIn("OpenRAG -> workstation LiteLLM", roadmap)
 
 
 if __name__ == "__main__":

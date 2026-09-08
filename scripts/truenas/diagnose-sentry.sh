@@ -102,6 +102,8 @@ starting_count=0
 unhealthy_count=0
 unexpected_exit_count=0
 one_shot_failure_count=0
+kafka_topic_failure_count=0
+kafka_topic_probe_available=0
 
 for id in "${container_ids[@]}"; do
   inspect="$(docker inspect "${id}")"
@@ -129,6 +131,40 @@ for id in "${container_ids[@]}"; do
       | .[]
       | "  healthcheck start=\(.Start) exit=\(.ExitCode)"
     ' <<<"${inspect}"
+  fi
+
+  if [[ "${health}" == "unhealthy" ]]; then
+    docker exec "${id}" sh -lc '
+      if [ -e /tmp/health.txt ]; then
+        stat -c "  heartbeat mtime=%y size=%s" /tmp/health.txt
+      else
+        printf "  heartbeat /tmp/health.txt currently absent\n"
+      fi
+    ' 2>/dev/null || true
+    printf '  consumer_process:\n'
+    docker exec "${id}" sh -lc \
+      'ps -eo pid,etime,args | grep -v "[g]rep" | grep -E "(replacer|subscriptions-scheduler-executor|rust-consumer)"' \
+      2>/dev/null || true
+    for target in kafka:9092 redis:6379 sentry-clickhouse:9000; do
+      host="${target%:*}"
+      port="${target##*:}"
+      if docker exec "${id}" python3 -c '
+import socket
+import sys
+host = sys.argv[1]
+port = int(sys.argv[2])
+sock = socket.create_connection((host, port), 3)
+sock.close()
+' "${host}" "${port}" >/dev/null 2>&1; then
+        printf '  ✅ %s -> %s\n' "${service}" "${target}"
+      else
+        printf '  ❌ %s -> %s\n' "${service}" "${target}" >&2
+      fi
+    done
+    printf '  recent_diagnostic_logs:\n'
+    docker logs --since 15m "${id}" 2>&1 |
+      grep -Ei 'error|exception|traceback|kafka|clickhouse|redis|timeout|health|stuck|rebalance|partition|topic' |
+      tail -80 || true
   fi
 
   case "${service}" in
@@ -160,6 +196,51 @@ for id in "${container_ids[@]}"; do
   esac
 done
 
+printf '\n==> Kafka topic contract\n'
+required_topics=(
+  events
+  event-replacements
+  snuba-commit-log
+  scheduled-subscriptions-events
+  events-subscription-results
+)
+kafka_container_id="$(
+  docker ps \
+    --filter 'label=com.docker.compose.service=kafka' \
+    --format '{{.ID}}' |
+    head -n 1
+)"
+if [[ -z "${kafka_container_id}" ]]; then
+  kafka_container_id="$(
+    docker ps \
+      --filter 'ancestor=confluentinc/cp-kafka:7.6.6' \
+      --format '{{.ID}}' |
+      head -n 1
+  )"
+fi
+if [[ -z "${kafka_container_id}" ]]; then
+  printf '⚠️ shared Kafka runtime container could not be discovered\n'
+elif docker exec "${kafka_container_id}" sh -lc 'command -v kafka-topics >/dev/null 2>&1'; then
+  kafka_name="$(docker inspect "${kafka_container_id}" --format '{{.Name}}' | sed 's#^/##')"
+  printf 'Kafka runtime container: %s\n' "${kafka_name}"
+  kafka_topic_probe_available=1
+  topics="$(
+    docker exec "${kafka_container_id}" \
+      kafka-topics --bootstrap-server kafka:9092 --list 2>/dev/null || true
+  )"
+  for topic in "${required_topics[@]}"; do
+    if grep -Fxq "${topic}" <<<"${topics}"; then
+      printf '✅ Kafka topic %s\n' "${topic}"
+    else
+      printf '❌ Kafka topic missing: %s\n' "${topic}" >&2
+      kafka_topic_failure_count=$((kafka_topic_failure_count + 1))
+    fi
+  done
+else
+  kafka_name="$(docker inspect "${kafka_container_id}" --format '{{.Name}}' | sed 's#^/##')"
+  printf '⚠️ kafka-topics CLI unavailable in shared Kafka container %s\n' "${kafka_name}"
+fi
+
 printf '\n==> Sentry functional edge health\n'
 if curl --fail --silent --show-error --max-time 8 "${EDGE_URL}" >/dev/null; then
   printf '✅ Sentry edge healthy: %s\n' "${EDGE_URL}"
@@ -190,7 +271,12 @@ else
 fi
 
 printf '\n==> lifecycle diagnosis\n'
-printf 'TrueNAS state=%s starting_health=%d unhealthy=%d unexpected_exited=%d one_shot_failures=%d\n'   "${app_state}" "${starting_count}" "${unhealthy_count}"   "${unexpected_exit_count}" "${one_shot_failure_count}"
+printf 'TrueNAS state=%s starting_health=%d unhealthy=%d unexpected_exited=%d one_shot_failures=%d kafka_topic_failures=%d\n' \
+  "${app_state}" "${starting_count}" "${unhealthy_count}" \
+  "${unexpected_exit_count}" "${one_shot_failure_count}" "${kafka_topic_failure_count}"
+if ((kafka_topic_probe_available == 0)); then
+  printf '⚠️ Kafka topic verification was unavailable; connectivity checks remain diagnostic evidence only.\n'
+fi
 
 if [[ "${app_state}" == "DEPLOYING" && "${starting_count}" -gt 0 ]]; then
   printf '⚠️ TrueNAS DEPLOYING correlates with containers whose Docker health is still "starting".\n'
@@ -204,6 +290,7 @@ if [[ "${app_state}" != "RUNNING" ]] ||
    ((unhealthy_count > 0)) ||
    ((unexpected_exit_count > 0)) ||
    ((one_shot_failure_count > 0)) ||
+   ((kafka_topic_failure_count > 0)) ||
    [[ "${edge_failed:-0}" -ne 0 ]] ||
    [[ "${snuba_failed:-0}" -ne 0 ]]; then
   exit 1

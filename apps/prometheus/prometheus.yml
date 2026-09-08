@@ -90,7 +90,7 @@ scrape_configs:
     # Netgate 1100 has a tight CPU/RAM budget. Each exporter scrape fans out
     # into multiple pfREST calls, so keep this intentionally much slower than
     # local exporters.
-    scrape_interval: 120s
+    scrape_interval: 300s
     scrape_timeout: 30s
     static_configs:
       - targets:

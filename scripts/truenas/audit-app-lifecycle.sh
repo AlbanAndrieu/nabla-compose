@@ -153,6 +153,14 @@ function app_is_present {
   [[ "${states[${app_id}]-MISSING}" != "MISSING" ]]
 }
 
+function app_is_active {
+  local app_id="$1"
+  case "${states[${app_id}]-MISSING}" in
+    RUNNING | DEPLOYING) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 function probe_http_if_running {
   local app_id="$1"
   local label="$2"
@@ -530,7 +538,7 @@ function probe_sentry_snuba_clickhouse_if_running {
   local clickhouse_database
   local table_count
 
-  if ! app_is_running sentry; then
+  if ! app_is_active sentry; then
     printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
     return
   fi
@@ -625,7 +633,7 @@ function probe_sentry_runtime_mesh_if_running {
   local redis_db
   local binding
 
-  if ! app_is_running sentry; then
+  if ! app_is_active sentry; then
     printf 'SKIP: Sentry runtime mesh app state is %s\n' "${states[sentry]-MISSING}"
     return
   fi
@@ -795,6 +803,56 @@ function probe_sentry_runtime_mesh_if_running {
     functional_ok "Sentry NGINX -> Web health"
   else
     functional_fail "Sentry NGINX -> Web health failed"
+  fi
+}
+
+function probe_sentry_unhealthy_consumers_if_present {
+  local project="ix-sentry"
+  local unhealthy
+  local services
+
+  if ! app_is_active sentry; then
+    printf 'SKIP: Sentry consumer health app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  unhealthy="$(
+    docker ps -a \
+      --filter "label=com.docker.compose.project=${project}" \
+      --filter 'health=unhealthy' \
+      --format '{{.Names}}' |
+      sort
+  )"
+
+  if [[ -z "${unhealthy}" ]]; then
+    functional_ok "Sentry consumers: no unhealthy containers"
+    return
+  fi
+
+  services="$(
+    while IFS= read -r container; do
+      [[ -n "${container}" ]] || continue
+      docker inspect "${container}" \
+        --format '{{ index .Config.Labels "com.docker.compose.service" }}' \
+        2>/dev/null || printf '%s\n' "${container}"
+    done <<<"${unhealthy}" |
+      paste -sd, -
+  )"
+
+  functional_fail "Sentry consumers unhealthy: ${services:-unknown}; run scripts/truenas/diagnose-sentry.sh --check"
+}
+
+function probe_sentry_web_health_if_present {
+  if ! app_is_active sentry; then
+    printf 'SKIP: Sentry web health app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  if curl --fail --silent --show-error --max-time 8 \
+    http://172.17.0.24:9005/_health/ >/dev/null; then
+    functional_ok "Sentry web health"
+  else
+    functional_fail "Sentry web health: HTTP probe failed (http://172.17.0.24:9005/_health/)"
   fi
 }
 
@@ -1283,6 +1341,7 @@ function probe_pfsense_exporter_runtime_if_present {
   local state
   local exit_code
   local auth_method
+  local collector
 
   if ! app_is_present prometheus; then
     printf 'SKIP: pfSense exporter runtime app is MISSING\n'
@@ -1319,9 +1378,5920 @@ function probe_pfsense_exporter_runtime_if_present {
   fi
 
   if grep -Eq '^[[:space:]]*targets:[[:space:]]*$' "${config}" &&
-    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*[^[:space:]]+' "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*.+$' "${config}" &&
     grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
-    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*(key|basic)[[:space:]]*$' "${config}"; then
+    grep -Eq "^[[:space:]]*auth_method:[[:space:]]*['\"]?(key|basic)['\"]?[[:space:]]*$" "${config}"; then
+    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+        return
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+        return
+      fi
+      ;;
+  esac
+
+  if ! grep -Eq '^[[:space:]]*timeout:[[:space:]]*8[[:space:]]*$' "${config}" ||
+    ! grep -Eq '^[[:space:]]*max_collector_concurrency:[[:space:]]*1[[:space:]]*$' "${config}"; then
+    functional_fail "pfSense exporter: low-impact timeout/concurrency contract is missing"
+    return
+  fi
+
+  for collector in system gateways service; do
+    if ! grep -Eq "^[[:space:]]*-[[:space:]]*${collector}[[:space:]]*$" "${config}"; then
+      functional_fail "pfSense exporter: required low-impact collector '${collector}' is missing"
+      return
+    fi
+  done
+
+  if grep -Eq '^[[:space:]]*-[[:space:]]*(interface|firewall_states|package|login_protection|carp|firewall_schedule)[[:space:]]*$' "${config}"; then
+    functional_fail "pfSense exporter: expensive collector enabled in steady-state runtime"
+    return
+  fi
+
+  functional_ok "pfSense exporter: low-impact collectors/timeout/concurrency contract present"
+
+  if [[ "${PFSENSE_EXPORTER_DEEP_PROBE:-0}" != "1" ]]; then
+    functional_warn "pfSense exporter: deep /metrics probe skipped by default to avoid pfREST load; set PFSENSE_EXPORTER_DEEP_PROBE=1 for a supervised scrape"
+    return
+  fi
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 30 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: supervised metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: supervised scrape returned non-empty pfsense_* samples"
+    else
+      functional_fail "pfSense exporter: supervised scrape succeeded but returned no pfsense_* samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_unhealthy_consumers_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_sentry_web_health_if_present
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*["'\'' ]*[^[:space:]"'\'']+["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
+    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*["'\'' ]*(key|basic)["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
+    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" ||
+    ! grep -Eq '^[[:space:]]*max_collector_concurrency:[[:space:]]*1[[:space:]]*
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*["'\'' ]*[^[:space:]"'\'']+["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
+    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*["'\'' ]*(key|basic)["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
+    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
+    functional_fail "pfSense exporter: low-impact timeout/concurrency contract is missing"
+    return
+  fi
+
+  for collector in system gateways service; do
+    if ! grep -Eq "^[[:space:]]*-[[:space:]]*${collector}[[:space:]]*$" "${config}"; then
+      functional_fail "pfSense exporter: required low-impact collector '${collector}' is missing"
+      return
+    fi
+  done
+
+  if grep -Eq '^[[:space:]]*-[[:space:]]*(interface|firewall_states|package|login_protection|carp|firewall_schedule)[[:space:]]*
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*["'\'' ]*[^[:space:]"'\'']+["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
+    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*["'\'' ]*(key|basic)["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
+    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
+    functional_fail "pfSense exporter: expensive collector enabled in steady-state runtime"
+    return
+  fi
+  functional_ok "pfSense exporter: low-impact collectors/timeout/concurrency contract present"
+
+  if [[ "${PFSENSE_EXPORTER_DEEP_PROBE:-0}" != "1" ]]; then
+    functional_warn "pfSense exporter: deep /metrics probe skipped by default to avoid pfREST load; set PFSENSE_EXPORTER_DEEP_PROBE=1 for a supervised scrape"
+    return
+  fi
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 30 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: supervised metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: supervised scrape returned non-empty pfsense_* samples"
+    else
+      functional_fail "pfSense exporter: supervised scrape succeeded but returned no pfsense_* samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*["'\'' ]*[^[:space:]"'\'']+["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}" &&
+    grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
+    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*["'\'' ]*(key|basic)["'\'' ]*[[:space:]]*    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      xargs |
+      tr -d "\"'"
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]]; then
+    local metrics
+    if ! metrics="$(
+      curl --fail --silent --show-error --max-time 15 \
+        'http://172.17.0.24:9945/metrics?target=172.17.0.1'
+    )"; then
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      return
+    fi
+
+    if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
+      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+    fi
+  fi
+}
+
+
+function probe_langflow_runtime_if_present {
+  local container="langflow"
+  local payload
+  local body
+  local status
+  local docker_health
+  local failing_streak
+
+  if ! app_is_present langflow; then
+    printf 'SKIP: Langflow runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${container}"; then
+    functional_fail "Langflow runtime: container is not running (TrueNAS state ${states[langflow]-UNKNOWN})"
+    return
+  fi
+
+  docker_health="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null ||
+      true
+  )"
+  failing_streak="$(
+    docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' 2>/dev/null ||
+      true
+  )"
+  printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
+    "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
+
+  if curl --fail --silent --show-error --max-time 5 \
+    http://172.17.0.24:7860/health >/dev/null; then
+    functional_ok "Langflow liveness: /health HTTP 200"
+  else
+    functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
+    return
+  fi
+
+  if ! payload="$(
+    curl --silent --show-error --max-time 8 \
+      --write-out $'\\n%{http_code}' \
+      http://172.17.0.24:7860/health_check
+  )"; then
+    functional_fail "Langflow readiness: /health_check transport failed"
+    return
+  fi
+
+  status="${payload##*$'\n'}"
+  body="${payload%$'\n'*}"
+
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
+  fi
+
+  if jq -e . >/dev/null 2>&1 <<<"${body}"; then
+    local db_status
+    local chat_status
+    db_status="$(
+      jq -r '.db // .detail.db // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    chat_status="$(
+      jq -r '.chat // .detail.chat // "unknown"' <<<"${body}" 2>/dev/null ||
+        printf 'unknown'
+    )"
+    functional_fail "Langflow readiness: HTTP ${status}, db=${db_status}, chat=${chat_status}"
+  else
+    functional_fail "Langflow readiness: HTTP ${status}, non-JSON response"
+  fi
+}
+
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local langflow_container="langflow"
+  local backend_env
+  local collective
+  local image
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! app_is_present langflow; then
+    functional_fail "OpenRAG dependency: global Langflow app is MISSING"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${langflow_container}"; then
+    functional_fail "OpenRAG dependency: global Langflow container 'langflow' is not running"
+    return
+  fi
+
+  image="$(docker inspect "${langflow_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-langflow:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG dependency: global Langflow pinned to OpenRAG 0.7.1 compatibility image"
+  else
+    functional_fail "OpenRAG dependency: global Langflow must use langflowai/openrag-langflow:0.7.1 (got ${image:-unknown})"
+  fi
+
+  if docker inspect "${langflow_container}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG dependency: global Langflow keeps image-bundled flows visible"
+  else
+    functional_fail "OpenRAG dependency: global Langflow bind-mounts /app/flows; stale/empty bind can hide built-in OpenRAG flows"
+  fi
+
+  if docker exec "${langflow_container}" python -c '
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
+' >/dev/null 2>&1; then
+    functional_ok "OpenRAG dependency: global Langflow /health_check HTTP 200"
+  else
+    functional_fail "OpenRAG dependency: global Langflow /health_check failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${backend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-backend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG backend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG backend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${backend}" |
+    jq -e '.[0].Mounts | all(.Destination != "/app/flows")' >/dev/null; then
+    functional_ok "OpenRAG backend: image-bundled flows visible"
+  else
+    functional_fail "OpenRAG backend: bind-mount on /app/flows hides image-bundled OpenRAG flows"
+  fi
+
+  backend_env="$(docker inspect "${backend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)"
+  if grep -Fxq 'LANGFLOW_URL=http://langflow:7860' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: global Langflow URL configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_URL must be http://langflow:7860"
+  fi
+
+  if grep -Fxq 'OPENSEARCH_NODE_COUNT_CHECK_ENABLED=false' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: single-node OpenSearch count gate disabled"
+  else
+    functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
+  fi
+
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
+  if docker logs --since 5m "${backend}" 2>&1 |
+    grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
+    functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
+  else
+    functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
+  fi
+
+  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
+    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+    functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
+  else
+    functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  image="$(docker inspect "${frontend}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [[ "${image}" =~ langflowai/openrag-frontend:0[.]7[.]1$ ]]; then
+    functional_ok "OpenRAG frontend: pinned image 0.7.1 active"
+  else
+    functional_fail "OpenRAG frontend: stale image; expected 0.7.1, got ${image:-unknown}"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared global Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be global service 'langflow'"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: global Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8       http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + global Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/global Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
+function probe_log_absence_if_running {
+  local app_id="$1"
+  local label="$2"
+  local container="$3"
+  local pattern="$4"
+
+  if ! app_is_running "${app_id}"; then
+    return
+  fi
+
+  if docker logs --since 5m "${container}" 2>&1 | grep -Fq "${pattern}"; then
+    functional_fail "${label}: recent log contains '${pattern}'"
+  else
+    functional_ok "${label}: no matching error in the last 5 minutes"
+  fi
+}
+
+printf '\n🔎 runtime secret contracts\n'
+probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
+probe_langfuse_init_contract_if_present
+
+printf '\n🔎 functional service checks\n'
+probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
+probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
+probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
+probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
+probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
+probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
+probe_langflow_runtime_if_present
+probe_openrag_runtime_if_present
+probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
+probe_clickhouse_runtime_if_running
+probe_clickhouse_config_mounts_if_running
+probe_clickhouse_admin_grant_option_if_running
+probe_clickhouse_langfuse_contract_if_present
+probe_sentry_snuba_clickhouse_if_running
+probe_sentry_runtime_mesh_if_running
+probe_fastapi_sample_sentry_if_running
+probe_ntopng_clickhouse_contract_if_running
+probe_langfuse_worker_clickhouse_credentials_if_running
+probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
+probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
+
+probe_intranet_tcp_if_running mongo "MongoDB internal service" mongo 27017
+probe_intranet_tcp_if_running redis "Redis internal service" redis 6379
+probe_intranet_tcp_if_running kafka "Kafka internal service" kafka 9092
+probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearch 9200
+
+if app_is_running minio; then
+  if ! app_is_running influxdb; then
+    functional_fail "MinIO internal service: InfluxDB probe container is not running"
+  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
+    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+    functional_ok "MinIO internal DNS + HTTP/9000"
+  else
+    functional_fail "MinIO internal DNS or HTTP/9000 health failed"
+  fi
+else
+  printf 'SKIP: MinIO app state is %s\n' "${states[minio]-MISSING}"
+fi
+
+if ((probe_failures > 0)); then
+  printf '\n❌ functional verification failed: %d probe(s) failed, %d warning(s)\n' \
+    "${probe_failures}" "${probe_warnings}" >&2
+  exit 1
+fi
+
+if ((probe_warnings > 0)); then
+  printf '\n⚠️ functional verification passed with %d warning(s)\n' "${probe_warnings}"
+else
+  printf '\n✅ functional verification passed\n'
+fi
+ "${config}"; then
     functional_ok "pfSense exporter: v0.0.10 target schema present"
   else
     functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
