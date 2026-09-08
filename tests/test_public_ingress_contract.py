@@ -138,6 +138,9 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('credential_mode == "dedicated_observer"', script)
         self.assertIn("catalogRevision", script)
         self.assertIn("TrueNAS app inventory differs", script)
+        self.assertIn('validate_status "TrueNAS-local FastAPI"', script)
+        self.assertIn('validate_status "FastAPI Cloud"', script)
+        self.assertIn("observer unhealthy: configured=", script)
         self.assertNotIn("system.general.update", script)
         self.assertNotIn("system.general.checkin", script)
 
