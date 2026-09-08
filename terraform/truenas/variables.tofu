@@ -64,6 +64,12 @@ variable "vm_bridge" {
   default     = "br0"
 }
 
+variable "talos_vm_autostart" {
+  description = "Start the Talos control-plane and worker VMs automatically when TrueNAS boots. Keep true for the steady-state Kubernetes cluster; override false only for deliberate maintenance."
+  type        = bool
+  default     = true
+}
+
 variable "talos_iso_path" {
   description = "Optional TrueNAS-local Talos ISO path. Leave empty to create VMs without a CDROM device."
   type        = string
