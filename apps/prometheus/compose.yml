@@ -136,10 +136,13 @@ services:
         provider: truenas-app
         containerService: pfsense-exporter
       monitoring:
-        type: http
-        target: http://172.17.0.24:9945/metrics?target=172.17.0.1
+        # Gatus/AutoKuma only verify the exporter listener. They must not call
+        # /metrics because each health check would trigger another full pfREST
+        # collector fan-out on the resource-constrained firewall.
+        type: port
+        target: tcp://172.17.0.24:9945
         conditions:
-          - "[STATUS] == 200"
+          - "[CONNECTED] == true"
       relations:
         - target: pfsense
           type: consumesApi
