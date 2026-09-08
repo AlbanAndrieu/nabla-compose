@@ -1,3 +1,10 @@
+## [0.23.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.1...0.23.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **truenas:** diagnose OpenRAG and refresh local sample ([#139](https://github.com/AlbanAndrieu/nabla-compose/issues/139)) ([044ab3c](https://github.com/AlbanAndrieu/nabla-compose/commit/044ab3c96cf58e1c28868eb1b0848f9031f92f3a))
+
 ## [0.23.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.0...0.23.1) (2026-09-08)
 
 
