@@ -110,6 +110,23 @@ as:
 LANGFLOW_KEY=<dedicated OpenRAG Langflow API key>
 ```
 
+Use the repository bootstrap after global Langflow readiness is green:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/bootstrap-openrag-langflow-key.sh
+```
+
+The helper is idempotent: an existing valid key is retained. It authenticates
+to the local global Langflow instance, creates and validates a dedicated
+`openrag-global` API key only when needed, and writes the resulting
+`LANGFLOW_KEY` to the root-owned mode-`0600` OpenRAG secret file without
+printing it. Use `--rotate` only when an existing key is known to be invalid:
+
+```bash
+sudo bash scripts/truenas/bootstrap-openrag-langflow-key.sh --rotate
+```
+
 Check presence without printing the key:
 
 ```bash
@@ -249,6 +266,8 @@ sudo midclt call -j app.redeploy langflow
 
 curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
   http://172.17.0.24:7860/health_check
+
+sudo bash scripts/truenas/bootstrap-openrag-langflow-key.sh
 
 sudo midclt call -j app.update openrag \
 '{
