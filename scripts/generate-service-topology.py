@@ -131,6 +131,42 @@ def security_metadata(
     return {"securityFunctions": values}
 
 
+def environment_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, list[dict[str, Any]]]:
+    """Validate optional named deployment environments for a logical service."""
+
+    raw = metadata.get("environments")
+    if raw is None:
+        return {}
+    if not isinstance(raw, list) or not raw:
+        fail(f"{context}.environments must be a non-empty list")
+
+    environments: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for index, item in enumerate(raw):
+        item_context = f"{context}.environments[{index}]"
+        if not isinstance(item, dict):
+            fail(f"{item_context} must be a mapping")
+        name = optional_text(item, "name")
+        url = optional_text(item, "url")
+        if name is None or url is None:
+            fail(f"{item_context} requires name and url")
+        if name in seen_names:
+            fail(f"{context}.environments contains duplicate name {name!r}")
+        seen_names.add(name)
+
+        environment: dict[str, Any] = {"name": name, "url": url}
+        for key in ("external", "cloudflareTunnel"):
+            value = item.get(key)
+            if not isinstance(value, bool):
+                fail(f"{item_context}.{key} must be a boolean")
+            environment[key] = value
+        environments.append(environment)
+
+    return {"environments": environments}
+
+
 def topology_node(
     metadata: dict[str, Any], source_path: str, context: str
 ) -> dict[str, Any]:
@@ -149,6 +185,7 @@ def topology_node(
             node[key] = value
     node.update(presentation_metadata(metadata, context))
     node.update(security_metadata(metadata, context))
+    node.update(environment_metadata(metadata, context))
     return node
 
 
@@ -200,6 +237,7 @@ def declared_service(
         "presentationRole",
         "criticality",
         "securityFunctions",
+        "environments",
     ):
         if key in node:
             service[key] = node[key]

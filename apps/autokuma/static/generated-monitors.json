@@ -156,7 +156,7 @@
   {
     "type": "http",
     "name": "FastAPI Sample",
-    "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
+    "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

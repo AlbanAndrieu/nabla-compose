@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:fddba388e9cf707476c575b7fad614334f3bd3aa3282112355205f29bb8290e6",
+  "catalogRevision": "sha256:a788ff032f107ee2e8ab9006eb4a04cf64945d45552cfa913ac6d3e5a68995ed",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -305,7 +305,22 @@
       "category": "development",
       "sourcePath": "apps/sample/compose.yml",
       "composeService": "fastapi-sample",
-      "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.",
+      "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
+      "presentationRole": "service",
+      "environments": [
+        {
+          "name": "production",
+          "url": "https://fastapi-sample.fastapicloud.dev",
+          "external": false,
+          "cloudflareTunnel": false
+        },
+        {
+          "name": "staging",
+          "url": "https://sample.albandrieu.com",
+          "external": false,
+          "cloudflareTunnel": false
+        }
+      ],
       "runtime": {
         "provider": "truenas-app",
         "containerService": "fastapi-sample"

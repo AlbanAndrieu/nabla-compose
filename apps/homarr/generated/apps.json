@@ -205,7 +205,7 @@
       "dockerManaged": true,
       "href": "https://sample.int.albandrieu.com",
       "syncEligible": true,
-      "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation."
+      "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments."
     },
     {
       "id": "garage",

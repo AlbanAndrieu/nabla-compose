@@ -114,6 +114,18 @@ class AgentQualityGateContractTests(unittest.TestCase):
             self.assertIn("github.event.pull_request.draft == false", workflow, path)
             self.assertIn("ready_for_review", workflow, path)
 
+    def test_runtime_baseline_workflow_is_bounded_and_targetable(self) -> None:
+        workflow = (
+            ROOT / ".github/workflows/runtime-baseline.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("tests.test_runtime_baseline", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("target_url:", workflow)
+        self.assertIn("--requests 20", workflow)
+        self.assertIn("--concurrency 4", workflow)
+        self.assertIn("github.event.pull_request.draft == false", workflow)
+        self.assertIn("ready_for_review", workflow)
+
     def test_precommit_is_universal_and_runs_agent_gate(self) -> None:
         raw = (ROOT / ".github/workflows" / Path("pre-commit.yml")).read_text(
             encoding="utf-8"

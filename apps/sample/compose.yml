@@ -18,7 +18,17 @@ services:
       name: FastAPI Sample
       kind: api
       category: development
-      description: Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation.
+      description: FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.
+      presentationRole: service
+      environments:
+        - name: production
+          url: https://fastapi-sample.fastapicloud.dev
+          external: false
+          cloudflareTunnel: false
+        - name: staging
+          url: https://sample.albandrieu.com
+          external: false
+          cloudflareTunnel: false
       runtime:
         provider: truenas-app
         containerService: fastapi-sample
@@ -98,7 +108,7 @@ services:
 
     labels:
       # Internal DNS is synchronized from Traefik routers into Pi-hole.
-      # Public sample.albandrieu.com is owned by Cloudflare Tunnel + Access.
+      # Staging sample.albandrieu.com is explicitly not a Cloudflare Tunnel endpoint.
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"
       - "traefik.http.routers.fastapi-sample.rule=Host(`sample.int.albandrieu.com`)"

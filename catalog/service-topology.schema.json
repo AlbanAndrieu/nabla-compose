@@ -23,6 +23,17 @@
       "type": "string",
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
     },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "url", "external", "cloudflareTunnel"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "external": { "type": "boolean" },
+        "cloudflareTunnel": { "type": "boolean" }
+      }
+    },
     "node": {
       "type": "object",
       "additionalProperties": false,
@@ -52,6 +63,11 @@
         "sourcePath": { "type": "string", "minLength": 1 },
         "url": { "type": "string", "format": "uri" },
         "internalUrl": { "type": "string", "format": "uri" },
+        "environments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/environment" }
+        },
         "description": { "type": "string" },
         "icon": { "type": "string", "minLength": 1 }
       }

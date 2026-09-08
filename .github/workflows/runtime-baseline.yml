@@ -1,0 +1,79 @@
+---
+name: Runtime Baseline
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "scripts/testing/**"
+      - "tests/test_runtime_baseline.py"
+      - ".github/workflows/runtime-baseline.yml"
+      - "apps/sample/compose.yml"
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Optional live FastAPI target (for example https://sample.albandrieu.com)"
+        required: false
+        type: string
+      allow_http:
+        description: "Permit cleartext HTTP for an explicitly trusted local target"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Run deterministic integration, pentest and performance baselines
+        run: python -m unittest tests.test_runtime_baseline -v
+
+      - name: Run live target baseline
+        if: github.event_name == 'workflow_dispatch' && inputs.target_url != ''
+        shell: bash
+        env:
+          TARGET_URL: ${{ inputs.target_url }}
+          ALLOW_HTTP: ${{ inputs.allow_http }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          python scripts/testing/runtime-baseline.py integration \
+            --url "${TARGET_URL}"
+
+          pentest_args=(
+            pentest
+            --url "${TARGET_URL}"
+          )
+          if [[ "${ALLOW_HTTP}" == "true" ]]; then
+            pentest_args+=(--allow-http)
+          fi
+          python scripts/testing/runtime-baseline.py "${pentest_args[@]}"
+
+          python scripts/testing/runtime-baseline.py performance \
+            --url "${TARGET_URL}" \
+            --requests 20 \
+            --concurrency 4 \
+            --max-p95-ms 1500 \
+            --max-error-rate 0.05

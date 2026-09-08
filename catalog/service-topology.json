@@ -253,7 +253,22 @@
       "kind": "api",
       "category": "development",
       "sourcePath": "apps/sample/compose.yml",
-      "description": "Local TrueNAS deployment of FastAPI Sample for homelab and runtime validation."
+      "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
+      "presentationRole": "service",
+      "environments": [
+        {
+          "name": "production",
+          "url": "https://fastapi-sample.fastapicloud.dev",
+          "external": false,
+          "cloudflareTunnel": false
+        },
+        {
+          "name": "staging",
+          "url": "https://sample.albandrieu.com",
+          "external": false,
+          "cloudflareTunnel": false
+        }
+      ]
     },
     {
       "id": "garage",
