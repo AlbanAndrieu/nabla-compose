@@ -1,8 +1,14 @@
 # OpenRAG on TrueNAS
 
 This application intentionally contains only the OpenRAG backend and frontend.
-Langflow and OpenSearch are separate repository-managed TrueNAS applications
-joined through the external `intranet` Docker network.
+It does **not** deploy a private `openrag-langflow` service. OpenRAG consumes
+the single global repository-managed Langflow service named `langflow`, plus
+the shared OpenSearch service, through the external `intranet` Docker network.
+
+The global service still uses the upstream OpenRAG-compatible Langflow image
+`langflowai/openrag-langflow:0.7.1`. That image name is an implementation
+detail: the runtime service/container and Docker DNS identity are both
+`langflow`.
 
 ## Runtime topology
 
@@ -21,7 +27,13 @@ openrag-frontend:3000
                  +--> Docling through DOCLING_SERVE_URL
 ```
 
-OpenRAG backend/frontend are pinned to `0.7.1`.
+OpenRAG backend/frontend and the global OpenRAG-compatible Langflow image are
+all pinned to `0.7.1`.
+
+The Langflow and backend images already contain the matching built-in OpenRAG
+flow definitions. Do not bind an empty, unversioned directory over
+`/app/flows`: doing so hides the image-bundled flows. The repository therefore
+keeps only the mutable backend `/app/flows/backup` bind mount.
 
 ## Why the UI can stay "starting"
 
@@ -134,14 +146,36 @@ Until this succeeds, treat OpenRAG as usable only for the capabilities that do
 not require document ingestion. Do not delete OpenSearch indices as a first
 recovery step.
 
-## Reconcile the TrueNAS Custom App
+## Reconcile the global Langflow and OpenRAG TrueNAS Custom Apps
 
-If the repository has been updated but the running container still lacks
-`LANGFLOW_HOST=langflow`, the TrueNAS app is using a stale stored Compose
-snapshot. Restore the repository-backed include:
+If runtime still reports any of these images, it is executing a stale stored
+Compose snapshot:
+
+```text
+langflowai/openrag-langflow:latest
+langflowai/openrag-backend:latest
+langflowai/openrag-frontend:latest
+```
+
+Reconcile the **global Langflow first**, prove it healthy, and only then
+redeploy OpenRAG:
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
+
+sudo midclt call -j app.update langflow \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/langflow/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy langflow
+
+curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
+  http://172.17.0.24:7860/health_check
 
 sudo midclt call -j app.update openrag \
 '{
@@ -155,12 +189,29 @@ sudo midclt call -j app.update openrag \
 sudo midclt call -j app.redeploy openrag
 ```
 
+Do not start another Langflow container inside the OpenRAG application.
+
 Then rerun:
 
 ```bash
+docker inspect langflow openrag-backend openrag-frontend |
+jq '.[] | {
+  name: .Name,
+  image: .Config.Image,
+  health: (.State.Health.Status // "none"),
+  flow_mounts: [.Mounts[]? | select(.Destination == "/app/flows")]
+}'
+
+docker inspect openrag-backend \
+  --format '{{range .Config.Env}}{{println .}}{{end}}' |
+grep -E '^(LANGFLOW_URL|OPENSEARCH_NODE_COUNT_CHECK_ENABLED)='
+
 docker inspect openrag-frontend \
   --format '{{range .Config.Env}}{{println .}}{{end}}' |
 grep -E '^(LANGFLOW_HOST|LANGFLOW_PORT|LANGFLOW_HEALTH_PATH)='
+
+docker exec openrag-backend getent hosts langflow
+docker exec openrag-backend curl -fsS http://langflow:7860/health_check
 
 bash scripts/truenas/audit-app-lifecycle.sh
 ```
