@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:76512a2d21e964ffb133208da2d81ba866037f2051e11d35df9f6e8d85838c83",
+  "catalogRevision": "sha256:a788ff032f107ee2e8ab9006eb4a04cf64945d45552cfa913ac6d3e5a68995ed",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -306,10 +306,6 @@
       "sourcePath": "apps/sample/compose.yml",
       "composeService": "fastapi-sample",
       "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "fastapi-sample"
-      },
       "presentationRole": "service",
       "environments": [
         {
@@ -324,7 +320,11 @@
           "external": false,
           "cloudflareTunnel": false
         }
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "fastapi-sample"
+      }
     },
     {
       "id": "garage",
