@@ -1,3 +1,10 @@
+# [0.27.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.26.0...0.27.0) (2026-09-08)
+
+
+### Features
+
+* **ops:** harden TrueNAS observer and Kubernetes P0 gates ([#150](https://github.com/AlbanAndrieu/nabla-compose/issues/150)) ([3bd1ac4](https://github.com/AlbanAndrieu/nabla-compose/commit/3bd1ac46c1d2c1d2ff5d4100c2d449b3ea5cb15e))
+
 # [0.26.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.3...0.26.0) (2026-09-08)
 
 
