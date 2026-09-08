@@ -1,3 +1,10 @@
+## [0.23.6](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.5...0.23.6) (2026-09-08)
+
+
+### Bug Fixes
+
+* **sample:** activate TrueNAS observer allowlist ([#144](https://github.com/AlbanAndrieu/nabla-compose/issues/144)) ([82e3402](https://github.com/AlbanAndrieu/nabla-compose/commit/82e3402374ca949ff7b4455219f410a6d7496afc))
+
 ## [0.23.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.4...0.23.5) (2026-09-08)
 
 
