@@ -40,6 +40,7 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak
       KC_DB_USERNAME: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_HOSTNAME: https://keycloak.albandrieu.com
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8080"
