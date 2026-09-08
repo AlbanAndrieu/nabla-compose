@@ -512,6 +512,19 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("/api/v1/alertmanagers", stack)
         self.assertIn("Alertmanager readiness", stack)
         self.assertIn("Prometheus target is up", stack)
+        for exporter_job in (
+            "pihole_exporter",
+            "postgres_exporter",
+            "pfsense_exporter",
+            "haproxy",
+            "sybase",
+            "opensearch",
+            "opensearch-security",
+            "crowdsec",
+            "truenas_node",
+            "truenas_cadvisor",
+        ):
+            self.assertIn(exporter_job, stack)
 
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):
