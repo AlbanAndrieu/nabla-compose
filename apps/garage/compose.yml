@@ -5,7 +5,7 @@ x-nabla:
       name: Garage Admin
       kind: api
       category: data
-      url: https://garage.albandrieu.com
+      url: https://garage-admin.albandrieu.com
       internalUrl: http://172.17.0.24:3903
       presentationRole: support
       criticality: high
@@ -96,7 +96,7 @@ services:
       name: Garage
       kind: application
       category: data
-      url: https://garage-admin.albandrieu.com
+      url: https://garage.albandrieu.com
       description: Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.
       runtime:
         provider: truenas-app
