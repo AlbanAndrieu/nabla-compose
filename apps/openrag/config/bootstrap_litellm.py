@@ -1,20 +1,28 @@
-"""Validate and activate the workstation LiteLLM provider inside OpenRAG.
+"""Validate and activate the workstation LiteLLM endpoint for OpenRAG 0.7.1.
 
-Run this file inside the openrag-backend container. Check mode only reads the
-LiteLLM API key from the container environment. Apply mode stores the provider
-credential through OpenRAG's encrypted configuration and refuses to run without
-OPENRAG_ENCRYPTION_KEY.
+OpenRAG 0.7.1 has no generic openai_like provider yet. Instead, its bundled
+Langflow 1.11.2 can route the built-in OpenAI provider to an OpenAI-compatible
+base URL. LiteLLM exposes that API, so this helper configures provider=openai,
+OPENAI_BASE_URL to the GPU workstation, qwen for chat and embedding for vectors.
+
+The existing LITELLM_IDE_API_KEY is reused. Check mode never persists it.
+Apply mode stores it through OpenRAG's encrypted provider configuration and
+reapplies the selected models/global variables to the shared Langflow runtime.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import sys
 import urllib.error
 import urllib.request
 from typing import Any
+
+
+DEFAULT_API_BASE = "http://172.17.0.57:4000/v1"
 
 
 def _required_env(name: str) -> str:
@@ -32,9 +40,10 @@ def _request_json(
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
-    data = None
     headers = {"Authorization": f"Bearer {api_key}"}
+    data = None
     method = "GET"
+
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -69,6 +78,7 @@ def _validate_remote(
         for item in models.get("data", [])
         if isinstance(item, dict) and item.get("id")
     }
+
     missing = [model for model in (chat_model, embedding_model) if model not in available]
     if missing:
         raise RuntimeError(
@@ -115,46 +125,37 @@ def _validate_remote(
         raise RuntimeError("Workstation LiteLLM chat probe returned no choices")
 
 
-def _apply_openrag_config(chat_model: str, embedding_model: str) -> None:
-    try:
-        from config.config_manager import GenericProviderConfig
-        from config.settings import config_manager
-    except ImportError as exc:
-        raise RuntimeError(
-            "This OpenRAG image does not expose generic provider configuration; "
-            "upgrade OpenRAG before applying the LiteLLM provider."
-        ) from exc
-
-    config = config_manager.get_config()
-    provider = config.providers.custom.get("openai_like")
-    if provider is None:
-        provider = GenericProviderConfig()
-
-    api_key = _required_env("LITELLM_IDE_API_KEY")
-    api_base = os.getenv(
-        "OPENRAG_LITELLM_API_BASE", "http://172.17.0.57:4000/v1"
-    ).strip()
+def _apply_openrag_config(
+    base_url: str,
+    api_key: str,
+    chat_model: str,
+    embedding_model: str,
+) -> None:
     if not os.getenv("OPENRAG_ENCRYPTION_KEY", "").strip():
         raise RuntimeError(
             "OPENRAG_ENCRYPTION_KEY is required before --apply so the "
             "LiteLLM credential is not persisted in plaintext"
         )
 
-    config.providers.set_credentials(
-        "openai_like",
-        {"api_key": api_key, "api_base": api_base},
-    )
-    provider = config.providers.custom.get("openai_like", provider)
-    provider.configured = True
-    config.providers.custom["openai_like"] = provider
-    config.agent.llm_provider = "openai_like"
+    os.environ["OPENAI_BASE_URL"] = base_url
+    os.environ["OPENAI_API_KEY"] = api_key
+
+    from config.config_manager import config_manager
+
+    config = config_manager.get_config()
+    config.providers.openai.api_key = api_key
+    config.providers.openai.configured = True
+    config.agent.llm_provider = "openai"
     config.agent.llm_model = chat_model
-    config.knowledge.embedding_provider = "openai_like"
+    config.knowledge.embedding_provider = "openai"
     config.knowledge.embedding_model = embedding_model
 
     if not config_manager.save_config_file(config):
-        raise RuntimeError("OpenRAG refused to persist the provider selection")
-    config_manager.reload_config()
+        raise RuntimeError("OpenRAG refused to persist the LiteLLM-backed provider")
+
+    from api.settings.langflow_sync import reapply_all_settings
+
+    asyncio.run(reapply_all_settings())
 
 
 def main() -> int:
@@ -162,13 +163,11 @@ def main() -> int:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="persist openai_like as the selected OpenRAG chat and embedding provider",
+        help="select workstation LiteLLM for OpenRAG chat and embeddings",
     )
     args = parser.parse_args()
 
-    base_url = os.getenv(
-        "OPENRAG_LITELLM_API_BASE", "http://172.17.0.57:4000/v1"
-    ).strip()
+    base_url = os.getenv("OPENRAG_LITELLM_API_BASE", DEFAULT_API_BASE).strip()
     api_key = _required_env("LITELLM_IDE_API_KEY")
     chat_model = os.getenv("OPENRAG_LITELLM_CHAT_MODEL", "qwen").strip()
     embedding_model = os.getenv(
@@ -177,16 +176,18 @@ def main() -> int:
 
     _validate_remote(base_url, api_key, chat_model, embedding_model)
     print(
-        "OK: workstation LiteLLM models, chat endpoint and embedding endpoint validated"
+        "OK: workstation LiteLLM models, tool-capable chat request and "
+        "embedding request validated"
     )
 
     if args.apply:
-        _apply_openrag_config(chat_model, embedding_model)
+        _apply_openrag_config(base_url, api_key, chat_model, embedding_model)
         print(
-            "OK: OpenRAG provider selection persisted with encrypted LiteLLM credentials"
+            "OK: OpenRAG 0.7.1 configured as OpenAI-compatible client of "
+            "workstation LiteLLM"
         )
     else:
-        print("CHECK ONLY: rerun with --apply to persist the OpenRAG provider selection")
+        print("CHECK ONLY: rerun with --apply to persist and sync the selection")
 
     return 0
 
