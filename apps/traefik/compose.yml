@@ -118,14 +118,26 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
 
   ddns-updater:
+    # Legacy DDNS updater intentionally disabled by default. Its previous
+    # /mnt/cpool/traefik/ddns/config.json owned int.albandrieu.com and a slow
+    # healthcheck could make the whole TrueNAS Traefik Custom App CRASHED.
+    #
+    # Re-enable only explicitly with COMPOSE_PROFILES=legacy-ddns. The legacy
+    # service uses an isolated container name, loopback-only UI port, and a
+    # separate data directory so reactivation cannot reuse the old
+    # int.albandrieu.com configuration or collide with Traefik's lifecycle.
+    # Never copy the old int.albandrieu.com setting into ddns-legacy: private
+    # *.int routing belongs to the pfSense/Traefik path, while Traefik ACME
+    # manages only its DNS-01 challenge records.
+    profiles: ["legacy-ddns"]
     image: ghcr.io/qdm12/ddns-updater
-    container_name: ddns-updater
+    container_name: ddns-updater-legacy
     restart: unless-stopped
     network_mode: bridge
     ports:
-      - 8000:8000/tcp
+      - "127.0.0.1:8001:8000/tcp"
     volumes:
-      - /mnt/cpool/traefik/ddns:/updater/data
+      - /mnt/cpool/traefik/ddns-legacy:/updater/data
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
