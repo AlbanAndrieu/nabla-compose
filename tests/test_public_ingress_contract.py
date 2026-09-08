@@ -228,18 +228,33 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn('"3903:3903"', compose)
         self.assertNotIn('"3909:3909"', compose)
 
-    def test_private_garage_webui_has_lan_fallback_target(self) -> None:
+    def test_garage_presentation_catalog_separates_s3_and_external_webui(self) -> None:
         catalog = json.loads(
             (ROOT / "catalog" / "homelab-services.json").read_text(encoding="utf-8")
         )
         garage = next(
             service for service in catalog["services"] if service["name"] == "Garage"
         )
+        webui = next(
+            service
+            for service in catalog["services"]
+            if service["name"] == "Garage WebUI"
+        )
 
-        self.assertFalse(garage["external"])
-        self.assertEqual(garage["internalHost"], "172.17.0.24")
-        self.assertEqual(garage["internalPort"], 3909)
-        self.assertFalse(garage["internalSecure"])
+        self.assertEqual(garage["internalPort"], 3900)
+        self.assertEqual(garage["tunnelUrl"], "https://s3.int.albandrieu.com")
+        self.assertTrue(garage["external"])
+        self.assertFalse(garage["tunnelSecure"])
+
+        self.assertEqual(webui["internalHost"], "172.17.0.24")
+        self.assertEqual(webui["internalPort"], 3909)
+        self.assertFalse(webui["internalSecure"])
+        self.assertEqual(
+            webui["tunnelUrl"],
+            "https://garage-admin.albandrieu.com",
+        )
+        self.assertTrue(webui["external"])
+        self.assertTrue(webui["tunnelSecure"])
 
     def test_pyroscope_v2_metastore_is_pinned_and_persistent(self) -> None:
         compose = (ROOT / "apps" / "pyroscope" / "compose.yml").read_text(
