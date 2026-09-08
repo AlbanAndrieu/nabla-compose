@@ -51,10 +51,13 @@ services:
         - >-
           import urllib.request;
           urllib.request.urlopen('http://127.0.0.1:7860/health_check', timeout=5).read()
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
+      # /health_check is readiness (DB + chat/cache), not mere process liveness.
+      # Probe often so TrueNAS can leave DEPLOYING quickly once ready, while
+      # allowing first-start SQLite/schema initialization extra grace.
+      interval: 10s
+      timeout: 8s
+      retries: 30
+      start_period: 180s
     networks:
       intranet:
         aliases:
