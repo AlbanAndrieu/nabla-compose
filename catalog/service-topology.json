@@ -2265,6 +2265,16 @@
     },
     {
       "source": "openrag-frontend",
+      "target": "langflow",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Frontend collective health checks the shared global Langflow service.",
+      "evidence": [
+        "apps/openrag/compose.yml:LANGFLOW_HOST"
+      ]
+    },
+    {
+      "source": "openrag-frontend",
       "target": "openrag-backend",
       "type": "consumesApi",
       "strength": "required",
