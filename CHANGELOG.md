@@ -1,3 +1,10 @@
+# [0.25.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.24.0...0.25.0) (2026-09-08)
+
+
+### Features
+
+* **talos:** start Kubernetes FastAPI acceptance gate ([#145](https://github.com/AlbanAndrieu/nabla-compose/issues/145)) ([754562a](https://github.com/AlbanAndrieu/nabla-compose/commit/754562a52b2c5c3d212551a96e3b4ca35b9a43d6))
+
 # [0.24.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.6...0.24.0) (2026-09-08)
 
 
