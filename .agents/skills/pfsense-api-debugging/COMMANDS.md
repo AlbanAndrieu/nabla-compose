@@ -76,3 +76,71 @@ pfSsh.php playback svc restart unbound
 ```
 
 After service control, validate the exact daemon command line and listeners. The healthy pfSense DNS Resolver instance is expected to use the pfSense-generated configuration and the configured LAN interfaces; a process started with `/usr/local/etc/unbound/unbound.conf` is not proof that the pfSense-managed resolver is healthy.
+
+
+## pfSense PHP-FPM / WebConfigurator recovery
+
+When nginx is still listening on the WebConfigurator port but requests fail with
+`connect() to unix:/var/run/php-fpm.socket failed (61: Connection refused)`,
+treat this as a PHP-FPM/FastCGI failure, not an nginx listener failure.
+
+Do not assume:
+
+```csh
+pfSsh.php playback svc restart php-fpm
+```
+
+actually replaced the running PHP-FPM master. Always compare the master PID and
+worker PIDs before and after the command.
+
+For the pfSense-native PHP-FPM restart path use:
+
+```csh
+/etc/rc.php-fpm_restart
+```
+
+Then verify:
+
+```csh
+ps axww -o pid,ppid,state,etime,rss,pcpu,command | grep '[p]hp-fpm'
+```
+
+and:
+
+```csh
+ls -l /var/run/php-fpm.socket
+```
+
+If the WebGUI still needs reconciliation, restart only the WebConfigurator:
+
+```csh
+/etc/rc.restart_webgui
+```
+
+and confirm nginx is listening:
+
+```csh
+sockstat -4 -6 -l | grep -E 'php-fpm|nginx|10443'
+```
+
+Do not start the generated pfSense pool with a plain command such as:
+
+```csh
+/usr/local/sbin/php-fpm -y /usr/local/lib/php-fpm.conf
+```
+
+The generated pool may run as root and the pfSense wrapper supplies the required
+runtime flags. A plain start can fail with `please specify user and group other
+than root`.
+
+When temporarily reducing PHP-FPM workers during an OOM recovery, validate the
+generated file first:
+
+```csh
+grep -nE 'pm.max_children|pm.start_servers|pm.min_spare_servers|pm.max_spare_servers' /usr/local/lib/php-fpm.conf
+```
+
+Treat direct edits to `/usr/local/lib/php-fpm.conf` as temporary recovery only:
+`/etc/rc.php_ini_setup` can regenerate the file. The permanent change belongs
+in the supported pfSense configuration source, not in an unmanaged generated
+file edit.
