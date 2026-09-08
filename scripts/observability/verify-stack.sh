@@ -146,7 +146,27 @@ check_prometheus_targets() {
     return
   fi
 
-  for job in     prometheus     grafana     alloy     loki     mimir     tempo     alertmanager     pfsense_exporter; do
+  local jobs=(
+    prometheus
+    grafana
+    alloy
+    loki
+    mimir
+    tempo
+    alertmanager
+    pihole_exporter
+    postgres_exporter
+    pfsense_exporter
+    haproxy
+    sybase
+    opensearch
+    opensearch-security
+    crowdsec
+    truenas_node
+    truenas_cadvisor
+  )
+
+  for job in "${jobs[@]}"; do
     if jq -e --arg job "${job}" '
       .status == "success"
       and any(
