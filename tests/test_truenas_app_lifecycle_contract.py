@@ -865,6 +865,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("TrueNAS lifecycle and functional health", script)
         self.assertIn("600-second first-start grace", script)
         self.assertIn("Do not repeatedly redeploy during that window", script)
+        self.assertIn("SENTRY_DIAGNOSTIC_REPORT", script)
+        self.assertIn("/tmp/sentry-diagnose-", script)
+        self.assertIn("Detailed report:", script)
+        self.assertIn("compact terminal summary", script)
         self.assertNotIn("docker compose down", script)
 
     def test_runtime_audit_script_is_executable(self) -> None:
@@ -982,6 +986,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_wazuh_deploy_bootstraps_secrets_before_app_update(self) -> None:
+        path = ROOT / "scripts/truenas/deploy-wazuh.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        normalized = " ".join(script.split())
+        self.assertIn(
+            "bash scripts/truenas/bootstrap-wazuh.sh --apply",
+            normalized,
+        )
+        self.assertIn(
+            "bash scripts/truenas/bootstrap-wazuh.sh --check",
+            normalized,
+        )
+        self.assertIn('app.update "${APP_ID}"', script)
+        self.assertIn('app.redeploy "${APP_ID}"', script)
+        self.assertNotIn("API_PASSWORD=", script)
 
     def test_autokuma_trueNAS_deploy_helper_and_runtime_contract(self) -> None:
         compose = self.read("apps/autokuma/compose.yml")
