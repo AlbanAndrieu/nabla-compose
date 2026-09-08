@@ -418,6 +418,37 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             scrutiny,
         )
 
+    def test_scrutiny_cutover_helper_is_explicit_and_fail_closed(self) -> None:
+        path = ROOT / "scripts/truenas/deploy-scrutiny.sh"
+        script = path.read_text(encoding="utf-8")
+        scrutiny_readme = self.read("apps/scrutiny/README.md")
+        influxdb_readme = self.read("apps/influxdb/README.md")
+        mode = path.stat().st_mode
+
+        self.assertIn("SCRUTINY_CUTOVER_APPROVED", script)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
+        self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN", script)
+        self.assertIn("app.create", script)
+        self.assertIn("app.update", script)
+        self.assertIn("app.redeploy", script)
+        self.assertIn("http://127.0.0.1:31055/health", script)
+        self.assertIn("http://172.17.0.24:31054/api/health", script)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", scrutiny_readme)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", influxdb_readme)
+        self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN", scrutiny_readme)
+        self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN", influxdb_readme)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
     def test_graylog_avoids_clickhouse_host_port_9000(self) -> None:
         graylog = self.read("apps/graylog/compose.yml")
 
@@ -975,6 +1006,64 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             'SECRET_FILE="${WAZUH_SECRET_FILE:-${RUNTIME_DIR}/.env.secrets}"',
             script,
         )
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_wazuh_deploy_and_core_diagnostic_helpers(self) -> None:
+        compose = self.read("apps/wazuh/compose.yml")
+        deploy_path = ROOT / "scripts/truenas/deploy-wazuh.sh"
+        diagnose_path = ROOT / "scripts/truenas/diagnose-wazuh.sh"
+        deploy = deploy_path.read_text(encoding="utf-8")
+        diagnose = diagnose_path.read_text(encoding="utf-8")
+
+        self.assertIn("profiles:\n      - forwarding", compose)
+        self.assertIn("strength: optional", compose)
+        self.assertIn("bootstrap-wazuh.sh --apply", deploy)
+        self.assertIn("bootstrap-wazuh.sh --check", deploy)
+        self.assertIn("diagnose-wazuh.sh --check", deploy)
+        self.assertIn("app.create", deploy)
+        self.assertIn("app.update", deploy)
+        self.assertIn("app.redeploy", deploy)
+        self.assertIn("https://127.0.0.1:9202/", diagnose)
+        self.assertIn("https://127.0.0.1:55000/", diagnose)
+        self.assertIn("https://127.0.0.1:8444/", diagnose)
+        self.assertIn("forwarder=disabled (optional profile)", diagnose)
+        self.assertNotIn("API_PASSWORD=", diagnose)
+
+        for helper in (deploy_path, diagnose_path):
+            mode = helper.stat().st_mode
+            self.assertTrue(mode & stat.S_IXUSR)
+            self.assertTrue(mode & stat.S_IXGRP)
+            self.assertTrue(mode & stat.S_IXOTH)
+            syntax = subprocess.run(
+                ["bash", "-n", str(helper)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_talos_vm_autostart_acceptance_helper_is_read_only(self) -> None:
+        path = ROOT / "scripts/truenas/verify-talos-vm-autostart.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        for vm_name in ("taloscp01", "taloswk01", "taloswk02"):
+            self.assertIn(vm_name, script)
+        self.assertIn("autostart", script)
+        self.assertIn("RUNNING", script)
+        self.assertIn("midclt call vm.query", script)
+        self.assertNotIn("vm.start", script)
+        self.assertNotIn("vm.update", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
             capture_output=True,

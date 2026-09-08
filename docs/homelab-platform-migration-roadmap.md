@@ -23,7 +23,9 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
 - [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
 - [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
-- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with an explicit smoke workload before adding persistent storage;
+- [x] merge the IaC steady-state VM policy with `TALOS_VM_AUTOSTART=true`; the live apply/reboot acceptance remains operator-run;
+- [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` after the reviewed 3-change apply and again after the next TrueNAS reboot;
+- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with `scripts/talos/smoke-kubernetes-network.sh` before adding persistent storage;
 - [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
 ### TrueNAS FastAPI observer boundary — 2026-09-06
@@ -995,10 +997,11 @@ Migration gates:
 - [ ] snapshot native Scrutiny config and embedded InfluxDB datasets;
 - [ ] copy Scrutiny config/SQLite state into `/mnt/cpool/scrutiny/config`;
 - [ ] create `/mnt/cpool/influxdb/{data,config}`;
-- [ ] perform a logical InfluxDB backup/restore from the native 2.2 data into standalone InfluxDB 2.8; do not blindly copy engine files across versions;
-- [ ] create a least-privilege Scrutiny InfluxDB token separate from both the operator/admin token and the temporary `nabla's Recovery Token`;
-- [ ] start standalone InfluxDB and validate `http://127.0.0.1:31055/health`;
-- [ ] start Scrutiny web + collector and validate `http://172.17.0.24:31054/api/health`;
+- [ ] perform a logical InfluxDB backup/restore from the native 2.2 data into the pinned standalone InfluxDB 2.9.1 target; do not blindly copy engine files across versions;
+- [ ] create a least-privilege Scrutiny token as `SCRUTINY_WEB_INFLUXDB_TOKEN`, separate from both the operator/admin token and the temporary `nabla's Recovery Token`;
+- [ ] run `scripts/truenas/deploy-scrutiny.sh --check` to prove prerequisites without mutating runtime;
+- [ ] after snapshot/history/token review, run `SCRUTINY_CUTOVER_APPROVED=1 scripts/truenas/deploy-scrutiny.sh --apply`;
+- [ ] require standalone InfluxDB `http://127.0.0.1:31055/health`, Scrutiny `http://172.17.0.24:31054/api/health` and both Scrutiny containers to converge;
 - [ ] confirm all historical disks/timelines and a fresh SMART collection;
 - [ ] confirm `https://scrutiny.albandrieu.com/` is routed by Cloudflare Tunnel and protected by the intended Access policy;
 - [ ] keep the native datasets for the rollback window, then retire the native app only after acceptance.
@@ -1764,26 +1767,19 @@ should be verified/stabilized before broad application migrations:
 
 Current repository/runtime evidence also identifies these actionable states:
 
-- **Sentry:** lifecycle convergence is the next mandatory runtime gate before
-  Docling or OpenRAG/LiteLLM activation. The corrected 2026-09-08 redeploy
-  created all 19 workloads, both one-shot migration jobs exited, and the
-  previously blocked `snuba-replacer` plus
-  `snuba-subscription-consumer-events` processes are running while TrueNAS
-  still reports `DEPLOYING`. The consumer heartbeat healthchecks deliberately
-  use `start_period: 600s`, so a TrueNAS job can remain around 70% during
-  first-start convergence. Do not redeploy repeatedly during that grace window;
-  wait approximately 10 minutes, then run
-  `scripts/truenas/diagnose-sentry.sh --check` and require Kafka topics,
-  heartbeats, Snuba API, Sentry edge and aggregate TrueNAS lifecycle state to
-  converge;
+- **Sentry:** converged on 2026-09-08. TrueNAS reports `RUNNING`; there are no starting/unhealthy/unexpected-exited workloads or one-shot/topic failures, both migrations exited 0, required Kafka topics are present and the previously blocked consumers are healthy. Keep the diagnostic and synthetic-event smoke as regression gates;
 - **Wazuh:** previous startup failed because missing PEM bind sources were
-  auto-created as directories and `WAZUH_API_PASSWORD` was absent. Runtime
-  certificates/API secret now live under `/mnt/cpool/wazuh`; long certificate
-  binds use `create_host_path: false`, and
-  `scripts/truenas/bootstrap-wazuh.sh` prepares them fail-closed;
-
+  auto-created as directories and the runtime API secret was absent. Runtime
+  certificates/API secret live under `/mnt/cpool/wazuh`; long certificate
+  binds use `create_host_path: false`. Use
+  `scripts/truenas/deploy-wazuh.sh` for bootstrap + create/update/redeploy and
+  `scripts/truenas/diagnose-wazuh.sh --check` for core
+  manager/indexer/dashboard acceptance. The shared-OpenSearch forwarder remains
+  profile-gated until core Wazuh is stable;
 - **Scrutiny:** native application intentionally STOPPED; repository Compose
-  migration is prepared but not yet completed;
+  migration is prepared. Use `scripts/truenas/deploy-scrutiny.sh --check`
+  before the explicitly approved cutover; the helper requires the dedicated
+  `SCRUTINY_WEB_INFLUXDB_TOKEN` and a healthy standalone InfluxDB first;
 - **Pi-hole:** native path was running but the API/session exhaustion and
   `pihole-dns-sync` restart loop make the repository Compose cutover pending;
 - **Bichon:** repository Compose is RUNNING, but OAuth2 refresh is degraded and
@@ -1883,28 +1879,13 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 
 ### Current stabilization wave — 2026-09-08
 
-Before starting additional services, finish this runtime recovery sequence:
+Sentry has converged and is now a regression gate. The active execution wave is:
 
-1. **pfSense / Prometheus:** keep the exporter at a five-minute cadence with
-   three serialized collectors, make lifecycle audits non-invasive by default,
-   keep cAdvisor in its separate disabled-only definition outside Prometheus,
-   and prove pfSense remains responsive with adequate CPU/RAM headroom;
-2. **Sentry — hard gate before OpenRAG dependencies:** the corrected redeploy
-   is already in progress. Allow the 600-second consumer first-start health
-   window to converge instead of repeatedly redeploying at the TrueNAS 70%
-   plateau; then run `scripts/truenas/diagnose-sentry.sh --check`, require all
-   Kafka topics, long-running consumer heartbeats, Snuba API, Sentry edge and
-   TrueNAS `RUNNING` state, and rerun the synthetic event smoke;
-3. **OpenRAG:** only after the Sentry gate is green, retain the already-green
-   backend/OpenSearch/global-Langflow collective health as a regression gate;
-   install/validate Docling and prove end-to-end document ingestion first, then
-   activate the prepared LiteLLM workstation integration; do not invert this
-   order;
-4. **Wazuh:** bootstrap the API secret/TLS set, redeploy only after the
-   prerequisites pass, then stabilize manager -> indexer -> dashboard before
-   enabling the shared-OpenSearch forwarder or exposing the dashboard;
-5. only after these gates are green, continue the broader monitoring/security
-   service migration.
+1. **Talos / Kubernetes P0:** prove the merged VM autostart policy in live TrueNAS, run the Talos base-cluster gate, then DNS/CNI/CoreDNS/Service/ClusterIP/cross-node smoke and finally the immutable FastAPI Sample acceptance on `test.albandrieu.com`;
+2. **Wazuh core in parallel:** bootstrap the API secret/TLS set, use the canonical deploy helper, and stabilize manager -> indexer -> dashboard. Keep the shared-OpenSearch forwarder profile disabled until this core path is green;
+3. **Scrutiny + standalone InfluxDB in parallel:** preserve/recover history, create the restricted `SCRUTINY_WEB_INFLUXDB_TOKEN`, then use the explicit cutover helper and prove a fresh SMART collection plus historical timelines;
+4. **OpenRAG:** retain the already-green core runtime; Docling remains the next ingestion dependency, and LiteLLM activation still waits for Docling plus one E2E ingestion/search path;
+5. **CSI TrueNAS:** start only after the complete Kubernetes P0 network/ingress smoke is green.
 
 ### P3 — service priority after Kubernetes + infrastructure secrets
 

@@ -222,6 +222,8 @@ services:
       - wazuh_dashboard_custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
 
   wazuh-forwarder:
+    profiles:
+      - forwarding
     build:
       context: .
       dockerfile: Dockerfile.logstash
@@ -239,8 +241,8 @@ services:
       relations:
         - target: wazuh
           type: partOf
-          strength: required
-          description: The forwarder is an integration workload of the Wazuh security platform.
+          strength: optional
+          description: The forwarder is an optional integration workload of the Wazuh security platform.
         - target: wazuh-manager
           type: dependsOn
           strength: required

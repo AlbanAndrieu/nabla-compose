@@ -56,7 +56,7 @@ token before changing any retention policy.
 Scrutiny should use a dedicated least-privilege token through:
 
 ```text
-SCRUTINY_INFLUXDB_TOKEN
+SCRUTINY_WEB_INFLUXDB_TOKEN
 ```
 
 and connect over the shared Docker network:
