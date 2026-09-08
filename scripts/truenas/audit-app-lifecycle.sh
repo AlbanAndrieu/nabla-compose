@@ -1355,6 +1355,21 @@ urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
     functional_fail "OpenRAG backend: OPENSEARCH_NODE_COUNT_CHECK_ENABLED must be false for the shared single-node cluster"
   fi
 
+  if grep -q '^LANGFLOW_KEY=.' <<<"${backend_env}"; then
+    functional_ok "OpenRAG backend: dedicated global Langflow API key configured"
+  else
+    functional_fail "OpenRAG backend: LANGFLOW_KEY is required for authenticated global Langflow API calls"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    test -n "${LANGFLOW_KEY:-}" &&
+      curl --fail --silent --show-error --max-time 8         --header "x-api-key: ${LANGFLOW_KEY}"         http://langflow:7860/api/v1/users/whoami >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG backend -> global Langflow authenticated API"
+  else
+    functional_fail "OpenRAG backend -> global Langflow API key rejected or missing"
+  fi
+
   if docker logs --since 5m "${backend}" 2>&1 |
     grep -Fq 'OpenSearch healthy but cluster has not reached expected node count'; then
     functional_fail "OpenRAG backend: still waiting for a 3-node OpenSearch topology; stale runtime/config detected"
@@ -1450,6 +1465,7 @@ function probe_log_absence_if_running {
 printf '\n🔎 runtime secret contracts\n'
 probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
 probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
 probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
 probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
