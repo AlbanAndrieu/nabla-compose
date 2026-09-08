@@ -73,6 +73,26 @@ scrape_configs:
           platform: truenas
           role: container-runtime
 
+  - job_name: pihole_exporter
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.24:9617
+        labels:
+          platform: truenas
+          role: dns-filter
+
+  - job_name: postgres_exporter
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.24:9187
+        labels:
+          platform: truenas
+          role: database
+
   - job_name: pfsense_exporter
     metrics_path: /metrics
     scrape_interval: 15s
