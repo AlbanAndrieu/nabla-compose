@@ -140,39 +140,101 @@ git -C fastapi-sample rev-parse --short HEAD
 For this recovery branch the expected FastAPI Sample revision is
 `3e945146` (release `1.13.2`).
 
-Before rebuilding/redeploying, verify that the stable observer address required by
-the TrueNAS allowlist is not currently owned by another container:
+The previous design pinned `172.16.55.9` directly on the shared
+`intranet` network. Runtime evidence proved that address was not reserved:
+while FastAPI Sample was stopped, Docker assigned `172.16.55.9` to Langflow.
+The next Sample start therefore failed with `Address already in use`.
 
-```bash
-docker network inspect intranet |
-jq -r '.[0].Containers | to_entries[]? |
-  [.value.Name, .value.IPv4Address] | @tsv' |
-grep -F '172.16.55.9/' || true
+The repository now gives FastAPI Sample a dedicated Compose-managed observer
+bridge:
+
+```text
+sample-observer
+  subnet: 172.16.56.0/28
+  FastAPI Sample: 172.16.56.9
 ```
 
-The expected owner is `fastapi-sample` (or no owner while it is stopped).
-If another container owns `172.16.55.9`, do not loop `app.redeploy sample`:
-Docker will fail with `Address already in use`. Either free that address or
-select a reviewed new `FASTAPI_SAMPLE_OBSERVER_IP` and update the matching
-TrueNAS `system.general.ui_allowlist` `/32` in the same change.
+The container remains attached to `intranet` for shared-service DNS and to
+`traefik_network` for ingress. `gw_priority: 1` on `sample-observer` makes
+the dedicated address the source for LAN appliance calls while directly
+connected Docker service traffic still uses its matching networks.
 
-If the `intranet` lookup is empty but Docker still reports
-`failed to set up container networking: Address already in use`, check **all**
-Docker networks and the failed container before changing the reviewed observer
-address:
+Before redeploying, verify that the new subnet does not overlap another Docker
+network:
 
 ```bash
 docker network inspect $(docker network ls -q) |
 jq -r '
-  .[] as $network |
-  ($network.Containers // {}) |
-  to_entries[]? |
-  select(.value.IPv4Address == "172.16.55.9/24") |
-  [$network.Name, .value.Name, .value.IPv4Address] |
+  .[] |
+  .Name as $name |
+  .IPAM.Config[]? |
+  [$name, (.Subnet // "")] |
   @tsv
-'
+' |
+grep -F '172.16.56.0/28' || true
+```
 
-docker ps -a --filter 'name=^/fastapi-sampleBuild the pinned source before asking TrueNAS to redeploy the Custom App:
+No output is expected before the first Sample deployment. If another unrelated
+network already owns that subnet, stop and select a reviewed replacement subnet
+and `FASTAPI_SAMPLE_OBSERVER_IP` together.
+
+### Migrate the TrueNAS source allowlist
+
+Do not leave the historical `172.16.55.9/32` entry in the TrueNAS
+`ui_allowlist`: that address is part of the shared `intranet` pool and was
+observed assigned to Langflow.
+
+Preserve every other current allowlist entry, remove the legacy Docker /32, and
+add the dedicated observer /32:
+
+```bash
+current_allowlist="$(
+  midclt call system.general.config |
+    jq -c '.ui_allowlist // []'
+)"
+
+next_allowlist="$(
+  jq -cn \
+    --argjson current "${current_allowlist}" \
+    '
+      (
+        $current |
+        map(select(. != "172.16.55.9/32"))
+      ) +
+      ["172.16.56.9/32"] |
+      unique
+    '
+)"
+
+printf '%s\n' "${next_allowlist}" | jq .
+
+sudo midclt call system.general.update "$(
+  jq -cn \
+    --argjson allowlist "${next_allowlist}" \
+    '{ui_allowlist: $allowlist}'
+)"
+
+sudo midclt call system.general.checkin
+```
+
+Re-read the persisted value:
+
+```bash
+midclt call system.general.config |
+jq '.ui_allowlist'
+```
+
+The final list must contain `172.16.56.9/32` and must not contain
+`172.16.55.9/32`.
+
+Remove the failed container from the previous shared-IP attempt. Do **not**
+delete or recreate `intranet`:
+
+```bash
+docker rm -f fastapi-sample 2>/dev/null || true
+```
+
+Build the pinned source, reconcile the TrueNAS Custom App, then redeploy:
 
 ```bash
 docker compose -f apps/sample/compose.yml \
@@ -344,9 +406,9 @@ WebSocket source addresses **before API-key authentication**. A successful
 `GET /api/versions` therefore proves HTTPS reachability only; it does not prove
 that `/api/current` is permitted.
 
-For the Docker-hosted observer, TrueNAS sees the FastAPI container address on
-the shared `intranet` bridge, not the TrueNAS LAN address. A policy close such
-as:
+For the Docker-hosted observer, TrueNAS sees the FastAPI container address from
+the dedicated `sample-observer` bridge, not the TrueNAS LAN address and not
+the dynamically allocated shared-`intranet` address. A policy close such as:
 
 ```text
 WebSocket connection closed with code=1008
@@ -361,7 +423,7 @@ The live 2026-09-06 recovery proved the sequence:
 /api/versions over HTTPS                         -> HTTP 200
 native BETA.2 midclt as fastapi_observer         -> system.version + app.query succeed
 FastAPI container before ui_allowlist change     -> WebSocket denied
-allow container intranet IP /32                  -> system.version + app.query = 86
+allow dedicated observer IP /32                  -> system.version + app.query = 86
 system.general.checkin                           -> change persisted
 ```
 
@@ -371,14 +433,13 @@ Run the read-only preflight after every recreate/network change:
 scripts/security/verify-truenas-observer-access.sh
 ```
 
-Do not allow the whole shared Docker subnet merely to make this observer work.
-The Compose service pins the observer source to
-`${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}` on `intranet`, matching the
-reviewed TrueNAS `/32` allowlist entry. A collision or subnet mismatch should
-fail deployment rather than silently move the observer to a different source
-address. Override `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed
-TrueNAS allowlist update. A future dedicated observer network can isolate this
-boundary further.
+Do not allow an entire Docker subnet merely to make this observer work. The
+Compose service pins the observer source to
+`${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}` on the dedicated
+`sample-observer` bridge (`172.16.56.0/28` by default), matching one reviewed
+TrueNAS `/32` allowlist entry. The historical `172.16.55.9/32` entry is
+forbidden because that address belongs to the shared `intranet` allocation
+pool and can be reassigned to unrelated containers.
 
 The canonical runtime credentials are:
 
