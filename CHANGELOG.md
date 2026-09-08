@@ -1,3 +1,10 @@
+# [0.29.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.28.0...0.29.0) (2026-09-08)
+
+
+### Features
+
+* **kubernetes:** resume Talos P0 after Sentry convergence ([#157](https://github.com/AlbanAndrieu/nabla-compose/issues/157)) ([14abb0e](https://github.com/AlbanAndrieu/nabla-compose/commit/14abb0ee667befd72fa81fda42b415dddcb8f12b))
+
 # [0.28.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.27.2...0.28.0) (2026-09-08)
 
 
