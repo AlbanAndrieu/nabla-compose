@@ -199,28 +199,14 @@ check_prometheus_targets() {
     fi
   done
 
-  local optional_jobs=(
-    truenas_cadvisor
-  )
-
-  for job in "${optional_jobs[@]}"; do
-    if jq -e --arg job "${job}" '
-      .status == "success"
-      and any(
-        .data.activeTargets[];
-        .labels.job == $job and .health == "up"
-      )
-    ' "${body}" >/dev/null 2>&1; then
-      ok "Optional Prometheus target is up: ${job}"
-    elif jq -e --arg job "${job}" '
-      .status == "success"
-      and any(.data.activeTargets[]; .labels.job == $job)
-    ' "${body}" >/dev/null 2>&1; then
-      warn "Optional Prometheus target is intentionally/non-critically down: ${job}"
-    else
-      warn "Optional Prometheus target is absent: ${job}"
-    fi
-  done
+  if jq -e '
+    .status == "success"
+    and any(.data.activeTargets[]; .labels.job == "truenas_cadvisor")
+  ' "${body}" >/dev/null 2>&1; then
+    fail "cAdvisor Prometheus target must remain disabled on this TrueNAS host"
+  else
+    ok "cAdvisor Prometheus target is absent by policy"
+  fi
 }
 
 check_prometheus_alertmanager() {

@@ -7,16 +7,96 @@ not be pointed at the OpenRAG OpenSearch 3.x instance.
 A Logstash forwarding sidecar copies Wazuh alerts to the shared
 `opensearch-security` 2.19.5 service used by Graylog.
 
-## Bootstrap
+## TrueNAS runtime bootstrap
 
-Generate the Wazuh TLS material once:
+The runtime keeps API credentials and TLS private keys outside Git:
 
-```bash
-docker compose -f generate-indexer-certs.yml run --rm generator
+```text
+/mnt/cpool/wazuh/
+├── .env.secrets
+└── certs/
+    ├── root-ca.pem
+    ├── root-ca-manager.pem
+    ├── wazuh.indexer.pem
+    ├── wazuh.indexer-key.pem
+    ├── admin.pem
+    ├── admin-key.pem
+    ├── wazuh.manager.pem
+    ├── wazuh.manager-key.pem
+    ├── wazuh.dashboard.pem
+    └── wazuh.dashboard-key.pem
 ```
 
-Then provide `WAZUH_API_PASSWORD` and start the normal `compose.yml`.
+Bootstrap them without printing the generated API password:
 
-The upstream bootstrap users in `internal_users.yml` use Wazuh's documented
-sample passwords. Rotate the indexer/dashboard credentials before exposing the
-dashboard beyond the trusted LAN.
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/bootstrap-wazuh.sh --apply
+```
+
+The helper:
+
+- removes only **empty directories** previously created at legacy PEM file paths
+  by Docker short-bind syntax;
+- refuses to delete a non-empty legacy directory;
+- creates `/mnt/cpool/wazuh/.env.secrets` mode `0600` and generates
+  `API_PASSWORD` only when absent;
+- generates the upstream Wazuh 4.14 certificate set with
+  `wazuh/wazuh-certs-generator:0.0.4`;
+- refuses a partial certificate set rather than mixing old and new keys;
+- verifies every required PEM is a regular non-empty file;
+- validates the repository Compose without expanding secrets.
+
+Read-only validation:
+
+```bash
+sudo bash scripts/truenas/bootstrap-wazuh.sh --check
+```
+
+The production Compose uses long bind syntax with
+`bind.create_host_path: false`. A missing PEM therefore fails immediately
+instead of silently creating a directory and later producing the OCI
+"not a directory" mount error.
+
+The manager and dashboard read the shared container-facing `API_PASSWORD`
+from `/mnt/cpool/wazuh/.env.secrets`. Do not set
+`WAZUH_API_PASSWORD` as a Compose interpolation variable.
+
+The upstream bootstrap users in `internal_users.yml` still use the reviewed
+Wazuh sample indexer/dashboard passwords in this phase. Do **not** replace
+`WAZUH_INDEXER_PASSWORD` or `WAZUH_DASHBOARD_PASSWORD` with random values
+until the corresponding hashes in `internal_users.yml` are rotated in the
+same reviewed change.
+
+## TrueNAS deployment
+
+After the bootstrap is green:
+
+```bash
+sudo midclt call -j app.update wazuh \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/wazuh/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy wazuh
+```
+
+Then inspect only the Wazuh project:
+
+```bash
+midclt call app.query \
+  '[["id","=","wazuh"]]' |
+jq '.[0] | {id,state,active_workloads}'
+
+docker ps -a \
+  --filter 'label=com.docker.compose.project=ix-wazuh' \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+```
+
+Do not expose the dashboard beyond the trusted LAN until API/indexer/dashboard
+credentials have been rotated together and the complete manager -> indexer ->
+dashboard path is healthy.

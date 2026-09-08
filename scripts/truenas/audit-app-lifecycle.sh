@@ -153,6 +153,14 @@ function app_is_present {
   [[ "${states[${app_id}]-MISSING}" != "MISSING" ]]
 }
 
+function app_is_active {
+  local app_id="$1"
+  case "${states[${app_id}]-MISSING}" in
+    RUNNING | DEPLOYING) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 function probe_http_if_running {
   local app_id="$1"
   local label="$2"
@@ -530,7 +538,7 @@ function probe_sentry_snuba_clickhouse_if_running {
   local clickhouse_database
   local table_count
 
-  if ! app_is_running sentry; then
+  if ! app_is_active sentry; then
     printf 'SKIP: Sentry/Snuba ClickHouse contract app state is %s\n' "${states[sentry]-MISSING}"
     return
   fi
@@ -625,7 +633,7 @@ function probe_sentry_runtime_mesh_if_running {
   local redis_db
   local binding
 
-  if ! app_is_running sentry; then
+  if ! app_is_active sentry; then
     printf 'SKIP: Sentry runtime mesh app state is %s\n' "${states[sentry]-MISSING}"
     return
   fi
@@ -795,6 +803,56 @@ function probe_sentry_runtime_mesh_if_running {
     functional_ok "Sentry NGINX -> Web health"
   else
     functional_fail "Sentry NGINX -> Web health failed"
+  fi
+}
+
+function probe_sentry_unhealthy_consumers_if_present {
+  local project="ix-sentry"
+  local unhealthy
+  local services
+
+  if ! app_is_active sentry; then
+    printf 'SKIP: Sentry consumer health app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  unhealthy="$(
+    docker ps -a \
+      --filter "label=com.docker.compose.project=${project}" \
+      --filter 'health=unhealthy' \
+      --format '{{.Names}}' |
+      sort
+  )"
+
+  if [[ -z "${unhealthy}" ]]; then
+    functional_ok "Sentry consumers: no unhealthy containers"
+    return
+  fi
+
+  services="$(
+    while IFS= read -r container; do
+      [[ -n "${container}" ]] || continue
+      docker inspect "${container}" \
+        --format '{{ index .Config.Labels "com.docker.compose.service" }}' \
+        2>/dev/null || printf '%s\n' "${container}"
+    done <<<"${unhealthy}" |
+      paste -sd, -
+  )"
+
+  functional_fail "Sentry consumers unhealthy: ${services:-unknown}; run scripts/truenas/diagnose-sentry.sh --check"
+}
+
+function probe_sentry_web_health_if_present {
+  if ! app_is_active sentry; then
+    printf 'SKIP: Sentry web health app state is %s\n' "${states[sentry]-MISSING}"
+    return
+  fi
+
+  if curl --fail --silent --show-error --max-time 8 \
+    http://172.17.0.24:9005/_health/ >/dev/null; then
+    functional_ok "Sentry web health"
+  else
+    functional_fail "Sentry web health: HTTP probe failed (http://172.17.0.24:9005/_health/)"
   fi
 }
 
@@ -1283,6 +1341,7 @@ function probe_pfsense_exporter_runtime_if_present {
   local state
   local exit_code
   local auth_method
+  local collector
 
   if ! app_is_present prometheus; then
     printf 'SKIP: pfSense exporter runtime app is MISSING\n'
@@ -1319,9 +1378,9 @@ function probe_pfsense_exporter_runtime_if_present {
   fi
 
   if grep -Eq '^[[:space:]]*targets:[[:space:]]*$' "${config}" &&
-    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*[^[:space:]]+' "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*.+$' "${config}" &&
     grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
-    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*(key|basic)[[:space:]]*$' "${config}"; then
+    grep -Eq "^[[:space:]]*auth_method:[[:space:]]*['\"]?(key|basic)['\"]?[[:space:]]*$" "${config}"; then
     functional_ok "pfSense exporter: v0.0.10 target schema present"
   else
     functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
@@ -1341,6 +1400,7 @@ function probe_pfsense_exporter_runtime_if_present {
         functional_ok "pfSense exporter: key auth credential configured"
       else
         functional_fail "pfSense exporter: auth_method=key but key is missing"
+        return
       fi
       ;;
     basic)
@@ -1349,24 +1409,50 @@ function probe_pfsense_exporter_runtime_if_present {
         functional_ok "pfSense exporter: basic auth credentials configured"
       else
         functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+        return
       fi
       ;;
   esac
 
+  if ! grep -Eq '^[[:space:]]*timeout:[[:space:]]*8[[:space:]]*$' "${config}" ||
+    ! grep -Eq '^[[:space:]]*max_collector_concurrency:[[:space:]]*1[[:space:]]*$' "${config}"; then
+    functional_fail "pfSense exporter: low-impact timeout/concurrency contract is missing"
+    return
+  fi
+
+  for collector in system gateways service; do
+    if ! grep -Eq "^[[:space:]]*-[[:space:]]*${collector}[[:space:]]*$" "${config}"; then
+      functional_fail "pfSense exporter: required low-impact collector '${collector}' is missing"
+      return
+    fi
+  done
+
+  if grep -Eq '^[[:space:]]*-[[:space:]]*(interface|firewall_states|package|login_protection|carp|firewall_schedule)[[:space:]]*$' "${config}"; then
+    functional_fail "pfSense exporter: expensive collector enabled in steady-state runtime"
+    return
+  fi
+
+  functional_ok "pfSense exporter: low-impact collectors/timeout/concurrency contract present"
+
+  if [[ "${PFSENSE_EXPORTER_DEEP_PROBE:-0}" != "1" ]]; then
+    functional_warn "pfSense exporter: deep /metrics probe skipped by default to avoid pfREST load; set PFSENSE_EXPORTER_DEEP_PROBE=1 for a supervised scrape"
+    return
+  fi
+
   if [[ "${state}" == "running" ]]; then
     local metrics
     if ! metrics="$(
-      curl --fail --silent --show-error --max-time 15 \
+      curl --fail --silent --show-error --max-time 30 \
         'http://172.17.0.24:9945/metrics?target=172.17.0.1'
     )"; then
-      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      functional_fail "pfSense exporter: supervised metrics path failed for 172.17.0.1"
       return
     fi
 
     if grep -Eq '^pfsense_[A-Za-z0-9_:]+([ {]|$)' <<<"${metrics}"; then
-      functional_ok "pfSense exporter: non-empty pfsense_* metric samples returned for 172.17.0.1"
+      functional_ok "pfSense exporter: supervised scrape returned non-empty pfsense_* samples"
     else
-      functional_fail "pfSense exporter: HTTP scrape succeeded but returned no pfsense_* metric samples"
+      functional_fail "pfSense exporter: supervised scrape succeeded but returned no pfsense_* samples"
     fi
   fi
 }
@@ -1682,12 +1768,13 @@ probe_clickhouse_runtime_if_running
 probe_clickhouse_config_mounts_if_running
 probe_clickhouse_admin_grant_option_if_running
 probe_clickhouse_langfuse_contract_if_present
+probe_sentry_unhealthy_consumers_if_present
 probe_sentry_snuba_clickhouse_if_running
 probe_sentry_runtime_mesh_if_running
 probe_fastapi_sample_sentry_if_running
 probe_ntopng_clickhouse_contract_if_running
 probe_langfuse_worker_clickhouse_credentials_if_running
-probe_http_if_running sentry "Sentry web health" "http://172.17.0.24:9005/_health/"
+probe_sentry_web_health_if_present
 probe_http_if_running langfuse "Langfuse web + database" "http://172.17.0.24:3000/api/public/health?failIfDatabaseUnavailable=true"
 probe_http_if_running langfuse "Langfuse worker" "http://127.0.0.1:3030/api/health"
 

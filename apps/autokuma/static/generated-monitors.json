@@ -605,16 +605,6 @@
   },
   {
     "type": "port",
-    "name": "Cadvisor",
-    "description": "Nabla generated monitor: prometheus-cadvisor",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8089
-  },
-  {
-    "type": "port",
     "name": "Node Exporter",
     "description": "Nabla generated monitor: prometheus-node-exporter",
     "interval": 60,

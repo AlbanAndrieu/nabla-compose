@@ -152,7 +152,7 @@ class ObservabilityContractTests(unittest.TestCase):
             "\n  - job_name:",
             1,
         )[0]
-        self.assertIn("scrape_interval: 120s", job)
+        self.assertIn("scrape_interval: 300s", job)
         self.assertIn("scrape_timeout: 30s", job)
         self.assertNotIn("scrape_interval: 15s", job)
 
@@ -223,32 +223,33 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("NablaExporterTargetDown", rules)
         self.assertIn("impact: blind_spot", rules)
 
-    def test_cadvisor_is_non_restarting_optional_telemetry(self) -> None:
+    def test_cadvisor_is_separate_and_always_disabled(self) -> None:
         compose = (
             ROOT / "apps" / "prometheus" / "compose.yml"
         ).read_text(encoding="utf-8")
-        rules = (
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        core_rules = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
         ).read_text(encoding="utf-8")
-        verify = (
-            ROOT / "scripts" / "observability" / "verify-stack.sh"
+        disabled_compose = (
+            ROOT / "apps" / "cadvisor" / "disabled.yml"
+        ).read_text(encoding="utf-8")
+        disabled_rules = (
+            ROOT / "apps" / "cadvisor" / "cadvisor.rules.disabled.yml"
         ).read_text(encoding="utf-8")
 
-        cadvisor = compose.split("\n  cadvisor:\n", 1)[1].split(
-            "\n  pfsense-exporter:\n", 1
-        )[0]
-        self.assertIn('restart: "no"', cadvisor)
-        self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
-        self.assertNotIn("- job_name: truenas_cadvisor", (
-            ROOT / "apps" / "prometheus" / "prometheus.yml"
-        ).read_text(encoding="utf-8"))
-        exporter_alert = rules.split(
-            "- alert: NablaExporterTargetDown", 1
-        )[1]
-        self.assertNotIn("truenas_cadvisor", exporter_alert)
-        self.assertIn("optional_jobs=(", verify)
-        self.assertIn("truenas_cadvisor", verify)
-        self.assertIn("Optional Prometheus target", verify)
+        self.assertFalse((ROOT / "apps" / "cadvisor" / "compose.yml").exists())
+        self.assertNotIn("\n  cadvisor:\n", compose)
+        self.assertIn("apps/cadvisor/disabled.yml", compose)
+        self.assertIn("profiles:\n      - cadvisor-manual", disabled_compose)
+        self.assertIn('restart: "no"', disabled_compose)
+        self.assertIn('"127.0.0.1:8089:8080"', disabled_compose)
+        self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
+        self.assertNotIn("nabla:telemetry:truenas_cadvisor_up", core_rules)
+        self.assertIn("TrueNASCAdvisorDown", disabled_rules)
+
 
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
         rules = (
@@ -405,10 +406,10 @@ class ObservabilityContractTests(unittest.TestCase):
             "nabla:core:truenas_cpu_busy_ratio",
             "nabla:telemetry:pfsense_metrics_up",
             "nabla:telemetry:truenas_node_up",
-            "nabla:telemetry:truenas_cadvisor_up",
             "nabla:observability:prometheus_up",
         ):
             self.assertIn(metric, rules)
+        self.assertNotIn("nabla:telemetry:truenas_cadvisor_up", rules)
 
     def test_gatus_metrics_separate_monitor_and_service_identity(self) -> None:
         prometheus = (
@@ -458,7 +459,6 @@ class ObservabilityContractTests(unittest.TestCase):
         for relative in (
             "pfsense.rules.yml",
             "node-exporter.rules.yml",
-            "cadvisor.rules.yml",
         ):
             rules = (rules_dir / relative).read_text(encoding="utf-8")
             self.assertIn("impact: blind_spot", rules)
@@ -640,9 +640,10 @@ class ObservabilityContractTests(unittest.TestCase):
             "opensearch-security",
             "crowdsec",
             "truenas_node",
-            "truenas_cadvisor",
         ):
             self.assertIn(exporter_job, stack)
+        self.assertIn("cAdvisor Prometheus target is absent by policy", stack)
+        self.assertIn("cAdvisor Prometheus target must remain disabled", stack)
 
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
         for relative in (".mcp.json", ".cursor/mcp.json"):

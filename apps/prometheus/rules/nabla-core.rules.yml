@@ -12,9 +12,6 @@ groups:
       - record: nabla:telemetry:truenas_node_up
         expr: max(up{job="truenas_node"})
 
-      - record: nabla:telemetry:truenas_cadvisor_up
-        expr: max(up{job="truenas_cadvisor"})
-
       - record: nabla:core:truenas_memory_available_ratio
         expr: |
           max(

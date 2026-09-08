@@ -1741,16 +1741,20 @@ should be verified/stabilized before broad application migrations:
   connectivity and inputs before adding pfSense/workstation syslog;
 - **Prometheus:** priority monitoring service; core Prometheus/Alertmanager/
   node-exporter now start after removing the orphan LiteLLM secret mount;
-  cAdvisor is profile-gated out of the default lifecycle because it is
-  intentionally disabled on this host; the remaining blocker is the exited
-  `pfsense-exporter`: the directory-bind restart loop is fixed and the
+  cAdvisor is retained separately in `apps/cadvisor/disabled.yml` but removed
+  from the Prometheus TrueNAS Custom App, active Prometheus jobs and generated
+  Homarr/Gatus/AutoKuma consumers; it remains intentionally disabled on this
+  host. This makes the stale `ix-prometheus-cadvisor-1` container an orphan
+  that TrueNAS can remove instead of marking the whole Prometheus app CRASHED;
+  the pfSense exporter
+  directory-bind restart loop is fixed and the
   container is now running from
   `/mnt/cpool/prometheus/secrets/pfsense-exporter.yml` with
   `create_host_path: false`; still prove that the scrape returns real
   `pfsense_*` samples rather than merely HTTP 200 before considering the
   TrueNAS Custom App fully healthy;
   keep the Netgate 1100 exporter in a low-impact steady-state profile:
-  Prometheus scrape every 120 seconds, only `system`, `gateways` and
+  Prometheus scrape every 300 seconds, only `system`, `gateways` and
   `service`, `max_collector_concurrency=1`, an 8-second pfREST target
   timeout, and TCP-only Gatus/AutoKuma liveness checks; runtime evidence showed
   `firewall_states` and `interface` timing out while pfSense had 0% idle CPU,
@@ -1759,6 +1763,18 @@ should be verified/stabilized before broad application migrations:
   health and the read-only service-account/MCP secret work.
 
 Current repository/runtime evidence also identifies these actionable states:
+
+- **Sentry:** TrueNAS remains DEPLOYING because `snuba-replacer` and
+  `snuba-subscription-consumer-events` are unhealthy. The repository now
+  follows upstream 26.8 bootstrap ordering by waiting for
+  `sentry-migrate --create-kafka-topics` before starting long-running Snuba
+  consumers, and `scripts/truenas/diagnose-sentry.sh` inspects the runtime
+  even while TrueNAS reports DEPLOYING;
+- **Wazuh:** previous startup failed because missing PEM bind sources were
+  auto-created as directories and `WAZUH_API_PASSWORD` was absent. Runtime
+  certificates/API secret now live under `/mnt/cpool/wazuh`; long certificate
+  binds use `create_host_path: false`, and
+  `scripts/truenas/bootstrap-wazuh.sh` prepares them fail-closed;
 
 - **Scrutiny:** native application intentionally STOPPED; repository Compose
   migration is prepared but not yet completed;
@@ -1827,12 +1843,50 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
 - [ ] validate document ingestion, indexing and search end-to-end after Docling
       is healthy;
-- [ ] validate the selected embedding + local Ollama/LiteLLM path without
-      unloading the retained local LLM;
+- [x] prepare the direct OpenRAG 0.7.1 -> workstation LiteLLM path at
+      `http://172.17.0.57:4000/v1` by using the built-in `openai` provider
+      as an OpenAI-protocol adapter plus `OPENAI_BASE_URL`; reuse
+      `LITELLM_IDE_API_KEY` and refuse persistent activation unless OpenRAG
+      encrypted-secret storage is configured;
+- [x] configure the shared OpenRAG-compatible Langflow runtime with the same
+      `OPENAI_BASE_URL` so chat and embedding components use the workstation
+      LiteLLM endpoint after OpenRAG synchronizes `OPENAI_API_KEY`;
+- [x] prepare TrueNAS LiteLLM as an optional proxy for the workstation
+      `embedding` alias while retaining `embedding-local` as an explicit
+      TrueNAS Ollama rollback target and `workstation-qwen` for a future
+      TrueNAS-gateway chat path;
+- [ ] run the workstation LiteLLM bootstrap check, then `--apply`, and prove
+      OpenRAG chat/tool-calling plus embeddings against the GPU workstation
+      before treating the model path as operational;
+- [ ] after a stable OpenRAG release newer than 0.7.1 is validated, migrate this
+      compatibility route to the native generic `openai_like` provider; until
+      then do not treat the 0.7.1 OpenAI provider discovery/validation endpoint
+      as authoritative because parts of it still target `api.openai.com`;
 - [ ] correlate OpenRAG ingest/search latency with TrueNAS I/O PSI before
       increasing workload;
 - [ ] reconcile OpenRAG into the generated architecture/site consumers after
       runtime health is proven.
+
+### Current stabilization wave — 2026-09-08
+
+Before starting additional services, finish this runtime recovery sequence:
+
+1. **pfSense / Prometheus:** keep the exporter at a five-minute cadence with
+   three serialized collectors, make lifecycle audits non-invasive by default,
+   keep cAdvisor in its separate disabled-only definition outside Prometheus,
+   and prove pfSense remains responsive with adequate CPU/RAM headroom;
+2. **Sentry:** redeploy with the corrected Snuba/Kafka-topic ordering, run
+   `scripts/truenas/diagnose-sentry.sh --check`, require all long-running
+   consumers plus Snuba API and Sentry web health to become healthy, then run
+   the synthetic event smoke;
+3. **OpenRAG:** retain the already-green backend/OpenSearch/global-Langflow
+   collective health as a regression gate; the next functional gap is Docling
+   and end-to-end document ingestion, not another Langflow/OpenSearch rebuild;
+4. **Wazuh:** bootstrap the API secret/TLS set, redeploy only after the
+   prerequisites pass, then stabilize manager -> indexer -> dashboard before
+   enabling the shared-OpenSearch forwarder or exposing the dashboard;
+5. only after these gates are green, continue the broader monitoring/security
+   service migration.
 
 ### P3 — service priority after Kubernetes + infrastructure secrets
 

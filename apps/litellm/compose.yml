@@ -64,6 +64,9 @@ services:
       LANGFUSE_OTEL_HOST: http://172.17.0.24:3000
       # - REDIS_URL=redis://:XXX@172.17.0.24:30059
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      # Optional upstream LiteLLM proxy on the GPU workstation. The existing
+      # LITELLM_IDE_API_KEY is injected by env_file and is never committed.
+      LITELLM_WORKSTATION_API_BASE: ${LITELLM_WORKSTATION_API_BASE:-http://172.17.0.57:4000/v1}
       UI_USERNAME: ${UI_USERNAME}
       UI_PASSWORD: ${UI_PASSWORD}
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI

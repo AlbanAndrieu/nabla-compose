@@ -1,0 +1,22 @@
+---
+services:
+  cadvisor:
+    # Retained for supervised troubleshooting only. This file is deliberately
+    # named disabled.yml so repository TrueNAS inventory and normal
+    # compose reconciliation cannot treat cAdvisor as an expected-running app.
+    profiles:
+      - cadvisor-manual
+    network_mode: bridge
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor-manual
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "127.0.0.1:8089:8080"

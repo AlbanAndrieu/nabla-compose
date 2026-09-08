@@ -53,6 +53,35 @@ The Compose file loads this file directly. This avoids depending on
 `UPTIME_KUMA_*` variables being present in the TrueNAS middleware process when
 the Custom App parses the repository include.
 
+## Generate the Uptime Kuma JWT
+
+AutoKuma 2.0.0 includes the `kuma` CLI. Generate a JWT from an existing Uptime
+Kuma user without printing the password or token:
+
+```bash
+sudo bash scripts/truenas/bootstrap-autokuma-token.sh \
+  --url '<internal Uptime Kuma URL>' \
+  --username '<Uptime Kuma username>'
+```
+
+The password is requested interactively without echo. The helper runs the
+bundled `/usr/local/bin/kuma login`, extracts the returned JWT and atomically
+writes only:
+
+```dotenv
+AUTOKUMA__KUMA__URL=<selected URL>
+AUTOKUMA__KUMA__AUTH_TOKEN=<generated JWT>
+AUTOKUMA__KUMA__TLS__VERIFY=true
+```
+
+to `/mnt/cpool/autokuma/.env.secrets` mode `0600`.
+
+Prefer an internal URL that reaches Uptime Kuma directly. Do not route this
+controller through Cloudflare Access merely to reach a service on the same
+homelab. If the reviewed internal endpoint intentionally uses a certificate
+that cannot be validated, pass `--tls-no-verify`; otherwise keep TLS
+verification enabled.
+
 ## Create or update the TrueNAS Custom App
 
 Use the idempotent migration helper:

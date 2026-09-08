@@ -35,6 +35,13 @@ services:
       LANGFLOW_URL: http://langflow:7860
       OPENRAG_BACKEND_INTERNAL_URL: http://openrag-backend:8000
       DOCLING_SERVE_URL: ${DOCLING_SERVE_URL:-http://host.docker.internal:5001}
+      # OpenRAG 0.7.1 has no generic openai_like provider. Route its built-in
+      # OpenAI-compatible client to the GPU workstation LiteLLM instead.
+      # LITELLM_IDE_API_KEY remains in /mnt/cpool/openrag/.env.secrets.
+      OPENRAG_LITELLM_API_BASE: ${OPENRAG_LITELLM_API_BASE:-http://172.17.0.57:4000/v1}
+      OPENAI_BASE_URL: ${OPENRAG_LITELLM_API_BASE:-http://172.17.0.57:4000/v1}
+      OPENRAG_LITELLM_CHAT_MODEL: ${OPENRAG_LITELLM_CHAT_MODEL:-qwen}
+      OPENRAG_LITELLM_EMBEDDING_MODEL: ${OPENRAG_LITELLM_EMBEDDING_MODEL:-embedding}
       ENVIRONMENT: production
     healthcheck:
       test:

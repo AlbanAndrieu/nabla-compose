@@ -332,13 +332,23 @@ The diagnostic separates:
 - steady-state containers from the expected one-shot `snuba-migrate` and
   `sentry-migrate` jobs;
 - Docker `starting` / `unhealthy` healthchecks and restart counters;
-- Sentry edge health from Snuba API health.
+- Sentry edge health from Snuba API health;
+- shared Kafka runtime discovery plus the required error-only topic contract;
+- heartbeat file, consumer process and Kafka/Redis/ClickHouse connectivity details
+  for unhealthy consumers.
 
 The Sentry 26.8 consumer healthchecks are heartbeat-file based. A container can
 be running while Docker health remains `starting`; if TrueNAS is still
 `DEPLOYING`, the diagnostic identifies those services without restarting or
 redeploying anything. Do not remove the upstream-style healthchecks merely to
 make the aggregate state turn green.
+
+Long-running Snuba consumers are ordered after
+`sentry-migrate --create-kafka-topics`. The read-only diagnostic verifies
+`events`, `event-replacements`, `snuba-commit-log`,
+`scheduled-subscriptions-events` and `events-subscription-results` against
+the shared Kafka runtime before treating consumer heartbeat failures as an
+isolated process-health problem.
 
 ## Runtime verification
 

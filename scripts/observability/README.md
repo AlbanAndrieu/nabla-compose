@@ -97,7 +97,7 @@ Steady-state budget:
 
 - Prometheus is the **only** component allowed to invoke the pfSense exporter
   metrics endpoint automatically;
-- `pfsense_exporter` scrape interval is 120 seconds with a 30-second scrape
+- `pfsense_exporter` scrape interval is 300 seconds with a 30-second scrape
   timeout;
 - exporter collector concurrency is 1 to avoid bursts of simultaneous pfREST /
   php-fpm work;
@@ -109,10 +109,14 @@ Steady-state budget:
 - Gatus and AutoKuma check TCP/9945 only. They must never call
   `/metrics?target=172.17.0.1` because that would trigger another full
   collector pass.
+- `scripts/truenas/audit-app-lifecycle.sh` validates only the exporter
+  container/config contract by default; a real exporter scrape is opt-in via
+  `PFSENSE_EXPORTER_DEEP_PROBE=1` so routine health audits cannot amplify
+  pfREST/php-fpm load.
 
 This changes the approximate steady-state fan-out from six exporter scrapes per
 minute (Prometheus 15s + Gatus 60s + AutoKuma 60s), each with all collectors and
-up to four concurrent requests, to one serialized three-collector scrape every two minutes (about 1.5 pfREST
+up to four concurrent requests, to one serialized three-collector scrape every five minutes (about 0.6 pfREST
 requests per minute in steady state).
 
 After updating the repository, harden an existing runtime file without exposing
@@ -123,7 +127,7 @@ cd /mnt/cpool/compose/nabla-compose
 sudo bash scripts/truenas/harden-pfsense-exporter-config.sh
 ```
 
-Then reconcile/redeploy Prometheus so the 120-second scrape interval takes
+Then reconcile/redeploy Prometheus so the 300-second scrape interval takes
 effect. Reconcile Gatus so its old HTTP metrics monitor is replaced by a
 lightweight TCP check. If AutoKuma is not registered as a TrueNAS application,
 do not attempt an `app.update autokuma`; its generated repository definition
@@ -132,7 +136,7 @@ still remains the desired state for a future deployment.
 The exporter target timeout is 8 seconds. Slow pfREST endpoints fail fast rather
 than tying up php-fpm for 15-30 seconds per collector. Do not increase collector
 concurrency or timeout to compensate for slow pfREST responses; that moves the
-pressure back onto pfSense. If three collectors every 120 seconds are still
+pressure back onto pfSense. If three collectors every 300 seconds are still
 visible in CPU/php-fpm load, stop the exporter and diagnose pfSense before
 re-enabling telemetry.
 
@@ -194,7 +198,7 @@ FPM initialization failed
 The 4/2 pool edit is a **temporary incident-recovery measure**, not the permanent configuration. `/etc/rc.php_ini_setup` regenerates `/usr/local/lib/php-fpm.conf` and can restore the platform-selected 8/7 values. The permanent fix must therefore use the supported pfSense configuration source or a reviewed generated-config mechanism, not a persistent hand-edit of `/usr/local/lib/php-fpm.conf`.
 
 The exporter fan-out remains part of the permanent fix. Keep the low-impact
-budget documented above (120-second scrape, three serialized essential
+budget documented above (300-second scrape, three serialized essential
 collectors, no duplicate Gatus/AutoKuma metrics scrape) before re-enabling
 optional high-memory services such as Snort.
 

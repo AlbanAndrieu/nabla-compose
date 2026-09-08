@@ -101,26 +101,10 @@ services:
       - "--config.file=/etc/alertmanager/config.yml"
       - "--storage.path=/alertmanager"
 
-  cadvisor:
-    # Disabled from the default TrueNAS application lifecycle. Starting a
-    # deliberately non-restarting cAdvisor and letting it crash makes the whole
-    # multi-service Custom App CRASHED even when Prometheus itself is healthy.
-    profiles:
-      - cadvisor-manual
-    network_mode: bridge
-    image: gcr.io/cadvisor/cadvisor
-    # cAdvisor is intentionally non-restarting: on this TrueNAS host it can
-    # consume >100% CPU and amplify Docker/ZFS I/O pressure. It may be started
-    # explicitly when container-level metrics are needed.
-    restart: "no"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    ports:
-      - 8089:8080
-    # networks: ["traefik_network"]
+  # cAdvisor is intentionally not part of this TrueNAS Custom App. Its retained
+  # manual definition lives in apps/cadvisor/disabled.yml. Historical
+  # ix-prometheus-cadvisor-1 containers must become orphans so app.update can
+  # remove them instead of marking Prometheus CRASHED for optional telemetry.
 
   pfsense-exporter:
     network_mode: bridge
