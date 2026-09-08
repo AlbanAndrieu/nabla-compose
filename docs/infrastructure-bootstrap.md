@@ -13,6 +13,7 @@ TRUENAS_USER=albandrieu
 # Optional overrides; defaults are cpool and br0.
 TRUENAS_POOL=cpool
 TRUENAS_VM_BRIDGE=br0
+TALOS_VM_AUTOSTART=true
 TALOS_ISO_PATH=/mnt/cpool/iso/talos-v1.13.9-ce4c9805-amd64.iso
 TRUENAS_READ_ONLY=true
 TRUENAS_DESTROY_PROTECTION=true
