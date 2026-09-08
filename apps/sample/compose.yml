@@ -103,13 +103,26 @@ services:
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
     networks:
-      intranet:
-        # Stable source address required by TrueNAS system.general.ui_allowlist.
-        # Override only after reviewing the matching TrueNAS /32 allowlist entry.
-        ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}
+      # Dedicated observer network: do not reserve the TrueNAS allowlisted
+      # source address inside the shared intranet pool. Docker may legitimately
+      # hand an unused intranet address to another application (as happened
+      # with Langflow taking 172.16.55.9).
+      sample_observer:
+        ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}
+        gw_priority: 1
+      intranet: {}
       traefik_network: {}
 
 networks:
+  sample_observer:
+    # Compose-managed, single-consumer bridge. The stable /32 belongs only to
+    # FastAPI Sample and cannot collide with dynamic intranet allocations.
+    name: sample-observer
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${FASTAPI_SAMPLE_OBSERVER_SUBNET:-172.16.56.0/28}
+          gateway: ${FASTAPI_SAMPLE_OBSERVER_GATEWAY:-172.16.56.1}
   intranet:
     external: true
     name: intranet
