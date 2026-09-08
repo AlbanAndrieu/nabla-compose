@@ -1343,12 +1343,13 @@ function probe_pfsense_exporter_runtime_if_present {
       ;;
   esac
 
-  if [[ "${state}" == "running" ]] &&
-    curl --fail --silent --show-error --max-time 10 \
+  if [[ "${state}" == "running" ]]; then
+    if curl --fail --silent --show-error --max-time 10 \
       'http://172.17.0.24:9945/metrics?target=172.17.0.1' >/dev/null; then
-    functional_ok "pfSense exporter: metrics path reachable for 172.17.0.1"
-  elif [[ "${state}" == "running" ]]; then
-    functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+      functional_ok "pfSense exporter: metrics path reachable for 172.17.0.1"
+    else
+      functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+    fi
   fi
 }
 
@@ -1402,10 +1403,11 @@ function probe_langflow_runtime_if_present {
   status="${payload##*$'\n'}"
   body="${payload%$'\n'*}"
 
-  if [[ "${status}" == "200" ]] &&
-    jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
-    functional_ok "Langflow readiness: db=ok chat=ok"
-    return
+  if [[ "${status}" == "200" ]]; then
+    if jq -e '.status == "ok" and .db == "ok" and .chat == "ok"' <<<"${body}" >/dev/null 2>&1; then
+      functional_ok "Langflow readiness: db=ok chat=ok"
+      return
+    fi
   fi
 
   if jq -e . >/dev/null 2>&1 <<<"${body}"; then
