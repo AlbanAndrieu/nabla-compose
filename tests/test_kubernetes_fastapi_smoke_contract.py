@@ -17,10 +17,11 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         self.assertIn("test.albandrieu.com", self.smoke)
         self.assertIn("test.albandrieu.com", self.doc)
 
-    def test_smoke_requires_explicit_pinned_image(self) -> None:
+    def test_smoke_requires_explicit_immutable_digest(self) -> None:
         self.assertIn("FASTAPI_SAMPLE_K8S_IMAGE is required", self.smoke)
-        self.assertIn('":latest"', self.smoke)
-        self.assertIn("intentionally rejected", self.smoke)
+        self.assertIn("@sha256:", self.smoke)
+        self.assertIn("64-lowercase-hex-digest", self.smoke)
+        self.assertIn("immutable image digest", self.doc)
 
     def test_workload_uses_restricted_security_controls(self) -> None:
         required = (
@@ -41,11 +42,38 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         self.assertNotIn("TRUENAS_API_KEY", self.smoke)
         self.assertNotIn("NEXUS_PASSWORD", self.smoke)
 
-    def test_validation_covers_deployment_service_and_external_health(self) -> None:
+    def test_preflight_checks_ingress_class_and_public_dns(self) -> None:
+        required = (
+            "--preflight",
+            'kubectl get ingressclass "${INGRESS_CLASS}"',
+            "socket.getaddrinfo",
+            "public DNS lookup failed",
+        )
+        for marker in required:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.smoke)
+
+    def test_validation_covers_rollout_service_image_and_public_endpoints(self) -> None:
         required = (
             "kubectl rollout status deployment/fastapi-sample",
             "Service has no ready endpoints",
+            "deployed image drift",
             'https://${HOST}/health',
+            "K8S_FASTAPI_SMOKE_API_PATH",
+            "/v2/version",
+        )
+        for marker in required:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.smoke)
+
+    def test_success_output_correlates_kubernetes_runtime(self) -> None:
+        required = (
+            "pod_name=",
+            "pod_node=",
+            "pod_ip=",
+            "service_ip=",
+            "ingress_address=",
+            "correlation pod=",
         )
         for marker in required:
             with self.subTest(marker=marker):

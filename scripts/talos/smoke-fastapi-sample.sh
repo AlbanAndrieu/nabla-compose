@@ -6,6 +6,7 @@ KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
 NAMESPACE="${K8S_FASTAPI_SMOKE_NAMESPACE:-nabla-fastapi-smoke}"
 HOST="${K8S_FASTAPI_SMOKE_HOST:-test.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
+API_PATH="${K8S_FASTAPI_SMOKE_API_PATH:-/v2/version}"
 IMAGE="${FASTAPI_SAMPLE_K8S_IMAGE:-}"
 MODE="${1:---render}"
 TMPDIR_SMOKE=""
@@ -27,8 +28,9 @@ Usage:
 
 Modes:
   --render          render the Kubernetes manifest only (default)
+  --preflight       verify kubeconfig, IngressClass and public DNS without deployment
   --server-dry-run  validate the manifest against the live API server without persisting it
-  --apply           deploy/update the smoke workload and verify rollout + external /health
+  --apply           deploy/update the smoke workload and verify rollout + public endpoints
   --cleanup         delete the smoke namespace
 
 Environment:
@@ -36,16 +38,48 @@ Environment:
   K8S_FASTAPI_SMOKE_NAMESPACE       default: nabla-fastapi-smoke
   K8S_FASTAPI_SMOKE_HOST            default: test.albandrieu.com
   K8S_FASTAPI_SMOKE_INGRESS_CLASS   default: traefik
-  FASTAPI_SAMPLE_K8S_IMAGE           required for render/dry-run/apply
+  K8S_FASTAPI_SMOKE_API_PATH        default: /v2/version
+  FASTAPI_SAMPLE_K8S_IMAGE          required for render/dry-run/apply and must end in @sha256:<digest>
 EOF
 }
 
-for command in kubectl curl; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "$1 is required"
+}
+
+require_cluster() {
+  require_command kubectl
+  [[ -s "${KUBECONFIG}" ]] || fail "kubeconfig not found: ${KUBECONFIG}"
+  export KUBECONFIG
+}
+
+resolve_public_host() {
+  require_command python3
+  python3 - "${HOST}" <<'PY'
+import socket
+import sys
+
+host = sys.argv[1]
+addresses = sorted({item[4][0] for item in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)})
+if not addresses:
+    raise SystemExit(f"no DNS address found for {host}")
+print(",".join(addresses))
+PY
+}
+
+check_ingress_preflight() {
+  require_cluster
+  kubectl get ingressclass "${INGRESS_CLASS}" >/dev/null ||
+    fail "IngressClass not found: ${INGRESS_CLASS}"
+
+  local addresses
+  addresses="$(resolve_public_host)" || fail "public DNS lookup failed for ${HOST}"
+  [[ -n "${addresses}" ]] || fail "public DNS lookup returned no address for ${HOST}"
+  printf '✅ ingress preflight: class=%s host=%s addresses=%s\n'     "${INGRESS_CLASS}" "${HOST}" "${addresses}"
+}
 
 case "${MODE}" in
-  --render | --server-dry-run | --apply | --cleanup) ;;
+  --render | --preflight | --server-dry-run | --apply | --cleanup) ;;
   -h | --help)
     usage
     exit 0
@@ -56,17 +90,20 @@ case "${MODE}" in
     ;;
 esac
 
-[[ -s "${KUBECONFIG}" ]] || fail "kubeconfig not found: ${KUBECONFIG}"
-export KUBECONFIG
-
 if [[ "${MODE}" == "--cleanup" ]]; then
+  require_cluster
   kubectl delete namespace "${NAMESPACE}" --ignore-not-found --wait=true
   exit 0
 fi
 
+if [[ "${MODE}" == "--preflight" ]]; then
+  check_ingress_preflight
+  exit 0
+fi
+
 [[ -n "${IMAGE}" ]] || fail "FASTAPI_SAMPLE_K8S_IMAGE is required"
-if [[ "${IMAGE}" == *":latest" ]]; then
-  fail "FASTAPI_SAMPLE_K8S_IMAGE must be pinned; :latest is intentionally rejected"
+if [[ ! "${IMAGE}" =~ @sha256:[0-9a-f]{64}$ ]]; then
+  fail "FASTAPI_SAMPLE_K8S_IMAGE must be immutable and end in @sha256:<64-lowercase-hex-digest>"
 fi
 
 TMPDIR_SMOKE="$(mktemp -d)"
@@ -199,26 +236,75 @@ case "${MODE}" in
     cat "${MANIFEST}"
     ;;
   --server-dry-run)
+    check_ingress_preflight
     kubectl apply --dry-run=server -f "${MANIFEST}"
     ;;
   --apply)
+    check_ingress_preflight
+    require_command curl
+
     kubectl apply -f "${MANIFEST}"
-    kubectl rollout status deployment/fastapi-sample       --namespace "${NAMESPACE}"       --timeout=180s
+    kubectl rollout status deployment/fastapi-sample \
+      --namespace "${NAMESPACE}" \
+      --timeout=180s
 
     endpoint_count="$(
-      kubectl get endpoints fastapi-sample         --namespace "${NAMESPACE}"         -o jsonpath='{.subsets[*].addresses[*].ip}' |
+      kubectl get endpoints fastapi-sample \
+        --namespace "${NAMESPACE}" \
+        -o jsonpath='{.subsets[*].addresses[*].ip}' |
         wc -w |
         tr -d ' '
     )"
     [[ "${endpoint_count}" -ge 1 ]] ||
       fail "fastapi-sample Service has no ready endpoints"
 
-    printf '🔎 validating external FastAPI smoke: https://%s/health\n' "${HOST}"
-    response="$(
-      curl --fail --silent --show-error         --connect-timeout 5         --max-time 15         "https://${HOST}/health"
+    observed_image="$(
+      kubectl get deployment fastapi-sample \
+        --namespace "${NAMESPACE}" \
+        -o jsonpath='{.spec.template.spec.containers[?(@.name=="fastapi-sample")].image}'
     )"
-    [[ -n "${response}" ]] || fail "external /health returned an empty response"
+    [[ "${observed_image}" == "${IMAGE}" ]] ||
+      fail "deployed image drift: expected=${IMAGE} observed=${observed_image}"
 
-    printf '✅ FastAPI Kubernetes smoke healthy: deployment, Service endpoints and https://%s/health\n' "${HOST}"
+    pod_name="$(
+      kubectl get pods \
+        --namespace "${NAMESPACE}" \
+        -l app.kubernetes.io/name=fastapi-sample,app.kubernetes.io/component=smoke \
+        -o jsonpath='{.items[0].metadata.name}'
+    )"
+    pod_node="$(kubectl get pod "${pod_name}" --namespace "${NAMESPACE}" -o jsonpath='{.spec.nodeName}')"
+    pod_ip="$(kubectl get pod "${pod_name}" --namespace "${NAMESPACE}" -o jsonpath='{.status.podIP}')"
+    service_ip="$(kubectl get service fastapi-sample --namespace "${NAMESPACE}" -o jsonpath='{.spec.clusterIP}')"
+    ingress_address="$(
+      kubectl get ingress fastapi-sample \
+        --namespace "${NAMESPACE}" \
+        -o jsonpath='{range .status.loadBalancer.ingress[*]}{.ip}{.hostname}{" "}{end}' |
+        xargs
+    )"
+    [[ -n "${ingress_address}" ]] || ingress_address="<not-published-in-status>"
+
+    printf '🔎 correlation pod=%s node=%s pod_ip=%s service_ip=%s ingress=%s image=%s\n' \
+      "${pod_name}" "${pod_node}" "${pod_ip}" "${service_ip}" "${ingress_address}" "${observed_image}"
+
+    printf '🔎 validating external FastAPI smoke: https://%s/health\n' "${HOST}"
+    health_response="$(
+      curl --fail --silent --show-error \
+        --connect-timeout 5 \
+        --max-time 15 \
+        "https://${HOST}/health"
+    )"
+    [[ -n "${health_response}" ]] || fail "external /health returned an empty response"
+
+    printf '🔎 validating external FastAPI API path: https://%s%s\n' "${HOST}" "${API_PATH}"
+    api_response="$(
+      curl --fail --silent --show-error \
+        --connect-timeout 5 \
+        --max-time 15 \
+        "https://${HOST}${API_PATH}"
+    )"
+    [[ -n "${api_response}" ]] || fail "external ${API_PATH} returned an empty response"
+
+    printf '✅ FastAPI Kubernetes smoke healthy: rollout, Service endpoints, immutable image, /health and %s via https://%s\n' \
+      "${API_PATH}" "${HOST}"
     ;;
 esac
