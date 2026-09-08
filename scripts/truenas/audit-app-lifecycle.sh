@@ -1277,7 +1277,6 @@ function probe_pyroscope_fastapi_profile {
 }
 
 
-
 function probe_openrag_runtime_if_present {
   local backend="openrag-backend"
   local frontend="openrag-frontend"
@@ -1312,19 +1311,24 @@ function probe_openrag_runtime_if_present {
     functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8 \
+    http://127.0.0.1:8000/health >/dev/null; then
     functional_ok "OpenRAG backend: /health HTTP 200"
   else
     functional_fail "OpenRAG backend: /health failed"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8 \
+    http://127.0.0.1:8000/search/health >/dev/null; then
     functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
   else
     functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
   fi
 
-  if collective="$(curl --fail --silent --show-error --max-time 8     http://172.17.0.24:31060/health/collective_health 2>/dev/null)" &&
+  if collective="$(
+    curl --fail --silent --show-error --max-time 8 \
+      http://172.17.0.24:31060/health/collective_health 2>/dev/null
+  )" &&
     jq -e '
       .status == "ok" and
       .pods.backend.alive == true and
