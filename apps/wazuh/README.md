@@ -70,20 +70,22 @@ same reviewed change.
 
 ## TrueNAS deployment
 
-After the bootstrap is green:
+Use the canonical deploy helper:
 
 ```bash
-sudo midclt call -j app.update wazuh \
-'{
-  "custom_compose_config": {
-    "include": [
-      "/mnt/cpool/compose/nabla-compose/apps/wazuh/compose.yml"
-    ]
-  }
-}'
-
-sudo midclt call -j app.redeploy wazuh
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/deploy-wazuh.sh
 ```
+
+It always runs `bootstrap-wazuh.sh --apply` first. Therefore a missing
+`/mnt/cpool/wazuh/.env.secrets` is created before TrueNAS parses the Compose,
+`API_PASSWORD` is generated without being printed, TLS material is generated
+or verified, and only then are `app.update wazuh` and `app.redeploy wazuh`
+executed.
+
+Do not call `app.update wazuh` directly on a fresh host before this bootstrap:
+the Compose intentionally declares the runtime env file as `required: true`
+and will fail closed when it is absent.
 
 Then inspect only the Wazuh project:
 
