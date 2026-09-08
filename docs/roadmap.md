@@ -33,25 +33,91 @@ notes remain in the specialized roadmaps:
 
 ## Immediate runtime stabilization gate
 
-The active wave is **Talos P0 + Sentry final synthetic-event acceptance**, with
-Wazuh and Scrutiny stabilization in parallel. **Docling and OpenRAG/LiteLLM
-activation remain blocked until the post-convergence synthetic Sentry event smoke
-is green.**
+**Priority #1 is now the TrueNAS-hosted FastAPI Sample runtime itself.** Before
+continuing Talos/Kubara/CSI, prove that the local deployment can consume every
+critical homelab API/observability dependency that it is expected to expose in
+`/api`. FastAPI Cloud remains the comparison baseline where useful, but a
+green cloud observation must not mask a broken local path.
 
-1. [x] **FastAPI Sample** — runtime/observer/TLS/API acceptance green.
-2. [x] **pfSense / Prometheus** — low-impact exporter profile and Prometheus runtime green.
-3. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle convergence is proven (`exit=0`, aggregate `RUNNING`, zero unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba healthy); rerun only the synthetic event smoke and preserve the event-id/ClickHouse proof.
-4. [ ] **Talos P0 — active** — apply/prove VM autostart, run the base-cluster validator, then DNS/CNI, CoreDNS, Service/ClusterIP, cross-node routing and the immutable FastAPI smoke on `test.albandrieu.com`.
-5. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material, deploy manager/indexer/dashboard, and require `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch forwarder.
-6. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository cutover/acceptance helper.
-7. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the Sentry acceptance gate above is green, then prove document ingestion/index/search end-to-end.
-8. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus Docling + one ingestion/search path are green, activate the workstation GPU route and prove chat/tool-calling + embeddings.
-9. [ ] **Secondary runtime debt** — AutoKuma registration, Pyroscope readiness, Bichon OAuth2 re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
+1. [ ] **FastAPI Sample local dependency convergence — P0 / priority #1** —
+   make the TrueNAS-hosted runtime prove, from inside the `fastapi-sample`
+   container, the same intended read-only integrations used by the health board:
+   TrueNAS API, pfSense API, Cloudflare API, Prometheus, local Sentry and local
+   Pyroscope. Do not call the local runtime stable until all six dependencies
+   have an explicit transport/auth/application-level result and failures expose
+   the failing phase in `/api`.
+2. [ ] **TrueNAS API local parity — first blocker** — explain why the
+   TrueNAS-hosted FastAPI reports the TrueNAS observer unhealthy/unreachable
+   while FastAPI Cloud can observe TrueNAS. Treat the dedicated
+   `fastapi_observer` RBAC difference versus the temporary cloud
+   `albandrieu` identity as one hypothesis, not the conclusion: the direct
+   verification already proves `fastapi_observer` authentication,
+   `APPS_READ,CATALOG_READ`, `system.version` and 94 apps from
+   `app.query`. Compare the actual FastAPI runtime status, deployed revision,
+   canonical environment, WebSocket path, proxy/`NO_PROXY`, DNS route,
+   source allowlist and API failure phase. Require the local runtime itself to
+   report `configured=true`, `reachable=true`, `stale=false` and the same
+   intended app inventory before changing RBAC.
+3. [ ] **pfSense API from local FastAPI** — prove the TrueNAS-hosted container
+   reaches the split-DNS/LAN pfSense endpoint with the dedicated posture and
+   security credentials, classify DNS/TCP/TLS/auth/response failures separately,
+   and require the low-impact posture/service/Unbound path plus the intended
+   security-table observation to succeed without using the public/shared-WAN
+   diagnostic model.
+4. [ ] **Cloudflare API from local FastAPI** — prove the local runtime can
+   authenticate to the Cloudflare API with its intended read-only token/service
+   credential and retrieve the account/tunnel/Access-policy evidence required by
+   the health board. Distinguish Cloudflare API authorization from Cloudflare
+   Access protection of public service URLs.
+5. [ ] **Prometheus API from local FastAPI** — prove the local runtime can query
+   the local Prometheus HTTP API, not merely that the Prometheus container is
+   `RUNNING`; require a cheap instant query and the TrueNAS/pfSense/core target
+   metadata used by FastAPI, with bounded timeout/cache behaviour.
+6. [ ] **Sentry local API/event path** — keep the already-green Sentry lifecycle,
+   then prove FastAPI can authenticate to the local Sentry API through the
+   intended edge/Cloudflare path and complete the pending synthetic event smoke;
+   retain event id plus Relay/Kafka/Snuba/ClickHouse evidence.
+7. [ ] **Pyroscope local API/query path** — prove the local
+   `http://172.17.0.24:4040` endpoint is ready and that FastAPI can query/read
+   its own `service_name=fastapi-sample` profiling data; surface readiness,
+   query/auth/transport failures independently instead of only checking that the
+   container exists.
+8. [ ] **Cross-runtime A/B report** — extend the runtime comparison so each of
+   the six dependencies reports `local` versus `FastAPI Cloud` with
+   configured/reachable/authenticated/application-result/stale/error-stage
+   evidence. The comparison must identify which runtime failed instead of using
+   generic messages such as “one runtime is unhealthy”.
+9. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
+   convergence is proven (`exit=0`, aggregate `RUNNING`, zero
+   unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
+   healthy); finish the synthetic event proof as part of the local FastAPI gate.
+10. [ ] **Talos P0 — resumes after FastAPI local dependency convergence** —
+    apply/prove VM autostart, run the base-cluster validator, then DNS/CNI,
+    CoreDNS, Service/ClusterIP, cross-node routing and the immutable FastAPI smoke
+    on `test.albandrieu.com`.
+11. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material,
+    deploy manager/indexer/dashboard, and require
+    `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch
+    forwarder.
+12. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision
+    a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository
+    cutover/acceptance helper.
+13. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the
+    Sentry acceptance gate above is green, then prove document
+    ingestion/index/search end-to-end.
+14. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus
+    Docling + one ingestion/search path are green, activate the workstation GPU
+    route and prove chat/tool-calling + embeddings.
+15. [ ] **Secondary runtime debt** — AutoKuma registration, Bichon OAuth2
+    re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
 
-**Ordering gate:** Sentry must be accepted before Docling/OpenRAG-LiteLLM.
-CSI still waits for the complete Kubernetes P0 networking and ingress smoke.
+**Ordering gate:** the FastAPI local dependency convergence above is the first
+blocking gate. Talos/Kubara implementation work may be prepared, but Kubernetes
+P0 acceptance and CSI progression resume only after the local FastAPI runtime
+can prove its critical TrueNAS/pfSense/Cloudflare/Prometheus/Sentry/Pyroscope
+dependencies. Sentry must also be accepted before Docling/OpenRAG-LiteLLM.
 The minimal Kubara v0.14.0 bootstrap needed for Argo CD platform reconciliation
-plus the single intended Traefik ingress controller is allowed before CSI;
+plus the single intended Traefik ingress controller remains allowed before CSI;
 persistent/stateful workloads remain blocked until CSI persistence and rollback
 are proven. Wazuh/Scrutiny work may proceed in parallel because it does not
 replace either acceptance gate.
