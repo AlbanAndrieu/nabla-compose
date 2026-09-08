@@ -54,7 +54,7 @@ repos:
       - id: shfmt-docker
         name: "🐚 shell · Format shell scripts"
         exclude: '^build\.sh$'
-        args: ['-ln=bash']
+        args: ['-ln=bash', '-i=2']
 
   - repo: https://github.com/detailyang/pre-commit-shell
     rev: v1.0.6
