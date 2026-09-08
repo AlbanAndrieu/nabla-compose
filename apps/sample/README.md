@@ -51,10 +51,11 @@ The TrueNAS Compose deployment intentionally enables the internal observer path:
 FASTAPI_RUNTIME_MODE: homelab
 SICKZ_INTERNAL_NETWORK: "true"
 HOMELAB_INTERNAL_PROBES_ENABLED: "true"
+PFSENSE_SECURITY_PATH_MODE: out_of_band
 PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040
 ```
 
-Keep these values aligned. `SICKZ_INTERNAL_NETWORK` describes the runtime/network posture, while `HOMELAB_INTERNAL_PROBES_ENABLED` independently enables the LAN service probes. Pyroscope must use the TrueNAS LAN endpoint rather than `localhost:4040`, because `localhost` inside the FastAPI container refers to FastAPI itself.
+Keep these values aligned. `SICKZ_INTERNAL_NETWORK` describes the runtime/network posture, while `HOMELAB_INTERNAL_PROBES_ENABLED` independently enables the LAN service probes. `PFSENSE_SECURITY_PATH_MODE=out_of_band` is required for this TrueNAS runtime because `home.albandrieu.com` is pinned to pfSense LAN `172.17.0.1`; the security observer therefore does not share the public WAN control path it diagnoses. Pyroscope must use the TrueNAS LAN endpoint rather than `localhost:4040`, because `localhost` inside the FastAPI container refers to FastAPI itself.
 
 The health observer is deliberately local-first on the homelab runtime:
 
@@ -70,7 +71,7 @@ After deployment, verify the effective runtime without printing unrelated secret
 
 ```bash
 docker exec fastapi-sample env | \
-  grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
+  grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PFSENSE_SECURITY_PATH_MODE|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
 ```
 
 For self-hosted Sentry, keep the project DSN in `/mnt/cpool/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
