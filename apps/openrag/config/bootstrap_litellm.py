@@ -153,9 +153,19 @@ def _apply_openrag_config(
     if not config_manager.save_config_file(config):
         raise RuntimeError("OpenRAG refused to persist the LiteLLM-backed provider")
 
-    from api.settings.langflow_sync import reapply_all_settings
+    from api.settings.langflow_sync import (
+        _upsert_langflow_global_variable,
+        reapply_all_settings,
+    )
 
-    asyncio.run(reapply_all_settings())
+    async def _sync_langflow() -> None:
+        # OpenRAG 0.7.1 does not sync OPENAI_BASE_URL itself. Persist this
+        # non-secret provider variable in Langflow so both environment-fallback
+        # and database/global-variable resolution point at the workstation.
+        await _upsert_langflow_global_variable("OPENAI_BASE_URL", base_url)
+        await reapply_all_settings()
+
+    asyncio.run(_sync_langflow())
 
 
 def main() -> int:
