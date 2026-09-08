@@ -1841,8 +1841,11 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       `/app/flows/backup` remains;
 - [ ] review and deploy a repository-managed Docling service or another explicit
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
-- [ ] validate document ingestion, indexing and search end-to-end after Docling
-      is healthy;
+- [ ] prove Docling health from `openrag-backend`, then validate document
+      ingestion, indexing and search end-to-end;
+- [ ] **activation gate:** do not activate OpenRAG ↔ LiteLLM until OpenRAG
+      runtime health remains stable **and** Docling plus one end-to-end
+      ingestion/search path are green;
 - [x] prepare the direct OpenRAG 0.7.1 -> workstation LiteLLM path at
       `http://172.17.0.57:4000/v1` by using the built-in `openai` provider
       as an OpenAI-protocol adapter plus `OPENAI_BASE_URL`; reuse
@@ -1855,9 +1858,13 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       `embedding` alias while retaining `embedding-local` as an explicit
       TrueNAS Ollama rollback target and `workstation-qwen` for a future
       TrueNAS-gateway chat path;
-- [ ] run the workstation LiteLLM bootstrap check, then `--apply`, and prove
-      OpenRAG chat/tool-calling plus embeddings against the GPU workstation
-      before treating the model path as operational;
+- [ ] **after the Docling gate above is green**, run the workstation LiteLLM
+      bootstrap check, then `--apply`, and prove OpenRAG chat/tool-calling plus
+      embeddings against the GPU workstation before treating the model path as
+      operational;
+- [ ] after direct workstation routing is proven, validate the optional
+      OpenRAG/consumer -> TrueNAS LiteLLM -> workstation proxy path and the
+      explicit `embedding-local` TrueNAS rollback alias;
 - [ ] after a stable OpenRAG release newer than 0.7.1 is validated, migrate this
       compatibility route to the native generic `openai_like` provider; until
       then do not treat the 0.7.1 OpenAI provider discovery/validation endpoint
@@ -1880,8 +1887,9 @@ Before starting additional services, finish this runtime recovery sequence:
    consumers plus Snuba API and Sentry web health to become healthy, then run
    the synthetic event smoke;
 3. **OpenRAG:** retain the already-green backend/OpenSearch/global-Langflow
-   collective health as a regression gate; the next functional gap is Docling
-   and end-to-end document ingestion, not another Langflow/OpenSearch rebuild;
+   collective health as a regression gate; install/validate Docling and prove
+   end-to-end document ingestion first, then activate the prepared LiteLLM
+   workstation integration; do not invert this order;
 4. **Wazuh:** bootstrap the API secret/TLS set, redeploy only after the
    prerequisites pass, then stabilize manager -> indexer -> dashboard before
    enabling the shared-OpenSearch forwarder or exposing the dashboard;
