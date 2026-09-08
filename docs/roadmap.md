@@ -26,6 +26,14 @@ notes remain in the specialized roadmaps:
 
 Do not start CSI installation until all items below are green.
 
+Current live blocker (2026-09-08): the workstation currently receives
+`no route to host` while connecting to the Talos API at
+`172.17.0.50:50000`. The cluster was previously validated Ready, so treat this
+as a reachability/runtime regression first. The Talos VMs are intentionally
+declared with `autostart=false`; verify VM power state, `br0` attachment,
+neighbor resolution and TCP/50000 before changing Talos machine configuration.
+
+- [ ] restore and prove workstation reachability to Talos API TCP/50000 on `.50`, `.51` and `.52`;
 - [ ] run `scripts/talos/validate-cluster.sh` immediately before the network smoke;
 - [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
