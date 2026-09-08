@@ -133,8 +133,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:6060", prometheus)
         self.assertIn("- job_name: truenas_node", prometheus)
         self.assertIn("172.17.0.24:9100", prometheus)
-        self.assertIn("- job_name: truenas_cadvisor", prometheus)
-        self.assertIn("172.17.0.24:8089", prometheus)
+        self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
+        self.assertNotIn("172.17.0.24:8089", prometheus)
 
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
@@ -157,7 +157,8 @@ class ObservabilityContractTests(unittest.TestCase):
             "\n  pfsense-exporter:\n", 1
         )[0]
         self.assertIn('restart: "no"', cadvisor)
-        self.assertIn("- job_name: truenas_cadvisor", (
+        self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
+        self.assertNotIn("- job_name: truenas_cadvisor", (
             ROOT / "apps" / "prometheus" / "prometheus.yml"
         ).read_text(encoding="utf-8"))
         exporter_alert = rules.split(
