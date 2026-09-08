@@ -224,6 +224,29 @@ fi
 emit INFO unbound.msg_cache_size "$(sed -n 's/^[[:space:]]*msg-cache-size:[[:space:]]*//p' /var/unbound/unbound.conf 2>/dev/null | head -n 1)" "native message cache"
 emit INFO unbound.rrset_cache_size "$(sed -n 's/^[[:space:]]*rrset-cache-size:[[:space:]]*//p' /var/unbound/unbound.conf 2>/dev/null | head -n 1)" "native rrset cache"
 
+if pgrep -x unbound >/dev/null 2>&1; then
+  emit PASS service.unbound running "Unbound DNS Resolver process is running"
+else
+  emit FAIL service.unbound stopped "critical LAN DNS resolver is down"
+fi
+
+if unbound-control -c /var/unbound/unbound.conf status 2>/dev/null | grep -q 'is running'; then
+  emit PASS unbound.control_status running "Unbound control socket confirms the resolver is running"
+else
+  emit FAIL unbound.control_status unavailable "Unbound control status is unavailable; inspect daemon state and recent resolver logs"
+fi
+
+if command -v drill >/dev/null 2>&1; then
+  public_dns_answer="$(drill @127.0.0.1 example.com A 2>/dev/null | awk '$4 == "A" {print $5; exit}')"
+  if [ -n "$public_dns_answer" ]; then
+    emit PASS unbound.public_dns_resolution "$public_dns_answer" "localhost Unbound resolved example.com"
+  else
+    emit FAIL unbound.public_dns_resolution failed "localhost Unbound could not resolve a public hostname"
+  fi
+else
+  emit WARN unbound.public_dns_resolution unavailable "drill is unavailable; process/control checks ran but functional public DNS was not proven"
+fi
+
 unbound_rss_kb="$(ps axo rss,command 2>/dev/null | awk '/\/usr\/local\/sbin\/unbound -c \/var\/unbound\/unbound.conf/ {print $1; exit}')"
 unbound_rss_kb="$(number_or_zero "$unbound_rss_kb")"
 if [ "$unbound_rss_kb" -ge "$unbound_fail_rss_kb" ]; then
@@ -516,8 +539,30 @@ api_collector() {
 
   configured="$(jq -r '.pfsense.dns.configured // .pfsense.configured // "unknown"' <<<"${payload}")"
   reachable="$(jq -r '.pfsense.dns.reachable // .pfsense.reachable // "unknown"' <<<"${payload}")"
-  printf 'INFO\tapi.pfsense_configured\t%s\tposture reported by fastapi-sample\n' "${configured}"
-  printf 'INFO\tapi.pfsense_reachable\t%s\tposture reported by fastapi-sample\n' "${reachable}"
+
+  case "${configured}" in
+    true)
+      printf 'PASS\tapi.pfsense_configured\ttrue\tpfSense DNS posture is configured in fastapi-sample\n'
+      ;;
+    false)
+      printf 'FAIL\tapi.pfsense_configured\tfalse\tpfSense DNS posture is not configured; LAN DNS cannot be considered healthy\n'
+      ;;
+    *)
+      printf 'WARN\tapi.pfsense_configured\t%s\tpfSense DNS configured state is unknown\n' "${configured}"
+      ;;
+  esac
+
+  case "${reachable}" in
+    true)
+      printf 'PASS\tapi.pfsense_reachable\ttrue\tfastapi-sample reports pfSense DNS reachable\n'
+      ;;
+    false)
+      printf 'FAIL\tapi.pfsense_reachable\tfalse\tcritical pfSense/Unbound DNS path is unreachable\n'
+      ;;
+    *)
+      printf 'WARN\tapi.pfsense_reachable\t%s\tpfSense DNS reachability state is unknown\n' "${reachable}"
+      ;;
+  esac
 
   if healthz="$(curl -fsS --max-time 12 "${base}/healthz" 2>/dev/null)"; then
     if jq -e '.checks.pfsense != null' >/dev/null 2>&1 <<<"${healthz}"; then

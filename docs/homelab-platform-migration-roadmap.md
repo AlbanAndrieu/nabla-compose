@@ -227,10 +227,14 @@ must not be treated as evidence that the services are intentionally public.
 - [ ] reconsider Service Watchdog for Unbound only after a measured observation
   window proves stable memory headroom and the outage cause is non-memory-related;
   if enabled later, add an alert/incident counter so repeated restarts remain visible;
-- [ ] add a critical functional DNS health check that independently verifies
-  `172.17.0.1:53` process/listener state and resolution of a public hostname;
-  separately verify the `int.albandrieu.com -> 172.17.0.24:53` delegation so a
-  Pi-hole outage cannot be confused with loss of general LAN DNS;
+- [x] add a critical functional Unbound health check: the SSH/local pfSense
+  posture audit now fails when the `unbound` process is absent, its control
+  socket is unhealthy, or a direct localhost query cannot resolve
+  `example.com`; API mode now fails when FastAPI Sample reports
+  `.pfsense.dns.reachable=false`;
+- [ ] add a separate split-DNS delegation check for
+  `int.albandrieu.com -> 172.17.0.24:53` so a Pi-hole/private-zone outage
+  cannot be confused with loss of general LAN DNS;
 - [ ] alert on Unbound down, resolver failure rate and pfSense memory guardrails,
   and surface the state in the homelab/FastAPI status presentation so Android
   "connected without Internet" incidents can be attributed quickly;
