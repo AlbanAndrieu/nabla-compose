@@ -1041,6 +1041,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('config.knowledge.embedding_provider = "openai"', bootstrap)
         self.assertIn('os.environ["OPENAI_BASE_URL"] = base_url', bootstrap)
         self.assertIn("reapply_all_settings", bootstrap)
+        self.assertIn("_upsert_langflow_global_variable", bootstrap)
+        self.assertIn('"OPENAI_BASE_URL", base_url', bootstrap)
         self.assertNotIn("GenericProviderConfig", bootstrap)
         self.assertNotIn("print(api_key", bootstrap)
 
