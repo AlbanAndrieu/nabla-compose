@@ -21,6 +21,52 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/bichon/.env.secrets", compose)
         self.assertIn('user: "568:568"', compose)
 
+    def test_openhands_uses_explicit_truenas_paths(self) -> None:
+        compose = self.read("apps/openhands/compose.yml")
+        readme = self.read("apps/openhands/README.md")
+
+        self.assertNotIn("${HOME}", compose)
+        self.assertIn("pull_policy: missing", compose)
+        self.assertIn(
+            "WORKSPACE_MOUNT_PATH: /mnt/cpool/openhands/workspace",
+            compose,
+        )
+        self.assertIn(
+            "/mnt/cpool/openhands/workspace:/opt/workspace_base",
+            compose,
+        )
+        self.assertIn(
+            "/mnt/cpool/openhands/state:/.openhands-state",
+            compose,
+        )
+        self.assertIn('"172.17.0.24:3010:3000"', compose)
+        self.assertNotIn("worspace_base", compose)
+        self.assertIn("docker.all-hands.dev/v2/", readme)
+        self.assertIn("pfSense/Unbound", readme)
+
+    def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
+        compose = self.read("apps/squid/compose.yml")
+
+        self.assertIn('"172.17.0.24:3128:3128"', compose)
+        self.assertIn("    networks:\n      - intranet", compose)
+        self.assertIn(
+            "networks:\n  intranet:\n    external: true\n    name: intranet",
+            compose,
+        )
+
+    def test_crowdsec_secret_and_first_install_are_runtime_safe(self) -> None:
+        compose = self.read("apps/crowdsec/compose.yml")
+        readme = self.read("apps/crowdsec/README.md")
+        akvorado_readme = self.read("apps/akvorado/README.md")
+
+        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", compose)
+        self.assertNotIn("${CROWDSEC_PFSENSE_BOUNCER_KEY}", compose)
+        self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", readme)
+        self.assertIn('app_name: "crowdsec"', readme)
+        self.assertIn("custom_compose_config_string", readme)
+        self.assertIn('app_name: "akvorado"', akvorado_readme)
+        self.assertIn("custom_compose_config_string", akvorado_readme)
+
     def test_gatus_persists_generated_history(self) -> None:
         compose = self.read("apps/gatus/compose.yml")
         config = self.read("apps/gatus/config/config.yml")
