@@ -2,8 +2,9 @@
 set -euo pipefail
 
 CONTAINER="${FASTAPI_SAMPLE_CONTAINER:-fastapi-sample}"
-NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-intranet}"
-EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}"
+NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
+EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.56.9}"
+LEGACY_SOURCE_IP="${FASTAPI_SAMPLE_LEGACY_OBSERVER_IP:-172.16.55.9}"
 TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
 
@@ -64,6 +65,25 @@ then
 fi
 
 printf 'OK: TrueNAS ui_allowlist permits %s\n' "${container_ip}"
+
+if python3 - "${LEGACY_SOURCE_IP}" "${allowlist_json}" <<'PY'
+import ipaddress
+import json
+import sys
+
+address = ipaddress.ip_address(sys.argv[1])
+allowlist = json.loads(sys.argv[2])
+for entry in allowlist:
+    try:
+        if address in ipaddress.ip_network(entry, strict=False):
+            raise SystemExit(0)
+    except ValueError:
+        continue
+raise SystemExit(1)
+PY
+then
+  fail "legacy observer source ${LEGACY_SOURCE_IP} is still allowlisted; it belongs to the shared intranet pool and may be owned by another container"
+fi
 
 printf '==> sanitized FastAPI TrueNAS credential selection\n'
 docker exec -i "${CONTAINER}" /code/.venv/bin/python - <<'PY'
