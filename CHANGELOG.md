@@ -1,3 +1,10 @@
+# [0.22.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.21.1...0.22.0) (2026-09-08)
+
+
+### Features
+
+* **ci:** add agent-first pre-build quality gate ([#132](https://github.com/AlbanAndrieu/nabla-compose/issues/132)) ([54160a8](https://github.com/AlbanAndrieu/nabla-compose/commit/54160a80344fdc139b62fb0b4af8341be6d3b2be))
+
 ## [0.21.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.21.0...0.21.1) (2026-09-07)
 
 
