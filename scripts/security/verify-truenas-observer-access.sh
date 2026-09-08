@@ -219,32 +219,28 @@ if authenticated_username != expected_username:
         f"auth.me identity mismatch: expected {expected_username!r}, got {authenticated_username!r}"
     )
 
-roles: set[str] = set()
+privilege = identity.get("privilege")
+if not isinstance(privilege, dict):
+    raise SystemExit("auth.me did not expose the expected privilege object")
 
+raw_roles = privilege.get("roles")
+if not isinstance(raw_roles, list):
+    raise SystemExit("auth.me did not expose the expected privilege.roles list")
 
-def collect_roles(value: object) -> None:
-    if isinstance(value, dict):
-        for key, nested in value.items():
-            if key == "roles" and isinstance(nested, list):
-                roles.update(str(role) for role in nested)
-            else:
-                collect_roles(nested)
-    elif isinstance(value, list):
-        for nested in value:
-            collect_roles(nested)
-
-
-collect_roles(identity.get("privilege"))
+roles = set(map(str, raw_roles))
 if not roles:
     raise SystemExit("auth.me did not expose any effective RBAC roles")
 
 dangerous_roles = sorted(
-    role
-    for role in roles
-    if role in {"FULL_ADMIN", "SHARING_ADMIN", "REPLICATION_ADMIN"}
-    or "_WRITE" in role
-    or "_DELETE" in role
-    or role.endswith("_FULL_CONTROL")
+    filter(
+        lambda role: (
+            role in {"FULL_ADMIN", "SHARING_ADMIN", "REPLICATION_ADMIN"}
+            or "_WRITE" in role
+            or "_DELETE" in role
+            or role.endswith("_FULL_CONTROL")
+        ),
+        roles,
+    )
 )
 if dangerous_roles:
     raise SystemExit(
