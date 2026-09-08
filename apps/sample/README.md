@@ -115,6 +115,31 @@ Optional PostgreSQL/Supavisor settings (`POSTGRES_*`, `SUPABASE_PROJECT_REF`, `S
 
 ## Update the TrueNAS deployment on port 8091
 
+The canonical runtime refresh is now automated:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+bash scripts/truenas/update-fastapi-sample.sh
+```
+
+By default the helper fetches the **current `origin/master` of the
+`fastapi-sample` submodule**, builds `fastapi-sample:local` before stopping
+the running container, validates/prepares the `sample-observer` network,
+reconciles the TrueNAS observer allowlist, removes the old container, performs
+`app.update sample` + `app.redeploy sample`, then proves `/health`,
+`/v2/version` and TrueNAS WebSocket observer access.
+
+Override the upstream ref only deliberately:
+
+```bash
+FASTAPI_SAMPLE_REF=<branch-or-ref> \
+  bash scripts/truenas/update-fastapi-sample.sh
+```
+
+The script does not commit the parent submodule gitlink. If upstream `master`
+is newer than the revision pinned by `nabla-compose`, it prints the runtime
+SHA and the still-pinned parent SHA so the promotion can be reviewed in Git.
+
 The `fastapi-sample` source is a Git submodule. The parent repository pins the
 exact tested revision; do not advance the submodule locally without also
 updating the parent gitlink.
