@@ -31,10 +31,12 @@
     },
     {
       "name": "Garage WebUI",
-      "external": false,
-      "tunnelSecure": false,
-      "cloudflareAccessRequired": false,
-      "securityException": "Garage WebUI is an administration surface and must remain LAN/VPN-only. Public DNS, direct WAN ingress or a public Cloudflare hostname is configuration drift unless a separately reviewed Access-protected design is introduced."
+      "external": true,
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true,
+      "tunnelUrl": "https://garage-admin.albandrieu.com",
+      "endpointEnabled": true,
+      "healthNote": "Garage WebUI is intentionally exposed through Cloudflare at https://garage-admin.albandrieu.com. The Garage Admin API on port 3903 remains an internal backend and must not be exposed directly."
     },
     {
       "name": "Bichon",
