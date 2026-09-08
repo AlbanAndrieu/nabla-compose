@@ -150,27 +150,56 @@ Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD` into the OpenRAG secrets.
 
 ## Workstation LiteLLM GPU provider
 
-OpenRAG should currently use the more capable LiteLLM proxy on the workstation
+OpenRAG currently uses the more capable LiteLLM proxy on the workstation
 directly, without adding the TrueNAS LiteLLM proxy as an extra hop:
 
 ```text
-OpenRAG backend (TrueNAS)
-  -> http://172.17.0.57:4000/v1
+OpenRAG 0.7.1 backend / shared Langflow
+  -> provider = openai (OpenAI wire protocol only)
+  -> OPENAI_BASE_URL=http://172.17.0.57:4000/v1
        -> workstation LiteLLM
-            -> GPU-backed chat / embedding models
+            -> GPU-backed qwen / embedding aliases
 ```
 
-The repository exposes that endpoint as the custom OpenAI-compatible
-`openai_like` provider in `config/model_providers.yaml`. The defaults are:
+OpenRAG 0.7.1 predates the generic `openai_like` provider. Its bundled
+Langflow 1.11.2 already supports `OPENAI_BASE_URL`, so the compatible path is
+to use the built-in `openai` provider as an OpenAI-protocol adapter and point
+that adapter at LiteLLM. No OpenAI SaaS request is intended by this setup.
+
+The repository defaults are:
 
 ```text
 chat model alias:      qwen
 embedding model alias: embedding
 API base:              http://172.17.0.57:4000/v1
+provider:              openai
 ```
 
-Override the aliases only if the workstation LiteLLM publishes different model
-names:
+`apps/openrag/compose.yml` and the shared
+`apps/langflow/compose.yml` both set the same `OPENAI_BASE_URL`. The
+workstation API key is not interpolated by Compose.
+
+Reuse the existing `LITELLM_IDE_API_KEY`. Store it only in the OpenRAG
+runtime secret file together with the existing stable OpenRAG encryption key:
+
+```dotenv
+LITELLM_IDE_API_KEY=<existing key>
+OPENRAG_ENCRYPTION_KEY=<existing stable OpenRAG encryption key>
+```
+
+Both belong in `/mnt/cpool/openrag/.env.secrets`, mode `0600`. Check
+presence without printing either secret:
+
+```bash
+sudo grep -q '^LITELLM_IDE_API_KEY=.' /mnt/cpool/openrag/.env.secrets &&
+  echo 'LITELLM_IDE_API_KEY configured'
+
+sudo grep -q '^OPENRAG_ENCRYPTION_KEY=.' /mnt/cpool/openrag/.env.secrets &&
+  echo 'OPENRAG_ENCRYPTION_KEY configured'
+```
+
+Override the non-secret endpoint/model aliases only when the workstation
+publishes different names:
 
 ```dotenv
 OPENRAG_LITELLM_API_BASE=http://172.17.0.57:4000/v1
@@ -178,43 +207,52 @@ OPENRAG_LITELLM_CHAT_MODEL=qwen
 OPENRAG_LITELLM_EMBEDDING_MODEL=embedding
 ```
 
-Reuse the existing `LITELLM_IDE_API_KEY`; do not create another copy in the
-repository. The OpenRAG runtime secret file must provide that key and a stable
-OpenRAG encryption key:
-
-```dotenv
-LITELLM_IDE_API_KEY=<existing key>
-OPENRAG_ENCRYPTION_KEY=<existing stable OpenRAG encryption key>
-```
-
-Both belong in `/mnt/cpool/openrag/.env.secrets`, mode `0600`. Never print
-their values.
-
-After redeploying the repository Compose definition, first run the read-only
-provider check:
+After redeploying the shared Langflow and OpenRAG Compose definitions, run the
+read-only preflight first:
 
 ```bash
 docker exec openrag-backend \
   python /app/config/bootstrap_litellm.py
 ```
 
-The check fails closed unless the workstation exposes both requested aliases
-and accepts a real embeddings request plus a chat request carrying a tool
-definition. It does not change OpenRAG configuration.
+The preflight fails closed unless the workstation:
 
-Only after that succeeds, activate the provider:
+- accepts `LITELLM_IDE_API_KEY`;
+- publishes both requested aliases through `/v1/models`;
+- returns a real vector through `/v1/embeddings`;
+- accepts a chat request carrying an OpenAI tool definition.
+
+It does not change OpenRAG configuration.
+
+Only after that succeeds, activate the workstation path:
 
 ```bash
 docker exec openrag-backend \
   python /app/config/bootstrap_litellm.py --apply
 ```
 
-`--apply` refuses to run without `OPENRAG_ENCRYPTION_KEY`. It selects
-`openai_like` for both chat and embeddings and lets OpenRAG persist the
-provider credential using its encrypted configuration path.
+`--apply` refuses to run without `OPENRAG_ENCRYPTION_KEY`. It stores the
+reused LiteLLM key through OpenRAG's encrypted provider configuration, selects
+`provider=openai`, `qwen` and `embedding`, then reapplies those settings
+and the `OPENAI_API_KEY` global variable to the shared Langflow runtime.
 
-The TrueNAS LiteLLM instance is also prepared as an optional second hop for
-other consumers:
+### OpenRAG 0.7.1 compatibility caveat
+
+OpenRAG 0.7.1 still hard-codes `https://api.openai.com/v1` in parts of its
+provider validation/model-discovery code. Therefore those specific discovery
+checks can report an OpenAI-provider failure even while the actual
+OpenAI-compatible runtime path is correctly using the workstation LiteLLM.
+
+For this pinned release, treat the repository preflight plus a real OpenRAG
+chat/embedding smoke as the authority for this route. A later synchronized
+OpenRAG backend/frontend/Langflow upgrade should move this configuration to the
+native generic `openai_like` provider once that support is available in a
+stable release.
+
+### Optional TrueNAS LiteLLM second hop
+
+The TrueNAS LiteLLM instance is also prepared as an optional proxy for other
+consumers:
 
 ```text
 consumer
@@ -222,17 +260,32 @@ consumer
        -> model "embedding"
             -> workstation LiteLLM :4000/v1 / model "embedding"
 
+future chat proxy
+  -> TrueNAS LiteLLM :4000
+       -> model "workstation-qwen"
+            -> workstation LiteLLM :4000/v1 / model "qwen"
+
 rollback
   -> TrueNAS LiteLLM :4000
        -> model "embedding-local"
             -> TrueNAS Ollama / nomic-embed-text
 ```
 
-Its `.env` must expose `LITELLM_IDE_API_KEY`; the optional
+Its `.env` must expose the same `LITELLM_IDE_API_KEY`; the non-secret
 `LITELLM_WORKSTATION_API_BASE` defaults to
 `http://172.17.0.57:4000/v1`. Keeping `embedding-local` as a separate alias
 prevents accidental load balancing between workstation GPU inference and the
 TrueNAS-local rollback path.
+
+Validate the TrueNAS proxy after its redeploy:
+
+```bash
+curl -fsS http://172.17.0.24:4000/v1/embeddings \
+  -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"embedding","input":"truenas proxy probe"}' |
+jq '.data[0].embedding | length'
+```
 
 ## Read-only diagnostic
 
