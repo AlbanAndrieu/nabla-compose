@@ -1,4 +1,6 @@
 from pathlib import Path
+import stat
+import subprocess
 import unittest
 
 
@@ -12,6 +14,20 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.smoke = SMOKE.read_text(encoding="utf-8")
         cls.doc = DOC.read_text(encoding="utf-8")
+
+    def test_smoke_script_is_executable_and_syntax_valid(self) -> None:
+        mode = SMOKE.stat().st_mode
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(SMOKE)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_smoke_uses_dedicated_test_hostname(self) -> None:
         self.assertIn("test.albandrieu.com", self.smoke)
