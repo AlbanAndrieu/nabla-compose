@@ -292,16 +292,43 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
     --max-time 35 \
     "${CLOUD_BASE_URL%/}/api/homelab/status" >"${cloud_status}"
 
-  for status_file in "${local_status}" "${cloud_status}"; do
-    jq -e '
-      .runtime.configured == true
-      and .runtime.reachable == true
-      and (.runtime.stale != true)
-      and .providerCredentials.truenas.configured == true
-      and .providerCredentials.truenas.credential_mode == "dedicated_observer"
-    ' "${status_file}" >/dev/null ||
-      fail "one runtime does not expose a healthy dedicated TrueNAS observer"
-  done
+  validate_status() {
+    local label="$1"
+    local status_file="$2"
+    local configured
+    local reachable
+    local stale
+    local credentials
+    local credential_mode
+
+    configured="$(jq -r '.runtime.configured // false' "${status_file}")"
+    reachable="$(jq -r '.runtime.reachable // false' "${status_file}")"
+    stale="$(jq -r '.runtime.stale // false' "${status_file}")"
+    credentials="$(jq -r '.providerCredentials.truenas.configured // false' "${status_file}")"
+    credential_mode="$(jq -r '.providerCredentials.truenas.credential_mode // "missing"' "${status_file}")"
+
+    if [[ "${configured}" != "true" || "${reachable}" != "true" ||
+      "${stale}" == "true" || "${credentials}" != "true" ||
+      "${credential_mode}" != "dedicated_observer" ]]; then
+      printf '%s observer status:\n' "${label}"
+      jq '{
+        checkedAt,
+        catalogRevision,
+        runtime: {
+          configured: .runtime.configured,
+          reachable: .runtime.reachable,
+          stale: .runtime.stale,
+          error: .runtime.error,
+          appCount: (.runtime.apps | length)
+        },
+        credentials: .providerCredentials.truenas
+      }' "${status_file}"
+      fail "${label} observer unhealthy: configured=${configured} reachable=${reachable} stale=${stale} credentials=${credentials} credential_mode=${credential_mode}"
+    fi
+  }
+
+  validate_status "TrueNAS-local FastAPI" "${local_status}"
+  validate_status "FastAPI Cloud" "${cloud_status}"
 
   local_catalog="$(jq -r '.catalogRevision // empty' "${local_status}")"
   cloud_catalog="$(jq -r '.catalogRevision // empty' "${cloud_status}")"
