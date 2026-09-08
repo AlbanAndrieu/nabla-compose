@@ -74,6 +74,15 @@
       "endpointEnabled": true,
       "cloudflareAccessRequired": false,
       "healthNote": "⚠️ Internal-only antivirus engine. The canonical URL is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/3310; internal DNS identity is https://clamav.int.albandrieu.com."
+    },
+    {
+      "name": "Reactive Resume",
+      "external": true,
+      "tunnelUrl": "https://reactive.albandrieu.com",
+      "tunnelSecure": true,
+      "endpointEnabled": true,
+      "cloudflareAccessRequired": false,
+      "healthNote": "Reactive Resume is intentionally exposed at https://reactive.albandrieu.com. Runtime, public HTTPS reachability and tunnel/edge evidence should reconcile to green when healthy."
     }
   ]
 }
