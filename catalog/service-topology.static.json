@@ -24,6 +24,22 @@
       "icon": "🗄️"
     },
     {
+      "id": "clamav",
+      "name": "ClamAV",
+      "kind": "antivirus-engine",
+      "category": "security",
+      "sourcePath": "catalog/homelab-services.json",
+      "url": "https://clamav.albandrieu.com",
+      "internalUrl": "https://clamav.int.albandrieu.com",
+      "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect",
+        "detect"
+      ]
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
