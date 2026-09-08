@@ -1,3 +1,10 @@
+## [0.22.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.0...0.22.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **traefik:** isolate legacy DDNS updater ([#133](https://github.com/AlbanAndrieu/nabla-compose/issues/133)) ([56fa74d](https://github.com/AlbanAndrieu/nabla-compose/commit/56fa74d343417597c8717004a0982c5bd120cb91))
+
 # [0.22.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.21.1...0.22.0) (2026-09-08)
 
 
