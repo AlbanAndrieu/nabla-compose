@@ -17,10 +17,11 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("SENTRY_ENVIRONMENT: homelab", compose)
         self.assertIn('SENTRY_AI_INTEGRATIONS_ENABLED: "true"', compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
-        self.assertIn(
-            "ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}",
-            compose,
-        )
+        self.assertIn("name: sample-observer", compose)
+        self.assertIn("external: true", compose)
+        self.assertIn("gw_priority: 1", compose)
+        self.assertNotIn("ipv4_address:", compose)
+        self.assertNotIn("FASTAPI_SAMPLE_OBSERVER_SUBNET", compose)
         self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
         self.assertNotIn("fastapi-sample.int.albandrieu.com", compose)
         self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 1)
@@ -104,10 +105,15 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("ui_allowlist", script)
         self.assertIn("/32", script)
         self.assertIn(
-            'EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}"',
+            'EXPECTED_SOURCE_IP="${FASTAPI_SAMPLE_OBSERVER_IP:-}"',
             script,
         )
         self.assertIn("observer source IP drift", script)
+        self.assertIn('NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"', script)
+        self.assertIn('LEGACY_SOURCE_IP="${FASTAPI_SAMPLE_LEGACY_OBSERVER_IP:-172.16.55.9}"', script)
+        self.assertIn('FAILED_CANDIDATE_IP="${FASTAPI_SAMPLE_FAILED_OBSERVER_IP:-172.16.56.9}"', script)
+        self.assertIn("com.nabla.observer-ip", script)
+        self.assertIn("obsolete observer source", script)
         self.assertIn("TRUENAS_API_VERIFY_SSL must be true", script)
         self.assertIn("/code/.venv/bin/python", script)
         self.assertIn("TRUENAS_API_USERNAME", script)
@@ -116,6 +122,39 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("adapter.list_apps()", script)
         self.assertNotIn("system.general.update", script)
         self.assertNotIn("system.general.checkin", script)
+
+    def test_sample_observer_network_preflight_avoids_overlaps(self) -> None:
+        script = (
+            ROOT / "scripts" / "truenas" / "prepare-sample-observer-network.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("ipaddress.ip_network", script)
+        self.assertIn(".overlaps(", script)
+        self.assertIn("docker network inspect", script)
+        self.assertIn("ip -j -4 route show table all", script)
+        self.assertIn("--ip-range", script)
+        self.assertIn("--aux-address", script)
+        self.assertIn('--aux-address "reserve8=${RESERVE_8}"', script)
+        self.assertIn("com.nabla.observer-contract", script)
+        self.assertIn("--recreate", script)
+        self.assertIn("com.nabla.observer-ip", script)
+        self.assertNotIn("172.16.56.0/28", script)
+
+    def test_sample_observer_allowlist_reconcile_is_explicit(self) -> None:
+        script = (
+            ROOT
+            / "scripts"
+            / "security"
+            / "reconcile-truenas-observer-allowlist.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--check", script)
+        self.assertIn("--apply", script)
+        self.assertIn("com.nabla.observer-ip", script)
+        self.assertIn('172.16.55.9/32', script)
+        self.assertIn('172.16.56.9/32', script)
+        self.assertIn("system.general.update", script)
+        self.assertIn("system.general.checkin", script)
 
     def test_sample_acceptance_targets_truenas_and_cloudflare_access(self) -> None:
         script = (ROOT / "scripts" / "ingress" / "verify-sample-exposure.sh").read_text(

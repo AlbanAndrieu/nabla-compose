@@ -87,6 +87,171 @@ Only explicit `--apply` performs a mutation. Apply first runs
 `verify-stack.sh --strict`, then patches and re-reads the pfSense settings,
 runs the synthetic log path test, and finally looks for real pfSense records.
 
+## pfSense probe budget on Netgate 1100
+
+The Netgate 1100 is a constrained edge appliance. Do not treat pfREST-backed
+Prometheus exporters like local in-memory exporters: every `/metrics?target=...`
+request fans out into multiple pfSense REST API calls.
+
+Steady-state budget:
+
+- Prometheus is the **only** component allowed to invoke the pfSense exporter
+  metrics endpoint automatically;
+- `pfsense_exporter` scrape interval is 120 seconds with a 30-second scrape
+  timeout;
+- exporter collector concurrency is 1 to avoid bursts of simultaneous pfREST /
+  php-fpm work;
+- steady-state collectors are limited to `system`, `gateways` and
+  `service`; `interface` and `firewall_states` are excluded because both
+  timed out during the 2026-09-08 CPU-saturation incident;
+- package inventory, login-protection table, CARP and firewall-schedule
+  collectors stay disabled unless a focused diagnostic explicitly needs them;
+- Gatus and AutoKuma check TCP/9945 only. They must never call
+  `/metrics?target=172.17.0.1` because that would trigger another full
+  collector pass.
+
+This changes the approximate steady-state fan-out from six exporter scrapes per
+minute (Prometheus 15s + Gatus 60s + AutoKuma 60s), each with all collectors and
+up to four concurrent requests, to one serialized three-collector scrape every two minutes (about 1.5 pfREST
+requests per minute in steady state).
+
+After updating the repository, harden an existing runtime file without exposing
+its API key:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/harden-pfsense-exporter-config.sh
+```
+
+Then reconcile/redeploy Prometheus so the 120-second scrape interval takes
+effect. Reconcile Gatus so its old HTTP metrics monitor is replaced by a
+lightweight TCP check. If AutoKuma is not registered as a TrueNAS application,
+do not attempt an `app.update autokuma`; its generated repository definition
+still remains the desired state for a future deployment.
+
+The exporter target timeout is 8 seconds. Slow pfREST endpoints fail fast rather
+than tying up php-fpm for 15-30 seconds per collector. Do not increase collector
+concurrency or timeout to compensate for slow pfREST responses; that moves the
+pressure back onto pfSense. If three collectors every 120 seconds are still
+visible in CPU/php-fpm load, stop the exporter and diagnose pfSense before
+re-enabling telemetry.
+
+## pfSense PHP-FPM / WebGUI recovery incident — 2026-09-08
+
+Runtime evidence on the Netgate 1100 showed a coupled resource-pressure incident:
+
+- during the later exporter validation, `/api/v2/firewall/states/size` and
+  `/api/v2/status/interfaces` both exceeded the exporter timeout while
+  `vmstat 1 5` showed sustained 0% idle CPU and 8-10 runnable processes;
+- the kernel had repeatedly killed memory-intensive processes, including Unbound;
+- pfSense nginx remained bound on TCP/10443 while the FastCGI Unix socket stopped accepting connections;
+- nginx returned HTTP 502 with `connect() to unix:/var/run/php-fpm.socket failed (61: Connection refused)`;
+- requests came primarily from TrueNAS `172.17.0.24`; `Go-http-client/1.1` identified the pfREST-backed exporter traffic and Uptime Kuma appeared separately;
+- the generated PHP-FPM pool had eight long-lived workers consuming roughly 34-55 MiB RSS each;
+- the pfSense WebGUI displayed the crash page and was unusable.
+
+A temporary supervised recovery reduced the generated runtime pool from:
+
+```text
+pm.max_children = 8
+pm.max_spare_servers = 7
+```
+
+to:
+
+```text
+pm.max_children = 4
+pm.max_spare_servers = 2
+```
+
+The direct `pfSsh.php playback svc restart php-fpm` invocation did not replace the existing master/workers in this incident. The successful pfSense-native recovery path was:
+
+```csh
+/etc/rc.php-fpm_restart
+```
+
+followed by:
+
+```csh
+/etc/rc.restart_webgui
+```
+
+Acceptance evidence after recovery:
+
+- a new PHP-FPM master started and the FastCGI socket `/var/run/php-fpm.socket` was recreated;
+- nginx remained bound on TCP/10443;
+- pfREST endpoints returned HTTP 200 again;
+- the WebGUI at `https://172.17.0.1:10443/` became accessible;
+- Unbound remained running and public recursion recovered after flushing the stale `example.com` cache entry.
+
+Do not start pfSense PHP-FPM manually with plain `/usr/local/sbin/php-fpm -y ...`. The generated pool intentionally runs as root and the pfSense restart wrapper supplies the required runtime flags. A plain manual start failed with:
+
+```text
+[pool nginx] please specify user and group other than root
+FPM initialization failed
+```
+
+The 4/2 pool edit is a **temporary incident-recovery measure**, not the permanent configuration. `/etc/rc.php_ini_setup` regenerates `/usr/local/lib/php-fpm.conf` and can restore the platform-selected 8/7 values. The permanent fix must therefore use the supported pfSense configuration source or a reviewed generated-config mechanism, not a persistent hand-edit of `/usr/local/lib/php-fpm.conf`.
+
+The exporter fan-out remains part of the permanent fix. Keep the low-impact
+budget documented above (120-second scrape, three serialized essential
+collectors, no duplicate Gatus/AutoKuma metrics scrape) before re-enabling
+optional high-memory services such as Snort.
+
+## pfSense exporter runtime configuration
+
+The pfSense exporter runtime configuration is deliberately outside the Git
+checkout:
+
+```text
+/mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
+Compose uses a long bind with `create_host_path: false`. This is intentional:
+if the source file is missing, deployment must fail instead of Docker creating a
+directory at the source path and sending the exporter into a restart loop with
+`config.yml: is a directory`.
+
+Bootstrap from the non-secret template:
+
+```bash
+sudo install -d -o root -g root -m 700 /mnt/cpool/prometheus/secrets
+
+sudo install -o root -g root -m 600 \
+  apps/prometheus/pfsense-exporter.example.yml \
+  /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
+Then edit only the runtime file and replace
+`REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY` with a dedicated read-only
+pfSense REST API key. Do not reuse the observability-operator key used for
+supervised syslog configuration; the exporter continuously reads a broader set
+of status/metrics endpoints and should have its own identity.
+
+Expected non-secret target contract:
+
+```yaml
+host: "172.17.0.1"
+port: 10443
+scheme: "https"
+auth_method: "key"
+validate_cert: false
+```
+
+The direct IP is used because the exporter is a LAN-local machine integration.
+Certificate validation is disabled only for this exporter target because the
+pfSense certificate hostname does not match `172.17.0.1`; this does not change
+the stricter TLS policy of the workstation/operator scripts.
+
+Before redeploying, validate without printing the API key:
+
+```bash
+sudo test -f /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+sudo test -s /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+sudo grep -q '^[[:space:]]*key:[[:space:]]*[^[:space:]]' \
+  /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
 ## Required identities
 
 Do not restore or reuse the historical generic `PFSENSE_API_KEY`.

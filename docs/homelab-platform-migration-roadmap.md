@@ -40,8 +40,9 @@ fastapi_observer
 Runtime validation proves `system.version` and `app.query` (86 apps) with the
 native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
-before authentication. The Docker observer reaches TrueNAS from its `intranet`
-container address.
+before authentication. Runtime evidence on 2026-09-08 proved that a fixed /32
+must not be reserved inside the shared `intranet` pool: while Sample was
+stopped, Docker assigned the old `172.16.55.9` address to Langflow.
 
 - [x] create the dedicated `fastapi_observer` API-only user with
   `APPS_READ`, password login disabled, SSH password login disabled and SMB
@@ -57,18 +58,25 @@ container address.
   calls;
 - [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
   after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
-- [x] pin FastAPI Sample to `172.16.55.9` on the production
-  `172.16.55.0/24` intranet by default (override with
-  `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed allowlist
-  change), so a recreate cannot silently change the TrueNAS WebSocket source;
-- [x] document `172.16.55.9/32` as the current Docker-origin TrueNAS UI/API
-  allowlist entry required by FastAPI Sample;
-- [ ] evaluate a dedicated observer Docker network as a later isolation
-  improvement if other trusted-LAN observers need their own source identities;
+- [x] retire the unsafe shared-`intranet` reservation
+  `172.16.55.9`; runtime proved Docker can legitimately allocate that address
+  to another container while Sample is stopped;
+- [x] reject the failed Compose-managed `172.16.56.0/28`
+  candidate after Docker proved it overlaps a broader existing address pool;
+- [x] make `sample-observer` an external repository-owned bridge prepared by
+  `scripts/truenas/prepare-sample-observer-network.sh`, with Docker-network
+  and host-route CIDR overlap checks, a constrained `ip_range`, and exactly
+  one allocatable observer address recorded in a network label;
+- [x] add explicit `--check/--apply` allowlist reconciliation from that network
+  label and automatically retire both obsolete Sample /32 values
+  (`172.16.55.9/32` and `172.16.56.9/32`);
+- [ ] prepare the new observer network, redeploy Sample, reconcile the selected
+  observer /32 into TrueNAS `ui_allowlist`, and prove authenticated WebSocket
+  calls with `verify-truenas-observer-access.sh`;
 - [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
   `truenas.albandrieu.com` certificate chain from inside the container;
-- [ ] never widen `ui_allowlist` to all of `172.16.55.0/24` merely to avoid
-  container-address management.
+- [ ] never widen `ui_allowlist` to an entire Docker subnet merely to avoid
+  source-address management.
 
 ### Post-reboot runtime cleanup — 2026-09-05
 
@@ -1726,8 +1734,22 @@ should be verified/stabilized before broad application migrations:
   external/internal route behavior;
 - **Graylog:** expected running; verify server health, OpenSearch/backend
   connectivity and inputs before adding pfSense/workstation syslog;
-- **Prometheus:** priority monitoring service; verify scrape targets, rule
-  evaluation and retention;
+- **Prometheus:** priority monitoring service; core Prometheus/Alertmanager/
+  node-exporter now start after removing the orphan LiteLLM secret mount;
+  cAdvisor is profile-gated out of the default lifecycle because it is
+  intentionally disabled on this host; the remaining blocker is the exited
+  `pfsense-exporter`: the directory-bind restart loop is fixed and the
+  container is now running from
+  `/mnt/cpool/prometheus/secrets/pfsense-exporter.yml` with
+  `create_host_path: false`; still prove that the scrape returns real
+  `pfsense_*` samples rather than merely HTTP 200 before considering the
+  TrueNAS Custom App fully healthy;
+  keep the Netgate 1100 exporter in a low-impact steady-state profile:
+  Prometheus scrape every 120 seconds, only `system`, `gateways` and
+  `service`, `max_collector_concurrency=1`, an 8-second pfREST target
+  timeout, and TCP-only Gatus/AutoKuma liveness checks; runtime evidence showed
+  `firewall_states` and `interface` timing out while pfSense had 0% idle CPU,
+  so they stay disabled until the appliance is demonstrably stable;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
@@ -1746,6 +1768,10 @@ Current repository/runtime evidence also identifies these actionable states:
   cutover/service-account secret work remains;
 - **InfluxDB:** reusable standalone target is prepared; migration/cutover remains
   to be completed for Scrutiny;
+- **AutoKuma:** repository monitor generation exists but the TrueNAS Custom App
+  is not registered yet; migration is now prepared with
+  `/mnt/cpool/autokuma/.env.secrets` and the idempotent
+  `scripts/truenas/deploy-autokuma.sh` create-or-update helper;
 - **Tailscale:** intentionally stopped/deferred, not a Kubernetes prerequisite.
 
 Before each migration wave, reconcile every directory under `apps/` against
@@ -1753,6 +1779,55 @@ Before each migration wave, reconcile every directory under `apps/` against
 classify it as `running`, `degraded/restarting`, `stopped`,
 `declared-not-deployed` or `unknown`. Do not infer `not deployed` merely
 from lack of an external URL.
+
+
+### OpenRAG recovery — 2026-09-08
+
+Observed deployment target: `http://172.17.0.24:31060/`.
+
+The first recovery pass identified a split-stack health mismatch: OpenRAG
+frontend 0.7.1 defaults its collective health check to
+`openrag-langflow:7860/health`, while this homelab intentionally provides the
+shared Langflow application as `langflow:7860/health_check` on `intranet`.
+
+- [x] pin backend/frontend to OpenRAG 0.7.1 instead of floating `latest`;
+- [x] configure frontend collective health for
+      `langflow:7860/health_check`;
+- [x] reuse the single global `langflow` TrueNAS application; do not deploy a
+      second `openrag-langflow` service inside the OpenRAG app;
+- [x] pin the global OpenRAG-compatible Langflow image to the same `0.7.1`
+      release as backend/frontend;
+- [x] stop bind-mounting unversioned `./flows` directories over
+      image-bundled OpenRAG flow definitions;
+- [x] add backend liveness and frontend collective Docker healthchecks;
+- [x] add runtime probes for backend liveness, OpenSearch readiness and
+      frontend -> backend/Langflow collective health;
+- [x] make the upstream Linux `host.docker.internal` route explicit for the
+      current Docling default;
+- [x] reconcile the global Langflow runtime to
+      `langflowai/openrag-langflow:0.7.1` and prove no `/app/flows` bind masks
+      the image-bundled flows;
+- [x] distinguish Langflow liveness (`/health`) from readiness
+      (`/health_check` = DB + chat/cache) and add a first-start grace window
+      plus deploy-time diagnostics;
+- [x] reconcile OpenRAG backend/frontend to `0.7.1`;
+- [x] prove backend liveness, shared single-node OpenSearch readiness and
+      frontend collective backend + global-Langflow health;
+- [x] prove the previous three-node OpenSearch wait loop is gone;
+- [x] create/store the dedicated `LANGFLOW_KEY` without printing it,
+      redeploy OpenRAG, prove the authenticated global-Langflow call succeeds,
+      and prove the stale runtime parent `/app/flows` bind is gone while
+      `/app/flows/backup` remains;
+- [ ] review and deploy a repository-managed Docling service or another explicit
+      `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
+- [ ] validate document ingestion, indexing and search end-to-end after Docling
+      is healthy;
+- [ ] validate the selected embedding + local Ollama/LiteLLM path without
+      unloading the retained local LLM;
+- [ ] correlate OpenRAG ingest/search latency with TrueNAS I/O PSI before
+      increasing workload;
+- [ ] reconcile OpenRAG into the generated architecture/site consumers after
+      runtime health is proven.
 
 ### P3 — service priority after Kubernetes + infrastructure secrets
 
@@ -1766,16 +1841,20 @@ from lack of an external URL.
 5. complete **Scrutiny + standalone InfluxDB** cutover;
 6. verify **Langflow** as an expected-running application and add monitoring for
    it.
+7. register **AutoKuma** as the repository-managed TrueNAS Custom App and prove
+   it reconciles the generated Nabla monitor inventory into the existing Uptime
+   Kuma instance without reintroducing pfSense metrics scrapes.
 
 **Priority B — next security/network observability services**
 
-7. deploy/enable **OpenRAG** after its storage/model dependencies are reviewed;
-8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
+8. stabilize **OpenRAG** by proving backend, shared Langflow and OpenSearch
+   readiness, then review/enable its Docling ingestion and model dependencies;
+9. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
    conflict with the existing OpenSearch/Graylog observability plane;
-9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
+10. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as
    Akvorado) for flow telemetry after pfSense/exporter/collector routing is
    defined;
-10. continue **ntopng / Suricata** integration only after deciding which flow/IDS
+11. continue **ntopng / Suricata** integration only after deciding which flow/IDS
     sources are authoritative to avoid duplicate telemetry without purpose.
 
 **Priority C — platform/application migrations**

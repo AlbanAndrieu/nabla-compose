@@ -65,14 +65,6 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
-  - job_name: truenas_cadvisor
-    static_configs:
-      - targets:
-          - 172.17.0.24:8089
-        labels:
-          platform: truenas
-          role: container-runtime
-
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
@@ -95,7 +87,11 @@ scrape_configs:
 
   - job_name: pfsense_exporter
     metrics_path: /metrics
-    scrape_interval: 15s
+    # Netgate 1100 has a tight CPU/RAM budget. Each exporter scrape fans out
+    # into multiple pfREST calls, so keep this intentionally much slower than
+    # local exporters.
+    scrape_interval: 120s
+    scrape_timeout: 30s
     static_configs:
       - targets:
           - 172.17.0.1

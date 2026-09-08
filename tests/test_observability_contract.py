@@ -108,6 +108,87 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
 
+    def test_pfsense_exporter_runtime_config_is_fail_closed(self) -> None:
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        example = (
+            ROOT / "apps" / "prometheus" / "pfsense-exporter.example.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "source: /mnt/cpool/prometheus/secrets/pfsense-exporter.yml",
+            compose,
+        )
+        self.assertIn("target: /pfsense_exporter/config.yml", compose)
+        self.assertIn("create_host_path: false", compose)
+        self.assertNotIn(
+            "./secrets/exporter.config.yml:/pfsense_exporter/config.yml",
+            compose,
+        )
+        self.assertIn('host: "172.17.0.1"', example)
+        self.assertIn("port: 10443", example)
+        self.assertIn('auth_method: "key"', example)
+        self.assertIn("REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY", example)
+
+    def test_pfsense_exporter_is_low_impact_on_firewall(self) -> None:
+        prometheus = (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8")
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        example = (
+            ROOT / "apps" / "prometheus" / "pfsense-exporter.example.yml"
+        ).read_text(encoding="utf-8")
+        gatus = (
+            ROOT / "apps" / "gatus" / "config" / "config.yml"
+        ).read_text(encoding="utf-8")
+        autokuma = (
+            ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
+        ).read_text(encoding="utf-8")
+
+        job = prometheus.split("- job_name: pfsense_exporter", 1)[1].split(
+            "\n  - job_name:",
+            1,
+        )[0]
+        self.assertIn("scrape_interval: 120s", job)
+        self.assertIn("scrape_timeout: 30s", job)
+        self.assertNotIn("scrape_interval: 15s", job)
+
+        exporter = compose.split("\n  pfsense-exporter:\n", 1)[1].split(
+            "\nnetworks:",
+            1,
+        )[0]
+        self.assertIn("type: port", exporter)
+        self.assertIn("target: tcp://172.17.0.24:9945", exporter)
+        self.assertNotIn("metrics?target=172.17.0.1", exporter)
+
+        for collector in (
+            "system",
+            "gateways",
+            "service",
+        ):
+            self.assertIn(f"      - {collector}", example)
+        self.assertIn("max_collector_concurrency: 1", example)
+        self.assertIn("timeout: 8", example)
+        self.assertNotIn("      - interface", example)
+        self.assertNotIn("      - firewall_states", example)
+        self.assertNotIn("      - package", example)
+        self.assertNotIn("      - login_protection", example)
+
+        self.assertIn("url: tcp://172.17.0.24:9945", gatus)
+        self.assertNotIn(
+            "url: http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            gatus,
+        )
+        self.assertIn('"hostname": "172.17.0.24"', autokuma)
+        self.assertIn('"port": 9945', autokuma)
+        self.assertNotIn(
+            '"url": "http://172.17.0.24:9945/metrics?target=172.17.0.1"',
+            autokuma,
+        )
+
     def test_declared_exporters_are_scraped_by_prometheus(self) -> None:
         prometheus = (
             ROOT / "apps" / "prometheus" / "prometheus.yml"
@@ -133,8 +214,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:6060", prometheus)
         self.assertIn("- job_name: truenas_node", prometheus)
         self.assertIn("172.17.0.24:9100", prometheus)
-        self.assertIn("- job_name: truenas_cadvisor", prometheus)
-        self.assertIn("172.17.0.24:8089", prometheus)
+        self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
+        self.assertNotIn("172.17.0.24:8089", prometheus)
 
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
@@ -157,7 +238,8 @@ class ObservabilityContractTests(unittest.TestCase):
             "\n  pfsense-exporter:\n", 1
         )[0]
         self.assertIn('restart: "no"', cadvisor)
-        self.assertIn("- job_name: truenas_cadvisor", (
+        self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
+        self.assertNotIn("- job_name: truenas_cadvisor", (
             ROOT / "apps" / "prometheus" / "prometheus.yml"
         ).read_text(encoding="utf-8"))
         exporter_alert = rules.split(
@@ -421,7 +503,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
         self.assertIn("http://172.17.0.24:9093/-/ready", prometheus_compose)
         self.assertNotIn("target=172.17.0.1:10443", prometheus_compose)
-        self.assertIn(
+        self.assertIn("target: tcp://172.17.0.24:9945", prometheus_compose)
+        self.assertNotIn(
             "http://172.17.0.24:9945/metrics?target=172.17.0.1",
             prometheus_compose,
         )
@@ -437,9 +520,13 @@ class ObservabilityContractTests(unittest.TestCase):
             "http://172.17.0.24:3200/ready",
             "http://172.17.0.24:9090/-/ready",
             "http://172.17.0.24:9093/-/ready",
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            "tcp://172.17.0.24:9945",
         ):
             self.assertIn(endpoint, gatus)
+        self.assertNotIn(
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            gatus,
+        )
 
     def test_observability_stack_is_self_scraped_and_alerted(self) -> None:
         prometheus = (

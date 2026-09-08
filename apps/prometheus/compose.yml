@@ -1,8 +1,4 @@
 ---
-secrets:
-  litellm_api_key:
-    file: ./secrets/litellm_api_key
-
 services:
   prometheus:
     network_mode: bridge
@@ -39,10 +35,6 @@ services:
       - "--log.level=${PROMETHEUS_LOG_LEVEL:-warn}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090" # 30104
-    secrets:
-      - source: litellm_api_key
-        target: litellm_api_key
-        mode: "0444"
     volumes:
       - type: bind
         source: ./prometheus.yml
@@ -110,6 +102,11 @@ services:
       - "--storage.path=/alertmanager"
 
   cadvisor:
+    # Disabled from the default TrueNAS application lifecycle. Starting a
+    # deliberately non-restarting cAdvisor and letting it crash makes the whole
+    # multi-service Custom App CRASHED even when Prometheus itself is healthy.
+    profiles:
+      - cadvisor-manual
     network_mode: bridge
     image: gcr.io/cadvisor/cadvisor
     # cAdvisor is intentionally non-restarting: on this TrueNAS host it can
@@ -139,17 +136,20 @@ services:
         provider: truenas-app
         containerService: pfsense-exporter
       monitoring:
-        type: http
-        target: http://172.17.0.24:9945/metrics?target=172.17.0.1
+        # Gatus/AutoKuma only verify the exporter listener. They must not call
+        # /metrics because each health check would trigger another full pfREST
+        # collector fan-out on the resource-constrained firewall.
+        type: port
+        target: tcp://172.17.0.24:9945
         conditions:
-          - "[STATUS] == 200"
+          - "[CONNECTED] == true"
       relations:
         - target: pfsense
           type: consumesApi
           strength: required
           description: The exporter queries pfSense for firewall and system metrics.
           evidence:
-            - apps/prometheus/compose.yml:exporter.config.yml
+            - apps/prometheus/compose.yml:/mnt/cpool/prometheus/secrets/pfsense-exporter.yml
         - target: prometheus
           type: observedBy
           strength: required
@@ -157,7 +157,15 @@ services:
           evidence:
             - apps/prometheus/prometheus.yml:job_name=pfsense_exporter
     volumes:
-      - ./secrets/exporter.config.yml:/pfsense_exporter/config.yml:ro
+      - type: bind
+        source: /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+        target: /pfsense_exporter/config.yml
+        read_only: true
+        bind:
+          # Fail closed: short bind syntax creates a directory when the source
+          # file is absent, which makes pfSense Exporter restart forever with
+          # "config.yml: is a directory".
+          create_host_path: false
     ports:
       - "9945:9945"
 

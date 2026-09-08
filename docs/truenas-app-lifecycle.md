@@ -289,6 +289,47 @@ then start `langflow`, then `openrag`.
 
 Langflow telemetry is disabled declaratively with `DO_NOT_TRACK=true`.
 
+
+### OpenRAG functional health contract
+
+OpenRAG 0.7.1's frontend collective health endpoint defaults to the upstream
+Compose service name `openrag-langflow`. This homelab deliberately runs
+Langflow as a separate TrueNAS application on the shared `intranet` network,
+where the canonical Docker DNS name is `langflow`. The OpenRAG frontend must
+therefore set:
+
+```text
+LANGFLOW_HOST=langflow
+LANGFLOW_PORT=7860
+LANGFLOW_HEALTH_PATH=/health_check
+```
+
+Validate function, not only TCP/31060:
+
+```bash
+curl -fsS http://172.17.0.24:31060/health/collective_health | jq .
+
+docker exec openrag-backend \
+  curl -fsS http://127.0.0.1:8000/health
+
+docker exec openrag-backend \
+  curl -fsS http://127.0.0.1:8000/search/health
+
+scripts/truenas/audit-app-lifecycle.sh
+```
+
+The backend `/health` endpoint is liveness. `/search/health` additionally
+proves the OpenSearch dependency. The frontend collective endpoint proves the
+backend and shared Langflow path together.
+
+OpenRAG document ingestion also depends on Docling. The upstream 0.7.1 default
+is `DOCLING_SERVE_URL=http://host.docker.internal:5001`; Linux Docker requires
+the `host.docker.internal:host-gateway` mapping. The repository now preserves
+that routing contract, but no repository-managed Docling service is deployed
+yet. Treat a failed Docling probe as an explicit ingestion warning until the
+Docling deployment is reviewed; do not claim OpenRAG is fully operational for
+document ingestion until it passes.
+
 ## Gatus
 
 The repository Gatus instance persists status history in:

@@ -500,9 +500,9 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pfsense-exporter
     nabla_service_id: pfsense-exporter
-  url: http://172.17.0.24:9945/metrics?target=172.17.0.1
+  url: tcp://172.17.0.24:9945
   conditions:
-  - '[STATUS] == 200'
+  - '[CONNECTED] == true'
 - name: Pi-hole
   group: network
   interval: 60s

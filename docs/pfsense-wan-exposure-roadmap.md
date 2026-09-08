@@ -66,8 +66,10 @@ Security constraints:
 - keep pfSense API credentials and TrueNAS API credentials local to the homelab;
   FastAPI Cloud should authenticate only to the observer/relay;
 - keep pfSense REST API global read-only mode enabled during steady state;
-- keep TrueNAS `system.general.ui_allowlist` scoped to the stable FastAPI observer
-  container address (`172.16.55.9/32` unless deliberately changed and reviewed);
+- keep TrueNAS `system.general.ui_allowlist` scoped to the single address
+  reserved by the repository-owned external `sample-observer` network; derive
+  that /32 from the network label after CIDR-overlap preflight rather than
+  hard-coding an address inside the shared `intranet` or another Docker pool;
 - preserve `sample.albandrieu.com` behind Cloudflare Tunnel + Access and keep
   direct WAN `:8091` closed;
 - do not treat the current Cloudflare Service Token alone as the final trust

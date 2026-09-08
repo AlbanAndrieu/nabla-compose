@@ -1241,7 +1241,7 @@
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
       "evidence": [
-        "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
+        "/mnt/cpool/autokuma/.env.secrets:AUTOKUMA__KUMA__URL"
       ]
     },
     {
@@ -2265,6 +2265,16 @@
     },
     {
       "source": "openrag-frontend",
+      "target": "langflow",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Frontend collective health checks the shared global Langflow service.",
+      "evidence": [
+        "apps/openrag/compose.yml:LANGFLOW_HOST"
+      ]
+    },
+    {
+      "source": "openrag-frontend",
       "target": "openrag-backend",
       "type": "consumesApi",
       "strength": "required",
@@ -2441,7 +2451,7 @@
       "strength": "required",
       "description": "The exporter queries pfSense for firewall and system metrics.",
       "evidence": [
-        "apps/prometheus/compose.yml:exporter.config.yml"
+        "apps/prometheus/compose.yml:/mnt/cpool/prometheus/secrets/pfsense-exporter.yml"
       ]
     },
     {

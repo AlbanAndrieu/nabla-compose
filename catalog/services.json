@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:f304356e8e8412051de816693d1b3ebc8ff516cf9218a7375f4b6e787d510e73",
+  "catalogRevision": "sha256:9937606ee14b3e9437c4c89eb6f37cebc2596e1e951034eafa529773aa206c11",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -131,6 +131,7 @@
       "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "autokuma",
         "containerService": "autokuma"
       }
     },

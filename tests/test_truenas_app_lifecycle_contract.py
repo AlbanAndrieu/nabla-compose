@@ -98,6 +98,26 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertIn("app.redeploy openhands", openhands_readme)
 
+    def test_prometheus_does_not_require_unused_litellm_secret(self) -> None:
+        compose = self.read("apps/prometheus/compose.yml")
+        config = self.read("apps/prometheus/prometheus.yml")
+
+        self.assertNotIn("litellm_api_key", compose)
+        self.assertNotIn("litellm_api_key", config)
+        self.assertNotIn("bearer_token_file", config)
+
+    def test_prometheus_keeps_cadvisor_out_of_default_lifecycle(self) -> None:
+        compose = self.read("apps/prometheus/compose.yml")
+        config = self.read("apps/prometheus/prometheus.yml")
+
+        cadvisor = compose.split("\n  cadvisor:\n", 1)[1].split(
+            "\n  pfsense-exporter:\n",
+            1,
+        )[0]
+        self.assertIn("profiles:\n      - cadvisor-manual", cadvisor)
+        self.assertIn('restart: "no"', cadvisor)
+        self.assertNotIn("job_name: truenas_cadvisor", config)
+
     def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
         script = self.read("scripts/truenas/diagnose-performance.sh")
 
@@ -185,20 +205,62 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
     def test_openrag_uses_shared_opensearch_without_cross_app_depends_on(self) -> None:
         openrag = self.read("apps/openrag/compose.yml")
+        openrag_readme = self.read("apps/openrag/README.md")
         langflow = self.read("apps/langflow/compose.yml")
         opensearch = self.read("apps/opensearch/compose.yml")
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("OPENSEARCH_HOST: opensearch", openrag)
+        self.assertIn('OPENSEARCH_NODE_COUNT_CHECK_ENABLED: "false"', openrag)
         self.assertNotIn("ES_HOST=elasticsearch", openrag)
         self.assertNotIn("      - elasticsearch", openrag)
         self.assertNotIn("      - langflow\n", openrag)
+        self.assertNotIn("\n  openrag-langflow:\n", openrag)
         self.assertIn("OPENRAG_FRONTEND_PORT:-31060", openrag)
         self.assertNotIn('"3000:3000"', openrag)
+        self.assertIn("LANGFLOW_URL: http://langflow:7860", openrag)
+        self.assertIn("LANGFLOW_HOST: langflow", openrag)
+        self.assertIn("LANGFLOW_HEALTH_PATH: /health_check", openrag)
+        self.assertIn("http://127.0.0.1:8000/health", openrag)
+        self.assertIn("/health/collective_health", openrag)
+        self.assertIn("host.docker.internal:host-gateway", openrag)
+        self.assertNotIn("- ./flows:/app/flows", openrag)
+
+        self.assertIn(
+            "image: docker.io/langflowai/openrag-langflow:${OPENRAG_VERSION:-0.7.1}",
+            langflow,
+        )
+        self.assertNotIn("openrag-langflow:latest", langflow)
+        self.assertNotIn("- ./flows:/app/flows", langflow)
+        self.assertIn("aliases:\n          - langflow", langflow)
+        self.assertIn("http://127.0.0.1:7860/health_check", langflow)
         self.assertIn("OPENSEARCH_HOST: opensearch", langflow)
         self.assertNotIn("ES_HOST=elasticsearch", langflow)
+
         self.assertIn("aliases:\n          - opensearch", opensearch)
         self.assertIn("external: true\n    name: intranet", opensearch)
         self.assertIn("external: true\n    name: nabla-security", opensearch)
+
+        self.assertIn("function probe_openrag_runtime_if_present", audit)
+        self.assertIn("global Langflow URL configured", audit)
+        self.assertIn("global Langflow DNS + HTTP/7860", audit)
+        self.assertIn("dedicated global Langflow API key configured", audit)
+        self.assertIn("global Langflow authenticated API", audit)
+        self.assertNotIn("global Langflow app is not RUNNING", audit)
+        self.assertIn("single-node OpenSearch count gate disabled", audit)
+        self.assertIn("still waiting for a 3-node OpenSearch topology", audit)
+        self.assertIn("OpenRAG backend: /health HTTP 200", audit)
+        self.assertIn("OpenRAG backend: OpenSearch readiness HTTP 200", audit)
+        self.assertIn("collective backend + global Langflow health HTTP 200", audit)
+        self.assertIn("Docling is not reachable", audit)
+
+        self.assertIn("LANGFLOW_HOST=langflow", openrag_readme)
+        self.assertIn("LANGFLOW_KEY", openrag_readme)
+        self.assertIn("Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD`", openrag_readme)
+        self.assertIn("global Langflow", openrag_readme)
+        self.assertIn("DOCLING_SERVE_URL", openrag_readme)
+        self.assertIn("stabilize **OpenRAG**", roadmap)
 
     def test_clickhouse_matches_shared_truenas_runtime(self) -> None:
         clickhouse = self.read("apps/clickhouse/compose.yml")
@@ -499,7 +561,18 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("TrueNAS applications without a repository apps/*/compose.yml owner", audit)
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
-        self.assertIn("http://172.17.0.24:7860/health_check", audit)
+        self.assertIn("function probe_pfsense_exporter_runtime_if_present", audit)
+        self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", audit)
+        self.assertIn("runtime config must be a regular file", audit)
+        self.assertIn("v0.0.10 target schema present", audit)
+        self.assertIn("auth_method=key but key is missing", audit)
+        self.assertIn("non-empty pfsense_* metric samples returned for 172.17.0.1", audit)
+        self.assertIn("HTTP scrape succeeded but returned no pfsense_* metric samples", audit)
+        self.assertIn("function probe_langflow_runtime_if_present", audit)
+        self.assertIn("Langflow liveness: /health HTTP 200", audit)
+        self.assertIn("Langflow readiness: db=ok chat=ok", audit)
+        self.assertIn("db_status", audit)
+        self.assertIn("chat_status", audit)
         self.assertIn("http://172.17.0.24:8123/ping", audit)
         self.assertIn("function probe_clickhouse_runtime_if_running", audit)
         self.assertIn("function probe_clickhouse_config_mounts_if_running", audit)
@@ -740,6 +813,95 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXUSR)
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
+
+    def test_pfsense_exporter_hardening_helper_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/harden-pfsense-exporter-config.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", script)
+        self.assertIn("max_collector_concurrency: 1", script)
+        self.assertIn("timeout: 8", script)
+        self.assertIn("Prometheus (120s)", script)
+        self.assertNotIn('"      - interface"', script)
+        self.assertNotIn('"      - firewall_states"', script)
+        self.assertIn("without printing the API key", script)
+        self.assertNotIn("echo \"$key\"", script)
+
+    def test_fastapi_sample_refresh_helper_is_safe_and_complete(self) -> None:
+        path = ROOT / "scripts/truenas/update-fastapi-sample.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn('REF="${FASTAPI_SAMPLE_REF:-master}"', script)
+        self.assertIn('fetch --prune origin "${REF}"', script)
+        normalized = " ".join(script.split())
+        self.assertIn(
+            "docker compose -f apps/sample/compose.yml build --pull fastapi-sample",
+            normalized,
+        )
+        self.assertIn('docker rm -f "${CONTAINER}"', script)
+        self.assertIn('app.update "${APP_ID}"', script)
+        self.assertIn('app.redeploy "${APP_ID}"', script)
+        self.assertIn("reconcile-truenas-observer-allowlist.sh", script)
+        self.assertIn("verify-truenas-observer-access.sh", script)
+        self.assertIn("http://127.0.0.1:8091/health", script)
+        self.assertIn("http://127.0.0.1:8091/v2/version", script)
+
+    def test_autokuma_trueNAS_deploy_helper_and_runtime_contract(self) -> None:
+        compose = self.read("apps/autokuma/compose.yml")
+        path = ROOT / "scripts/truenas/deploy-autokuma.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("appId: autokuma", compose)
+        self.assertIn("/mnt/cpool/autokuma/.env.secrets", compose)
+        self.assertIn("required: false", compose)
+        self.assertNotIn("${UPTIME_KUMA_URL", compose)
+        self.assertNotIn("${UPTIME_KUMA_USERNAME", compose)
+        self.assertNotIn("${UPTIME_KUMA_PASSWORD", compose)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("app.create", script)
+        self.assertIn("app.update", script)
+        self.assertIn("app.redeploy", script)
+        self.assertIn("AUTOKUMA__KUMA__URL", script)
+        self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
+        self.assertIn("generated-monitors.json", script)
+
+    def test_sample_observer_network_helpers_are_executable(self) -> None:
+        for relative in (
+            "scripts/truenas/prepare-sample-observer-network.sh",
+            "scripts/security/reconcile-truenas-observer-allowlist.sh",
+        ):
+            mode = (ROOT / relative).stat().st_mode
+            self.assertTrue(mode & stat.S_IXUSR, relative)
+            self.assertTrue(mode & stat.S_IXGRP, relative)
+            self.assertTrue(mode & stat.S_IXOTH, relative)
+
+    def test_openrag_langflow_key_bootstrap_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("http://172.17.0.24:7860/health_check", script)
+        self.assertIn("/api/v1/api_key/", script)
+        self.assertIn("/api/v1/users/whoami", script)
+        self.assertIn("/mnt/cpool/openrag/.env.secrets", script)
+        self.assertIn("LANGFLOW_KEY=", script)
+        self.assertIn("--rotate", script)
+        self.assertIn("without printing it", script)
+        self.assertNotIn("LANGFLOW_SUPERUSER_PASSWORD=", script)
 
 
 if __name__ == "__main__":

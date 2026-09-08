@@ -69,7 +69,8 @@ services:
     #
     # TrueNAS 26 also applies system.general.ui_allowlist to /api/current
     # WebSocket source addresses before API-key authentication. The source
-    # observed by TrueNAS is this container's intranet IP, not 172.17.0.24.
+    # observed by TrueNAS is this container's sample-observer IP, not
+    # 172.17.0.24 and not its shared-intranet address.
     # Validate the current /32 with:
     # scripts/security/verify-truenas-observer-access.sh
     extra_hosts:
@@ -103,13 +104,24 @@ services:
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
     networks:
-      intranet:
-        # Stable source address required by TrueNAS system.general.ui_allowlist.
-        # Override only after reviewing the matching TrueNAS /32 allowlist entry.
-        ipv4_address: ${FASTAPI_SAMPLE_OBSERVER_IP:-172.16.55.9}
+      # Dedicated observer network: do not reserve the TrueNAS allowlisted
+      # source address inside the shared intranet pool. Docker may legitimately
+      # hand an unused intranet address to another application (as happened
+      # with Langflow taking 172.16.55.9).
+      sample_observer:
+        # The external sample-observer network is prepared so only one
+        # container address is allocatable. No static IP is hard-coded here.
+        gw_priority: 1
+      intranet: {}
       traefik_network: {}
 
 networks:
+  sample_observer:
+    # Prepared by scripts/truenas/prepare-sample-observer-network.sh. Keeping
+    # the network external prevents Compose from guessing a subnet that may
+    # overlap a broader TrueNAS/Docker pool.
+    external: true
+    name: sample-observer
   intranet:
     external: true
     name: intranet
