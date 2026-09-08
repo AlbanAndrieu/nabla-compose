@@ -1,3 +1,10 @@
+## [0.25.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.0...0.25.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **truenas:** stabilize pfSense probes, Sentry and Wazuh ([#143](https://github.com/AlbanAndrieu/nabla-compose/issues/143)) ([48e91f0](https://github.com/AlbanAndrieu/nabla-compose/commit/48e91f0762f36897570017380de47ef19adc1bbd))
+
 # [0.25.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.24.0...0.25.0) (2026-09-08)
 
 
