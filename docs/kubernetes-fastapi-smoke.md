@@ -60,7 +60,7 @@ Validate against the live Kubernetes API without persisting objects:
 bash scripts/talos/smoke-fastapi-sample.sh --server-dry-run
 ```
 
-Deploy and verify rollout, Service endpoints, exact image digest,
+Deploy and verify rollout, ready Service `EndpointSlice` addresses, exact image digest,
 `https://test.albandrieu.com/health`, and the API acceptance endpoint
 `https://test.albandrieu.com/v2/version`:
 
@@ -68,7 +68,8 @@ Deploy and verify rollout, Service endpoints, exact image digest,
 bash scripts/talos/smoke-fastapi-sample.sh --apply
 ```
 
-The successful apply output retains correlation evidence for the selected Pod,
+The Service readiness gate uses `discovery.k8s.io/v1 EndpointSlice` rather than
+the deprecated core `Endpoints` API. The successful apply output retains correlation evidence for the selected Pod,
 Kubernetes node, Pod IP, Service ClusterIP, published Ingress address when
 available, and exact deployed image digest.
 
