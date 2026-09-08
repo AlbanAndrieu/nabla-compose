@@ -533,7 +533,7 @@ the trusted LAN; no separate follow-up PR number is reserved yet.
 
 - [ ] deploy the Prometheus changes;
 - [ ] verify `up{job="truenas_node"} == 1`;
-- [ ] verify `up{job="truenas_cadvisor"} == 1`;
+- [ ] if cAdvisor is intentionally enabled, verify `up{job="truenas_cadvisor"} == 1`; keep it optional during TrueNAS I/O-pressure recovery;
 - [ ] inspect ZFS/filesystem labels;
 - [ ] validate warning/critical filesystem expressions against real series;
 - [ ] configure a real Alertmanager receiver before relying on notification delivery.
