@@ -51,7 +51,7 @@ groups:
 
       - alert: NablaExporterTargetDown
         expr: >-
-          up{job=~"pihole_exporter|postgres_exporter|pfsense_exporter|haproxy|sybase|opensearch|opensearch-security|crowdsec|truenas_node|truenas_cadvisor"} == 0
+          up{job=~"pihole_exporter|postgres_exporter|pfsense_exporter|haproxy|sybase|opensearch|opensearch-security|crowdsec|truenas_node"} == 0
         for: 2m
         labels:
           severity: warning

@@ -142,6 +142,32 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("NablaExporterTargetDown", rules)
         self.assertIn("impact: blind_spot", rules)
 
+    def test_cadvisor_is_non_restarting_optional_telemetry(self) -> None:
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        rules = (
+            ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
+        ).read_text(encoding="utf-8")
+        verify = (
+            ROOT / "scripts" / "observability" / "verify-stack.sh"
+        ).read_text(encoding="utf-8")
+
+        cadvisor = compose.split("\n  cadvisor:\n", 1)[1].split(
+            "\n  pfsense-exporter:\n", 1
+        )[0]
+        self.assertIn('restart: "no"', cadvisor)
+        self.assertIn("- job_name: truenas_cadvisor", (
+            ROOT / "apps" / "prometheus" / "prometheus.yml"
+        ).read_text(encoding="utf-8"))
+        exporter_alert = rules.split(
+            "- alert: NablaExporterTargetDown", 1
+        )[1]
+        self.assertNotIn("truenas_cadvisor", exporter_alert)
+        self.assertIn("optional_jobs=(", verify)
+        self.assertIn("truenas_cadvisor", verify)
+        self.assertIn("Optional Prometheus target", verify)
+
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"

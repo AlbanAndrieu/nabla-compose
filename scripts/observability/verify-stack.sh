@@ -163,7 +163,6 @@ check_prometheus_targets() {
     opensearch-security
     crowdsec
     truenas_node
-    truenas_cadvisor
   )
 
   for job in "${jobs[@]}"; do
@@ -197,6 +196,29 @@ check_prometheus_targets() {
       fail "Prometheus target is unhealthy: ${job} (${last_error})"
     else
       fail "Prometheus target is absent from active configuration: ${job}"
+    fi
+  done
+
+  local optional_jobs=(
+    truenas_cadvisor
+  )
+
+  for job in "${optional_jobs[@]}"; do
+    if jq -e --arg job "${job}" '
+      .status == "success"
+      and any(
+        .data.activeTargets[];
+        .labels.job == $job and .health == "up"
+      )
+    ' "${body}" >/dev/null 2>&1; then
+      ok "Optional Prometheus target is up: ${job}"
+    elif jq -e --arg job "${job}" '
+      .status == "success"
+      and any(.data.activeTargets[]; .labels.job == $job)
+    ' "${body}" >/dev/null 2>&1; then
+      warn "Optional Prometheus target is intentionally/non-critically down: ${job}"
+    else
+      warn "Optional Prometheus target is absent: ${job}"
     fi
   done
 }

@@ -627,6 +627,20 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("do not delete them", readme.lower())
         self.assertIn("curl -fsS http://172.17.0.24:4040/ready", readme)
 
+    def test_roadmap_tracks_shared_tika_and_postgres_consolidation(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("#### Shared Tika consolidation", roadmap)
+        self.assertIn("PAPERLESS_TIKA_ENDPOINT", roadmap)
+        self.assertIn("TIKA_URL", roadmap)
+        self.assertIn("apps/tika/compose.yml", roadmap)
+        self.assertIn("keep Tika on the 3.x line", roadmap)
+        self.assertIn("Reactive Resume, OpenArchiver, n8n, Home Assistant, Zabbix and", roadmap)
+        self.assertIn("Paperless after per-service validation", roadmap)
+        self.assertIn("dedicated role", roadmap)
+        self.assertIn("Keycloak has already been migrated", roadmap)
+        self.assertNotIn("keep Keycloak dedicated initially", roadmap)
+
     def test_roadmap_tracks_bichon_oauth2_reauthorization(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
@@ -634,6 +648,24 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("OAuth2 Tokens -> Delete Token", roadmap)
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
+
+    def test_roadmap_tracks_staged_shared_tika_migration(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("#### Shared Tika consolidation", roadmap)
+        self.assertIn("ix-openarchiver-tika-1   running  healthy", roadmap)
+        self.assertIn("ix-paperless-ngx-tika-1 running  healthy", roadmap)
+        self.assertIn("PAPERLESS_TIKA_ENDPOINT", roadmap)
+        self.assertIn("TIKA_URL", roadmap)
+        self.assertIn("migrate **one consumer at a time**", roadmap)
+        self.assertIn(
+            "connect Paperless-ngx to the already-validated shared Tika endpoint",
+            roadmap,
+        )
+        self.assertNotIn(
+            "start Paperless PostgreSQL/Redis/Gotenberg/Tika, then Paperless-ngx",
+            roadmap,
+        )
 
     def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")

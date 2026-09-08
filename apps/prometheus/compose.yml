@@ -112,7 +112,10 @@ services:
   cadvisor:
     network_mode: bridge
     image: gcr.io/cadvisor/cadvisor
-    restart: unless-stopped
+    # cAdvisor is intentionally non-restarting: on this TrueNAS host it can
+    # consume >100% CPU and amplify Docker/ZFS I/O pressure. It may be started
+    # explicitly when container-level metrics are needed.
+    restart: "no"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:rw
