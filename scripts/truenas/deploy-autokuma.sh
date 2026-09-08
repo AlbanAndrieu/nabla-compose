@@ -35,9 +35,15 @@ has_token=false
 has_user=false
 has_password=false
 
-grep -q '^AUTOKUMA__KUMA__AUTH_TOKEN=.' "${SECRET_FILE}" && has_token=true || true
-grep -q '^AUTOKUMA__KUMA__USERNAME=.' "${SECRET_FILE}" && has_user=true || true
-grep -q '^AUTOKUMA__KUMA__PASSWORD=.' "${SECRET_FILE}" && has_password=true || true
+if grep -q '^AUTOKUMA__KUMA__AUTH_TOKEN=.' "${SECRET_FILE}"; then
+  has_token=true
+fi
+if grep -q '^AUTOKUMA__KUMA__USERNAME=.' "${SECRET_FILE}"; then
+  has_user=true
+fi
+if grep -q '^AUTOKUMA__KUMA__PASSWORD=.' "${SECRET_FILE}"; then
+  has_password=true
+fi
 
 if [[ "${has_token}" != "true" && ! ( "${has_user}" == "true" && "${has_password}" == "true" ) ]]; then
   fail "configure either AUTOKUMA__KUMA__AUTH_TOKEN or username+password"
