@@ -87,6 +87,60 @@ Only explicit `--apply` performs a mutation. Apply first runs
 `verify-stack.sh --strict`, then patches and re-reads the pfSense settings,
 runs the synthetic log path test, and finally looks for real pfSense records.
 
+## pfSense exporter runtime configuration
+
+The pfSense exporter runtime configuration is deliberately outside the Git
+checkout:
+
+```text
+/mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
+Compose uses a long bind with `create_host_path: false`. This is intentional:
+if the source file is missing, deployment must fail instead of Docker creating a
+directory at the source path and sending the exporter into a restart loop with
+`config.yml: is a directory`.
+
+Bootstrap from the non-secret template:
+
+```bash
+sudo install -d -o root -g root -m 700 /mnt/cpool/prometheus/secrets
+
+sudo install -o root -g root -m 600 \
+  apps/prometheus/pfsense-exporter.example.yml \
+  /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
+Then edit only the runtime file and replace
+`REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY` with a dedicated read-only
+pfSense REST API key. Do not reuse the observability-operator key used for
+supervised syslog configuration; the exporter continuously reads a broader set
+of status/metrics endpoints and should have its own identity.
+
+Expected non-secret target contract:
+
+```yaml
+host: "172.17.0.1"
+port: 10443
+scheme: "https"
+auth_method: "key"
+validate_cert: false
+```
+
+The direct IP is used because the exporter is a LAN-local machine integration.
+Certificate validation is disabled only for this exporter target because the
+pfSense certificate hostname does not match `172.17.0.1`; this does not change
+the stricter TLS policy of the workstation/operator scripts.
+
+Before redeploying, validate without printing the API key:
+
+```bash
+sudo test -f /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+sudo test -s /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+sudo grep -q '^[[:space:]]*key:[[:space:]]*[^[:space:]]' \
+  /mnt/cpool/prometheus/secrets/pfsense-exporter.yml
+```
+
 ## Required identities
 
 Do not restore or reuse the historical generic `PFSENSE_API_KEY`.
