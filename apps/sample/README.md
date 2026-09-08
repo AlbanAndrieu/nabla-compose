@@ -143,78 +143,70 @@ For this recovery branch the expected FastAPI Sample revision is
 The previous design pinned `172.16.55.9` directly on the shared
 `intranet` network. Runtime evidence proved that address was not reserved:
 while FastAPI Sample was stopped, Docker assigned `172.16.55.9` to Langflow.
-The next Sample start therefore failed with `Address already in use`.
+A second attempt with a Compose-managed `172.16.56.0/28` also failed because
+that small subnet overlapped a broader Docker/TrueNAS address pool even though
+no network used the exact same CIDR.
 
-The repository now gives FastAPI Sample a dedicated Compose-managed observer
-bridge:
+The repository therefore keeps `sample-observer` external to Compose and
+prepares it explicitly after checking **CIDR overlap**, not string equality:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/prepare-sample-observer-network.sh
+```
+
+The helper:
+
+- inspects every Docker network subnet;
+- inspects non-default IPv4 host routes so VPN/LAN ranges are not shadowed;
+- chooses the first free reviewed private `/28`;
+- creates `sample-observer` with an `ip_range` containing six usable
+  addresses;
+- reserves five of those addresses with Docker `aux-address`, leaving exactly
+  one allocatable container address;
+- labels the network with `com.nabla.observer-ip=<reserved address>`.
+
+FastAPI Sample does not hard-code that IP. Because it is the only allocatable
+address on the dedicated network, Docker reuses it across recreates. The
+container remains attached to `intranet` for shared-service DNS and to
+`traefik_network` for ingress. `gw_priority: 1` on `sample-observer`
+makes the dedicated observer bridge the preferred default route.
+
+Inspect the selected non-secret network contract at any time:
+
+```bash
+docker network inspect sample-observer |
+jq '.[0] | {
+  subnet: .IPAM.Config[0].Subnet,
+  ip_range: .IPAM.Config[0].IPRange,
+  gateway: .IPAM.Config[0].Gateway,
+  observer_ip: .Labels["com.nabla.observer-ip"]
+}'
+```
+
+### Reconcile the TrueNAS source allowlist
+
+Do not retain either historical observer address:
 
 ```text
-sample-observer
-  subnet: 172.16.56.0/28
-  FastAPI Sample: 172.16.56.9
+172.16.55.9/32   shared intranet pool; observed owned by Langflow
+172.16.56.9/32   failed candidate; its subnet overlaps another address space
 ```
 
-The container remains attached to `intranet` for shared-service DNS and to
-`traefik_network` for ingress. `gw_priority: 1` on `sample-observer` makes
-the dedicated address the source for LAN appliance calls while directly
-connected Docker service traffic still uses its matching networks.
-
-Before redeploying, verify that the new subnet does not overlap another Docker
-network:
+Use the repository helper. Its default mode is read-only:
 
 ```bash
-docker network inspect $(docker network ls -q) |
-jq -r '
-  .[] |
-  .Name as $name |
-  .IPAM.Config[]? |
-  [$name, (.Subnet // "")] |
-  @tsv
-' |
-grep -F '172.16.56.0/28' || true
+sudo bash scripts/security/reconcile-truenas-observer-allowlist.sh --check
 ```
 
-No output is expected before the first Sample deployment. If another unrelated
-network already owns that subnet, stop and select a reviewed replacement subnet
-and `FASTAPI_SAMPLE_OBSERVER_IP` together.
+It preserves unrelated allowlist entries, removes only the obsolete Sample
+observer /32 values above, and derives the desired replacement from the
+`sample-observer` network label.
 
-### Migrate the TrueNAS source allowlist
-
-Do not leave the historical `172.16.55.9/32` entry in the TrueNAS
-`ui_allowlist`: that address is part of the shared `intranet` pool and was
-observed assigned to Langflow.
-
-Preserve every other current allowlist entry, remove the legacy Docker /32, and
-add the dedicated observer /32:
+Apply explicitly:
 
 ```bash
-current_allowlist="$(
-  midclt call system.general.config |
-    jq -c '.ui_allowlist // []'
-)"
-
-next_allowlist="$(
-  jq -cn \
-    --argjson current "${current_allowlist}" \
-    '
-      (
-        $current |
-        map(select(. != "172.16.55.9/32"))
-      ) +
-      ["172.16.56.9/32"] |
-      unique
-    '
-)"
-
-printf '%s\n' "${next_allowlist}" | jq .
-
-sudo midclt call system.general.update "$(
-  jq -cn \
-    --argjson allowlist "${next_allowlist}" \
-    '{ui_allowlist: $allowlist}'
-)"
-
-sudo midclt call system.general.checkin
+sudo bash scripts/security/reconcile-truenas-observer-allowlist.sh --apply
 ```
 
 Re-read the persisted value:
@@ -224,22 +216,16 @@ midclt call system.general.config |
 jq '.ui_allowlist'
 ```
 
-The final list must contain `172.16.56.9/32` and must not contain
-`172.16.55.9/32`.
-
-Remove the failed container from the previous shared-IP attempt. Do **not**
-delete or recreate `intranet`:
+Remove a failed Sample container from previous network attempts. Do **not**
+delete or recreate the shared `intranet` network:
 
 ```bash
 docker rm -f fastapi-sample 2>/dev/null || true
 ```
 
-Build the pinned source, reconcile the TrueNAS Custom App, then redeploy:
+Reconcile the TrueNAS Custom App and redeploy:
 
 ```bash
-docker compose -f apps/sample/compose.yml \
-  build --pull fastapi-sample
-
 sudo midclt call -j app.update sample \
 '{
   "custom_compose_config": {
@@ -250,6 +236,19 @@ sudo midclt call -j app.update sample \
 }'
 
 sudo midclt call -j app.redeploy sample
+```
+
+After the container is running, prove that Docker assigned the network-reserved
+address and that TrueNAS accepts the source:
+
+```bash
+docker inspect fastapi-sample |
+jq '.[0].NetworkSettings.Networks["sample-observer"] | {
+  ip: .IPAddress,
+  gateway: .Gateway
+}'
+
+bash scripts/security/verify-truenas-observer-access.sh
 ```
 
 Then prove the replacement container, health endpoint and effective version:
