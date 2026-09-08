@@ -1021,29 +1021,29 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
     def test_openrag_workstation_litellm_contract(self) -> None:
         openrag_compose = self.read("apps/openrag/compose.yml")
-        provider_catalog = self.read("apps/openrag/config/model_providers.yaml")
+        langflow_compose = self.read("apps/langflow/compose.yml")
         bootstrap = self.read("apps/openrag/config/bootstrap_litellm.py")
         litellm_compose = self.read("apps/litellm/compose.yml")
         litellm_config = self.read("apps/litellm/config.yaml")
         readme = self.read("apps/openrag/README.md")
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
-        self.assertIn(
-            "OPENRAG_MODEL_PROVIDERS_CONFIG: /app/config/model_providers.yaml",
-            openrag_compose,
-        )
+        self.assertIn("OPENAI_BASE_URL:", openrag_compose)
         self.assertIn("http://172.17.0.57:4000/v1", openrag_compose)
-        self.assertNotIn(
-            "OPENAI_LIKE_API_KEY: ${LITELLM_IDE_API_KEY}",
-            openrag_compose,
-        )
-        self.assertIn("name: openai_like", provider_catalog)
-        self.assertIn("LiteLLM Workstation GPU", provider_catalog)
-        self.assertIn("embedding_models:", provider_catalog)
+        self.assertNotIn("OPENRAG_MODEL_PROVIDERS_CONFIG", openrag_compose)
+        self.assertIn("OPENAI_BASE_URL:", langflow_compose)
+        self.assertIn("http://172.17.0.57:4000/v1", langflow_compose)
+
         self.assertIn('api_key = _required_env("LITELLM_IDE_API_KEY")', bootstrap)
         self.assertIn("OPENRAG_ENCRYPTION_KEY", bootstrap)
-        self.assertIn('config.providers.set_credentials(', bootstrap)
+        self.assertIn('config.providers.openai.api_key = api_key', bootstrap)
+        self.assertIn('config.agent.llm_provider = "openai"', bootstrap)
+        self.assertIn('config.knowledge.embedding_provider = "openai"', bootstrap)
+        self.assertIn('os.environ["OPENAI_BASE_URL"] = base_url', bootstrap)
+        self.assertIn("reapply_all_settings", bootstrap)
+        self.assertNotIn("GenericProviderConfig", bootstrap)
         self.assertNotIn("print(api_key", bootstrap)
+
         self.assertIn("model: openai/embedding", litellm_config)
         self.assertIn("model_name: embedding-local", litellm_config)
         self.assertIn("model: openai/qwen", litellm_config)
@@ -1053,8 +1053,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             "LITELLM_IDE_API_KEY: ${LITELLM_IDE_API_KEY}",
             litellm_compose,
         )
-        self.assertIn("Workstation LiteLLM GPU provider", readme)
-        self.assertIn("OpenRAG -> workstation LiteLLM", roadmap)
+
+        self.assertIn("OpenRAG 0.7.1 compatibility caveat", readme)
+        self.assertIn("provider=openai", readme)
+        self.assertIn("OpenRAG 0.7.1 -> workstation LiteLLM", roadmap)
 
 
 if __name__ == "__main__":
