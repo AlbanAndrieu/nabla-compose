@@ -87,7 +87,11 @@ scrape_configs:
 
   - job_name: pfsense_exporter
     metrics_path: /metrics
-    scrape_interval: 15s
+    # Netgate 1100 has a tight CPU/RAM budget. Each exporter scrape fans out
+    # into multiple pfREST calls, so keep this intentionally much slower than
+    # local exporters.
+    scrape_interval: 60s
+    scrape_timeout: 20s
     static_configs:
       - targets:
           - 172.17.0.1
