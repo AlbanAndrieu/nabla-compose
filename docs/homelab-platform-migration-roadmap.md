@@ -16,7 +16,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Talos control-plane maintenance discovery completed: `taloscp01` is reachable at `172.17.0.50:50000`, runs Talos `v1.13.9`, exposes `ens2` with the planned MAC, and reports the target install disk as `/dev/vda` (34 GB VirtIO).
 - [x] Talos boot-device normalization plan reviewed with all Talos VMs stopped: `0 to add, 6 to change, 0 to destroy`. The only actions are three DISK orders `1001 -> 1000` and three CDROM orders `1000 -> 1001`; NIC order remains `1002`.
 - [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
-- Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
+- Current supervised bootstrap uses `TRUENAS_INFRA_API_USERNAME=albandrieu` with a separate `TRUENAS_INFRA_API_KEY`. OpenTofu/Terragrunt must not consume the FastAPI observer `TRUENAS_API_USERNAME`/`TRUENAS_API_KEY` pair. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
 - [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
 - [x] confirm all three Kubernetes nodes transitioned from the initial `NotReady` state to `Ready`; retained as a completed bootstrap gate before network/storage work;
@@ -1682,11 +1682,11 @@ Migrate these before unattended infrastructure automation or GitOps:
 
 **TrueNAS infrastructure automation**
 
-- `TRUENAS_API_KEY`;
-- move from the current operator identity toward the planned dedicated
+- `TRUENAS_INFRA_API_USERNAME` as the explicit provider identity;
+- `TRUENAS_INFRA_API_KEY` as its paired secret;
+- move from the current supervised `albandrieu` operator identity toward the planned dedicated
   least-privilege `tofu_truenas` identity;
-- keep `TRUENAS_USER`/service-account name as configuration where it is not
-  itself secret;
+- never fall back to the FastAPI observer `TRUENAS_API_USERNAME`/`TRUENAS_API_KEY` pair;
 - create a separate least-privilege CSI credential for Kubernetes storage;
 - keep the read-only `fastapi_observer` credential isolated from both OpenTofu
   and CSI credentials.

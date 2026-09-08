@@ -306,7 +306,9 @@ Cursor and other local agents can use `truenas-readonly` to inspect pools, datas
 
 Do **not** reuse the MCP key for infrastructure writes.
 
-Current supervised bootstrap status: the existing `albandrieu` account owns the API key used for the read-only plan. This is acceptable for the supervised bootstrap, but it is not the steady-state least-privilege design. Before unattended or recurring automation, create a dedicated service account such as `tofu_truenas` with a custom privilege containing only the roles required by this module:
+Do **not** reuse the FastAPI Sample observer identity either. `fastapi_observer` remains scoped to application/runtime observation through `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`; OpenTofu/Terragrunt reads only `TRUENAS_INFRA_API_USERNAME` + `TRUENAS_INFRA_API_KEY`.
+
+Current supervised bootstrap status: `TRUENAS_INFRA_API_USERNAME=albandrieu` owns the dedicated infrastructure API key used for the read-only plan. This is acceptable for the supervised bootstrap, but it is not the steady-state least-privilege design. Before unattended or recurring automation, create a dedicated service account such as `tofu_truenas` with a custom privilege containing only the roles required by this module:
 
 - `READONLY_ADMIN` — inspect existing system/resource state;
 - `VM_WRITE` — create/update the three VMs;
@@ -318,8 +320,8 @@ Do not grant `FULL_ADMIN` by default. If a plan/apply reports a permission error
 Export both the username and key:
 
 ```bash
-export TRUENAS_USER='albandrieu'
-export TRUENAS_API_KEY='...current operator API key...'
+export TRUENAS_INFRA_API_USERNAME='albandrieu'
+export TRUENAS_INFRA_API_KEY='...current operator API key...'
 ```
 
 ### 5.3 Future credentials
@@ -352,8 +354,8 @@ Garage state is currently operated under the repository single-writer contract. 
 
 ```bash
 export TRUENAS_URL='https://truenas.example.internal'
-export TRUENAS_USER='albandrieu'
-export TRUENAS_API_KEY='...terraform key...'
+export TRUENAS_INFRA_API_USERNAME='albandrieu'
+export TRUENAS_INFRA_API_KEY='...terraform key...'
 # Optional overrides; repository defaults are cpool and br0.
 export TRUENAS_POOL='cpool'
 export TRUENAS_VM_BRIDGE='br0'
@@ -424,7 +426,7 @@ taloswk01  02:00:00:00:20:01
 taloswk02  02:00:00:00:20:02
 ```
 
-Because `autostart=false`, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
+During the original bootstrap, autostart was intentionally disabled so VM creation did not implicitly boot the cluster. The cluster is now bootstrapped; the steady-state IaC default is `TALOS_VM_AUTOSTART=true`, so all three Talos VMs recover automatically after a TrueNAS reboot. Set it to `false` only for deliberate maintenance/bootstrap work.
 
 ### First control-plane boot: DHCP/IP discovery
 
@@ -522,7 +524,7 @@ taloswk02 = RUNNING
 
 The serialized apply created a remote-state backup and then completed with `0 added, 0 changed, 0 destroyed`. This proves the DISK/CDROM/NIC ordering is already converged in TrueNAS; do not keep applying solely to change the `talos_vm_status` output.
 
-`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart=false` only prevents automatic boot and does not force an already-running VM to stop.
+`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart` controls reboot recovery only; it does not itself define the live power state of an already-running VM.
 
 Before applying Talos machine configuration, decide the operator sequence explicitly:
 
@@ -553,6 +555,19 @@ The first Kubernetes node names are Talos-generated stable names:
 Do not re-run `talosctl apply-config --insecure` against `.51` or `.52` once they require a client certificate and are visible to Kubernetes. `--insecure` is only for maintenance mode before the first machine configuration is installed. A `tls: certificate required` response means the node has already left maintenance mode; use the generated `talosconfig` for authenticated Talos API operations instead.
 
 After bootstrap, a short `NotReady` interval is expected while CNI and kubelet node conditions settle. If it persists, inspect Kubernetes node conditions/events rather than reapplying machine configuration.
+
+### TrueNAS reboot recovery incident — 2026-09-08
+
+A TrueNAS reboot exposed a steady-state lifecycle gap: all three Talos VMs
+remained `STOPPED` because their persisted VM configuration still had
+`autostart=false`. Manual starts restored ICMP and Talos API TCP/50000 on
+`172.17.0.50`, `172.17.0.51` and `172.17.0.52`.
+
+The steady-state infrastructure contract is now
+`TALOS_VM_AUTOSTART=true`. Apply this only if the reviewed OpenTofu plan is
+exactly three in-place VM autostart updates and contains no create, replace or
+destroy action. After the next TrueNAS reboot, re-run
+`scripts/talos/validate-cluster.sh` to close the persistence gate.
 
 ### Base cluster healthy — 2026-09-06
 
@@ -745,7 +760,7 @@ external_secrets:
       key: <VAULTWARDEN_ITEM_UUID>
       property: password
 
-  TRUENAS_API_KEY:
+  TRUENAS_INFRA_API_KEY:
     store_ref: bitwarden-fields
     remote_ref:
       key: <VAULTWARDEN_ITEM_UUID>
@@ -799,7 +814,7 @@ Do not continue to Kubernetes until all of the following are true:
 - [ ] Parent `k8s`, `k8s/talos-vms`, `k8s/nfs` and `k8s/csi` datasets exist as intended.
 - [ ] The `mcp_reader` identity can list resources but cannot mutate them.
 - [ ] Before unattended/recurring automation, replace the supervised `albandrieu` bootstrap identity with a dedicated `tofu_truenas` account and user-linked API key containing only the required roles.
-- [ ] `TRUENAS_USER` and `TRUENAS_API_KEY` are stored outside Git.
+- [ ] `TRUENAS_INFRA_API_USERNAME` and `TRUENAS_INFRA_API_KEY` are stored outside Git.
 - [ ] `terragrunt plan` reports exactly three VMs, three zvols and their devices.
 - [ ] The first `terragrunt apply` creates those resources successfully.
 - [ ] `TRUENAS_DESTROY_PROTECTION=true` remains enabled.

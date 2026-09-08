@@ -475,6 +475,13 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXUSR)
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
+        validator = (ROOT / "scripts" / "talos" / "validate-cluster.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('ip route get "${node_ip}"', validator)
+        self.assertIn('ip neigh show "${node_ip}"', validator)
+        self.assertIn("socket.create_connection((host, 50000)", validator)
+        self.assertIn("IaC autostart setting is enabled", validator)
 
     def test_syslog_classifies_known_pfsense_without_ip_label(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")

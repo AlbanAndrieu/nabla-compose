@@ -51,6 +51,18 @@ Once Sentry and Wazuh are converged, resume the Kubernetes platform gate below.
 
 Do not start CSI installation until all items below are green.
 
+Reboot incident resolved (2026-09-08): all three Talos VMs were found
+`STOPPED` after the TrueNAS reboot because their persisted VM configuration
+still had `autostart=false`. Manual start restored direct LAN reachability,
+ICMP and Talos API TCP/50000 on `.50`, `.51` and `.52`.
+
+Steady-state remediation is now tracked in IaC with
+`TALOS_VM_AUTOSTART=true`. Apply only if the reviewed plan is exactly three
+in-place VM updates with zero create/replace/destroy actions.
+
+- [x] restore and prove Talos API TCP/50000 reachability on `.50`, `.51` and `.52` after manual VM start;
+- [ ] apply the IaC autostart change only if the plan is exactly 3 in-place VM updates, 0 create and 0 destroy;
+- [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot;
 - [ ] run `scripts/talos/validate-cluster.sh` immediately before the network smoke;
 - [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
@@ -102,7 +114,7 @@ review selects another transport.
 After CSI persistence/rollback is proven:
 
 1. OpenTofu/Terragrunt + Garage backend credentials;
-2. dedicated TrueNAS automation credentials;
+2. dedicated TrueNAS automation credentials (`TRUENAS_INFRA_API_USERNAME` + `TRUENAS_INFRA_API_KEY`), never the FastAPI observer pair;
 3. Nexus automation credentials;
 4. Talos/Kubernetes/CSI credentials;
 5. Vaultwarden-backed rendering into minimum root-owned `0600` runtime files;
