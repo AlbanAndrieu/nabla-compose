@@ -104,6 +104,15 @@ else
   printf 'Runtime-only TrueNAS applications: %d\n' "${runtime_only}"
 fi
 
+printf '\n🔎 Traefik legacy DDNS orphan\n'
+if docker ps -a   --filter 'label=com.docker.compose.project=ix-traefik'   --filter 'label=com.docker.compose.service=ddns-updater'   --format '{{.Names}}' |
+  grep -Fxq 'ddns-updater' &&
+  grep -Fq 'container_name: ddns-updater-legacy'     "${ROOT}/apps/traefik/compose.yml"; then
+  printf '❌ Traefik legacy DDNS orphan: remove container ddns-updater; repository service is profile-gated as ddns-updater-legacy\n' >&2
+else
+  printf '✅ no legacy ddns-updater orphan detected for ix-traefik\n'
+fi
+
 printf '\n🔎 problematic Docker container states\n'
 problematic="$(
   docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Image}}' |
