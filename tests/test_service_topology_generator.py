@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -17,6 +18,34 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_fastapi_sample_topology_environments_are_pinned(self) -> None:
+        topology = json.loads(
+            (ROOT / "catalog/service-topology.json").read_text(encoding="utf-8")
+        )
+        node = next(
+            item for item in topology["nodes"] if item["id"] == "fastapi-sample"
+        )
+
+        self.assertEqual(node["name"], "FastAPI Sample")
+        self.assertEqual(node["presentationRole"], "service")
+        self.assertEqual(
+            node["environments"],
+            [
+                {
+                    "name": "production",
+                    "url": "https://fastapi-sample.fastapicloud.dev",
+                    "external": False,
+                    "cloudflareTunnel": False,
+                },
+                {
+                    "name": "staging",
+                    "url": "https://sample.albandrieu.com",
+                    "external": False,
+                    "cloudflareTunnel": False,
+                },
+            ],
+        )
+
     def test_hosted_by_is_a_supported_relation_type(self) -> None:
         relation = MODULE.topology_relation(
             {
@@ -332,7 +361,7 @@ services:
             "id": "security-fixture",
             "name": "Security fixture",
             "kind": "security-control",
-            "category": "security",
+            "category": "test",
         }
 
         for invalid in ("protect", []):
