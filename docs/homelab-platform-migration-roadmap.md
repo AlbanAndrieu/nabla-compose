@@ -1642,6 +1642,19 @@ the Kubernetes network/storage and infrastructure-secret gates below.
 
 ### P0 — Kubernetes DNS, CNI and explicit FastAPI Sample smoke
 
+Platform ingress target: **Kubara v0.14.0 with its generated Traefik
+component**. Live 2026-09-08 evidence shows Kubernetes v1.36.3 with all three
+Talos nodes `Ready`, no `IngressClass`, and no `nabla-fastapi-smoke`
+namespace yet. Treat that as the expected pre-platform state. Kubara defaults
+`ingressClassName` to `traefik`; run `kubara generate --helm`, inspect
+`platform-configs/<cluster>/helm/traefik/values.generated.yaml`, and use the
+single Kubara-managed Traefik controller when enabled. Do not install a second
+standalone Traefik merely to unblock the smoke.
+
+A **minimal Kubara/Argo CD + Traefik bootstrap is allowed before CSI** because
+it is required to prove the ingress path. Persistent/stateful workload
+onboarding remains blocked until CSI persistence and rollback are proven.
+
 1. run `scripts/talos/validate-cluster.sh` and retain the all-nodes-`Ready`,
    kubelet and etcd health gate;
 2. run `scripts/talos/smoke-kubernetes-network.sh` from the workstation using
@@ -1683,7 +1696,8 @@ After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
 10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
     recovery to prove application + ingress + CSI together;
 11. test one rollback/uninstall path before introducing production workloads;
-12. bootstrap GitOps only after CSI persistence and rollback are proven.
+12. expand the already-minimal Kubara/Argo CD bootstrap to persistent/stateful
+    GitOps workloads only after CSI persistence and rollback are proven.
 
 Prefer NFS as the first persistence smoke path because Talos workers require no
 additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node
