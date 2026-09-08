@@ -24,7 +24,12 @@ cd "${ROOT}"
 bash scripts/truenas/bootstrap-wazuh.sh --apply
 bash scripts/truenas/bootstrap-wazuh.sh --check
 
-docker compose   -f apps/wazuh/compose.yml   config   --quiet   --no-interpolate   --no-env-resolution
+docker compose \
+  -f apps/wazuh/compose.yml \
+  config \
+  --quiet \
+  --no-interpolate \
+  --no-env-resolution
 
 compose_path="${ROOT}/apps/wazuh/compose.yml"
 
@@ -43,7 +48,10 @@ else
   printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
   wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
   midclt call -j app.create "$(
-    jq -cn       --arg app_name "${APP_ID}"       --arg compose "${wrapper}"       '{
+    jq -cn \
+      --arg app_name "${APP_ID}" \
+      --arg compose "${wrapper}" \
+      '{
         app_name: $app_name,
         custom_app: true,
         custom_compose_config_string: $compose
@@ -71,7 +79,8 @@ for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
       midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
         jq -r '.[0].state // "UNKNOWN"'
     )"
-    printf 'Wazuh not converged yet (%d/%d, TrueNAS=%s)\n'       "${attempt}" "${WAIT_ATTEMPTS}" "${state}"
+    printf 'Wazuh not converged yet (%d/%d, TrueNAS=%s)\n' \
+      "${attempt}" "${WAIT_ATTEMPTS}" "${state}"
   fi
   sleep "${WAIT_DELAY}"
 done
@@ -80,7 +89,9 @@ printf '%s\n' "${last_diagnostic}" >&2
 midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
   jq '.[0] | {id,state,active_workloads}' >&2 || true
 
-docker ps -a   --filter 'label=com.docker.compose.project=ix-wazuh'   --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' >&2 || true
+docker ps -a \
+  --filter 'label=com.docker.compose.project=ix-wazuh' \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' >&2 || true
 
 for container in wazuh-indexer wazuh-manager wazuh-dashboard; do
   printf '\n=== %s last logs ===\n' "${container}" >&2
