@@ -166,7 +166,7 @@ esac
 
 /etc/rc.restart_webgui
 
-workers=$(ps axww -o command | grep -c 'php-fpm: pool nginx' || true)
+workers=$(pgrep -fc '^php-fpm: pool nginx' || true)
 [ "${workers}" -le "${TARGET_MAX}" ] || fail "PHP-FPM worker count ${workers} exceeds target ${TARGET_MAX}"
 
 printf 'OK: pfSense PHP-FPM constrained profile applied: %s\n' "${expected}"
