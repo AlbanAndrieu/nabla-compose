@@ -22,22 +22,58 @@ database keycloak
 role     keycloak
 ```
 
-Create the dedicated database and role in the global PostgreSQL instance before
-registering the TrueNAS Custom App. Use an operator/admin PostgreSQL identity and
-do not print the generated password:
+Create the dedicated database and role **inside the global PostgreSQL
+container**. TrueNAS does not need `psql` installed on the host.
 
 ```bash
+POSTGRES_CONTAINER="$(
+  docker ps \
+    --filter 'label=com.docker.compose.project=ix-postgres' \
+    --filter 'label=com.docker.compose.service=postgres' \
+    --format '{{.Names}}' |
+  head -1
+)"
+
+if [ -z "${POSTGRES_CONTAINER}" ]; then
+  POSTGRES_CONTAINER="$(
+    docker ps --format '{{.Names}}' |
+      grep -E '^ix-postgres-postgres-[0-9]+$' |
+      head -1
+  )"
+fi
+
+test -n "${POSTGRES_CONTAINER}" || {
+  echo 'PostgreSQL global container not found' >&2
+  exit 1
+}
+
+POSTGRES_ADMIN="$(
+  docker exec "${POSTGRES_CONTAINER}" \
+    sh -lc 'printf "%s" "${POSTGRES_USER:-postgres}"'
+)"
+
 KEYCLOAK_DB_PASSWORD="$(openssl rand -hex 32)"
 
-psql -h 172.17.0.24 -U postgres -d postgres \
-  --set=ON_ERROR_STOP=1 \
-  --set=keycloak_password="${KEYCLOAK_DB_PASSWORD}" <<'SQL'
+docker exec -i \
+  -e KEYCLOAK_DB_PASSWORD="${KEYCLOAK_DB_PASSWORD}" \
+  "${POSTGRES_CONTAINER}" \
+  psql \
+    --set=ON_ERROR_STOP=1 \
+    -U "${POSTGRES_ADMIN}" \
+    -d postgres <<'SQL'
+\getenv keycloak_password KEYCLOAK_DB_PASSWORD
+
 SELECT format(
   'CREATE ROLE keycloak LOGIN PASSWORD %L',
   :'keycloak_password'
 )
 WHERE NOT EXISTS (
   SELECT 1 FROM pg_roles WHERE rolname = 'keycloak'
+) \gexec
+
+SELECT format(
+  'ALTER ROLE keycloak PASSWORD %L',
+  :'keycloak_password'
 ) \gexec
 
 SELECT 'CREATE DATABASE keycloak OWNER keycloak'
@@ -49,14 +85,27 @@ ALTER DATABASE keycloak OWNER TO keycloak;
 SQL
 ```
 
-If the role already exists, rotate it deliberately with:
+Verify without exposing the password:
 
 ```bash
-psql -h 172.17.0.24 -U postgres -d postgres \
-  --set=ON_ERROR_STOP=1 \
-  --set=keycloak_password="${KEYCLOAK_DB_PASSWORD}" \
-  -c "ALTER ROLE keycloak PASSWORD :'keycloak_password';"
+docker exec "${POSTGRES_CONTAINER}" \
+  psql -U "${POSTGRES_ADMIN}" -d postgres -Atc "
+    SELECT
+      (SELECT count(*) FROM pg_roles WHERE rolname='keycloak')::text
+      || '|' ||
+      (SELECT count(*) FROM pg_database WHERE datname='keycloak')::text;
+  "
 ```
+
+Expected:
+
+```text
+1|1
+```
+
+Keep `KEYCLOAK_DB_PASSWORD` in the current shell only long enough to import it
+into Vaultwarden or write the root-owned runtime secret file below, then
+`unset KEYCLOAK_DB_PASSWORD`.
 
 ## Runtime secrets
 
