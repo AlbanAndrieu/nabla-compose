@@ -133,9 +133,6 @@ services:
       - "9617:9617"
     networks:
       - intranet
-    depends_on:
-      pihole:
-        condition: service_healthy
 
 networks:
   intranet:
