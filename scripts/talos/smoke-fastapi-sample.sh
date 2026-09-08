@@ -92,7 +92,18 @@ check_ingress_preflight() {
       '
   )"
   [[ -z "${host_claims}" ]] ||
-    fail "Ingress host ${HOST} is already claimed by: ${host_claims//
+    fail "Ingress host ${HOST} is already claimed by: ${host_claims}"
+
+  local addresses
+  addresses="$(resolve_public_host)" ||
+    fail "public DNS lookup failed for ${HOST}"
+  [[ -n "${addresses}" ]] ||
+    fail "public DNS lookup returned no address for ${HOST}"
+
+  printf '✅ ingress preflight: class=%s controller=%s host=%s addresses=%s\n' \
+    "${INGRESS_CLASS}" "${ingress_controller}" "${HOST}" "${addresses}"
+}
+
 case "${MODE}" in
   --render | --preflight | --server-dry-run | --apply | --cleanup) ;;
   -h | --help)
