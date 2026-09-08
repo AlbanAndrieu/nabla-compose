@@ -46,8 +46,11 @@ parallel. Sentry is no longer a blocker.
 9. [ ] **Secondary runtime debt** — AutoKuma registration, Pyroscope readiness, Bichon OAuth2 re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
 
 **Ordering gate:** CSI still waits for the complete Kubernetes P0 networking and
-ingress smoke. Wazuh/Scrutiny work may proceed in parallel because it does not
-replace that Kubernetes acceptance gate.
+ingress smoke. The minimal Kubara v0.14.0 bootstrap needed to provide Argo CD
+platform reconciliation plus the single intended Traefik ingress controller is
+allowed before CSI; do not expand that early bootstrap to persistent/stateful
+workloads until CSI persistence and rollback are proven. Wazuh/Scrutiny work may
+proceed in parallel because it does not replace that Kubernetes acceptance gate.
 
 ## FastAPI TrueNAS observer least-privilege migration
 
