@@ -391,7 +391,7 @@ Plan: 15 to add, 0 to change, 0 to destroy.
 
 Expected resources were present:
 
-- three Talos VMs with `autostart=false`;
+- three Talos VMs with `autostart=true` in steady state;
 - three 32 GiB `LZ4` zvols under `cpool/k8s/talos-vms`;
 - three VirtIO disk devices;
 - three VirtIO NIC devices attached to `br0` with deterministic MAC addresses;
@@ -410,7 +410,7 @@ Plan: 15 to add, 0 to change, 0 to destroy.
 The apply completed successfully on 2026-09-05 with `15 added, 0 changed, 0 destroyed`. The created objects are:
 
 - 3 UEFI Talos VMs: `taloscp01`, `taloswk01`, `taloswk02`;
-- each VM: 4 GiB RAM, 2 cores, host CPU passthrough, `autostart=false`;
+- each VM: 4 GiB RAM, 2 cores, host CPU passthrough, `autostart=true` in steady state;
 - 3 x 32 GiB LZ4 zvols below `cpool/k8s/talos-vms`;
 - 3 VirtIO disks, explicitly ordered first at device order `1000`;
 - 3 Talos ISO CDROM devices, explicitly ordered next at device order `1001`;
@@ -424,7 +424,7 @@ taloswk01  02:00:00:00:20:01
 taloswk02  02:00:00:00:20:02
 ```
 
-Because `autostart=false`, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
+Because `autostart=true` in steady state, this apply provisions resources but does not boot the Talos nodes. Start only the first control-plane VM after apply and reserve/identify its LAN address before generating or applying Talos machine configuration.
 
 ### First control-plane boot: DHCP/IP discovery
 
@@ -522,7 +522,7 @@ taloswk02 = RUNNING
 
 The serialized apply created a remote-state backup and then completed with `0 added, 0 changed, 0 destroyed`. This proves the DISK/CDROM/NIC ordering is already converged in TrueNAS; do not keep applying solely to change the `talos_vm_status` output.
 
-`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart=false` only prevents automatic boot and does not force an already-running VM to stop.
+`talos_vm_status` is observational output from the provider's current VM status. It is **not** desired power-state management. `autostart=true` in steady state only prevents automatic boot and does not force an already-running VM to stop.
 
 Before applying Talos machine configuration, decide the operator sequence explicitly:
 
@@ -553,6 +553,24 @@ The first Kubernetes node names are Talos-generated stable names:
 Do not re-run `talosctl apply-config --insecure` against `.51` or `.52` once they require a client certificate and are visible to Kubernetes. `--insecure` is only for maintenance mode before the first machine configuration is installed. A `tls: certificate required` response means the node has already left maintenance mode; use the generated `talosconfig` for authenticated Talos API operations instead.
 
 After bootstrap, a short `NotReady` interval is expected while CNI and kubelet node conditions settle. If it persists, inspect Kubernetes node conditions/events rather than reapplying machine configuration.
+
+### TrueNAS reboot recovery incident — 2026-09-08
+
+A TrueNAS reboot exposed a steady-state lifecycle gap: all three Talos VMs
+remained `STOPPED` because their persisted VM configuration still had
+`autostart=false`. Manual starts restored:
+
+- `172.17.0.50 -> 02:00:00:00:10:01`;
+- `172.17.0.51 -> 02:00:00:00:20:01`;
+- `172.17.0.52 -> 02:00:00:00:20:02`;
+- ICMP reachability on all three nodes;
+- Talos API TCP/50000 reachability on all three nodes.
+
+The steady-state infrastructure contract is therefore now
+`TALOS_VM_AUTOSTART=true`. Apply this only if the reviewed OpenTofu plan is
+exactly three in-place VM autostart updates and contains no create, replace or
+destroy action. After the next TrueNAS reboot, re-run
+`scripts/talos/validate-cluster.sh` to close the persistence gate.
 
 ### Base cluster healthy — 2026-09-06
 
