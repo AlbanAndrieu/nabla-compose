@@ -1764,18 +1764,12 @@ should be verified/stabilized before broad application migrations:
 
 Current repository/runtime evidence also identifies these actionable states:
 
-- **Sentry:** lifecycle convergence is the next mandatory runtime gate before
-  Docling or OpenRAG/LiteLLM activation. The corrected 2026-09-08 redeploy
-  created all 19 workloads, both one-shot migration jobs exited, and the
-  previously blocked `snuba-replacer` plus
-  `snuba-subscription-consumer-events` processes are running while TrueNAS
-  still reports `DEPLOYING`. The consumer heartbeat healthchecks deliberately
-  use `start_period: 600s`, so a TrueNAS job can remain around 70% during
-  first-start convergence. Do not redeploy repeatedly during that grace window;
-  wait approximately 10 minutes, then run
-  `scripts/truenas/diagnose-sentry.sh --check` and require Kafka topics,
-  heartbeats, Snuba API, Sentry edge and aggregate TrueNAS lifecycle state to
-  converge;
+- **Sentry:** lifecycle and functional convergence are complete. The
+  2026-09-08 acceptance run reports TrueNAS `RUNNING`, 19 workloads,
+  `starting=0`, `unhealthy=0`, both one-shot migrations `exit 0`, all
+  required Kafka topics present, healthy Sentry edge and healthy Snuba API.
+  Keep the 600-second first-start grace and the compact
+  `scripts/truenas/diagnose-sentry.sh --check` report as regression gates;
 - **Wazuh:** previous startup failed because missing PEM bind sources were
   auto-created as directories and `WAZUH_API_PASSWORD` was absent. Runtime
   certificates/API secret now live under `/mnt/cpool/wazuh`; long certificate
@@ -1849,10 +1843,11 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
 - [ ] prove Docling health from `openrag-backend`, then validate document
       ingestion, indexing and search end-to-end;
-- [ ] **activation gate:** do not start the Docling/OpenRAG model-provider
-      work until the Sentry lifecycle/functional gate has converged; after that,
-      do not activate OpenRAG ↔ LiteLLM until OpenRAG runtime health remains
-      stable **and** Docling plus one end-to-end ingestion/search path are green;
+- [x] **Sentry activation gate:** Sentry lifecycle/functional health has
+      converged; Docling work may now start;
+- [ ] **LiteLLM activation gate:** do not activate OpenRAG ↔ LiteLLM until
+      OpenRAG runtime health remains stable **and** Docling plus one end-to-end
+      ingestion/search path are green;
 - [x] prepare the direct OpenRAG 0.7.1 -> workstation LiteLLM path at
       `http://172.17.0.57:4000/v1` by using the built-in `openai` provider
       as an OpenAI-protocol adapter plus `OPENAI_BASE_URL`; reuse
@@ -1889,13 +1884,10 @@ Before starting additional services, finish this runtime recovery sequence:
    three serialized collectors, make lifecycle audits non-invasive by default,
    keep cAdvisor in its separate disabled-only definition outside Prometheus,
    and prove pfSense remains responsive with adequate CPU/RAM headroom;
-2. **Sentry — hard gate before OpenRAG dependencies:** the corrected redeploy
-   is already in progress. Allow the 600-second consumer first-start health
-   window to converge instead of repeatedly redeploying at the TrueNAS 70%
-   plateau; then run `scripts/truenas/diagnose-sentry.sh --check`, require all
-   Kafka topics, long-running consumer heartbeats, Snuba API, Sentry edge and
-   TrueNAS `RUNNING` state, and rerun the synthetic event smoke;
-3. **OpenRAG:** only after the Sentry gate is green, retain the already-green
+2. **Sentry — completed:** TrueNAS lifecycle, Kafka topics, long-running
+   consumer heartbeats, Snuba API and Sentry edge are all green; retain the
+   synthetic event smoke as the final regression proof;
+3. **OpenRAG / Docling — next:** retain the already-green
    backend/OpenSearch/global-Langflow collective health as a regression gate;
    install/validate Docling and prove end-to-end document ingestion first, then
    activate the prepared LiteLLM workstation integration; do not invert this
