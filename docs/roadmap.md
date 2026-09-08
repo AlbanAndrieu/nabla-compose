@@ -104,7 +104,8 @@ in-place VM updates with zero create/replace/destroy actions.
 - [ ] prove disposable Service DNS and ClusterIP routing;
 - [ ] prove cross-node pod routing between workers `172.17.0.51` and `172.17.0.52`;
 - [ ] run `scripts/talos/smoke-fastapi-sample.sh --preflight`;
-- [ ] prove the selected Kubernetes IngressClass exists;
+- [ ] prove the selected Kubernetes IngressClass has a controller and no existing
+      Ingress already claims `test.albandrieu.com`;
 - [ ] prove `test.albandrieu.com` resolves before deployment;
 - [ ] deploy FastAPI Sample from an immutable `@sha256:` image;
 - [ ] prove Deployment rollout and ready Service endpoints;
