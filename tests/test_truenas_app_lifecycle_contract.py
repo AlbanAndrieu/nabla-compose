@@ -21,27 +21,31 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/bichon/.env.secrets", compose)
         self.assertIn('user: "568:568"', compose)
 
-    def test_openhands_uses_explicit_truenas_paths(self) -> None:
+    def test_openhands_uses_current_upstream_runtime_contract(self) -> None:
         compose = self.read("apps/openhands/compose.yml")
         readme = self.read("apps/openhands/README.md")
 
         self.assertNotIn("${HOME}", compose)
         self.assertIn("pull_policy: missing", compose)
         self.assertIn(
-            "WORKSPACE_MOUNT_PATH: /mnt/cpool/openhands/workspace",
+            "image: docker.openhands.dev/openhands/openhands:1.8",
             compose,
         )
         self.assertIn(
-            "/mnt/cpool/openhands/workspace:/opt/workspace_base",
+            "AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server",
             compose,
         )
+        self.assertIn("AGENT_SERVER_IMAGE_TAG: 1.26.0-python", compose)
         self.assertIn(
-            "/mnt/cpool/openhands/state:/.openhands-state",
+            "/mnt/cpool/openhands/state:/.openhands",
             compose,
         )
+        self.assertNotIn("SANDBOX_RUNTIME_CONTAINER_IMAGE", compose)
+        self.assertNotIn("WORKSPACE_MOUNT_PATH", compose)
+        self.assertNotIn(".openhands-state", compose)
         self.assertIn('"172.17.0.24:3010:3000"', compose)
-        self.assertNotIn("worspace_base", compose)
-        self.assertIn("docker.all-hands.dev/v2/", readme)
+        self.assertIn("docker.openhands.dev/v2/", readme)
+        self.assertIn("https://ghcr.io/v2/", readme)
         self.assertIn("pfSense/Unbound", readme)
 
     def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
