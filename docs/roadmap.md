@@ -26,14 +26,16 @@ notes remain in the specialized roadmaps:
 
 Do not start CSI installation until all items below are green.
 
-Current live blocker (2026-09-08): the workstation currently receives
-`no route to host` while connecting to the Talos API at
-`172.17.0.50:50000`. The cluster was previously validated Ready, so treat this
-as a reachability/runtime regression first. The Talos VMs are intentionally
-declared with `autostart=false`; verify VM power state, `br0` attachment,
-neighbor resolution and TCP/50000 before changing Talos machine configuration.
+Reboot incident resolved (2026-09-08): all three Talos VMs were found
+`STOPPED` after the TrueNAS reboot because their persisted configuration had
+`autostart=false`. Manual start restored direct LAN routing, ICMP and Talos API
+TCP/50000 on `.50`, `.51` and `.52`. The steady-state IaC now defaults
+`TALOS_VM_AUTOSTART=true`; a reviewed three-update/no-destroy apply and a later
+reboot-persistence test remain required.
 
-- [ ] restore and prove workstation reachability to Talos API TCP/50000 on `.50`, `.51` and `.52`;
+- [x] restore and prove reachability to Talos API TCP/50000 on `.50`, `.51` and `.52`;
+- [ ] apply the IaC autostart change only if the plan is exactly 3 in-place VM updates, 0 create and 0 destroy;
+- [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot;
 - [ ] run `scripts/talos/validate-cluster.sh` immediately before the network smoke;
 - [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
