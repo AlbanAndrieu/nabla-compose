@@ -43,6 +43,10 @@ services:
       LANGFLOW_CONFIG_DIR: /app/langflow-data
       LANGFLOW_DATABASE_URL: sqlite:////app/langflow-data/langflow.db?timeout=60
       LANGFLOW_ALLOW_CUSTOM_COMPONENTS: "false"
+      # OpenRAG 0.7.1 represents the workstation LiteLLM gateway as its built-in
+      # OpenAI provider. Langflow 1.11.2 honors OPENAI_BASE_URL; the API key is
+      # synchronized by OpenRAG as the OPENAI_API_KEY global variable.
+      OPENAI_BASE_URL: ${OPENRAG_LITELLM_API_BASE:-http://172.17.0.57:4000/v1}
     healthcheck:
       test:
         - CMD
