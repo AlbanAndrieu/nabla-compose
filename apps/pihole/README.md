@@ -129,6 +129,42 @@ docker compose \
   config --quiet --no-interpolate --no-env-resolution
 ```
 
+## Adopt an already-running repository Pi-hole
+
+If `docker compose ... up -d pihole-exporter` reports that container name
+`/pihole` is already in use, do not delete the DNS container blindly. First
+identify its Compose owner:
+
+```bash
+docker inspect pihole |
+  jq '.[0] | {
+    status: .State.Status,
+    health: (.State.Health.Status // null),
+    project: .Config.Labels["com.docker.compose.project"],
+    working_dir: .Config.Labels["com.docker.compose.project.working_dir"],
+    config_files: .Config.Labels["com.docker.compose.project.config_files"],
+    networks: (.NetworkSettings.Networks | keys)
+  }'
+```
+
+The exporter no longer has a Compose `depends_on` edge to Pi-hole, because the
+functional dependency must not force DNS lifecycle ownership. Once the existing
+Pi-hole is confirmed healthy and attached to `intranet`, start only the
+exporter:
+
+```bash
+docker compose \
+  --project-directory apps/pihole \
+  -f apps/pihole/compose.yml \
+  up -d --no-deps pihole-exporter
+```
+
+Then verify the metrics endpoint instead of relying only on container state:
+
+```bash
+curl -fsS http://172.17.0.24:9617/metrics | head
+```
+
 Also confirm the shared read-only Docker proxy is healthy and attached to
 `intranet`:
 
