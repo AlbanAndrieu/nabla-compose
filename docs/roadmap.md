@@ -22,7 +22,7 @@ notes remain in the specialized roadmaps:
 - [x] authenticated TrueNAS WebSocket `system.version` and `app.query` succeed with TLS verification enabled.
 - [x] PR #144 fixed allowlist activation so persisted state is never treated as sufficient by itself.
 - [x] FastAPI Sample runtime promoted and validated on `1.13.3` (`a19676f`): health/version, observer source `10.254.255.9`, TLS verification and authenticated TrueNAS WebSocket calls are green.
-- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime is being redeployed on FastAPI Sample `1.13.5` with `TRUENAS_API_USERNAME=fastapi_observer`; FastAPI Cloud temporarily keeps `albandrieu` as the comparison baseline until identity/RBAC and inventory-parity gates are green.
+- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime now uses `TRUENAS_API_USERNAME=fastapi_observer`; `auth.me` has already matched that identity and the read gate sees 94 TrueNAS apps. RBAC-shape parsing and Cloud inventory parity remain before FastAPI Cloud switches from `albandrieu` to `fastapi_observer`.
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
@@ -59,12 +59,15 @@ visibility.
 - [x] FastAPI Sample #223 requires only the canonical
       `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` pair; legacy, MCP and
       `TRUENAS_INFRA_*` credentials are ignored rather than used as fallbacks;
-- [ ] finish the TrueNAS-local redeploy on FastAPI Sample `1.13.5` with
-      `TRUENAS_API_USERNAME=fastapi_observer`;
-- [ ] run
-      `scripts/security/verify-truenas-observer-access.sh --local` and require
-      `auth.me` to report `fastapi_observer`, no write/admin RBAC role,
-      TLS verification, `system.version` success and `app.query` success;
+- [x] finish the TrueNAS-local redeploy with
+      `TRUENAS_API_USERNAME=fastapi_observer`; 2026-09-08 runtime evidence
+      confirms canonical username/key selection, TLS verification, 94 apps and
+      `auth.me.pw_name=fastapi_observer`;
+- [ ] rerun
+      `scripts/security/verify-truenas-observer-access.sh --local` with the
+      TrueNAS role-collection parser fix and require no write/admin RBAC role,
+      `APPS_READ` (preferred) or temporary `READONLY_ADMIN`,
+      `system.version` success and `app.query` success;
 - [ ] inspect the effective roles: prefer the narrow `APPS_READ` scope if it
       satisfies the complete FastAPI observer contract; accept
       `READONLY_ADMIN` only as an intermediate read-only state because it is
@@ -73,8 +76,11 @@ visibility.
       `scripts/security/verify-truenas-observer-access.sh --compare-cloud` and
       require the same catalog revision plus the exact same TrueNAS application
       IDs from both runtimes;
-- [ ] switch FastAPI Cloud to a dedicated `fastapi_observer` API key only
-      after the A/B comparison is green;
+- [ ] **switch FastAPI Cloud to `fastapi_observer`** only after the A/B
+      comparison is green: change `TRUENAS_API_USERNAME=fastapi_observer`
+      and the paired dedicated `TRUENAS_API_KEY` together, keep
+      `TRUENAS_API_VERIFY_SSL=true`, redeploy, then prove the same inventory
+      and production smoke before retiring the `albandrieu` FastAPI credential;
 - [ ] rerun the FastAPI Cloud production deployment/smoke and require homelab
       status, topology, TrueNAS runtime inventory and UI smoke to remain green;
 - [ ] remove the FastAPI workload's use of the `albandrieu` credential after
@@ -84,6 +90,13 @@ visibility.
 ## P0 — Kubernetes DNS/CNI + FastAPI Sample acceptance
 
 Do not start CSI installation until all items below are green.
+
+**Ingress/platform target:** Kubara `v0.14.0`. The current Talos cluster is a
+healthy raw Kubernetes base but has no `IngressClass` yet. Kubara defaults
+`ingressClassName` to `traefik` and generates a Traefik Helm component.
+Use that Kubara-managed Traefik path unless the generated Kubara configuration
+explicitly disables/replaces it; do not install a second standalone Traefik in
+parallel merely to satisfy the smoke gate.
 
 Reboot incident resolved (2026-09-08): all three Talos VMs were found
 `STOPPED` after the TrueNAS reboot because their persisted VM configuration
@@ -100,6 +113,15 @@ in-place VM updates with zero create/replace/destroy actions.
 - [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot and rerun the persistence gate;
 - [ ] run `scripts/talos/validate-cluster.sh` immediately before the network smoke;
 - [ ] run `scripts/talos/smoke-kubernetes-network.sh`;
+- [x] record live pre-platform evidence: Kubernetes `v1.36.3` has all three
+      Talos nodes `Ready`, `kubectl get ingressclass` returns no resources,
+      and `nabla-fastapi-smoke` does not exist before the smoke workload is deployed;
+- [ ] prepare the Kubara `v0.14.0` platform bootstrap and run
+      `kubara generate --helm`; inspect the generated Traefik values before
+      bootstrap and confirm there is exactly one intended ingress controller;
+- [ ] bootstrap/reconcile Kubara platform components and require
+      `kubectl get ingressclass traefik` plus a non-empty
+      `.spec.controller` before running the FastAPI ingress smoke;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
 - [ ] prove disposable Service DNS and ClusterIP routing;
 - [ ] prove cross-node pod routing between workers `172.17.0.51` and `172.17.0.52`;
