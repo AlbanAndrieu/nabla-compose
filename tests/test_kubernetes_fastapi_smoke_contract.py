@@ -46,6 +46,9 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         required = (
             "--preflight",
             'kubectl get ingressclass "${INGRESS_CLASS}"',
+            "spec.controller",
+            "kubectl get ingress --all-namespaces -o json",
+            "Ingress host ${HOST} is already claimed by",
             "socket.getaddrinfo",
             "public DNS lookup failed",
         )
