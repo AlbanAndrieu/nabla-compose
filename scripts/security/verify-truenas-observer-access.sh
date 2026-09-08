@@ -61,7 +61,14 @@ allowlist_json="$(
   midclt call system.general.config |
     jq -c '.ui_allowlist // []'
 )"
+active_allowlist_json="$(
+  midclt call system.general.get_ui_allowlist |
+    jq -c '. // []'
+)"
+printf 'Persisted allowlist:\n'
 printf '%s\n' "${allowlist_json}" | jq .
+printf 'Active runtime allowlist:\n'
+printf '%s\n' "${active_allowlist_json}" | jq .
 
 if ! python3 - "${container_ip}" "${allowlist_json}" <<'PY'
 import ipaddress
@@ -86,7 +93,32 @@ then
   fail "TrueNAS ui_allowlist does not permit ${container_ip}; review a narrow ${container_ip}/32 with rollback/check-in protection"
 fi
 
-printf 'OK: TrueNAS ui_allowlist permits %s\n' "${container_ip}"
+printf 'OK: persisted TrueNAS ui_allowlist permits %s\n' "${container_ip}"
+
+if ! python3 - "${container_ip}" "${active_allowlist_json}" <<'PY'
+import ipaddress
+import json
+import sys
+
+address = ipaddress.ip_address(sys.argv[1])
+allowlist = json.loads(sys.argv[2])
+if not allowlist:
+    raise SystemExit(0)
+
+for entry in allowlist:
+    try:
+        if address in ipaddress.ip_network(entry, strict=False):
+            raise SystemExit(0)
+    except ValueError:
+        continue
+
+raise SystemExit(1)
+PY
+then
+  fail "active TrueNAS ui_allowlist does not permit ${container_ip}; persisted settings may require system.general.ui_restart"
+fi
+
+printf 'OK: active TrueNAS ui_allowlist permits %s\n' "${container_ip}"
 
 for forbidden_ip in "${LEGACY_SOURCE_IP}" "${FAILED_CANDIDATE_IP}"; do
   if [[ "${forbidden_ip}" == "${container_ip}" ]]; then

@@ -248,12 +248,23 @@ Apply explicitly:
 sudo bash scripts/security/reconcile-truenas-observer-allowlist.sh --apply
 ```
 
-Re-read the persisted value:
+Re-read both the persisted and active values:
 
 ```bash
+printf '%s\n' '=== persisted ==='
 midclt call system.general.config |
 jq '.ui_allowlist'
+
+printf '%s\n' '=== active runtime ==='
+midclt call system.general.get_ui_allowlist |
+jq .
 ```
+
+TrueNAS intentionally applies `ui_allowlist` only when its HTTP service is
+restarted. The apply helper therefore uses a rollback timeout, schedules the UI
+restart, waits until the in-memory allowlist matches the desired /32, and only
+then calls `system.general.checkin`. A persisted-only match is not sufficient
+evidence that `/api/current` will accept the observer WebSocket.
 
 Remove a failed Sample container from previous network attempts. Do **not**
 delete or recreate the shared `intranet` network:
