@@ -4,8 +4,10 @@ Wazuh 4.14.7 runs with its native manager/indexer/dashboard stack. This is
 intentional: the Wazuh dashboard/indexer lifecycle is version-coupled and must
 not be pointed at the OpenRAG OpenSearch 3.x instance.
 
-A Logstash forwarding sidecar copies Wazuh alerts to the shared
-`opensearch-security` 2.19.5 service used by Graylog.
+A Logstash forwarding sidecar can copy Wazuh alerts to the shared
+`opensearch-security` 2.19.5 service used by Graylog. It is profile-gated
+under `forwarding` and deliberately disabled during the core
+manager/indexer/dashboard stabilization gate.
 
 ## TrueNAS runtime bootstrap
 
@@ -70,32 +72,38 @@ same reviewed change.
 
 ## TrueNAS deployment
 
-After the bootstrap is green:
+Use the canonical helper instead of calling `app.update` directly:
 
 ```bash
-sudo midclt call -j app.update wazuh \
-'{
-  "custom_compose_config": {
-    "include": [
-      "/mnt/cpool/compose/nabla-compose/apps/wazuh/compose.yml"
-    ]
-  }
-}'
-
-sudo midclt call -j app.redeploy wazuh
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/deploy-wazuh.sh
 ```
 
-Then inspect only the Wazuh project:
+The helper:
+
+1. runs `bootstrap-wazuh.sh --apply`;
+2. runs the fail-closed bootstrap `--check`;
+3. validates the Compose definition without expanding secrets;
+4. creates or updates the TrueNAS Custom App;
+5. waits for the core manager/indexer/dashboard path;
+6. finishes with `diagnose-wazuh.sh --check`.
+
+Read-only runtime acceptance:
 
 ```bash
-midclt call app.query \
-  '[["id","=","wazuh"]]' |
-jq '.[0] | {id,state,active_workloads}'
-
-docker ps -a \
-  --filter 'label=com.docker.compose.project=ix-wazuh' \
-  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+sudo bash scripts/truenas/diagnose-wazuh.sh --check
 ```
+
+The diagnostic requires the TrueNAS app to be `RUNNING`, all three core
+containers to be running, and the loopback HTTPS listeners for the indexer,
+manager API and dashboard to answer. HTTP 401/403 is accepted for unauthenticated
+management probes because it proves the TLS/API listener without printing or
+using credentials.
+
+The optional `wazuh-forwarder` is not part of this first gate. Keep the
+`forwarding` profile disabled until the manager -> indexer -> dashboard path
+is stable and the shared `nabla-security` / OpenSearch forwarding path has a
+separate acceptance test.
 
 Do not expose the dashboard beyond the trusted LAN until API/indexer/dashboard
 credentials have been rotated together and the complete manager -> indexer ->

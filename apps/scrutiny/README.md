@@ -73,7 +73,7 @@ rsync -aHAX --numeric-ids \
 
 3. **Do not blindly rsync** the old embedded InfluxDB directory into the new InfluxDB 2.8 data directory. The old omnibus runtime was observed on InfluxDB 2.2. Use a logical InfluxDB backup/restore path, preserving the stopped source dataset as rollback evidence.
 4. Create/start `apps/influxdb/compose.yml` with admin credentials supplied through the secret provider.
-5. Restore the Scrutiny bucket/history into the standalone InfluxDB instance and create a Scrutiny-scoped token. Do not reuse the InfluxDB admin token as `SCRUTINY_INFLUXDB_TOKEN`.
+5. Restore the Scrutiny bucket/history into the standalone InfluxDB instance and create a Scrutiny-scoped token. Do not reuse the InfluxDB admin token as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
 6. Start `apps/scrutiny/compose.yml`.
 7. Validate the LAN path:
 
@@ -96,6 +96,30 @@ https://scrutiny.albandrieu.com/
 The expected result is the Cloudflare Access authentication/policy flow followed by the Scrutiny UI. A direct anonymous origin response is not the target security posture.
 
 10. Verify all previously known disks and historical SMART timelines before retiring the native app.
+
+## Canonical runtime helper
+
+After the snapshot/history review is complete and
+`/mnt/cpool/scrutiny/.env.secrets` contains a dedicated
+`SCRUTINY_WEB_INFLUXDB_TOKEN`, run the read-only gate:
+
+```bash
+sudo bash scripts/truenas/deploy-scrutiny.sh --check
+```
+
+For the actual repository-managed cutover:
+
+```bash
+sudo env SCRUTINY_CUTOVER_APPROVED=1 \
+  bash scripts/truenas/deploy-scrutiny.sh --apply
+```
+
+The explicit approval variable prevents an accidental first cutover. The helper
+does **not** create InfluxDB backups, restore historical buckets or mint tokens.
+It validates those runtime prerequisites, reconciles InfluxDB first, waits for
+`http://127.0.0.1:31055/health`, then reconciles Scrutiny and requires both
+the web/API and collector containers to be running.
+
 
 ## Cloudflare audit
 
