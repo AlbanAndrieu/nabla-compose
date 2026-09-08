@@ -13,6 +13,52 @@ fail() {
   exit 1
 }
 
+
+check_node_transport() {
+  local node_ip="$1"
+  local role="$2"
+  local route_output
+  local neighbor_output
+  local tcp_output
+
+  printf '🔎 preflight %s transport %s:50000\n' "${role}" "${node_ip}"
+
+  if ! route_output="$(ip route get "${node_ip}" 2>&1)"; then
+    fail "workstation has no route to ${node_ip}: ${route_output}"
+  fi
+  printf '  route: %s\n' "${route_output}"
+
+  neighbor_output="$(ip neigh show "${node_ip}" 2>/dev/null || true)"
+  if [[ -n "${neighbor_output}" ]]; then
+    printf '  neighbor-before: %s\n' "${neighbor_output}"
+  fi
+
+  if ! tcp_output="$(
+    python3 - "${node_ip}" <<'PY'
+import errno
+import socket
+import sys
+
+host = sys.argv[1]
+try:
+    with socket.create_connection((host, 50000), timeout=2):
+        print("connected")
+except OSError as exc:
+    name = errno.errorcode.get(exc.errno, "UNKNOWN") if exc.errno is not None else "TIMEOUT"
+    print(f"{name}: errno={exc.errno} message={exc}")
+    raise SystemExit(1)
+PY
+  )"; then
+    neighbor_output="$(ip neigh show "${node_ip}" 2>/dev/null || true)"
+    [[ -n "${neighbor_output}" ]] || neighbor_output="<no neighbor entry>"
+    printf '  neighbor-after: %s\n' "${neighbor_output}" >&2
+    printf '  tcp/50000: %s\n' "${tcp_output}" >&2
+    fail "Talos API transport unavailable for ${role} ${node_ip}. If the route is direct and neighbor state is FAILED/INCOMPLETE, verify the TrueNAS VM is RUNNING and its VirtIO NIC is attached to br0. The repository intentionally configures Talos VMs with autostart=false. If neighbor resolution is healthy, inspect host/LAN firewall policy for TCP/50000."
+  fi
+
+  printf '  tcp/50000: %s\n' "${tcp_output}"
+}
+
 check_kubelet() {
   local node_ip="$1"
   talosctl --nodes "${node_ip}" service kubelet |
@@ -56,7 +102,7 @@ count_etcd_members() {
   ' <<<"${members_output}"
 }
 
-for command in talosctl kubectl jq; do
+for command in talosctl kubectl jq ip python3; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -65,6 +111,7 @@ done
 
 export TALOSCONFIG KUBECONFIG
 
+check_node_transport "${CONTROL_PLANE_IP}" "control-plane"
 printf '🔎 validating Talos control plane %s\n' "${CONTROL_PLANE_IP}"
 talosctl --nodes "${CONTROL_PLANE_IP}" version >/dev/null
 check_kubelet "${CONTROL_PLANE_IP}"
@@ -83,6 +130,7 @@ talosctl --nodes "${CONTROL_PLANE_IP}" usage /var -H >/dev/null ||
   fail "cannot read /var usage on ${CONTROL_PLANE_IP}"
 
 for worker_ip in ${WORKER_IPS}; do
+  check_node_transport "${worker_ip}" "worker"
   printf '🔎 validating worker %s\n' "${worker_ip}"
   talosctl --nodes "${worker_ip}" version >/dev/null
   check_kubelet "${worker_ip}"
