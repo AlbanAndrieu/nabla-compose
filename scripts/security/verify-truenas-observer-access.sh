@@ -346,6 +346,8 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
     truenasCredentialMode: .providerCredentials.truenas.credential_mode
   }' "${cloud_status}"
 
+  printf 'NOTE: Cloud credential_mode proves canonical variable selection, not the configured username value.\n'
+  printf '      Treat this as capability parity; change Cloud username + dedicated API key together before the final production smoke.\n'
   printf 'OK: fastapi_observer has parity with the FastAPI Cloud TrueNAS inventory baseline\n'
   printf '    Keep the Cloud runtime on albandrieu until this comparison is green, then switch it to fastapi_observer and rerun production smoke.\n'
 fi
