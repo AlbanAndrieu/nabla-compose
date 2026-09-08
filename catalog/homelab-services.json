@@ -977,16 +977,30 @@
     {
       "name": "Garage",
       "icons": [
+        "fas fa-database"
+      ],
+      "description": "Garage S3-compatible object storage API.",
+      "internalHost": "172.17.0.24",
+      "internalPort": 3900,
+      "internalSecure": false,
+      "tunnelUrl": "https://s3.int.albandrieu.com",
+      "tunnelSecure": false,
+      "iconSrc": "assets/selfh-icons/garage.png",
+      "external": true
+    },
+    {
+      "name": "Garage WebUI",
+      "icons": [
         "fas fa-terminal"
       ],
-      "description": "Garage service",
+      "description": "Web administration UI for Garage object storage.",
       "internalHost": "172.17.0.24",
       "internalPort": 3909,
       "internalSecure": false,
-      "tunnelUrl": "https://garage.int.albandrieu.com",
+      "tunnelUrl": "https://garage-admin.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/garage.png",
-      "external": false
+      "external": true
     }
   ]
 }
