@@ -13,7 +13,7 @@ fail() {
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so Docker network creation is deterministic"
 
-for command in docker python3 ip jq; do
+for command in docker python3 ip jq mktemp; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -44,17 +44,24 @@ mapfile -t network_ids < <(docker network ls -q)
 [[ "${#network_ids[@]}" -gt 0 ]] ||
   fail "Docker returned no networks to inspect"
 
-docker_json="$(docker network inspect "${network_ids[@]}")"
-route_json="$(ip -j -4 route show table all)"
+docker_tmp="$(mktemp)"
+route_tmp="$(mktemp)"
+trap 'rm -f "${docker_tmp}" "${route_tmp}"' EXIT
+
+docker network inspect "${network_ids[@]}" >"${docker_tmp}"
+ip -j -4 route show table all >"${route_tmp}"
 
 selection="$(
-  python3 - "${docker_json}" "${route_json}" <<'PY'
+  python3 - "${docker_tmp}" "${route_tmp}" <<'PY'
 import ipaddress
 import json
 import sys
 
-docker_data = json.loads(sys.argv[1])
-route_data = json.loads(sys.argv[2])
+with open(sys.argv[1], encoding="utf-8") as handle:
+    docker_data = json.load(handle)
+
+with open(sys.argv[2], encoding="utf-8") as handle:
+    route_data = json.load(handle)
 
 used = []
 for network in docker_data:
