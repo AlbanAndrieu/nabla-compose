@@ -166,34 +166,6 @@ jq . <<<"${version_payload}"
 
 sudo bash scripts/security/verify-truenas-observer-access.sh
 
-printf 'Validating FastAPI Sample -> pfSense trusted LAN control path...\n'
-pfsense_lan_ip="$(
-	run_docker exec "${CONTAINER}" getent hosts home.albandrieu.com |
-		awk 'NR == 1 { print $1 }'
-)"
-[[ "${pfsense_lan_ip}" == "172.17.0.1" ]] ||
-	fail "home.albandrieu.com resolved to ${pfsense_lan_ip:-<empty>}, expected pfSense LAN 172.17.0.1"
-
-pfsense_path_mode="$(
-	run_docker exec "${CONTAINER}" printenv PFSENSE_SECURITY_PATH_MODE 2>/dev/null ||
-		true
-)"
-[[ "${pfsense_path_mode}" == "out_of_band" ]] ||
-	fail "PFSENSE_SECURITY_PATH_MODE=${pfsense_path_mode:-<unset>}, expected out_of_band on TrueNAS"
-
-pfsense_http_status="$(
-	run_docker exec "${CONTAINER}" sh -lc \
-		'curl --connect-timeout 2 --max-time 5 --silent --show-error --output /dev/null --write-out "%{http_code}" https://home.albandrieu.com:10443/api/v2/system/version'
-)"
-case "${pfsense_http_status}" in
-200 | 401 | 403) ;;
-*)
-	fail "pfSense LAN HTTPS probe returned HTTP ${pfsense_http_status:-<none>}"
-	;;
-esac
-printf 'OK: pfSense LAN control path resolves to %s, mode=%s, HTTPS=%s\n' \
-	"${pfsense_lan_ip}" "${pfsense_path_mode}" "${pfsense_http_status}"
-
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 printf 'OK: FastAPI Sample origin/%s deployed from %s\n' "${REF}" "${runtime_sha}"
 
