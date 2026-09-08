@@ -29,6 +29,7 @@ notes remain in the specialized roadmaps:
 - [ ] Sentry 26.8 is in its final supervised convergence pass. Latest runtime evidence shows all 19 workloads created, both one-shot migrations exited, `snuba-replacer` and `snuba-subscription-consumer-events` running, but TrueNAS still reports aggregate `DEPLOYING` while the long healthcheck grace completes. Do not mark Sentry complete until `scripts/truenas/diagnose-sentry.sh --check`, aggregate `RUNNING`, and the synthetic-event smoke are green.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
+- [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
 

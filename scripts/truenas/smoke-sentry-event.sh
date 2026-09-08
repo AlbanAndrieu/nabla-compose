@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep interactive diagnostics compact while preserving full CI/non-TTY output.
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
+      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
+      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
+  NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
+  exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
+    "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
+fi
+
 SENTRY_URL="${SENTRY_URL:-http://172.17.0.24:9005}"
 SENTRY_URL="${SENTRY_URL%/}"
 PROJECT_ID="${SENTRY_PROJECT_ID:-1}"
