@@ -40,8 +40,9 @@ fastapi_observer
 Runtime validation proves `system.version` and `app.query` (86 apps) with the
 native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
-before authentication. The Docker observer reaches TrueNAS from its `intranet`
-container address.
+before authentication. Runtime evidence on 2026-09-08 proved that a fixed /32
+must not be reserved inside the shared `intranet` pool: while Sample was
+stopped, Docker assigned the old `172.16.55.9` address to Langflow.
 
 - [x] create the dedicated `fastapi_observer` API-only user with
   `APPS_READ`, password login disabled, SSH password login disabled and SMB
@@ -57,18 +58,21 @@ container address.
   calls;
 - [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
   after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
-- [x] pin FastAPI Sample to `172.16.55.9` on the production
-  `172.16.55.0/24` intranet by default (override with
-  `FASTAPI_SAMPLE_OBSERVER_IP` only together with a reviewed allowlist
-  change), so a recreate cannot silently change the TrueNAS WebSocket source;
-- [x] document `172.16.55.9/32` as the current Docker-origin TrueNAS UI/API
-  allowlist entry required by FastAPI Sample;
-- [ ] evaluate a dedicated observer Docker network as a later isolation
-  improvement if other trusted-LAN observers need their own source identities;
+- [x] retire the unsafe shared-`intranet` reservation
+  `172.16.55.9`; runtime proved Docker can legitimately allocate that address
+  to another container while Sample is stopped;
+- [x] add the dedicated Compose-managed `sample-observer` bridge
+  `172.16.56.0/28`, pin FastAPI Sample to `172.16.56.9`, and give that
+  attachment the preferred gateway so LAN appliance calls use the stable
+  observer source while Redis/Traefik remain directly reachable on their own
+  networks;
+- [ ] migrate TrueNAS `ui_allowlist` from `172.16.55.9/32` to
+  `172.16.56.9/32`, prove authenticated WebSocket calls, then remove the
+  legacy /32 because it may now authorize an unrelated intranet container;
 - [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
   `truenas.albandrieu.com` certificate chain from inside the container;
-- [ ] never widen `ui_allowlist` to all of `172.16.55.0/24` merely to avoid
-  container-address management.
+- [ ] never widen `ui_allowlist` to an entire Docker subnet merely to avoid
+  source-address management.
 
 ### Post-reboot runtime cleanup — 2026-09-05
 
@@ -1730,8 +1734,12 @@ should be verified/stabilized before broad application migrations:
   node-exporter now start after removing the orphan LiteLLM secret mount;
   cAdvisor is profile-gated out of the default lifecycle because it is
   intentionally disabled on this host; the remaining blocker is the exited
-  `pfsense-exporter`, which must be diagnosed from its runtime log/config before
-  the TrueNAS Custom App can be considered fully healthy;
+  `pfsense-exporter`, whose restart loop is now attributed to Docker having
+  created the missing `exporter.config.yml` bind source as a directory; move
+  the runtime config to
+  `/mnt/cpool/prometheus/secrets/pfsense-exporter.yml` with
+  `create_host_path: false`, then prove the exporter scrape before considering
+  the TrueNAS Custom App fully healthy;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
@@ -1788,13 +1796,13 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 - [x] distinguish Langflow liveness (`/health`) from readiness
       (`/health_check` = DB + chat/cache) and add a first-start grace window
       plus deploy-time diagnostics;
-- [ ] reconcile/redeploy OpenRAG backend/frontend and prove both images are
-      `0.7.1` rather than stale `:latest`;
-- [ ] prove the backend no longer logs
-      `OpenSearch healthy but cluster has not reached expected node count` on
-      the shared single-node OpenSearch runtime;
-- [ ] run the TrueNAS runtime probes and confirm whether the application leaves
-      `DEPLOYING/starting`;
+- [x] reconcile OpenRAG backend/frontend to `0.7.1`;
+- [x] prove backend liveness, shared single-node OpenSearch readiness and
+      frontend collective backend + global-Langflow health;
+- [x] prove the previous three-node OpenSearch wait loop is gone;
+- [ ] create/store a dedicated `LANGFLOW_KEY`, redeploy OpenRAG and remove the
+      stale runtime parent `/app/flows` bind that still masks image-bundled
+      flows;
 - [ ] review and deploy a repository-managed Docling service or another explicit
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
 - [ ] validate document ingestion, indexing and search end-to-end after Docling
