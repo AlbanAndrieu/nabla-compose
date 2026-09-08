@@ -1136,9 +1136,11 @@ Preferred migration method:
 Migrate the shared PostgreSQL service after application-local PostgreSQL migrations so the blast radius is understood.
 
 Current runtime cleanup inventory includes dedicated PostgreSQL containers for
-Keycloak, Zabbix, n8n, Paperless-ngx, OpenArchiver, Home Assistant,
-Reactive Resume, Memos, FreshRSS and Domain Watchdog in addition to the shared
-`ix-postgres-postgres-1` service.
+Zabbix, n8n, Paperless-ngx, OpenArchiver, Home Assistant, Reactive Resume,
+Memos, FreshRSS and Domain Watchdog in addition to the shared
+`ix-postgres-postgres-1` service. Keycloak has already been migrated to the
+shared PostgreSQL service with a dedicated `keycloak` role/database and is the
+reference pattern for future consolidation.
 
 Consolidation policy:
 
@@ -1151,8 +1153,16 @@ Consolidation policy:
 - [ ] migrate one application database at a time to the shared PostgreSQL 18.6
       service and prove application health + rollback before retiring its
       dedicated container;
-- [ ] keep Keycloak dedicated initially as already decided in the identity
-      roadmap;
+- [x] migrate Keycloak to the shared PostgreSQL service using a dedicated
+      `keycloak` role/database; use this as the reference pattern for
+      repository-managed services;
+- [ ] migrate repository-managed services progressively toward the shared
+      PostgreSQL service when version/extensions/backup contracts are compatible,
+      prioritizing Reactive Resume, OpenArchiver, n8n, Home Assistant, Zabbix and
+      Paperless after per-service validation;
+- [ ] keep each application database logically isolated with a dedicated role,
+      database, grants and backup/restore path even when the PostgreSQL runtime
+      is shared;
 - [ ] keep Paperless-local PostgreSQL until the Paperless migration wave proves
       whether consolidation is compatible with its backup/restore contract;
 - [ ] remove stopped/obsolete PostgreSQL upgrade/helper containers only after
@@ -1199,7 +1209,39 @@ Preferred durable layout:
 └── data/
 ```
 
-Keep Paperless's Redis lifecycle local to the Paperless stack initially unless runtime inventory proves that moving it to the shared Redis service is safe. Gotenberg and Tika remain auxiliary services in the same Compose project because Paperless startup/functional health depends on them.
+Keep Paperless's Redis lifecycle local to the Paperless stack initially unless runtime inventory proves that moving it to the shared Redis service is safe. Gotenberg remains tightly coupled to the Paperless conversion path initially.
+
+#### Shared Tika consolidation
+
+The 2026-09-08 recovery showed that OpenArchiver and Paperless-ngx each run
+`apache/tika:3.3.1.0-full`, and both failed together after Docker/ZFS I/O stalls.
+Both applications expose a configurable Tika endpoint, so Tika is a good
+stateless shared-service candidate rather than keeping two identical JVM
+watchdogs alive permanently.
+
+Target architecture:
+
+```text
+shared Tika 3.x
+  -> trusted intranet only
+  -> /tika health/readiness
+  -> Paperless-ngx via PAPERLESS_TIKA_ENDPOINT
+  -> OpenArchiver via TIKA_URL
+```
+
+- [ ] add a repository-managed `apps/tika/compose.yml` with a pinned Tika 3.x
+      image, LAN/intranet-only exposure and a functional HTTP healthcheck;
+- [ ] keep Tika on the 3.x line until Paperless/OpenArchiver compatibility with
+      Tika 4.x is explicitly proven;
+- [ ] point Paperless-ngx at the shared Tika endpoint and prove Office/e-mail
+      ingestion, OCR/extraction and restart recovery before removing its bundled
+      Tika;
+- [ ] point OpenArchiver at the same shared Tika endpoint and prove attachment
+      extraction/search before removing its bundled Tika;
+- [ ] monitor JVM RSS, restart count, latency and extraction failures in
+      Prometheus before and after consolidation;
+- [ ] keep rollback instructions that restore each app-local Tika independently
+      if the shared service becomes a single point of failure.
 
 Paperless-AI should join the trusted internal application network and consume the Paperless API plus the existing local model endpoint rather than starting a second Ollama/Open WebUI stack. Paperless-GPT remains an optional later experiment after the base migration is stable.
 
