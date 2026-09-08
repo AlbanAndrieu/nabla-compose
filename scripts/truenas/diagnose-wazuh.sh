@@ -41,10 +41,12 @@ for container in "${CORE_CONTAINERS[@]}"; do
   fi
 
   state="$(
-    docker inspect "${container}"       --format '{{.State.Status}}'
+    docker inspect "${container}" \
+      --format '{{.State.Status}}'
   )"
   health="$(
-    docker inspect "${container}"       --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+    docker inspect "${container}" \
+      --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
   )"
   printf '%s state=%s health=%s\n' "${container}" "${state}" "${health}"
 
@@ -60,11 +62,17 @@ probe_https() {
   local code
 
   code="$(
-    curl --insecure --silent --show-error       --output /dev/null       --write-out '%{http_code}'       --connect-timeout 3       --max-time 8       "${url}" 2>/dev/null || true
+    curl --insecure --silent --show-error \
+      --output /dev/null \
+      --write-out '%{http_code}' \
+      --connect-timeout 3 \
+      --max-time 8 \
+      "${url}" 2>/dev/null || true
   )"
 
   if [[ ! "${code}" =~ ^(${accepted})$ ]]; then
-    printf '❌ %s returned HTTP %s from %s\n'       "${label}" "${code:-000}" "${url}" >&2
+    printf '❌ %s returned HTTP %s from %s\n' \
+      "${label}" "${code:-000}" "${url}" >&2
     failures=$((failures + 1))
     return
   fi
