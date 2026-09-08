@@ -98,6 +98,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertIn("app.redeploy openhands", openhands_readme)
 
+    def test_prometheus_does_not_require_unused_litellm_secret(self) -> None:
+        compose = self.read("apps/prometheus/compose.yml")
+        config = self.read("apps/prometheus/prometheus.yml")
+
+        self.assertNotIn("litellm_api_key", compose)
+        self.assertNotIn("litellm_api_key", config)
+        self.assertNotIn("bearer_token_file", config)
+
     def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
         script = self.read("scripts/truenas/diagnose-performance.sh")
 
