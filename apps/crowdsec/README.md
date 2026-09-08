@@ -9,7 +9,7 @@ pfSense should run in CrowdSec **Small / remediation-only** mode and consume dec
 pfSense filter/nginx/auth logs ─┐
                                ├──> CrowdSec Security Engine + LAPI on TrueNAS
 Suricata eve.json ──────────────┘                  │
-                                                  │ tcp/8080, LAN only
+                                                  │ tcp/8084, LAN only
                                                   ▼
                                      pfSense firewall bouncer
                                                   │
@@ -31,14 +31,15 @@ Optional:
 
 ```text
 CROWDSEC_LAPI_BIND_ADDRESS=172.17.0.24
-CROWDSEC_LAPI_PORT=8080
+CROWDSEC_LAPI_PORT=8084
+CROWDSEC_METRICS_BIND_ADDRESS=172.17.0.24
 CROWDSEC_METRICS_PORT=6060
 PFSENSE_LOG_DIR=/mnt/cpool/logs/pfsense
 SURICATA_LOG_DIR=/mnt/cpool/suricata/log
 TZ=Europe/Paris
 ```
 
-The LAPI port must remain reachable from trusted LAN hosts only. Do not publish TCP/8080 through pfSense, Cloudflare Tunnel, HAProxy or any Internet-facing ingress.
+The LAPI port must remain reachable from trusted LAN hosts only. Do not publish TCP/8084 through pfSense, Cloudflare Tunnel, HAProxy or any Internet-facing ingress.
 
 ## Migration from pfSense Large to Small
 
@@ -52,12 +53,12 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
    docker exec crowdsec cscli bouncers list
    ```
 
-4. From pfSense, verify that `172.17.0.24:8080` is reachable over the trusted LAN.
+4. From pfSense, verify that `172.17.0.24:8084` is reachable over the trusted LAN.
 5. In **Services > CrowdSec** on pfSense:
    - keep **Remediation Component** enabled;
    - disable **Log Processor**;
    - disable **Local API**;
-   - configure the remote LAPI URL as `http://172.17.0.24:8080`;
+   - configure the remote LAPI URL as `http://172.17.0.24:8084`;
    - configure the firewall bouncer with the shared key.
 6. Save/apply and verify on the central LAPI that the pfSense bouncer is valid and polling.
 7. Confirm that pfSense still receives CrowdSec decisions in its PF table before considering the migration complete.
