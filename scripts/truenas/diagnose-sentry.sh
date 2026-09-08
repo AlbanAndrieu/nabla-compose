@@ -292,13 +292,22 @@ fi
 if [[ "${app_state}" != "RUNNING" ]]; then
   exit 1
 fi
-if [[ "${unhealthy_count}" -gt 0 ||
-      "${unexpected_exit_count}" -gt 0 ||
-      "${one_shot_failure_count}" -gt 0 ||
-      "${kafka_topic_failure_count}" -gt 0 ]]; then
+if [[ "${unhealthy_count}" -gt 0 ]]; then
   exit 1
 fi
-if [[ "${edge_failed:-0}" -ne 0 || "${snuba_failed:-0}" -ne 0 ]]; then
+if [[ "${unexpected_exit_count}" -gt 0 ]]; then
+  exit 1
+fi
+if [[ "${one_shot_failure_count}" -gt 0 ]]; then
+  exit 1
+fi
+if [[ "${kafka_topic_failure_count}" -gt 0 ]]; then
+  exit 1
+fi
+if [[ "${edge_failed:-0}" -ne 0 ]]; then
+  exit 1
+fi
+if [[ "${snuba_failed:-0}" -ne 0 ]]; then
   exit 1
 fi
 
