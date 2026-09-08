@@ -470,11 +470,17 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("severity: critical", node_rules)
 
     def test_talos_cluster_validator_remains_executable(self) -> None:
-        mode = (ROOT / "scripts" / "talos" / "validate-cluster.sh").stat().st_mode
+        path = ROOT / "scripts" / "talos" / "validate-cluster.sh"
+        mode = path.stat().st_mode
+        validator = path.read_text(encoding="utf-8")
 
         self.assertTrue(mode & stat.S_IXUSR)
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn('ip route get "${node_ip}"', validator)
+        self.assertIn('ip neigh show "${node_ip}"', validator)
+        self.assertIn("socket.create_connection((host, 50000)", validator)
+        self.assertIn("autostart=false", validator)
 
     def test_syslog_classifies_known_pfsense_without_ip_label(self) -> None:
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")
