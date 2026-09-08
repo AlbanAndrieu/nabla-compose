@@ -224,12 +224,20 @@ if not isinstance(privilege, dict):
     raise SystemExit("auth.me did not expose the expected privilege object")
 
 raw_roles = privilege.get("roles")
-if not isinstance(raw_roles, list):
-    raise SystemExit("auth.me did not expose the expected privilege.roles list")
+if isinstance(raw_roles, dict):
+    roles = set(map(str, raw_roles.keys()))
+elif isinstance(raw_roles, (list, tuple, set, frozenset)):
+    roles = set(map(str, raw_roles))
+elif isinstance(raw_roles, str):
+    roles = {raw_roles} if raw_roles else set()
+else:
+    roles = set()
 
-roles = set(map(str, raw_roles))
 if not roles:
-    raise SystemExit("auth.me did not expose any effective RBAC roles")
+    raise SystemExit(
+        "auth.me privilege.roles is present in an unsupported shape: "
+        + type(raw_roles).__name__
+    )
 
 dangerous_roles = sorted(
     filter(
@@ -250,7 +258,13 @@ if dangerous_roles:
 
 version = adapter.system_version()
 apps = adapter.list_apps()
-scope = "broad_readonly" if "READONLY_ADMIN" in roles else "least_privilege_candidate"
+if "APPS_READ" not in roles and "READONLY_ADMIN" not in roles:
+    raise SystemExit(
+        "observer identity has neither APPS_READ nor READONLY_ADMIN: "
+        + ",".join(sorted(roles))
+    )
+
+scope = "broad_readonly" if "READONLY_ADMIN" in roles else "apps_read"
 
 print(f"authenticated_username={authenticated_username}")
 print(f"rbac_scope={scope}")
