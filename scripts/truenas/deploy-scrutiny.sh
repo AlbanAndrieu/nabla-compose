@@ -35,10 +35,16 @@ if [[ "${MODE}" == "--apply" ]]; then
   [[ "${SCRUTINY_CUTOVER_APPROVED:-0}" == "1" ]] ||
     fail "set SCRUTINY_CUTOVER_APPROVED=1 after snapshot/history/token review"
 
-  install -d -m 0750     /mnt/cpool/influxdb/data     /mnt/cpool/influxdb/config     /mnt/cpool/scrutiny/config
+  install -d -m 0750 \
+    /mnt/cpool/influxdb/data \
+    /mnt/cpool/influxdb/config \
+    /mnt/cpool/scrutiny/config
 fi
 
-for path in   /mnt/cpool/influxdb/data   /mnt/cpool/influxdb/config   /mnt/cpool/scrutiny/config; do
+for path in \
+  /mnt/cpool/influxdb/data \
+  /mnt/cpool/influxdb/config \
+  /mnt/cpool/scrutiny/config; do
   [[ -d "${path}" ]] || fail "missing runtime directory: ${path}"
 done
 
@@ -55,9 +61,19 @@ grep -q '^SCRUTINY_WEB_INFLUXDB_TOKEN=.' "${SCRUTINY_SECRET_FILE}" ||
 docker network inspect intranet >/dev/null 2>&1 ||
   fail "external Docker network intranet is missing"
 
-docker compose   -f apps/influxdb/compose.yml   config   --quiet   --no-interpolate   --no-env-resolution
+docker compose \
+  -f apps/influxdb/compose.yml \
+  config \
+  --quiet \
+  --no-interpolate \
+  --no-env-resolution
 
-docker compose   -f apps/scrutiny/compose.yml   config   --quiet   --no-interpolate   --no-env-resolution
+docker compose \
+  -f apps/scrutiny/compose.yml \
+  config \
+  --quiet \
+  --no-interpolate \
+  --no-env-resolution
 
 wait_http() {
   local label="$1"
@@ -67,7 +83,10 @@ wait_http() {
 
   for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
     if body="$(
-      curl --fail --silent --show-error         --connect-timeout 3         --max-time 8         "${url}" 2>/dev/null
+      curl --fail --silent --show-error \
+        --connect-timeout 3 \
+        --max-time 8 \
+        "${url}" 2>/dev/null
     )"; then
       printf '%s\n' "${body}"
       return 0
@@ -103,7 +122,10 @@ reconcile_app() {
     printf 'Creating TrueNAS Custom App %s...\n' "${app_id}"
     wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
     midclt call -j app.create "$(
-      jq -cn         --arg app_name "${app_id}"         --arg compose "${wrapper}"         '{
+      jq -cn \
+        --arg app_name "${app_id}" \
+        --arg compose "${wrapper}" \
+        '{
           app_name: $app_name,
           custom_app: true,
           custom_compose_config_string: $compose
@@ -137,7 +159,8 @@ verify_runtime() {
 
   for container in scrutiny scrutiny-collector; do
     state="$(
-      docker inspect "${container}"         --format '{{.State.Status}}' 2>/dev/null || true
+      docker inspect "${container}" \
+        --format '{{.State.Status}}' 2>/dev/null || true
     )"
     [[ "${state}" == "running" ]] ||
       fail "${container} is not running (state=${state:-missing})"
