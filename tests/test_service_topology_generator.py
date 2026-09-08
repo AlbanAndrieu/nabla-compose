@@ -361,7 +361,7 @@ services:
             "id": "security-fixture",
             "name": "Security fixture",
             "kind": "security-control",
-            "category": "test",
+            "category": "security",
         }
 
         for invalid in ("protect", []):
