@@ -157,13 +157,16 @@ sudo bash scripts/truenas/prepare-sample-observer-network.sh
 
 The helper:
 
+- versions the observer-IPAM contract; the current contract is `v2`;
 - inspects every Docker network subnet;
 - inspects non-default IPv4 host routes so VPN/LAN ranges are not shadowed;
 - chooses the first free reviewed private `/28`;
 - creates `sample-observer` with an `ip_range` containing six usable
   addresses;
-- reserves five of those addresses with Docker `aux-address`, leaving exactly
-  one allocatable container address;
+- reserves the nested range's first address (`.8`) plus `.10-.14` with
+  Docker `aux-address`, leaving exactly one allocatable container address
+  (`.9`); runtime proved Docker can allocate the nested range's first address,
+  so it must be reserved explicitly;
 - labels the network with `com.nabla.observer-ip=<reserved address>`.
 
 FastAPI Sample does not hard-code that IP. Because it is the only allocatable
@@ -171,6 +174,17 @@ address on the dedicated network, Docker reuses it across recreates. The
 container remains attached to `intranet` for shared-service DNS and to
 `traefik_network` for ingress. `gw_priority: 1` on `sample-observer`
 makes the dedicated observer bridge the preferred default route.
+
+If an older `sample-observer` was created before contract `v2`, remove the
+failed FastAPI Sample container first and recreate the network explicitly:
+
+```bash
+docker rm -f fastapi-sample 2>/dev/null || true
+
+sudo bash scripts/truenas/prepare-sample-observer-network.sh --recreate
+```
+
+The helper refuses `--recreate` while any container remains attached.
 
 Inspect the selected non-secret network contract at any time:
 
