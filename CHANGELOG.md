@@ -1,3 +1,10 @@
+## [0.25.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.2...0.25.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **talos:** recover VMs automatically after TrueNAS reboot ([#149](https://github.com/AlbanAndrieu/nabla-compose/issues/149)) ([0f6b15b](https://github.com/AlbanAndrieu/nabla-compose/commit/0f6b15b6b1345b0d860ca0b9eab07f86ff360cdc))
+
 ## [0.25.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.1...0.25.2) (2026-09-08)
 
 
