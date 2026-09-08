@@ -275,14 +275,18 @@ case "${MODE}" in
       --timeout=180s
 
     endpoint_count="$(
-      kubectl get endpoints fastapi-sample \
+      kubectl get endpointslice \
         --namespace "${NAMESPACE}" \
-        -o jsonpath='{.subsets[*].addresses[*].ip}' |
-        wc -w |
-        tr -d ' '
+        --selector kubernetes.io/service-name=fastapi-sample \
+        -o json |
+        jq '[
+          .items[]?.endpoints[]?
+          | select(.conditions.ready == true)
+          | .addresses[]?
+        ] | length'
     )"
     [[ "${endpoint_count}" -ge 1 ]] ||
-      fail "fastapi-sample Service has no ready endpoints"
+      fail "fastapi-sample Service has no ready EndpointSlice addresses"
 
     observed_image="$(
       kubectl get deployment fastapi-sample \
