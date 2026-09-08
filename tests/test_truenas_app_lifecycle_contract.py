@@ -69,6 +69,43 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("global PostgreSQL service", roadmap)
         self.assertIn("172.17.0.24:30239/health/ready", roadmap)
 
+    def test_runtime_recovery_fixes_crowdsec_akvorado_and_openhands(self) -> None:
+        crowdsec = self.read("apps/crowdsec/compose.yml")
+        crowdsec_readme = self.read("apps/crowdsec/README.md")
+        akvorado = self.read("apps/akvorado/compose.yml")
+        openhands_readme = self.read("apps/openhands/README.md")
+
+        self.assertIn("required: false", crowdsec)
+        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", crowdsec)
+        self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", crowdsec)
+        self.assertNotIn("apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY", crowdsec)
+        self.assertIn("can bootstrap without a bouncer secret", crowdsec_readme)
+
+        self.assertIn(
+            "image: ghcr.io/akvorado/akvorado:2026.8.0",
+            akvorado,
+        )
+        self.assertNotIn("quay.io/akvorado/akvorado:v2026.8.1", akvorado)
+
+        self.assertIn("app.update openhands", openhands_readme)
+        self.assertIn(
+            "/mnt/cpool/compose/nabla-compose/apps/openhands/compose.yml",
+            openhands_readme,
+        )
+        self.assertIn("app.redeploy openhands", openhands_readme)
+
+    def test_truenas_performance_diagnostic_is_read_only_and_complete(self) -> None:
+        script = self.read("scripts/truenas/diagnose-performance.sh")
+
+        self.assertIn("/proc/pressure/", script)
+        self.assertIn("docker stats --no-stream", script)
+        self.assertIn("zpool iostat -v cpool 1 3", script)
+        self.assertIn("midclt call app.query", script)
+        self.assertIn("journalctl -k -b", script)
+        self.assertNotIn("docker restart", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertNotIn("zpool clear", script)
+
     def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
         compose = self.read("apps/squid/compose.yml")
 
