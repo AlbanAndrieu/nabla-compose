@@ -649,6 +649,24 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("re-authorize the affected account", roadmap)
         self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
 
+    def test_roadmap_tracks_staged_shared_tika_migration(self) -> None:
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+
+        self.assertIn("#### Shared Tika consolidation", roadmap)
+        self.assertIn("ix-openarchiver-tika-1   running  healthy", roadmap)
+        self.assertIn("ix-paperless-ngx-tika-1 running  healthy", roadmap)
+        self.assertIn("PAPERLESS_TIKA_ENDPOINT", roadmap)
+        self.assertIn("TIKA_URL", roadmap)
+        self.assertIn("migrate **one consumer at a time**", roadmap)
+        self.assertIn(
+            "connect Paperless-ngx to the already-validated shared Tika endpoint",
+            roadmap,
+        )
+        self.assertNotIn(
+            "start Paperless PostgreSQL/Redis/Gotenberg/Tika, then Paperless-ngx",
+            roadmap,
+        )
+
     def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
