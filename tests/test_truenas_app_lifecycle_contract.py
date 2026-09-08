@@ -185,20 +185,39 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
     def test_openrag_uses_shared_opensearch_without_cross_app_depends_on(self) -> None:
         openrag = self.read("apps/openrag/compose.yml")
+        openrag_readme = self.read("apps/openrag/README.md")
         langflow = self.read("apps/langflow/compose.yml")
         opensearch = self.read("apps/opensearch/compose.yml")
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("OPENSEARCH_HOST: opensearch", openrag)
+        self.assertIn('OPENSEARCH_NODE_COUNT_CHECK_ENABLED: "false"', openrag)
         self.assertNotIn("ES_HOST=elasticsearch", openrag)
         self.assertNotIn("      - elasticsearch", openrag)
         self.assertNotIn("      - langflow\n", openrag)
         self.assertIn("OPENRAG_FRONTEND_PORT:-31060", openrag)
         self.assertNotIn('"3000:3000"', openrag)
+        self.assertIn("LANGFLOW_HOST: langflow", openrag)
+        self.assertIn("LANGFLOW_HEALTH_PATH: /health_check", openrag)
+        self.assertIn("http://127.0.0.1:8000/health", openrag)
+        self.assertIn("/health/collective_health", openrag)
+        self.assertIn("host.docker.internal:host-gateway", openrag)
         self.assertIn("OPENSEARCH_HOST: opensearch", langflow)
         self.assertNotIn("ES_HOST=elasticsearch", langflow)
         self.assertIn("aliases:\n          - opensearch", opensearch)
         self.assertIn("external: true\n    name: intranet", opensearch)
         self.assertIn("external: true\n    name: nabla-security", opensearch)
+
+        self.assertIn("function probe_openrag_runtime_if_present", audit)
+        self.assertIn("OpenRAG backend: /health HTTP 200", audit)
+        self.assertIn("OpenRAG backend: OpenSearch readiness HTTP 200", audit)
+        self.assertIn("collective backend + Langflow health HTTP 200", audit)
+        self.assertIn("Docling is not reachable", audit)
+
+        self.assertIn("LANGFLOW_HOST=langflow", openrag_readme)
+        self.assertIn("DOCLING_SERVE_URL", openrag_readme)
+        self.assertIn("stabilize **OpenRAG**", roadmap)
 
     def test_clickhouse_matches_shared_truenas_runtime(self) -> None:
         clickhouse = self.read("apps/clickhouse/compose.yml")

@@ -112,6 +112,85 @@ SUPABASE_PUBLISHABLE_KEY=REPLACE_WITH_PUBLISHABLE_KEY
 
 Optional PostgreSQL/Supavisor settings (`POSTGRES_*`, `SUPABASE_PROJECT_REF`, `SUPABASE_POOLER_REGION`) can also be supplied when direct database access is required. Do not add a local database container only to satisfy optional health checks.
 
+
+## Update the TrueNAS deployment on port 8091
+
+The `fastapi-sample` source is a Git submodule. The parent repository pins the
+exact tested revision; do not advance the submodule locally without also
+updating the parent gitlink.
+
+From the canonical TrueNAS checkout:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+
+git fetch origin
+git switch fix/openrag-runtime-diagnostics
+git pull --ff-only
+
+git submodule sync --recursive
+git submodule update --init --recursive fastapi-sample
+
+printf 'nabla-compose: '
+git rev-parse --short HEAD
+printf 'fastapi-sample: '
+git -C fastapi-sample rev-parse --short HEAD
+```
+
+For this recovery branch the expected FastAPI Sample revision is
+`3e945146` (release `1.13.2`).
+
+Build the pinned source before asking TrueNAS to redeploy the Custom App:
+
+```bash
+docker compose -f apps/sample/compose.yml \
+  build --pull fastapi-sample
+
+sudo midclt call -j app.update sample \
+'{
+  "custom_compose_config": {
+    "include": [
+      "/mnt/cpool/compose/nabla-compose/apps/sample/compose.yml"
+    ]
+  }
+}'
+
+sudo midclt call -j app.redeploy sample
+```
+
+Then prove the replacement container, health endpoint and effective version:
+
+```bash
+docker inspect fastapi-sample |
+jq '.[0] | {
+  image: .Config.Image,
+  image_id: .Image,
+  status: .State.Status,
+  health: (.State.Health.Status // "none")
+}'
+
+curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
+  http://127.0.0.1:8091/health |
+jq .
+
+curl -fsS --retry 5 --retry-delay 1 \
+  http://127.0.0.1:8091/version |
+jq .
+```
+
+If `app.query` does not contain the expected `sample` application, stop
+before running `app.update` and inspect the actual application id:
+
+```bash
+midclt call app.query |
+jq -r '.[] | [.id, .state] | @tsv' |
+grep -E '(^|[[:space:]])(sample|fastapi)'
+```
+
+Do not run a second `docker compose up` project alongside the TrueNAS Custom
+App. Build the image from the repository, then let TrueNAS own the container
+lifecycle.
+
 ## Validate and deploy
 
 Validate the manifests without expanding runtime secrets:

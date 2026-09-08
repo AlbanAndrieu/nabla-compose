@@ -1754,6 +1754,37 @@ classify it as `running`, `degraded/restarting`, `stopped`,
 `declared-not-deployed` or `unknown`. Do not infer `not deployed` merely
 from lack of an external URL.
 
+
+### OpenRAG recovery — 2026-09-08
+
+Observed deployment target: `http://172.17.0.24:31060/`.
+
+The first recovery pass identified a split-stack health mismatch: OpenRAG
+frontend 0.7.1 defaults its collective health check to
+`openrag-langflow:7860/health`, while this homelab intentionally provides the
+shared Langflow application as `langflow:7860/health_check` on `intranet`.
+
+- [x] pin backend/frontend to OpenRAG 0.7.1 instead of floating `latest`;
+- [x] configure frontend collective health for
+      `langflow:7860/health_check`;
+- [x] add backend liveness and frontend collective Docker healthchecks;
+- [x] add runtime probes for backend liveness, OpenSearch readiness and
+      frontend -> backend/Langflow collective health;
+- [x] make the upstream Linux `host.docker.internal` route explicit for the
+      current Docling default;
+- [ ] run the TrueNAS runtime probes and confirm whether the application leaves
+      `DEPLOYING/starting`;
+- [ ] review and deploy a repository-managed Docling service or another explicit
+      `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
+- [ ] validate document ingestion, indexing and search end-to-end after Docling
+      is healthy;
+- [ ] validate the selected embedding + local Ollama/LiteLLM path without
+      unloading the retained local LLM;
+- [ ] correlate OpenRAG ingest/search latency with TrueNAS I/O PSI before
+      increasing workload;
+- [ ] reconcile OpenRAG into the generated architecture/site consumers after
+      runtime health is proven.
+
 ### P3 — service priority after Kubernetes + infrastructure secrets
 
 **Priority A — monitoring and security platform**
@@ -1769,7 +1800,8 @@ from lack of an external URL.
 
 **Priority B — next security/network observability services**
 
-7. deploy/enable **OpenRAG** after its storage/model dependencies are reviewed;
+7. stabilize **OpenRAG** by proving backend, shared Langflow and OpenSearch
+   readiness, then review/enable its Docling ingestion and model dependencies;
 8. deploy/enable **Wazuh** after sizing its index/storage footprint and avoiding
    conflict with the existing OpenSearch/Graylog observability plane;
 9. deploy/enable **Akvorado** (interpreting the planned “advoradan” item as

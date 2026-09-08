@@ -1277,6 +1277,74 @@ function probe_pyroscope_fastapi_profile {
 }
 
 
+
+function probe_openrag_runtime_if_present {
+  local backend="openrag-backend"
+  local frontend="openrag-frontend"
+  local collective
+
+  if ! app_is_present openrag; then
+    printf 'SKIP: OpenRAG runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${backend}"; then
+    functional_fail "OpenRAG backend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${frontend}"; then
+    functional_fail "OpenRAG frontend: container is not running (TrueNAS state ${states[openrag]-UNKNOWN})"
+    return
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HOST=langflow'; then
+    functional_ok "OpenRAG frontend: shared Langflow hostname configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HOST must be langflow; stale/default openrag-langflow keeps collective health degraded"
+  fi
+
+  if docker inspect "${frontend}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    grep -Fxq 'LANGFLOW_HEALTH_PATH=/health_check'; then
+    functional_ok "OpenRAG frontend: Langflow health path configured"
+  else
+    functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+    functional_ok "OpenRAG backend: /health HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /health failed"
+  fi
+
+  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+    functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
+  else
+    functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
+  fi
+
+  if collective="$(curl --fail --silent --show-error --max-time 8     http://172.17.0.24:31060/health/collective_health 2>/dev/null)" &&
+    jq -e '
+      .status == "ok" and
+      .pods.backend.alive == true and
+      .pods.langflow.alive == true
+    ' <<<"${collective}" >/dev/null; then
+    functional_ok "OpenRAG frontend: collective backend + Langflow health HTTP 200"
+  else
+    functional_fail "OpenRAG frontend: collective health failed; inspect backend/Langflow resolution before redeploy loops"
+  fi
+
+  if docker exec "${backend}" sh -lc '
+    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
+  ' >/dev/null 2>&1; then
+    functional_ok "OpenRAG ingestion: Docling health reachable"
+  else
+    functional_warn "OpenRAG ingestion: Docling is not reachable; UI/search may run but document ingestion is incomplete"
+  fi
+}
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -1337,6 +1405,7 @@ probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24
 probe_pyroscope_fastapi_profile
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_http_if_running langflow "Langflow health_check" "http://172.17.0.24:7860/health_check"
+probe_openrag_runtime_if_present
 probe_http_if_running clickhouse "ClickHouse HTTP/ping" "http://172.17.0.24:8123/ping"
 probe_clickhouse_runtime_if_running
 probe_clickhouse_config_mounts_if_running
