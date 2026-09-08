@@ -813,6 +813,23 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
 
+    def test_openrag_langflow_key_bootstrap_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("http://172.17.0.24:7860/health_check", script)
+        self.assertIn("/api/v1/api_key/", script)
+        self.assertIn("/api/v1/users/whoami", script)
+        self.assertIn("/mnt/cpool/openrag/.env.secrets", script)
+        self.assertIn("LANGFLOW_KEY=", script)
+        self.assertIn("--rotate", script)
+        self.assertIn("without printing it", script)
+        self.assertNotIn("LANGFLOW_SUPERUSER_PASSWORD=", script)
+
 
 if __name__ == "__main__":
     unittest.main()
