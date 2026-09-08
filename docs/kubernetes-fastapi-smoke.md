@@ -10,9 +10,15 @@ The smoke test is intentionally separate from the TrueNAS deployment behind
 
 1. `scripts/talos/validate-cluster.sh` is green.
 2. `scripts/talos/smoke-kubernetes-network.sh` is green.
-3. An ingress controller exists for the selected
-   `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`).
-4. `test.albandrieu.com` resolves before deployment.
+3. The target platform bootstrap is Kubara `v0.14.0`. Before installing any
+   ingress controller manually, run the Kubara Helm generation flow and inspect
+   the generated Traefik component. Kubara defaults `ingressClassName` to
+   `traefik`; use that Kubara-managed controller unless the selected
+   configuration explicitly replaces it.
+4. The resulting `IngressClass` for
+   `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`) exists and has a
+   non-empty `.spec.controller`.
+5. `test.albandrieu.com` resolves before deployment.
 5. The FastAPI Sample image reference is immutable by digest. Mutable tags,
    including version tags and `:latest`, are not accepted by the smoke gate.
 
@@ -35,6 +41,40 @@ Then prove CoreDNS, Service DNS, ClusterIP routing and cross-node pod routing:
 ```bash
 bash scripts/talos/smoke-kubernetes-network.sh
 ```
+
+The 2026-09-08 pre-platform observation is intentionally recorded as:
+
+```text
+Kubernetes: v1.36.3
+Nodes:      3/3 Ready
+IngressClass: none
+nabla-fastapi-smoke namespace: absent
+```
+
+Talos provides the Kubernetes base here; the ingress layer is introduced by the
+platform bootstrap. For the Kubara `v0.14.0` target, generate and review the
+platform Helm output first:
+
+```bash
+kubara generate --helm
+```
+
+Inspect the generated Traefik values under
+`platform-configs/<cluster>/helm/traefik/values.generated.yaml`. If Traefik is
+enabled by the selected Kubara catalog/config, bootstrap/reconcile that instance
+and do **not** install a second standalone Traefik chart. If Traefik is disabled,
+change the Kubara configuration deliberately or select one alternative ingress
+controller and update `K8S_FASTAPI_SMOKE_INGRESS_CLASS` consistently.
+
+After the minimal Kubara platform bootstrap:
+
+```bash
+kubectl get ingressclass
+kubectl get ingressclass traefik -o yaml
+```
+
+Only continue when one intended ingress controller exists and its
+`.spec.controller` is non-empty.
 
 Before deploying the application, verify the selected IngressClass/controller,
 prove that no other Ingress already claims `test.albandrieu.com`, and resolve
@@ -88,8 +128,12 @@ bash scripts/talos/smoke-fastapi-sample.sh --cleanup
 
 ## Failure interpretation
 
-- missing/invalid `IngressClass` controller: install/configure the reviewed
-  Kubernetes ingress controller before exposing the smoke workload;
+- missing `IngressClass` before Kubara bootstrap: expected pre-platform
+  state; generate/review the Kubara `v0.14.0` Helm output and reconcile the
+  Kubara-managed Traefik component rather than installing a parallel controller;
+- missing/invalid `IngressClass` after Kubara bootstrap: inspect the generated
+  Traefik values, Argo CD application and Traefik controller before exposing
+  the smoke workload;
 - existing Ingress claiming `test.albandrieu.com`: resolve hostname ownership
   before deploying the smoke; do not rely on controller-specific rule merging;
 - public DNS lookup failure: create/reconcile the dedicated
