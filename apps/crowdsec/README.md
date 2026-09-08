@@ -21,7 +21,12 @@ This removes CrowdSec parsing, scenarios, SQLite/LAPI work and CAPI synchronizat
 
 ## Runtime variables
 
-Required runtime secret in `/mnt/cpool/crowdsec/.env.secrets`:
+The central engine can bootstrap without a bouncer secret. The optional
+`/mnt/cpool/crowdsec/.env.secrets` file is loaded only when present, so a
+missing secret file no longer makes the entire TrueNAS Compose model invalid.
+
+Before switching pfSense to the remote LAPI, render this required bouncer
+credential:
 
 ```text
 BOUNCER_KEY_PFSENSE_FIREWALL=<random secret shared with the pfSense firewall bouncer>
@@ -29,8 +34,8 @@ BOUNCER_KEY_PFSENSE_FIREWALL=<random secret shared with the pfSense firewall bou
 
 The file must be mode `0600`. The repository Vaultwarden manifest imports the
 legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` name and renders the container-facing
-`BOUNCER_KEY_PFSENSE_FIREWALL` variable, so Compose parsing does not depend on
-a secret exported in the TrueNAS middleware environment.
+`BOUNCER_KEY_PFSENSE_FIREWALL` variable. Redeploy CrowdSec after rendering the
+file, then verify `cscli bouncers list` before changing pfSense.
 
 Optional:
 
@@ -48,8 +53,9 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 
 ## TrueNAS Custom App deployment
 
-Render or create `/mnt/cpool/crowdsec/.env.secrets` before installation, then
-register the missing Custom App with the canonical repository include:
+The app may be installed before the bouncer secret exists. For the final
+pfSense cutover, render `/mnt/cpool/crowdsec/.env.secrets` and redeploy it.
+Register the missing Custom App with the canonical repository include:
 
 ```bash
 CROWDSEC_WRAPPER="$(
