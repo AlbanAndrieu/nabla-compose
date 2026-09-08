@@ -1,3 +1,10 @@
+## [0.23.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.4...0.23.5) (2026-09-08)
+
+
+### Bug Fixes
+
+* **pfsense:** make PHP-FPM worker validation portable ([#142](https://github.com/AlbanAndrieu/nabla-compose/issues/142)) ([27f789a](https://github.com/AlbanAndrieu/nabla-compose/commit/27f789a1594a146b146cf54be130c36928189e37))
+
 ## [0.23.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.23.3...0.23.4) (2026-09-08)
 
 
