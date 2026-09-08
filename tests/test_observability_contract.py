@@ -503,7 +503,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("http://172.17.0.24:9090/-/ready", prometheus_compose)
         self.assertIn("http://172.17.0.24:9093/-/ready", prometheus_compose)
         self.assertNotIn("target=172.17.0.1:10443", prometheus_compose)
-        self.assertIn(
+        self.assertIn("target: tcp://172.17.0.24:9945", prometheus_compose)
+        self.assertNotIn(
             "http://172.17.0.24:9945/metrics?target=172.17.0.1",
             prometheus_compose,
         )
@@ -519,9 +520,13 @@ class ObservabilityContractTests(unittest.TestCase):
             "http://172.17.0.24:3200/ready",
             "http://172.17.0.24:9090/-/ready",
             "http://172.17.0.24:9093/-/ready",
-            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            "tcp://172.17.0.24:9945",
         ):
             self.assertIn(endpoint, gatus)
+        self.assertNotIn(
+            "http://172.17.0.24:9945/metrics?target=172.17.0.1",
+            gatus,
+        )
 
     def test_observability_stack_is_self_scraped_and_alerted(self) -> None:
         prometheus = (
