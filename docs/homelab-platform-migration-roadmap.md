@@ -1744,6 +1744,9 @@ should be verified/stabilized before broad application migrations:
   `create_host_path: false`; still prove that the scrape returns real
   `pfsense_*` samples rather than merely HTTP 200 before considering the
   TrueNAS Custom App fully healthy;
+  keep the Netgate 1100 exporter in a low-impact steady-state profile:
+  Prometheus scrape every 60 seconds, five essential collectors only,
+  `max_collector_concurrency=1`, and TCP-only Gatus/AutoKuma liveness checks;
 - **Grafana:** priority monitoring service; complete runtime cutover, datasource
   health and the read-only service-account/MCP secret work.
 
