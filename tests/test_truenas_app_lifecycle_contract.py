@@ -1097,11 +1097,21 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         for relative in (
             "scripts/truenas/prepare-sample-observer-network.sh",
             "scripts/security/reconcile-truenas-observer-allowlist.sh",
+            "scripts/security/verify-truenas-observer-access.sh",
         ):
-            mode = (ROOT / relative).stat().st_mode
+            path = ROOT / relative
+            mode = path.stat().st_mode
             self.assertTrue(mode & stat.S_IXUSR, relative)
             self.assertTrue(mode & stat.S_IXGRP, relative)
             self.assertTrue(mode & stat.S_IXOTH, relative)
+
+            syntax = subprocess.run(
+                ["bash", "-n", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_openrag_langflow_key_bootstrap_is_safe_and_executable(self) -> None:
         path = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
