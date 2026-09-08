@@ -1,57 +1,75 @@
 # OpenHands on TrueNAS
 
-OpenHands uses the upstream `docker.all-hands.dev` registry for both the
-application image and the sandbox runtime. The TrueNAS deployment must not
-depend on a shell `HOME`: all host paths are explicit datasets under
-`/mnt/cpool/openhands`.
+The TrueNAS deployment follows the current upstream OpenHands Docker contract
+instead of the legacy `docker.all-hands.dev/all-hands-ai/*:0.x` images.
 
-## Prepare persistent paths
+Current pinned runtime:
+
+```text
+OpenHands    docker.openhands.dev/openhands/openhands:1.8
+Agent Server ghcr.io/openhands/agent-server:1.26.0-python
+```
+
+The deployment does not depend on a shell `HOME`; persistent state is mounted
+from an explicit TrueNAS dataset.
+
+## Prepare persistent state
 
 ```bash
-sudo install -d -m 750 \
-  /mnt/cpool/openhands \
-  /mnt/cpool/openhands/workspace \
-  /mnt/cpool/openhands/state
+sudo install -d -m 750 /mnt/cpool/openhands
+sudo install -d -m 750 /mnt/cpool/openhands/state
 ```
 
 The Compose workload mounts:
 
 ```text
-/mnt/cpool/openhands/workspace -> /opt/workspace_base
-/mnt/cpool/openhands/state     -> /.openhands-state
+/mnt/cpool/openhands/state -> /.openhands
 ```
+
+Upstream OpenHands versions before 0.44 used `~/.openhands-state`. If this
+homelab instance has meaningful legacy state, back up the dataset before
+starting the 1.8 image and validate the migrated settings/history before
+retiring the old copy.
 
 ## Registry preflight
 
-A TrueNAS error such as:
+The earlier TrueNAS error:
 
 ```text
 Get "https://docker.all-hands.dev/v2/": context deadline exceeded
 ```
 
-is a registry/network reachability failure, not a Compose validation failure.
-Check DNS, HTTPS and the Docker daemon path separately:
+targeted the legacy registry. Validate the two current registries independently:
 
 ```bash
-getent ahostsv4 docker.all-hands.dev
+getent ahostsv4 docker.openhands.dev
+getent ahostsv4 ghcr.io
 
 curl -sS -o /dev/null \
   --connect-timeout 5 \
   --max-time 15 \
-  -w 'registry_http=%{http_code}\n' \
-  https://docker.all-hands.dev/v2/
+  -w 'openhands_registry_http=%{http_code}\n' \
+  https://docker.openhands.dev/v2/
 
-docker pull docker.all-hands.dev/all-hands-ai/openhands:0.23
-docker pull docker.all-hands.dev/all-hands-ai/runtime:0.24-nikolaik
+curl -sS -o /dev/null \
+  --connect-timeout 5 \
+  --max-time 15 \
+  -w 'ghcr_registry_http=%{http_code}\n' \
+  https://ghcr.io/v2/
+
+docker pull docker.openhands.dev/openhands/openhands:1.8
+docker pull ghcr.io/openhands/agent-server:1.26.0-python
 ```
 
-HTTP `200` or an authentication response from `/v2/` proves that the host can
-reach the registry. If curl works but Docker still times out, inspect Docker
-daemon DNS/proxy configuration. If both time out, investigate the TrueNAS
-network path, pfSense/Unbound and upstream connectivity before retrying the app.
+HTTP `200` or an authentication response from a `/v2/` endpoint proves that
+the host reached the registry. If curl works but Docker times out, inspect the
+Docker daemon DNS/proxy path. If both fail, investigate TrueNAS networking,
+pfSense/Unbound and upstream connectivity.
 
-The Compose file uses `pull_policy: missing` so a successfully cached image can
-survive registry outages during later restarts.
+The Compose file uses `pull_policy: missing`: once the application image is
+cached, an unrelated registry outage does not prevent a normal container
+restart. OpenHands will still need the Agent Server image available locally or
+reachable through GHCR to create agent sessions.
 
 ## Validation
 
@@ -61,4 +79,10 @@ docker compose -f apps/openhands/compose.yml \
 
 docker inspect openhands-app \
   --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+```
+
+Expected persistent mount:
+
+```text
+/mnt/cpool/openhands/state -> /.openhands
 ```
