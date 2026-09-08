@@ -1297,7 +1297,7 @@
       "description": "CrowdSec provides the central LAPI consumed by the pfSense firewall bouncer in Small/remediation-only mode.",
       "evidence": [
         "apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT",
-        "apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY"
+        "apps/crowdsec/compose.yml:BOUNCER_KEY_PFSENSE_FIREWALL"
       ]
     },
     {
