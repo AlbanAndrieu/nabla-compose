@@ -51,7 +51,9 @@ services:
     volumes:
       - ./openrag-documents:/app/openrag-documents:U,z
       - ./keys:/app/keys:U,z
-      - ./flows:/app/flows:U,z
+      # Keep the image-bundled OpenRAG 0.7.1 flows visible. Only the mutable
+      # backup path is bind-mounted; an empty parent /app/flows bind would hide
+      # the compatible built-in flow definitions.
       - ./flows/backup:/app/flows/backup:U,z
       - ./config:/app/config:U,z
       - ./data:/app/data:U,z
@@ -80,6 +82,12 @@ services:
           description: The OpenRAG frontend talks to the OpenRAG backend.
           evidence:
             - apps/openrag/compose.yml:OPENRAG_BACKEND_HOST
+        - target: langflow
+          type: dependsOn
+          strength: required
+          description: Frontend collective health checks the shared global Langflow service.
+          evidence:
+            - apps/openrag/compose.yml:LANGFLOW_HOST
     environment:
       OPENRAG_BACKEND_HOST: openrag-backend
       OPENRAG_BACKEND_PORT: "8000"
