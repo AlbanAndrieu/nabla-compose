@@ -21,11 +21,16 @@ This removes CrowdSec parsing, scenarios, SQLite/LAPI work and CAPI synchronizat
 
 ## Runtime variables
 
-Required:
+Required runtime secret in `/mnt/cpool/crowdsec/.env.secrets`:
 
 ```text
-CROWDSEC_PFSENSE_BOUNCER_KEY=<random secret shared with the pfSense firewall bouncer>
+BOUNCER_KEY_PFSENSE_FIREWALL=<random secret shared with the pfSense firewall bouncer>
 ```
+
+The file must be mode `0600`. The repository Vaultwarden manifest imports the
+legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` name and renders the container-facing
+`BOUNCER_KEY_PFSENSE_FIREWALL` variable, so Compose parsing does not depend on
+a secret exported in the TrueNAS middleware environment.
 
 Optional:
 
@@ -44,7 +49,7 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 ## Migration from pfSense Large to Small
 
 1. Keep the existing pfSense CrowdSec installation running while this container is deployed and validated.
-2. Generate a new strong `CROWDSEC_PFSENSE_BOUNCER_KEY` and configure it in the TrueNAS application environment.
+2. Generate a new strong `BOUNCER_KEY_PFSENSE_FIREWALL` and configure it in the TrueNAS application environment.
 3. Start this CrowdSec container and verify:
 
    ```sh
