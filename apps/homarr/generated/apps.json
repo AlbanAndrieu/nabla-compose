@@ -336,6 +336,17 @@
       "syncEligible": false
     },
     {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "group": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "composeService": "keycloak",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30238",
+      "syncEligible": true,
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service."
+    },
+    {
       "id": "kibana",
       "name": "Kibana",
       "group": "observability",
