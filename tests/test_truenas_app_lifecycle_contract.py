@@ -814,6 +814,19 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
 
+    def test_pfsense_exporter_hardening_helper_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/harden-pfsense-exporter-config.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+        self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", script)
+        self.assertIn("max_collector_concurrency: 1", script)
+        self.assertIn("without printing the API key", script)
+        self.assertNotIn("echo \"$key\"", script)
+
     def test_sample_observer_network_helpers_are_executable(self) -> None:
         for relative in (
             "scripts/truenas/prepare-sample-observer-network.sh",
