@@ -39,8 +39,9 @@ fastapi_observer
   -> dedicated user-linked API key
 ```
 
-Runtime validation proves `system.version` and `app.query` (86 apps) with the
-native TrueNAS 26.0.0-BETA.2 client. The earlier WebSocket denial was not RBAC:
+Runtime validation proves `system.version` and `app.query` with the native
+TrueNAS 26.0.0-BETA.2 client; the 2026-09-08 post-redeploy read gate observed
+94 apps. The earlier WebSocket denial was not RBAC:
 TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
 before authentication. Runtime evidence on 2026-09-08 proved that a fixed /32
 must not be reserved inside the shared `intranet` pool: while Sample was
@@ -62,16 +63,21 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
   `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` can authenticate the
   application observer; legacy usernames, MCP keys and `TRUENAS_INFRA_*`
   credentials are ignored and reported only as configuration drift;
-- [ ] finish the FastAPI Sample `1.13.5` TrueNAS redeploy with
-  `TRUENAS_API_USERNAME=fastapi_observer`, then require `auth.me` to prove
-  the effective identity and reject any write/admin role while retaining
+- [x] finish the TrueNAS-local FastAPI redeploy with
+  `TRUENAS_API_USERNAME=fastapi_observer`; the 2026-09-08 gate reached RBAC
+  parsing only after `auth.me.pw_name` matched `fastapi_observer`, while the
+  read-only observer path reported 94 apps;
+- [ ] rerun the corrected RBAC parser and require `APPS_READ` (preferred) or
+  temporary `READONLY_ADMIN`, with no write/admin role, while retaining
   `system.version` + `app.query`;
 - [ ] run the `--compare-cloud` A/B gate while FastAPI Cloud still uses
   `TRUENAS_API_USERNAME=albandrieu`: require the same catalog revision and
   exact TrueNAS application-ID inventory from both runtimes;
-- [ ] after A/B parity is green, switch FastAPI Cloud to a dedicated
-  `fastapi_observer` key, rerun the production API/topology/UI smoke, then
-  retire the FastAPI workload's use of the human/admin credential;
+- [ ] after A/B parity is green, switch FastAPI Cloud to
+  `TRUENAS_API_USERNAME=fastapi_observer` plus its paired dedicated
+  `TRUENAS_API_KEY`, keep TLS verification enabled, rerun the production
+  API/topology/UI smoke, then retire the FastAPI workload's use of the
+  `albandrieu` credential;
 - [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
   2026-09-08 verification selects only `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`
   with no shadowed username/API-key variables;
@@ -1636,6 +1642,19 @@ the Kubernetes network/storage and infrastructure-secret gates below.
 
 ### P0 — Kubernetes DNS, CNI and explicit FastAPI Sample smoke
 
+Platform ingress target: **Kubara v0.14.0 with its generated Traefik
+component**. Live 2026-09-08 evidence shows Kubernetes v1.36.3 with all three
+Talos nodes `Ready`, no `IngressClass`, and no `nabla-fastapi-smoke`
+namespace yet. Treat that as the expected pre-platform state. Kubara defaults
+`ingressClassName` to `traefik`; run `kubara generate --helm`, inspect
+`platform-configs/<cluster>/helm/traefik/values.generated.yaml`, and use the
+single Kubara-managed Traefik controller when enabled. Do not install a second
+standalone Traefik merely to unblock the smoke.
+
+A **minimal Kubara/Argo CD + Traefik bootstrap is allowed before CSI** because
+it is required to prove the ingress path. Persistent/stateful workload
+onboarding remains blocked until CSI persistence and rollback are proven.
+
 1. run `scripts/talos/validate-cluster.sh` and retain the all-nodes-`Ready`,
    kubelet and etcd health gate;
 2. run `scripts/talos/smoke-kubernetes-network.sh` from the workstation using
@@ -1677,7 +1696,8 @@ After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
 10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
     recovery to prove application + ingress + CSI together;
 11. test one rollback/uninstall path before introducing production workloads;
-12. bootstrap GitOps only after CSI persistence and rollback are proven.
+12. expand the already-minimal Kubara/Argo CD bootstrap to persistent/stateful
+    GitOps workloads only after CSI persistence and rollback are proven.
 
 Prefer NFS as the first persistence smoke path because Talos workers require no
 additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node

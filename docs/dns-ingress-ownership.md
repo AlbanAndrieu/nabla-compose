@@ -115,8 +115,8 @@ The existing AdGuard Home application maps its container DNS port to host port
 `553`, not `53`, so it is not in the normal LAN resolver path. Kubernetes/CoreDNS
 is likewise a cluster service and is not the authority for this LAN private zone.
 
-For example, `sample.int.albandrieu.com` and the direct S3 exception
-`s3.int.albandrieu.com` resolve to `172.17.0.24` on the private path. `pihole-dns-sync` derives private records from eligible Traefik
+For example, `sample.int.albandrieu.com` and `garage.int.albandrieu.com` resolve to
+`172.17.0.24`. `pihole-dns-sync` derives private records from eligible Traefik
 Docker labels. AutoXpose is not the authoritative publisher for this `*.int`
 namespace.
 
@@ -162,38 +162,27 @@ namespace contract. Environment-dependent observations that do not invalidate
 the architecture can be emitted as warnings rather than hiding the healthy
 layers behind one generic failure.
 
-### Garage exposure boundary
+### Garage exception boundary
 
-Garage now has three distinct public-facing surfaces with two ingress classes:
+Garage administration is private:
+
+```text
+garage.int.albandrieu.com       -> Garage WebUI -> LAN/VPN only
+garage-admin.int.albandrieu.com -> Garage Admin API -> LAN/VPN only
+```
+
+Only the S3 root endpoint retains a temporary direct-public exception:
 
 ```text
 s3.int.albandrieu.com
-  -> public DNS -> pfSense HAProxy :443 -> TLS re-encryption
-  -> Traefik :443 -> Garage S3 :3900
-
-garage.albandrieu.com
-  -> Cloudflare Tunnel -> cloudflared
-  -> 172.17.0.24:3909 -> Garage WebUI
-
-garage-admin.albandrieu.com
-  -> Cloudflare Tunnel -> cloudflared
-  -> 172.17.0.24:3903 -> Garage Admin API
 ```
 
-The WebUI and Admin API tunnel origins deliberately bypass Traefik. Their
-TrueNAS host ports stay bound to `172.17.0.24`; the tunnel is outbound-established
-by `cloudflared`, so those hostnames need no parallel WAN HAProxy route.
-
-The former `garage.int.albandrieu.com` and
-`garage-admin.int.albandrieu.com` Traefik routes are retired and must not be
-published publicly. Only the S3 root endpoint retains the temporary direct
-`*.int` public exception. The OpenTofu backend sets `use_path_style=true`,
-so public `*.s3.int.albandrieu.com` bucket DNS is not required. Remove the S3
-exception once every state writer uses a trusted LAN/VPN/WARP path.
-
-OpenWebUI is another tunnel-origin example:
-`open-webui.albandrieu.com -> Cloudflare Tunnel -> cloudflared ->
-172.17.0.24:31028`. It does not traverse Traefik.
+The OpenTofu backend sets `use_path_style=true`, so it does not require
+public bucket-subdomain DNS such as `*.s3.int.albandrieu.com`. Garage
+administration uses the separate Admin API only when managing Garage itself. The repository Terragrunt
+CD workflow is restricted to the private `infra-runners` boundary, so the
+Admin API and WebUI do not need public DNS. The S3 exception should also be
+removed once every state writer uses a trusted LAN/VPN/WARP path.
 
 ## Public `*.albandrieu.com`
 

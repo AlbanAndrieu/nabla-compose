@@ -11,14 +11,6 @@ x-nabla:
       kind: tool-service
       category: ai
       description: Optional agent terminal API consumed by Open WebUI tools.
-  relations:
-    - source: openwebui
-      target: cloudflared
-      type: exposedBy
-      strength: required
-      description: Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.
-      evidence:
-        - apps/openwebui/compose.yml:ports
 
 services:
   open-webui:

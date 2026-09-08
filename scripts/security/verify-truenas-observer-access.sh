@@ -233,12 +233,20 @@ if not isinstance(privilege, dict):
     raise SystemExit("auth.me did not expose the expected privilege object")
 
 raw_roles = privilege.get("roles")
-if not isinstance(raw_roles, list):
-    raise SystemExit("auth.me did not expose the expected privilege.roles list")
+if isinstance(raw_roles, dict):
+    roles = set(map(str, raw_roles.keys()))
+elif isinstance(raw_roles, (list, tuple, set, frozenset)):
+    roles = set(map(str, raw_roles))
+elif isinstance(raw_roles, str):
+    roles = {raw_roles} if raw_roles else set()
+else:
+    roles = set()
 
-roles = set(map(str, raw_roles))
 if not roles:
-    raise SystemExit("auth.me did not expose any effective RBAC roles")
+    raise SystemExit(
+        "auth.me privilege.roles is present in an unsupported shape: "
+        + type(raw_roles).__name__
+    )
 
 dangerous_roles = sorted(
     filter(
@@ -259,7 +267,13 @@ if dangerous_roles:
 
 version = adapter.system_version()
 apps = adapter.list_apps()
-scope = "broad_readonly" if "READONLY_ADMIN" in roles else "least_privilege_candidate"
+if "APPS_READ" not in roles and "READONLY_ADMIN" not in roles:
+    raise SystemExit(
+        "observer identity has neither APPS_READ nor READONLY_ADMIN: "
+        + ",".join(sorted(roles))
+    )
+
+scope = "broad_readonly" if "READONLY_ADMIN" in roles else "apps_read"
 
 print(f"authenticated_username={authenticated_username}")
 print(f"rbac_scope={scope}")
@@ -287,16 +301,43 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
     --max-time 35 \
     "${CLOUD_BASE_URL%/}/api/homelab/status" >"${cloud_status}"
 
-  for status_file in "${local_status}" "${cloud_status}"; do
-    jq -e '
-      .runtime.configured == true
-      and .runtime.reachable == true
-      and (.runtime.stale != true)
-      and .providerCredentials.truenas.configured == true
-      and .providerCredentials.truenas.credential_mode == "dedicated_observer"
-    ' "${status_file}" >/dev/null ||
-      fail "one runtime does not expose a healthy dedicated TrueNAS observer"
-  done
+  validate_status() {
+    local label="$1"
+    local status_file="$2"
+    local configured
+    local reachable
+    local stale
+    local credentials
+    local credential_mode
+
+    configured="$(jq -r '.runtime.configured // false' "${status_file}")"
+    reachable="$(jq -r '.runtime.reachable // false' "${status_file}")"
+    stale="$(jq -r '.runtime.stale // false' "${status_file}")"
+    credentials="$(jq -r '.providerCredentials.truenas.configured // false' "${status_file}")"
+    credential_mode="$(jq -r '.providerCredentials.truenas.credential_mode // "missing"' "${status_file}")"
+
+    if [[ "${configured}" != "true" || "${reachable}" != "true" ||
+      "${stale}" == "true" || "${credentials}" != "true" ||
+      "${credential_mode}" != "dedicated_observer" ]]; then
+      printf '%s observer status:\n' "${label}"
+      jq '{
+        checkedAt,
+        catalogRevision,
+        runtime: {
+          configured: .runtime.configured,
+          reachable: .runtime.reachable,
+          stale: .runtime.stale,
+          error: .runtime.error,
+          appCount: (.runtime.apps | length)
+        },
+        credentials: .providerCredentials.truenas
+      }' "${status_file}"
+      fail "${label} observer unhealthy: configured=${configured} reachable=${reachable} stale=${stale} credentials=${credentials} credential_mode=${credential_mode}"
+    fi
+  }
+
+  validate_status "TrueNAS-local FastAPI" "${local_status}"
+  validate_status "FastAPI Cloud" "${cloud_status}"
 
   local_catalog="$(jq -r '.catalogRevision // empty' "${local_status}")"
   cloud_catalog="$(jq -r '.catalogRevision // empty' "${cloud_status}")"

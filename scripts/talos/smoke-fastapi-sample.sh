@@ -84,7 +84,8 @@ check_ingress_preflight() {
   local ingress_controller
   ingress_controller="$(
     kubectl get ingressclass "${INGRESS_CLASS}" -o jsonpath='{.spec.controller}' 2>/dev/null
-  )" || fail "IngressClass not found: ${INGRESS_CLASS}"
+  )" ||
+    fail "IngressClass not found: ${INGRESS_CLASS}; complete the reviewed Kubara v0.14.0 ingress bootstrap before the FastAPI smoke"
   [[ -n "${ingress_controller}" ]] ||
     fail "IngressClass ${INGRESS_CLASS} has no spec.controller"
 

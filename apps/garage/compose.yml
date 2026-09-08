@@ -1,38 +1,4 @@
 ---
-x-nabla:
-  nodes:
-    - id: garage-admin
-      name: Garage Admin
-      kind: api
-      category: data
-      url: https://garage-admin.albandrieu.com
-      internalUrl: http://172.17.0.24:3903
-      presentationRole: support
-      criticality: high
-      description: Garage Admin API exposed through Cloudflare Tunnel to the LAN-bound :3903 origin without Traefik.
-  relations:
-    - source: garage-webui
-      target: cloudflared
-      type: exposedBy
-      strength: required
-      description: Cloudflare Tunnel forwards garage.albandrieu.com through cloudflared directly to the Garage WebUI :3909 origin.
-      evidence:
-        - docs/dns-ingress-ownership.md:Garage exposure boundary
-    - source: garage-admin
-      target: garage
-      type: partOf
-      strength: required
-      description: Garage Admin :3903 is the administration API of the Garage object-storage service.
-      evidence:
-        - apps/garage/garage.toml:[admin] api_bind_addr=:3903
-    - source: garage-admin
-      target: cloudflared
-      type: exposedBy
-      strength: required
-      description: Cloudflare Tunnel forwards garage-admin.albandrieu.com through cloudflared directly to Garage Admin :3903.
-      evidence:
-        - docs/dns-ingress-ownership.md:Garage exposure boundary
-
 configs:
   garage_config:
     file: ./garage.toml
@@ -44,19 +10,19 @@ services:
     restart: unless-stopped
     x-nabla:
       id: garage
-      name: Garage S3
+      name: Garage
       kind: object-storage
       category: data
       url: https://s3.int.albandrieu.com
-      description: S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.
+      description: S3-compatible object storage exposed through Traefik on TrueNAS.
       runtime:
         provider: truenas-app
         containerService: garage
       relations:
         - target: traefik
           type: exposedBy
-          strength: required
-          description: Traefik routes the direct s3.int.albandrieu.com S3 ingress to Garage :3900 after pfSense HAProxy TLS re-encryption.
+          strength: optional
+          description: Traefik routes the S3 hostname and bucket subdomains to the Garage S3 API.
           evidence:
             - apps/garage/compose.yml:traefik.http.routers.garage-s3.rule
             - apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port
@@ -86,6 +52,13 @@ services:
       - "traefik.http.routers.garage-s3.service=garage-s3"
       - "traefik.http.services.garage-s3.loadbalancer.server.scheme=http"
       - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
+      # Admin API
+      - "traefik.http.routers.garage-admin.rule=Host(`garage-admin.int.albandrieu.com`)"
+      - "traefik.http.routers.garage-admin.entrypoints=websecure"
+      - "traefik.http.routers.garage-admin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.garage-admin.service=garage-admin"
+      - "traefik.http.services.garage-admin.loadbalancer.server.scheme=http"
+      - "traefik.http.services.garage-admin.loadbalancer.server.port=3903"
 
   webui:
     container_name: garage-webui
@@ -93,11 +66,11 @@ services:
     restart: unless-stopped
     x-nabla:
       id: garage-webui
-      name: Garage
+      name: Garage WebUI
       kind: application
       category: data
-      url: https://garage.albandrieu.com
-      description: Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.
+      url: https://garage-admin.albandrieu.com
+      description: Web administration UI for Garage object storage.
       runtime:
         provider: truenas-app
         containerService: webui
@@ -109,6 +82,13 @@ services:
           evidence:
             - apps/garage/compose.yml:API_BASE_URL
             - apps/garage/compose.yml:S3_ENDPOINT_URL
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik routes the Garage WebUI origin; public exposure is provided through Cloudflare Tunnel.
+          evidence:
+            - apps/garage/compose.yml:traefik.http.routers.garage-webui.rule
+            - apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port
     configs:
       - source: garage_config
         target: /etc/garage.toml
@@ -122,6 +102,14 @@ services:
       S3_ENDPOINT_URL: "http://garage:3900"
       # AUTH_USER_PASS: "${GARAGE_WEBUI_ADMIN_PASS}"
     networks: ["traefik_network"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.garage-webui.rule=Host(`garage-admin.albandrieu.com`)"
+      - "traefik.http.routers.garage-webui.entrypoints=websecure"
+      - "traefik.http.routers.garage-webui.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.garage-webui.service=garage-webui"
+      - "traefik.http.services.garage-webui.loadbalancer.server.scheme=http"
+      - "traefik.http.services.garage-webui.loadbalancer.server.port=3909"
 
 networks:
   traefik_network:

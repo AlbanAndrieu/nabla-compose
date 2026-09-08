@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:fddba388e9cf707476c575b7fad614334f3bd3aa3282112355205f29bb8290e6",
+  "catalogRevision": "sha256:9937606ee14b3e9437c4c89eb6f37cebc2596e1e951034eafa529773aa206c11",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -313,13 +313,13 @@
     },
     {
       "id": "garage",
-      "name": "Garage S3",
+      "name": "Garage",
       "kind": "object-storage",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "garage",
       "url": "https://s3.int.albandrieu.com",
-      "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
+      "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "garage"
@@ -328,13 +328,13 @@
     },
     {
       "id": "garage-webui",
-      "name": "Garage",
+      "name": "Garage WebUI",
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
       "composeService": "webui",
-      "url": "https://garage.albandrieu.com",
-      "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
+      "url": "https://garage-admin.albandrieu.com",
+      "description": "Web administration UI for Garage object storage.",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "webui"

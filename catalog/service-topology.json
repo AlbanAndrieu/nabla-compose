@@ -134,16 +134,6 @@
       "icon": "⚡"
     },
     {
-      "id": "cloudflared",
-      "name": "Cloudflare Tunnel Connector",
-      "kind": "tunnel-connector",
-      "category": "network",
-      "sourcePath": "docs/dns-ingress-ownership.md",
-      "description": "TrueNAS-hosted cloudflared connector for outbound-established Cloudflare Tunnel ingress that bypasses Traefik.",
-      "presentationRole": "support",
-      "criticality": "high"
-    },
-    {
       "id": "code-server",
       "name": "Code Server",
       "kind": "development-environment",
@@ -257,34 +247,22 @@
     },
     {
       "id": "garage",
-      "name": "Garage S3",
+      "name": "Garage",
       "kind": "object-storage",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
       "url": "https://s3.int.albandrieu.com",
-      "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
+      "description": "S3-compatible object storage exposed through Traefik on TrueNAS.",
       "icon": "🪣"
     },
     {
-      "id": "garage-admin",
-      "name": "Garage Admin",
-      "kind": "api",
-      "category": "data",
-      "sourcePath": "apps/garage/compose.yml",
-      "url": "https://garage-admin.albandrieu.com",
-      "internalUrl": "http://172.17.0.24:3903",
-      "description": "Garage Admin API exposed through Cloudflare Tunnel to the LAN-bound :3903 origin without Traefik.",
-      "presentationRole": "support",
-      "criticality": "high"
-    },
-    {
       "id": "garage-webui",
-      "name": "Garage",
+      "name": "Garage WebUI",
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
-      "url": "https://garage.albandrieu.com",
-      "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
+      "url": "https://garage-admin.albandrieu.com",
+      "description": "Web administration UI for Garage object storage.",
       "icon": "🖥️"
     },
     {
@@ -706,16 +684,6 @@
       "presentationRole": "core",
       "criticality": "critical",
       "icon": "⚖️"
-    },
-    {
-      "id": "pfsense-unbound",
-      "name": "pfSense Unbound",
-      "kind": "dns-resolver",
-      "category": "network",
-      "sourcePath": "docs/dns-ingress-ownership.md",
-      "description": "Primary LAN recursive resolver at 172.17.0.1:53; delegates int.albandrieu.com to Pi-hole with Forwarding Mode disabled and outgoing interfaces set to All.",
-      "presentationRole": "core",
-      "criticality": "critical"
     },
     {
       "id": "pihole",
@@ -1524,41 +1492,11 @@
       "source": "garage",
       "target": "traefik",
       "type": "exposedBy",
-      "strength": "required",
-      "description": "Traefik routes the direct s3.int.albandrieu.com S3 ingress to Garage :3900 after pfSense HAProxy TLS re-encryption.",
+      "strength": "optional",
+      "description": "Traefik routes the S3 hostname and bucket subdomains to the Garage S3 API.",
       "evidence": [
         "apps/garage/compose.yml:traefik.http.routers.garage-s3.rule",
         "apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port"
-      ]
-    },
-    {
-      "source": "garage-admin",
-      "target": "cloudflared",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "Cloudflare Tunnel forwards garage-admin.albandrieu.com through cloudflared directly to Garage Admin :3903.",
-      "evidence": [
-        "docs/dns-ingress-ownership.md:Garage exposure boundary"
-      ]
-    },
-    {
-      "source": "garage-admin",
-      "target": "garage",
-      "type": "partOf",
-      "strength": "required",
-      "description": "Garage Admin :3903 is the administration API of the Garage object-storage service.",
-      "evidence": [
-        "apps/garage/garage.toml:[admin] api_bind_addr=:3903"
-      ]
-    },
-    {
-      "source": "garage-webui",
-      "target": "cloudflared",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "Cloudflare Tunnel forwards garage.albandrieu.com through cloudflared directly to the Garage WebUI :3909 origin.",
-      "evidence": [
-        "docs/dns-ingress-ownership.md:Garage exposure boundary"
       ]
     },
     {
@@ -1580,6 +1518,17 @@
       "evidence": [
         "apps/garage/compose.yml:API_BASE_URL",
         "apps/garage/compose.yml:S3_ENDPOINT_URL"
+      ]
+    },
+    {
+      "source": "garage-webui",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik routes the Garage WebUI origin; public exposure is provided through Cloudflare Tunnel.",
+      "evidence": [
+        "apps/garage/compose.yml:traefik.http.routers.garage-webui.rule",
+        "apps/garage/compose.yml:traefik.http.services.garage-webui.loadbalancer.server.port"
       ]
     },
     {
@@ -2436,16 +2385,6 @@
     },
     {
       "source": "openwebui",
-      "target": "cloudflared",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.",
-      "evidence": [
-        "apps/openwebui/compose.yml:ports"
-      ]
-    },
-    {
-      "source": "openwebui",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
@@ -2523,17 +2462,6 @@
       "description": "Prometheus scrapes the pfSense exporter.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=pfsense_exporter"
-      ]
-    },
-    {
-      "source": "pfsense-unbound",
-      "target": "pihole",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Private int.albandrieu.com resolution through pfSense/Unbound depends on the Pi-hole authority at 172.17.0.24:53; public recursion remains independent.",
-      "evidence": [
-        "docs/dns-ingress-ownership.md:Resolver architecture and precedence",
-        "docs/dns-ingress-ownership.md:pfSense / Unbound"
       ]
     },
     {
