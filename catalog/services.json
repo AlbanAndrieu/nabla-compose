@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:e36c46e769f61df84448057a0b570327f8c1764ba9a6b5e2ce3d2e4cfd32f797",
+  "catalogRevision": "sha256:f6685c95a671d8bda0b27ed82704f19be794ca65e4bbe7cfc8556191f0dc50ed",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -473,6 +473,21 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "kafka"
+      }
+    },
+    {
+      "id": "keycloak",
+      "name": "Keycloak",
+      "kind": "identity-provider",
+      "category": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "composeService": "keycloak",
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+      "presentationRole": "core",
+      "criticality": "critical",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "keycloak"
       }
     },
     {
