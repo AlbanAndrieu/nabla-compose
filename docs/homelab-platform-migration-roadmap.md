@@ -87,6 +87,13 @@ Track these independently from the Talos bridge/bootstrap:
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 
+### pfSense WebGUI exposure roadmap — 2026-09-08
+
+- [x] use `https://home.albandrieu.com:10443/api/v2/system/version` as the canonical external pfSense REST API liveness endpoint; do not use `pfsense.albandrieu.com:10443` for API probing;
+- [ ] evaluate a dedicated `https://pfsense.albandrieu.com` WebGUI path through Cloudflare Tunnel + Access, with no direct WAN exposure of the administration listener;
+- [ ] before enabling that UI tunnel, validate WebSocket/session compatibility, certificate/origin handling, Cloudflare Access policy, MFA, CSRF behavior and emergency LAN-only rollback;
+- [ ] keep the pfSense REST API identity and WebGUI identity logically separate even if they ultimately share the same firewall origin.
+
 ### Pi-hole native App -> repository Compose migration — 2026-09-07
 
 The Pi-hole cutover is now promoted because the internal DNS synchronizer exposed
