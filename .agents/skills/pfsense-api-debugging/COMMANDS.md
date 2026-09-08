@@ -28,25 +28,34 @@ Do not generate that form for interactive pfSense diagnostics.
 2. Prefer a single physical line per command.
 3. Never emit a multiline `/bin/sh -c ' ... '` payload for direct interactive copy/paste.
 4. If POSIX shell syntax, pipelines, `2>/dev/null`, `$(...)`, loops, or compound tests are needed, wrap the complete command in a **single physical line**.
-5. Prefer a one-line `/bin/sh -c "..."` wrapper when Bourne syntax is needed, with single quotes inside the payload for patterns where practical.
-6. For simple commands that do not require Bourne syntax, emit native `csh`/`tcsh`-compatible syntax directly.
-7. Avoid trailing backslash continuations in operator-facing commands.
-8. Keep diagnostic output bounded with `tail`, targeted `grep`, `sed`, or similarly narrow filters.
-9. Never infer that a command failed functionally when the observed error is a shell-parsing error; correct the command form first and rerun the read-only diagnostic.
+5. A one-line `/bin/sh -c "..."` wrapper is suitable when the payload contains no shell variables that the outer `tcsh` could expand.
+6. If the inner Bourne command contains `$var`, `${var}` or `$(...)`, prefer a **single-line single-quoted** `/bin/sh -c '...'` payload so `tcsh` does not consume the `$` expressions. The important invariant is one physical line, not avoiding single quotes entirely.
+7. For simple commands that do not require Bourne syntax, emit native `csh`/`tcsh`-compatible syntax directly.
+8. Avoid trailing backslash continuations in operator-facing commands.
+9. Keep diagnostic output bounded with `tail`, targeted `grep`, `sed`, or similarly narrow filters.
+10. Never infer that a command failed functionally when the observed error is a shell-parsing error; correct the command form first and rerun the read-only diagnostic.
 
-## Preferred wrapper form
+## Preferred wrapper forms
+
+No inner shell variables:
 
 ```csh
 /bin/sh -c "grep -Ei 'unbound|resolver|pfblocker' /var/log/system.log 2>/dev/null | tail -200"
 ```
 
-For a compound read-only diagnostic:
+Compound read-only diagnostic without `$` expansion:
 
 ```csh
 /bin/sh -c "sysctl kern.ipc.maxsockbuf; grep -nE 'so-sndbuf|so-rcvbuf|num-threads' /var/unbound/unbound.conf || true"
 ```
 
-When shell variables or command substitution are required, keep them inside the inner `/bin/sh` and escape `$` when necessary so the outer `tcsh` parser does not consume the expression first.
+Inner Bourne variables or command substitution: keep the whole payload on one physical line and single-quote it:
+
+```csh
+/bin/sh -c 'pid=$(pgrep -x unbound | head -1); [ -n "$pid" ] && procstat -b "$pid" || true'
+```
+
+Do not split that last form across lines in an interactive pfSense session.
 
 ## pfSense service-control invariant
 
