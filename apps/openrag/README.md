@@ -55,6 +55,40 @@ LANGFLOW_PORT=7860
 LANGFLOW_HEALTH_PATH=/health_check
 ```
 
+Langflow exposes two materially different health endpoints:
+
+- `/health` is process liveness and can succeed before Langflow is usable;
+- `/health_check` is readiness and verifies both the database and chat/cache
+  service. OpenRAG deliberately uses this stronger endpoint.
+
+The Docker healthcheck probes readiness every 10 seconds, allows a 180-second
+first-start grace window for SQLite/schema initialization, and still fails
+closed if readiness never succeeds.
+
+While TrueNAS reports `DEPLOYING`, distinguish the two states directly:
+
+```bash
+curl -sS -w '\nHTTP %{http_code}\n' \
+  http://172.17.0.24:7860/health
+
+curl -sS -w '\nHTTP %{http_code}\n' \
+  http://172.17.0.24:7860/health_check |
+jq . 2>/dev/null || true
+
+docker inspect langflow |
+jq '.[0].State.Health | {
+  Status,
+  FailingStreak,
+  Log: (.Log[-5:] // [])
+}'
+
+docker logs --since 10m langflow 2>&1 |
+tail -200
+```
+
+A readiness failure should be diagnosed as `db` versus `chat` before
+restarting repeatedly.
+
 Without those values the frontend can be reachable on TCP/31060 while its own
 collective health remains degraded.
 
