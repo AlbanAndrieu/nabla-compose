@@ -87,14 +87,27 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:3000/api/settings/status", compose)
         self.assertIn("response.ok ? 0 : 1", compose)
 
-    def test_garage_public_exception_is_s3_only(self) -> None:
-        overrides = (
-            ROOT / "catalog" / "homelab-exposure-overrides.json"
-        ).read_text(encoding="utf-8")
+    def test_garage_exposure_contract_has_one_direct_and_two_tunnel_surfaces(self) -> None:
+        overrides = json.loads(
+            (ROOT / "catalog" / "homelab-exposure-overrides.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        by_name = {service["name"]: service for service in overrides["services"]}
 
-        self.assertIn("Only the Garage S3 API", overrides)
-        self.assertIn('"name": "Garage WebUI"', overrides)
-        self.assertIn('"external": false', overrides)
+        self.assertEqual(
+            by_name["Garage S3"]["tunnelUrl"], "https://s3.int.albandrieu.com"
+        )
+        self.assertFalse(by_name["Garage S3"]["tunnelSecure"])
+        self.assertEqual(
+            by_name["Garage"]["tunnelUrl"], "https://garage.albandrieu.com"
+        )
+        self.assertTrue(by_name["Garage"]["tunnelSecure"])
+        self.assertEqual(
+            by_name["Garage Admin"]["tunnelUrl"],
+            "https://garage-admin.albandrieu.com",
+        )
+        self.assertTrue(by_name["Garage Admin"]["tunnelSecure"])
 
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
         script = (
@@ -253,34 +266,46 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn('S3_ENDPOINT_URL: "http://garage:3900"', compose)
         self.assertNotIn('"3903:3903"', compose)
         self.assertNotIn('"3909:3909"', compose)
+        self.assertNotIn("garage-admin.int.albandrieu.com", compose)
+        self.assertNotIn("traefik.http.routers.garage-admin", compose)
+        self.assertNotIn("traefik.http.routers.garage-webui", compose)
 
-    def test_garage_presentation_catalog_separates_s3_and_external_webui(self) -> None:
+    def test_garage_presentation_catalog_models_three_exposure_surfaces(self) -> None:
         catalog = json.loads(
             (ROOT / "catalog" / "homelab-services.json").read_text(encoding="utf-8")
         )
-        garage = next(
-            service for service in catalog["services"] if service["name"] == "Garage"
-        )
-        webui = next(
-            service
-            for service in catalog["services"]
-            if service["name"] == "Garage WebUI"
-        )
+        by_id = {service.get("id"): service for service in catalog["services"]}
 
-        self.assertEqual(garage["internalPort"], 3900)
-        self.assertEqual(garage["tunnelUrl"], "https://s3.int.albandrieu.com")
-        self.assertTrue(garage["external"])
-        self.assertFalse(garage["tunnelSecure"])
+        s3 = by_id["garage"]
+        webui = by_id["garage-webui"]
+        admin = by_id["garage-admin"]
 
-        self.assertEqual(webui["internalHost"], "172.17.0.24")
+        self.assertEqual(s3["name"], "Garage S3")
+        self.assertEqual(s3["internalPort"], 3900)
+        self.assertEqual(s3["tunnelUrl"], "https://s3.int.albandrieu.com")
+        self.assertFalse(s3["tunnelSecure"])
+
+        self.assertEqual(webui["name"], "Garage")
         self.assertEqual(webui["internalPort"], 3909)
-        self.assertFalse(webui["internalSecure"])
-        self.assertEqual(
-            webui["tunnelUrl"],
-            "https://garage-admin.albandrieu.com",
-        )
-        self.assertTrue(webui["external"])
+        self.assertEqual(webui["tunnelUrl"], "https://garage.albandrieu.com")
         self.assertTrue(webui["tunnelSecure"])
+
+        self.assertEqual(admin["name"], "Garage Admin")
+        self.assertEqual(admin["internalPort"], 3903)
+        self.assertEqual(
+            admin["tunnelUrl"], "https://garage-admin.albandrieu.com"
+        )
+        self.assertTrue(admin["tunnelSecure"])
+
+    def test_openwebui_tunnel_origin_is_declared_without_traefik(self) -> None:
+        compose = (ROOT / "apps" / "openwebui" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("target: cloudflared", compose)
+        self.assertIn("open-webui.albandrieu.com", compose)
+        self.assertIn("Traefik is not in this path", compose)
+        self.assertNotIn("target: traefik", compose)
 
     def test_pyroscope_v2_metastore_is_pinned_and_persistent(self) -> None:
         compose = (ROOT / "apps" / "pyroscope" / "compose.yml").read_text(
