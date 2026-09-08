@@ -1215,6 +1215,24 @@ Keep Paperless's Redis lifecycle local to the Paperless stack initially unless r
 
 The 2026-09-08 recovery showed that OpenArchiver and Paperless-ngx each run
 `apache/tika:3.3.1.0-full`, and both failed together after Docker/ZFS I/O stalls.
+The failure was real rather than a healthcheck-only false positive: both Tika
+workers temporarily stopped answering on TCP/9998 while their parent containers
+remained running, and the Tika watchdog logged failures reading its status file
+during the same period that the TrueNAS kernel reported long blocked `dockerd`
+tasks.
+
+The immediate recovery is complete. After restarting only the Tika containers:
+
+```text
+ix-openarchiver-tika-1   running  healthy  failing_streak=0  /tika -> HTTP 200
+ix-paperless-ngx-tika-1 running  healthy  failing_streak=0  /tika -> HTTP 200
+```
+
+There was no filesystem-capacity or inode exhaustion in either container and
+Docker did not report either container as OOM-killed. The migration to a shared
+Tika is therefore a deliberate simplification/resilience project, not an
+emergency cutover while the native document stacks are degraded.
+
 Both applications expose a configurable Tika endpoint, so Tika is a good
 stateless shared-service candidate rather than keeping two identical JVM
 watchdogs alive permanently.
@@ -1222,26 +1240,37 @@ watchdogs alive permanently.
 Target architecture:
 
 ```text
-shared Tika 3.x
-  -> trusted intranet only
-  -> /tika health/readiness
-  -> Paperless-ngx via PAPERLESS_TIKA_ENDPOINT
-  -> OpenArchiver via TIKA_URL
+                    shared Tika 3.x
+                    trusted intranet
+                    /tika health
+                         ^
+                         |
+             +-----------+-----------+
+             |                       |
+Paperless-ngx                         OpenArchiver
+PAPERLESS_TIKA_ENDPOINT               TIKA_URL
 ```
 
+- [x] capture a post-incident baseline proving both current app-local Tika
+      instances are healthy and answer `/tika` with HTTP 200;
 - [ ] add a repository-managed `apps/tika/compose.yml` with a pinned Tika 3.x
-      image, LAN/intranet-only exposure and a functional HTTP healthcheck;
+      image, trusted-LAN/intranet-only exposure and a functional HTTP healthcheck;
 - [ ] keep Tika on the 3.x line until Paperless/OpenArchiver compatibility with
       Tika 4.x is explicitly proven;
-- [ ] point Paperless-ngx at the shared Tika endpoint and prove Office/e-mail
-      ingestion, OCR/extraction and restart recovery before removing its bundled
-      Tika;
-- [ ] point OpenArchiver at the same shared Tika endpoint and prove attachment
-      extraction/search before removing its bundled Tika;
-- [ ] monitor JVM RSS, restart count, latency and extraction failures in
-      Prometheus before and after consolidation;
+- [ ] add Prometheus/runtime monitoring for shared Tika readiness, JVM RSS,
+      restart count, response latency and extraction failures before cutover;
+- [ ] migrate **one consumer at a time**: first point Paperless-ngx at the shared
+      endpoint and prove Office/e-mail ingestion, OCR/extraction, search and
+      restart recovery while OpenArchiver still uses its local Tika;
+- [ ] only after Paperless is stable, point OpenArchiver at the shared endpoint
+      and prove attachment extraction/search and restart recovery;
+- [ ] remove each bundled Tika only after its owning application has passed its
+      functional acceptance gate against the shared service;
 - [ ] keep rollback instructions that restore each app-local Tika independently
-      if the shared service becomes a single point of failure.
+      because the shared service becomes a common dependency / potential single
+      point of failure;
+- [ ] compare CPU/RSS/I/O before and after consolidation to prove that removing
+      one JVM actually reduces host pressure rather than merely moving it.
 
 Paperless-AI should join the trusted internal application network and consume the Paperless API plus the existing local model endpoint rather than starting a second Ollama/Open WebUI stack. Paperless-GPT remains an optional later experiment after the base migration is stable.
 
@@ -1268,7 +1297,7 @@ Migration sequence:
 5. use logical PostgreSQL dump/restore when the source/target PostgreSQL major version or `PGDATA` layout differs;
 6. stop native Paperless/Paperless-AI before the final mutable-data copy;
 7. restore database and durable document/media data with verified ownership;
-8. start Paperless PostgreSQL/Redis/Gotenberg/Tika, then Paperless-ngx;
+8. start Paperless PostgreSQL/Redis/Gotenberg, connect Paperless-ngx to the already-validated shared Tika endpoint, then start Paperless-ngx;
 9. validate login, document count, full-text search, OCR, consume-folder ingestion, Office conversion and restart persistence;
 10. start Paperless-AI only after base Paperless is healthy, then validate tagging/classification/RAG against a non-sensitive test document;
 11. verify Gatus/AutoKuma/Homarr/catalog/runtime signals;
