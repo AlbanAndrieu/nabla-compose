@@ -116,13 +116,27 @@ Track these independently from the Talos bridge/bootstrap:
 - [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
 
 
-### Garage WebUI Cloudflare exposure — 2026-09-08
+### Garage ingress split — 2026-09-08
 
-- [x] make `https://garage-admin.albandrieu.com` the canonical external Garage WebUI URL;
-- [ ] publish `garage-admin.albandrieu.com` through Cloudflare Tunnel with Cloudflare Access enabled;
-- [ ] require authenticated admin access (prefer MFA / explicit identity policy) and keep the Garage Admin API on TCP/3903 internal-only;
-- [ ] verify the tunnel origin targets the Garage WebUI service on port 3909 rather than exposing Garage Admin API port 3903;
-- [ ] add an external HTTPS health probe for the Access-protected WebUI and retain separate internal health probes for Garage S3/Admin APIs.
+- [x] model the three Garage surfaces as separate identities:
+  `garage` = S3, `garage-webui` = WebUI and `garage-admin` = Admin API;
+- [x] keep `https://s3.int.albandrieu.com` as the explicit direct exception:
+  WAN -> pfSense HAProxy -> TLS re-encryption -> Traefik -> Garage :3900;
+- [x] make `https://garage.albandrieu.com` the canonical Garage WebUI URL
+  through Cloudflare Tunnel -> cloudflared -> `172.17.0.24:3909`, without
+  Traefik in the origin path;
+- [x] make `https://garage-admin.albandrieu.com` the canonical Garage Admin
+  API URL through Cloudflare Tunnel -> cloudflared -> `172.17.0.24:3903`,
+  without Traefik in the origin path;
+- [x] retire the old Traefik routers for `garage.int.albandrieu.com` and
+  `garage-admin.int.albandrieu.com`;
+- [x] use OpenWebUI (`open-webui.albandrieu.com -> cloudflared ->
+  172.17.0.24:31028`) as the explicit reference for a tunnel origin that
+  bypasses Traefik;
+- [ ] verify Cloudflare Access policies independently for the WebUI and Admin API
+  and require authenticated/MFA-capable administration;
+- [ ] run external HTTPS probes for both tunnel hostnames while retaining
+  separate internal port probes for Garage S3/WebUI/Admin.
 
 ### pfSense WebGUI exposure roadmap — 2026-09-08
 
