@@ -1241,7 +1241,7 @@
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
       "evidence": [
-        "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
+        "/mnt/cpool/autokuma/.env.secrets:AUTOKUMA__KUMA__URL"
       ]
     },
     {
