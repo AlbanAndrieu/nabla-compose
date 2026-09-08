@@ -562,6 +562,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("RUNTIME-ONLY:", audit)
         self.assertIn("http://172.17.0.24:30100/", audit)
         self.assertIn("function probe_pfsense_exporter_runtime_if_present", audit)
+        self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", audit)
+        self.assertIn("runtime config must be a regular file", audit)
         self.assertIn("v0.0.10 target schema present", audit)
         self.assertIn("auth_method=key but key is missing", audit)
         self.assertIn("metrics path reachable for 172.17.0.1", audit)
