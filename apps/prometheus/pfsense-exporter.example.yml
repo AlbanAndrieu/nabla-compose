@@ -10,14 +10,12 @@ targets:
     auth_method: "key"
     key: "REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY"
     validate_cert: false
-    timeout: 15
-    # Keep the Netgate 1100 probe set intentionally small and serialized.
-    # Expensive/non-essential package, login-protection, CARP and schedule
-    # collectors can be enabled temporarily during focused diagnostics.
+    timeout: 8
+    # Keep the Netgate 1100 probe set intentionally minimal and serialized.
+    # interfaces and firewall_states timed out while the firewall was CPU
+    # saturated; enable them only after the core probe path is stable.
     collectors:
       - system
       - gateways
-      - interface
       - service
-      - firewall_states
     max_collector_concurrency: 1
