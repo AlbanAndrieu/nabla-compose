@@ -159,7 +159,7 @@ endpoints:
   url: http://172.17.0.24:8091/health
   conditions:
   - '[STATUS] == 200'
-- name: Garage
+- name: Garage S3
   group: data
   interval: 60s
   extra-labels:
@@ -168,7 +168,7 @@ endpoints:
   url: tcp://172.17.0.24:3900
   conditions:
   - '[CONNECTED] == true'
-- name: Garage WebUI
+- name: Garage
   group: data
   interval: 60s
   extra-labels:
