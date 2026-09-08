@@ -76,13 +76,11 @@ finally:
 # Fail closed on the intended low-impact contract without printing the key.
 result = runtime.read_text(encoding="utf-8")
 required = (
-    "timeout: 15",
+    "timeout: 8",
     "max_collector_concurrency: 1",
     "      - system",
     "      - gateways",
-    "      - interface",
     "      - service",
-    "      - firewall_states",
 )
 missing = [item for item in required if item not in result]
 if missing:
@@ -90,4 +88,4 @@ if missing:
 PY
 
 printf 'OK: pfSense exporter runtime config hardened without printing the API key\n'
-printf '    scrape pressure is controlled by Prometheus (60s) and collectors are serialized\n'
+printf '    scrape pressure is controlled by Prometheus (120s) and collectors are serialized\n'
