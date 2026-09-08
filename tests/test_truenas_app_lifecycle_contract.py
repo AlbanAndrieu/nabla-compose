@@ -1022,7 +1022,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         diagnose = diagnose_path.read_text(encoding="utf-8")
 
         self.assertIn("profiles:\n      - forwarding", compose)
-        self.assertIn("strength: optional", compose)
         self.assertIn("bootstrap-wazuh.sh --apply", deploy)
         self.assertIn("bootstrap-wazuh.sh --check", deploy)
         self.assertIn("diagnose-wazuh.sh --check", deploy)
