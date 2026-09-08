@@ -148,7 +148,7 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("--compare-cloud", script)
         self.assertIn("https://fastapi-sample.fastapicloud.dev", script)
         self.assertIn("/api/homelab/status", script)
-        self.assertIn('credential_mode == "dedicated_observer"', script)
+        self.assertIn('"${credential_mode}" != "dedicated_observer"', script)
         self.assertIn("catalogRevision", script)
         self.assertIn("TrueNAS app inventory differs", script)
         self.assertIn('validate_status "TrueNAS-local FastAPI"', script)

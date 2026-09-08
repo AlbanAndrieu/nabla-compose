@@ -26,20 +26,21 @@ notes remain in the specialized roadmaps:
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [ ] Sentry 26.8 is in its final supervised convergence pass. Latest runtime evidence shows all 19 workloads created, both one-shot migrations exited, `snuba-replacer` and `snuba-subscription-consumer-events` running, but TrueNAS still reports aggregate `DEPLOYING` while the long healthcheck grace completes. Do not mark Sentry complete until `scripts/truenas/diagnose-sentry.sh --check`, aggregate `RUNNING`, and the synthetic-event smoke are green.
+- [x] Sentry 26.8 lifecycle convergence is green on 2026-09-08: `diagnose-sentry.sh --check` returned `exit=0`, TrueNAS aggregate state is `RUNNING`, no workload is `starting`/`unhealthy`/unexpectedly exited, all required Kafka topics exist, Sentry edge health is green and Snuba API health is OK. The only remaining final-regression item is rerunning the synthetic event smoke after this convergence pass.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 - [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
 
-The active wave is **Talos P0 + Sentry final convergence**, with Wazuh and
-Scrutiny stabilization in parallel. **Docling and OpenRAG/LiteLLM activation
-remain blocked until Sentry acceptance is complete.**
+The active wave is **Talos P0 + Sentry final synthetic-event acceptance**, with
+Wazuh and Scrutiny stabilization in parallel. **Docling and OpenRAG/LiteLLM
+activation remain blocked until the post-convergence synthetic Sentry event smoke
+is green.**
 
 1. [x] **FastAPI Sample** — runtime/observer/TLS/API acceptance green.
 2. [x] **pfSense / Prometheus** — low-impact exporter profile and Prometheus runtime green.
-3. [ ] **Sentry — finish before Docling/OpenRAG-LiteLLM** — allow the first-start grace to complete, run `sudo bash scripts/truenas/diagnose-sentry.sh --check`, require consumer heartbeats/topics and aggregate TrueNAS `RUNNING`, then rerun the synthetic event smoke.
+3. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle convergence is proven (`exit=0`, aggregate `RUNNING`, zero unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba healthy); rerun only the synthetic event smoke and preserve the event-id/ClickHouse proof.
 4. [ ] **Talos P0 — active** — apply/prove VM autostart, run the base-cluster validator, then DNS/CNI, CoreDNS, Service/ClusterIP, cross-node routing and the immutable FastAPI smoke on `test.albandrieu.com`.
 5. [ ] **Wazuh core — parallel** — bootstrap fail-closed API/TLS material, deploy manager/indexer/dashboard, and require `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch forwarder.
 6. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository cutover/acceptance helper.
@@ -137,8 +138,12 @@ in-place VM updates with zero create/replace/destroy actions.
 - [x] record live pre-platform evidence: Kubernetes `v1.36.3` has all three
       Talos nodes `Ready`, `kubectl get ingressclass` returns no resources,
       and `nabla-fastapi-smoke` is absent before deployment;
-- [ ] prepare Kubara `v0.14.0`, run `kubara generate --helm`, inspect the
-      generated Traefik values and confirm exactly one intended ingress controller;
+- [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and add the read-only
+      `scripts/talos/preflight-kubara.sh` contract for clean pre-bootstrap and
+      single-owner post-bootstrap ingress states;
+- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then
+      `kubara generate --helm`, inspect the generated Traefik values and confirm
+      exactly one intended ingress controller;
 - [ ] bootstrap/reconcile the minimal Kubara platform and require
       `kubectl get ingressclass traefik` with non-empty `.spec.controller`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
@@ -162,10 +167,10 @@ Sentry remains ahead of Docling/OpenRAG-LiteLLM until this gate is complete.
 - [x] both one-shot migrations have exited after the current redeploy;
 - [x] all 19 workloads are created;
 - [x] `snuba-replacer` and `snuba-subscription-consumer-events` are running in the current supervised snapshot;
-- [ ] allow the 600-second first-start healthcheck grace to elapse without another redeploy;
-- [ ] run `scripts/truenas/diagnose-sentry.sh --check` and prove the required Kafka topics plus consumer heartbeat health;
-- [ ] require no unexpected `starting`/`unhealthy` steady-state workload;
-- [ ] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING`;
+- [x] allow the 600-second first-start healthcheck grace to elapse without another redeploy;
+- [x] run `scripts/truenas/diagnose-sentry.sh --check` and prove the required Kafka topics plus consumer heartbeat health (`exit=0`, `ok=8`, `failed=0`, `warnings=0` on 2026-09-08);
+- [x] require no unexpected `starting`/`unhealthy` steady-state workload (`starting_health=0`, `unhealthy=0`, `unexpected_exited=0`);
+- [x] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING`;
 - [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
 
 ## P0.1 — TrueNAS-backed Kubernetes CSI

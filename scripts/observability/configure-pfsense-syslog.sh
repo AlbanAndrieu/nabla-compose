@@ -55,11 +55,22 @@ version_at_least() {
   required_minor="${BASH_REMATCH[2]}"
   required_patch="${BASH_REMATCH[3]}"
 
-  ((current_major > required_major)) && return 0
-  ((current_major < required_major)) && return 1
-  ((current_minor > required_minor)) && return 0
-  ((current_minor < required_minor)) && return 1
-  ((current_patch >= required_patch))
+  if ((current_major > required_major)); then
+    return 0
+  fi
+  if ((current_major < required_major)); then
+    return 1
+  fi
+  if ((current_minor > required_minor)); then
+    return 0
+  fi
+  if ((current_minor < required_minor)); then
+    return 1
+  fi
+  if ((current_patch >= required_patch)); then
+    return 0
+  fi
+  return 1
 }
 
 for command in curl jq mktemp; do

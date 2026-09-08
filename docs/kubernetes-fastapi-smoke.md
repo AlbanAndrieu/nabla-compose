@@ -10,16 +10,17 @@ The smoke test is intentionally separate from the TrueNAS deployment behind
 
 1. `scripts/talos/validate-cluster.sh` is green.
 2. `scripts/talos/smoke-kubernetes-network.sh` is green.
-3. The target platform bootstrap is Kubara `v0.14.0`. Before installing any
+3. `scripts/talos/preflight-kubara.sh --pre-bootstrap` is green with the repository pin in `config/kubara/VERSION` (`0.14.0`).
+4. The target platform bootstrap is Kubara `v0.14.0`. Before installing any
    ingress controller manually, run the Kubara Helm generation flow and inspect
    the generated Traefik component. Kubara defaults `ingressClassName` to
    `traefik`; use that Kubara-managed controller unless the selected
    configuration explicitly replaces it.
-4. The resulting `IngressClass` for
+5. The resulting `IngressClass` for
    `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`) exists and has a
    non-empty `.spec.controller`.
-5. `test.albandrieu.com` resolves before deployment.
-6. The FastAPI Sample image reference is immutable by digest. Mutable tags,
+6. `test.albandrieu.com` resolves before deployment.
+7. The FastAPI Sample image reference is immutable by digest. Mutable tags,
    including version tags and `:latest`, are not accepted by the smoke gate.
 
 The FastAPI Sample repository publishes GHCR images. Supply the exact image ref:
@@ -52,8 +53,19 @@ nabla-fastapi-smoke namespace: absent
 ```
 
 Talos provides the Kubernetes base here; the ingress layer is introduced by the
-platform bootstrap. For the Kubara `v0.14.0` target, generate and review the
-platform Helm output first:
+platform bootstrap. First require a clean, read-only pre-bootstrap state and the
+exact pinned Kubara CLI contract:
+
+```bash
+bash scripts/talos/preflight-kubara.sh --pre-bootstrap
+```
+
+This gate fails if a Traefik IngressClass/controller/workload already exists or
+if another Ingress already owns `test.albandrieu.com`. It also verifies that the
+installed Kubara matches `config/kubara/VERSION` and exposes the expected
+`generate --helm`, `generate --dry-run`, and `bootstrap CLUSTER_NAME` commands.
+
+Then generate and review the platform Helm output:
 
 ```bash
 kubara generate --helm
@@ -66,15 +78,16 @@ and do **not** install a second standalone Traefik chart. If Traefik is disabled
 change the Kubara configuration deliberately or select one alternative ingress
 controller and update `K8S_FASTAPI_SMOKE_INGRESS_CLASS` consistently.
 
-After the minimal Kubara platform bootstrap:
+After the minimal Kubara platform bootstrap, rerun the read-only ownership gate:
 
 ```bash
+bash scripts/talos/preflight-kubara.sh --post-bootstrap
 kubectl get ingressclass
 kubectl get ingressclass traefik -o yaml
 ```
 
-Only continue when one intended ingress controller exists and its
-`.spec.controller` is non-empty.
+Only continue when exactly one intended Traefik IngressClass/controller/workload
+exists and its `.spec.controller` is non-empty.
 
 Before deploying the application, verify the selected IngressClass/controller,
 prove that no other Ingress already claims `test.albandrieu.com`, and resolve
