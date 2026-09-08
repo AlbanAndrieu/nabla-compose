@@ -66,11 +66,12 @@ visibility.
       `TRUENAS_API_USERNAME=fastapi_observer`; 2026-09-08 runtime evidence
       confirms canonical username/key selection, TLS verification, 94 apps and
       `auth.me.pw_name=fastapi_observer`;
-- [ ] rerun
+- [x] rerun
       `scripts/security/verify-truenas-observer-access.sh --local` with the
-      TrueNAS role-collection parser fix and require no write/admin RBAC role,
-      `APPS_READ` (preferred) or temporary `READONLY_ADMIN`,
-      `system.version` success and `app.query` success;
+      TrueNAS role-collection parser fix; 2026-09-08 evidence confirms
+      `authenticated_username=fastapi_observer`,
+      `roles=APPS_READ,CATALOG_READ`, `rbac_scope=apps_read`,
+      `system.version` success and 94 apps from `app.query`;
 - [ ] inspect the effective roles: prefer the narrow `APPS_READ` scope if it
       satisfies the complete FastAPI observer contract; accept
       `READONLY_ADMIN` only as an intermediate read-only state because it is
@@ -78,7 +79,10 @@ visibility.
 - [ ] while FastAPI Cloud still uses `TRUENAS_API_USERNAME=albandrieu`, run
       `scripts/security/verify-truenas-observer-access.sh --compare-cloud` and
       require the same catalog revision plus the exact same TrueNAS application
-      IDs from both runtimes;
+      IDs from both runtimes; the first A/B attempt reached the comparison but
+      failed because at least one `/api/homelab/status` snapshot was unhealthy,
+      so the helper now prints which runtime and which configured/reachable/stale/
+      credential condition failed;
 - [ ] **switch FastAPI Cloud to `fastapi_observer`** only after the A/B
       comparison is green: change `TRUENAS_API_USERNAME=fastapi_observer`
       and the paired dedicated `TRUENAS_API_KEY` together, keep
