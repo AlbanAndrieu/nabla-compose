@@ -10,6 +10,7 @@ TARGET_IDLE=30
 TARGET_START=1
 TARGET_SPARE=2
 TARGET_REQ=500
+SUPPORTED_RELEASE_PREFIX="26.07-RELEASE"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -75,11 +76,17 @@ source_state() {
 generated_state() {
   [ -f "${GENERATED}" ] || { printf 'missing\n'; return; }
   awk '
-    /^[[:space:]]*pm\.max_children[[:space:]]*=/      { max=$3 }
-    /^[[:space:]]*pm\.process_idle_timeout[[:space:]]*=/ { idle=$3 }
-    /^[[:space:]]*pm\.start_servers[[:space:]]*=/     { start=$3 }
-    /^[[:space:]]*pm\.max_spare_servers[[:space:]]*=/ { spare=$3 }
-    /^[[:space:]]*pm\.max_requests[[:space:]]*=/      { req=$3 }
+    function value(line, result) {
+      result=line
+      sub(/^[^=]*=[[:space:]]*/, "", result)
+      sub(/[[:space:]]*$/, "", result)
+      return result
+    }
+    /^[[:space:]]*pm\.max_children[[:space:]]*=/         { max=value($0) }
+    /^[[:space:]]*pm\.process_idle_timeout[[:space:]]*=/ { idle=value($0) }
+    /^[[:space:]]*pm\.start_servers[[:space:]]*=/        { start=value($0) }
+    /^[[:space:]]*pm\.max_spare_servers[[:space:]]*=/    { spare=value($0) }
+    /^[[:space:]]*pm\.max_requests[[:space:]]*=/         { req=value($0) }
     END { printf "%s/%s/%s/%s/%s\n", max, idle, start, spare, req }
   ' "${GENERATED}"
 }
@@ -100,6 +107,11 @@ if [ "${MODE}" = "--check" ]; then
 fi
 
 [ "$(id -u)" -eq 0 ] || fail "--apply/--restore must run as root"
+case "${release}" in
+  "${SUPPORTED_RELEASE_PREFIX}"*) ;;
+  unknown) fail "cannot verify pfSense release before mutation" ;;
+  *) fail "unsupported pfSense release ${release}; reviewed target is ${SUPPORTED_RELEASE_PREFIX}" ;;
+esac
 
 if [ "${MODE}" = "--restore" ]; then
   [ -f "${BACKUP}" ] || fail "backup not found: ${BACKUP}"
@@ -128,11 +140,11 @@ case "${current_source}" in
       BEGIN { in_profile=0; changes=0 }
       /elif \[ "\$\{REALMEM\}" -gt 1000 \]; then/ { in_profile=1; print; next }
       in_profile && /^[[:space:]]*fi[[:space:]]*$/ { in_profile=0; print; next }
-      in_profile && /^[[:space:]]*PHPFPMMAX=8[[:space:]]*$/   { sub(/PHPFPMMAX=8/, "PHPFPMMAX=" max); changes++; print; next }
-      in_profile && /^[[:space:]]*PHPFPMIDLE=3600[[:space:]]*$/ { sub(/PHPFPMIDLE=3600/, "PHPFPMIDLE=" idle); changes++; print; next }
-      in_profile && /^[[:space:]]*PHPFPMSTART=2[[:space:]]*$/ { sub(/PHPFPMSTART=2/, "PHPFPMSTART=" start); changes++; print; next }
-      in_profile && /^[[:space:]]*PHPFPMSPARE=7[[:space:]]*$/ { sub(/PHPFPMSPARE=7/, "PHPFPMSPARE=" spare); changes++; print; next }
-      in_profile && /^[[:space:]]*PHPFPMREQ=5000[[:space:]]*$/ { sub(/PHPFPMREQ=5000/, "PHPFPMREQ=" req); changes++; print; next }
+      in_profile && /^[[:space:]]*PHPFPMMAX=8[[:space:]]*$/       { sub(/PHPFPMMAX=8/, "PHPFPMMAX=" max); changes++; print; next }
+      in_profile && /^[[:space:]]*PHPFPMIDLE=3600[[:space:]]*$/  { sub(/PHPFPMIDLE=3600/, "PHPFPMIDLE=" idle); changes++; print; next }
+      in_profile && /^[[:space:]]*PHPFPMSTART=2[[:space:]]*$/     { sub(/PHPFPMSTART=2/, "PHPFPMSTART=" start); changes++; print; next }
+      in_profile && /^[[:space:]]*PHPFPMSPARE=7[[:space:]]*$/     { sub(/PHPFPMSPARE=7/, "PHPFPMSPARE=" spare); changes++; print; next }
+      in_profile && /^[[:space:]]*PHPFPMREQ=5000[[:space:]]*$/    { sub(/PHPFPMREQ=5000/, "PHPFPMREQ=" req); changes++; print; next }
       { print }
       END { if (changes != 5) exit 42 }
     ' "${SOURCE}" >"${tmp}" || { rc=$?; rm -f "${tmp}"; trap - EXIT HUP INT TERM; fail "generator shape changed or patch count was not exactly five (rc=${rc})"; }
@@ -154,7 +166,7 @@ esac
 
 /etc/rc.restart_webgui
 
-workers=$(ps axww -o command | grep -c '^php-fpm: pool nginx (php-fpm)$' || true)
+workers=$(ps axww -o command | grep -c 'php-fpm: pool nginx' || true)
 [ "${workers}" -le "${TARGET_MAX}" ] || fail "PHP-FPM worker count ${workers} exceeds target ${TARGET_MAX}"
 
 printf 'OK: pfSense PHP-FPM constrained profile applied: %s\n' "${expected}"
