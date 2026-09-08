@@ -1,3 +1,10 @@
+## [0.22.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.2...0.22.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **truenas:** recover missing apps and runtime compose ([#135](https://github.com/AlbanAndrieu/nabla-compose/issues/135)) ([ba858f7](https://github.com/AlbanAndrieu/nabla-compose/commit/ba858f71bcea7dac6ff266f636774770aa52ade4))
+
 ## [0.22.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.22.1...0.22.2) (2026-09-08)
 
 
