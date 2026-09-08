@@ -280,6 +280,8 @@ fi
 
 if [[ "${app_state}" == "DEPLOYING" && "${starting_count}" -gt 0 ]]; then
   printf '⚠️ TrueNAS DEPLOYING correlates with containers whose Docker health is still "starting".\n'
+  printf '   Sentry/Snuba consumer healthchecks intentionally allow a 600-second first-start grace.\n'
+  printf '   Do not repeatedly redeploy during that window: it resets healthcheck convergence and makes diagnosis harder.\n'
   printf '   Inspect the named services above first; for Sentry 26.8 consumers this usually means the /tmp/health.txt heartbeat has not yet produced a successful Docker healthcheck.\n'
 elif [[ "${app_state}" == "DEPLOYING" && "${starting_count}" -eq 0 && "${unhealthy_count}" -eq 0 ]]; then
   printf '⚠️ TrueNAS is DEPLOYING while Docker exposes no starting/unhealthy healthcheck.\n'
