@@ -9,6 +9,9 @@ FAILED_CANDIDATE_IP="${FASTAPI_SAMPLE_FAILED_OBSERVER_IP:-172.16.56.9}"
 TRUENAS_NAME="${TRUENAS_NAME:-truenas.albandrieu.com}"
 TRUENAS_PORT="${TRUENAS_PORT:-7000}"
 EXPECTED_USERNAME="${TRUENAS_OBSERVER_EXPECTED_USERNAME:-fastapi_observer}"
+MODE="${1:---local}"
+LOCAL_BASE_URL="${TRUENAS_OBSERVER_LOCAL_BASE_URL:-http://127.0.0.1:8091}"
+CLOUD_BASE_URL="${TRUENAS_OBSERVER_CLOUD_BASE_URL:-https://fastapi-sample.fastapicloud.dev}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -19,7 +22,12 @@ warn() {
   printf 'WARN: %s\n' "$*" >&2
 }
 
-for command in docker jq midclt python3 curl; do
+case "${MODE}" in
+  --local | --compare-cloud) ;;
+  *) fail "usage: sudo bash scripts/security/verify-truenas-observer-access.sh [--local|--compare-cloud]" ;;
+esac
+
+for command in docker jq midclt python3 curl mktemp; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -256,3 +264,92 @@ print(f"apps={len(apps)}")
 PY
 
 printf 'OK: TrueNAS observer source allowlist, credential selection and read-only API calls are valid\n'
+
+if [[ "${MODE}" == "--compare-cloud" ]]; then
+  printf '==> comparing TrueNAS observer visibility with FastAPI Cloud baseline\n'
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+
+  local_status="${tmpdir}/local.json"
+  cloud_status="${tmpdir}/cloud.json"
+
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 35 \
+    "${LOCAL_BASE_URL%/}/api/homelab/status" >"${local_status}"
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 35 \
+    "${CLOUD_BASE_URL%/}/api/homelab/status" >"${cloud_status}"
+
+  for status_file in "${local_status}" "${cloud_status}"; do
+    jq -e '
+      .runtime.configured == true
+      and .runtime.reachable == true
+      and (.runtime.stale != true)
+      and .providerCredentials.truenas.configured == true
+      and .providerCredentials.truenas.credential_mode == "dedicated_observer"
+    ' "${status_file}" >/dev/null ||
+      fail "one runtime does not expose a healthy dedicated TrueNAS observer"
+  done
+
+  local_catalog="$(jq -r '.catalogRevision // empty' "${local_status}")"
+  cloud_catalog="$(jq -r '.catalogRevision // empty' "${cloud_status}")"
+  if [[ -n "${local_catalog}" && -n "${cloud_catalog}" && "${local_catalog}" != "${cloud_catalog}" ]]; then
+    fail "catalog revisions differ; redeploy the same FastAPI revision before comparing observer identities"
+  fi
+
+  local_ids="$(jq -cS '[.runtime.apps[]?.app_id] | sort' "${local_status}")"
+  cloud_ids="$(jq -cS '[.runtime.apps[]?.app_id] | sort' "${cloud_status}")"
+  if [[ "${local_ids}" != "${cloud_ids}" ]]; then
+    printf 'Local app ids:\n'
+    printf '%s\n' "${local_ids}" | jq .
+    printf 'Cloud app ids:\n'
+    printf '%s\n' "${cloud_ids}" | jq .
+    fail "TrueNAS app inventory differs between fastapi_observer and the FastAPI Cloud baseline"
+  fi
+
+  state_drift="$(
+    jq -n \
+      --slurpfile local "${local_status}" \
+      --slurpfile cloud "${cloud_status}" '
+        ($local[0].runtime.apps | map({key: .app_id, value: .state}) | from_entries) as $local_states
+        | ($cloud[0].runtime.apps | map({key: .app_id, value: .state}) | from_entries) as $cloud_states
+        | [
+            ($local_states | keys[]) as $id
+            | select($local_states[$id] != $cloud_states[$id])
+            | {
+                app_id: $id,
+                local: $local_states[$id],
+                cloud: $cloud_states[$id]
+              }
+          ]
+      '
+  )"
+
+  if [[ "$(jq 'length' <<<"${state_drift}")" -gt 0 ]]; then
+    warn "runtime state changed between observations; complete inventory visibility still matches"
+    printf '%s\n' "${state_drift}" | jq .
+  fi
+
+  printf 'Local observer summary:\n'
+  jq '{
+    checkedAt,
+    catalogRevision,
+    appCount: (.runtime.apps | length),
+    driftSummary,
+    truenasCredentialMode: .providerCredentials.truenas.credential_mode
+  }' "${local_status}"
+
+  printf 'FastAPI Cloud baseline summary:\n'
+  jq '{
+    checkedAt,
+    catalogRevision,
+    appCount: (.runtime.apps | length),
+    driftSummary,
+    truenasCredentialMode: .providerCredentials.truenas.credential_mode
+  }' "${cloud_status}"
+
+  printf 'OK: fastapi_observer has parity with the FastAPI Cloud TrueNAS inventory baseline\n'
+  printf '    Keep the Cloud runtime on albandrieu until this comparison is green, then switch it to fastapi_observer and rerun production smoke.\n'
+fi
