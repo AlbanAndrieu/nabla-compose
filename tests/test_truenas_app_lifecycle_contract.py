@@ -67,6 +67,19 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('app_name: "akvorado"', akvorado_readme)
         self.assertIn("custom_compose_config_string", akvorado_readme)
 
+    def test_pihole_exporter_does_not_own_dns_lifecycle(self) -> None:
+        compose = self.read("apps/pihole/compose.yml")
+        readme = self.read("apps/pihole/README.md")
+
+        exporter = compose.split("\n  pihole-exporter:\n", 1)[1].split(
+            "\nnetworks:\n",
+            1,
+        )[0]
+        self.assertNotIn("depends_on:", exporter)
+        self.assertIn("up -d --no-deps pihole-exporter", readme)
+        self.assertIn("com.docker.compose.project.working_dir", readme)
+        self.assertIn("http://172.17.0.24:9617/metrics", readme)
+
     def test_gatus_persists_generated_history(self) -> None:
         compose = self.read("apps/gatus/compose.yml")
         config = self.read("apps/gatus/config/config.yml")
