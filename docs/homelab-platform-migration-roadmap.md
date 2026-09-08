@@ -1843,16 +1843,25 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
       `DOCLING_SERVE_URL`; no Docling service currently exists in this repo;
 - [ ] validate document ingestion, indexing and search end-to-end after Docling
       is healthy;
-- [x] prepare the direct OpenRAG -> workstation LiteLLM path at
-      `http://172.17.0.57:4000/v1` through an `openai_like` provider,
-      reusing `LITELLM_IDE_API_KEY` and refusing persistent activation unless
-      OpenRAG encrypted-secret storage is configured;
+- [x] prepare the direct OpenRAG 0.7.1 -> workstation LiteLLM path at
+      `http://172.17.0.57:4000/v1` by using the built-in `openai` provider
+      as an OpenAI-protocol adapter plus `OPENAI_BASE_URL`; reuse
+      `LITELLM_IDE_API_KEY` and refuse persistent activation unless OpenRAG
+      encrypted-secret storage is configured;
+- [x] configure the shared OpenRAG-compatible Langflow runtime with the same
+      `OPENAI_BASE_URL` so chat and embedding components use the workstation
+      LiteLLM endpoint after OpenRAG synchronizes `OPENAI_API_KEY`;
 - [x] prepare TrueNAS LiteLLM as an optional proxy for the workstation
       `embedding` alias while retaining `embedding-local` as an explicit
-      TrueNAS Ollama rollback target;
+      TrueNAS Ollama rollback target and `workstation-qwen` for a future
+      TrueNAS-gateway chat path;
 - [ ] run the workstation LiteLLM bootstrap check, then `--apply`, and prove
       OpenRAG chat/tool-calling plus embeddings against the GPU workstation
       before treating the model path as operational;
+- [ ] after a stable OpenRAG release newer than 0.7.1 is validated, migrate this
+      compatibility route to the native generic `openai_like` provider; until
+      then do not treat the 0.7.1 OpenAI provider discovery/validation endpoint
+      as authoritative because parts of it still target `api.openai.com`;
 - [ ] correlate OpenRAG ingest/search latency with TrueNAS I/O PSI before
       increasing workload;
 - [ ] reconcile OpenRAG into the generated architecture/site consumers after
