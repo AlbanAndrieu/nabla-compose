@@ -1277,6 +1277,81 @@ function probe_pyroscope_fastapi_profile {
 }
 
 
+function probe_pfsense_exporter_runtime_if_present {
+  local container="pfsense-exporter"
+  local config="/mnt/cpool/compose/nabla-compose/apps/prometheus/secrets/exporter.config.yml"
+  local state
+  local exit_code
+  local auth_method
+
+  if ! app_is_present prometheus; then
+    printf 'SKIP: pfSense exporter runtime app is MISSING\n'
+    return
+  fi
+
+  if ! docker inspect "${container}" >/dev/null 2>&1; then
+    functional_fail "pfSense exporter: container is missing"
+    return
+  fi
+
+  state="$(docker inspect "${container}" --format '{{.State.Status}}' 2>/dev/null || true)"
+  exit_code="$(docker inspect "${container}" --format '{{.State.ExitCode}}' 2>/dev/null || true)"
+
+  if [[ "${state}" == "running" ]]; then
+    functional_ok "pfSense exporter: container running"
+  else
+    functional_fail "pfSense exporter: container state=${state:-unknown} exit_code=${exit_code:-unknown}"
+  fi
+
+  if [[ ! -s "${config}" ]]; then
+    functional_fail "pfSense exporter: runtime config is missing or empty"
+    return
+  fi
+
+  if grep -Eq '^[[:space:]]*targets:[[:space:]]*$' "${config}" &&
+    grep -Eq '^[[:space:]]*-?[[:space:]]*host:[[:space:]]*[^[:space:]]+' "${config}" &&
+    grep -Eq '^[[:space:]]*port:[[:space:]]*[0-9]+' "${config}" &&
+    grep -Eq '^[[:space:]]*auth_method:[[:space:]]*(key|basic)[[:space:]]*$' "${config}"; then
+    functional_ok "pfSense exporter: v0.0.10 target schema present"
+  else
+    functional_fail "pfSense exporter: config does not match required v0.0.10 targets/host/port/auth_method schema"
+    return
+  fi
+
+  auth_method="$(
+    sed -n 's/^[[:space:]]*auth_method:[[:space:]]*//p' "${config}" |
+      head -n 1 |
+      tr -d '"'"'"'"'"'[:space:]'
+  )"
+
+  case "${auth_method}" in
+    key)
+      if grep -Eq '^[[:space:]]*key:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: key auth credential configured"
+      else
+        functional_fail "pfSense exporter: auth_method=key but key is missing"
+      fi
+      ;;
+    basic)
+      if grep -Eq '^[[:space:]]*username:[[:space:]]*[^[:space:]]+' "${config}" &&
+        grep -Eq '^[[:space:]]*password:[[:space:]]*[^[:space:]]+' "${config}"; then
+        functional_ok "pfSense exporter: basic auth credentials configured"
+      else
+        functional_fail "pfSense exporter: auth_method=basic but username/password are incomplete"
+      fi
+      ;;
+  esac
+
+  if [[ "${state}" == "running" ]] &&
+    curl --fail --silent --show-error --max-time 10 \
+      'http://172.17.0.24:9945/metrics?target=172.17.0.1' >/dev/null; then
+    functional_ok "pfSense exporter: metrics path reachable for 172.17.0.1"
+  elif [[ "${state}" == "running" ]]; then
+    functional_fail "pfSense exporter: metrics path failed for 172.17.0.1"
+  fi
+}
+
+
 function probe_langflow_runtime_if_present {
   local container="langflow"
   local payload
@@ -1577,6 +1652,7 @@ probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
 probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
 probe_pyroscope_fastapi_profile
+probe_pfsense_exporter_runtime_if_present
 probe_http_if_running homarr "Homarr HTTP/30100" "http://172.17.0.24:30100/"
 probe_langflow_runtime_if_present
 probe_openrag_runtime_if_present
