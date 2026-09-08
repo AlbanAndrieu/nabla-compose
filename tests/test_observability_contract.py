@@ -108,6 +108,29 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertNotIn("ghcr.io/pfrest/pfsense_exporter:latest", compose)
 
+    def test_pfsense_exporter_runtime_config_is_fail_closed(self) -> None:
+        compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        example = (
+            ROOT / "apps" / "prometheus" / "pfsense-exporter.example.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "source: /mnt/cpool/prometheus/secrets/pfsense-exporter.yml",
+            compose,
+        )
+        self.assertIn("target: /pfsense_exporter/config.yml", compose)
+        self.assertIn("create_host_path: false", compose)
+        self.assertNotIn(
+            "./secrets/exporter.config.yml:/pfsense_exporter/config.yml",
+            compose,
+        )
+        self.assertIn('host: "172.17.0.1"', example)
+        self.assertIn("port: 10443", example)
+        self.assertIn('auth_method: "key"', example)
+        self.assertIn("REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY", example)
+
     def test_declared_exporters_are_scraped_by_prometheus(self) -> None:
         prometheus = (
             ROOT / "apps" / "prometheus" / "prometheus.yml"
