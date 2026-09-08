@@ -1704,6 +1704,56 @@ from lack of an external URL.
     ownership is understood;
 20. native Nginx Proxy Manager -> proven NPMplus.
 
+### Keycloak native -> repository-managed migration — 2026-09-08
+
+The previous native Keycloak application has been removed and contained no
+identity configuration worth migrating. Preserve the existing
+`/mnt/cpool/keycloak` dataset and the established public hostname
+`https://keycloak.albandrieu.com`, but rebuild the runtime from the repository.
+
+Target architecture:
+
+```text
+https://keycloak.albandrieu.com
+  -> trusted reverse proxy / tunnel
+  -> 172.17.0.24:30238
+  -> Keycloak 26.7.3
+  -> shared PostgreSQL 172.17.0.24:5432
+       database: keycloak
+       role: keycloak
+
+172.17.0.24:30239
+  -> Keycloak management only
+  -> /health/*
+  -> /metrics
+  -> Prometheus
+```
+
+- [x] record that the removed native Keycloak instance was empty and therefore
+  requires no realm/client/user data migration;
+- [x] preserve `/mnt/cpool/keycloak` as the explicit Keycloak runtime dataset;
+- [x] preserve `https://keycloak.albandrieu.com` as the canonical external
+  hostname;
+- [x] add `apps/keycloak/compose.yml` pinned to Keycloak `26.7.3`;
+- [x] use the **global PostgreSQL service** on `172.17.0.24:5432`; do not deploy
+  a dedicated PostgreSQL container for Keycloak;
+- [ ] create dedicated PostgreSQL database `keycloak` and role `keycloak`
+  with database-scoped ownership only;
+- [ ] import/render `KC_DB_PASSWORD` and
+  `KC_BOOTSTRAP_ADMIN_PASSWORD` through Vaultwarden into
+  `/mnt/cpool/keycloak/.env.secrets` mode `0600`;
+- [ ] register the repository definition as the TrueNAS Custom App `keycloak`;
+- [ ] prove `http://172.17.0.24:30239/health/ready` and management metrics;
+- [ ] prove the OIDC discovery issuer is
+  `https://keycloak.albandrieu.com/realms/master`, never the internal host;
+- [ ] scrape the private management metrics endpoint from Prometheus;
+- [ ] expose only application/OIDC traffic on `30238`; never expose management
+  port `30239` publicly;
+- [ ] configure GitHub as the first external identity provider;
+- [ ] retain a local break-glass administrator until GitHub SSO and recovery are
+  both tested;
+- [ ] later use Keycloak OIDC for Vault/OpenBao human authentication.
+
 ### P4 — identity and long-term machine secrets
 
 1. Keycloak GitHub SSO bootstrap with local break-glass access;
