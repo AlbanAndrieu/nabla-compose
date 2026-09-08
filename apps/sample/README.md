@@ -174,7 +174,7 @@ curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
 jq .
 
 curl -fsS --retry 5 --retry-delay 1 \
-  http://127.0.0.1:8091/version |
+  http://127.0.0.1:8091/v2/version |
 jq .
 ```
 
