@@ -179,7 +179,7 @@ def run_pentest(args: argparse.Namespace) -> int:
     failures.extend(_cookie_security_failures(get_result, parsed.scheme == "https"))
 
     server = headers.get("server", "")
-    if server and re.search(r"\\d+\\.\\d+", server):
+    if server and re.search(r"\d+\.\d+", server):
         warnings.append(f"Server header appears versioned: {server}")
 
     content_type = headers.get("content-type", "")
