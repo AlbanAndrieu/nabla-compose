@@ -38,8 +38,6 @@ services:
             - apps/akvorado/config/akvorado.yaml:clickhousedb
     env_file:
       - /mnt/cpool/akvorado/.env.secrets
-    environment:
-      AKVORADO_CFG_ORCHESTRATOR_CLICKHOUSEDB_PASSWORD: ${AKVORADO_CLICKHOUSE_PASSWORD}
     command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
   akvorado-inlet:
     <<: *akvorado-service
