@@ -19,7 +19,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - Current supervised bootstrap uses the existing `TRUENAS_USER=albandrieu` API-key owner. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
 
 - [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
-- [ ] confirm all three Kubernetes nodes transition from the initial `NotReady` state to `Ready`; if not, inspect node conditions/events before any machine-config reapply;
+- [x] confirm all three Kubernetes nodes transitioned from the initial `NotReady` state to `Ready`; retained as a completed bootstrap gate before network/storage work;
 - [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
 - [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
 - [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
@@ -56,8 +56,9 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
   preflight for container source IP, `ui_allowlist`, canonical credential
   variable selection, HTTPS version discovery and authenticated WebSocket
   calls;
-- [ ] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime
-  after confirming only `TRUENAS_API_USERNAME=fastapi_observer` remains;
+- [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
+  2026-09-08 verification selects only `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`
+  with no shadowed username/API-key variables;
 - [x] retire the unsafe shared-`intranet` reservation
   `172.16.55.9`; runtime proved Docker can legitimately allocate that address
   to another container while Sample is stopped;
@@ -70,13 +71,17 @@ stopped, Docker assigned the old `172.16.55.9` address to Langflow.
 - [x] add explicit `--check/--apply` allowlist reconciliation from that network
   label and automatically retire both obsolete Sample /32 values
   (`172.16.55.9/32` and `172.16.56.9/32`);
-- [ ] prepare the new observer network, redeploy Sample, reconcile the selected
-  observer /32 into TrueNAS `ui_allowlist`, and prove authenticated WebSocket
-  calls with `verify-truenas-observer-access.sh`;
-- [ ] restore `TRUENAS_API_VERIFY_SSL=true` after validating the
-  `truenas.albandrieu.com` certificate chain from inside the container;
-- [ ] never widen `ui_allowlist` to an entire Docker subnet merely to avoid
-  source-address management.
+- [x] prepare the new observer network, redeploy Sample and reconcile the selected
+  observer `/32` into TrueNAS `ui_allowlist`; 2026-09-08 runtime evidence proves
+  `sample-observer=10.254.255.0/28`, reserved source `10.254.255.9`, persisted and
+  active allowlists both contain `10.254.255.9/32`, and authenticated WebSocket
+  `system.version` + `app.query` succeed;
+- [x] restore `TRUENAS_API_VERIFY_SSL=true`; the in-container HTTPS discovery and
+  authenticated WebSocket observer validation succeed against
+  `truenas.albandrieu.com` with certificate verification enabled;
+- [x] enforce narrow observer source-address management instead of widening
+  `ui_allowlist` to a Docker subnet; the repository-owned observer bridge keeps
+  one reserved source address and reconciles that address as a `/32`.
 
 ### Post-reboot runtime cleanup — 2026-09-05
 
