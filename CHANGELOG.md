@@ -1,3 +1,10 @@
+# [0.26.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.3...0.26.0) (2026-09-08)
+
+
+### Features
+
+* **ops:** stabilize Talos Wazuh and Scrutiny gates ([#151](https://github.com/AlbanAndrieu/nabla-compose/issues/151)) ([d00e383](https://github.com/AlbanAndrieu/nabla-compose/commit/d00e383a319f3ac45f17db0b7f2f50a041a5a091))
+
 ## [0.25.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.25.2...0.25.3) (2026-09-08)
 
 
