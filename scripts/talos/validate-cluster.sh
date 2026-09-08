@@ -53,7 +53,7 @@ PY
     [[ -n "${neighbor_output}" ]] || neighbor_output="<no neighbor entry>"
     printf '  neighbor-after: %s\n' "${neighbor_output}" >&2
     printf '  tcp/50000: %s\n' "${tcp_output}" >&2
-    fail "Talos API transport unavailable for ${role} ${node_ip}. If the route is direct and neighbor state is FAILED/INCOMPLETE, verify the TrueNAS VM is RUNNING and its VirtIO NIC is attached to br0. The repository intentionally configures Talos VMs with autostart=false. If neighbor resolution is healthy, inspect host/LAN firewall policy for TCP/50000."
+    fail "Talos API transport unavailable for ${role} ${node_ip}. If the route is direct and neighbor state is FAILED/INCOMPLETE, verify the TrueNAS VM is RUNNING and its VirtIO NIC is attached to br0. For the steady-state cluster, verify the TrueNAS VM is RUNNING and its IaC autostart setting is enabled; if neighbor resolution is healthy, inspect host/LAN firewall policy for TCP/50000."
   fi
 
   printf '  tcp/50000: %s\n' "${tcp_output}"
