@@ -143,7 +143,7 @@ def topology_node(
     }
     if not node["name"] or not node["kind"] or not node["category"]:
         fail(f"{context} requires name, kind and category")
-    for key in ("url", "description"):
+    for key in ("url", "internalUrl", "description"):
         value = optional_text(metadata, key)
         if value is not None:
             node[key] = value
@@ -195,6 +195,7 @@ def declared_service(
     }
     for key in (
         "url",
+        "internalUrl",
         "description",
         "presentationRole",
         "criticality",
