@@ -138,8 +138,12 @@ in-place VM updates with zero create/replace/destroy actions.
 - [x] record live pre-platform evidence: Kubernetes `v1.36.3` has all three
       Talos nodes `Ready`, `kubectl get ingressclass` returns no resources,
       and `nabla-fastapi-smoke` is absent before deployment;
-- [ ] prepare Kubara `v0.14.0`, run `kubara generate --helm`, inspect the
-      generated Traefik values and confirm exactly one intended ingress controller;
+- [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and add the read-only
+      `scripts/talos/preflight-kubara.sh` contract for clean pre-bootstrap and
+      single-owner post-bootstrap ingress states;
+- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then
+      `kubara generate --helm`, inspect the generated Traefik values and confirm
+      exactly one intended ingress controller;
 - [ ] bootstrap/reconcile the minimal Kubara platform and require
       `kubectl get ingressclass traefik` with non-empty `.spec.controller`;
 - [ ] prove CoreDNS resolution for `kubernetes.default.svc.cluster.local`;
