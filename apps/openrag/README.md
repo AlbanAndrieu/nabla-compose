@@ -58,6 +58,45 @@ LANGFLOW_HEALTH_PATH=/health_check
 Without those values the frontend can be reachable on TCP/31060 while its own
 collective health remains degraded.
 
+### Authentication to the global Langflow API
+
+The global Langflow runtime has interactive authentication enabled. OpenRAG
+must use a dedicated Langflow API key rather than copy the Langflow
+administrator password into the OpenRAG secret file.
+
+Store only the API key in:
+
+```text
+/mnt/cpool/openrag/.env.secrets
+```
+
+as:
+
+```dotenv
+LANGFLOW_KEY=<dedicated OpenRAG Langflow API key>
+```
+
+Check presence without printing the key:
+
+```bash
+sudo grep -q '^LANGFLOW_KEY=.' /mnt/cpool/openrag/.env.secrets &&
+  echo 'LANGFLOW_KEY configured' ||
+  echo 'LANGFLOW_KEY missing'
+```
+
+After redeploy, validate the key from inside the backend without exposing it:
+
+```bash
+docker exec openrag-backend sh -lc '
+  test -n "${LANGFLOW_KEY:-}" &&
+    curl -fsS --max-time 8 \
+      -H "x-api-key: ${LANGFLOW_KEY}" \
+      http://langflow:7860/api/v1/users/whoami >/dev/null
+'
+```
+
+Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD` into the OpenRAG secrets.
+
 ## Read-only diagnostic
 
 Run from TrueNAS:
