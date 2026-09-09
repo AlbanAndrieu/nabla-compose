@@ -251,6 +251,26 @@ post a fresh SMART sample to the TrueNAS hub:
 bash scripts/observability/verify-scrutiny-workstation-collector.sh --submit
 ```
 
+After a fresh workstation submission, validate server-side ingestion for both
+collectors from TrueNAS:
+
+```bash
+sudo bash scripts/truenas/verify-scrutiny-collectors.sh
+```
+
+By default this requires both `host_id=truenas` and
+`host_id=albandrieu` to appear in `/api/summary`, each with at least one
+registered device and a non-stale `smart.collector_date`. The default freshness
+window is 24 hours and can be tightened for an explicit smoke:
+
+```bash
+sudo SCRUTINY_COLLECTOR_MAX_AGE_SECONDS=600 \
+  bash scripts/truenas/verify-scrutiny-collectors.sh
+```
+
+Override `SCRUTINY_EXPECTED_COLLECTOR_HOSTS` only when the deployment
+intentionally uses different collector identities.
+
 ## Canonical runtime helper
 
 After the snapshot/history review is complete and
