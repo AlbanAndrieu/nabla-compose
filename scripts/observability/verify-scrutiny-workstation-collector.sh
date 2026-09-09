@@ -22,8 +22,7 @@ state="$(docker inspect "${CONTAINER}" --format '{{.State.Status}}')"
   fail "${CONTAINER} is not running (state=${state})"
 
 mapfile -t env_lines < <(
-  docker inspect "${CONTAINER}" |
-    sed -n '/"Env": \[/,/]/{s/^[[:space:]]*"//;s/",\{0,1\}$//;p;}' |
+  docker inspect "${CONTAINER}" --format '{{range .Config.Env}}{{println .}}{{end}}' |
     grep -E '^(COLLECTOR_API_ENDPOINT|COLLECTOR_HOST_ID)=' || true
 )
 
