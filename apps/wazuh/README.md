@@ -74,6 +74,44 @@ Wazuh sample indexer/dashboard passwords in this phase. Do **not** replace
 until the corresponding hashes in `internal_users.yml` are rotated in the
 same reviewed change.
 
+## Incident recovery — TLS ownership and stale worktree
+
+During the 2026-09-09 first deployment, all three containers were created but
+Indexer and Dashboard returned HTTP `000`. The diagnostic isolated two
+configuration problems:
+
+1. the certificate generator had assigned runtime-readable UID ownership, but
+   the repository bootstrap subsequently changed every PEM to `root:root`;
+2. the running TrueNAS Custom App still referenced absolute config paths under
+   an old `nabla-compose-pr168` worktree.
+
+Indexer and Dashboard logged `EACCES` while opening their private keys. The
+bootstrap now preserves/repairs the runtime ownership contract:
+
+```text
+1000:1000 400 wazuh.indexer-key.pem
+1000:1000 400 admin-key.pem
+1000:1000 400 wazuh.dashboard-key.pem
+0:0       600 wazuh.manager-key.pem
+```
+
+The dashboard configuration also uses the current
+`opensearch.requestHeadersAllowlist` setting.
+
+After repairing ownership and redeploying from
+`/mnt/cpool/compose/nabla-compose`, the accepted core state was:
+
+```text
+TrueNAS       RUNNING
+Indexer       HTTP 401
+Manager API   HTTP 401
+Dashboard     HTTP 302
+```
+
+HTTP 401/302 are expected unauthenticated readiness responses here. The
+optional shared-OpenSearch forwarder remains disabled until its own integration
+gate is implemented.
+
 ## TrueNAS deployment
 
 Use the canonical helper instead of calling `app.update` directly:
