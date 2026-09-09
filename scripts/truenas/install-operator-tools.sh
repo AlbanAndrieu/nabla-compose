@@ -125,6 +125,12 @@ ensure_dataset() {
 
   verify_dataset
 }
+verify_tools_root_writable() {
+  [[ -d "${TOOLS_ROOT}" ]] ||
+    fail "tools dataset mountpoint is not a directory: ${TOOLS_ROOT}"
+  [[ -w "${TOOLS_ROOT}" ]] ||
+    fail "tools dataset is not writable by the current operator: ${TOOLS_ROOT}; configure its owner/ACL once through the TrueNAS UI/API"
+}
 detect_arch() {
   local machine
   machine="$(uname -m)"
@@ -382,6 +388,7 @@ case "${MODE}" in
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
     printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
     verify_dataset
+    verify_tools_root_writable
     check_tools
     ;;
   --install)
@@ -390,6 +397,7 @@ case "${MODE}" in
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
 
     ensure_dataset
+    verify_tools_root_writable
     install -d -m 0755 "${TOOLS_ROOT}" "${TOOLS_BIN}"
     install -d -m 0700 "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"
     TMP="$(mktemp -d "${TOOLS_DOWNLOADS}/operator-tools.XXXXXX")"
