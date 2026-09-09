@@ -1,3 +1,15 @@
+# [0.31.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.30.0...0.31.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **catalog:** align PostgreSQL dependency identity ([#172](https://github.com/AlbanAndrieu/nabla-compose/issues/172)) ([b12d74f](https://github.com/AlbanAndrieu/nabla-compose/commit/b12d74fd9923626bad3281808dc64056d5d8dcfd))
+
+
+### Features
+
+* **truenas:** install persistent operator tools ([#174](https://github.com/AlbanAndrieu/nabla-compose/issues/174)) ([d994967](https://github.com/AlbanAndrieu/nabla-compose/commit/d99496773b209822ee5947bab63a4b6daa73d17a))
+
 # [0.30.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.3...0.30.0) (2026-09-09)
 
 
