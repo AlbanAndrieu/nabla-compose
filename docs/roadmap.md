@@ -27,7 +27,7 @@ notes remain in the specialized roadmaps:
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [x] Sentry 26.8 lifecycle convergence is green on 2026-09-08: `diagnose-sentry.sh --check` returned `exit=0`, TrueNAS aggregate state is `RUNNING`, no workload is `starting`/`unhealthy`/unexpectedly exited, all required Kafka topics exist, Sentry edge health is green and Snuba API health is OK. The only remaining final-regression item is rerunning the synthetic event smoke after this convergence pass.
+- [ ] Sentry 26.8 application path is externally functional, but the TrueNAS UI was observed back in aggregate `DEPLOYING` on 2026-09-09 after the green 2026-09-08 convergence. Treat web reachability and TrueNAS orchestration as separate evidence: rerun `diagnose-sentry.sh --check`, inspect recent `app.*` jobs, Docker health and `/var/log/app_lifecycle.log`, and require aggregate `RUNNING` again before closing the lifecycle gate.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 - [x] Pull-request security now includes CodeQL SAST plus a live FastAPI Cloud production smoke; OWASP ZAP DAST runs only on `master`/daily to control CI cost, with a pfSense-safe read-only FastAPI OpenAPI scan, a passive TrueNAS API surface scan, and a passive `sample.albandrieu.com` web scan, while every PR requires the latest successful master DAST baseline to be no older than 36 hours.
@@ -116,9 +116,10 @@ green cloud observation must not mask a broken local path.
     deploy manager/indexer/dashboard, and require
     `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch
     forwarder.
-13. [ ] **Scrutiny + InfluxDB — parallel** — latest lifecycle evidence still reports the repository app as `MISSING`; preserve/recover history, provision
-    a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository
-    cutover/acceptance helper. The helper now discovers host disks with
+13. [ ] **Scrutiny + InfluxDB — parallel** — use the approved fresh cutover instead of restoring the stopped native Scrutiny history. Provision
+    the dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, deploy the TrueNAS web + collector,
+    then prove the existing workstation collector posts its own SMART inventory to
+    `http://172.17.0.24:31054`. The helper discovers TrueNAS host disks with
     `smartctl --scan-open`, renders explicit device passthrough for the collector,
     adds `SYS_ADMIN` only when NVMe is detected, and fails acceptance if the
     running collector cannot see any SMART devices.
