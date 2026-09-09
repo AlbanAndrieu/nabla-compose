@@ -2,9 +2,7 @@
 set -euo pipefail
 
 # Keep interactive diagnostics compact while preserving full CI/non-TTY output.
-if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
-      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
-      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
   NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
   NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
   exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
@@ -50,8 +48,7 @@ printf '\n==> Host prerequisites\n'
 if command -v sysctl >/dev/null 2>&1; then
   vm_max_map_count="$(sysctl -n vm.max_map_count 2>/dev/null || true)"
   printf 'vm.max_map_count=%s\n' "${vm_max_map_count:-unknown}"
-  if [[ "${vm_max_map_count:-0}" =~ ^[0-9]+$ ]] &&
-    ((vm_max_map_count < 262144)); then
+  if [[ "${vm_max_map_count:-0}" =~ ^[0-9]+$ && "${vm_max_map_count}" -lt 262144 ]]; then
     printf '❌ vm.max_map_count must be at least 262144 for Wazuh Indexer/OpenSearch\n' >&2
     failures=$((failures + 1))
   fi
