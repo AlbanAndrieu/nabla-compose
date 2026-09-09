@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_ID="${WAZUH_APP_ID:-wazuh}"
-WAIT_ATTEMPTS="${WAZUH_WAIT_ATTEMPTS:-90}"
+WAIT_ATTEMPTS="${WAZUH_WAIT_ATTEMPTS:-240}"
 WAIT_DELAY="${WAZUH_WAIT_DELAY_SECONDS:-5}"
 
 fail() {
@@ -19,7 +19,13 @@ for command in docker git jq midclt curl; do
 done
 
 ROOT="$(git rev-parse --show-toplevel)"
+CANONICAL_ROOT="${WAZUH_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 cd "${ROOT}"
+
+if [[ "${ROOT}" != "${CANONICAL_ROOT}" ]]; then
+  printf 'NOTE: Wazuh compose include will be persisted from non-canonical checkout: %s\n' "${ROOT}"
+  printf '      after merge, rerun this deploy from %s to remove worktree drift.\n' "${CANONICAL_ROOT}"
+fi
 
 bash scripts/truenas/bootstrap-wazuh.sh --apply
 bash scripts/truenas/bootstrap-wazuh.sh --check
@@ -78,7 +84,7 @@ for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
       midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
         jq -r '.[0].state // "UNKNOWN"'
     )"
-    printf 'Wazuh not converged yet (%d/%d, TrueNAS=%s)\n' \
+    printf 'Wazuh not converged yet (%d/%d, TrueNAS=%s; first startup may initialize persistent volumes/indexes)\n' \
       "${attempt}" "${WAIT_ATTEMPTS}" "${state}"
   fi
   sleep "${WAIT_DELAY}"

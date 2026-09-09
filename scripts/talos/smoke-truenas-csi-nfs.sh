@@ -2,7 +2,9 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
 KEEP=false
 NAMESPACE="nabla-csi-smoke"

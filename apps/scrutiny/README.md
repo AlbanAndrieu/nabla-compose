@@ -66,7 +66,7 @@ The user has already created the Scrutiny application dataset and stopped the na
 
 ## Fresh cutover decision — 2026-09-09
 
-> **InfluxDB 2.9 compatibility:** the bootstrap uses syntactically valid, inactive placeholder tasks because InfluxDB 2.9 rejects the historical Scrutiny documentation placeholder `yield now()` with HTTP 400. Scrutiny replaces these task definitions during startup.
+> **InfluxDB 2.9 compatibility:** the bootstrap uses syntactically valid, inactive placeholder tasks. An initial implementation still returned HTTP 400 because Bash sent `\\n` literally inside the Flux program; the helper now uses `printf -v` so InfluxDB receives real newlines. Scrutiny replaces these task definitions during startup.
 
 Historical Scrutiny data from the stopped native app is no longer a cutover
 requirement. The replacement uses a fresh, isolated InfluxDB base bucket named
@@ -81,6 +81,51 @@ This means:
   `scripts/truenas/bootstrap-scrutiny-influxdb.sh`;
 - keep the old native dataset only until the new collector/web path is accepted,
   then it may be deleted as explicitly approved.
+
+### 2026-09-09 bootstrap and first-cutover evidence
+
+The fresh InfluxDB bootstrap is now accepted:
+
+```text
+✅ Scrutiny InfluxDB bootstrap complete: org=nabla bucket=scrutiny
+   secret=/mnt/cpool/scrutiny/.env.secrets mode=0600
+✅ Scrutiny InfluxDB bootstrap: org=nabla bucket=scrutiny token=VALID
+600 root:root 117 /mnt/cpool/scrutiny/.env.secrets
+```
+
+The first repository-managed TrueNAS app create then failed at a later layer:
+Docker created the web and collector containers, but the web container became
+`unhealthy`, so Compose refused to start the collector dependency. This must
+not be diagnosed as another token/bootstrap failure.
+
+Use the dedicated read-only diagnostic:
+
+```bash
+sudo DIAGNOSTIC_FULL_OUTPUT=1 \
+  bash scripts/truenas/diagnose-scrutiny.sh --check
+```
+
+When TrueNAS `app.create` fails, SCALE removes the temporary containers during
+rollback. A later `docker logs <id>` therefore legitimately returns
+`No such container`. To preserve the startup evidence, run the web service
+alone outside the TrueNAS lifecycle:
+
+```bash
+sudo DIAGNOSTIC_FULL_OUTPUT=1 \
+  bash scripts/truenas/diagnose-scrutiny.sh --capture-startup
+```
+
+This mode is deliberately fail-closed: it only runs when the TrueNAS Scrutiny
+app is absent and no `scrutiny` container already exists. It starts only the
+web service (no SMART collector), captures Docker state/health output, the
+non-secret InfluxDB settings, the config mount/writability, container-to-
+`influxdb:8086` connectivity, the complete web startup log and local
+`/api/health`, then removes the standalone diagnostic container.
+
+It checks the TrueNAS app state, secret contract, shared InfluxDB health,
+Scrutiny web container health/logs, `influxdb:8086` reachability from the web
+container, config-directory writability, local and published `/api/health`,
+collector API target and SMART visibility.
 
 ## Migration sequence
 
@@ -179,9 +224,7 @@ sudo env SCRUTINY_CUTOVER_APPROVED=1 \
 
 The explicit approval variable prevents an accidental first cutover. The helper
 does **not** create InfluxDB backups, restore historical buckets or mint tokens.
-It validates those runtime prerequisites, reconciles InfluxDB first, waits for
-`http://127.0.0.1:31055/health`, then reconciles Scrutiny and requires both
-the web/API and collector containers to be running.
+It validates those runtime prerequisites and **reuses a healthy shared InfluxDB without redeploying it**. InfluxDB is only created when missing, or explicitly reconciled with `SCRUTINY_RECONCILE_INFLUXDB=1`. The helper then reconciles Scrutiny and requires both the web/API and collector containers to be running. If app creation or web health fails, it automatically invokes `diagnose-scrutiny.sh` for evidence.
 
 Before creating/updating Scrutiny, the helper runs:
 

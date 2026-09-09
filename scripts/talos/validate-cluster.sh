@@ -2,9 +2,7 @@
 set -euo pipefail
 
 # Keep interactive diagnostics compact while preserving full CI/non-TTY output.
-if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
-      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
-      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
   NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
   NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
   exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
@@ -12,8 +10,9 @@ if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-TALOSCONFIG="${TALOSCONFIG:-${ROOT}/.talos/generated/talosconfig}"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 CONTROL_PLANE_IP="${TALOS_CONTROL_PLANE_IP:-172.17.0.50}"
 EXPECTED_NODE_COUNT="${TALOS_EXPECTED_NODE_COUNT:-3}"
 WORKER_IPS="${TALOS_WORKER_IPS:-172.17.0.51 172.17.0.52}"

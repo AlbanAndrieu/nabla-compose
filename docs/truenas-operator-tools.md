@@ -11,13 +11,38 @@ The repository installs standalone operator binaries in the persistent pool data
 └── cache/
 ```
 
-## Install
+## Privilege model
+
+Use two distinct roles:
+
+```text
+root
+  └── installs/upgrades /mnt/cpool/tools/bin/{kubectl,talosctl}
+
+albandrieu
+  ├── executes kubectl/talosctl
+  ├── owns ~/.config/nabla/talos/{talosconfig,kubeconfig}
+  └── runs Talos/Kubernetes/CSI validation and apply helpers
+```
+
+The tools dataset may remain `root:root 0755`. The non-root operator only
+needs execute/read access to the binaries; write access to `cpool/tools` is
+not required for normal cluster operations.
+
+## Install as root
 
 ```bash
 bash scripts/truenas/install-operator-tools.sh --install
-bash scripts/truenas/install-operator-tools.sh --configure-path
-. ~/.profile
 bash scripts/truenas/install-operator-tools.sh --check
+```
+
+Do not use root's `--configure-path` result as the Talos/Kubernetes operator
+configuration. Configure the actual operator separately:
+
+```bash
+# as albandrieu
+bash scripts/talos/configure-operator-client.sh --apply
+. ~/.profile
 ```
 
 Default pins match the current Talos cluster:
@@ -35,7 +60,7 @@ TALOS_VERSION=v1.13.9 \
 bash scripts/truenas/install-operator-tools.sh --install
 ```
 
-If the operator account does not have `DATASET_WRITE`, create `cpool/tools` once through the TrueNAS UI/API (or an explicit administrator command) and rerun the script; the script deliberately does not elevate itself with `sudo`. The dataset mountpoint must also be writable by the operator account. Configure that owner/ACL once administratively if needed; the installer deliberately does not request the broader `FILESYSTEM_ATTRS_WRITE` role merely to change ownership.
+The account performing `--install` must be able to create/write `cpool/tools`; on this TrueNAS host that is intentionally root. The non-root operator does **not** need write access to the tools dataset. `--check` accepts a read-only tools root as long as the dataset is mounted correctly and both clients are executable.
 
 The installer recalculates the architecture on every run (`x86_64 -> amd64`, `aarch64/arm64 -> arm64`). It downloads the publisher checksum metadata **before** the binary, refuses an unpublished/missing asset, verifies SHA256, validates the downloaded client version, and atomically replaces the target binary. Matching versions are skipped on subsequent runs.
 
@@ -50,18 +75,30 @@ The tools are not sufficient without client configuration. Keep the operator cop
 ~/.config/nabla/talos/kubeconfig
 ```
 
-Then export:
+The operator helper persists the expected environment:
 
 ```bash
+export PATH="/mnt/cpool/tools/bin:$PATH"
 export TALOSCONFIG="$HOME/.config/nabla/talos/talosconfig"
 export KUBECONFIG="$HOME/.config/nabla/talos/kubeconfig"
 ```
+
+All Talos/CSI scripts now prefer these operator-private files when present and
+fall back to repository-local `.talos/generated` files for the existing
+workstation workflow.
 
 These files are credentials and should later move under the infrastructure Vault/secrets workflow rather than be committed to Git.
 
 ## Validation sequence
 
-Once the binaries, `PATH`, `talosconfig`, and `kubeconfig` are present:
+Once `talosconfig` and `kubeconfig` have been copied into the operator
+directory and set to mode `0600`, validate the operator contract first:
+
+```bash
+bash scripts/talos/configure-operator-client.sh --check
+```
+
+Then run:
 
 ```bash
 talosctl version --client

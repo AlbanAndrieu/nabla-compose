@@ -182,6 +182,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             generator,
         )
 
+    def test_global_truenas_audit_runs_critical_specialist_diagnostics(self) -> None:
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+
+        self.assertIn("probe_specialist_diagnostic_if_present", audit)
+        self.assertIn("scripts/truenas/diagnose-influxdb.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-scrutiny.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-sentry.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-wazuh.sh", audit)
+        self.assertIn("specialist diagnostic passed", audit)
+
     def test_influxdb_adopts_current_2_9_datastore_without_setup(self) -> None:
         compose = self.read("apps/influxdb/compose.yml")
 
@@ -897,11 +907,44 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("consumer_process:", script)
         self.assertIn("midclt call core.get_jobs", script)
         self.assertIn("starting_count", script)
+        self.assertIn("session_timeout_detected", script)
+        self.assertIn("recover-sentry-snuba-consumers.sh", script)
+        self.assertIn("missing Kafka consumer group", script)
+        self.assertIn("ingest-consumer", script)
+        self.assertIn("Historical Kafka session timeout evidence", script)
         self.assertIn("Sentry functional edge health", script)
         self.assertIn("TrueNAS lifecycle and functional health", script)
         self.assertIn("600-second first-start grace", script)
         self.assertIn("Do not repeatedly redeploy during that window", script)
         self.assertNotIn("docker compose down", script)
+
+    def test_sentry_targeted_recovery_only_restarts_unhealthy_snuba(self) -> None:
+        path = ROOT / "scripts/truenas/recover-sentry-snuba-consumers.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("ix-sentry-snuba-subscription-consumer-events-1", script)
+        self.assertIn("ix-sentry-snuba-replacer-1", script)
+        self.assertIn("ix-sentry-sentry-events-consumer-1", script)
+        self.assertIn("ix-sentry-sentry-attachments-consumer-1", script)
+        self.assertIn("ingest-consumer", script)
+        self.assertIn("docker restart", script)
+        self.assertIn('STABILITY_DELAY="${SENTRY_SNUBA_STABILITY_DELAY_SECONDS:-65}"', script)
+        self.assertIn('sleep "${STABILITY_DELAY}"', script)
+        self.assertIn("snuba-events-subscriptions-consumers", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertNotIn("docker compose down", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_runtime_audit_script_is_executable(self) -> None:
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
@@ -1016,6 +1059,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("root-ca-manager.pem", script)
         self.assertIn("wazuh.dashboard-key.pem", script)
         self.assertIn("partial Wazuh TLS set", script)
+        self.assertIn('INDEXER_UID="${WAZUH_INDEXER_UID:-1000}"', script)
+        self.assertIn('DASHBOARD_UID="${WAZUH_DASHBOARD_UID:-1000}"', script)
+        self.assertIn('owner}" == "${INDEXER_UID}', script)
+        self.assertIn('owner}" == "${DASHBOARD_UID}', script)
+        self.assertIn("wazuh.indexer-key.pem", script)
+        self.assertIn("wazuh.dashboard-key.pem", script)
+        self.assertIn("chmod 400", script)
+        self.assertNotIn('find "${CERT_DIR}" -type f -exec chown root:root {} +', script)
         self.assertIn("API_PASSWORD=", script)
         self.assertIn("without printing it", script)
         self.assertIn(
@@ -1041,14 +1092,20 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("bootstrap-wazuh.sh --apply", deploy)
         self.assertIn("bootstrap-wazuh.sh --check", deploy)
         self.assertIn("diagnose-wazuh.sh --check", deploy)
+        self.assertIn('WAIT_ATTEMPTS="${WAZUH_WAIT_ATTEMPTS:-240}"', deploy)
+        self.assertIn("/mnt/cpool/compose/nabla-compose", deploy)
         self.assertIn("app.create", deploy)
         self.assertIn("app.update", deploy)
         self.assertNotIn("app.redeploy", deploy)
         self.assertIn("https://127.0.0.1:9202/", diagnose)
         self.assertIn("https://127.0.0.1:55000/", diagnose)
         self.assertIn("https://127.0.0.1:8444/", diagnose)
+        self.assertIn("vm.max_map_count", diagnose)
+        self.assertIn("docker stats --no-stream", diagnose)
+        self.assertIn("nabla-compose-pr", diagnose)
         self.assertIn("forwarder=disabled (optional profile)", diagnose)
         self.assertNotIn("API_PASSWORD=", diagnose)
+        self.assertIn("opensearch.requestHeadersAllowlist", self.read("apps/wazuh/config/wazuh_dashboard/opensearch_dashboards.yml"))
 
         for helper in (deploy_path, diagnose_path):
             mode = helper.stat().st_mode
@@ -1198,12 +1255,37 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('"${BASE_BUCKET}_yearly"', script)
         self.assertIn("tsk-weekly-aggr", script)
         self.assertIn('status:"inactive"', script)
+        self.assertIn("printf -v flux", script)
         self.assertIn("limit(n: 1)", script)
-        self.assertIn('from(bucket: \\"${BASE_BUCKET}\\")', script)
+        self.assertIn('from(bucket: "%s")', script)
         self.assertIn("restricted scope token", script)
+        self.assertIn("diagnose-influxdb.sh", script)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
         self.assertIn("chmod 600", script)
         self.assertNotIn("privileged: true", script)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_influxdb_runtime_diagnostic_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/diagnose-influxdb.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("app.query", script)
+        self.assertIn("127.0.0.1:31055", script)
+        self.assertIn("127.0.0.1:8086", script)
+        self.assertIn("docker logs --tail 100", script)
+        self.assertNotIn("app.start", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -1220,6 +1302,34 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('[[ -n "${existing_token}" && "${ROTATE}" != "1" ]]', script)
         self.assertNotIn('[[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]', script)
 
+    def test_scrutiny_runtime_diagnostic_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/diagnose-scrutiny.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
+        self.assertIn("http://influxdb:8086/health", script)
+        self.assertIn("http://127.0.0.1:8080/api/health", script)
+        self.assertIn("smartctl --scan-open", script)
+        self.assertIn("docker logs --tail 120", script)
+        self.assertIn("--capture-startup", script)
+        self.assertIn("up -d --no-deps scrutiny", script)
+        self.assertIn("docker logs --timestamps --tail 250", script)
+        self.assertIn("refusing standalone capture while TrueNAS app", script)
+        self.assertNotIn("docker restart", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")
         readme = self.read("apps/scrutiny/README.md")
@@ -1228,6 +1338,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         self.assertIn("smartctl --scan-open", script)
         self.assertIn("render_scrutiny_compose", script)
+        self.assertIn("SCRUTINY_RECONCILE_INFLUXDB", script)
+        self.assertIn("Reusing healthy shared InfluxDB without redeploying it", script)
+        self.assertIn("diagnose-scrutiny.sh", script)
         self.assertIn("custom_compose_config_string", script)
         self.assertIn("SYS_ADMIN", script)
         self.assertIn(

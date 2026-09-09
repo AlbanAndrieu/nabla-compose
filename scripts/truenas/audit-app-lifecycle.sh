@@ -2,9 +2,7 @@
 set -euo pipefail
 
 # Keep interactive diagnostics compact while preserving full CI/non-TTY output.
-if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
-      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
-      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
   NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
   NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
   exec "${NABLA_DIAGNOSTIC_WRAPPER}"     "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
@@ -1709,6 +1707,34 @@ urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
   fi
 }
 
+function probe_specialist_diagnostic_if_present {
+  local app_id="$1"
+  local label="$2"
+  local script_path="$3"
+  local output
+  local status=0
+
+  if ! app_is_present "${app_id}"; then
+    functional_fail "${label}: TrueNAS app is missing"
+    return
+  fi
+
+  if [[ ! -f "${ROOT}/${script_path}" ]]; then
+    functional_fail "${label}: specialist diagnostic is missing (${script_path})"
+    return
+  fi
+
+  output="$(mktemp)"
+  if DIAGNOSTIC_COMPACT_OUTPUT=1     bash "${ROOT}/${script_path}" --check >"${output}" 2>&1; then
+    functional_ok "${label}: specialist diagnostic passed"
+  else
+    status=$?
+    functional_fail "${label}: specialist diagnostic failed (exit=${status})"
+    tail -30 "${output}" >&2 || true
+  fi
+  rm -f "${output}"
+}
+
 function probe_log_absence_if_running {
   local app_id="$1"
   local label="$2"
@@ -1766,6 +1792,10 @@ probe_http_if_running bichon "Bichon HTTP/15630" "http://172.17.0.24:15630/"
 probe_log_absence_if_running bichon "Bichon OAuth2 encryption" bichon "Decryption failed, likely due to incorrect encryption key or corrupted data"
 probe_http_if_running gatus "Gatus health" "http://172.17.0.24:8085/health"
 probe_http_if_running influxdb "InfluxDB health" "http://127.0.0.1:31055/health"
+probe_specialist_diagnostic_if_present influxdb "InfluxDB runtime" "scripts/truenas/diagnose-influxdb.sh"
+probe_specialist_diagnostic_if_present scrutiny "Scrutiny runtime" "scripts/truenas/diagnose-scrutiny.sh"
+probe_specialist_diagnostic_if_present sentry "Sentry runtime" "scripts/truenas/diagnose-sentry.sh"
+probe_specialist_diagnostic_if_present wazuh "Wazuh runtime" "scripts/truenas/diagnose-wazuh.sh"
 probe_http_if_running graylog "Graylog load-balancer status" "http://172.17.0.24:9003/api/system/lbstatus"
 probe_pyroscope_fastapi_profile
 probe_pfsense_exporter_runtime_if_present

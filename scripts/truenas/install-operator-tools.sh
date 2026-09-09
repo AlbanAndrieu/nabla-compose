@@ -125,7 +125,7 @@ ensure_dataset() {
 
   verify_dataset
 }
-verify_tools_root_writable() {
+require_tools_root_writable() {
   [[ -d "${TOOLS_ROOT}" ]] ||
     fail "tools dataset mountpoint is not a directory: ${TOOLS_ROOT}"
   [[ -w "${TOOLS_ROOT}" ]] ||
@@ -350,6 +350,10 @@ check_tools() {
 
 configure_path() {
   local marker="# nabla-compose TrueNAS operator tools"
+
+  if [[ "${EUID}" -eq 0 ]]; then
+    warn "--configure-path is configuring root only; run scripts/talos/configure-operator-client.sh --apply as the non-root operator for Talos/Kubernetes use"
+  fi
   local export_line="export PATH=\"${TOOLS_BIN}:\$PATH\""
 
   [[ "${PROFILE_FILE}" == "${HOME}/"* || "${PROFILE_FILE}" == "${HOME}" ]] ||
@@ -383,12 +387,23 @@ validate_version "talosctl" "${TALOS_VERSION}"
 
 case "${MODE}" in
   --check)
-    require_commands uname sed head midclt jq
+    require_commands uname sed head
     ARCH="$(detect_arch)"
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
     printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
-    verify_dataset
-    verify_tools_root_writable
+    if command -v midclt >/dev/null 2>&1 &&
+      command -v jq >/dev/null 2>&1 &&
+      dataset_payload >/dev/null 2>&1; then
+      verify_dataset
+    else
+      [[ -d "${TOOLS_ROOT}" ]] || fail "tools root is missing: ${TOOLS_ROOT}"
+      printf 'ℹ️  dataset API check unavailable to the current account; root install remains the authoritative dataset validation\n'
+    fi
+    if [[ -w "${TOOLS_ROOT}" ]]; then
+      ok "current account can update ${TOOLS_ROOT}"
+    else
+      printf 'ℹ️  %s is read-only for the current account; this is expected for a non-root operator\n' "${TOOLS_ROOT}"
+    fi
     check_tools
     ;;
   --install)
@@ -397,7 +412,7 @@ case "${MODE}" in
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
 
     ensure_dataset
-    verify_tools_root_writable
+    require_tools_root_writable
     install -d -m 0755 "${TOOLS_ROOT}" "${TOOLS_BIN}"
     install -d -m 0700 "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"
     TMP="$(mktemp -d "${TOOLS_DOWNLOADS}/operator-tools.XXXXXX")"
