@@ -42,17 +42,19 @@ This is used for integrations such as SearXNG and Open Terminal without inventin
 
 ## Service environments
 
-The presentation catalog uses a single effective environment per service:
+`x-nabla.environments[]` is the canonical source for deployment instances.
+A display name, hostname, IP address or suffix must never imply an environment.
 
-- explicit `environment` metadata wins;
-- workstation/developer duplicates whose display name ends in
-  ` - albandrieu` are `dev`;
-- services without explicit metadata default to `production` until reviewed;
-- `staging` must be set explicitly and is never inferred from host/IP/exposure.
+- one logical service may expose multiple named environments (for example
+  FastAPI Sample has `production` and `staging` instances);
+- consumers should use generated `catalog/services.json` or
+  `catalog/service-topology.json` environment metadata first;
+- legacy presentation entries without topology environment metadata default to
+  `production` until explicitly reviewed;
+- `dev` and `staging` are never inferred from a service display name.
 
-This default is deliberately presentation metadata. It does not change Docker
-lifecycle, Cloudflare exposure, runtime health propagation, or dependency
-semantics.
+The fallback is presentation-only metadata. It does not change Docker lifecycle,
+Cloudflare exposure, runtime health propagation, or dependency semantics.
 
 Use the audit helper to review entries that are still relying on the production
 default:
