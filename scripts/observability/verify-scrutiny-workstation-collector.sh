@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:---check}"
 CONTAINER="${SCRUTINY_WORKSTATION_COLLECTOR_CONTAINER:-scrutiny}"
 EXPECTED_ENDPOINT="${SCRUTINY_WORKSTATION_API_ENDPOINT:-http://172.17.0.24:31054}"
-EXPECTED_HOST_ID="${SCRUTINY_WORKSTATION_HOST_ID:-workstation-albandrieu}"
+EXPECTED_HOST_ID="${SCRUTINY_WORKSTATION_HOST_ID:-albandrieu}"
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -41,13 +41,17 @@ for line in "${env_lines[@]}"; do
     esac
 done
 
-[[ "${endpoint}" == "${EXPECTED_ENDPOINT}" ]] ||
-    fail "COLLECTOR_API_ENDPOINT=${endpoint:-<missing>} expected=${EXPECTED_ENDPOINT}"
-[[ "${host_id}" == "${EXPECTED_HOST_ID}" ]] ||
-    fail "COLLECTOR_HOST_ID=${host_id:-<missing>} expected=${EXPECTED_HOST_ID}"
+endpoint="${endpoint%/}"
+expected_endpoint="${EXPECTED_ENDPOINT%/}"
 
-curl -fsS --connect-timeout 3 --max-time 8 "${EXPECTED_ENDPOINT}/api/health" >/dev/null ||
-    fail "Scrutiny Web/API is not reachable from workstation at ${EXPECTED_ENDPOINT}"
+[[ "${endpoint}" == "${expected_endpoint}" ]] ||
+    fail "COLLECTOR_API_ENDPOINT=${endpoint:-<missing>} expected=${expected_endpoint}"
+[[ -n "${host_id}" ]] || fail "COLLECTOR_HOST_ID is missing"
+[[ "${host_id}" == "${EXPECTED_HOST_ID}" ]] ||
+    fail "COLLECTOR_HOST_ID=${host_id} expected=${EXPECTED_HOST_ID}; override SCRUTINY_WORKSTATION_HOST_ID only if this identity is intentional"
+
+curl -fsS --connect-timeout 3 --max-time 8 "${expected_endpoint}/api/health" >/dev/null ||
+    fail "Scrutiny Web/API is not reachable from workstation at ${expected_endpoint}"
 
 scan="$(docker exec "${CONTAINER}" smartctl --scan-open 2>&1 || true)"
 [[ -n "${scan}" ]] || fail "smartctl sees no devices inside ${CONTAINER}"
