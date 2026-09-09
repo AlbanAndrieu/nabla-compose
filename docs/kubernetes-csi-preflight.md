@@ -1,36 +1,180 @@
-# TrueNAS CSI preflight
+# TrueNAS NFS CSI for Talos
 
-This preflight is intentionally read-only. It does not install a CSI driver,
-create a StorageClass, create a Kubernetes Secret or mutate TrueNAS.
+This is the first persistent-storage implementation for the Talos cluster. It
+is deliberately **NFS-only** and remains independent from Kubara/Traefik.
 
-Run it after the already-operational Talos base has passed its network
-regression gate. It intentionally runs **before** Kubara/Traefik and the FastAPI
-external ingress smoke:
+## Architecture decision
+
+The repository now selects the official
+`truenas/truenas-csi` driver, pinned to **v1.0.3**, rather than
+`democratic-csi` for the first TrueNAS 26 path.
+
+Reasons:
+
+- the official driver targets TrueNAS SCALE 25.10+;
+- it connects to the modern
+  `wss://.../api/current` JSON-RPC/WebSocket API used by TrueNAS 26;
+- NFS requires no additional Talos node package;
+- the repository can remove the upstream iSCSI host mounts and
+  `iscsiadm` wrapper for this NFS-only phase;
+- dynamic datasets can be constrained below `cpool/k8s/csi`.
+
+One compatibility debt remains explicit: TrueNAS CSI v1.0.3 still invokes
+`auth.login_with_api_key`. That method is deprecated in TrueNAS 26. It is
+acceptable only as a measured compatibility bridge on the current host and
+must be replaced/upgraded to the modern username/SCRAM API-key path before
+TrueNAS 27 removes the legacy method.
+
+## Repository-owned configuration
+
+Tracked files:
+
+```text
+kubernetes/truenas-csi/VERSION
+kubernetes/truenas-csi/nfs-driver.yaml
+kubernetes/truenas-csi/storageclass-nfs.yaml
+scripts/talos/validate-csi-prereqs.sh
+scripts/talos/install-truenas-csi-nfs.sh
+scripts/talos/smoke-truenas-csi-nfs.sh
+```
+
+The current contract is:
+
+- CSI driver: `ghcr.io/truenas/truenas-csi:v1.0.3`;
+- API: `wss://truenas.albandrieu.com:7000/api/current`;
+- TLS verification: enabled;
+- pool: `cpool`;
+- NFS server: `172.17.0.24`;
+- controller/node pods pin `truenas.albandrieu.com -> 172.17.0.24` with
+  `hostAliases`, preserving hostname-based TLS verification while avoiding a
+  public-DNS/hairpin path through pfSense;
+- provisioning parent: `cpool/k8s/csi`;
+- StorageClass: `nabla-truenas-nfs`;
+- NFS client mode: `hard,nfsvers=4.1`;
+- the CSI node plugin is scheduled only on worker nodes; the control plane does not mount application volumes;
+- allowed NFS clients: `172.17.0.51/32,172.17.0.52/32`;
+- reclaim policy: `Delete`;
+- the StorageClass is **not default** until persistence/reclaim acceptance is
+  complete.
+
+Snapshots and iSCSI are intentionally out of scope for this first gate.
+
+## 1. Read-only preflight
+
+Run after the normal Talos network regression gate:
 
 ```bash
+bash scripts/talos/validate-cluster.sh
+bash scripts/talos/smoke-kubernetes-network.sh
 bash scripts/talos/validate-csi-prereqs.sh
 ```
 
-It verifies:
+The CSI preflight verifies:
 
-- the expected Talos/Kubernetes node count;
-- every node is `Ready`;
-- TrueNAS TCP/2049 is reachable for the first NFS-backed storage path;
-- whether the planned StorageClass already exists;
-- whether any CSI drivers are already registered;
-- whether `TRUENAS_CSI_API_KEY` is available without printing its value.
+- all three Kubernetes nodes are `Ready`;
+- at least two workers exist for cross-node persistence;
+- TrueNAS TCP/2049 is reachable;
+- the CSI version and images are pinned;
+- the tracked manifest contains no iSCSI host dependencies;
+- the manifests pass `kubectl --dry-run=client`;
+- existing `CSIDriver` and StorageClass ownership is surfaced before apply.
 
-The planned credential must be a dedicated least-privilege TrueNAS CSI
-identity. It must not reuse the OpenTofu operator identity or
-`fastapi_observer`.
+## 2. Dedicated TrueNAS CSI credential
 
-The first installation remains gated on a reviewed and pinned
-`democratic-csi` release/chart and NFS values. TrueNAS NFSv4 is the preferred
-first transport. Talos already carries its NFS client in the maintained kubelet
-image, so no extra `nfs-utils` system extension is required for this path.
+Create a dedicated TrueNAS identity/API key for CSI. Do **not** reuse:
 
-The storage acceptance test is independent of ingress: dynamically provision a
-disposable PVC/PV, mount it from a worker, write a marker, recreate the Pod,
-reschedule onto the other worker, and prove persistence before Kubara/Traefik is
-introduced. The later FastAPI ingress smoke may reuse the proven StorageClass,
-but it is no longer the prerequisite for CSI.
+- `fastapi_observer`;
+- the OpenTofu/Terragrunt infrastructure credential;
+- an interactive human administrator key.
+
+For the NFS-only path, use a dedicated privilege with this candidate minimum
+role set:
+
+- `POOL_READ` — the driver validates `cpool` through `pool.query`;
+- `DATASET_WRITE` — create/query/get/update dynamic datasets;
+- `DATASET_DELETE` — honor `reclaimPolicy: Delete`;
+- `SHARING_NFS_WRITE` — create/query/get/delete the dynamic NFS shares.
+
+Do not add iSCSI, snapshot, pool-write or full-admin roles to this first
+credential. Validate these roles with the disposable PVC before promoting the
+StorageClass.
+
+The first upstream driver version consumes only the API key:
+
+```bash
+export TRUENAS_CSI_API_KEY='...'
+```
+
+Do not commit the key. The install helper creates/reconciles the Kubernetes
+Secret at runtime and never prints the value.
+
+If a dedicated username is also tracked locally, it may be exported as
+`TRUENAS_CSI_API_USERNAME` for documentation/audit purposes, but v1.0.3 does
+not yet consume it.
+
+## 3. Install the NFS-only driver
+
+First inspect without mutation:
+
+```bash
+bash scripts/talos/install-truenas-csi-nfs.sh --check
+```
+
+Then install explicitly:
+
+```bash
+TRUENAS_CSI_API_KEY='...' \
+  bash scripts/talos/install-truenas-csi-nfs.sh --apply
+```
+
+The helper:
+
+1. creates/reconciles namespace `truenas-csi`;
+2. creates `truenas-api-credentials` from the runtime key;
+3. applies the NFS-only controller/node manifest;
+4. waits for the controller Deployment and node DaemonSet;
+5. registers `csi.truenas.io`;
+6. applies `nabla-truenas-nfs` only after driver readiness;
+7. verifies that the StorageClass remains non-default.
+
+## 4. Cross-worker persistence acceptance
+
+Read-only readiness check:
+
+```bash
+bash scripts/talos/smoke-truenas-csi-nfs.sh --check
+```
+
+Disposable persistence test:
+
+```bash
+bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
+```
+
+The smoke uses a BusyBox image pinned by digest by default; override
+`CSI_SMOKE_IMAGE` only deliberately.
+
+The smoke must prove:
+
+1. a 1 GiB RWX PVC becomes `Bound`;
+2. a writer Pod on worker A writes a marker;
+3. that Pod is deleted;
+4. a reader Pod is forced onto a different worker B;
+5. the same marker is still readable;
+6. the disposable namespace/PVC is deleted afterward.
+
+Use `--keep` only when a failure needs post-mortem inspection.
+
+## 5. Acceptance and next gate
+
+Do not make `nabla-truenas-nfs` the default StorageClass until all of these are
+green:
+
+- driver/controller/node rollout;
+- dynamic PVC provisioning;
+- cross-worker persistence;
+- deletion/reclaim cleanup on TrueNAS;
+- one documented rollback/uninstall path.
+
+Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
+`test.albandrieu.com`.

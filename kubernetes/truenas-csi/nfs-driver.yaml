@@ -1,0 +1,471 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: truenas-csi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: truenas-csi-controller-sa
+  namespace: truenas-csi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: truenas-csi-node-sa
+  namespace: truenas-csi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: truenas-csi-controller-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes", "volumeattributesclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: truenas-csi-controller-binding
+subjects:
+  - kind: ServiceAccount
+    name: truenas-csi-controller-sa
+    namespace: truenas-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: truenas-csi-controller-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: truenas-csi-node-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: truenas-csi-node-binding
+subjects:
+  - kind: ServiceAccount
+    name: truenas-csi-node-sa
+    namespace: truenas-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: truenas-csi-node-role
+---
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: csi.truenas.io
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+  fsGroupPolicy: File
+  volumeLifecycleModes:
+    - Persistent
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: truenas-csi-config
+  namespace: truenas-csi
+data:
+  truenasURL: "wss://truenas.albandrieu.com:7000/api/current"
+  truenasInsecure: "false"
+  defaultPool: "cpool"
+  nfsServer: "172.17.0.24"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: truenas-csi-controller
+  namespace: truenas-csi
+  annotations:
+    checkov.io/skip1: "CKV_K8S_35=Upstream TrueNAS CSI v1.0.3 consumes the runtime API key only through TRUENAS_API_KEY."
+    checkov.io/skip2: "CKV_K8S_38=Provisioner and resizer sidecars require Kubernetes API and leader-election access."
+    checkov.io/skip3: "CKV_K8S_43=Images are pinned to reviewed release tags; digest pinning remains a separate supply-chain hardening task."
+    checkov.io/skip4: "CKV_K8S_8=Canonical CSI health is exposed by the driver plus liveness-probe sidecar; helper sidecars expose no independent liveness endpoint."
+    checkov.io/skip5: "CKV_K8S_9=Canonical CSI readiness is checked on the driver; helper sidecars expose no independent readiness endpoint."
+    checkov.io/skip6: "CKV2_K8S_6=NetworkPolicy is deferred until Talos CNI enforcement and kubelet probe source paths are validated; this controller exposes no Service."
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: truenas-csi-controller
+  template:
+    metadata:
+      labels:
+        app: truenas-csi-controller
+    spec:
+      serviceAccountName: truenas-csi-controller-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      hostAliases:
+        - ip: "172.17.0.24"
+          hostnames:
+            - truenas.albandrieu.com
+      containers:
+        - name: csi-controller
+          image: ghcr.io/truenas/truenas-csi:v1.0.3
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--node-id=$(NODE_ID)"
+            - "--mode=controller"
+            - "--v=4"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: TRUENAS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: truenasURL
+            - name: TRUENAS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: truenas-api-credentials
+                  key: api-key
+            - name: TRUENAS_DEFAULT_POOL
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: defaultPool
+            - name: TRUENAS_NFS_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: nfsServer
+            - name: TRUENAS_INSECURE_SKIP_VERIFY
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: truenasInsecure
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9808
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9808
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 3
+        - name: csi-provisioner
+          image: registry.k8s.io/sig-storage/csi-provisioner:v6.1.1
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--v=5"
+            - "--feature-gates=Topology=true"
+            - "--extra-create-metadata"
+            - "--leader-election=true"
+            - "--timeout=60s"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        - name: csi-resizer
+          image: registry.k8s.io/sig-storage/csi-resizer:v2.1.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--v=5"
+            - "--leader-election=true"
+            - "--timeout=60s"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        - name: liveness-probe
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--health-port=9808"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: truenas-csi-node
+  namespace: truenas-csi
+  annotations:
+    checkov.io/skip1: "CKV_K8S_35=Upstream TrueNAS CSI v1.0.3 consumes the runtime API key only through TRUENAS_API_KEY."
+    checkov.io/skip2: "CKV_K8S_16=CSI node must be privileged to mount NFS volumes into kubelet host paths."
+    checkov.io/skip3: "CKV_K8S_38=The upstream node service account/RBAC contract is retained for CSI compatibility."
+    checkov.io/skip4: "CKV_K8S_8=Canonical node health is exposed by the driver plus liveness-probe sidecar; registrar has no liveness endpoint."
+    checkov.io/skip5: "CKV_K8S_19=hostNetwork keeps storage mounts independent from CNI availability and matches upstream CSI node architecture."
+    checkov.io/skip6: "CKV_K8S_40=The privileged node mount process must run as root."
+    checkov.io/skip7: "CKV_K8S_43=Images are pinned to reviewed release tags; digest pinning remains a separate supply-chain hardening task."
+    checkov.io/skip8: "CKV_K8S_9=Canonical node readiness is checked on the driver; registrar and liveness helper expose no independent readiness endpoint."
+    checkov.io/skip9: "CKV_K8S_28=Privileged CSI mount operations necessarily receive host capabilities."
+    checkov.io/skip10: "CKV_K8S_37=Privileged CSI mount operations necessarily receive host capabilities."
+    checkov.io/skip11: "CKV_K8S_20=Privilege escalation is intrinsic to the privileged mount helper and is limited to worker nodes."
+    checkov.io/skip12: "CKV_K8S_22=The privileged NFS mount helper retains a writable root filesystem for mount utilities."
+    checkov.io/skip13: "CKV_K8S_23=The privileged node mount process must run as root."
+    checkov.io/skip14: "CKV_K8S_31=The privileged mount helper cannot be constrained by RuntimeDefault seccomp without validating required mount syscalls."
+    checkov.io/skip15: "CKV2_K8S_6=NetworkPolicy cannot reliably constrain hostNetwork CSI node traffic; Talos firewall/CNI policy is the enforcement layer."
+spec:
+  selector:
+    matchLabels:
+      app: truenas-csi-node
+  template:
+    metadata:
+      labels:
+        app: truenas-csi-node
+    spec:
+      serviceAccountName: truenas-csi-node-sa
+      securityContext:
+        runAsUser: 0
+      hostAliases:
+        - ip: "172.17.0.24"
+          hostnames:
+            - truenas.albandrieu.com
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: csi-node
+          image: ghcr.io/truenas/truenas-csi:v1.0.3
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            readOnlyRootFilesystem: false
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--node-id=$(NODE_ID)"
+            - "--mode=node"
+            - "--v=4"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: TRUENAS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: truenasURL
+            - name: TRUENAS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: truenas-api-credentials
+                  key: api-key
+            - name: TRUENAS_DEFAULT_POOL
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: defaultPool
+            - name: TRUENAS_NFS_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: nfsServer
+            - name: TRUENAS_INSECURE_SKIP_VERIFY
+              valueFrom:
+                configMapKeyRef:
+                  name: truenas-csi-config
+                  key: truenasInsecure
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: Bidirectional
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9808
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9808
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 3
+        - name: csi-node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.truenas.io/csi.sock"
+            - "--v=5"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+        - name: liveness-probe
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--health-port=9808"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.truenas.io/
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory

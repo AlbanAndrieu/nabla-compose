@@ -1,0 +1,22 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nabla-truenas-nfs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: csi.truenas.io
+parameters:
+  protocol: "nfs"
+  pool: "cpool"
+  datasetPath: "k8s/csi"
+  compression: "LZ4"
+  sync: "STANDARD"
+  nfs.networks: "172.17.0.51/32,172.17.0.52/32"
+  nfs.mountOptions: "hard,nfsvers=4.1"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - hard
+  - nfsvers=4.1

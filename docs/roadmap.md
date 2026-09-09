@@ -140,6 +140,29 @@ persistence, reclaim and rollback are proven. Sentry must also be accepted
 before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work may proceed in parallel
 because it does not replace either acceptance gate.
 
+### TrueNAS platform compatibility debt — BETA.2 + CSI auth
+
+Keep these two upgrade debts coupled and visible before the next TrueNAS major
+transition:
+
+- [ ] **Leave TrueNAS `26.0.0-BETA.2` deliberately pinned until a reviewed
+  stable-26.x upgrade window is prepared.** Before upgrading, capture the
+  boot-environment/config backup, verify `cpool`, Apps/Compose datasets,
+  Talos VM autostart/networking and NFS, then validate the pinned
+  `truenas/api_client`, `PjSalty/truenas` provider, observer/MCP clients and
+  CSI path against the target release. After the upgrade, rerun the TrueNAS,
+  Talos, application and storage acceptance gates before deleting the rollback
+  boot environment.
+- [ ] **Remove the TrueNAS CSI v1.0.3 authentication compatibility bridge.**
+  Upstream still calls deprecated `auth.login_with_api_key` on TrueNAS 26.
+  Upgrade/patch the CSI client to the modern username + API-key SCRAM flow and
+  prove dynamic NFS provisioning/reclaim with that path **before TrueNAS 27**,
+  where the legacy method must not be assumed available.
+
+Do not resolve either debt by independently upgrading the TrueNAS host, API
+client/provider or CSI driver: treat them as one compatibility matrix and keep
+the current NFS smoke/rollback proof as the acceptance gate.
+
 ### Sentry startup note — long 70% plateau
 
 A Sentry 26.8 deployment can remain around **70%** in TrueNAS for several
@@ -226,22 +249,26 @@ TrueNAS already exposes NFSv4 on `172.17.0.24:2049`, and the parent dataset
 kubelet image, so the first NFS-backed CSI path does not require an extra
 `nfs-utils` Talos system extension.
 
-Prefer the reviewed NFSv4.x path for this homelab. Do not select NFSv3 merely
-because an example chart uses it; Talos does not run `rpc.statd`, so NFSv3
-locking needs special handling such as `nolock`.
+The first implementation now selects the official `truenas/truenas-csi`
+driver pinned to **v1.0.3**, because it targets TrueNAS SCALE 25.10+ and uses
+the modern `/api/current` WebSocket API required by TrueNAS 26. The repository
+carries an NFS-only Talos manifest: no `iscsiadm`, no iSCSI host mounts and no
+snapshot/attacher sidecars are introduced for this gate.
 
+- [x] select and pin TrueNAS CSI `v1.0.3` and its Kubernetes sidecars;
+- [x] add the NFS-only Talos driver manifest plus explicit non-default `nabla-truenas-nfs` StorageClass;
+- [x] constrain provisioning to `cpool/k8s/csi`, NFSv4.1 and worker-only NFS clients `172.17.0.51/32,172.17.0.52/32`;
+- [x] keep the CSI API key runtime-only: `scripts/talos/install-truenas-csi-nfs.sh` renders the Kubernetes Secret without committing or printing it;
+- [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, worker-A write, pod recreation and worker-B persistence;
+- [ ] create a dedicated least-privilege TrueNAS CSI identity/API key; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
 - [ ] run the read-only `scripts/talos/validate-csi-prereqs.sh`;
-- [ ] verify the chosen NFS export/path and allowed client networks cover both workers, not only the workstation running the preflight;
-- [ ] select and pin the reviewed `democratic-csi` release/chart and NFS driver values;
-- [ ] create a dedicated least-privilege TrueNAS CSI identity; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
-- [ ] keep CSI API credentials in a Kubernetes Secret rendered from the approved secret source, never in Git;
-- [ ] constrain dynamic provisioning below `cpool/k8s/csi` and document the corresponding TrueNAS NFS share/export contract;
-- [ ] create an explicit `StorageClass` (initial target: `nabla-truenas-nfs`) and decide separately whether it should become the default class;
-- [ ] dynamically provision a disposable PVC/PV and require `Bound`;
-- [ ] mount the PVC on a worker Pod, write a marker and prove read/write;
-- [ ] recreate the Pod and prove the marker survives;
-- [ ] reschedule the persistence smoke onto the other worker and prove the NFS-backed volume remains usable;
-- [ ] prove reclaim/cleanup behavior and retain at least one rollback path before allowing stateful workloads.
+- [ ] verify the NFS client network contract covers both workers and no conflicting `csi.truenas.io` owner already exists;
+- [ ] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the dedicated runtime API key;
+- [ ] dynamically provision the disposable RWX PVC and require `Bound`;
+- [ ] run the cross-worker persistence smoke and require the same marker on worker B;
+- [ ] prove PVC deletion removes the dynamically-created TrueNAS share/dataset according to `reclaimPolicy: Delete`;
+- [ ] document and test one rollback/uninstall path before allowing stateful workloads;
+- [ ] track upstream replacement of deprecated `auth.login_with_api_key`; do not carry that compatibility bridge into TrueNAS 27.
 
 ### P0.C — Kubara/Traefik + FastAPI ingress — only after CSI
 
