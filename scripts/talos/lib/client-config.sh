@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared Talos/Kubernetes client configuration resolution.
 #
 # Prefer the current operator's private config directory when populated, while
