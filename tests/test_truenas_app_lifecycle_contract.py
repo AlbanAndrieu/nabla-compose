@@ -1202,9 +1202,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_scrutiny_bootstrap_allows_empty_secret_file_without_rotation(self) -> None:
         script = self.read("scripts/truenas/bootstrap-scrutiny-influxdb.sh")
 
-        self.assertIn('existing_token=""\', script)
-        self.assertIn('[[ -n "${existing_token}" && "${ROTATE}" != "1" ]]\', script)
-        self.assertNotIn('[[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]\', script)
+        self.assertIn('existing_token=""', script)
+        self.assertIn('[[ -n "${existing_token}" && "${ROTATE}" != "1" ]]', script)
+        self.assertNotIn('[[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]', script)
 
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")
