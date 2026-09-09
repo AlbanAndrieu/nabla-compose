@@ -92,9 +92,14 @@ fi
 [[ -n "${INFLUXDB_ADMIN_TOKEN:-}" ]] ||
   fail "INFLUXDB_ADMIN_TOKEN is required for --apply and is never printed"
 
-if [[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]; then
-  fail "${SECRET_FILE} already exists; set SCRUTINY_TOKEN_ROTATE=1 only for an intentional token rotation"
+existing_token=""
+if [[ -f "${SECRET_FILE}" ]]; then
+  existing_token="$(sed -n 's/^SCRUTINY_WEB_INFLUXDB_TOKEN=//p' "${SECRET_FILE}" | head -n1)"
 fi
+if [[ -n "${existing_token}" && "${ROTATE}" != "1" ]]; then
+  fail "${SECRET_FILE} already contains SCRUTINY_WEB_INFLUXDB_TOKEN; set SCRUTINY_TOKEN_ROTATE=1 only for an intentional token rotation"
+fi
+unset existing_token
 
 admin_token="${INFLUXDB_ADMIN_TOKEN}"
 org_id="$(org_id_for_token "${admin_token}")"
