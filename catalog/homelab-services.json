@@ -97,7 +97,8 @@
       "tunnelUrl": "https://prometheus - albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "Open SpeedTest",
@@ -145,7 +146,8 @@
       "tunnelUrl": "https://portracker-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/portracker.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "Portainer",
@@ -183,7 +185,8 @@
       "tunnelUrl": "https://scrutiny-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/scrutiny.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "IT Tools",
@@ -558,7 +561,8 @@
       "tunnelUrl": "https://stirling-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/stirling-pdf.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "AnythingLLM",
@@ -582,7 +586,8 @@
       "tunnelUrl": "https://anythingllm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/anythingllm.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "Reactive Resume",
@@ -606,7 +611,8 @@
       "tunnelUrl": "https://reactive-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/rxresume.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "Plumber",
@@ -750,7 +756,8 @@
       "tunnelUrl": "https://litellm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
-      "external": false
+      "external": false,
+      "environment": "dev"
     },
     {
       "name": "SearXNG",

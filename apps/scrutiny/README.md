@@ -60,22 +60,40 @@ The repository-managed targets are:
 
 The user has already created the Scrutiny application dataset and stopped the native app. Keep the native datasets intact until historical SMART data has been verified in the replacement.
 
+## Fresh cutover decision — 2026-09-09
+
+Historical Scrutiny data from the stopped native app is no longer a cutover
+requirement. The replacement uses a fresh, isolated InfluxDB base bucket named
+`scrutiny` in organization `nabla`.
+
+This means:
+
+- do not restore the old embedded InfluxDB 2.2 datastore into the shared InfluxDB;
+- do not reuse the shared `metrics` bucket for Scrutiny;
+- provision the four Scrutiny buckets, placeholder downsampling tasks and
+  restricted API token with
+  `scripts/truenas/bootstrap-scrutiny-influxdb.sh`;
+- keep the old native dataset only until the new collector/web path is accepted,
+  then it may be deleted as explicitly approved.
+
 ## Migration sequence
 
-1. Snapshot the stopped native Scrutiny datasets before any conversion.
-2. Copy the Scrutiny SQLite/config state:
+1. Keep the stopped native Scrutiny dataset untouched until the replacement is accepted.
+2. Ensure the shared InfluxDB 2.9 runtime is healthy.
+3. Provision fresh Scrutiny InfluxDB resources and the restricted token:
 
 ```bash
-rsync -aHAX --numeric-ids \
-  /mnt/.ix-apps/app_mounts/scrutiny/config/ \
-  /mnt/cpool/scrutiny/config/
+sudo env INFLUXDB_ADMIN_TOKEN="${INFLUXDB_ADMIN_TOKEN}" \
+  bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply
+sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
 ```
 
-3. **Do not blindly rsync** the old embedded InfluxDB directory into the new InfluxDB 2.8 data directory. The old omnibus runtime was observed on InfluxDB 2.2. Use a logical InfluxDB backup/restore path, preserving the stopped source dataset as rollback evidence.
-4. Create/start `apps/influxdb/compose.yml` with admin credentials supplied through the secret provider.
-5. Restore the Scrutiny bucket/history into the standalone InfluxDB instance and create a Scrutiny-scoped token. Do not reuse the InfluxDB admin token as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
-6. Start `apps/scrutiny/compose.yml`.
-7. Validate the LAN path:
+4. Run the repository cutover preflight.
+5. Start the repository-managed Scrutiny app.
+6. Validate that the collector sees the host disks and the web API is healthy.
+7. After acceptance, inspect the legacy mount/dataset ownership and delete the old
+   native Scrutiny data only when no running container/app references it.
+8. Validate the LAN path:
 
 ```bash
 curl -fsS http://172.17.0.24:31054/api/health
@@ -107,6 +125,12 @@ After the snapshot/history review is complete and
 sudo bash scripts/truenas/deploy-scrutiny.sh --check
 ```
 
+When the repository-managed Scrutiny app is still `MISSING`, this is a true
+preflight: it requires the shared InfluxDB runtime/health, validates the rendered
+Compose, discovers host SMART devices and then reports `ready=APPLY` without
+creating or updating any TrueNAS app. If Scrutiny is already `RUNNING`,
+`--check` additionally performs the full web/collector acceptance checks.
+
 For the actual repository-managed cutover:
 
 ```bash
@@ -119,6 +143,36 @@ does **not** create InfluxDB backups, restore historical buckets or mint tokens.
 It validates those runtime prerequisites, reconciles InfluxDB first, waits for
 `http://127.0.0.1:31055/health`, then reconciles Scrutiny and requires both
 the web/API and collector containers to be running.
+
+Before creating/updating Scrutiny, the helper runs:
+
+```bash
+smartctl --scan-open
+```
+
+on the TrueNAS host. Every discovered SMART device is rendered into the
+host-specific Custom App Compose as an explicit Docker `devices:` mapping.
+This follows Scrutiny's upstream container contract: merely bind-mounting
+`/dev` is not a substitute for granting the container device access.
+
+If an NVMe controller is discovered, the generated collector override adds
+`SYS_ADMIN` in addition to the baseline `SYS_RAWIO`, because smartctl needs
+that capability for NVMe SMART access. SATA/SAS-only hosts do not receive the
+extra capability.
+
+The rendered YAML is sent through TrueNAS
+`custom_compose_config_string`. Environment secrets remain referenced through
+`/mnt/cpool/scrutiny/.env.secrets`; the helper uses
+`docker compose config --no-interpolate --no-env-resolution` so secret values
+are not expanded into the stored Compose definition.
+
+`app.update` is already a deployment job. The helper therefore does **not**
+immediately call `app.redeploy` after an update; doing both would unnecessarily
+start a second lifecycle cycle.
+
+The final acceptance gate additionally runs `smartctl --scan-open` inside the
+`scrutiny-collector` container. A RUNNING container with zero SMART-visible
+devices is treated as a failed deployment.
 
 
 ## Cloudflare audit
@@ -143,5 +197,8 @@ The helper fails when an Access-required service has no matching Access applicat
 - Scrutiny keeps LAN TCP/31054 for migration compatibility.
 - InfluxDB is not LAN-published by default; host access is loopback-only on TCP/31055 and Docker consumers use `influxdb:8086` on the external `intranet` network.
 - `/run/udev` and `/dev` remain read-only in the collector.
-- only `SYS_RAWIO` is granted initially;
-- add `SYS_ADMIN` only if an actual NVMe compatibility requirement is demonstrated.
+- `SYS_RAWIO` is the baseline collector capability.
+- host SMART devices are passed explicitly from the `smartctl --scan-open`
+  inventory at cutover time; do not use `privileged: true`.
+- `SYS_ADMIN` is added only to the rendered collector configuration when an
+  NVMe controller is actually discovered.

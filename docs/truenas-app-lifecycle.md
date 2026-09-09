@@ -363,19 +363,18 @@ directly:
 
 ```text
 SCRUTINY_WEB_INFLUXDB_ORG=nabla
-SCRUTINY_WEB_INFLUXDB_BUCKET=metrics
+SCRUTINY_WEB_INFLUXDB_BUCKET=scrutiny
 ```
 
 These values may still be overridden through Compose interpolation, but a
 repository-local `apps/scrutiny/.env` is not required for the TrueNAS Custom
 App deployment.
 
-For the current recovered InfluxDB datastore, the organization is `nabla`.
-Do not guess the Scrutiny bucket. Locate the bucket that actually contains
-Scrutiny's `smart` or `temp` measurements before creating the final token.
-If no existing bucket contains those measurements, create a new dedicated
-`metrics` (or `scrutiny`) bucket and accept that there is no Scrutiny history
-in this InfluxDB datastore.
+For the current InfluxDB datastore, the organization is `nabla`. The
+2026-09-09 migration decision is to start Scrutiny with a fresh, isolated
+`scrutiny` bucket rather than block the cutover on recovery of the stopped
+native app's historical InfluxDB 2.2 data. The shared `metrics` namespace is
+therefore not reused for Scrutiny.
 
 The recovery/operator token is only for administration; do not reuse it for
 Scrutiny. In particular, `nabla's Recovery Token` is a temporary recovery
@@ -386,10 +385,13 @@ three downsampling buckets (`<base>_weekly`, `<base>_monthly`,
 application token needs read access to the organization plus scoped read/write
 access to those buckets and tasks.
 
-If no historical Scrutiny bucket is found, use the upstream default base name
-`metrics`, create the four placeholder buckets and three placeholder tasks,
-then create the restricted token. Scrutiny replaces the placeholder task
-configuration during startup.
+Use `scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply` with an existing
+InfluxDB operator/admin token to create the isolated `scrutiny`,
+`scrutiny_weekly`, `scrutiny_monthly`, and `scrutiny_yearly` buckets,
+the three placeholder aggregation tasks, and a restricted Scrutiny token.
+The helper writes only `SCRUTINY_WEB_INFLUXDB_TOKEN` to the root-owned
+`/mnt/cpool/scrutiny/.env.secrets` file with mode `0600` and never prints
+the token. Scrutiny replaces the placeholder task configuration during startup.
 
 ## Langfuse shared Redis and MinIO
 

@@ -414,7 +414,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             scrutiny,
         )
         self.assertIn(
-            "SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_WEB_INFLUXDB_BUCKET:-metrics}",
+            "SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_WEB_INFLUXDB_BUCKET:-scrutiny}",
             scrutiny,
         )
 
@@ -430,9 +430,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN", script)
         self.assertIn("app.create", script)
         self.assertIn("app.update", script)
-        self.assertIn("app.redeploy", script)
+        self.assertNotIn('app.redeploy "${app_id}"', script)
+        self.assertIn("custom_compose_config_string", script)
+        self.assertIn("smartctl --scan-open", script)
         self.assertIn("http://127.0.0.1:31055/health", script)
         self.assertIn("http://172.17.0.24:31054/api/health", script)
+        self.assertIn("verify_influx_runtime", script)
+        self.assertIn("ready=APPLY", script)
+        self.assertIn('MISSING)', script)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", scrutiny_readme)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", influxdb_readme)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN", scrutiny_readme)
@@ -1171,6 +1176,56 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("OpenRAG 0.7.1 compatibility caveat", readme)
         self.assertIn("provider=openai", readme)
         self.assertIn("OpenRAG 0.7.1 -> workstation LiteLLM", roadmap)
+
+
+    def test_scrutiny_influxdb_bootstrap_is_restricted_and_safe(self) -> None:
+        path = ROOT / "scripts/truenas/bootstrap-scrutiny-influxdb.sh"
+        script = path.read_text(encoding="utf-8")
+
+        self.assertIn('"${BASE_BUCKET}_weekly"', script)
+        self.assertIn('"${BASE_BUCKET}_monthly"', script)
+        self.assertIn('"${BASE_BUCKET}_yearly"', script)
+        self.assertIn("tsk-weekly-aggr", script)
+        self.assertIn("restricted scope token", script)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
+        self.assertIn("chmod 600", script)
+        self.assertNotIn("privileged: true", script)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
+        compose = self.read("apps/scrutiny/compose.yml")
+        readme = self.read("apps/scrutiny/README.md")
+        path = ROOT / "scripts/truenas/deploy-scrutiny.sh"
+        script = path.read_text(encoding="utf-8")
+
+        self.assertIn("smartctl --scan-open", script)
+        self.assertIn("render_scrutiny_compose", script)
+        self.assertIn("custom_compose_config_string", script)
+        self.assertIn("SYS_ADMIN", script)
+        self.assertIn(
+            "docker exec scrutiny-collector smartctl --scan-open",
+            script,
+        )
+        self.assertNotIn('app.redeploy "${app_id}"', script)
+        self.assertIn("/dev:/dev:ro", compose)
+        self.assertNotIn("privileged: true", compose)
+        self.assertIn("Every discovered SMART device", readme)
+        self.assertIn("A RUNNING container with zero SMART-visible", readme)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
 
 if __name__ == "__main__":
