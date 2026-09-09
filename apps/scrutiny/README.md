@@ -145,7 +145,12 @@ bash scripts/observability/verify-scrutiny-workstation-collector.sh
 The check requires the container to be running, verifies the configured API
 endpoint, reaches the TrueNAS Scrutiny health endpoint from the workstation and
 requires `smartctl --scan-open` inside the collector to expose at least one
-workstation disk.
+workstation disk. Use `--submit` to execute the upstream collector command and
+post a fresh SMART sample to the TrueNAS hub:
+
+```bash
+bash scripts/observability/verify-scrutiny-workstation-collector.sh --submit
+```
 
 ## Canonical runtime helper
 
