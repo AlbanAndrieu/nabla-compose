@@ -147,7 +147,7 @@ render_scrutiny_compose() {
   local -a devices=()
 
   mapfile -t devices < <(discover_smart_devices)
-  ((${#devices[@]} > 0)) ||
+  [[ "${#devices[@]}" -gt 0 ]] ||
     fail "smartctl --scan-open did not discover any host SMART devices"
 
   override="$(mktemp /tmp/nabla-scrutiny-devices.XXXXXX.yml)"
