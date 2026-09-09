@@ -1,3 +1,10 @@
+## [0.31.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.2...0.31.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **runtime:** harden TrueNAS operator CSI and Scrutiny acceptance ([#175](https://github.com/AlbanAndrieu/nabla-compose/issues/175)) ([c0cb371](https://github.com/AlbanAndrieu/nabla-compose/commit/c0cb371b8959fa27280d036b16c236e0092e7c20))
+
 ## [0.31.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.1...0.31.2) (2026-09-09)
 
 
