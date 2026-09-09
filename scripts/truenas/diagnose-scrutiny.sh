@@ -8,6 +8,8 @@ WEB_URL="${SCRUTINY_WEB_URL:-http://172.17.0.24:31054}"
 INFLUX_URL="${SCRUTINY_INFLUX_URL:-http://127.0.0.1:31055}"
 SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
 MODE="${1:---check}"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CAPTURE_SECONDS="${SCRUTINY_CAPTURE_SECONDS:-20}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -15,16 +17,93 @@ fail() {
 }
 
 case "${MODE}" in
-  --check) ;;
-  *) fail "usage: sudo bash scripts/truenas/diagnose-scrutiny.sh --check" ;;
+  --check | --capture-startup) ;;
+  *) fail "usage: sudo bash scripts/truenas/diagnose-scrutiny.sh [--check|--capture-startup]" ;;
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
-for command in curl docker jq midclt stat grep; do
+for command in curl docker git jq midclt stat grep sleep; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
 failures=0
+
+capture_startup() {
+  [[ -n "${ROOT}" ]] || fail "run from the nabla-compose checkout"
+  cd "${ROOT}"
+
+  app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
+  if [[ "$(jq 'length' <<<"${app_json}")" -ne 0 ]]; then
+    fail "refusing standalone capture while TrueNAS app ${APP_ID} exists; remove/stop the failed app first"
+  fi
+
+  if docker inspect "${WEB_CONTAINER}" >/dev/null 2>&1; then
+    fail "refusing standalone capture because container ${WEB_CONTAINER} already exists"
+  fi
+
+  printf '==> Starting standalone Scrutiny web only for diagnostic capture\n'
+  printf '    This bypasses TrueNAS lifecycle cleanup and does not start the SMART collector.\n'
+  docker compose     -f apps/scrutiny/compose.yml     up -d --no-deps scrutiny
+
+  cleanup_capture() {
+    printf '\n==> Cleaning standalone diagnostic container\n'
+    docker compose -f apps/scrutiny/compose.yml stop scrutiny >/dev/null 2>&1 || true
+    docker compose -f apps/scrutiny/compose.yml rm -f scrutiny >/dev/null 2>&1 || true
+  }
+  trap cleanup_capture EXIT
+
+  printf 'Capturing startup for %ss...\n' "${CAPTURE_SECONDS}"
+  sleep "${CAPTURE_SECONDS}"
+
+  printf '\n==> Standalone Scrutiny web state/health\n'
+  docker inspect "${WEB_CONTAINER}" |
+    jq '.[0] | {
+      state: .State.Status,
+      health: (.State.Health.Status // "none"),
+      exit_code: .State.ExitCode,
+      error: .State.Error,
+      restarts: .RestartCount,
+      health_log: ((.State.Health.Log // []) | map({
+        start: .Start,
+        end: .End,
+        exit_code: .ExitCode,
+        output: .Output
+      }))
+    }'
+
+  printf '\n==> Standalone Scrutiny web non-secret InfluxDB configuration\n'
+  docker inspect "${WEB_CONTAINER}" --format '{{range .Config.Env}}{{println .}}{{end}}' |
+    grep -E '^SCRUTINY_WEB_INFLUXDB_(SCHEME|HOST|PORT|ORG|BUCKET)=' || true
+
+  printf '\n==> Standalone Scrutiny web -> shared InfluxDB\n'
+  if docker exec "${WEB_CONTAINER}" curl -fsS --connect-timeout 3 --max-time 8     http://influxdb:8086/health; then
+    printf '\n✅ container can reach influxdb:8086\n'
+  else
+    printf '❌ container cannot reach influxdb:8086\n' >&2
+  fi
+
+  printf '\n==> Standalone Scrutiny config mount\n'
+  docker inspect "${WEB_CONTAINER}" |
+    jq '.[0].Mounts | map(select(.Destination == "/opt/scrutiny/config"))'
+  docker exec "${WEB_CONTAINER}" sh -c '
+    id
+    ls -la /opt/scrutiny/config
+    test -w /opt/scrutiny/config && echo "config_writable=yes" || echo "config_writable=no"
+  ' || true
+
+  printf '\n==> Standalone Scrutiny web logs\n'
+  docker logs --timestamps --tail 250 "${WEB_CONTAINER}" 2>&1 || true
+
+  printf '\n==> Standalone Scrutiny local health\n'
+  docker exec "${WEB_CONTAINER}" curl -v --max-time 8     http://127.0.0.1:8080/api/health 2>&1 || true
+
+  printf '\nCapture complete; standalone container will now be removed.\n'
+}
+
+if [[ "${MODE}" == "--capture-startup" ]]; then
+  capture_startup
+  exit 0
+fi
 
 printf '==> TrueNAS Scrutiny app state\n'
 app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
