@@ -1188,7 +1188,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("tsk-weekly-aggr", script)
         self.assertIn('status:"inactive"', script)
         self.assertIn("limit(n: 1)", script)
-        self.assertNotIn("yield now()", script)
+        self.assertIn('from(bucket: \\"${BASE_BUCKET}\\")', script)
         self.assertIn("restricted scope token", script)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
         self.assertIn("chmod 600", script)
