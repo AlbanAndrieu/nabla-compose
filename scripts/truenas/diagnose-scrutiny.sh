@@ -22,7 +22,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
-for command in curl docker git jq midclt stat grep sleep; do
+for command in curl docker git jq midclt stat grep sleep sed head; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -94,7 +94,14 @@ capture_startup() {
   ' || true
 
   printf '\n==> Standalone Scrutiny web logs\n'
-  docker logs --timestamps --tail 250 "${WEB_CONTAINER}" 2>&1 || true
+  startup_logs="$(docker logs --timestamps --tail 250 "${WEB_CONTAINER}" 2>&1 || true)"
+  printf '%s\n' "${startup_logs}"
+
+  if grep -Eqi 'failed to create bucket .*unauthorized:.*write:orgs/.*/buckets' <<<"${startup_logs}"; then
+    printf '\n❌ ROOT CAUSE: Scrutiny v0.9.3 migration requires organization-scoped bucket mutation rights.\n' >&2
+    printf '   The current token can use existing buckets but cannot create temporary *_new migration buckets.\n' >&2
+    printf '   Rotate the token with the repository bootstrap before retrying the TrueNAS cutover.\n' >&2
+  fi
 
   printf '\n==> Standalone Scrutiny local health\n'
   docker exec "${WEB_CONTAINER}" curl -v --max-time 8     http://127.0.0.1:8080/api/health 2>&1 || true
@@ -137,6 +144,14 @@ else
     printf '❌ SCRUTINY_WEB_INFLUXDB_TOKEN is missing\n' >&2
     failures=$((failures + 1))
   }
+  scope_version="$(sed -n 's/^SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=//p' "${SECRET_FILE}" | head -n1)"
+  if [[ "${scope_version}" != "2" ]]; then
+    printf '❌ Scrutiny InfluxDB token scope is legacy/unknown (expected v2 migration-capable scope)\n' >&2
+    printf '   Rotate with SCRUTINY_TOKEN_ROTATE=1 and INFLUXDB_ADMIN_TOKEN before retrying startup.\n' >&2
+    failures=$((failures + 1))
+  else
+    printf 'token_scope=v%s (migration-capable)\n' "${scope_version}"
+  fi
 fi
 
 printf '\n==> Shared InfluxDB dependency\n'
@@ -204,7 +219,12 @@ if inspect_container "${WEB_CONTAINER}" "Scrutiny web"; then
   fi
 
   printf '\nRecent Scrutiny web logs:\n'
-  docker logs --tail 120 "${WEB_CONTAINER}" 2>&1 || true
+  web_logs="$(docker logs --tail 120 "${WEB_CONTAINER}" 2>&1 || true)"
+  printf '%s\n' "${web_logs}"
+  if grep -Eqi 'failed to create bucket .*unauthorized:.*write:orgs/.*/buckets' <<<"${web_logs}"; then
+    printf '❌ Scrutiny migration token lacks organization-scoped bucket mutation permission\n' >&2
+    failures=$((failures + 1))
+  fi
 fi
 
 if inspect_container "${COLLECTOR_CONTAINER}" "Scrutiny collector"; then

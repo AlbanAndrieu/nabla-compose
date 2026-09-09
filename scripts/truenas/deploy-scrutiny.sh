@@ -8,6 +8,7 @@ SCRUTINY_SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
 WAIT_ATTEMPTS="${SCRUTINY_WAIT_ATTEMPTS:-60}"
 WAIT_DELAY="${SCRUTINY_WAIT_DELAY_SECONDS:-2}"
 RECONCILE_INFLUXDB="${SCRUTINY_RECONCILE_INFLUXDB:-0}"
+RESET_SQLITE="${SCRUTINY_RESET_SQLITE:-0}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -24,7 +25,7 @@ esac
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so runtime datasets and secrets are validated consistently"
 
-for command in docker git jq midclt curl grep stat install smartctl awk sort mktemp; do
+for command in docker git jq midclt curl grep stat install smartctl awk sort mktemp date mv sed head; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -58,6 +59,10 @@ secret_mode="$(stat -c '%a' "${SCRUTINY_SECRET_FILE}")"
 
 grep -q '^SCRUTINY_WEB_INFLUXDB_TOKEN=.' "${SCRUTINY_SECRET_FILE}" ||
   fail "SCRUTINY_WEB_INFLUXDB_TOKEN is missing from ${SCRUTINY_SECRET_FILE}"
+
+scope_version="$(sed -n 's/^SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=//p' "${SCRUTINY_SECRET_FILE}" | head -n1)"
+[[ "${scope_version}" == "2" ]] ||
+  fail "Scrutiny InfluxDB token scope is legacy/unknown; rotate it with SCRUTINY_TOKEN_ROTATE=1 before cutover"
 
 docker network inspect intranet >/dev/null 2>&1 ||
   fail "external Docker network intranet is missing"
@@ -229,6 +234,26 @@ verify_influx_runtime() {
     fail "InfluxDB health payload is not passing"
 }
 
+reset_scrutiny_sqlite_if_requested() {
+  local scrutiny_state
+  local sqlite_path="/mnt/cpool/scrutiny/config/scrutiny.db"
+  local backup_path
+
+  [[ "${RESET_SQLITE}" == "1" ]] || return 0
+
+  scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
+  [[ "${scrutiny_state}" == "MISSING" ]] ||
+    fail "SCRUTINY_RESET_SQLITE=1 is only allowed while the TrueNAS Scrutiny app is MISSING"
+
+  if [[ -e "${sqlite_path}" ]]; then
+    backup_path="${sqlite_path}.failed-migration-$(date +%Y%m%d-%H%M%S).bak"
+    mv "${sqlite_path}" "${backup_path}"
+    printf 'Moved interrupted Scrutiny SQLite state aside: %s\n' "${backup_path}"
+  else
+    printf 'No existing Scrutiny SQLite database to reset.\n'
+  fi
+}
+
 verify_runtime() {
   local scrutiny_state
 
@@ -299,6 +324,7 @@ case "${influx_state}" in
     ;;
 esac
 verify_influx_runtime
+reset_scrutiny_sqlite_if_requested
 
 scrutiny_compose="$(render_scrutiny_compose)"
 if ! reconcile_app_string "${SCRUTINY_APP_ID}" "${scrutiny_compose}"; then

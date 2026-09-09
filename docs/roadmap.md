@@ -117,7 +117,7 @@ green cloud observation must not mask a broken local path.
     make TrueNAS NFS + CSI persistence green before Kubara/Traefik and the
     immutable FastAPI ingress smoke on `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
-13. [ ] **Scrutiny + InfluxDB — parallel** — fresh InfluxDB provisioning is now complete: dedicated `scrutiny` base/downsampling buckets and tasks exist, `/mnt/cpool/scrutiny/.env.secrets` is root-owned mode `0600`, and the restricted token passes `--check`. The first TrueNAS Scrutiny create progressed past InfluxDB but failed because the `scrutiny` web container became `unhealthy`, preventing the collector dependency from starting. Diagnose that web/API layer with `diagnose-scrutiny.sh --check`; the cutover helper now reuses healthy shared InfluxDB instead of redeploying it on every attempt. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
+13. [ ] **Scrutiny + InfluxDB — parallel** — root cause of the web crash is now identified: Scrutiny v0.9.3 migration creates temporary `*_new` buckets and the original ID-scoped token was denied `write:orgs/<nabla>/buckets`. The follow-up changes the runtime token contract to scope v2: read org metadata plus org-scoped read/write buckets and tasks inside `nabla`, with no all-access/operator permission. Rotate the existing token, require `bootstrap-scrutiny-influxdb.sh --check` to report `scope=v2`, move the interrupted SQLite DB aside with explicit `SCRUTINY_RESET_SQLITE=1`, then retry the TrueNAS cutover. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
     `http://172.17.0.24:31054`. The helper discovers TrueNAS host disks with
     `smartctl --scan-open`, renders explicit device passthrough for the collector,
@@ -404,11 +404,15 @@ Reference design: `docs/operator-scripts-refactor.md`.
 
 ### Scrutiny authorization follow-up
 
-- [ ] fix the Scrutiny runtime token contract for v0.9.3 migrations. The
-  standalone capture proved that SQLite and InfluxDB connectivity are healthy,
-  but Scrutiny fails while creating temporary `scrutiny_new` migration
-  buckets because the restricted token lacks organization-scoped bucket
-  mutation permission. Keep the token dedicated to the `nabla` org and grant
-  only the minimum bucket create/delete/update/read scope required by the
-  upstream migration; validate it in bootstrap and startup diagnostics before
-  retrying the TrueNAS app cutover.
+- [x] implement the Scrutiny v0.9.3 migration-capable token contract: scope v2
+  grants read access to the `nabla` org plus organization-scoped read/write
+  for buckets and tasks, which is the minimum InfluxDB resource scope that can
+  create/delete/rename temporary `*_new` buckets and recreate missing tasks.
+  The bootstrap validates the returned authorization, writes the replacement
+  secret atomically, records the scope version/auth ID and revokes superseded
+  Scrutiny authorizations when possible.
+- [ ] runtime acceptance: rotate the currently installed v1 token, verify
+  `scope=v2`, retry standalone startup or the reviewed cutover, prove the
+  migration finishes, then require TrueNAS `RUNNING`, web/API health, SMART
+  visibility on the TrueNAS collector and a successful workstation collector
+  submission.

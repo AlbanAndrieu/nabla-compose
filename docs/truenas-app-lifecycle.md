@@ -381,17 +381,22 @@ Scrutiny. In particular, `nabla's Recovery Token` is a temporary recovery
 credential and must not be stored as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
 Scrutiny's bring-your-own-InfluxDB mode needs the base bucket plus
 three downsampling buckets (`<base>_weekly`, `<base>_monthly`,
-`<base>_yearly`) and the three corresponding aggregation tasks. Its restricted
-application token needs read access to the organization plus scoped read/write
-access to those buckets and tasks.
+`<base>_yearly`) and the three corresponding aggregation tasks. Scrutiny
+v0.9.3 can also create temporary `*_new` buckets while migrating WWN tags to
+UUIDs, then delete/rename buckets, and it can recreate missing tasks. InfluxDB
+therefore requires organization-scoped bucket/task read-write permissions for
+the runtime token; bucket-ID-only grants cannot authorize creation of those
+temporary resources.
 
 Use `scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply` with an existing
 InfluxDB operator/admin token to create the isolated `scrutiny`,
 `scrutiny_weekly`, `scrutiny_monthly`, and `scrutiny_yearly` buckets,
-the three placeholder aggregation tasks, and a restricted Scrutiny token.
-The helper writes only `SCRUTINY_WEB_INFLUXDB_TOKEN` to the root-owned
-`/mnt/cpool/scrutiny/.env.secrets` file with mode `0600` and never prints
-the token. Scrutiny replaces the placeholder task configuration during startup.
+the three placeholder aggregation tasks, and a dedicated Scrutiny runtime
+authorization limited to organization `nabla`. The root-owned mode-`0600`
+`/mnt/cpool/scrutiny/.env.secrets` stores the runtime token plus non-secret
+scope metadata (`SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=2` and the
+authorization ID). The token value is never printed. Scrutiny replaces the
+placeholder task configuration during startup.
 
 ## Langfuse shared Redis and MinIO
 
@@ -716,10 +721,20 @@ Three independent issues were encountered:
    builds the Flux text with `printf -v`, so real newlines reach InfluxDB;
 3. the first repository-managed Scrutiny app create reached Docker but failed
    because the `scrutiny` web container became unhealthy before the collector
-   could start. This is now a separate runtime diagnostic gate, not an InfluxDB
-   bootstrap failure.
+   could start;
+4. standalone startup capture then found the real application failure:
+   Scrutiny v0.9.3 attempted to create `scrutiny_new` during its WWN→UUID
+   migration and InfluxDB denied `write:orgs/<nabla>/buckets`. The original
+   token was restricted to existing bucket IDs, which is insufficient for
+   temporary create/delete/rename operations.
 
-The completed bootstrap evidence is:
+The corrected runtime token is versioned as scope v2 and is still limited to
+the `nabla` organization: read org metadata plus organization-scoped
+read/write for buckets and tasks. It is not an all-access/operator token.
+Because InfluxDB token permissions are immutable, the existing token must be
+rotated with `SCRUTINY_TOKEN_ROTATE=1`.
+
+After rotation, the expected bootstrap evidence is:
 
 ```text
 org=nabla
@@ -727,6 +742,7 @@ bucket=scrutiny
 secret=/mnt/cpool/scrutiny/.env.secrets
 mode=0600
 token=VALID
+scope=v2
 ```
 
 Use:
@@ -748,6 +764,12 @@ Scrutiny must not restart the already-healthy shared InfluxDB as a side effect
 of every cutover attempt. `deploy-scrutiny.sh --apply` now reuses a RUNNING
 InfluxDB instance by default; set `SCRUTINY_RECONCILE_INFLUXDB=1` only for an
 explicit reviewed InfluxDB reconciliation.
+
+For the approved fresh cutover, `SCRUTINY_RESET_SQLITE=1` may be supplied on
+the next apply after token rotation. The helper only accepts this while the
+TrueNAS Scrutiny app is `MISSING` and moves the interrupted
+`scrutiny.db` to a timestamped `.failed-migration-*.bak` file before startup.
+No SQLite reset occurs without this explicit flag.
 
 ### Global TrueNAS verification
 
