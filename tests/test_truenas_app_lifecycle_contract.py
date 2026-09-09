@@ -182,6 +182,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             generator,
         )
 
+    def test_global_truenas_audit_runs_critical_specialist_diagnostics(self) -> None:
+        audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
+
+        self.assertIn("probe_specialist_diagnostic_if_present", audit)
+        self.assertIn("scripts/truenas/diagnose-influxdb.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-scrutiny.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-sentry.sh", audit)
+        self.assertIn("scripts/truenas/diagnose-wazuh.sh", audit)
+        self.assertIn("specialist diagnostic passed", audit)
+
     def test_influxdb_adopts_current_2_9_datastore_without_setup(self) -> None:
         compose = self.read("apps/influxdb/compose.yml")
 
@@ -1292,6 +1302,30 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('[[ -n "${existing_token}" && "${ROTATE}" != "1" ]]', script)
         self.assertNotIn('[[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]', script)
 
+    def test_scrutiny_runtime_diagnostic_is_safe_and_executable(self) -> None:
+        path = ROOT / "scripts/truenas/diagnose-scrutiny.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
+        self.assertIn("http://influxdb:8086/health", script)
+        self.assertIn("http://127.0.0.1:8080/api/health", script)
+        self.assertIn("smartctl --scan-open", script)
+        self.assertIn("docker logs --tail 120", script)
+        self.assertNotIn("docker restart", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")
         readme = self.read("apps/scrutiny/README.md")
@@ -1300,6 +1334,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         self.assertIn("smartctl --scan-open", script)
         self.assertIn("render_scrutiny_compose", script)
+        self.assertIn("SCRUTINY_RECONCILE_INFLUXDB", script)
+        self.assertIn("Reusing healthy shared InfluxDB without redeploying it", script)
+        self.assertIn("diagnose-scrutiny.sh", script)
         self.assertIn("custom_compose_config_string", script)
         self.assertIn("SYS_ADMIN", script)
         self.assertIn(
