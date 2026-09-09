@@ -258,13 +258,13 @@
       "environments": [
         {
           "name": "production",
-          "url": "https://fastapi-sample.fastapicloud.dev",
+          "url": "https://fastapi-sample.fastapicloud.dev/api",
           "external": false,
           "cloudflareTunnel": false
         },
         {
           "name": "staging",
-          "url": "https://sample.albandrieu.com",
+          "url": "https://sample.albandrieu.com/api",
           "external": false,
           "cloudflareTunnel": false
         }
