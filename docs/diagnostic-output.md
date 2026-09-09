@@ -5,11 +5,16 @@ Large read-only checks and diagnostics keep interactive terminal output compact.
 ## Default behavior
 
 When a supported script is run from an interactive terminal, the detailed
-stdout/stderr stream is written to a root/private report under `/tmp`:
+stdout/stderr stream is written to a private report under `/tmp` by default:
 
 ```text
-/tmp/<script-name>-YYYYmmdd-HHMMSS.log
+/tmp/<script-name>-YYYYmmdd-HHMMSS.XXXXXX.log
 ```
+
+The wrapper never changes the mode or ownership of an existing shared log
+directory such as `/tmp`. It allocates each default report with `mktemp`, so
+root and non-root diagnostics cannot collide on a predictable timestamp-only
+name.
 
 The report is created mode `0600`. The terminal prints only:
 
@@ -25,7 +30,7 @@ Example:
 Key findings:
   ❌ Sentry consumers unhealthy: ...
   ⚠️ OpenRAG ingestion: Docling is not reachable
-Detailed report: /tmp/audit-app-lifecycle-20260908-210000.log
+Detailed report: /tmp/audit-app-lifecycle-20260908-210000.A1b2C3.log
 ```
 
 CI and other non-interactive executions keep their full output so GitHub Actions

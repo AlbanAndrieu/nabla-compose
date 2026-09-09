@@ -25,9 +25,11 @@ albandrieu
   └── runs Talos/Kubernetes/CSI validation and apply helpers
 ```
 
-The tools dataset may remain `root:root 0755`. The non-root operator only
-needs execute/read access to the binaries; write access to `cpool/tools` is
-not required for normal cluster operations.
+The tools dataset **and its `bin/` directory** must remain `root:root 0755`.
+The non-root operator only needs execute/read access to the binaries; write
+access to either directory is not required for normal cluster operations. A
+root-owned binary inside an operator-writable directory is not sufficient:
+directory write permission would still let the operator replace the binary.
 
 ## Install as root
 
@@ -60,7 +62,12 @@ TALOS_VERSION=v1.13.9 \
 bash scripts/truenas/install-operator-tools.sh --install
 ```
 
-The account performing `--install` must be able to create/write `cpool/tools`; on this TrueNAS host that is intentionally root. The non-root operator does **not** need write access to the tools dataset. `--check` accepts a read-only tools root as long as the dataset is mounted correctly and both clients are executable.
+`--install` is root-only and reconciles `cpool/tools`, `cpool/tools/bin`
+and the installed clients back to a root-managed layout. The non-root operator
+does **not** need write access to the tools dataset. `--check` accepts a
+read-only tools root, and additionally fails for a non-root operator when
+`TOOLS_BIN` is writable because that would permit replacement of trusted
+`kubectl`/`talosctl` binaries.
 
 The installer recalculates the architecture on every run (`x86_64 -> amd64`, `aarch64/arm64 -> arm64`). It downloads the publisher checksum metadata **before** the binary, refuses an unpublished/missing asset, verifies SHA256, validates the downloaded client version, and atomically replaces the target binary. Matching versions are skipped on subsequent runs.
 
@@ -68,12 +75,19 @@ The installer recalculates the architecture on every run (`x86_64 -> amd64`, `aa
 
 ## Talos and Kubernetes configs
 
-The tools are not sufficient without client configuration. Keep the operator copies outside the repository and permission them `0600`:
+The tools are not sufficient without client configuration. Keep the operator
+copies outside the repository and permission them `0600` under the **actual
+operator HOME**:
 
 ```text
-~/.config/nabla/talos/talosconfig
-~/.config/nabla/talos/kubeconfig
+$HOME/.config/nabla/talos/talosconfig
+$HOME/.config/nabla/talos/kubeconfig
 ```
+
+TrueNAS may place a persistent user HOME under a pool dataset (for example,
+`/mnt/cpool/home/albandrieu`) rather than `/home/albandrieu`. Never create a
+second credential tree under a hard-coded `/home/<user>`; use `$HOME` and
+verify it with `getent passwd "$USER" | cut -d: -f6`.
 
 The operator helper persists the expected environment:
 
@@ -98,7 +112,8 @@ directory and set to mode `0600`, validate the operator contract first:
 bash scripts/talos/configure-operator-client.sh --check
 ```
 
-Then run:
+Then run **as the non-root operator** (do not use `sudo`, which intentionally
+changes HOME/PATH and therefore does not inherit the operator credentials):
 
 ```bash
 talosctl version --client

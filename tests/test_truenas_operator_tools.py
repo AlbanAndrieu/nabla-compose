@@ -33,6 +33,10 @@ class TrueNASOperatorToolsContractTest(unittest.TestCase):
         self.assertIn('require_tools_root_writable', script)
         self.assertIn('read-only for the current account; this is expected for a non-root operator', script)
         self.assertIn('dataset API check unavailable to the current account', script)
+        self.assertIn('--install must run as root', script)
+        self.assertIn('install -d -o root -g root -m 0755', script)
+        self.assertIn('non-root operator can modify ${TOOLS_BIN}', script)
+        self.assertIn('non-root operator cannot replace binaries', script)
 
     def test_architecture_is_derived_each_run(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")

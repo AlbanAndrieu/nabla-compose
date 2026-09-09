@@ -106,6 +106,31 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertEqual(sc["volumeBindingMode"], "Immediate")
         self.assertTrue(sc["allowVolumeExpansion"])
 
+    def test_preflight_requires_parent_mountpoint_and_timeout(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "validate-csi-prereqs.sh"
+        ).read_text()
+        self.assertIn("TRUENAS_CSI_DATASET", text)
+        self.assertIn("cpool/k8s/csi", text)
+        self.assertIn("TRUENAS_CSI_MOUNTPOINT", text)
+        self.assertIn("/mnt/cpool/k8s/csi", text)
+        self.assertIn("timeout", text)
+        self.assertIn("TrueNAS CSI parent mountpoint exists", text)
+        self.assertIn("pool.dataset.query", text)
+        self.assertIn("dataset API verification unavailable", text)
+
+    def test_install_surfaces_bounded_node_rollout_diagnostics(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("CSI_ROLLOUT_TIMEOUT", text)
+        self.assertIn("dump_node_rollout_diagnostics", text)
+        self.assertIn("desiredNumberScheduled", text)
+        self.assertIn("numberReady", text)
+        self.assertIn("get events --sort-by=.lastTimestamp", text)
+        self.assertIn("csi-node-driver-registrar", text)
+        self.assertIn("did not become Ready within", text)
+
     def test_install_script_keeps_secret_runtime_only(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"

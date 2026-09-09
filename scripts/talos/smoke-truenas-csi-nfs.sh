@@ -7,6 +7,7 @@ source "${ROOT}/scripts/talos/lib/client-config.sh"
 nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
 KEEP=false
+CLEANUP_DONE=false
 NAMESPACE="nabla-csi-smoke"
 PVC="nabla-csi-rwx"
 STORAGE_CLASS="nabla-truenas-nfs"
@@ -76,7 +77,9 @@ cleanup() {
     printf 'ℹ️  --keep selected; namespace %s retained for inspection\n' "${NAMESPACE}"
     return
   fi
-  kubectl delete namespace "${NAMESPACE}" --wait=false >/dev/null 2>&1 || true
+  if [[ "${CLEANUP_DONE}" != "true" ]]; then
+    kubectl delete namespace "${NAMESPACE}" --wait=false >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -106,7 +109,12 @@ for _ in $(seq 1 90); do
 done
 [[ "${phase}" == "Bound" ]] || fail "PVC did not become Bound"
 pv="$(kubectl -n "${NAMESPACE}" get pvc "${PVC}" -o jsonpath='{.spec.volumeName}')"
+volume_handle="$(kubectl get pv "${pv}" -o jsonpath='{.spec.csi.volumeHandle}')"
+[[ "${volume_handle}" == cpool/k8s/csi/* ]] ||
+  fail "unexpected TrueNAS CSI volumeHandle: ${volume_handle:-missing}"
+truenas_share_path="/mnt/${volume_handle}"
 ok "PVC ${PVC} is Bound to ${pv}"
+ok "TrueNAS volume handle: ${volume_handle}"
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -177,4 +185,27 @@ reader_value="$(kubectl -n "${NAMESPACE}" exec csi-reader -- cat /data/marker)"
 [[ "${reader_value}" == "${MARKER}" ]] || fail "reader marker verification failed"
 ok "marker persisted and was read from different worker ${reader_node}"
 
-printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s.\n'   "${writer_node}" "${reader_node}"
+if [[ "${KEEP}" == "true" ]]; then
+  printf 'ℹ️  retained TrueNAS dataset=%s share_path=%s for inspection\n'     "${volume_handle}" "${truenas_share_path}"
+  printf '✅ TrueNAS NFS CSI persistence smoke passed with resources retained: PVC Bound, write on %s, read on %s.\n'     "${writer_node}" "${reader_node}"
+  exit 0
+fi
+
+printf '🔎 deleting disposable CSI smoke namespace and waiting for PV reclaim\n'
+kubectl delete namespace "${NAMESPACE}" --wait=true >/dev/null
+CLEANUP_DONE=true
+
+pv_deleted=false
+for _ in $(seq 1 90); do
+  if ! kubectl get pv "${pv}" >/dev/null 2>&1; then
+    pv_deleted=true
+    break
+  fi
+  sleep 2
+done
+[[ "${pv_deleted}" == "true" ]] ||
+  fail "PV ${pv} was not reclaimed after namespace/PVC deletion"
+ok "Kubernetes PV ${pv} reclaimed after PVC deletion"
+
+printf 'ℹ️  verify TrueNAS reclaim: dataset=%s share_path=%s\n'   "${volume_handle}" "${truenas_share_path}"
+printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s, Kubernetes PV reclaimed.\n'   "${writer_node}" "${reader_node}"

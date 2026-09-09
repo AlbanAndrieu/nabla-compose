@@ -72,19 +72,24 @@ bash scripts/talos/configure-operator-client.sh --apply
 . ~/.profile
 ```
 
-Copy the existing trusted workstation configs into:
+Copy the existing trusted workstation configs into the **actual operator HOME**:
 
 ```text
-/home/albandrieu/.config/nabla/talos/talosconfig
-/home/albandrieu/.config/nabla/talos/kubeconfig
+$HOME/.config/nabla/talos/talosconfig
+$HOME/.config/nabla/talos/kubeconfig
 ```
+
+On this TrueNAS host, `albandrieu` currently has a persistent HOME under
+`/mnt/cpool/home/albandrieu`, so do not hard-code `/home/albandrieu`.
+Confirm it first with `printf '%s\n' "$HOME"` or
+`getent passwd "$USER" | cut -d: -f6`.
 
 and enforce:
 
 ```bash
-chmod 700 ~/.config/nabla/talos
-chmod 600 ~/.config/nabla/talos/talosconfig
-chmod 600 ~/.config/nabla/talos/kubeconfig
+chmod 700 "$HOME/.config/nabla/talos"
+chmod 600 "$HOME/.config/nabla/talos/talosconfig"
+chmod 600 "$HOME/.config/nabla/talos/kubeconfig"
 bash scripts/talos/configure-operator-client.sh --check
 ```
 
@@ -107,6 +112,9 @@ The CSI preflight verifies:
 - all three Kubernetes nodes are `Ready`;
 - at least two workers exist for cross-node persistence;
 - TrueNAS TCP/2049 is reachable;
+- the parent mountpoint `/mnt/cpool/k8s/csi` exists;
+- when the current operator can query TrueNAS datasets, `cpool/k8s/csi`
+  resolves to that exact mountpoint;
 - the CSI version and images are pinned;
 - the tracked manifest contains no iSCSI host dependencies;
 - the manifests pass `kubectl --dry-run=client`;
@@ -165,7 +173,10 @@ The helper:
 1. creates/reconciles namespace `truenas-csi`;
 2. creates `truenas-api-credentials` from the runtime key;
 3. applies the NFS-only controller/node manifest;
-4. waits for the controller Deployment and node DaemonSet;
+4. waits for the controller Deployment and node DaemonSet with a bounded
+   timeout (`CSI_ROLLOUT_TIMEOUT`, default `180s`); on node rollout failure,
+   prints DaemonSet readiness, pod scheduling/wait reasons, recent events, and
+   bounded CSI-node/registrar logs;
 5. registers `csi.truenas.io`;
 6. applies `nabla-truenas-nfs` only after driver readiness;
 7. verifies that the StorageClass remains non-default.
@@ -194,9 +205,16 @@ The smoke must prove:
 3. that Pod is deleted;
 4. a reader Pod is forced onto a different worker B;
 5. the same marker is still readable;
-6. the disposable namespace/PVC is deleted afterward.
+6. the disposable namespace/PVC is deleted afterward;
+7. the Kubernetes PV disappears after `DeleteVolume`;
+8. the smoke prints the exact TrueNAS dataset and NFS share path that must no
+   longer exist on the appliance.
 
-Use `--keep` only when a failure needs post-mortem inspection.
+Use `--keep` only when a failure needs post-mortem inspection. With
+`--keep`, the script prints the exact TrueNAS dataset/share path retained for
+inspection. Without `--keep`, it waits for Kubernetes PV reclaim before
+success and prints the corresponding TrueNAS paths for the final appliance
+verification.
 
 ## 5. Acceptance and next gate
 
@@ -211,3 +229,33 @@ green:
 
 Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
 `test.albandrieu.com`.
+
+
+## Runtime checkpoint · first install on TrueNAS
+
+The first explicit install on TrueNAS reached this point:
+
+```text
+controller Deployment successfully rolled out
+truenas-csi-node DaemonSet created
+desired worker pods: 2
+rollout status timed out after 180s
+```
+
+Kubernetes emitted a Pod Security **warning** for the node DaemonSet because a
+CSI mount plugin necessarily uses host networking, hostPath mounts, root and
+privileged mount operations. The workload was admitted; the timeout therefore
+needs pod/event/log evidence before deciding whether the cause is image pull,
+scheduling, Talos host-path/mount readiness, registration, or CSI-node startup.
+
+Resume from this checkpoint with the improved install helper rather than
+increasing the timeout blindly. A deliberate one-off longer observation can use:
+
+```bash
+CSI_ROLLOUT_TIMEOUT=300s \
+  bash scripts/talos/install-truenas-csi-nfs.sh --apply
+```
+
+The helper is idempotent and will reconcile the already-created namespace,
+Secret, RBAC, CSIDriver, ConfigMap, controller and node DaemonSet before
+continuing to StorageClass creation.

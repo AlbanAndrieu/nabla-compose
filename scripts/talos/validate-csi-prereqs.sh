@@ -13,6 +13,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 nabla_resolve_talos_client_config "${ROOT}"
 TRUENAS_HOST="${TRUENAS_CSI_HOST:-172.17.0.24}"
+TRUENAS_CSI_DATASET="${TRUENAS_CSI_DATASET:-cpool/k8s/csi}"
+TRUENAS_CSI_MOUNTPOINT="${TRUENAS_CSI_MOUNTPOINT:-/mnt/cpool/k8s/csi}"
 EXPECTED_NODES="${K8S_EXPECTED_NODES:-3}"
 EXPECTED_WORKERS="${K8S_EXPECTED_WORKERS:-2}"
 STORAGE_CLASS="${K8S_CSI_STORAGE_CLASS:-nabla-truenas-nfs}"
@@ -30,7 +32,7 @@ ok() {
   printf '✅ %s\n' "$*"
 }
 
-for command in kubectl jq grep; do
+for command in kubectl jq grep timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -82,6 +84,23 @@ if timeout 3 bash -c "</dev/tcp/${TRUENAS_HOST}/2049" 2>/dev/null; then
   ok "TrueNAS NFS TCP/2049 reachable at ${TRUENAS_HOST}"
 else
   fail "TrueNAS NFS TCP/2049 is not reachable at ${TRUENAS_HOST}"
+fi
+
+[[ -d "${TRUENAS_CSI_MOUNTPOINT}" ]] ||
+  fail "TrueNAS CSI parent mountpoint is missing: ${TRUENAS_CSI_MOUNTPOINT}"
+ok "TrueNAS CSI parent mountpoint exists: ${TRUENAS_CSI_MOUNTPOINT}"
+
+if command -v midclt >/dev/null 2>&1 &&
+  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${TRUENAS_CSI_DATASET}\"]]" 2>/dev/null)"; then
+  dataset_count="$(jq 'length' <<<"${dataset_json}")"
+  [[ "${dataset_count}" -eq 1 ]] ||
+    fail "TrueNAS CSI parent dataset not found: ${TRUENAS_CSI_DATASET}"
+  dataset_mountpoint="$(jq -r '.[0].mountpoint // empty' <<<"${dataset_json}")"
+  [[ "${dataset_mountpoint}" == "${TRUENAS_CSI_MOUNTPOINT}" ]] ||
+    fail "TrueNAS CSI parent dataset mountpoint mismatch: ${dataset_mountpoint:-missing}"
+  ok "TrueNAS CSI parent dataset verified: ${TRUENAS_CSI_DATASET}"
+else
+  printf 'ℹ️  dataset API verification unavailable to current operator; filesystem parent check remains green\n'
 fi
 
 kubectl apply --dry-run=client -f "${DRIVER_MANIFEST}" >/dev/null

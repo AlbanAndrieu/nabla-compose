@@ -110,6 +110,7 @@ if [[ "${MODE}" == "--apply" ]]; then
   # shellcheck disable=SC2016
   ensure_profile_line 'export KUBECONFIG="$HOME/.config/nabla/talos/kubeconfig"'
 
+  ok "operator HOME detected: ${HOME}"
   ok "operator profile configured in ${PROFILE_FILE}"
   ok "private Talos config directory ready: ${CONFIG_DIR}"
   printf 'ℹ️  copy talosconfig and kubeconfig into %s, chmod 0600, then reload: . %q\n'     "${CONFIG_DIR}" "${PROFILE_FILE}"
@@ -136,4 +137,5 @@ case ":${PATH}:" in
   *) warn "current shell PATH does not contain ${TOOLS_BIN}; reload ${PROFILE_FILE}" ;;
 esac
 
+ok "operator HOME detected: ${HOME}"
 ok "Talos/Kubernetes operator client configuration is ready"

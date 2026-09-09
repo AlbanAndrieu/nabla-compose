@@ -131,6 +131,16 @@ require_tools_root_writable() {
   [[ -w "${TOOLS_ROOT}" ]] ||
     fail "tools dataset is not writable by the current operator: ${TOOLS_ROOT}; configure its owner/ACL once through the TrueNAS UI/API"
 }
+require_root_install() {
+  [[ "${EUID}" -eq 0 ]] ||
+    fail "--install must run as root; the non-root Talos/Kubernetes operator must not be able to replace client binaries"
+}
+
+secure_root_managed_layout() {
+  install -d -o root -g root -m 0755 "${TOOLS_ROOT}" "${TOOLS_BIN}"
+  install -d -o root -g root -m 0700 "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"
+}
+
 detect_arch() {
   local machine
   machine="$(uname -m)"
@@ -404,17 +414,22 @@ case "${MODE}" in
     else
       printf 'ℹ️  %s is read-only for the current account; this is expected for a non-root operator\n' "${TOOLS_ROOT}"
     fi
+    if [[ "${EUID}" -ne 0 && -w "${TOOLS_BIN}" ]]; then
+      fail "non-root operator can modify ${TOOLS_BIN}; restore root:root 0755 ownership before trusting kubectl/talosctl"
+    elif [[ "${EUID}" -ne 0 ]]; then
+      ok "non-root operator cannot replace binaries in ${TOOLS_BIN}"
+    fi
     check_tools
     ;;
   --install)
+    require_root_install
     require_commands uname curl sha256sum awk sed head tr install mv rm basename mktemp midclt jq
     ARCH="$(detect_arch)"
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
 
     ensure_dataset
     require_tools_root_writable
-    install -d -m 0755 "${TOOLS_ROOT}" "${TOOLS_BIN}"
-    install -d -m 0700 "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"
+    secure_root_managed_layout
     TMP="$(mktemp -d "${TOOLS_DOWNLOADS}/operator-tools.XXXXXX")"
 
     printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
