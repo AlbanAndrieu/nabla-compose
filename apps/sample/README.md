@@ -124,18 +124,62 @@ bash scripts/truenas/update-fastapi-sample.sh
 ```
 
 By default the helper fetches the **current `origin/master` of the
-`fastapi-sample` submodule**, builds `fastapi-sample:local` before stopping
-the running container, validates/prepares the `sample-observer` network,
-reconciles the TrueNAS observer allowlist, removes the old container, performs
-`app.update sample` + `app.redeploy sample`, then proves `/health`,
+`fastapi-sample` submodule** and resolves its package version. In
+`FASTAPI_SAMPLE_DEPLOY_MODE=auto` it first tries the immutable release image:
+
+```text
+ghcr.io/albanandrieu/fastapi-sample:<release-version>
+```
+
+When that image exists, the helper pulls it, retags it as
+`fastapi-sample:local`, and skips the expensive local Python dependency
+build. TrueNAS still owns the Custom App/container lifecycle. If the release
+image is unavailable, `auto` falls back to the repository Docker build.
+
+This matters because semantic-release changes `pyproject.toml` for every
+version. The Dockerfile copies that file before `uv sync`, so a local release
+build can invalidate the dependency layer even when `uv.lock` did not change.
+The release image is built once in GitHub Actions with the shared BuildKit/GHA
+cache instead of repeating that work on the TrueNAS host.
+
+The helper then validates/prepares the `sample-observer` network, reconciles
+the TrueNAS observer allowlist, replaces the old container, performs
+`app.update sample` + `app.redeploy sample`, and proves `/health`,
 `/v2/version` and TrueNAS WebSocket observer access.
 
-Override the upstream ref only deliberately:
+Use a stable release explicitly for the fastest reproducible deployment:
 
 ```bash
-FASTAPI_SAMPLE_REF=<branch-or-ref> \
+FASTAPI_SAMPLE_REF=1.13.10 \
   bash scripts/truenas/update-fastapi-sample.sh
 ```
+
+Deployment modes:
+
+```bash
+# Default: release image first, local build fallback.
+FASTAPI_SAMPLE_DEPLOY_MODE=auto \
+  bash scripts/truenas/update-fastapi-sample.sh
+
+# Require the immutable release image; fail instead of compiling locally.
+FASTAPI_SAMPLE_DEPLOY_MODE=pull \
+FASTAPI_SAMPLE_REF=1.13.10 \
+  bash scripts/truenas/update-fastapi-sample.sh
+
+# Force a local source build, useful for an unreleased branch.
+FASTAPI_SAMPLE_DEPLOY_MODE=build \
+FASTAPI_SAMPLE_REF=<branch-or-ref> \
+  bash scripts/truenas/update-fastapi-sample.sh
+
+# Refresh Python/Debian base images deliberately; omitted during hot iteration.
+FASTAPI_SAMPLE_DEPLOY_MODE=build \
+FASTAPI_SAMPLE_REFRESH_BASE_IMAGES=true \
+  bash scripts/truenas/update-fastapi-sample.sh
+```
+
+The local fallback intentionally reuses Docker/BuildKit base and dependency
+caches by default. Base-image refreshes belong in reviewed/scheduled security
+maintenance rather than every edit/redeploy loop.
 
 The script does not commit the parent submodule gitlink. If upstream `master`
 is newer than the revision pinned by `nabla-compose`, it prints the runtime
