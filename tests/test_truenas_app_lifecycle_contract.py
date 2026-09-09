@@ -1182,9 +1182,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         path = ROOT / "scripts/truenas/bootstrap-scrutiny-influxdb.sh"
         script = path.read_text(encoding="utf-8")
 
-        self.assertIn("scrutiny_weekly", script)
-        self.assertIn("scrutiny_monthly", script)
-        self.assertIn("scrutiny_yearly", script)
+        self.assertIn('"${BASE_BUCKET}_weekly"', script)
+        self.assertIn('"${BASE_BUCKET}_monthly"', script)
+        self.assertIn('"${BASE_BUCKET}_yearly"', script)
         self.assertIn("tsk-weekly-aggr", script)
         self.assertIn("restricted scope token", script)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
