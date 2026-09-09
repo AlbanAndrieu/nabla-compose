@@ -59,6 +59,39 @@ The current contract is:
 
 Snapshots and iSCSI are intentionally out of scope for this first gate.
 
+## 0. TrueNAS operator client
+
+Install/update the client binaries as root, but run the Kubernetes/Talos/CSI
+workflow as the non-root operator `albandrieu`.
+
+On TrueNAS as `albandrieu`:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+bash scripts/talos/configure-operator-client.sh --apply
+. ~/.profile
+```
+
+Copy the existing trusted workstation configs into:
+
+```text
+/home/albandrieu/.config/nabla/talos/talosconfig
+/home/albandrieu/.config/nabla/talos/kubeconfig
+```
+
+and enforce:
+
+```bash
+chmod 700 ~/.config/nabla/talos
+chmod 600 ~/.config/nabla/talos/talosconfig
+chmod 600 ~/.config/nabla/talos/kubeconfig
+bash scripts/talos/configure-operator-client.sh --check
+```
+
+Do not copy either file into the Git worktree and do not run the normal CSI
+workflow from root. Root is reserved for TrueNAS appliance/dataset lifecycle
+operations; `albandrieu` is the cluster operator.
+
 ## 1. Read-only preflight
 
 Run after the normal Talos network regression gate:
