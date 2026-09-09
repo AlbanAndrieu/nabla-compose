@@ -716,10 +716,20 @@ Three independent issues were encountered:
    builds the Flux text with `printf -v`, so real newlines reach InfluxDB;
 3. the first repository-managed Scrutiny app create reached Docker but failed
    because the `scrutiny` web container became unhealthy before the collector
-   could start. This is now a separate runtime diagnostic gate, not an InfluxDB
-   bootstrap failure.
+   could start;
+4. standalone startup capture then found the real application failure:
+   Scrutiny v0.9.3 attempted to create `scrutiny_new` during its WWN→UUID
+   migration and InfluxDB denied `write:orgs/<nabla>/buckets`. The original
+   token was restricted to existing bucket IDs, which is insufficient for
+   temporary create/delete/rename operations.
 
-The completed bootstrap evidence is:
+The corrected runtime token is versioned as scope v2 and is still limited to
+the `nabla` organization: read org metadata plus organization-scoped
+read/write for buckets and tasks. It is not an all-access/operator token.
+Because InfluxDB token permissions are immutable, the existing token must be
+rotated with `SCRUTINY_TOKEN_ROTATE=1`.
+
+After rotation, the expected bootstrap evidence is:
 
 ```text
 org=nabla
@@ -727,6 +737,7 @@ bucket=scrutiny
 secret=/mnt/cpool/scrutiny/.env.secrets
 mode=0600
 token=VALID
+scope=v2
 ```
 
 Use:
@@ -748,6 +759,12 @@ Scrutiny must not restart the already-healthy shared InfluxDB as a side effect
 of every cutover attempt. `deploy-scrutiny.sh --apply` now reuses a RUNNING
 InfluxDB instance by default; set `SCRUTINY_RECONCILE_INFLUXDB=1` only for an
 explicit reviewed InfluxDB reconciliation.
+
+For the approved fresh cutover, `SCRUTINY_RESET_SQLITE=1` may be supplied on
+the next apply after token rotation. The helper only accepts this while the
+TrueNAS Scrutiny app is `MISSING` and moves the interrupted
+`scrutiny.db` to a timestamped `.failed-migration-*.bak` file before startup.
+No SQLite reset occurs without this explicit flag.
 
 ### Global TrueNAS verification
 
