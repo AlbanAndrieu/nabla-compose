@@ -107,6 +107,12 @@ After the snapshot/history review is complete and
 sudo bash scripts/truenas/deploy-scrutiny.sh --check
 ```
 
+When the repository-managed Scrutiny app is still `MISSING`, this is a true
+preflight: it requires the shared InfluxDB runtime/health, validates the rendered
+Compose, discovers host SMART devices and then reports `ready=APPLY` without
+creating or updating any TrueNAS app. If Scrutiny is already `RUNNING`,
+`--check` additionally performs the full web/collector acceptance checks.
+
 For the actual repository-managed cutover:
 
 ```bash
