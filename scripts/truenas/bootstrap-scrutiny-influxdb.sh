@@ -23,9 +23,14 @@ for command in curl jq install stat mktemp sed head; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
-health="$(curl -fsS --connect-timeout 3 --max-time 8 "${INFLUX_HOST}/health")" ||
+if ! health="$(curl -fsS --connect-timeout 3 --max-time 8 "${INFLUX_HOST}/health")"; then
+  printf 'InfluxDB health probe failed at %s; collecting runtime evidence...\n' "${INFLUX_HOST}" >&2
+  if [[ -x scripts/truenas/diagnose-influxdb.sh ]]; then
+    bash scripts/truenas/diagnose-influxdb.sh --check >&2 || true
+  fi
   fail "InfluxDB is not healthy at ${INFLUX_HOST}"
-jq -e '(.status == "pass") or (.status == "ok") or (.status == "ready")'   >/dev/null <<<"${health}" ||
+fi
+jq -e '(.status == "pass") or (.status == "ok") or (.status == "ready")' >/dev/null <<<"${health}" ||
   fail "InfluxDB health payload is not passing"
 
 auth_get() {
@@ -135,7 +140,9 @@ create_task_if_missing() {
   # Scrutiny historical BYO-InfluxDB docs used "yield now()" as a
   # placeholder. InfluxDB 2.9 rejects that Flux with HTTP 400. Keep the task
   # inert but syntactically valid; Scrutiny replaces it during startup.
-  flux="option task = {name: \"${name}\", every: 1y}\n\nfrom(bucket: \"${BASE_BUCKET}\")\n  |> range(start: -1m)\n  |> limit(n: 1)"
+  printf -v flux \
+    'option task = {name: "%s", every: 1y}\n\nfrom(bucket: "%s")\n  |> range(start: -1m)\n  |> limit(n: 1)' \
+    "${name}" "${BASE_BUCKET}"
   response_file="$(mktemp)"
   http_code="$(
     curl -sS \

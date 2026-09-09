@@ -30,7 +30,7 @@ esac
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so Docker and TrueNAS runtime state are readable"
 
-for command in docker midclt jq curl; do
+for command in docker midclt jq curl awk; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -42,6 +42,40 @@ app_count="$(jq 'length' <<<"${app_json}")"
 
 app_state="$(jq -r '.[0].state // "UNKNOWN"' <<<"${app_json}")"
 failures=0
+
+printf '==> TrueNAS Wazuh app state\n'
+printf 'state=%s\n' "${app_state}"
+
+printf '\n==> Host prerequisites\n'
+if command -v sysctl >/dev/null 2>&1; then
+  vm_max_map_count="$(sysctl -n vm.max_map_count 2>/dev/null || true)"
+  printf 'vm.max_map_count=%s\n' "${vm_max_map_count:-unknown}"
+  if [[ "${vm_max_map_count:-0}" =~ ^[0-9]+$ ]] &&
+    ((vm_max_map_count < 262144)); then
+    printf '❌ vm.max_map_count must be at least 262144 for Wazuh Indexer/OpenSearch\n' >&2
+    failures=$((failures + 1))
+  fi
+fi
+
+printf '\n==> Runtime source bindings\n'
+stale_worktree=0
+for container in "${CORE_CONTAINERS[@]}"; do
+  docker inspect "${container}" >/dev/null 2>&1 || continue
+  mapfile -t repo_mounts < <(
+    docker inspect "${container}"       --format '{{range .Mounts}}{{println .Source}}{{end}}' |
+      grep '^/mnt/cpool/compose/' || true
+  )
+  if [[ "${#repo_mounts[@]}" -gt 0 ]]; then
+    printf '%s\n' "${repo_mounts[@]}" | sed "s#^#${container}: #"
+  fi
+  if printf '%s\n' "${repo_mounts[@]}" |
+    grep -Eq '/nabla-compose-pr[0-9]+/'; then
+    stale_worktree=1
+  fi
+done
+if [[ "${stale_worktree}" -eq 1 ]]; then
+  printf '⚠️ Wazuh is bound to a PR worktree; redeploy from the canonical master checkout after merge.\n'
+fi
 
 for container in "${CORE_CONTAINERS[@]}"; do
   if ! docker inspect "${container}" >/dev/null 2>&1; then
@@ -65,10 +99,21 @@ for container in "${CORE_CONTAINERS[@]}"; do
   fi
 done
 
+container_context() {
+  local container="$1"
+
+  printf '\n--- %s process/resource context ---\n' "${container}" >&2
+  docker top "${container}" -eo pid,etime,comm,args >&2 2>/dev/null | head -20 || true
+  docker stats --no-stream     --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}} pids={{.PIDs}}'     "${container}" >&2 2>/dev/null || true
+  printf '%s recent logs:\n' "${container}" >&2
+  docker logs --tail 60 "${container}" >&2 2>/dev/null || true
+}
+
 probe_https() {
   local label="$1"
   local url="$2"
   local accepted="$3"
+  local container="$4"
   local code
 
   code="$(
@@ -84,15 +129,16 @@ probe_https() {
     printf '❌ %s returned HTTP %s from %s\n' \
       "${label}" "${code:-000}" "${url}" >&2
     failures=$((failures + 1))
+    container_context "${container}"
     return
   fi
 
   printf '%s=http_%s\n' "${label}" "${code}"
 }
 
-probe_https "indexer" "https://127.0.0.1:9202/" "200|401|403"
-probe_https "manager_api" "https://127.0.0.1:55000/" "200|401|403|404"
-probe_https "dashboard" "https://127.0.0.1:8444/" "200|302|401|403"
+probe_https "indexer" "https://127.0.0.1:9202/" "200|401|403" "wazuh-indexer"
+probe_https "manager_api" "https://127.0.0.1:55000/" "200|401|403|404" "wazuh-manager"
+probe_https "dashboard" "https://127.0.0.1:8444/" "200|302|401|403" "wazuh-dashboard"
 
 if docker inspect wazuh-forwarder >/dev/null 2>&1; then
   forwarder_state="$(

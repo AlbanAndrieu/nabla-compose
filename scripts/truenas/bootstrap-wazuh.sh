@@ -6,6 +6,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 RUNTIME_DIR="${WAZUH_RUNTIME_DIR:-/mnt/cpool/wazuh}"
 CERT_DIR="${WAZUH_CERTS_DIR:-${RUNTIME_DIR}/certs}"
 SECRET_FILE="${WAZUH_SECRET_FILE:-${RUNTIME_DIR}/.env.secrets}"
+INDEXER_UID="${WAZUH_INDEXER_UID:-1000}"
+DASHBOARD_UID="${WAZUH_DASHBOARD_UID:-1000}"
 LEGACY_CERT_DIR="${ROOT}/apps/wazuh/config/wazuh_indexer_ssl_certs"
 
 fail() {
@@ -21,7 +23,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] ||
-	fail "run with sudo so Wazuh secrets and private keys remain root-owned"
+	fail "run with sudo so Wazuh secrets and certificate ownership stay controlled"
 
 for command in docker git grep openssl stat; do
 	command -v "${command}" >/dev/null 2>&1 ||
@@ -100,6 +102,22 @@ verify_runtime() {
 			fail "Wazuh certificate/key is empty: ${path}"
 	done
 
+	for name in wazuh.indexer-key.pem admin-key.pem; do
+		mode="$(stat -c '%a' "${CERT_DIR}/${name}")"
+		owner="$(stat -c '%u' "${CERT_DIR}/${name}")"
+		[[ "${mode}" == "400" ]] ||
+			fail "${CERT_DIR}/${name} must be mode 0400 (current: ${mode})"
+		[[ "${owner}" == "${INDEXER_UID}" ]] ||
+			fail "${CERT_DIR}/${name} must be owned by indexer UID ${INDEXER_UID} (current: ${owner})"
+	done
+
+	mode="$(stat -c '%a' "${CERT_DIR}/wazuh.dashboard-key.pem")"
+	owner="$(stat -c '%u' "${CERT_DIR}/wazuh.dashboard-key.pem")"
+	[[ "${mode}" == "400" ]] ||
+		fail "${CERT_DIR}/wazuh.dashboard-key.pem must be mode 0400 (current: ${mode})"
+	[[ "${owner}" == "${DASHBOARD_UID}" ]] ||
+		fail "${CERT_DIR}/wazuh.dashboard-key.pem must be owned by dashboard UID ${DASHBOARD_UID} (current: ${owner})"
+
 	docker compose -f apps/wazuh/compose.yml config --quiet --no-interpolate --no-env-resolution
 
 	printf 'OK: Wazuh runtime prerequisites are complete\n'
@@ -149,8 +167,33 @@ else
 	printf 'Preserved existing complete Wazuh TLS material\n'
 fi
 
-find "${CERT_DIR}" -type f -exec chown root:root {} +
-find "${CERT_DIR}" -type f -name '*-key.pem' -exec chmod 600 {} +
-find "${CERT_DIR}" -type f ! -name '*-key.pem' -exec chmod 644 {} +
+# The official Wazuh certificate generator deliberately assigns UID 1000 to
+# indexer/dashboard TLS material. Do not normalize every generated PEM back
+# to root:root: the 4.14.7 indexer and dashboard run as non-root and otherwise
+# fail with EACCES while opening their private keys.
+# Public certificates can remain root-owned/readable.
+for name in root-ca.pem admin.pem wazuh.indexer.pem wazuh.dashboard.pem; do
+  chown root:root "${CERT_DIR}/${name}"
+  chmod 644 "${CERT_DIR}/${name}"
+done
+
+# Private keys needed by the indexer must be owned by its runtime UID.
+for name in wazuh.indexer-key.pem admin-key.pem; do
+  chown "${INDEXER_UID}:${INDEXER_UID}" "${CERT_DIR}/${name}"
+  chmod 400 "${CERT_DIR}/${name}"
+done
+
+# Dashboard TLS key is read by the non-root dashboard runtime.
+chown "${DASHBOARD_UID}:${DASHBOARD_UID}" "${CERT_DIR}/wazuh.dashboard-key.pem"
+chmod 400 "${CERT_DIR}/wazuh.dashboard-key.pem"
+
+# Manager/Filebeat currently runs with sufficient privilege to consume its
+# root-owned key; keep those files restricted.
+for name in root-ca-manager.pem wazuh.manager.pem; do
+  chown root:root "${CERT_DIR}/${name}"
+  chmod 644 "${CERT_DIR}/${name}"
+done
+chown root:root "${CERT_DIR}/wazuh.manager-key.pem"
+chmod 600 "${CERT_DIR}/wazuh.manager-key.pem"
 
 verify_runtime

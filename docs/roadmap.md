@@ -27,8 +27,8 @@ notes remain in the specialized roadmaps:
 - [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
 - [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
 - [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [ ] Sentry 26.8 application path is externally functional, but TrueNAS remains aggregate `DEPLOYING` on 2026-09-09 because exactly two Snuba workloads are not producing the upstream `/tmp/health.txt` heartbeat: `snuba-subscription-consumer-events` and `snuba-replacer`. Recent `app.update`/`app.redeploy` jobs are `SUCCESS`, edge health and Snuba API are green, and required Kafka topics exist. Diagnose the two consumer groups/heartbeats rather than forcing another full app redeploy; require both Docker healthchecks plus aggregate `RUNNING` before closing the lifecycle gate.
-- [ ] Wazuh core runtime acceptance pending. On 2026-09-09 `bootstrap-wazuh.sh --apply` generated the API secret and all 10 TLS files under `/mnt/cpool/wazuh`, and the subsequent `--check` passed. Next gate is `deploy-wazuh.sh` followed by `diagnose-wazuh.sh --check`; keep the optional OpenSearch forwarder disabled until manager/indexer/dashboard are green.
+- [ ] Sentry 26.8 application path is externally functional, but TrueNAS remains aggregate `DEPLOYING` because `snuba-subscription-consumer-events` and `snuba-replacer` lost their Kafka heartbeat/session. The subscription consumer logged `SESSTMOUT`/group-coordinator loss around 2026-09-09 09:29 and `snuba-events-subscriptions-consumers` no longer exists, while the other Rust Snuba groups recovered. Use `recover-sentry-snuba-consumers.sh` to restart only these two consumers, then require both Docker healthchecks plus aggregate `RUNNING`; do not redeploy all 19 Sentry containers.
+- [ ] Wazuh root cause identified on 2026-09-09: the certificate generator correctly assigned non-root ownership, but `bootstrap-wazuh.sh` subsequently reset all PEM files to `root:root` and private keys to `0600`. Indexer and Dashboard therefore crashed with `EACCES` on `wazuh.indexer.key` and `wazuh-dashboard-key.pem`; manager API remained reachable (`401`). Repair indexer/dashboard key ownership to runtime UID 1000, keep manager material restricted, then redeploy from canonical `/mnt/cpool/compose/nabla-compose` to remove stale `nabla-compose-pr168` bindings. Keep the optional OpenSearch forwarder disabled until all three endpoints are green.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 - [x] Pull-request security now includes CodeQL SAST plus a live FastAPI Cloud production smoke; OWASP ZAP DAST runs only on `master`/daily to control CI cost, with a pfSense-safe read-only FastAPI OpenAPI scan, a passive TrueNAS API surface scan, and a passive `sample.albandrieu.com` web scan, while every PR requires the latest successful master DAST baseline to be no older than 36 hours.
 - [x] API-aware DAST policy — master ZAP now includes a safe-mode filtered FastAPI OpenAPI scan plus a passive TrueNAS `/api/versions` scan when the generic runner is permitted and a passive zero-spider `sample.albandrieu.com` web scan; pfSense TCP/10443 is explicitly excluded from ZAP and load-generating tests and remains on low-frequency posture/observer checks.
@@ -112,8 +112,8 @@ green cloud observation must not mask a broken local path.
     regression gate, then make TrueNAS NFS + CSI persistence green before
     Kubara/Traefik and the immutable FastAPI ingress smoke on
     `test.albandrieu.com`.
-12. [ ] **Wazuh core — parallel** — fail-closed API/TLS bootstrap is green on 2026-09-09 (secret mode `0600`, 10 PEM files). Deploy manager/indexer/dashboard next and require `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch forwarder.
-13. [ ] **Scrutiny + InfluxDB — parallel** — use the approved fresh cutover instead of restoring the stopped native Scrutiny history. The first InfluxDB 2.9 bootstrap attempt reached task creation but returned HTTP 400 while the secret file remained empty; the helper now uses valid inactive placeholder Flux tasks and reports the response body on failure. Provision the dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, deploy the TrueNAS web + collector,
+12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
+13. [ ] **Scrutiny + InfluxDB — parallel** — use the approved fresh cutover instead of restoring the stopped native Scrutiny history. Shared InfluxDB is green again on 2026-09-09 (`RUNNING`, Docker `healthy`, host `:31055` HTTP 200 and container `:8086` healthy). Its logs still contain a stale scraper targeting legacy `172.17.0.24:30115`, which is non-blocking for Scrutiny and should be retired separately. Resume provisioning the dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, deploy the TrueNAS web + collector,
     then prove the existing workstation collector posts its own SMART inventory to
     `http://172.17.0.24:31054`. The helper discovers TrueNAS host disks with
     `smartctl --scan-open`, renders explicit device passthrough for the collector,
@@ -297,8 +297,8 @@ Sentry remains ahead of Docling/OpenRAG-LiteLLM until this gate is complete.
 - [x] `snuba-replacer` and `snuba-subscription-consumer-events` are running in the current supervised snapshot;
 - [x] allow the 600-second first-start healthcheck grace to elapse without another redeploy;
 - [x] run `scripts/truenas/diagnose-sentry.sh --check` and prove the required Kafka topics plus consumer heartbeat health (`exit=0`, `ok=8`, `failed=0`, `warnings=0` on 2026-09-08);
-- [x] require no unexpected `starting`/`unhealthy` steady-state workload (`starting_health=0`, `unhealthy=0`, `unexpected_exited=0`);
-- [x] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING`;
+- [ ] require no unexpected `starting`/`unhealthy` steady-state workload. The 2026-09-09 Kafka coordinator incident first affected two Snuba consumers and then `sentry-events-consumer` plus `sentry-attachments-consumer`; targeted restarts recovered the first pair but the latter pair still need the same bounded recovery/stability proof.
+- [ ] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING` after all Kafka-backed consumer heartbeats are stable;
 - [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
 
 
@@ -326,7 +326,7 @@ Current status after runtime stabilization:
 6. [x] Langflow runtime;
 7. [ ] AutoKuma TrueNAS registration;
 8. [ ] OpenRAG **Docling ingestion** acceptance (core runtime already green);
-9. [ ] Wazuh manager/indexer/dashboard acceptance;
+9. [x] Wazuh manager/indexer/dashboard acceptance;
 10. [x] Akvorado runtime start; validate ingestion/query path before calling it complete;
 11. [ ] ntopng / Suricata reconciliation;
 12. [ ] Pi-hole and remaining application cutovers.

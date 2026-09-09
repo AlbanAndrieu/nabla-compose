@@ -7,6 +7,7 @@ SCRUTINY_APP_ID="${SCRUTINY_APP_ID:-scrutiny}"
 SCRUTINY_SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
 WAIT_ATTEMPTS="${SCRUTINY_WAIT_ATTEMPTS:-60}"
 WAIT_DELAY="${SCRUTINY_WAIT_DELAY_SECONDS:-2}"
+RECONCILE_INFLUXDB="${SCRUTINY_RECONCILE_INFLUXDB:-0}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -279,11 +280,40 @@ fi
 printf 'NOTE: this helper does not create/restore historical buckets or mint tokens.\n'
 printf '      It only performs the reviewed runtime cutover after those prerequisites exist.\n'
 
-reconcile_app_include "${INFLUX_APP_ID}" "${ROOT}/apps/influxdb/compose.yml"
-wait_http "InfluxDB" "http://127.0.0.1:31055/health" >/dev/null
+influx_state="$(app_state "${INFLUX_APP_ID}")"
+case "${influx_state}" in
+  MISSING)
+    printf 'Shared InfluxDB app is missing; creating it before Scrutiny cutover.\n'
+    reconcile_app_include "${INFLUX_APP_ID}" "${ROOT}/apps/influxdb/compose.yml"
+    ;;
+  RUNNING)
+    if [[ "${RECONCILE_INFLUXDB}" == "1" ]]; then
+      printf 'Explicit SCRUTINY_RECONCILE_INFLUXDB=1: reconciling shared InfluxDB.\n'
+      reconcile_app_include "${INFLUX_APP_ID}" "${ROOT}/apps/influxdb/compose.yml"
+    else
+      printf 'Reusing healthy shared InfluxDB without redeploying it.\n'
+    fi
+    ;;
+  *)
+    fail "InfluxDB TrueNAS state is ${influx_state}; run scripts/truenas/diagnose-influxdb.sh --check before Scrutiny cutover"
+    ;;
+esac
+verify_influx_runtime
 
 scrutiny_compose="$(render_scrutiny_compose)"
-reconcile_app_string "${SCRUTINY_APP_ID}" "${scrutiny_compose}"
-wait_http "Scrutiny" "http://172.17.0.24:31054/api/health" >/dev/null
+if ! reconcile_app_string "${SCRUTINY_APP_ID}" "${scrutiny_compose}"; then
+  printf 'Scrutiny reconcile failed; collecting runtime evidence.\n' >&2
+  if [[ -f scripts/truenas/diagnose-scrutiny.sh ]]; then
+    DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-scrutiny.sh --check >&2 || true
+  fi
+  fail "Scrutiny TrueNAS app reconcile failed"
+fi
+
+if ! wait_http "Scrutiny" "http://172.17.0.24:31054/api/health" >/dev/null; then
+  if [[ -f scripts/truenas/diagnose-scrutiny.sh ]]; then
+    DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-scrutiny.sh --check >&2 || true
+  fi
+  fail "Scrutiny web health did not converge"
+fi
 
 verify_runtime

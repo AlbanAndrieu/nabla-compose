@@ -115,6 +115,8 @@ unexpected_exit_count=0
 one_shot_failure_count=0
 kafka_topic_failure_count=0
 kafka_topic_probe_available=0
+session_timeout_detected=0
+missing_subscription_group=0
 
 for id in "${container_ids[@]}"; do
   inspect="$(docker inspect "${id}")"
@@ -173,9 +175,13 @@ sock.close()
       fi
     done
     printf '  recent_diagnostic_logs:\n'
-    docker logs --since 15m "${id}" 2>&1 |
-      grep -Ei 'error|exception|traceback|kafka|clickhouse|redis|timeout|health|stuck|rebalance|partition|topic' |
+    diagnostic_logs="$(docker logs --since 24h "${id}" 2>&1 | tail -200 || true)"
+    grep -Ei 'error|exception|traceback|kafka|clickhouse|redis|timeout|health|stuck|rebalance|partition|topic|coordinator'       <<<"${diagnostic_logs}" |
       tail -80 || true
+    if grep -Eqi 'SESSTMOUT|session timed out|group coordinator' <<<"${diagnostic_logs}"; then
+      session_timeout_detected=1
+      printf '  ⚠️ Kafka consumer session/coordinator timeout detected in recent logs\n'
+    fi
   fi
 
   case "${service}" in
@@ -252,31 +258,51 @@ else
   printf '⚠️ kafka-topics CLI unavailable in shared Kafka container %s\n' "${kafka_name}"
 fi
 
-printf '\n==> unhealthy Snuba consumer-group evidence\n'
+printf '\n==> unhealthy Kafka consumer-group evidence\n'
 if [[ "${kafka_topic_probe_available}" -eq 1 ]]; then
-  mapfile -t unhealthy_snuba_services < <(
+  mapfile -t unhealthy_consumer_services < <(
     for id in "${container_ids[@]}"; do
       inspect="$(docker inspect "${id}")"
       service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // ""' <<<"${inspect}")"
       health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
-      if [[ "${health}" == "unhealthy" && "${service}" == snuba-* ]]; then
+      if [[ "${health}" == "unhealthy" && ( "${service}" == snuba-* || "${service}" == "sentry-events-consumer" || "${service}" == "sentry-attachments-consumer" ) ]]; then
         printf '%s\n' "${service}"
       fi
     done
   )
-  if [[ "${#unhealthy_snuba_services[@]}" -eq 0 ]]; then
-    printf 'No unhealthy Snuba consumers require Kafka group inspection.\n'
+  if [[ "${#unhealthy_consumer_services[@]}" -eq 0 ]]; then
+    printf 'No unhealthy Sentry Kafka consumers require group inspection.\n'
   else
-    printf 'Unhealthy Snuba services: %s\n' "${unhealthy_snuba_services[*]}"
+    printf 'Unhealthy Kafka consumer services: %s\n' "${unhealthy_consumer_services[*]}"
     printf 'Relevant Kafka consumer groups:\n'
     docker exec "${kafka_container_id}" kafka-consumer-groups --bootstrap-server kafka:9092 --list 2>/dev/null |
       grep -E 'snuba|replac|subscription' || true
-    if printf '%s\n' "${unhealthy_snuba_services[@]}" | grep -Fxq 'snuba-subscription-consumer-events'; then
+    if printf '%s\n' "${unhealthy_consumer_services[@]}" | grep -Fxq 'snuba-subscription-consumer-events'; then
       printf '\nConsumer group snuba-events-subscriptions-consumers:\n'
-      docker exec "${kafka_container_id}" kafka-consumer-groups \
-        --bootstrap-server kafka:9092 \
-        --describe \
-        --group snuba-events-subscriptions-consumers 2>&1 || true
+      group_detail="$(
+        docker exec "${kafka_container_id}" kafka-consumer-groups \
+          --bootstrap-server kafka:9092 \
+          --describe \
+          --group snuba-events-subscriptions-consumers 2>&1 || true
+      )"
+      printf '%s\n' "${group_detail}"
+      if grep -Fq "does not exist" <<<"${group_detail}"; then
+        missing_subscription_group=1
+      fi
+    fi
+    if printf '%s\n' "${unhealthy_consumer_services[@]}" |
+      grep -Eq '^(sentry-events-consumer|sentry-attachments-consumer)$'; then
+      printf '\nConsumer group ingest-consumer:\n'
+      ingest_group_detail="$(
+        docker exec "${kafka_container_id}" kafka-consumer-groups \
+          --bootstrap-server kafka:9092 \
+          --describe \
+          --group ingest-consumer 2>&1 || true
+      )"
+      printf '%s\n' "${ingest_group_detail}"
+      if grep -Fq "does not exist" <<<"${ingest_group_detail}"; then
+        missing_subscription_group=1
+      fi
     fi
     printf '\nNOTE: a running process with network connectivity but no /tmp/health.txt is not accepted as healthy.\n'
     printf 'The upstream Sentry compose uses the same heartbeat-file health contract for these Snuba consumers.\n'
@@ -320,6 +346,18 @@ printf 'TrueNAS state=%s starting_health=%d unhealthy=%d unexpected_exited=%d on
   "${unexpected_exit_count}" "${one_shot_failure_count}" "${kafka_topic_failure_count}"
 if ((kafka_topic_probe_available == 0)); then
   printf '⚠️ Kafka topic verification was unavailable; connectivity checks remain diagnostic evidence only.\n'
+fi
+
+if ((unhealthy_count > 0 && missing_subscription_group > 0)); then
+  printf '⚠️ Unhealthy Sentry consumers currently have a missing Kafka consumer group.\n'
+  printf '   Do not redeploy the whole Sentry app. Run the targeted recovery helper:\n'
+  printf '   sudo bash scripts/truenas/recover-sentry-snuba-consumers.sh\n'
+  printf '   Then rerun diagnose-sentry.sh --check.\n'
+elif ((unhealthy_count > 0 && session_timeout_detected > 0)); then
+  printf '⚠️ Unhealthy Sentry consumers have recent Kafka session/coordinator timeout evidence.\n'
+  printf '   The group currently exists, so inspect the current heartbeat/group assignment before restarting again.\n'
+elif ((unhealthy_count == 0 && session_timeout_detected > 0)); then
+  printf 'ℹ️ Historical Kafka session timeout evidence exists, but no Sentry Kafka consumer is currently unhealthy.\n'
 fi
 
 if [[ "${app_state}" == "DEPLOYING" && "${starting_count}" -gt 0 ]]; then
