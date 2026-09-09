@@ -31,6 +31,7 @@ notes remain in the specialized roadmaps:
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
 - [x] Pull-request security now includes CodeQL SAST plus a live FastAPI Cloud production smoke; OWASP ZAP DAST runs only on `master`/daily to control CI cost, while every PR requires the latest successful master DAST baseline to be no older than 36 hours.
+- [ ] FastAPI Cloud response-header hardening — production currently lacks `X-Content-Type-Options: nosniff`, anti-framing (`X-Frame-Options` or CSP `frame-ancestors`) and HSTS. CI carries only these three explicit temporary baseline exceptions; remove each exception when the production header is fixed.
 - [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
