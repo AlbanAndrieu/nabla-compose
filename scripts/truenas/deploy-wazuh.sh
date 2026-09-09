@@ -43,7 +43,6 @@ if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
       }
     }'
   )"
-  midclt call -j app.redeploy "${APP_ID}"
 else
   printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
   wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
