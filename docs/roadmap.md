@@ -417,5 +417,8 @@ Reference design: `docs/operator-scripts-refactor.md`.
   cutover preflight reports InfluxDB=RUNNING, SMART=VISIBLE and target=MISSING.
 - [ ] runtime acceptance: the reviewed fresh cutover is now in progress with
   `SCRUTINY_RESET_SQLITE=1`. Require TrueNAS `RUNNING`, web/API health,
-  SMART visibility on the TrueNAS collector and a successful workstation
-  collector submission before marking Scrutiny complete.
+  SMART visibility on the TrueNAS collector, a fresh workstation
+  `verify-scrutiny-workstation-collector.sh --submit`, then
+  `verify-scrutiny-collectors.sh` proving both `host_id=truenas` and
+  `host_id=albandrieu` are present in `/api/summary` with fresh SMART
+  timestamps before marking Scrutiny complete.
