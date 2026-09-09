@@ -1,0 +1,16 @@
+# OWASP ZAP passive policy for sample.albandrieu.com web.
+#
+# Passive WARN findings stay visible. High-signal findings below fail the
+# master DAST. Unlike the FastAPI production API policy, this file carries no
+# temporary response-header IGNORE debt.
+10003	FAIL	(Vulnerable JavaScript Library)
+10010	FAIL	(Cookie No HttpOnly Flag)
+10011	FAIL	(Cookie Without Secure Flag)
+10023	FAIL	(Information Disclosure - Debug Error Messages)
+10024	FAIL	(Information Disclosure - Sensitive Information in URL)
+10025	FAIL	(Information Disclosure - Sensitive Information in HTTP Referrer Header)
+10033	FAIL	(Directory Browsing)
+10040	FAIL	(Secure Pages Include Mixed Content)
+10098	FAIL	(Cross-Domain Misconfiguration)
+10105	FAIL	(Weak Authentication Method)
+90022	FAIL	(Application Error Disclosure)

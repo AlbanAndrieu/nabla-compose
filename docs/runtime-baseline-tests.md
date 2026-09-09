@@ -83,10 +83,11 @@ heavier DAST scan:
 - every non-draft PR targeting `master` runs the live integration and HTTP
   security baseline against `https://fastapi-sample.fastapicloud.dev`;
 - `master` pushes, the daily schedule and manual dispatch run the same smoke,
-  a bounded performance pass and two bounded ZAP checks: the filtered FastAPI
-  OpenAPI surface and the public TrueNAS API transport when the runner is permitted;
+  a bounded performance pass and three bounded ZAP checks: the filtered FastAPI
+  OpenAPI surface, the public TrueNAS API transport when the runner is permitted,
+  and the `sample.albandrieu.com` web entry point;
 - the FastAPI OpenAPI scan runs in ZAP safe mode (`-S`) against a generated
-  read-only specification; the TrueNAS checks use passive
+  read-only specification; the TrueNAS and sample web checks use passive
   zero-spider-budget baselines; active/mutating attack scanning is excluded;
 - PRs do not rerun ZAP. Instead `DAST master baseline gate` requires the latest
   completed `master` DAST to be successful and no older than 36 hours;
@@ -111,9 +112,10 @@ cover repository IaC/configuration concerns that CodeQL does not model.
 The integration/performance target remains
 `https://fastapi-sample.fastapicloud.dev`. DAST intentionally also validates
 the public TrueNAS API transport at
-`https://truenas.albandrieu.com:7000/api/versions`. These checks are bounded and
-read-only; they must not be expanded to the pfSense management API. The TrueNAS
-scan is skipped when the generic GitHub runner is denied or source-filtered.
+`https://truenas.albandrieu.com:7000/api/versions` and the web entry point at
+`https://sample.albandrieu.com`. These checks are bounded and read-only; they
+must not be expanded to the pfSense management API. The TrueNAS scan is skipped
+when the generic GitHub runner is denied or source-filtered.
 
 The pre/post-deploy smoke also verifies the production
 `/api/homelab/status` and `/api/runtime/topology` contracts so a green
@@ -129,7 +131,7 @@ browsing, mixed content, cross-domain misconfiguration, weak authentication and
 application error disclosure) to `FAIL`.
 
 Only the FastAPI API policy carries the three already-known response-header
-debts as `IGNORE`: rules 10020, 10021 and 10035. The TrueNAS
+debts as `IGNORE`: rules 10020, 10021 and 10035. The TrueNAS and sample web
 policies carry no IGNORE entries. Do not expand an IGNORE list merely to make CI
 green.
 
