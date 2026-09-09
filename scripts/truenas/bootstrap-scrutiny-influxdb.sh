@@ -122,15 +122,47 @@ create_task_if_missing() {
   local name="$1"
   local id
   local flux
+  local response_file
+  local http_code
+  local message
+
   id="$(task_id "${admin_token}" "${org_id}" "${name}")"
   if [[ -n "${id}" ]]; then
     printf '%s\n' "${id}"
     return 0
   fi
 
-  flux="option task = {name: \"${name}\", every: 1y}\nyield now()"
-  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/tasks"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg orgID "${org_id}"       --arg flux "${flux}"       '{orgID:$orgID,flux:$flux}')" |
-    jq -r '.id'
+  # Scrutiny historical BYO-InfluxDB docs used "yield now()" as a
+  # placeholder. InfluxDB 2.9 rejects that Flux with HTTP 400. Keep the task
+  # inert but syntactically valid; Scrutiny replaces it during startup.
+  flux="option task = {name: \"${name}\", every: 1y}\n\nfrom(bucket: \"${BASE_BUCKET}\")\n  |> range(start: -1m)\n  |> limit(n: 1)"
+  response_file="$(mktemp)"
+  http_code="$(
+    curl -sS \
+      --connect-timeout 3 \
+      --max-time 10 \
+      -o "${response_file}" \
+      -w '%{http_code}' \
+      -X POST "${INFLUX_HOST}/api/v2/tasks" \
+      -H "Authorization: Token ${admin_token}" \
+      -H "Content-Type: application/json" \
+      --data-binary "$(jq -cn \
+        --arg orgID "${org_id}" \
+        --arg flux "${flux}" \
+        '{orgID:$orgID,flux:$flux,status:"inactive"}')"
+  )" || {
+    rm -f "${response_file}"
+    fail "InfluxDB task create request failed for ${name}"
+  }
+
+  if [[ ! "${http_code}" =~ ^2 ]]; then
+    message="$(jq -r '.message // .error // .err // "unknown error"' "${response_file}" 2>/dev/null || cat "${response_file}")"
+    rm -f "${response_file}"
+    fail "InfluxDB task create failed for ${name}: HTTP ${http_code}: ${message}"
+  fi
+
+  jq -r '.id' "${response_file}"
+  rm -f "${response_file}"
 }
 
 base_id="$(create_bucket_if_missing "${BASE_BUCKET}")"
