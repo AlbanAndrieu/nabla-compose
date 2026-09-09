@@ -19,7 +19,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
-for command in curl jq install stat mktemp; do
+for command in curl jq install stat mktemp sed head; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
