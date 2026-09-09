@@ -173,6 +173,14 @@ repos:
         files: >-
           ^([.]github/workflows/(?:codeql|production-security|runtime-baseline)[.]ya?ml|[.]zap/(?:rules|truenas-rules)[.]tsv|config/security/production-http-baseline[.]json|scripts/security/prepare-zap-openapi[.]py|tests/(?:test_security_ci_contract|test_prepare_zap_openapi)[.]py|docs/runtime-baseline-tests[.]md)$
 
+      - id: truenas-operator-tools-contract
+        name: "🧰 truenas · Validate operator tools installer"
+        language: system
+        entry: python -m unittest tests.test_truenas_operator_tools -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/truenas/install-operator-tools[.]sh|docs/truenas-operator-tools[.]md|tests/test_truenas_operator_tools[.]py)$
+
       - id: truenas-csi-nfs-contract
         name: "💾 kubernetes · Validate TrueNAS NFS CSI contract"
         language: python
