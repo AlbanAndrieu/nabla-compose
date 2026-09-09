@@ -117,7 +117,7 @@ green cloud observation must not mask a broken local path.
     make TrueNAS NFS + CSI persistence green before Kubara/Traefik and the
     immutable FastAPI ingress smoke on `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
-13. [ ] **Scrutiny + InfluxDB — parallel** — root cause of the web crash is now identified: Scrutiny v0.9.3 migration creates temporary `*_new` buckets and the original ID-scoped token was denied `write:orgs/<nabla>/buckets`. The follow-up changes the runtime token contract to scope v2: read org metadata plus org-scoped read/write buckets and tasks inside `nabla`, with no all-access/operator permission. Rotate the existing token, require `bootstrap-scrutiny-influxdb.sh --check` to report `scope=v2`, move the interrupted SQLite DB aside with explicit `SCRUTINY_RESET_SQLITE=1`, then retry the TrueNAS cutover. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
+13. [ ] **Scrutiny + InfluxDB — parallel** — the migration-token fix is now validated on TrueNAS: the legacy authorization `114da3d49d117000` was revoked, the replacement secret is root-owned mode `0600`, `bootstrap-scrutiny-influxdb.sh --check` reports `token=VALID scope=v2`, and `deploy-scrutiny.sh --check` discovers `/dev/sda` through `/dev/sdd` with `target=MISSING ready=APPLY`. A reviewed fresh cutover has now been started with `SCRUTINY_RESET_SQLITE=1`; acceptance remains pending until TrueNAS reports `RUNNING`, the web/API is healthy, the TrueNAS collector sees SMART devices, and the workstation collector is proven to submit its own inventory. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
     `http://172.17.0.24:31054`. The helper discovers TrueNAS host disks with
     `smartctl --scan-open`, renders explicit device passthrough for the collector,
@@ -411,8 +411,14 @@ Reference design: `docs/operator-scripts-refactor.md`.
   The bootstrap validates the returned authorization, writes the replacement
   secret atomically, records the scope version/auth ID and revokes superseded
   Scrutiny authorizations when possible.
-- [ ] runtime acceptance: rotate the currently installed v1 token, verify
-  `scope=v2`, retry standalone startup or the reviewed cutover, prove the
-  migration finishes, then require TrueNAS `RUNNING`, web/API health, SMART
-  visibility on the TrueNAS collector and a successful workstation collector
-  submission.
+- [x] runtime token rotation accepted on 2026-09-09: legacy authorization
+  `114da3d49d117000` revoked, replacement authorization installed,
+  `.env.secrets` mode `0600`, `token=VALID scope=v2`, and the Scrutiny
+  cutover preflight reports InfluxDB=RUNNING, SMART=VISIBLE and target=MISSING.
+- [ ] runtime acceptance: the reviewed fresh cutover is now in progress with
+  `SCRUTINY_RESET_SQLITE=1`. Require TrueNAS `RUNNING`, web/API health,
+  SMART visibility on the TrueNAS collector, a fresh workstation
+  `verify-scrutiny-workstation-collector.sh --submit`, then
+  `verify-scrutiny-collectors.sh` proving both `host_id=truenas` and
+  `host_id=albandrieu` are present in `/api/summary` with fresh SMART
+  timestamps before marking Scrutiny complete.

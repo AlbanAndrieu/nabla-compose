@@ -12,6 +12,7 @@ VERSION_FILE="${ROOT}/kubernetes/truenas-csi/VERSION"
 NAMESPACE="truenas-csi"
 CREDENTIAL_RESOURCE_NAME="truenas-api-credentials"
 EXPECTED_VERSION="v1.0.3"
+ROLLOUT_TIMEOUT="${CSI_ROLLOUT_TIMEOUT:-180s}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -20,6 +21,36 @@ fail() {
 
 ok() {
   printf '✅ %s\n' "$*"
+}
+
+dump_node_rollout_diagnostics() {
+  local pod
+
+  printf '⚠️  TrueNAS CSI node rollout diagnostics\n' >&2
+  kubectl -n "${NAMESPACE}" get daemonset truenas-csi-node \
+    -o custom-columns='NAME:.metadata.name,DESIRED:.status.desiredNumberScheduled,CURRENT:.status.currentNumberScheduled,READY:.status.numberReady,AVAILABLE:.status.numberAvailable,MISSCHEDULED:.status.numberMisscheduled' \
+    2>/dev/null || true
+
+  kubectl -n "${NAMESPACE}" get pods -l app=truenas-csi-node -o wide 2>/dev/null || true
+
+  kubectl -n "${NAMESPACE}" get pods -l app=truenas-csi-node \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.nodeName}{"\t"}{range .status.containerStatuses[*]}{.name}={.state.waiting.reason}{.state.terminated.reason}{" restarts="}{.restartCount}{";"}{end}{"\n"}{end}' \
+    2>/dev/null || true
+
+  printf 'ℹ️  recent truenas-csi events\n' >&2
+  kubectl -n "${NAMESPACE}" get events --sort-by=.lastTimestamp 2>/dev/null |
+    tail -n 30 || true
+
+  while IFS= read -r pod; do
+    [[ -n "${pod}" ]] || continue
+    printf 'ℹ️  %s csi-node logs (tail 40)\n' "${pod}" >&2
+    kubectl -n "${NAMESPACE}" logs "${pod}" -c csi-node --tail=40 2>/dev/null || true
+    printf 'ℹ️  %s registrar logs (tail 20)\n' "${pod}" >&2
+    kubectl -n "${NAMESPACE}" logs "${pod}" -c csi-node-driver-registrar --tail=20 2>/dev/null || true
+  done < <(
+    kubectl -n "${NAMESPACE}" get pods -l app=truenas-csi-node \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true
+  )
 }
 
 case "${MODE}" in
@@ -89,8 +120,11 @@ printf '%s' "${TRUENAS_CSI_API_KEY}" |
 ok "CSI credential Secret reconciled without exposing the key in argv or output"
 
 kubectl apply -f "${DRIVER_MANIFEST}"
-kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout=180s
-kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeout=180s
+kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout="${ROLLOUT_TIMEOUT}"
+if ! kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeout="${ROLLOUT_TIMEOUT}"; then
+  dump_node_rollout_diagnostics
+  fail "TrueNAS CSI node DaemonSet did not become Ready within ${ROLLOUT_TIMEOUT}; inspect the diagnostics above before retrying"
+fi
 
 kubectl get csidriver csi.truenas.io >/dev/null
 ok "CSIDriver csi.truenas.io registered"

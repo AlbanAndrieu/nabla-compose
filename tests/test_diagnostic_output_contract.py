@@ -39,7 +39,9 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXUSR)
         self.assertIn("DIAGNOSTIC_LOG_DIR", wrapper.read_text(encoding="utf-8"))
         self.assertIn("DIAGNOSTIC_SUMMARY_LINES", wrapper.read_text(encoding="utf-8"))
-        self.assertIn("install -m 600 /dev/null", wrapper.read_text(encoding="utf-8"))
+        wrapper_text = wrapper.read_text(encoding="utf-8")
+        self.assertIn("mktemp", wrapper_text)
+        self.assertNotIn('install -d -m 700 "${log_dir}"', wrapper_text)
 
     def test_large_diagnostics_use_compact_interactive_wrapper(self) -> None:
         for relative in self.WRAPPED_SCRIPTS:
@@ -49,6 +51,40 @@ class DiagnosticOutputContractTest(unittest.TestCase):
                 self.assertIn("DIAGNOSTIC_FULL_OUTPUT", script)
                 self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
                 self.assertIn("run-diagnostic.sh", script)
+
+    def test_wrapper_does_not_change_existing_shared_log_directory_mode(self) -> None:
+        wrapper = ROOT / "scripts/run-diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            shared = base / "shared"
+            shared.mkdir(mode=0o777)
+            shared.chmod(0o777)
+            target = base / "sample-diagnostic.sh"
+            target.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'OK: shared directory preserved\\n'\n",
+                encoding="utf-8",
+            )
+
+            before = stat.S_IMODE(shared.stat().st_mode)
+            env = os.environ.copy()
+            env["DIAGNOSTIC_LOG_DIR"] = str(shared)
+
+            result = subprocess.run(
+                ["bash", str(wrapper), str(target)],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(before, stat.S_IMODE(shared.stat().st_mode))
+            reports = list(shared.glob("sample-diagnostic-*.log"))
+            self.assertEqual(1, len(reports))
+            self.assertEqual(0o600, stat.S_IMODE(reports[0].stat().st_mode))
+
 
     def test_wrapper_preserves_exit_code_and_prints_only_summary(self) -> None:
         wrapper = ROOT / "scripts/run-diagnostic.sh"

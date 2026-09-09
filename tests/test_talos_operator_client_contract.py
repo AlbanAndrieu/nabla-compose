@@ -23,6 +23,7 @@ class TalosOperatorClientContractTest(unittest.TestCase):
         self.assertIn('export KUBECONFIG="$HOME/.config/nabla/talos/kubeconfig"', text)
         self.assertIn("must be mode 0600", text)
         self.assertIn("must be owned by the current operator UID", text)
+        self.assertIn("operator HOME detected:", text)
         self.assertNotIn("touch ", text)
         self.assertNotIn("sudo ", text)
         self.assertTrue(mode & stat.S_IXUSR)
