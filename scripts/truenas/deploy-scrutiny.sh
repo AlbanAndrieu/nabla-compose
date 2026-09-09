@@ -210,18 +210,13 @@ reconcile_app_string() {
   fi
 }
 
-verify_runtime() {
+verify_influx_runtime() {
   local influx_state
-  local scrutiny_state
   local influx_payload
 
   influx_state="$(app_state "${INFLUX_APP_ID}")"
-  scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
-
   [[ "${influx_state}" == "RUNNING" ]] ||
     fail "InfluxDB TrueNAS state is ${influx_state}"
-  [[ "${scrutiny_state}" == "RUNNING" ]] ||
-    fail "Scrutiny TrueNAS state is ${scrutiny_state}"
 
   influx_payload="$(wait_http "InfluxDB" "http://127.0.0.1:31055/health")"
   jq -e '
@@ -230,6 +225,15 @@ verify_runtime() {
     or (.status == "ready")
   ' >/dev/null <<<"${influx_payload}" ||
     fail "InfluxDB health payload is not passing"
+}
+
+verify_runtime() {
+  local scrutiny_state
+
+  verify_influx_runtime
+  scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
+  [[ "${scrutiny_state}" == "RUNNING" ]] ||
+    fail "Scrutiny TrueNAS state is ${scrutiny_state}"
 
   wait_http "Scrutiny" "http://172.17.0.24:31054/api/health" >/dev/null
 
@@ -252,7 +256,22 @@ verify_runtime() {
 }
 
 if [[ "${MODE}" == "--check" ]]; then
-  verify_runtime
+  scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
+
+  verify_influx_runtime
+  render_scrutiny_compose >/dev/null
+
+  case "${scrutiny_state}" in
+    RUNNING)
+      verify_runtime
+      ;;
+    MISSING)
+      printf '✅ Scrutiny cutover preflight: InfluxDB=RUNNING SMART=VISIBLE target=MISSING ready=APPLY\n'
+      ;;
+    *)
+      fail "Scrutiny TrueNAS state is ${scrutiny_state}; expected RUNNING or MISSING"
+      ;;
+  esac
   exit 0
 fi
 
