@@ -65,9 +65,14 @@ and connect over the shared Docker network:
 http://influxdb:8086
 ```
 
-Do not give Scrutiny the InfluxDB administrator token. Restart the standalone
-Scrutiny stack only after InfluxDB reports healthy and the expected historical
-bucket is visible.
+Do not give Scrutiny the InfluxDB administrator token. The current fresh
+cutover uses organization `nabla` with base bucket `scrutiny`; historical
+native Scrutiny data is not a cutover requirement. Scrutiny v0.9.3 needs a
+dedicated scope-v2 runtime token with read/write access to buckets and tasks
+inside `nabla` because its migration creates temporary `*_new` buckets.
+Generate/rotate that token with
+`scripts/truenas/bootstrap-scrutiny-influxdb.sh` and require
+`--check` to report `scope=v2` before starting Scrutiny.
 
 ## Rollback
 
