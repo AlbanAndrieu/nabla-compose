@@ -108,10 +108,14 @@ green cloud observation must not mask a broken local path.
    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
    healthy); finish the synthetic event proof as part of the local FastAPI gate.
 11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
-    finish VM-autostart persistence, rerun the Talos/CoreDNS/Flannel network
-    regression gate, then make TrueNAS NFS + CSI persistence green before
-    Kubara/Traefik and the immutable FastAPI ingress smoke on
-    `test.albandrieu.com`.
+    TrueNAS operator binaries are now installed persistently under
+    `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`).
+    Root owns tool installation/upgrades; `albandrieu` is the non-root cluster
+    operator. Next restore private `talosconfig` + `kubeconfig` under
+    `~/.config/nabla/talos`, run the operator check, finish VM-autostart
+    persistence, rerun the Talos/CoreDNS/Flannel network regression gate, then
+    make TrueNAS NFS + CSI persistence green before Kubara/Traefik and the
+    immutable FastAPI ingress smoke on `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
 13. [ ] **Scrutiny + InfluxDB — parallel** — fresh InfluxDB provisioning is now complete: dedicated `scrutiny` base/downsampling buckets and tasks exist, `/mnt/cpool/scrutiny/.env.secrets` is root-owned mode `0600`, and the restricted token passes `--check`. The first TrueNAS Scrutiny create progressed past InfluxDB but failed because the `scrutiny` web container became `unhealthy`, preventing the collector dependency from starting. Diagnose that web/API layer with `diagnose-scrutiny.sh --check`; the cutover helper now reuses healthy shared InfluxDB instead of redeploying it on every attempt. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
