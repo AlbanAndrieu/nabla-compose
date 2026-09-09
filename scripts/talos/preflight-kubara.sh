@@ -10,7 +10,9 @@ if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" 
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 VERSION_FILE="${KUBARA_VERSION_FILE:-${ROOT}/config/kubara/VERSION}"
 HOST="${K8S_FASTAPI_SMOKE_HOST:-test.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
