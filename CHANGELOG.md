@@ -1,3 +1,15 @@
+# [0.30.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.3...0.30.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **ops:** finish Scrutiny workstation and Wazuh lifecycle ([#170](https://github.com/AlbanAndrieu/nabla-compose/issues/170)) ([38cdae3](https://github.com/AlbanAndrieu/nabla-compose/commit/38cdae336017bc1c0784795ea9340e45ff0285b2))
+
+
+### Features
+
+* **kubernetes:** add TrueNAS NFS CSI for Talos ([#168](https://github.com/AlbanAndrieu/nabla-compose/issues/168)) ([f2ea655](https://github.com/AlbanAndrieu/nabla-compose/commit/f2ea655651480027d575292b8c938424bdcffdd4))
+
 ## [0.29.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.2...0.29.3) (2026-09-09)
 
 
