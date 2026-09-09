@@ -656,6 +656,101 @@ chmod 600 /mnt/cpool/homarr/.env.secrets
 Do not rotate the key: stored integration secrets depend on the original
 `SECRET_ENCRYPTION_KEY`.
 
+## Runtime incident lessons — 2026-09-09
+
+### Sentry: aggregate `DEPLOYING` caused by Kafka consumer heartbeats
+
+Sentry's external UI and edge health remained functional while TrueNAS stayed
+`DEPLOYING`. The decisive evidence was Docker health, not the public web UI:
+Kafka-backed consumers had lost `/tmp/health.txt` after
+`SESSTMOUT` / group-coordinator failures. The first affected pair was
+`snuba-subscription-consumer-events` and `snuba-replacer`; after those were
+recovered, the same Kafka incident was observed on `sentry-events-consumer`
+and `sentry-attachments-consumer`.
+
+Do not solve this condition with a full `app.redeploy sentry`. Use the
+allow-listed targeted helper:
+
+```bash
+sudo bash scripts/truenas/recover-sentry-snuba-consumers.sh
+sudo bash scripts/truenas/diagnose-sentry.sh --check
+```
+
+The helper restarts only currently-unhealthy known Kafka consumers, waits one
+full healthcheck stability cycle and verifies the required Kafka consumer
+groups. Historical timeout lines are diagnostic evidence only; they are not an
+active failure when no Kafka-backed Sentry consumer is currently unhealthy.
+
+### Wazuh: generated TLS ownership was accidentally destroyed
+
+The Wazuh certificate generator correctly sets runtime-readable ownership for
+Indexer and Dashboard material. The original bootstrap then reset every PEM to
+`root:root` and private keys to `0600`. Indexer and Dashboard consequently
+failed with `EACCES` while Manager remained reachable.
+
+The repaired contract is:
+
+```text
+wazuh.indexer-key.pem    uid 1000  mode 0400
+admin-key.pem            uid 1000  mode 0400
+wazuh.dashboard-key.pem  uid 1000  mode 0400
+wazuh.manager-key.pem    root       mode 0600
+```
+
+The deployment must also use the canonical
+`/mnt/cpool/compose/nabla-compose` checkout. A TrueNAS Custom App can persist
+absolute bind sources from a temporary PR worktree, so
+`diagnose-wazuh.sh --check` explicitly reports stale
+`nabla-compose-pr<N>` mounts. The accepted 2026-09-09 core state is
+TrueNAS `RUNNING`, Indexer HTTP 401, Manager API HTTP 401 and Dashboard
+HTTP 302. The optional forwarder remains a separate gate.
+
+### Scrutiny: BYO InfluxDB bootstrap and cutover failure modes
+
+Three independent issues were encountered:
+
+1. an existing empty `/mnt/cpool/scrutiny/.env.secrets` was initially treated
+   as a token rotation; the bootstrap now treats an empty file as uninitialized;
+2. InfluxDB 2.9 rejected the first placeholder-task requests because Bash
+   double-quoted `\n` sequences were sent to Flux literally. The bootstrap now
+   builds the Flux text with `printf -v`, so real newlines reach InfluxDB;
+3. the first repository-managed Scrutiny app create reached Docker but failed
+   because the `scrutiny` web container became unhealthy before the collector
+   could start. This is now a separate runtime diagnostic gate, not an InfluxDB
+   bootstrap failure.
+
+The completed bootstrap evidence is:
+
+```text
+org=nabla
+bucket=scrutiny
+secret=/mnt/cpool/scrutiny/.env.secrets
+mode=0600
+token=VALID
+```
+
+Use:
+
+```bash
+sudo bash scripts/truenas/diagnose-scrutiny.sh --check
+```
+
+to distinguish web process/SQLite/config issues, InfluxDB DNS/API reachability,
+published `/api/health`, collector startup and SMART device visibility.
+
+Scrutiny must not restart the already-healthy shared InfluxDB as a side effect
+of every cutover attempt. `deploy-scrutiny.sh --apply` now reuses a RUNNING
+InfluxDB instance by default; set `SCRUTINY_RECONCILE_INFLUXDB=1` only for an
+explicit reviewed InfluxDB reconciliation.
+
+### Global TrueNAS verification
+
+`scripts/truenas/audit-app-lifecycle.sh` is the global acceptance gate. In
+addition to inventory/container checks it now runs the specialist read-only
+diagnostics for InfluxDB, Scrutiny, Sentry and Wazuh. A green TrueNAS app state
+alone is therefore insufficient: these critical services must also pass their
+application-level dependency/health contracts.
+
 ## Historical TrueNAS lifecycle failures
 
 Historical errors for Prometheus duplicate YAML keys, mutually-exclusive
