@@ -1344,6 +1344,30 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertEqual(0, syntax.returncode, syntax.stderr)
 
+    def test_scrutiny_collectors_acceptance_checks_both_hosts(self) -> None:
+        path = ROOT / "scripts/truenas/verify-scrutiny-collectors.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("SCRUTINY_EXPECTED_COLLECTOR_HOSTS", script)
+        self.assertIn("truenas albandrieu", script)
+        self.assertIn("/api/summary", script)
+        self.assertIn(".device.host_id", script)
+        self.assertIn(".smart.collector_date", script)
+        self.assertIn("SCRUTINY_COLLECTOR_MAX_AGE_SECONDS", script)
+        self.assertIn("collector acceptance passed", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")
         readme = self.read("apps/scrutiny/README.md")
