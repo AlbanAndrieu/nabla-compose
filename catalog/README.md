@@ -40,6 +40,27 @@ x-nabla:
 
 This is used for integrations such as SearXNG and Open Terminal without inventing containers that do not exist in this repository.
 
+## Service environments
+
+The presentation catalog uses a single effective environment per service:
+
+- explicit `environment` metadata wins;
+- workstation/developer duplicates whose display name ends in
+  ` - albandrieu` are `dev`;
+- services without explicit metadata default to `production` until reviewed;
+- `staging` must be set explicitly and is never inferred from host/IP/exposure.
+
+This default is deliberately presentation metadata. It does not change Docker
+lifecycle, Cloudflare exposure, runtime health propagation, or dependency
+semantics.
+
+Use the audit helper to review entries that are still relying on the production
+default:
+
+```bash
+python scripts/audit-homelab-environments.py
+```
+
 ## Generation
 
 Generate the portable catalog with:
