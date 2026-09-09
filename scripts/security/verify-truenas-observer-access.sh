@@ -291,6 +291,8 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
 
   local_status="${tmpdir}/local.json"
   cloud_status="${tmpdir}/cloud.json"
+  local_version="${tmpdir}/local-version.json"
+  cloud_version="${tmpdir}/cloud-version.json"
 
   curl --fail --silent --show-error \
     --connect-timeout 3 \
@@ -300,6 +302,15 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
     --connect-timeout 3 \
     --max-time 35 \
     "${CLOUD_BASE_URL%/}/api/homelab/status" >"${cloud_status}"
+
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 10 \
+    "${LOCAL_BASE_URL%/}/v2/version" >"${local_version}" || printf '{}' >"${local_version}"
+  curl --fail --silent --show-error \
+    --connect-timeout 3 \
+    --max-time 10 \
+    "${CLOUD_BASE_URL%/}/v2/version" >"${cloud_version}" || printf '{}' >"${cloud_version}"
 
   validate_status() {
     local label="$1"
@@ -341,8 +352,15 @@ if [[ "${MODE}" == "--compare-cloud" ]]; then
 
   local_catalog="$(jq -r '.catalogRevision // empty' "${local_status}")"
   cloud_catalog="$(jq -r '.catalogRevision // empty' "${cloud_status}")"
+  local_fastapi_version="$(jq -r '.release_version // .version // "unknown"' "${local_version}")"
+  cloud_fastapi_version="$(jq -r '.release_version // .version // "unknown"' "${cloud_version}")"
   if [[ -n "${local_catalog}" && -n "${cloud_catalog}" && "${local_catalog}" != "${cloud_catalog}" ]]; then
-    fail "catalog revisions differ; redeploy the same FastAPI revision before comparing observer identities"
+    printf 'Catalog comparison blocked:\n'
+    printf '  local FastAPI version : %s\n' "${local_fastapi_version}"
+    printf '  cloud FastAPI version : %s\n' "${cloud_fastapi_version}"
+    printf '  local catalogRevision : %s\n' "${local_catalog}"
+    printf '  cloud catalogRevision : %s\n' "${cloud_catalog}"
+    fail "catalog revisions differ; align FastAPI catalog-schema compatibility/cache state and redeploy before comparing observer identities"
   fi
 
   local_ids="$(jq -cS '[.runtime.apps[]?.app_id] | sort' "${local_status}")"
