@@ -49,7 +49,7 @@ for path in \
 done
 
 [[ -f "${SCRUTINY_SECRET_FILE}" && -s "${SCRUTINY_SECRET_FILE}" ]] ||
-  fail "missing Scrutiny secret file: ${SCRUTINY_SECRET_FILE}"
+  fail "missing Scrutiny secret file: ${SCRUTINY_SECRET_FILE}; run scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply first"
 
 secret_mode="$(stat -c '%a' "${SCRUTINY_SECRET_FILE}")"
 [[ "${secret_mode}" == "600" ]] ||
