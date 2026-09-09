@@ -11,13 +11,13 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
         expected = [
             {
                 "name": "production",
-                "url": "https://fastapi-sample.fastapicloud.dev",
+                "url": "https://fastapi-sample.fastapicloud.dev/api",
                 "external": False,
                 "cloudflareTunnel": False,
             },
             {
                 "name": "staging",
-                "url": "https://sample.albandrieu.com",
+                "url": "https://sample.albandrieu.com/api",
                 "external": False,
                 "cloudflareTunnel": False,
             },

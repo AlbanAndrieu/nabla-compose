@@ -92,9 +92,14 @@ fi
 [[ -n "${INFLUXDB_ADMIN_TOKEN:-}" ]] ||
   fail "INFLUXDB_ADMIN_TOKEN is required for --apply and is never printed"
 
-if [[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]; then
-  fail "${SECRET_FILE} already exists; set SCRUTINY_TOKEN_ROTATE=1 only for an intentional token rotation"
+existing_token=""
+if [[ -f "${SECRET_FILE}" ]]; then
+  existing_token="$(sed -n 's/^SCRUTINY_WEB_INFLUXDB_TOKEN=//p' "${SECRET_FILE}" | head -n1)"
 fi
+if [[ -n "${existing_token}" && "${ROTATE}" != "1" ]]; then
+  fail "${SECRET_FILE} already contains SCRUTINY_WEB_INFLUXDB_TOKEN; set SCRUTINY_TOKEN_ROTATE=1 only for an intentional token rotation"
+fi
+unset existing_token
 
 admin_token="${INFLUXDB_ADMIN_TOKEN}"
 org_id="$(org_id_for_token "${admin_token}")"
@@ -117,15 +122,47 @@ create_task_if_missing() {
   local name="$1"
   local id
   local flux
+  local response_file
+  local http_code
+  local message
+
   id="$(task_id "${admin_token}" "${org_id}" "${name}")"
   if [[ -n "${id}" ]]; then
     printf '%s\n' "${id}"
     return 0
   fi
 
-  flux="option task = {name: \"${name}\", every: 1y}\nyield now()"
-  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/tasks"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg orgID "${org_id}"       --arg flux "${flux}"       '{orgID:$orgID,flux:$flux}')" |
-    jq -r '.id'
+  # Scrutiny historical BYO-InfluxDB docs used "yield now()" as a
+  # placeholder. InfluxDB 2.9 rejects that Flux with HTTP 400. Keep the task
+  # inert but syntactically valid; Scrutiny replaces it during startup.
+  flux="option task = {name: \"${name}\", every: 1y}\n\nfrom(bucket: \"${BASE_BUCKET}\")\n  |> range(start: -1m)\n  |> limit(n: 1)"
+  response_file="$(mktemp)"
+  http_code="$(
+    curl -sS \
+      --connect-timeout 3 \
+      --max-time 10 \
+      -o "${response_file}" \
+      -w '%{http_code}' \
+      -X POST "${INFLUX_HOST}/api/v2/tasks" \
+      -H "Authorization: Token ${admin_token}" \
+      -H "Content-Type: application/json" \
+      --data-binary "$(jq -cn \
+        --arg orgID "${org_id}" \
+        --arg flux "${flux}" \
+        '{orgID:$orgID,flux:$flux,status:"inactive"}')"
+  )" || {
+    rm -f "${response_file}"
+    fail "InfluxDB task create request failed for ${name}"
+  }
+
+  if [[ ! "${http_code}" =~ ^2 ]]; then
+    message="$(jq -r '.message // .error // .err // "unknown error"' "${response_file}" 2>/dev/null || cat "${response_file}")"
+    rm -f "${response_file}"
+    fail "InfluxDB task create failed for ${name}: HTTP ${http_code}: ${message}"
+  fi
+
+  jq -r '.id' "${response_file}"
+  rm -f "${response_file}"
 }
 
 base_id="$(create_bucket_if_missing "${BASE_BUCKET}")"

@@ -1043,7 +1043,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("diagnose-wazuh.sh --check", deploy)
         self.assertIn("app.create", deploy)
         self.assertIn("app.update", deploy)
-        self.assertIn("app.redeploy", deploy)
+        self.assertNotIn("app.redeploy", deploy)
         self.assertIn("https://127.0.0.1:9202/", diagnose)
         self.assertIn("https://127.0.0.1:55000/", diagnose)
         self.assertIn("https://127.0.0.1:8444/", diagnose)
@@ -1197,6 +1197,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('"${BASE_BUCKET}_monthly"', script)
         self.assertIn('"${BASE_BUCKET}_yearly"', script)
         self.assertIn("tsk-weekly-aggr", script)
+        self.assertIn('status:"inactive"', script)
+        self.assertIn("limit(n: 1)", script)
+        self.assertIn('from(bucket: \\"${BASE_BUCKET}\\")', script)
         self.assertIn("restricted scope token", script)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
         self.assertIn("chmod 600", script)
@@ -1209,6 +1212,13 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+    def test_scrutiny_bootstrap_allows_empty_secret_file_without_rotation(self) -> None:
+        script = self.read("scripts/truenas/bootstrap-scrutiny-influxdb.sh")
+
+        self.assertIn('existing_token=""', script)
+        self.assertIn('[[ -n "${existing_token}" && "${ROTATE}" != "1" ]]', script)
+        self.assertNotIn('[[ -e "${SECRET_FILE}" && "${ROTATE}" != "1" ]]', script)
 
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")

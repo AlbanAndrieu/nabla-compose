@@ -36,6 +36,10 @@ cd /mnt/cpool/compose/nabla-compose
 sudo bash scripts/truenas/bootstrap-wazuh.sh --apply
 ```
 
+`app.update` is already the deployment job for an existing Custom App. The
+helper deliberately does **not** call `app.redeploy` immediately afterwards;
+doing both starts a second lifecycle cycle and can reset startup convergence.
+
 The helper:
 
 - removes only **empty directories** previously created at legacy PEM file paths

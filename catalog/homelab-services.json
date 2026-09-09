@@ -97,8 +97,7 @@
       "tunnelUrl": "https://prometheus - albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "Open SpeedTest",
@@ -146,8 +145,7 @@
       "tunnelUrl": "https://portracker-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/portracker.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "Portainer",
@@ -178,15 +176,13 @@
     {
       "name": "Scrutiny Collector - albandrieu",
       "icons": ["fas fa-hard-drive"],
-      "description": "Hard drive health monitoring",
+      "description": "Workstation SMART collector posting disk telemetry to the Scrutiny Web/API hosted on TrueNAS.",
       "internalHost": "172.17.0.57",
-      "internalPort": 31054,
-      "internalSecure": false,
-      "tunnelUrl": "https://scrutiny-albandrieu.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/scrutiny.png",
       "external": false,
-      "environment": "dev"
+      "endpointEnabled": false,
+      "internalTitle": "Collector-only runtime on workstation 172.17.0.57; no local web endpoint.",
+      "healthNote": "Expected upstream target: http://172.17.0.24:31054"
     },
     {
       "name": "IT Tools",
@@ -561,8 +557,7 @@
       "tunnelUrl": "https://stirling-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/stirling-pdf.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "AnythingLLM",
@@ -586,8 +581,7 @@
       "tunnelUrl": "https://anythingllm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/anythingllm.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "Reactive Resume",
@@ -611,8 +605,7 @@
       "tunnelUrl": "https://reactive-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/rxresume.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "Plumber",
@@ -756,8 +749,7 @@
       "tunnelUrl": "https://litellm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
-      "external": false,
-      "environment": "dev"
+      "external": false
     },
     {
       "name": "SearXNG",

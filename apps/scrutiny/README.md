@@ -20,9 +20,13 @@ Cloudflare Tunnel
           |
           +--> influxdb:8086
           |
-          <--- scrutiny-collector
+          +<-- scrutiny-collector (TrueNAS)
+          |      |
+          |      +--> TrueNAS /dev + /run/udev
+          |
+          +<-- scrutiny collector (workstation 172.17.0.57)
                  |
-                 +--> TrueNAS /dev + /run/udev
+                 +--> workstation /dev + /run/udev
 ```
 
 The LAN endpoint is **HTTP**:
@@ -62,6 +66,8 @@ The user has already created the Scrutiny application dataset and stopped the na
 
 ## Fresh cutover decision — 2026-09-09
 
+> **InfluxDB 2.9 compatibility:** the bootstrap uses syntactically valid, inactive placeholder tasks because InfluxDB 2.9 rejects the historical Scrutiny documentation placeholder `yield now()` with HTTP 400. Scrutiny replaces these task definitions during startup.
+
 Historical Scrutiny data from the stopped native app is no longer a cutover
 requirement. The replacement uses a fresh, isolated InfluxDB base bucket named
 `scrutiny` in organization `nabla`.
@@ -80,6 +86,10 @@ This means:
 
 1. Keep the stopped native Scrutiny dataset untouched until the replacement is accepted.
 2. Ensure the shared InfluxDB 2.9 runtime is healthy.
+An existing **empty** `/mnt/cpool/scrutiny/.env.secrets` is treated as
+uninitialized and is safely populated by `--apply`. Rotation is required only
+when the file already contains a non-empty `SCRUTINY_WEB_INFLUXDB_TOKEN`.
+
 3. Provision fresh Scrutiny InfluxDB resources and the restricted token:
 
 ```bash
@@ -114,6 +124,35 @@ https://scrutiny.albandrieu.com/
 The expected result is the Cloudflare Access authentication/policy flow followed by the Scrutiny UI. A direct anonymous origin response is not the target security posture.
 
 10. Verify all previously known disks and historical SMART timelines before retiring the native app.
+
+## Workstation collector
+
+The existing workstation collector is a second producer for the same Scrutiny
+Web/API. It is **not** another Scrutiny server and does not require a listener
+on the workstation.
+
+Its target must be the TrueNAS LAN endpoint:
+
+```text
+COLLECTOR_API_ENDPOINT=http://172.17.0.24:31054
+COLLECTOR_HOST_ID=albandrieu
+```
+
+Validate the already-running workstation container without changing it:
+
+```bash
+bash scripts/observability/verify-scrutiny-workstation-collector.sh
+```
+
+The check requires the container to be running, verifies the configured API
+endpoint, reaches the TrueNAS Scrutiny health endpoint from the workstation and
+requires `smartctl --scan-open` inside the collector to expose at least one
+workstation disk. Use `--submit` to execute the upstream collector command and
+post a fresh SMART sample to the TrueNAS hub:
+
+```bash
+bash scripts/observability/verify-scrutiny-workstation-collector.sh --submit
+```
 
 ## Canonical runtime helper
 
