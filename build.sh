@@ -36,18 +36,18 @@ if [ "$HOSTNAME" = albandrieu ]; then
 
   echo "docker logs -f postgres"
 
-  echo "./build-sentry.sh"
+  # echo "./build-sentry.sh"
 
   docker compose -f docker-compose-${HOSTNAME}.yml build web
-  docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml build sentry-cleanup
+  # docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml build sentry-cleanup
 
-  docker volume create sentry-kafka || true
-  docker volume create sentry-clickhouse || true
-  docker volume create sentry-clickhouse-log || true
-  docker volume create sentry-seaweedfs || true
-  docker volume create sentry-data || true
+  # docker volume create sentry-kafka || true
+  # docker volume create sentry-clickhouse || true
+  # docker volume create sentry-clickhouse-log || true
+  # docker volume create sentry-seaweedfs || true
+  # docker volume create sentry-data || true
 
-  docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml build clickhouse
+  # docker compose --env-file .env --env-file .env.secrets -f docker-compose-${HOSTNAME}.yml build clickhouse
 
   # docker compose run --pull=never --rm web upgrade --noinput --create-kafka-topics
 
