@@ -1,53 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+MODE="${1:---check}"
 CONTAINER="${SCRUTINY_WORKSTATION_COLLECTOR_CONTAINER:-scrutiny}"
 EXPECTED_ENDPOINT="${SCRUTINY_WORKSTATION_API_ENDPOINT:-http://172.17.0.24:31054}"
 EXPECTED_HOST_ID="${SCRUTINY_WORKSTATION_HOST_ID:-workstation-albandrieu}"
 
 fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
 }
 
-for command in curl docker grep sed; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
+case "${MODE}" in
+--check | --submit) ;;
+*) fail "usage: bash scripts/observability/verify-scrutiny-workstation-collector.sh [--check|--submit]" ;;
+esac
+
+for command in curl docker grep; do
+    command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
 docker inspect "${CONTAINER}" >/dev/null 2>&1 ||
-  fail "collector container not found: ${CONTAINER}"
+    fail "collector container not found: ${CONTAINER}"
 
 state="$(docker inspect "${CONTAINER}" --format '{{.State.Status}}')"
 [[ "${state}" == "running" ]] ||
-  fail "${CONTAINER} is not running (state=${state})"
+    fail "${CONTAINER} is not running (state=${state})"
 
 mapfile -t env_lines < <(
-  docker inspect "${CONTAINER}" --format '{{range .Config.Env}}{{println .}}{{end}}' |
-    grep -E '^(COLLECTOR_API_ENDPOINT|COLLECTOR_HOST_ID)=' || true
+    docker inspect "${CONTAINER}" --format '{{range .Config.Env}}{{println .}}{{end}}' |
+        grep -E '^(COLLECTOR_API_ENDPOINT|COLLECTOR_HOST_ID)=' || true
 )
 
 endpoint=""
 host_id=""
 for line in "${env_lines[@]}"; do
-  case "${line}" in
+    case "${line}" in
     COLLECTOR_API_ENDPOINT=*) endpoint="${line#COLLECTOR_API_ENDPOINT=}" ;;
     COLLECTOR_HOST_ID=*) host_id="${line#COLLECTOR_HOST_ID=}" ;;
-  esac
+    esac
 done
 
 [[ "${endpoint}" == "${EXPECTED_ENDPOINT}" ]] ||
-  fail "COLLECTOR_API_ENDPOINT=${endpoint:-<missing>} expected=${EXPECTED_ENDPOINT}"
-
-if [[ -n "${host_id}" && "${host_id}" != "${EXPECTED_HOST_ID}" ]]; then
-  fail "COLLECTOR_HOST_ID=${host_id} expected=${EXPECTED_HOST_ID}"
-fi
+    fail "COLLECTOR_API_ENDPOINT=${endpoint:-<missing>} expected=${EXPECTED_ENDPOINT}"
+[[ "${host_id}" == "${EXPECTED_HOST_ID}" ]] ||
+    fail "COLLECTOR_HOST_ID=${host_id:-<missing>} expected=${EXPECTED_HOST_ID}"
 
 curl -fsS --connect-timeout 3 --max-time 8 "${EXPECTED_ENDPOINT}/api/health" >/dev/null ||
-  fail "Scrutiny Web/API is not reachable from workstation at ${EXPECTED_ENDPOINT}"
+    fail "Scrutiny Web/API is not reachable from workstation at ${EXPECTED_ENDPOINT}"
 
 scan="$(docker exec "${CONTAINER}" smartctl --scan-open 2>&1 || true)"
 [[ -n "${scan}" ]] || fail "smartctl sees no devices inside ${CONTAINER}"
 printf '%s\n' "${scan}"
 
+if [[ "${MODE}" == "--submit" ]]; then
+    docker exec "${CONTAINER}" /opt/scrutiny/bin/scrutiny-collector-metrics run
+    printf '✅ workstation SMART submission completed\n'
+fi
+
 printf '✅ workstation Scrutiny collector: container=%s endpoint=%s host_id=%s devices=VISIBLE\n' \
-  "${CONTAINER}" "${endpoint}" "${host_id:-<default>}"
+    "${CONTAINER}" "${endpoint}" "${host_id}"
