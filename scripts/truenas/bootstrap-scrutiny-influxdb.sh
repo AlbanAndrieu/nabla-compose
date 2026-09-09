@@ -21,7 +21,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
-for command in curl jq install stat mktemp sed head; do
+for command in curl jq install stat mktemp sed head mv; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -82,6 +82,35 @@ validate_restricted_token() {
     [[ -n "$(task_id "${token}" "${org_id}" "${name}")" ]] ||
       fail "Scrutiny token cannot read task ${name}"
   done
+}
+
+validate_authorization_scope() {
+  local authorization_json="$1"
+  local org_id="$2"
+
+  jq -e --arg orgID "${org_id}" '
+    def has_org_scope($action; $type):
+      any(
+        .permissions[]?;
+        .action == $action
+        and .resource.type == $type
+        and .resource.orgID == $orgID
+        and ((.resource.id // "") == "")
+      );
+    def has_org_read:
+      any(
+        .permissions[]?;
+        .action == "read"
+        and .resource.type == "orgs"
+        and .resource.id == $orgID
+      );
+    has_org_read
+    and has_org_scope("read"; "buckets")
+    and has_org_scope("write"; "buckets")
+    and has_org_scope("read"; "tasks")
+    and has_org_scope("write"; "tasks")
+  ' >/dev/null <<<"${authorization_json}" ||
+    fail "InfluxDB returned a Scrutiny authorization without the required org-scoped bucket/task permissions"
 }
 
 scrutiny_authorization_ids() {
@@ -224,6 +253,7 @@ restricted_token="$(jq -r '.token // empty' <<<"${authorization}")"
 new_auth_id="$(jq -r '.id // empty' <<<"${authorization}")"
 [[ -n "${restricted_token}" ]] || fail "InfluxDB did not return the new Scrutiny token"
 [[ -n "${new_auth_id}" ]] || fail "InfluxDB did not return the new Scrutiny authorization id"
+validate_authorization_scope "${authorization}" "${org_id}"
 
 # Validate before replacing the runtime secret. This avoids cutting over to a
 # token that cannot even read the expected Scrutiny resources.
