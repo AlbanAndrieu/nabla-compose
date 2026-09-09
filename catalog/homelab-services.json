@@ -497,6 +497,7 @@
       "external": false
     },
     {
+      "id": "postgresql",
       "name": "PostgreSQL",
       "icons": ["fas fa-database"],
       "description": "Database server (TCP — use a Postgres client, not a normal web browser tab)",
