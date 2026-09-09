@@ -948,11 +948,22 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXGRP)
         self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn('REF="${FASTAPI_SAMPLE_REF:-master}"', script)
-        self.assertIn('fetch --prune origin "${REF}"', script)
-        normalized = " ".join(script.split())
+        self.assertIn('DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"', script)
         self.assertIn(
-            "run_docker compose -f apps/sample/compose.yml build --pull fastapi-sample",
-            normalized,
+            'IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"',
+            script,
+        )
+        self.assertIn('fetch --prune --tags origin', script)
+        self.assertIn('fetch --prune origin "${REF}"', script)
+        self.assertIn('run_docker pull "${release_image}"', script)
+        self.assertIn('run_docker tag "${release_image}" "${runtime_image}"', script)
+        self.assertIn('image_source="release-pull"', script)
+        self.assertIn('image_source="local-build"', script)
+        self.assertIn('FASTAPI_SAMPLE_REFRESH_BASE_IMAGES', script)
+        self.assertIn('build_args+=(--pull)', script)
+        self.assertNotIn(
+            "compose -f apps/sample/compose.yml build --pull fastapi-sample",
+            " ".join(script.split()),
         )
         self.assertIn('DOCKER=(sudo docker)', script)
         self.assertIn('run_docker rm -f "${CONTAINER}"', script)
