@@ -1,3 +1,10 @@
+## [0.31.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.0...0.31.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **runtime:** recover Sentry Wazuh and InfluxDB ([#173](https://github.com/AlbanAndrieu/nabla-compose/issues/173)) ([92676f7](https://github.com/AlbanAndrieu/nabla-compose/commit/92676f7b519a05d2b4b7856cefd3e8c1eaa81ccf))
+
 # [0.31.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.30.0...0.31.0) (2026-09-09)
 
 
