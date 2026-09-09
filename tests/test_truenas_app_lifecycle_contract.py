@@ -1344,6 +1344,29 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertEqual(0, syntax.returncode, syntax.stderr)
 
+    def test_workstation_scrutiny_verifier_pins_compatible_collector(self) -> None:
+        path = ROOT / "scripts/observability/verify-scrutiny-workstation-collector.sh"
+        script = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode
+
+        self.assertIn("SCRUTINY_WORKSTATION_EXPECTED_VERSION", script)
+        self.assertIn("0.9.3", script)
+        self.assertIn("ghcr.io/analogj/scrutiny:v0.9.3-collector", script)
+        self.assertIn("scrutiny-collector-metrics --version", script)
+        self.assertIn("Collecting smartctl results for", script)
+        self.assertIn("/api/summary", script)
+        self.assertIn(".device.host_id", script)
+        self.assertIn("never appeared", script)
+        self.assertTrue(mode & stat.S_IXUSR)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
     def test_scrutiny_collectors_acceptance_checks_both_hosts(self) -> None:
         path = ROOT / "scripts/truenas/verify-scrutiny-collectors.sh"
         script = path.read_text(encoding="utf-8")
