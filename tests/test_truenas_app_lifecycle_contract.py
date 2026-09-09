@@ -1032,7 +1032,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("diagnose-wazuh.sh --check", deploy)
         self.assertIn("app.create", deploy)
         self.assertIn("app.update", deploy)
-        self.assertIn("app.redeploy", deploy)
+        self.assertNotIn("app.redeploy", deploy)
         self.assertIn("https://127.0.0.1:9202/", diagnose)
         self.assertIn("https://127.0.0.1:55000/", diagnose)
         self.assertIn("https://127.0.0.1:8444/", diagnose)
