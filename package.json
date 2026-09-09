@@ -7,7 +7,7 @@
     "semantic-release": "echo \"Release publishing is owned by GitHub Actions\""
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.4.1",
+    "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^20.3.1",
     "commitlint": "^20.3.1",
     "cz-conventional-changelog": "^3.3.0",
