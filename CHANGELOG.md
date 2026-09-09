@@ -1,3 +1,10 @@
+## [0.29.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.1...0.29.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **observer:** make catalog drift comparison actionable ([#169](https://github.com/AlbanAndrieu/nabla-compose/issues/169)) ([2ea87b1](https://github.com/AlbanAndrieu/nabla-compose/commit/2ea87b18a71b32968746dd67f596c4f6dcc67ee0))
+
 ## [0.29.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.0...0.29.1) (2026-09-09)
 
 
