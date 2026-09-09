@@ -422,3 +422,10 @@ Reference design: `docs/operator-scripts-refactor.md`.
   `verify-scrutiny-collectors.sh` proving both `host_id=truenas` and
   `host_id=albandrieu` are present in `/api/summary` with fresh SMART
   timestamps before marking Scrutiny complete.
+- [ ] workstation collector compatibility: replace the currently running
+  `dev-0.8.2` / floating `master-collector` runtime with pinned
+  `ghcr.io/analogj/scrutiny:v0.9.3-collector`. The v0.8.2 registration model
+  does not send `scrutiny_uuid`, so the v0.9.3 server filters those devices.
+  The workstation verifier now fails on version mismatch and, after
+  `--submit`, requires both actual SMART collection and
+  `host_id=albandrieu` visibility in `/api/summary`.
