@@ -109,6 +109,26 @@ It is **not** an all-access or operator token. The bootstrap stores
 `SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=2` so both `--check` and the cutover
 refuse a legacy token before starting Scrutiny.
 
+### Accepted TrueNAS token/preflight evidence
+
+The v2 rotation is now accepted on the TrueNAS host:
+
+```text
+Revoked superseded Scrutiny InfluxDB authorization 114da3d49d117000
+✅ Scrutiny InfluxDB bootstrap complete: org=nabla bucket=scrutiny
+   secret=/mnt/cpool/scrutiny/.env.secrets mode=0600 scope=v2
+✅ Scrutiny InfluxDB bootstrap: org=nabla bucket=scrutiny token=VALID scope=v2
+SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=2
+600 root:root 200 /mnt/cpool/scrutiny/.env.secrets
+Discovered SMART devices for Scrutiny collector: /dev/sda /dev/sdb /dev/sdc /dev/sdd
+✅ Scrutiny cutover preflight: InfluxDB=RUNNING SMART=VISIBLE target=MISSING ready=APPLY
+```
+
+The fresh cutover has been started with `SCRUTINY_RESET_SQLITE=1`; do not
+mark the service accepted until the TrueNAS app reaches `RUNNING`, the
+published Web/API health is green, the TrueNAS collector sees SMART devices,
+and the workstation collector is proven to submit its own inventory.
+
 Use the dedicated read-only diagnostic:
 
 ```bash
