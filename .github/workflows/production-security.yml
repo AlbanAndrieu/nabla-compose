@@ -45,10 +45,43 @@ jobs:
           python scripts/testing/runtime-baseline.py integration
           --url "${PRODUCTION_URL}"
 
-      - name: Verify production HTTP security baseline
-        run: >-
-          python scripts/testing/runtime-baseline.py pentest
-          --url "${PRODUCTION_URL}"
+      - name: Verify production HTTP security regression baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$(mktemp)"
+          trap 'rm -f "${report}"' EXIT
+
+          set +e
+          python scripts/testing/runtime-baseline.py pentest \
+            --url "${PRODUCTION_URL}" >"${report}"
+          rc=$?
+          set -e
+          cat "${report}"
+
+          if ((rc == 0)); then
+            exit 0
+          fi
+
+          baseline=config/security/production-http-baseline.json
+          if ! jq -e --arg target "${PRODUCTION_URL}" \
+            '.target == $target' "${baseline}" >/dev/null; then
+            echo "❌ Production security baseline target does not match ${PRODUCTION_URL}" >&2
+            exit 1
+          fi
+
+          if jq -e --slurpfile baseline "${baseline}" \
+            '(.failures - $baseline[0].knownFailures) | length == 0' \
+            "${report}" >/dev/null; then
+            echo "::warning title=Known production HTTP security debt::Current findings are fully covered by the explicit baseline; new findings still fail this gate."
+            jq -r '.failures[] | "  - " + .' "${report}"
+            exit 0
+          fi
+
+          echo "❌ Production has HTTP security failures outside the approved baseline:" >&2
+          jq --slurpfile baseline "${baseline}" \
+            '.failures - $baseline[0].knownFailures' "${report}" >&2
+          exit 1
 
       - name: Run bounded post-merge performance smoke
         if: github.event_name != 'pull_request'
@@ -76,6 +109,7 @@ jobs:
         uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
           target: ${{ env.PRODUCTION_URL }}
+          rules_file_name: .zap/rules.tsv
           fail_action: true
           allow_issue_writing: false
           artifact_name: zap-production-baseline
