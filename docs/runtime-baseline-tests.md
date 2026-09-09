@@ -93,9 +93,12 @@ heavier DAST scan:
 
 The ZAP action is pinned by commit SHA, does not create GitHub issues, and
 publishes its scan report as a workflow artifact. `fail_action: true` makes
-new ZAP alerts visible as a failed master security baseline; review and
-explicitly baseline a confirmed false positive rather than weakening the PR
-freshness gate.
+new ZAP alerts visible as a failed master security baseline. The only current
+exceptions are the three production response-header findings already observed
+on 2026-09-09 (anti-framing, `X-Content-Type-Options`, HSTS), recorded in
+`config/security/production-http-baseline.json` and `.zap/rules.tsv`. Remove
+those exceptions as the FastAPI production headers are fixed; do not add a new
+exception merely to turn CI green.
 
 CodeQL remains the Python SAST implementation and now runs on non-draft pull
 requests as well as its scheduled scan. Checkov in MegaLinter continues to
