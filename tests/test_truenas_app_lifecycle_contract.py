@@ -414,7 +414,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             scrutiny,
         )
         self.assertIn(
-            "SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_WEB_INFLUXDB_BUCKET:-metrics}",
+            "SCRUTINY_WEB_INFLUXDB_BUCKET: ${SCRUTINY_WEB_INFLUXDB_BUCKET:-scrutiny}",
             scrutiny,
         )
 
@@ -1177,6 +1177,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("provider=openai", readme)
         self.assertIn("OpenRAG 0.7.1 -> workstation LiteLLM", roadmap)
 
+
+    def test_scrutiny_influxdb_bootstrap_is_restricted_and_safe(self) -> None:
+        path = ROOT / "scripts/truenas/bootstrap-scrutiny-influxdb.sh"
+        script = path.read_text(encoding="utf-8")
+
+        self.assertIn("scrutiny_weekly", script)
+        self.assertIn("scrutiny_monthly", script)
+        self.assertIn("scrutiny_yearly", script)
+        self.assertIn("tsk-weekly-aggr", script)
+        self.assertIn("restricted scope token", script)
+        self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", script)
+        self.assertIn("chmod 600", script)
+        self.assertNotIn("privileged: true", script)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
 
     def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
         compose = self.read("apps/scrutiny/compose.yml")
