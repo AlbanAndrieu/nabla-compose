@@ -20,9 +20,13 @@ Cloudflare Tunnel
           |
           +--> influxdb:8086
           |
-          <--- scrutiny-collector
+          +<-- scrutiny-collector (TrueNAS)
+          |      |
+          |      +--> TrueNAS /dev + /run/udev
+          |
+          +<-- scrutiny collector (workstation 172.17.0.57)
                  |
-                 +--> TrueNAS /dev + /run/udev
+                 +--> workstation /dev + /run/udev
 ```
 
 The LAN endpoint is **HTTP**:
@@ -118,6 +122,30 @@ https://scrutiny.albandrieu.com/
 The expected result is the Cloudflare Access authentication/policy flow followed by the Scrutiny UI. A direct anonymous origin response is not the target security posture.
 
 10. Verify all previously known disks and historical SMART timelines before retiring the native app.
+
+## Workstation collector
+
+The existing workstation collector is a second producer for the same Scrutiny
+Web/API. It is **not** another Scrutiny server and does not require a listener
+on the workstation.
+
+Its target must be the TrueNAS LAN endpoint:
+
+```text
+COLLECTOR_API_ENDPOINT=http://172.17.0.24:31054
+COLLECTOR_HOST_ID=workstation-albandrieu
+```
+
+Validate the already-running workstation container without changing it:
+
+```bash
+bash scripts/observability/verify-scrutiny-workstation-collector.sh
+```
+
+The check requires the container to be running, verifies the configured API
+endpoint, reaches the TrueNAS Scrutiny health endpoint from the workstation and
+requires `smartctl --scan-open` inside the collector to expose at least one
+workstation disk.
 
 ## Canonical runtime helper
 
