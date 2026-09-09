@@ -1173,5 +1173,34 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("OpenRAG 0.7.1 -> workstation LiteLLM", roadmap)
 
 
+    def test_scrutiny_cutover_renders_host_smart_devices(self) -> None:
+        compose = self.read("apps/scrutiny/compose.yml")
+        readme = self.read("apps/scrutiny/README.md")
+        path = ROOT / "scripts/truenas/deploy-scrutiny.sh"
+        script = path.read_text(encoding="utf-8")
+
+        self.assertIn("smartctl --scan-open", script)
+        self.assertIn("render_scrutiny_compose", script)
+        self.assertIn("custom_compose_config_string", script)
+        self.assertIn("SYS_ADMIN", script)
+        self.assertIn(
+            "docker exec scrutiny-collector smartctl --scan-open",
+            script,
+        )
+        self.assertNotIn('app.redeploy "${app_id}"', script)
+        self.assertIn("/dev:/dev:ro", compose)
+        self.assertNotIn("privileged: true", compose)
+        self.assertIn("Every discovered SMART device", readme)
+        self.assertIn("A RUNNING container with zero SMART-visible", readme)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, syntax.returncode, syntax.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
