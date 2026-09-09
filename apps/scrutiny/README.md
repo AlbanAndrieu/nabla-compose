@@ -105,6 +105,23 @@ sudo DIAGNOSTIC_FULL_OUTPUT=1 \
   bash scripts/truenas/diagnose-scrutiny.sh --check
 ```
 
+When TrueNAS `app.create` fails, SCALE removes the temporary containers during
+rollback. A later `docker logs <id>` therefore legitimately returns
+`No such container`. To preserve the startup evidence, run the web service
+alone outside the TrueNAS lifecycle:
+
+```bash
+sudo DIAGNOSTIC_FULL_OUTPUT=1 \
+  bash scripts/truenas/diagnose-scrutiny.sh --capture-startup
+```
+
+This mode is deliberately fail-closed: it only runs when the TrueNAS Scrutiny
+app is absent and no `scrutiny` container already exists. It starts only the
+web service (no SMART collector), captures Docker state/health output, the
+non-secret InfluxDB settings, the config mount/writability, container-to-
+`influxdb:8086` connectivity, the complete web startup log and local
+`/api/health`, then removes the standalone diagnostic container.
+
 It checks the TrueNAS app state, secret contract, shared InfluxDB health,
 Scrutiny web container health/logs, `influxdb:8086` reachability from the web
 container, config-directory writability, local and published `/api/health`,
