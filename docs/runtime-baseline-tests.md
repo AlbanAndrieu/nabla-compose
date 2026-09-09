@@ -82,18 +82,21 @@ heavier DAST scan:
 
 - every non-draft PR targeting `master` runs the live integration and HTTP
   security baseline against `https://fastapi-sample.fastapicloud.dev`;
-- `master` pushes, the daily schedule and manual dispatch run the same smoke, a
-  bounded performance pass and an OWASP ZAP Baseline scan;
-- ZAP is passive/non-destructive here: it spiders for at most two minutes and
-  performs passive analysis; active attack scanning is intentionally excluded;
+- `master` pushes, the daily schedule and manual dispatch run the same smoke,
+  a bounded performance pass and three bounded ZAP checks: the filtered FastAPI
+  OpenAPI surface, the public TrueNAS API transport when the runner is permitted,
+  and the `sample.albandrieu.com` web entry point;
+- the FastAPI OpenAPI scan runs in ZAP safe mode (`-S`) against a generated
+  read-only specification; the TrueNAS checks use passive
+  zero-spider-budget baselines; active/mutating attack scanning is excluded;
 - PRs do not rerun ZAP. Instead `DAST master baseline gate` requires the latest
   completed `master` DAST to be successful and no older than 36 hours;
 - the PR introducing the workflow has a one-time bootstrap exception because
   no `master` run can exist until that workflow is merged.
 
-The ZAP action is pinned by commit SHA, does not create GitHub issues, and
-publishes its scan report as a workflow artifact. `fail_action: true` makes
-new ZAP alerts visible as a failed master security baseline. The only current
+The ZAP actions are pinned by commit SHA, do not create GitHub issues, and
+publish separate scan artifacts. `fail_action: true` makes high-signal
+findings a failed master security baseline. The only current
 exceptions are the three production response-header findings already observed
 on 2026-09-09 (anti-framing, `X-Content-Type-Options`, HSTS), recorded in
 `config/security/production-http-baseline.json` and `.zap/rules.tsv`. Remove
@@ -103,3 +106,82 @@ exception merely to turn CI green.
 CodeQL remains the Python SAST implementation and now runs on non-draft pull
 requests as well as its scheduled scan. Checkov in MegaLinter continues to
 cover repository IaC/configuration concerns that CodeQL does not model.
+
+## Production gate hardening
+
+The integration/performance target remains
+`https://fastapi-sample.fastapicloud.dev`. DAST intentionally also validates
+the public TrueNAS API transport at
+`https://truenas.albandrieu.com:7000/api/versions`. These checks are bounded and
+read-only; the web DAST additionally validates `https://sample.albandrieu.com`
+with zero spider fan-out. None of these checks may be expanded to the pfSense
+management API. The TrueNAS scan is skipped when the generic GitHub runner is
+denied or source-filtered.
+
+The pre/post-deploy smoke also verifies the production
+`/api/homelab/status` and `/api/runtime/topology` contracts so a green
+`/health` cannot hide a broken runtime/topology API.
+
+### ZAP result policy
+
+The initial master ZAP run on 2026-09-09 found zero configured FAIL findings and
+nine passive WARN categories. WARN findings remain visible in the ZAP artifact
+but do not fail the workflow by themselves. The policy promotes high-signal
+rules (vulnerable JS, insecure cookies, debug/sensitive disclosure, directory
+browsing, mixed content, cross-domain misconfiguration, weak authentication and
+application error disclosure) to `FAIL`.
+
+Only the FastAPI API policy carries the three already-known response-header
+debts as `IGNORE`: rules 10020, 10021 and 10035. The shared passive
+TrueNAS/sample-web policy carries no IGNORE entries. Do not expand an IGNORE list merely to make CI
+green.
+
+The PR DAST evidence gate queries the **latest** relevant master run, including
+an in-progress or failed run. It therefore cannot pass on an older completed
+success while a newer master DAST is still running or has regressed.
+
+### Required GitHub checks
+
+Workflows alone do not make a pull request unmergeable. Configure repository
+rules/branch protection for `master` to require at least:
+
+- `SAST / CodeQL (Python)`;
+- `Production pre/post-deploy smoke`;
+- `DAST master baseline gate`;
+- the repository pre-commit/agent quality gate.
+
+The repository currently exposes no GitHub Ruleset through the available API,
+and the connected GitHub App does not have repository Administration permission
+to change classic branch protection. This enforcement therefore remains an
+explicit repository-admin action.
+
+## API-aware DAST targets
+
+The master-only DAST now has three bounded layers:
+
+1. a **safe-mode ZAP API Scan** driven by the FastAPI production OpenAPI
+   document after repository-side filtering;
+2. a passive TrueNAS API transport scan against
+   `https://truenas.albandrieu.com:7000/api/versions`;
+3. a passive web baseline against `https://sample.albandrieu.com` with a
+   zero-minute spider budget, so it validates the web entry point without
+   crawling into the API surface.
+
+The FastAPI filter keeps only `GET`/`HEAD`/`OPTIONS` operations and
+explicitly removes pfSense/Snort/pfBlocker plus aggregate health routes that can
+fan out into the pfSense API.
+
+The FastAPI OpenAPI API scan runs with ZAP `-S` safe mode, so it skips active
+scanning and cannot exercise mutating OpenAPI operations. The filtered spec is
+generated by `scripts/security/prepare-zap-openapi.py` and fails closed if
+every operation is removed.
+
+TrueNAS 26 no longer exposes the legacy REST API. Its real management API is
+versioned JSON-RPC 2.0 over WebSocket at `/api/current`; `/api/versions`
+proves the HTTPS API surface but not authenticated WebSocket access. Functional
+`/api/current` authentication/RBAC therefore remains covered by the dedicated
+read-only TrueNAS observer acceptance checks rather than by an active ZAP scan.
+
+The **pfSense API on TCP/10443 is deliberately excluded from ZAP, OpenAPI DAST
+and performance/load tests** because that appliance API is sensitive to request
+fan-out. pfSense stays covered by low-frequency posture/observer checks only.

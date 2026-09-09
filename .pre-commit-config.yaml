@@ -165,6 +165,14 @@ repos:
         files: >-
           ^(scripts/agent-quality-gate[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
 
+      - id: security-ci-contract
+        name: "🛡️ security · Validate SAST/DAST production gate contract"
+        language: system
+        entry: python -m unittest tests.test_security_ci_contract -v
+        pass_filenames: false
+        files: >-
+          ^([.]github/workflows/(?:codeql|production-security|runtime-baseline)[.]ya?ml|[.]zap/(?:rules|truenas-rules)[.]tsv|config/security/production-http-baseline[.]json|scripts/security/prepare-zap-openapi[.]py|tests/(?:test_security_ci_contract|test_prepare_zap_openapi)[.]py|docs/runtime-baseline-tests[.]md)$
+
       - id: pfsense-posture-audit-contract
         name: "🛡️ pfSense · Parse posture regression audit"
         language: system
