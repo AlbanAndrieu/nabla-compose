@@ -35,7 +35,7 @@ TALOS_VERSION=v1.13.9 \
 bash scripts/truenas/install-operator-tools.sh --install
 ```
 
-If the operator account does not have `DATASET_WRITE`, create `cpool/tools` once through the TrueNAS UI/API (or an explicit administrator command) and rerun the script; the script deliberately does not elevate itself with `sudo`.
+If the operator account does not have `DATASET_WRITE`, create `cpool/tools` once through the TrueNAS UI/API (or an explicit administrator command) and rerun the script; the script deliberately does not elevate itself with `sudo`. The dataset mountpoint must also be writable by the operator account. Configure that owner/ACL once administratively if needed; the installer deliberately does not request the broader `FILESYSTEM_ATTRS_WRITE` role merely to change ownership.
 
 The installer recalculates the architecture on every run (`x86_64 -> amd64`, `aarch64/arm64 -> arm64`). It downloads the publisher checksum metadata **before** the binary, refuses an unpublished/missing asset, verifies SHA256, validates the downloaded client version, and atomically replaces the target binary. Matching versions are skipped on subsequent runs.
 
