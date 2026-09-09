@@ -1,3 +1,10 @@
+## [0.31.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.1...0.31.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **scrutiny:** allow InfluxDB migration buckets ([#176](https://github.com/AlbanAndrieu/nabla-compose/issues/176)) ([0c94fd5](https://github.com/AlbanAndrieu/nabla-compose/commit/0c94fd57e50753c0d67e862249a4a38cafae0a75))
+
 ## [0.31.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.0...0.31.1) (2026-09-09)
 
 
