@@ -102,7 +102,10 @@ validate_authorization_scope() {
         .permissions[]?;
         .action == "read"
         and .resource.type == "orgs"
-        and .resource.id == $orgID
+        and (
+          .resource.id == $orgID
+          or .resource.orgID == $orgID
+        )
       );
     has_org_read
     and has_org_scope("read"; "buckets")
@@ -221,13 +224,13 @@ create_task_if_missing() {
   rm -f "${response_file}"
 }
 
-base_id="$(create_bucket_if_missing "${BASE_BUCKET}")"
-weekly_id="$(create_bucket_if_missing "${BASE_BUCKET}_weekly")"
-monthly_id="$(create_bucket_if_missing "${BASE_BUCKET}_monthly")"
-yearly_id="$(create_bucket_if_missing "${BASE_BUCKET}_yearly")"
-weekly_task="$(create_task_if_missing tsk-weekly-aggr)"
-monthly_task="$(create_task_if_missing tsk-monthly-aggr)"
-yearly_task="$(create_task_if_missing tsk-yearly-aggr)"
+create_bucket_if_missing "${BASE_BUCKET}" >/dev/null
+create_bucket_if_missing "${BASE_BUCKET}_weekly" >/dev/null
+create_bucket_if_missing "${BASE_BUCKET}_monthly" >/dev/null
+create_bucket_if_missing "${BASE_BUCKET}_yearly" >/dev/null
+create_task_if_missing tsk-weekly-aggr >/dev/null
+create_task_if_missing tsk-monthly-aggr >/dev/null
+create_task_if_missing tsk-yearly-aggr >/dev/null
 
 permissions="$(jq -cn --arg orgID "${org_id}" '
   [
