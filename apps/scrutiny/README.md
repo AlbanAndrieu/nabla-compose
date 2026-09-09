@@ -66,6 +66,8 @@ The user has already created the Scrutiny application dataset and stopped the na
 
 ## Fresh cutover decision — 2026-09-09
 
+> **InfluxDB 2.9 compatibility:** the bootstrap uses syntactically valid, inactive placeholder tasks because InfluxDB 2.9 rejects the historical Scrutiny documentation placeholder `yield now()` with HTTP 400. Scrutiny replaces these task definitions during startup.
+
 Historical Scrutiny data from the stopped native app is no longer a cutover
 requirement. The replacement uses a fresh, isolated InfluxDB base bucket named
 `scrutiny` in organization `nabla`.
@@ -133,7 +135,7 @@ Its target must be the TrueNAS LAN endpoint:
 
 ```text
 COLLECTOR_API_ENDPOINT=http://172.17.0.24:31054
-COLLECTOR_HOST_ID=workstation-albandrieu
+COLLECTOR_HOST_ID=albandrieu
 ```
 
 Validate the already-running workstation container without changing it:
