@@ -1,3 +1,10 @@
+## [0.29.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.2...0.29.3) (2026-09-09)
+
+
+### Performance Improvements
+
+* **sample:** prefer immutable release image on TrueNAS ([#171](https://github.com/AlbanAndrieu/nabla-compose/issues/171)) ([faa037f](https://github.com/AlbanAndrieu/nabla-compose/commit/faa037f89c384c48c47ce32e2b3af06af1986988))
+
 ## [0.29.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.1...0.29.2) (2026-09-09)
 
 
