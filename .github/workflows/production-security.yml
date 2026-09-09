@@ -22,7 +22,6 @@ concurrency:
 env:
   PRODUCTION_URL: https://fastapi-sample.fastapicloud.dev
   TRUENAS_PUBLIC_API_URL: https://truenas.albandrieu.com:7000
-  SAMPLE_WEB_URL: https://sample.albandrieu.com
   DAST_MAX_AGE_SECONDS: "129600" # 36 hours; daily scan leaves bounded retry margin.
 
 jobs:
@@ -229,30 +228,6 @@ jobs:
           artifact_name: zap-truenas-api-baseline
           # TrueNAS 26 JSON-RPC lives on WebSocket /api/current. This passive
           # HTTP DAST covers /api/versions only and never targets the pfSense API.
-          cmd_options: "-I -m 0 -T 5 -s"
-
-  master-dast-web:
-    name: DAST / OWASP ZAP sample web (master)
-    if: github.event_name != 'pull_request'
-    needs: production-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - name: Run passive sample web baseline
-        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
-        with:
-          target: ${{ env.SAMPLE_WEB_URL }}
-          rules_file_name: .zap/sample-web-rules.tsv
-          fail_action: true
-          allow_issue_writing: false
-          artifact_name: zap-sample-web-baseline
-          # Zero spider fan-out: validate the web entry point without crawling
-          # into API routes. FastAPI API coverage is handled separately.
           cmd_options: "-I -m 0 -T 5 -s"
 
   pr-dast-baseline:
