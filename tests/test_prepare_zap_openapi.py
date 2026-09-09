@@ -48,6 +48,14 @@ class PrepareZapOpenApiTest(unittest.TestCase):
                 "/healthz": {"get": {"summary": "Aggregate provider health"}},
                 "/sickz": {"get": {"summary": "Detailed provider health"}},
                 "/readyz": {"get": {"summary": "Provider readiness"}},
+                "/error_test": {"get": {"summary": "Intentional error test"}},
+                "/sentry-debug": {"get": {"summary": "Controlled Sentry error"}},
+                "/async-data": {"get": {"summary": "External integration demo"}},
+                "/gateway/assistant": {
+                    "get": {"summary": "External gateway integration demo"}
+                },
+                "/demo/dev/heatlh": {"get": {"summary": "Development demo health"}},
+                "/test/exception": {"get": {"summary": "Intentional test exception"}},
             },
         }
 
@@ -68,9 +76,15 @@ class PrepareZapOpenApiTest(unittest.TestCase):
             set(filtered["paths"]["/v2/version"]),
             {"get"},
         )
-        self.assertTrue(any("pfSense" in item for item in excluded))
+        self.assertTrue(any("/api/pfsense/status" in item for item in excluded))
         self.assertTrue(any("/api/homelab/status" in item for item in excluded))
         self.assertTrue(any("/healthz" in item for item in excluded))
+        self.assertTrue(any("/error_test" in item for item in excluded))
+        self.assertTrue(any("/sentry-debug" in item for item in excluded))
+        self.assertTrue(any("/async-data" in item for item in excluded))
+        self.assertTrue(any("/gateway/assistant" in item for item in excluded))
+        self.assertTrue(any("/demo/dev/heatlh" in item for item in excluded))
+        self.assertTrue(any("/test/exception" in item for item in excluded))
         self.assertTrue(any("POST /v2/version" in item for item in excluded))
 
     def test_filter_fails_closed_when_every_operation_is_excluded(self) -> None:

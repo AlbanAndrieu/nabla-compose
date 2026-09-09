@@ -24,7 +24,16 @@ DENIED_PATHS = frozenset(
         "/readyz",
         "/api/homelab/status",
         "/api/homelab/health",
+        # Intentional failure/demo integrations are not production DAST targets.
+        "/async-data",
+        "/error_test",
+        "/gateway/assistant",
+        "/sentry-debug",
     }
+)
+DENIED_PATH_PREFIXES = (
+    "/demo/",
+    "/test/",
 )
 
 
@@ -68,6 +77,8 @@ def _is_denied(path: str, operation: object) -> bool:
     normalized = path.rstrip("/") or "/"
     if normalized in DENIED_PATHS:
         return True
+    if any(normalized.startswith(prefix) for prefix in DENIED_PATH_PREFIXES):
+        return True
     text = _operation_text(path, operation)
     return any(marker in text for marker in DENIED_TEXT_MARKERS)
 
@@ -101,7 +112,7 @@ def filter_openapi(
                     excluded.append(f"{method.upper()} {path}: non-read-only method")
                 continue
             if _is_denied(path, value):
-                excluded.append(f"{method.upper()} {path}: pfSense/high-cost exclusion")
+                excluded.append(f"{method.upper()} {path}: bounded DAST exclusion")
                 continue
             kept_item[key] = value
 
@@ -125,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Prepare a read-only OpenAPI document for ZAP while excluding "
-            "pfSense-backed/high-cost runtime probes."
+            "pfSense-backed/high-cost probes and intentional demo/error routes."
         )
     )
     parser.add_argument("--source", required=True, help="OpenAPI JSON URL or local file")

@@ -26,7 +26,7 @@ The goal is not merely to make containers start. A migration is complete only wh
 - [x] merge the IaC steady-state VM policy with `TALOS_VM_AUTOSTART=true`; the live apply/reboot acceptance remains operator-run;
 - [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` after the reviewed 3-change apply and again after the next TrueNAS reboot;
 - [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with `scripts/talos/smoke-kubernetes-network.sh` before adding persistent storage;
-- [ ] introduce TrueNAS-backed persistent storage as a separate democratic-csi change after network/DNS validation;
+- [ ] introduce TrueNAS-backed persistent storage through the pinned official TrueNAS CSI NFS path after network/DNS validation;
 - [ ] bootstrap GitOps only after storage behavior and rollback are proven;
 ### TrueNAS FastAPI observer boundary — 2026-09-06
 
@@ -1700,10 +1700,19 @@ After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
     GitOps workloads only after CSI persistence and rollback are proven.
 
 Prefer NFS as the first persistence smoke path because Talos workers require no
-additional iSCSI userspace package for NFS. Evaluate iSCSI only after the node
-requirements and Talos extensions are deliberately reviewed. democratic-csi
-remains the roadmap baseline unless the newer TrueNAS CSI driver is selected in
-a separate reviewed architecture decision.
+additional iSCSI userspace package for NFS. The reviewed first implementation
+now selects the official TrueNAS CSI driver v1.0.3, adapted to NFS-only Talos
+nodes and the TrueNAS 26 `/api/current` WebSocket API. Evaluate iSCSI only after
+the node requirements and Talos extensions are deliberately reviewed. Track the
+driver's remaining `auth.login_with_api_key` compatibility debt and require a
+modern username/SCRAM path before TrueNAS 27.
+
+Treat this CSI auth migration together with the separate TrueNAS host upgrade
+debt: the lab is intentionally pinned on `26.0.0-BETA.2` until a reviewed
+stable-26.x upgrade window validates the matching `truenas/api_client`,
+`PjSalty/truenas` provider, observer/MCP clients, Talos VM persistence and the
+full NFS CSI provision/persist/reclaim/rollback path. Do not upgrade the host or
+CSI independently.
 
 ### P1 — infrastructure secrets required for OpenTofu, TrueNAS, Nexus and Kubernetes
 

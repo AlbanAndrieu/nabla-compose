@@ -173,6 +173,15 @@ repos:
         files: >-
           ^([.]github/workflows/(?:codeql|production-security|runtime-baseline)[.]ya?ml|[.]zap/(?:rules|truenas-rules)[.]tsv|config/security/production-http-baseline[.]json|scripts/security/prepare-zap-openapi[.]py|tests/(?:test_security_ci_contract|test_prepare_zap_openapi)[.]py|docs/runtime-baseline-tests[.]md)$
 
+      - id: truenas-csi-nfs-contract
+        name: "💾 kubernetes · Validate TrueNAS NFS CSI contract"
+        language: python
+        entry: python -m unittest tests.test_truenas_csi_nfs_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(kubernetes/truenas-csi/|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|homelab-platform-migration-roadmap|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
+
       - id: pfsense-posture-audit-contract
         name: "🛡️ pfSense · Parse posture regression audit"
         language: system
