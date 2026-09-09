@@ -98,7 +98,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "Open SpeedTest",
@@ -147,7 +146,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/portracker.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "Portainer",
@@ -182,7 +180,6 @@
       "internalHost": "172.17.0.57",
       "iconSrc": "assets/selfh-icons/scrutiny.png",
       "external": false,
-      "environment": "production",
       "endpointEnabled": false,
       "internalTitle": "Collector-only runtime on workstation 172.17.0.57; no local web endpoint.",
       "healthNote": "Expected upstream target: http://172.17.0.24:31054"
@@ -561,7 +558,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/stirling-pdf.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "AnythingLLM",
@@ -586,7 +582,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/anythingllm.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "Reactive Resume",
@@ -611,7 +606,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/rxresume.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "Plumber",
@@ -756,7 +750,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
       "external": false,
-      "environment": "dev"
     },
     {
       "name": "SearXNG",
