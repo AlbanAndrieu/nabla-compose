@@ -6,13 +6,16 @@ CONTAINER="${FASTAPI_SAMPLE_CONTAINER:-fastapi-sample}"
 SUBMODULE="${FASTAPI_SAMPLE_SUBMODULE:-fastapi-sample}"
 REF="${FASTAPI_SAMPLE_REF:-master}"
 OBSERVER_NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
+DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"
+IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"
+REFRESH_BASE_IMAGES="${FASTAPI_SAMPLE_REFRESH_BASE_IMAGES:-false}"
 
 fail() {
 	printf 'ERROR: %s\n' "$*" >&2
 	exit 1
 }
 
-for command in git docker jq curl sudo midclt stat; do
+for command in git docker jq curl sudo midclt stat awk; do
 	command -v "${command}" >/dev/null 2>&1 ||
 		fail "${command} is required"
 done
@@ -39,6 +42,16 @@ fi
 run_docker() {
 	"${DOCKER[@]}" "$@"
 }
+
+case "${DEPLOY_MODE}" in
+	auto | pull | build) ;;
+	*) fail "FASTAPI_SAMPLE_DEPLOY_MODE must be one of: auto, pull, build" ;;
+esac
+
+case "${REFRESH_BASE_IMAGES}" in
+	true | false) ;;
+	*) fail "FASTAPI_SAMPLE_REFRESH_BASE_IMAGES must be true or false" ;;
+esac
 
 wait_for_json_endpoint() {
 	local label="$1"
@@ -96,18 +109,65 @@ fi
 before="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 printf 'FastAPI Sample current revision: %s\n' "${before}"
 
-run_git git -C "${SUBMODULE}" fetch --prune origin "${REF}"
-target="$(run_git git -C "${SUBMODULE}" rev-parse "origin/${REF}")"
+run_git git -C "${SUBMODULE}" fetch --prune --tags origin
+if target="$(run_git git -C "${SUBMODULE}" rev-parse --verify --quiet "refs/tags/${REF}^{commit}")" &&
+	[[ -n "${target}" ]]; then
+	target_label="tag/${REF}"
+elif target="$(run_git git -C "${SUBMODULE}" rev-parse --verify --quiet "origin/${REF}^{commit}")" &&
+	[[ -n "${target}" ]]; then
+	target_label="origin/${REF}"
+else
+	run_git git -C "${SUBMODULE}" fetch --prune origin "${REF}"
+	target="$(run_git git -C "${SUBMODULE}" rev-parse FETCH_HEAD)"
+	target_label="${REF}"
+fi
 
 run_git git -C "${SUBMODULE}" checkout --detach "${target}"
 run_git git -C "${SUBMODULE}" submodule update --init --recursive
 
-printf 'FastAPI Sample target origin/%s: %s\n' "${REF}" "${target}"
+package_version="$(
+	awk -F'"' '/^version = "/ {print $2; exit}' "${SUBMODULE}/pyproject.toml"
+)"
+[[ -n "${package_version}" ]] || fail "cannot determine FastAPI Sample package version"
+
+runtime_image="${FASTAPI_SAMPLE_IMAGE:-fastapi-sample:local}"
+release_image="${FASTAPI_SAMPLE_RELEASE_IMAGE:-${IMAGE_REPOSITORY}:${package_version}}"
+export FASTAPI_SAMPLE_IMAGE="${runtime_image}"
+
+printf 'FastAPI Sample target %s: %s (version %s)\n' \
+	"${target_label}" "${target}" "${package_version}"
+printf 'Runtime image: %s\n' "${runtime_image}"
 
 run_docker compose -f apps/sample/compose.yml config --quiet --no-interpolate --no-env-resolution
 
-printf 'Building fastapi-sample before runtime replacement...\n'
-run_docker compose -f apps/sample/compose.yml build --pull fastapi-sample
+image_source="local-build"
+if [[ "${DEPLOY_MODE}" != "build" ]]; then
+	printf 'Trying immutable release image: %s\n' "${release_image}"
+	if run_docker pull "${release_image}"; then
+		if [[ "${release_image}" != "${runtime_image}" ]]; then
+			run_docker tag "${release_image}" "${runtime_image}"
+		fi
+		image_source="release-pull"
+		printf 'Using prebuilt release image; local Python dependency build skipped.\n'
+	elif [[ "${DEPLOY_MODE}" == "pull" ]]; then
+		fail "release image pull failed in pull-only mode: ${release_image}"
+	else
+		printf 'WARN: release image unavailable; falling back to local BuildKit build.\n' >&2
+	fi
+fi
+
+if [[ "${image_source}" == "local-build" ]]; then
+	build_args=(compose -f apps/sample/compose.yml build)
+	if [[ "${REFRESH_BASE_IMAGES}" == "true" ]]; then
+		build_args+=(--pull)
+	else
+		printf 'Reusing local Docker base/dependency cache; set FASTAPI_SAMPLE_REFRESH_BASE_IMAGES=true for a security refresh.\n'
+	fi
+	build_args+=(fastapi-sample)
+
+	printf 'Building fastapi-sample before runtime replacement...\n'
+	run_docker "${build_args[@]}"
+fi
 
 network_contract=""
 if run_docker network inspect "${OBSERVER_NETWORK}" >/dev/null 2>&1; then
@@ -167,7 +227,7 @@ jq . <<<"${version_payload}"
 sudo bash scripts/security/verify-truenas-observer-access.sh
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
-printf 'OK: FastAPI Sample origin/%s deployed from %s\n' "${REF}" "${runtime_sha}"
+printf 'OK: FastAPI Sample %s deployed from %s via %s\n' "${REF}" "${runtime_sha}" "${image_source}"
 
 pinned_sha="$(run_git git ls-files -s "${SUBMODULE}" | awk '{print $2}')"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
