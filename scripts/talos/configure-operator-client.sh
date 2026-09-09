@@ -102,8 +102,12 @@ if [[ "${MODE}" == "--apply" ]]; then
   [[ ! -L "${PROFILE_FILE}" ]] || fail "refusing symlinked profile: ${PROFILE_FILE}"
 
   ensure_profile_line '# nabla-compose Talos/Kubernetes operator'
+  # These expressions are intentionally written literally into the operator profile.
+  # shellcheck disable=SC2016
   ensure_profile_line 'export PATH="/mnt/cpool/tools/bin:$PATH"'
+  # shellcheck disable=SC2016
   ensure_profile_line 'export TALOSCONFIG="$HOME/.config/nabla/talos/talosconfig"'
+  # shellcheck disable=SC2016
   ensure_profile_line 'export KUBECONFIG="$HOME/.config/nabla/talos/kubeconfig"'
 
   ok "operator profile configured in ${PROFILE_FILE}"
