@@ -1,3 +1,10 @@
+## [0.29.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.29.0...0.29.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **scrutiny:** complete TrueNAS SMART-aware cutover ([#167](https://github.com/AlbanAndrieu/nabla-compose/issues/167)) ([acb0d34](https://github.com/AlbanAndrieu/nabla-compose/commit/acb0d34e1bc9713e99b0c706c5906fbf11b2b3a5))
+
 # [0.29.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.28.0...0.29.0) (2026-09-08)
 
 
