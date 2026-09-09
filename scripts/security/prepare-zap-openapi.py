@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Build a bounded read-only OpenAPI document for production ZAP scanning."""
 
 from __future__ import annotations
