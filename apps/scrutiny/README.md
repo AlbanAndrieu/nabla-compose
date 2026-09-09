@@ -60,22 +60,40 @@ The repository-managed targets are:
 
 The user has already created the Scrutiny application dataset and stopped the native app. Keep the native datasets intact until historical SMART data has been verified in the replacement.
 
+## Fresh cutover decision — 2026-09-09
+
+Historical Scrutiny data from the stopped native app is no longer a cutover
+requirement. The replacement uses a fresh, isolated InfluxDB base bucket named
+`scrutiny` in organization `nabla`.
+
+This means:
+
+- do not restore the old embedded InfluxDB 2.2 datastore into the shared InfluxDB;
+- do not reuse the shared `metrics` bucket for Scrutiny;
+- provision the four Scrutiny buckets, placeholder downsampling tasks and
+  restricted API token with
+  `scripts/truenas/bootstrap-scrutiny-influxdb.sh`;
+- keep the old native dataset only until the new collector/web path is accepted,
+  then it may be deleted as explicitly approved.
+
 ## Migration sequence
 
-1. Snapshot the stopped native Scrutiny datasets before any conversion.
-2. Copy the Scrutiny SQLite/config state:
+1. Keep the stopped native Scrutiny dataset untouched until the replacement is accepted.
+2. Ensure the shared InfluxDB 2.9 runtime is healthy.
+3. Provision fresh Scrutiny InfluxDB resources and the restricted token:
 
 ```bash
-rsync -aHAX --numeric-ids \
-  /mnt/.ix-apps/app_mounts/scrutiny/config/ \
-  /mnt/cpool/scrutiny/config/
+sudo env INFLUXDB_ADMIN_TOKEN="${INFLUXDB_ADMIN_TOKEN}" \
+  bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply
+sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
 ```
 
-3. **Do not blindly rsync** the old embedded InfluxDB directory into the new InfluxDB 2.8 data directory. The old omnibus runtime was observed on InfluxDB 2.2. Use a logical InfluxDB backup/restore path, preserving the stopped source dataset as rollback evidence.
-4. Create/start `apps/influxdb/compose.yml` with admin credentials supplied through the secret provider.
-5. Restore the Scrutiny bucket/history into the standalone InfluxDB instance and create a Scrutiny-scoped token. Do not reuse the InfluxDB admin token as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
-6. Start `apps/scrutiny/compose.yml`.
-7. Validate the LAN path:
+4. Run the repository cutover preflight.
+5. Start the repository-managed Scrutiny app.
+6. Validate that the collector sees the host disks and the web API is healthy.
+7. After acceptance, inspect the legacy mount/dataset ownership and delete the old
+   native Scrutiny data only when no running container/app references it.
+8. Validate the LAN path:
 
 ```bash
 curl -fsS http://172.17.0.24:31054/api/health
