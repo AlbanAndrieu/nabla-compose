@@ -381,17 +381,22 @@ Scrutiny. In particular, `nabla's Recovery Token` is a temporary recovery
 credential and must not be stored as `SCRUTINY_WEB_INFLUXDB_TOKEN`.
 Scrutiny's bring-your-own-InfluxDB mode needs the base bucket plus
 three downsampling buckets (`<base>_weekly`, `<base>_monthly`,
-`<base>_yearly`) and the three corresponding aggregation tasks. Its restricted
-application token needs read access to the organization plus scoped read/write
-access to those buckets and tasks.
+`<base>_yearly`) and the three corresponding aggregation tasks. Scrutiny
+v0.9.3 can also create temporary `*_new` buckets while migrating WWN tags to
+UUIDs, then delete/rename buckets, and it can recreate missing tasks. InfluxDB
+therefore requires organization-scoped bucket/task read-write permissions for
+the runtime token; bucket-ID-only grants cannot authorize creation of those
+temporary resources.
 
 Use `scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply` with an existing
 InfluxDB operator/admin token to create the isolated `scrutiny`,
 `scrutiny_weekly`, `scrutiny_monthly`, and `scrutiny_yearly` buckets,
-the three placeholder aggregation tasks, and a restricted Scrutiny token.
-The helper writes only `SCRUTINY_WEB_INFLUXDB_TOKEN` to the root-owned
-`/mnt/cpool/scrutiny/.env.secrets` file with mode `0600` and never prints
-the token. Scrutiny replaces the placeholder task configuration during startup.
+the three placeholder aggregation tasks, and a dedicated Scrutiny runtime
+authorization limited to organization `nabla`. The root-owned mode-`0600`
+`/mnt/cpool/scrutiny/.env.secrets` stores the runtime token plus non-secret
+scope metadata (`SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=2` and the
+authorization ID). The token value is never printed. Scrutiny replaces the
+placeholder task configuration during startup.
 
 ## Langfuse shared Redis and MinIO
 
