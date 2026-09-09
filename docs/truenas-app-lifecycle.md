@@ -735,6 +735,12 @@ Use:
 sudo bash scripts/truenas/diagnose-scrutiny.sh --check
 ```
 
+If the failed TrueNAS create has already rolled back and removed the containers,
+use `diagnose-scrutiny.sh --capture-startup`. TrueNAS Custom App cleanup is
+why `docker logs <container-id>` can race with deletion and return
+`No such container`. The capture mode starts only the Scrutiny web service
+outside TrueNAS, records its startup evidence, and removes it afterwards.
+
 to distinguish web process/SQLite/config issues, InfluxDB DNS/API reachability,
 published `/api/health`, collector startup and SMART device visibility.
 
