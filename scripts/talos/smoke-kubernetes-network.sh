@@ -12,7 +12,9 @@ if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 WORKER_A_IP="${TALOS_WORKER_A_IP:-172.17.0.51}"
 WORKER_B_IP="${TALOS_WORKER_B_IP:-172.17.0.52}"
 NAMESPACE="${K8S_SMOKE_NAMESPACE:-nabla-network-smoke-$$}"
