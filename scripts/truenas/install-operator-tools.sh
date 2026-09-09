@@ -387,11 +387,18 @@ validate_version "talosctl" "${TALOS_VERSION}"
 
 case "${MODE}" in
   --check)
-    require_commands uname sed head midclt jq
+    require_commands uname sed head
     ARCH="$(detect_arch)"
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
     printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
-    verify_dataset
+    if command -v midclt >/dev/null 2>&1 &&
+      command -v jq >/dev/null 2>&1 &&
+      dataset_payload >/dev/null 2>&1; then
+      verify_dataset
+    else
+      [[ -d "${TOOLS_ROOT}" ]] || fail "tools root is missing: ${TOOLS_ROOT}"
+      printf 'ℹ️  dataset API check unavailable to the current account; root install remains the authoritative dataset validation\n'
+    fi
     if [[ -w "${TOOLS_ROOT}" ]]; then
       ok "current account can update ${TOOLS_ROOT}"
     else
