@@ -21,10 +21,15 @@ class TrueNASOperatorToolsContractTest(unittest.TestCase):
 
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('TOOLS_ROOT="${TOOLS_ROOT:-/mnt/cpool/tools}"', script)
+        self.assertIn('TOOLS_DATASET="${TOOLS_DATASET:-${TOOLS_ROOT#/mnt/}}"', script)
         self.assertIn('KUBECTL_VERSION="${KUBECTL_VERSION:-v1.36.3}"', script)
         self.assertIn('TALOS_VERSION="${TALOS_VERSION:-v1.13.9}"', script)
         self.assertNotIn("apt install", script)
         self.assertNotIn("sudo ", script)
+        self.assertIn("pool.dataset.query", script)
+        self.assertIn("pool.dataset.create", script)
+        self.assertIn('verify_dataset', script)
+        self.assertIn('ensure_dataset', script)
 
     def test_architecture_is_derived_each_run(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
