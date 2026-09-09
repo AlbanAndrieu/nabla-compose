@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "target": "https://fastapi-sample.fastapicloud.dev",
+  "observedAt": "2026-09-09",
+  "knownFailures": [
+    "X-Content-Type-Options: nosniff is missing",
+    "frame protection is missing (X-Frame-Options or CSP frame-ancestors)",
+    "Strict-Transport-Security is missing on HTTPS"
+  ],
+  "remediation": "Fix these headers in fastapi-sample production, then remove each resolved entry and the matching ZAP IGNORE rule."
+}

@@ -1,0 +1,6 @@
+# ZAP baseline rule configuration.
+# Ignore only findings already captured by config/security/production-http-baseline.json.
+# Remove an IGNORE as soon as the corresponding production header is fixed.
+10020	IGNORE	(Known debt: anti-clickjacking/frame protection header)
+10021	IGNORE	(Known debt: X-Content-Type-Options header)
+10035	IGNORE	(Known debt: Strict-Transport-Security header)

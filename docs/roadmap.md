@@ -30,6 +30,8 @@ notes remain in the specialized roadmaps:
 - [x] Sentry 26.8 lifecycle convergence is green on 2026-09-08: `diagnose-sentry.sh --check` returned `exit=0`, TrueNAS aggregate state is `RUNNING`, no workload is `starting`/`unhealthy`/unexpectedly exited, all required Kafka topics exist, Sentry edge health is green and Snuba API health is OK. The only remaining final-regression item is rerunning the synthetic event smoke after this convergence pass.
 - [ ] Wazuh is not yet deployed; bootstrap now uses runtime API secrets and fail-closed PEM files under `/mnt/cpool/wazuh`, but runtime bootstrap/redeploy still needs acceptance.
 - [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
+- [x] Pull-request security now includes CodeQL SAST plus a live FastAPI Cloud production smoke; OWASP ZAP DAST runs only on `master`/daily to control CI cost, while every PR requires the latest successful master DAST baseline to be no older than 36 hours.
+- [ ] FastAPI Cloud response-header hardening — production currently lacks `X-Content-Type-Options: nosniff`, anti-framing (`X-Frame-Options` or CSP `frame-ancestors`) and HSTS. CI carries only these three explicit temporary baseline exceptions; remove each exception when the production header is fixed.
 - [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
@@ -94,7 +96,9 @@ green cloud observation must not mask a broken local path.
    `/health` + `/v2/version` integration success, the HTTP security baseline
    to pass, and a low-volume latency/error smoke with explicit p95/error-rate
    thresholds. CI proves the harness against a deterministic local fixture; the
-   live TrueNAS/public targets are explicit/manual runs.
+   TrueNAS-local targets remain explicit/manual runs, while the FastAPI Cloud
+   production target is checked automatically before merge and after `master`
+   changes.
 10. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
    convergence is proven (`exit=0`, aggregate `RUNNING`, zero
    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
