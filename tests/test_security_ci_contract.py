@@ -33,8 +33,9 @@ class SecurityCiContractTest(unittest.TestCase):
         self.assertIn("Production pre/post-deploy smoke", workflow)
         self.assertIn("https://fastapi-sample.fastapicloud.dev", workflow)
         self.assertIn("https://truenas.albandrieu.com:7000", workflow)
-        self.assertNotIn("SAMPLE_WEB_URL", workflow)
-        self.assertNotIn("DAST / OWASP ZAP sample web", workflow)
+        self.assertIn("SAMPLE_WEB_URL", workflow)
+        self.assertIn("https://sample.albandrieu.com", workflow)
+        self.assertIn("DAST / OWASP ZAP sample web", workflow)
         self.assertIn("runtime-baseline.py integration", workflow)
         self.assertIn("runtime-baseline.py pentest", workflow)
         self.assertIn("/api/homelab/status", workflow)
@@ -43,14 +44,14 @@ class SecurityCiContractTest(unittest.TestCase):
         self.assertIn("--requests 20", workflow)
         self.assertIn("--concurrency 4", workflow)
 
-    def test_master_dast_scans_fastapi_and_truenas_apis(self) -> None:
+    def test_master_dast_scans_fastapi_truenas_and_sample_web(self) -> None:
         workflow = (
             ROOT / ".github/workflows/production-security.yml"
         ).read_text(encoding="utf-8")
 
         self.assertIn("DAST / OWASP ZAP FastAPI API (master)", workflow)
         self.assertIn("DAST / OWASP ZAP TrueNAS API (master)", workflow)
-        self.assertNotIn("DAST / OWASP ZAP sample web (master)", workflow)
+        self.assertIn("DAST / OWASP ZAP sample web (master)", workflow)
 
         self.assertIn(
             "zaproxy/action-api-scan@"
@@ -79,6 +80,8 @@ class SecurityCiContractTest(unittest.TestCase):
         )
         self.assertIn("rules_file_name: .zap/truenas-rules.tsv", workflow)
         self.assertIn('cmd_options: "-I -m 0 -T 5 -s"', workflow)
+        self.assertIn("target: ${{ env.SAMPLE_WEB_URL }}", workflow)
+        self.assertIn("artifact_name: zap-sample-web-baseline", workflow)
 
     def test_dast_explicitly_excludes_pfsense_load_sensitive_api(self) -> None:
         workflow = (

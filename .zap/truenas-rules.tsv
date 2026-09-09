@@ -1,7 +1,6 @@
-# OWASP ZAP passive policy for the public TrueNAS API transport.
-# TrueNAS 26 uses JSON-RPC 2.0 over WebSocket at /api/current; this policy
-# covers the HTTP API surface (/api/versions) without active/mutating scans.
-# Do not add pfSense/admin targets to this policy.
+# OWASP ZAP passive public-surface policy.
+# Shared by TrueNAS /api/versions and sample.albandrieu.com web. It contains
+# no FastAPI response-header debt IGNORE rules and never targets pfSense/admin.
 10003	FAIL	(Vulnerable JavaScript Library)
 10010	FAIL	(Cookie No HttpOnly Flag)
 10011	FAIL	(Cookie Without Secure Flag)

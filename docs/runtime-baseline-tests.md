@@ -83,8 +83,9 @@ heavier DAST scan:
 - every non-draft PR targeting `master` runs the live integration and HTTP
   security baseline against `https://fastapi-sample.fastapicloud.dev`;
 - `master` pushes, the daily schedule and manual dispatch run the same smoke,
-  a bounded performance pass and two bounded ZAP checks: the filtered FastAPI
-  OpenAPI surface and the public TrueNAS API transport when the runner is permitted;
+  a bounded performance pass and three bounded ZAP checks: the filtered FastAPI
+  OpenAPI surface, the public TrueNAS API transport when the runner is permitted,
+  and the `sample.albandrieu.com` web entry point;
 - the FastAPI OpenAPI scan runs in ZAP safe mode (`-S`) against a generated
   read-only specification; the TrueNAS checks use passive
   zero-spider-budget baselines; active/mutating attack scanning is excluded;
@@ -112,8 +113,10 @@ The integration/performance target remains
 `https://fastapi-sample.fastapicloud.dev`. DAST intentionally also validates
 the public TrueNAS API transport at
 `https://truenas.albandrieu.com:7000/api/versions`. These checks are bounded and
-read-only; they must not be expanded to the pfSense management API. The TrueNAS
-scan is skipped when the generic GitHub runner is denied or source-filtered.
+read-only; the web DAST additionally validates `https://sample.albandrieu.com`
+with zero spider fan-out. None of these checks may be expanded to the pfSense
+management API. The TrueNAS scan is skipped when the generic GitHub runner is
+denied or source-filtered.
 
 The pre/post-deploy smoke also verifies the production
 `/api/homelab/status` and `/api/runtime/topology` contracts so a green
@@ -129,8 +132,8 @@ browsing, mixed content, cross-domain misconfiguration, weak authentication and
 application error disclosure) to `FAIL`.
 
 Only the FastAPI API policy carries the three already-known response-header
-debts as `IGNORE`: rules 10020, 10021 and 10035. The TrueNAS
-policies carry no IGNORE entries. Do not expand an IGNORE list merely to make CI
+debts as `IGNORE`: rules 10020, 10021 and 10035. The shared passive
+TrueNAS/sample-web policy carries no IGNORE entries. Do not expand an IGNORE list merely to make CI
 green.
 
 The PR DAST evidence gate queries the **latest** relevant master run, including
