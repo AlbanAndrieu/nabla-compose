@@ -9,7 +9,9 @@ if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" 
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 TRUENAS_HOST="${TRUENAS_CSI_HOST:-172.17.0.24}"
 EXPECTED_NODES="${K8S_EXPECTED_NODES:-3}"
 EXPECTED_WORKERS="${K8S_EXPECTED_WORKERS:-2}"
