@@ -74,3 +74,29 @@ independent from TrueNAS, Cloudflare and secrets.
 The same workflow can be started manually with `target_url` to validate an
 explicit live endpoint. The live performance pass remains bounded to 20
 requests at concurrency 4.
+
+## Production security gate
+
+`.github/workflows/production-security.yml` separates cheap PR checks from the
+heavier DAST scan:
+
+- every non-draft PR targeting `master` runs the live integration and HTTP
+  security baseline against `https://fastapi-sample.fastapicloud.dev`;
+- `master` pushes, the daily schedule and manual dispatch run the same smoke, a
+  bounded performance pass and an OWASP ZAP Baseline scan;
+- ZAP is passive/non-destructive here: it spiders for at most two minutes and
+  performs passive analysis; active attack scanning is intentionally excluded;
+- PRs do not rerun ZAP. Instead `DAST master baseline gate` requires the latest
+  completed `master` DAST to be successful and no older than 36 hours;
+- the PR introducing the workflow has a one-time bootstrap exception because
+  no `master` run can exist until that workflow is merged.
+
+The ZAP action is pinned by commit SHA, does not create GitHub issues, and
+publishes its scan report as a workflow artifact. `fail_action: true` makes
+new ZAP alerts visible as a failed master security baseline; review and
+explicitly baseline a confirmed false positive rather than weakening the PR
+freshness gate.
+
+CodeQL remains the Python SAST implementation and now runs on non-draft pull
+requests as well as its scheduled scan. Checkov in MegaLinter continues to
+cover repository IaC/configuration concerns that CodeQL does not model.
