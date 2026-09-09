@@ -12,8 +12,9 @@ if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-TALOSCONFIG="${TALOSCONFIG:-${ROOT}/.talos/generated/talosconfig}"
-KUBECONFIG="${KUBECONFIG:-${ROOT}/.talos/generated/kubeconfig}"
+# shellcheck source=scripts/talos/lib/client-config.sh
+source "${ROOT}/scripts/talos/lib/client-config.sh"
+nabla_resolve_talos_client_config "${ROOT}"
 CONTROL_PLANE_IP="${TALOS_CONTROL_PLANE_IP:-172.17.0.50}"
 EXPECTED_NODE_COUNT="${TALOS_EXPECTED_NODE_COUNT:-3}"
 WORKER_IPS="${TALOS_WORKER_IPS:-172.17.0.51 172.17.0.52}"
