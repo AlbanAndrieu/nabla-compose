@@ -7,6 +7,8 @@ INFLUX_ORG="${SCRUTINY_INFLUX_ORG:-nabla}"
 BASE_BUCKET="${SCRUTINY_INFLUX_BUCKET:-scrutiny}"
 SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
 ROTATE="${SCRUTINY_TOKEN_ROTATE:-0}"
+TOKEN_SCOPE_VERSION="2"
+AUTH_DESCRIPTION="scrutiny - runtime token v2"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -82,15 +84,33 @@ validate_restricted_token() {
   done
 }
 
+scrutiny_authorization_ids() {
+  local token="$1"
+  local org_id="$2"
+
+  auth_get "${token}" "/api/v2/authorizations?orgID=${org_id}&limit=100" |
+    jq -r --arg description "${AUTH_DESCRIPTION}" '
+      .authorizations[]?
+      | select(
+          .description == $description
+          or .description == "scrutiny - restricted scope token"
+        )
+      | .id
+    '
+}
+
 if [[ "${MODE}" == "--check" ]]; then
   [[ -s "${SECRET_FILE}" ]] ||
     fail "missing Scrutiny secret file: ${SECRET_FILE}; run --apply with INFLUXDB_ADMIN_TOKEN"
   [[ "$(stat -c '%a' "${SECRET_FILE}")" == "600" ]] ||
     fail "${SECRET_FILE} must be mode 0600"
   token="$(sed -n 's/^SCRUTINY_WEB_INFLUXDB_TOKEN=//p' "${SECRET_FILE}" | head -n1)"
+  scope_version="$(sed -n 's/^SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=//p' "${SECRET_FILE}" | head -n1)"
   [[ -n "${token}" ]] || fail "SCRUTINY_WEB_INFLUXDB_TOKEN is missing from ${SECRET_FILE}"
+  [[ "${scope_version}" == "${TOKEN_SCOPE_VERSION}" ]] ||
+    fail "Scrutiny token scope is legacy or unknown; rotate it with SCRUTINY_TOKEN_ROTATE=1 and INFLUXDB_ADMIN_TOKEN"
   validate_restricted_token "${token}"
-  printf '✅ Scrutiny InfluxDB bootstrap: org=%s bucket=%s token=VALID\n'     "${INFLUX_ORG}" "${BASE_BUCKET}"
+  printf '✅ Scrutiny InfluxDB bootstrap: org=%s bucket=%s token=VALID scope=v%s\n'     "${INFLUX_ORG}" "${BASE_BUCKET}" "${TOKEN_SCOPE_VERSION}"
   exit 0
 fi
 
@@ -180,37 +200,64 @@ weekly_task="$(create_task_if_missing tsk-weekly-aggr)"
 monthly_task="$(create_task_if_missing tsk-monthly-aggr)"
 yearly_task="$(create_task_if_missing tsk-yearly-aggr)"
 
-permissions="$(jq -cn   --arg orgID "${org_id}"   --arg base "${base_id}"   --arg weekly "${weekly_id}"   --arg monthly "${monthly_id}"   --arg yearly "${yearly_id}"   --arg weeklyTask "${weekly_task}"   --arg monthlyTask "${monthly_task}"   --arg yearlyTask "${yearly_task}" '
+permissions="$(jq -cn --arg orgID "${org_id}" '
   [
-    {action:"read",resource:{type:"orgs"}},
-    {action:"read",resource:{type:"tasks"}},
-    {action:"write",resource:{type:"tasks",id:$weeklyTask,orgID:$orgID}},
-    {action:"write",resource:{type:"tasks",id:$monthlyTask,orgID:$orgID}},
-    {action:"write",resource:{type:"tasks",id:$yearlyTask,orgID:$orgID}},
-    {action:"read",resource:{type:"buckets",id:$base,orgID:$orgID}},
-    {action:"write",resource:{type:"buckets",id:$base,orgID:$orgID}},
-    {action:"read",resource:{type:"buckets",id:$weekly,orgID:$orgID}},
-    {action:"write",resource:{type:"buckets",id:$weekly,orgID:$orgID}},
-    {action:"read",resource:{type:"buckets",id:$monthly,orgID:$orgID}},
-    {action:"write",resource:{type:"buckets",id:$monthly,orgID:$orgID}},
-    {action:"read",resource:{type:"buckets",id:$yearly,orgID:$orgID}},
-    {action:"write",resource:{type:"buckets",id:$yearly,orgID:$orgID}}
+    {action:"read",resource:{type:"orgs",id:$orgID}},
+    {action:"read",resource:{type:"buckets",orgID:$orgID}},
+    {action:"write",resource:{type:"buckets",orgID:$orgID}},
+    {action:"read",resource:{type:"tasks",orgID:$orgID}},
+    {action:"write",resource:{type:"tasks",orgID:$orgID}}
   ]')"
 
+# Scrutiny v0.9.3 can create/delete/rename temporary <bucket>_new buckets during
+# its WWN -> UUID migration and can recreate downsampling tasks when missing.
+# InfluxDB models these capabilities at organization scope. Keeping orgID on
+# bucket/task resources avoids all-access/operator privileges while allowing
+# the upstream migration to complete.
+
+old_auth_ids="$(scrutiny_authorization_ids "${admin_token}" "${org_id}" || true)"
+
 authorization="$(
-  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/authorizations"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg orgID "${org_id}"       --arg description "scrutiny - restricted scope token"       --argjson permissions "${permissions}"       '{orgID:$orgID,description:$description,permissions:$permissions}')"
+  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/authorizations"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg orgID "${org_id}"       --arg description "${AUTH_DESCRIPTION}"       --argjson permissions "${permissions}"       '{orgID:$orgID,description:$description,permissions:$permissions}')"
 )"
 restricted_token="$(jq -r '.token // empty' <<<"${authorization}")"
+new_auth_id="$(jq -r '.id // empty' <<<"${authorization}")"
 [[ -n "${restricted_token}" ]] || fail "InfluxDB did not return the new Scrutiny token"
+[[ -n "${new_auth_id}" ]] || fail "InfluxDB did not return the new Scrutiny authorization id"
+
+# Validate before replacing the runtime secret. This avoids cutting over to a
+# token that cannot even read the expected Scrutiny resources.
+validate_restricted_token "${restricted_token}"
 
 install -d -m 0750 "$(dirname "${SECRET_FILE}")"
+secret_tmp="$(mktemp "$(dirname "${SECRET_FILE}")/.env.secrets.XXXXXX")"
 umask 077
-printf 'SCRUTINY_WEB_INFLUXDB_TOKEN=%s\n' "${restricted_token}" >"${SECRET_FILE}"
+{
+  printf 'SCRUTINY_WEB_INFLUXDB_TOKEN=%s\n' "${restricted_token}"
+  printf 'SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=%s\n' "${TOKEN_SCOPE_VERSION}"
+  printf 'SCRUTINY_INFLUXDB_AUTH_ID=%s\n' "${new_auth_id}"
+} >"${secret_tmp}"
+chmod 600 "${secret_tmp}"
+mv -f "${secret_tmp}" "${SECRET_FILE}"
 chmod 600 "${SECRET_FILE}"
-unset restricted_token authorization permissions admin_token INFLUXDB_ADMIN_TOKEN
+
+# Revoke previous Scrutiny authorizations only after the new token is validated
+# and durably installed. Failure to revoke is reported but does not invalidate
+# the working replacement token.
+while IFS= read -r old_auth_id; do
+  [[ -n "${old_auth_id}" ]] || continue
+  [[ "${old_auth_id}" != "${new_auth_id}" ]] || continue
+  if curl -fsS     --connect-timeout 3     --max-time 10     -X DELETE "${INFLUX_HOST}/api/v2/authorizations/${old_auth_id}"     -H "Authorization: Token ${admin_token}" >/dev/null; then
+    printf 'Revoked superseded Scrutiny InfluxDB authorization %s\n' "${old_auth_id}"
+  else
+    printf 'WARNING: unable to revoke superseded Scrutiny authorization %s\n' "${old_auth_id}" >&2
+  fi
+done <<<"${old_auth_ids}"
+
+unset restricted_token authorization permissions old_auth_ids new_auth_id admin_token INFLUXDB_ADMIN_TOKEN
 
 token="$(sed -n 's/^SCRUTINY_WEB_INFLUXDB_TOKEN=//p' "${SECRET_FILE}" | head -n1)"
 validate_restricted_token "${token}"
 unset token
 
-printf '✅ Scrutiny InfluxDB bootstrap complete: org=%s bucket=%s secret=%s mode=0600\n'   "${INFLUX_ORG}" "${BASE_BUCKET}" "${SECRET_FILE}"
+printf '✅ Scrutiny InfluxDB bootstrap complete: org=%s bucket=%s secret=%s mode=0600 scope=v%s\n'   "${INFLUX_ORG}" "${BASE_BUCKET}" "${SECRET_FILE}" "${TOKEN_SCOPE_VERSION}"
