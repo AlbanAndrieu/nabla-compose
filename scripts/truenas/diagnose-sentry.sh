@@ -252,6 +252,39 @@ else
   printf '⚠️ kafka-topics CLI unavailable in shared Kafka container %s\n' "${kafka_name}"
 fi
 
+printf '\n==> unhealthy Snuba consumer-group evidence\n'
+if [[ "${kafka_topic_probe_available}" -eq 1 ]]; then
+  mapfile -t unhealthy_snuba_services < <(
+    for id in "${container_ids[@]}"; do
+      inspect="$(docker inspect "${id}")"
+      service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // ""' <<<"${inspect}")"
+      health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
+      if [[ "${health}" == "unhealthy" && "${service}" == snuba-* ]]; then
+        printf '%s\n' "${service}"
+      fi
+    done
+  )
+  if [[ "${#unhealthy_snuba_services[@]}" -eq 0 ]]; then
+    printf 'No unhealthy Snuba consumers require Kafka group inspection.\n'
+  else
+    printf 'Unhealthy Snuba services: %s\n' "${unhealthy_snuba_services[*]}"
+    printf 'Relevant Kafka consumer groups:\n'
+    docker exec "${kafka_container_id}" kafka-consumer-groups --bootstrap-server kafka:9092 --list 2>/dev/null |
+      grep -E 'snuba|replac|subscription' || true
+    if printf '%s\n' "${unhealthy_snuba_services[@]}" | grep -Fxq 'snuba-subscription-consumer-events'; then
+      printf '\nConsumer group snuba-events-subscriptions-consumers:\n'
+      docker exec "${kafka_container_id}" kafka-consumer-groups \
+        --bootstrap-server kafka:9092 \
+        --describe \
+        --group snuba-events-subscriptions-consumers 2>&1 || true
+    fi
+    printf '\nNOTE: a running process with network connectivity but no /tmp/health.txt is not accepted as healthy.\n'
+    printf 'The upstream Sentry compose uses the same heartbeat-file health contract for these Snuba consumers.\n'
+  fi
+else
+  printf 'Kafka consumer-group inspection unavailable because kafka-consumer-groups was not discovered.\n'
+fi
+
 printf '\n==> Sentry functional edge health\n'
 if curl --fail --silent --show-error --max-time 8 "${EDGE_URL}" >/dev/null; then
   printf '✅ Sentry edge healthy: %s\n' "${EDGE_URL}"
