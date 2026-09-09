@@ -116,9 +116,12 @@ green cloud observation must not mask a broken local path.
     deploy manager/indexer/dashboard, and require
     `diagnose-wazuh.sh --check` before enabling the optional shared-OpenSearch
     forwarder.
-13. [ ] **Scrutiny + InfluxDB — parallel** — preserve/recover history, provision
+13. [ ] **Scrutiny + InfluxDB — parallel** — latest lifecycle evidence still reports the repository app as `MISSING`; preserve/recover history, provision
     a dedicated `SCRUTINY_WEB_INFLUXDB_TOKEN`, then run the explicit repository
-    cutover/acceptance helper.
+    cutover/acceptance helper. The helper now discovers host disks with
+    `smartctl --scan-open`, renders explicit device passthrough for the collector,
+    adds `SYS_ADMIN` only when NVMe is detected, and fails acceptance if the
+    running collector cannot see any SMART devices.
 14. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the
     Sentry acceptance gate above is green, then prove document
     ingestion/index/search end-to-end.
