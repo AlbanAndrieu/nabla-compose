@@ -25,7 +25,7 @@ esac
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so runtime datasets and secrets are validated consistently"
 
-for command in docker git jq midclt curl grep stat install smartctl awk sort mktemp date mv; do
+for command in docker git jq midclt curl grep stat install smartctl awk sort mktemp date mv sed head; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -59,6 +59,10 @@ secret_mode="$(stat -c '%a' "${SCRUTINY_SECRET_FILE}")"
 
 grep -q '^SCRUTINY_WEB_INFLUXDB_TOKEN=.' "${SCRUTINY_SECRET_FILE}" ||
   fail "SCRUTINY_WEB_INFLUXDB_TOKEN is missing from ${SCRUTINY_SECRET_FILE}"
+
+scope_version="$(sed -n 's/^SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=//p' "${SCRUTINY_SECRET_FILE}" | head -n1)"
+[[ "${scope_version}" == "2" ]] ||
+  fail "Scrutiny InfluxDB token scope is legacy/unknown; rotate it with SCRUTINY_TOKEN_ROTATE=1 before cutover"
 
 docker network inspect intranet >/dev/null 2>&1 ||
   fail "external Docker network intranet is missing"
