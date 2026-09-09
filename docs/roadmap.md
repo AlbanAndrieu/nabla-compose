@@ -339,3 +339,76 @@ Current status after runtime stabilization:
 
 Keycloak/GitHub SSO and Vault/OpenBao human authentication remain after the
 network, storage and infrastructure-secret gates.
+
+
+## Script architecture refactor
+
+The repository now has **67 files under `scripts/`**, including **21 TrueNAS
+operator scripts**. The current diagnostics duplicate the same middleware,
+Docker, probe, secret and reporting primitives, so the next maintainability
+gate is to refactor them without breaking existing operator entrypoints.
+
+Reference design: `docs/operator-scripts-refactor.md`.
+
+### P1 — reusable operator library
+
+- [ ] extract `scripts/lib/common.sh` for strict runtime helpers,
+  `require_command`, root/operator checks, temp files and cleanup traps;
+- [ ] extract `scripts/lib/diagnostic.sh` for ok/fail/warn/skipped counters,
+  compact/full output, report files and stable exit codes;
+- [ ] extract `scripts/lib/truenas.sh` for `app.query`, app state,
+  recent jobs, lifecycle evidence, canonical worktree detection and bounded
+  app-state waits;
+- [ ] extract `scripts/lib/docker.sh` for container state/health/restarts,
+  health history, mounts/networks, bounded logs, process/resource context and
+  stable-health waits;
+- [ ] extract `scripts/lib/probe.sh` for HTTP/HTTPS/TCP/DNS probes,
+  accepted-status sets and bounded retry/backoff;
+- [ ] extract `scripts/lib/secrets.sh` for owner/mode/key-presence contracts
+  without printing secret values;
+- [ ] extract a guarded `scripts/lib/startup-capture.sh` based on
+  `diagnose-scrutiny.sh --capture-startup` so failed TrueNAS Custom Apps can
+  preserve startup logs before middleware cleanup removes their containers.
+
+### P2 — migrate diagnostics without behavior change
+
+- [ ] migrate `diagnose-influxdb.sh` first as the smallest reference;
+- [ ] migrate `diagnose-wazuh.sh`;
+- [ ] migrate `diagnose-scrutiny.sh`;
+- [ ] migrate `diagnose-sentry.sh` last because Kafka topics/groups,
+  heartbeat files and one-shot migrations are specialized;
+- [ ] keep current CLI paths as compatibility wrappers during the migration;
+- [ ] preserve the global `audit-app-lifecycle.sh` as the orchestrator and
+  remove duplicate service-specific probing from it.
+
+### P3 — service contracts + thin adapters
+
+- [ ] add declarative contracts under `scripts/contracts/truenas/` for
+  app id, required containers, endpoints/status codes, dependencies, mounts,
+  networks, secret contracts and stabilization windows;
+- [ ] add generic `scripts/truenas/diagnose-service.sh <service>`;
+- [ ] keep thin specialized adapters only where domain semantics require them:
+  Sentry Kafka, Scrutiny SMART/InfluxDB migrations, Wazuh TLS ownership,
+  InfluxDB scraper/token details and Talos/Kubernetes resource semantics;
+- [ ] allow the global TrueNAS audit and later FastAPI topology/health APIs to
+  consume the same contract/result model.
+
+### P4 — reorganize `scripts/` safely
+
+- [ ] split TrueNAS implementations into `diagnose/`, `bootstrap/`,
+  `deploy/` and `recover/`;
+- [ ] preserve old paths as wrappers for at least one release cycle so docs,
+  CI and operator habits do not break;
+- [ ] add quality gates for shebang/executable mode, `bash -n`/ShellCheck and
+  discourage new duplicated runtime primitives outside `scripts/lib/`.
+
+### Scrutiny authorization follow-up
+
+- [ ] fix the Scrutiny runtime token contract for v0.9.3 migrations. The
+  standalone capture proved that SQLite and InfluxDB connectivity are healthy,
+  but Scrutiny fails while creating temporary `scrutiny_new` migration
+  buckets because the restricted token lacks organization-scoped bucket
+  mutation permission. Keep the token dedicated to the `nabla` org and grant
+  only the minimum bucket create/delete/update/read scope required by the
+  upstream migration; validate it in bootstrap and startup diagnostics before
+  retrying the TrueNAS app cutover.
