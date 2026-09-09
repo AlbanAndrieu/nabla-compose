@@ -181,6 +181,14 @@ repos:
         files: >-
           ^(scripts/truenas/install-operator-tools[.]sh|docs/truenas-operator-tools[.]md|tests/test_truenas_operator_tools[.]py)$
 
+      - id: talos-operator-client-contract
+        name: "🔐 talos · Validate non-root operator client contract"
+        language: system
+        entry: python -m unittest tests.test_talos_operator_client_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/talos/(?:configure-operator-client[.]sh|lib/client-config[.]sh|validate-cluster[.]sh|smoke-kubernetes-network[.]sh|validate-csi-prereqs[.]sh|install-truenas-csi-nfs[.]sh|smoke-truenas-csi-nfs[.]sh|preflight-kubara[.]sh|smoke-fastapi-sample[.]sh)|scripts/truenas/install-operator-tools[.]sh|docs/(?:truenas-operator-tools|kubernetes-csi-preflight)[.]md|tests/(?:test_talos_operator_client_contract|test_truenas_operator_tools)[.]py)$
+
       - id: truenas-csi-nfs-contract
         name: "💾 kubernetes · Validate TrueNAS NFS CSI contract"
         language: python
