@@ -97,7 +97,7 @@
       "tunnelUrl": "https://prometheus - albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "Open SpeedTest",
@@ -145,7 +145,7 @@
       "tunnelUrl": "https://portracker-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/portracker.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "Portainer",
@@ -557,7 +557,7 @@
       "tunnelUrl": "https://stirling-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/stirling-pdf.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "AnythingLLM",
@@ -581,7 +581,7 @@
       "tunnelUrl": "https://anythingllm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/anythingllm.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "Reactive Resume",
@@ -605,7 +605,7 @@
       "tunnelUrl": "https://reactive-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/rxresume.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "Plumber",
@@ -749,7 +749,7 @@
       "tunnelUrl": "https://litellm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
-      "external": false,
+      "external": false
     },
     {
       "name": "SearXNG",
