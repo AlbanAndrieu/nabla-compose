@@ -90,7 +90,7 @@ class SecurityCiContractTest(unittest.TestCase):
         self.assertNotIn("home.albandrieu.com", dast)
         self.assertNotIn("PFSENSE_API_URL", dast)
         self.assertNotIn("PFSENSE_SECURITY", dast)
-        self.assertIn("pfSense :10443", dast)
+        self.assertIn("never targets the pfSense API", dast)
 
         helper = (
             ROOT / "scripts/security/prepare-zap-openapi.py"
