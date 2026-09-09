@@ -7,6 +7,7 @@ TOOLS_ROOT="${TOOLS_ROOT:-/mnt/cpool/tools}"
 TOOLS_BIN="${TOOLS_BIN:-${TOOLS_ROOT}/bin}"
 TOOLS_DOWNLOADS="${TOOLS_DOWNLOADS:-${TOOLS_ROOT}/downloads}"
 TOOLS_CACHE="${TOOLS_CACHE:-${TOOLS_ROOT}/cache}"
+TOOLS_DATASET="${TOOLS_DATASET:-${TOOLS_ROOT#/mnt/}}"
 KUBECTL_VERSION="${KUBECTL_VERSION:-v1.36.3}"
 TALOS_VERSION="${TALOS_VERSION:-v1.13.9}"
 PROFILE_FILE="${NABLA_OPERATOR_PROFILE:-${HOME}/.profile}"
@@ -71,12 +72,59 @@ validate_root() {
     fail "TOOLS_DOWNLOADS must remain inside TOOLS_ROOT"
   [[ "${TOOLS_CACHE}" == "${TOOLS_ROOT}/"* ]] ||
     fail "TOOLS_CACHE must remain inside TOOLS_ROOT"
+  [[ "${TOOLS_DATASET}" == "${TOOLS_ROOT#/mnt/}" ]] ||
+    fail "TOOLS_DATASET must map exactly to TOOLS_ROOT (${TOOLS_ROOT#/mnt/})"
 
   for path in "${TOOLS_ROOT}" "${TOOLS_BIN}" "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"; do
     [[ ! -L "${path}" ]] || fail "refusing symlinked tools path: ${path}"
   done
 }
 
+dataset_payload() {
+  midclt call pool.dataset.query "[[\"id\",\"=\",\"${TOOLS_DATASET}\"]]"
+}
+
+verify_dataset() {
+  local payload
+  local count
+  local mountpoint
+
+  payload="$(dataset_payload)" ||
+    fail "cannot query TrueNAS dataset ${TOOLS_DATASET}"
+  count="$(jq 'length' <<<"${payload}")"
+  [[ "${count}" -eq 1 ]] ||
+    fail "TrueNAS dataset ${TOOLS_DATASET} is missing"
+
+  mountpoint="$(jq -r '.[0].mountpoint // empty' <<<"${payload}")"
+  [[ "${mountpoint}" == "${TOOLS_ROOT}" ]] ||
+    fail "dataset ${TOOLS_DATASET} mountpoint is ${mountpoint:-missing}, expected ${TOOLS_ROOT}"
+
+  ok "TrueNAS dataset ${TOOLS_DATASET} mounted at ${TOOLS_ROOT}"
+}
+
+ensure_dataset() {
+  local payload
+  local count
+  local create_payload
+
+  payload="$(dataset_payload)" ||
+    fail "cannot query TrueNAS dataset ${TOOLS_DATASET}"
+  count="$(jq 'length' <<<"${payload}")"
+
+  if [[ "${count}" -eq 0 ]]; then
+    printf '🔧 creating persistent TrueNAS dataset %s\n' "${TOOLS_DATASET}"
+    create_payload="$(
+      jq -cn --arg name "${TOOLS_DATASET}" --arg comments "Persistent operator tools managed by nabla-compose" \
+        '{name: $name, comments: $comments}'
+    )"
+    midclt call pool.dataset.create "${create_payload}" >/dev/null ||
+      fail "cannot create ${TOOLS_DATASET}; grant DATASET_WRITE or create it once in the TrueNAS UI/API"
+  elif [[ "${count}" -ne 1 ]]; then
+    fail "unexpected dataset query result for ${TOOLS_DATASET}: ${count} matches"
+  fi
+
+  verify_dataset
+}
 detect_arch() {
   local machine
   machine="$(uname -m)"
@@ -329,22 +377,24 @@ validate_version "talosctl" "${TALOS_VERSION}"
 
 case "${MODE}" in
   --check)
-    require_commands uname sed head
+    require_commands uname sed head midclt jq
     ARCH="$(detect_arch)"
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
-    printf 'ℹ️  tools root=%s arch=%s\n' "${TOOLS_ROOT}" "${ARCH}"
+    printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
+    verify_dataset
     check_tools
     ;;
   --install)
-    require_commands uname curl sha256sum awk sed head tr install mv rm basename
+    require_commands uname curl sha256sum awk sed head tr install mv rm basename mktemp midclt jq
     ARCH="$(detect_arch)"
     [[ -n "${ARCH}" ]] || fail "architecture detection returned an empty value"
 
+    ensure_dataset
     install -d -m 0755 "${TOOLS_ROOT}" "${TOOLS_BIN}"
     install -d -m 0700 "${TOOLS_DOWNLOADS}" "${TOOLS_CACHE}"
     TMP="$(mktemp -d "${TOOLS_DOWNLOADS}/operator-tools.XXXXXX")"
 
-    printf 'ℹ️  tools root=%s arch=%s\n' "${TOOLS_ROOT}" "${ARCH}"
+    printf 'ℹ️  tools root=%s dataset=%s arch=%s\n' "${TOOLS_ROOT}" "${TOOLS_DATASET}" "${ARCH}"
 
     if tool_matches kubectl "${KUBECTL_VERSION}"; then
       ok "kubectl ${KUBECTL_VERSION} already installed; skipping"
