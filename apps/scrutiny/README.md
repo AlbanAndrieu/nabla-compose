@@ -84,19 +84,30 @@ This means:
 
 ### 2026-09-09 bootstrap and first-cutover evidence
 
-The fresh InfluxDB bootstrap is now accepted:
+The first InfluxDB bootstrap successfully created the four buckets/tasks and a
+restricted token, but its original `--check` only proved read access. The
+standalone startup capture later exposed the missing runtime capability:
 
 ```text
-✅ Scrutiny InfluxDB bootstrap complete: org=nabla bucket=scrutiny
-   secret=/mnt/cpool/scrutiny/.env.secrets mode=0600
-✅ Scrutiny InfluxDB bootstrap: org=nabla bucket=scrutiny token=VALID
-600 root:root 117 /mnt/cpool/scrutiny/.env.secrets
+failed to create bucket scrutiny_new:
+unauthorized: write:orgs/<nabla-org-id>/buckets is unauthorized
 ```
 
-The first repository-managed TrueNAS app create then failed at a later layer:
-Docker created the web and collector containers, but the web container became
-`unhealthy`, so Compose refused to start the collector dependency. This must
-not be diagnosed as another token/bootstrap failure.
+Scrutiny v0.9.3 performs a WWN→UUID migration by creating temporary
+`<bucket>_new` buckets, copying data, deleting the original bucket and renaming
+the temporary bucket. It can also recreate the downsampling tasks if they are
+missing. Therefore a token restricted to the four existing bucket/task IDs is
+too narrow even on a fresh cutover.
+
+The v2 token contract remains scoped to organization `nabla` and grants only:
+
+- read access to the `nabla` organization;
+- organization-scoped read/write for buckets;
+- organization-scoped read/write for tasks.
+
+It is **not** an all-access or operator token. The bootstrap stores
+`SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=2` so both `--check` and the cutover
+refuse a legacy token before starting Scrutiny.
 
 Use the dedicated read-only diagnostic:
 
@@ -135,16 +146,37 @@ An existing **empty** `/mnt/cpool/scrutiny/.env.secrets` is treated as
 uninitialized and is safely populated by `--apply`. Rotation is required only
 when the file already contains a non-empty `SCRUTINY_WEB_INFLUXDB_TOKEN`.
 
-3. Provision fresh Scrutiny InfluxDB resources and the restricted token:
+3. Provision or rotate the Scrutiny InfluxDB runtime token. Existing v1
+tokens must be rotated because InfluxDB permissions are immutable after token
+creation:
 
 ```bash
-sudo env INFLUXDB_ADMIN_TOKEN="${INFLUXDB_ADMIN_TOKEN}" \
+sudo env \
+  INFLUXDB_ADMIN_TOKEN="${INFLUXDB_ADMIN_TOKEN}" \
+  SCRUTINY_TOKEN_ROTATE=1 \
   bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply
+
 sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
 ```
 
+The expected check now includes `scope=v2`. The bootstrap validates the new
+authorization before replacing `.env.secrets`, writes the secret atomically,
+then revokes superseded Scrutiny authorizations when possible.
+
 4. Run the repository cutover preflight.
-5. Start the repository-managed Scrutiny app.
+5. Because the current SQLite file has been through interrupted migration
+attempts and this cutover is explicitly fresh, reset it **only by explicit
+operator choice**. The helper moves it to a timestamped backup rather than
+deleting it:
+
+```bash
+sudo env \
+  SCRUTINY_CUTOVER_APPROVED=1 \
+  SCRUTINY_RESET_SQLITE=1 \
+  bash scripts/truenas/deploy-scrutiny.sh --apply
+```
+
+Without `SCRUTINY_RESET_SQLITE=1`, the existing SQLite file is preserved.
 6. Validate that the collector sees the host disks and the web API is healthy.
 7. After acceptance, inspect the legacy mount/dataset ownership and delete the old
    native Scrutiny data only when no running container/app references it.
