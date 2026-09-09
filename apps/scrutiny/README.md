@@ -80,6 +80,10 @@ This means:
 
 1. Keep the stopped native Scrutiny dataset untouched until the replacement is accepted.
 2. Ensure the shared InfluxDB 2.9 runtime is healthy.
+An existing **empty** `/mnt/cpool/scrutiny/.env.secrets` is treated as
+uninitialized and is safely populated by `--apply`. Rotation is required only
+when the file already contains a non-empty `SCRUTINY_WEB_INFLUXDB_TOKEN`.
+
 3. Provision fresh Scrutiny InfluxDB resources and the restricted token:
 
 ```bash
