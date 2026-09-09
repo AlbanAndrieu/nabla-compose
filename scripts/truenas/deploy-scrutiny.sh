@@ -165,6 +165,7 @@ render_scrutiny_compose() {
     done
     if ((has_nvme)); then
       printf '    cap_add:\n'
+      printf '      - SYS_RAWIO\n'
       printf '      - SYS_ADMIN\n'
     fi
   } >"${override}"
