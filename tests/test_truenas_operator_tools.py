@@ -30,8 +30,8 @@ class TrueNASOperatorToolsContractTest(unittest.TestCase):
         self.assertIn("pool.dataset.create", script)
         self.assertIn('verify_dataset', script)
         self.assertIn('ensure_dataset', script)
-        self.assertIn('verify_tools_root_writable', script)
-        self.assertIn('[[ -w "${TOOLS_ROOT}" ]] ', script)
+        self.assertIn('require_tools_root_writable', script)
+        self.assertIn('read-only for the current account; this is expected for a non-root operator', script)
 
     def test_architecture_is_derived_each_run(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
