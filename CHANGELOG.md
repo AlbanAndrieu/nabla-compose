@@ -1,3 +1,10 @@
+## [0.32.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.1...0.32.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **csi:** allow TrueNAS node plugin through Pod Security ([#182](https://github.com/AlbanAndrieu/nabla-compose/issues/182)) ([1d51223](https://github.com/AlbanAndrieu/nabla-compose/commit/1d5122388dc911a122a2567009a748ef210d42ea))
+
 ## [0.32.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.0...0.32.1) (2026-09-10)
 
 
