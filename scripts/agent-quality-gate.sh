@@ -15,6 +15,10 @@ case "${1:-}" in
     MODE="fix"
     shift
     ;;
+  --preflight)
+    MODE="preflight"
+    shift
+    ;;
   --publish)
     PUBLISH=true
     shift
@@ -22,16 +26,18 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Usage:
-  bash scripts/agent-quality-gate.sh [--fix|--publish]
+  bash scripts/agent-quality-gate.sh [--fix|--preflight|--publish]
 
 Modes:
-  default    strict validation gate
-  --fix      regenerate deterministic artifacts and run pre-commit on changed files
-  --publish  strict gate plus canonical clean-tree publication check
+  default      strict validation gate
+  --fix        regenerate deterministic artifacts and converge pre-commit fixes
+  --preflight  Git-only safety gate before dependency installation/build work
+  --publish    strict gate plus canonical clean-tree publication check
 
 Environment:
   QUALITY_BASE_REF                 override comparison base
   QUALITY_LOG_TAIL                 failure log lines to print (default: 80)
+  QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 4)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
 EOF
     exit 0
@@ -50,6 +56,11 @@ if (($# > 0)); then
 fi
 
 LOG_TAIL="${QUALITY_LOG_TAIL:-80}"
+FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-4}"
+if ! [[ "${FIX_MAX_PASSES}" =~ ^[1-9][0-9]*$ ]] || ((FIX_MAX_PASSES > 10)); then
+  printf '❌ QUALITY_FIX_MAX_PASSES must be an integer between 1 and 10\n' >&2
+  exit 2
+fi
 
 resolve_base_ref() {
   if [[ -n "${QUALITY_BASE_REF:-}" ]]; then
@@ -68,6 +79,11 @@ resolve_base_ref() {
 }
 
 BASE_REF="$(resolve_base_ref)"
+CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+if [[ "${CURRENT_BRANCH}" == "master" ]]; then
+  printf '❌ QG_PROTECTED_BRANCH: agent workflow must not run/publish directly on master; use a dedicated branch and pull request\n' >&2
+  exit 1
+fi
 
 run_compact() {
   local label="$1"
@@ -104,8 +120,6 @@ collect_changed_files() {
     done
 }
 
-mapfile -t CHANGED_FILES < <(collect_changed_files)
-
 collect_deleted_files() {
   {
     if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
@@ -118,56 +132,13 @@ collect_deleted_files() {
     sort -u
 }
 
+mapfile -t CHANGED_FILES < <(collect_changed_files)
 mapfile -t DELETED_FILES < <(collect_deleted_files)
 
-agent_gate_changed=false
-for file in "${CHANGED_FILES[@]}"; do
-  if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
-    agent_gate_changed=true
-    break
+check_base_freshness() {
+  if [[ "${BASE_REF}" == "HEAD" ]]; then
+    return 0
   fi
-done
-
-if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
-  command -v pre-commit >/dev/null 2>&1 || {
-    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
-    exit 1
-  }
-  run_compact "agent gate shell formatting" \
-    pre-commit run shfmt-docker --files scripts/agent-quality-gate.sh
-  run_compact "agent gate shell lint" \
-    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
-  run_compact "agent gate shell style" \
-    pre-commit run bashate --files scripts/agent-quality-gate.sh
-fi
-
-if [[ "${MODE}" == "fix" ]]; then
-  command -v python >/dev/null 2>&1 || {
-    echo "❌ python is required" >&2
-    exit 1
-  }
-  command -v pre-commit >/dev/null 2>&1 || {
-    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
-    exit 1
-  }
-
-  run_compact "regenerate declared service topology" \
-    python scripts/generate-service-topology.py
-  run_compact "regenerate service consumers" \
-    python scripts/generate-service-consumers.py
-
-  mapfile -t CHANGED_FILES < <(collect_changed_files)
-  if (("${#CHANGED_FILES[@]}" > 0)); then
-    run_compact "apply/check pre-commit hooks on changed files" \
-      pre-commit run --hook-stage pre-commit \
-      --files "${CHANGED_FILES[@]}" --show-diff-on-failure
-  fi
-
-  echo "ℹ️  review 'git diff' and 'git status --short', commit the result, then run this gate without --fix"
-  exit 0
-fi
-
-if [[ "${BASE_REF}" != "HEAD" ]]; then
   if ! git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
     printf '❌ QG_BASE_MISSING: comparison base %s is unavailable\n' "${BASE_REF}" >&2
     exit 1
@@ -177,10 +148,15 @@ if [[ "${BASE_REF}" != "HEAD" ]]; then
     exit 1
   fi
   printf '✅ branch contains comparison base %s\n' "${BASE_REF}"
-fi
+}
 
-large_deletion_failed=0
-if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" != "1" && "${BASE_REF}" != "HEAD" ]]; then
+check_destructive_diff() {
+  local large_deletion_failed=0
+  if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" == "1" || "${BASE_REF}" == "HEAD" ]]; then
+    printf '✅ destructive-diff guard\n'
+    return 0
+  fi
+
   for file in "${CHANGED_FILES[@]}"; do
     case "${file}" in
       catalog/service-topology.json|catalog/services.json|apps/homarr/generated/apps.json|apps/autokuma/static/generated-monitors.json|apps/gatus/config/config.yml|package-lock.json)
@@ -228,33 +204,122 @@ if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" != "1" && "${BASE_REF}" != "HEAD" ]];
       large_deletion_failed=1
     fi
   done
-fi
-if ((large_deletion_failed != 0)); then
-  exit 1
-fi
-printf '✅ destructive-diff guard\n'
 
-exec_bit_failed=0
-for file in "${CHANGED_FILES[@]}"; do
-  IFS= read -r first_line <"${file}" || true
-  [[ "${first_line:-}" == '#!'* ]] || continue
+  if ((large_deletion_failed != 0)); then
+    exit 1
+  fi
+  printf '✅ destructive-diff guard\n'
+}
 
-  if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
-    mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
-    if [[ "${mode}" != "100755" ]]; then
-      printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
-        "${file}" "${mode:-unknown}" "${file}" >&2
+check_exec_bits() {
+  local exec_bit_failed=0
+  for file in "${CHANGED_FILES[@]}"; do
+    IFS= read -r first_line <"${file}" || true
+    [[ "${first_line:-}" == '#!'* ]] || continue
+
+    if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
+      mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
+      if [[ "${mode}" != "100755" ]]; then
+        printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
+          "${file}" "${mode:-unknown}" "${file}" >&2
+        exec_bit_failed=1
+      fi
+    elif [[ ! -x "${file}" ]]; then
+      printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
       exec_bit_failed=1
     fi
-  elif [[ ! -x "${file}" ]]; then
-    printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
-    exec_bit_failed=1
+  done
+  if ((exec_bit_failed != 0)); then
+    exit 1
+  fi
+  printf '✅ executable-script contract\n'
+}
+
+check_base_freshness
+check_destructive_diff
+check_exec_bits
+
+if [[ "${MODE}" == "preflight" ]]; then
+  printf '✅ Git-only agent preflight passed before dependency installation/build work\n'
+  exit 0
+fi
+
+agent_gate_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
+    agent_gate_changed=true
+    break
   fi
 done
-if ((exec_bit_failed != 0)); then
-  exit 1
+
+if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
+  command -v pre-commit >/dev/null 2>&1 || {
+    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    exit 1
+  }
+  run_compact "agent gate shell formatting" \
+    pre-commit run shfmt-docker --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell lint" \
+    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell style" \
+    pre-commit run bashate --files scripts/agent-quality-gate.sh
 fi
-printf '✅ executable-script contract\n'
+
+worktree_fingerprint() {
+  {
+    git status --porcelain=v1
+    for file in "${CHANGED_FILES[@]}"; do
+      [[ -f "${file}" ]] || continue
+      printf '%s %s\n' "$(git hash-object -- "${file}")" "${file}"
+    done
+  } | git hash-object --stdin
+}
+
+if [[ "${MODE}" == "fix" ]]; then
+  command -v python >/dev/null 2>&1 || {
+    echo "❌ python is required" >&2
+    exit 1
+  }
+  command -v pre-commit >/dev/null 2>&1 || {
+    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    exit 1
+  }
+
+  for ((pass = 1; pass <= FIX_MAX_PASSES; pass++)); do
+    printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
+    run_compact "regenerate declared service topology" \
+      python scripts/generate-service-topology.py
+    run_compact "regenerate service consumers" \
+      python scripts/generate-service-consumers.py
+
+    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if (("${#CHANGED_FILES[@]}" == 0)); then
+      printf '✅ no changed files require formatter/linter fixes\n'
+      exit 0
+    fi
+
+    before_fingerprint="$(worktree_fingerprint)"
+    if run_compact "apply/check pre-commit hooks on changed files" \
+      pre-commit run --hook-stage pre-commit \
+      --files "${CHANGED_FILES[@]}" --show-diff-on-failure; then
+      printf '✅ deterministic formatter/linter fixes converged in %d pass(es)\n' "${pass}"
+      printf "ℹ️  review 'git diff' and 'git status --short', commit the result, then run this gate without --fix\n"
+      exit 0
+    fi
+
+    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    after_fingerprint="$(worktree_fingerprint)"
+    if [[ "${after_fingerprint}" == "${before_fingerprint}" ]]; then
+      printf '❌ QG_FIX_STALLED: formatter/linter failed without changing files; fix the reported error instead of repeating identical passes\n' >&2
+      exit 1
+    fi
+    if ((pass == FIX_MAX_PASSES)); then
+      printf '❌ QG_FIX_NON_CONVERGENT: deterministic fixes did not converge after %d passes\n' "${FIX_MAX_PASSES}" >&2
+      exit 1
+    fi
+    printf 'ℹ️  deterministic fixes changed files; rerunning the complete changed-file gate before build\n'
+  done
+fi
 
 run_compact "declared service topology is synchronized" \
   python scripts/generate-service-topology.py --check

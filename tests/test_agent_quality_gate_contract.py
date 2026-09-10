@@ -16,10 +16,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         mode = stat.S_IMODE(gate.stat().st_mode)
         self.assertTrue(mode & stat.S_IXUSR)
         text = gate.read_text(encoding="utf-8")
+        self.assertIn("--preflight", text)
+        self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
         self.assertIn("diff-filter=D", text)
         self.assertIn("QG_EXEC_BIT", text)
+        self.assertIn("QUALITY_FIX_MAX_PASSES", text)
+        self.assertIn("QG_FIX_STALLED", text)
+        self.assertIn("QG_FIX_NON_CONVERGENT", text)
+        self.assertIn("deterministic formatter/linter fixes converged", text)
         self.assertIn("pre-commit run shfmt-docker", text)
         self.assertIn("pre-commit run shell-lint", text)
         self.assertIn("pre-commit run bashate", text)
@@ -135,10 +141,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )[0]
         self.assertNotIn("paths:", pull_request_block)
         self.assertIn("ready_for_review", pull_request_block)
+        self.assertIn("bash scripts/agent-quality-gate.sh --preflight", raw)
         self.assertIn("bash scripts/agent-quality-gate.sh", raw)
+        self.assertLess(
+            raw.index("bash scripts/agent-quality-gate.sh --preflight"),
+            raw.index("name: Setup Python"),
+        )
         self.assertIn("github.event.pull_request.draft == false", raw)
         self.assertIn("wait-for-processing: false", raw)
         self.assertIn("Pull-request comments stay disabled", raw)
+
+    def test_agent_policy_protects_master_and_requires_convergence(self) -> None:
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Protected default-branch policy", agents)
+        self.assertIn("must never", agents)
+        self.assertIn("directly on `master`", agents)
+        self.assertIn("until the final pass is clean", agents)
+        self.assertIn("before expensive build", agents)
 
 
 if __name__ == "__main__":

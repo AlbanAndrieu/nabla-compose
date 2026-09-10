@@ -119,6 +119,7 @@ class TalosOperatorClientContractTest(unittest.TestCase):
     def test_talos_operational_scripts_share_same_config_resolution(self) -> None:
         scripts = (
             "validate-cluster.sh",
+            "diagnose-security-posture.sh",
             "smoke-kubernetes-network.sh",
             "validate-csi-prereqs.sh",
             "install-truenas-csi-nfs.sh",
@@ -132,6 +133,27 @@ class TalosOperatorClientContractTest(unittest.TestCase):
                 text = (ROOT / "scripts/talos" / name).read_text(encoding="utf-8")
                 self.assertIn("scripts/talos/lib/client-config.sh", text)
                 self.assertIn("nabla_resolve_talos_client_config", text)
+
+    def test_security_posture_uses_effective_talos_admission_configuration(self) -> None:
+        security_path = ROOT / "scripts/talos/diagnose-security-posture.sh"
+        truenas_path = ROOT / "scripts/truenas/diagnose-platform.sh"
+        security = security_path.read_text(encoding="utf-8")
+        validator = (ROOT / "scripts/talos/validate-cluster.sh").read_text(
+            encoding="utf-8"
+        )
+        truenas = truenas_path.read_text(encoding="utf-8")
+
+        self.assertIn("admissioncontrolconfigs.kubernetes.talos.dev", security)
+        self.assertIn("admission-control", security)
+        self.assertIn("enforce", security)
+        self.assertIn("restricted", security)
+        self.assertIn("baseline", security)
+        self.assertIn("pod-security.kubernetes.io/enforce=privileged", security)
+        self.assertIn("diagnose-security-posture.sh", validator)
+        self.assertIn("validate-cluster.sh", truenas)
+        self.assertIn("audit-app-lifecycle.sh", truenas)
+        self.assertTrue(security_path.stat().st_mode & stat.S_IXUSR)
+        self.assertTrue(truenas_path.stat().st_mode & stat.S_IXUSR)
 
 
 if __name__ == "__main__":

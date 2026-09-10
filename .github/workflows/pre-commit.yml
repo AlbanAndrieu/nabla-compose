@@ -29,6 +29,12 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
+      - name: Run Git-only agent preflight before dependencies
+        if: github.event_name == 'pull_request'
+        env:
+          QUALITY_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/agent-quality-gate.sh --preflight
+
       - name: Detect MegaLinter scope
         id: scope
         if: github.event_name == 'pull_request'
