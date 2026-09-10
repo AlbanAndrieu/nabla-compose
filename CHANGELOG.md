@@ -1,3 +1,10 @@
+## [0.32.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.0...0.32.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **scrutiny:** restore workstation collector compose ownership ([#181](https://github.com/AlbanAndrieu/nabla-compose/issues/181)) ([fdcbdbd](https://github.com/AlbanAndrieu/nabla-compose/commit/fdcbdbd7e2e2a61e47c2f2a7cd9e10434bfa7762))
+
 # [0.32.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.4...0.32.0) (2026-09-10)
 
 
