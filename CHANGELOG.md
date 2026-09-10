@@ -1,3 +1,10 @@
+## [0.32.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.2...0.32.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **scrutiny:** harden final dual-host acceptance ([#183](https://github.com/AlbanAndrieu/nabla-compose/issues/183)) ([42e9fbe](https://github.com/AlbanAndrieu/nabla-compose/commit/42e9fbee9ca2fbadd9e4a64bdf933c0c26a7c409))
+
 ## [0.32.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.1...0.32.2) (2026-09-10)
 
 
