@@ -51,14 +51,15 @@ fetch_summary() {
     curl_status=$?
     set -e
 
-    if [[ "${curl_status}" -eq 0 && "${http_code}" == "200" ]] &&
-      jq -e '.success == true and (.data.summary | type == "object")' >/dev/null 2>&1 <"${tmp}"; then
-      if ((transient_failures > 0)); then
-        printf '⚠️  Scrutiny /api/summary recovered after %s transient failure(s)\n' \
-          "${transient_failures}" >&2
+    if [[ "${curl_status}" -eq 0 && "${http_code}" == "200" ]]; then
+      if jq -e '.success == true and (.data.summary | type == "object")' >/dev/null 2>&1 <"${tmp}"; then
+        if ((transient_failures > 0)); then
+          printf '⚠️  Scrutiny /api/summary recovered after %s transient failure(s)\n' \
+            "${transient_failures}" >&2
+        fi
+        cat "${tmp}"
+        return 0
       fi
-      cat "${tmp}"
-      return 0
     fi
 
     transient_failures=$((transient_failures + 1))
