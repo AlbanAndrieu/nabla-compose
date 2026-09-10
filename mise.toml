@@ -52,12 +52,16 @@ description = "Run the repo-specific agent-first gate before publication"
 run = "bash scripts/agent-quality-gate.sh"
 
 [tasks.agent-fix]
-description = "Regenerate deterministic artifacts and apply local pre-commit fixes"
+description = "Regenerate deterministic artifacts and converge local pre-commit fixes"
 run = "bash scripts/agent-quality-gate.sh --fix"
 
 [tasks.agent-publish]
 description = "Run the strict agent gate and clean-tree publication check"
 run = "bash scripts/agent-quality-gate.sh --publish"
+
+[tasks.agent-pre-push]
+description = "Converge deterministic fixes, run full local validation, and block the push if fixes still need committing"
+run = "bash scripts/agent-pre-push.sh"
 
 [tasks.info]
 description = "Show repository tooling context"

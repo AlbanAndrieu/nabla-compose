@@ -163,7 +163,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(scripts/agent-quality-gate[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
+          ^(scripts/agent-(?:quality-gate|pre-push)[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
 
       - id: security-ci-contract
         name: "🛡️ security · Validate SAST/DAST production gate contract"

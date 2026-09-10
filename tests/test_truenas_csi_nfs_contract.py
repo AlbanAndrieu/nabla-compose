@@ -177,6 +177,21 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn('test "$(cat /data/marker)"', text)
         self.assertIn("--keep", text)
 
+    def test_smoke_surfaces_bounded_pvc_provisioning_evidence(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("CSI_PVC_TIMEOUT_SECONDS", text)
+        self.assertIn("CSI_DIAGNOSTIC_TAIL", text)
+        self.assertIn("CSI_SMOKE_KEEP_ON_FAILURE", text)
+        self.assertIn("dump_pvc_provisioning_diagnostics", text)
+        self.assertIn('describe pvc "${PVC}"', text)
+        self.assertIn("get events --sort-by=.lastTimestamp", text)
+        self.assertIn("csi-provisioner", text)
+        self.assertIn("csi-controller", text)
+        self.assertIn("--since=15m", text)
+        self.assertIn("ProvisioningFailed", text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ Git hook configuration is versioned, but Git does not install repository hooks a
 mise run hooks
 ```
 
-This explicitly installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI remains the authoritative enforcement layer because local hooks can be absent or explicitly bypassed.
+This explicitly installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI is a remote safety net; deterministic formatting, linting, generators and the full repository unit/contract suite must be completed locally before a push.
 
 ## Before editing
 
@@ -63,7 +63,8 @@ Use progressive failure analysis:
 
 - Do not download every job log or artifact for a green workflow.
 - Prefer the compact local agent gate output over remote CI logs. When CI still fails, inspect only the failing workflow/job/step first and widen to full logs only when needed.
-- Preserve all existing tests and quality gates. Never reduce test coverage, scanner coverage, deployment verification, or security checks to save context.
+- A CI failure caused only by formatter/autofixer output is a **local workflow defect**, not a remote-debugging task: fix the local hook/gate contract so the same class of failure is prevented before the next push.
+- Preserve all existing tests and quality gates. Expensive or complete regression work may run locally before push while PR CI performs equivalent changed-file contracts and independent remote security checks.
 - For Playwright/Cypress/E2E failures, inspect the failing test/report first; fetch screenshots, traces, videos, or the complete artifact whenever they materially improve diagnosis, especially for intermittent or browser-only failures.
 - For TrueNAS, FastAPI Sample, Sentry, deployment platforms, and other observability APIs, request the narrowest evidence that answers the question, then widen when necessary.
 - A final CI/deployment verification explicitly requested by the task is mandatory even when earlier evidence looks sufficient.
@@ -84,23 +85,31 @@ This applies equally to Git CLI pushes, GitHub API/Contents writes, generated fi
 
 All agent-authored changes must use a branch and pull request. Leave the merge to the user/maintainer unless the user explicitly asks the agent to merge. Never use `git push --no-verify`, never force-update `master`, and never weaken quality/security controls to get a change published.
 
-## Validation
+## Local-first validation
 
-For a focused change, run the closest relevant formatter/linter first.
-
-After an editing batch, use the repository-specific agent workflow:
+For a focused change, run the closest relevant formatter/linter first. After the editing batch, the normal workflow is:
 
 ```bash
-bash scripts/agent-quality-gate.sh --fix
-# review deterministic generator/formatter changes, then commit them
-bash scripts/agent-quality-gate.sh
+mise run agent-fix
+# review only the deterministic diff, then stage/commit it
+mise run agent-pre-push
 ```
 
-`--fix` is a bounded convergence loop: when a formatter or autofixer changes files, it reruns the complete changed-file fix pass until the final pass is clean. It stops immediately when a failing pass makes no deterministic change, and fails closed if changes do not converge within the configured pass limit. Do not use remote CI as the edit/format/lint feedback loop.
+`agent-fix` is a bounded convergence loop. When a generator, formatter or safe autofixer changes files, it reruns the complete changed-file pass until the final pass is clean. It stops immediately when a failing pass makes no deterministic change and fails closed if fixes do not converge within the configured pass limit.
 
-The strict agent gate checks branch freshness, suspicious large truncations, executable bits for shebang scripts, generated topology/consumer synchronization, and the lightweight unit/contract suite before delegating to the canonical quality gate. CI runs the Git-only `--preflight` before Python/pre-commit setup so stale branches, protected-branch misuse, destructive diffs and executable-bit mistakes fail before expensive build or dependency work.
+`agent-pre-push` requires a clean committed worktree, reruns `agent-fix`, and then executes the complete local publication gate. If deterministic tools change committed files, it exits with `QG_AUTOFIX_APPLIED` **before any network push**. The agent must review that compact deterministic diff, amend or commit it, and invoke `agent-pre-push` again. This case does not require GitHub Actions log analysis.
 
-`scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/security gate. Publication mode is still `scripts/quality-gate.sh --publish`, reached through `scripts/agent-quality-gate.sh --publish`.
+The pre-push Git hook invokes `scripts/agent-pre-push.sh` automatically. Agents must not bypass it. The intended loop is therefore:
+
+```text
+edit batch -> local autofix convergence -> commit -> local pre-push/full tests -> one push -> remote check-only CI
+```
+
+Do not use remote CI as the edit/format/lint feedback loop.
+
+The strict local gate checks branch freshness, suspicious large truncations, executable bits for shebang scripts, generated topology/consumer synchronization, the complete unit/contract suite, and the canonical formatter/linter/security gate. PR CI runs the cheap Git-only `--preflight` before dependencies, then `agent-quality-gate.sh --ci`: a check-only changed-file validation that relies on targeted pre-commit contract hooks instead of rerunning the complete repository test suite. Independent remote security jobs remain authoritative for their own coverage.
+
+`scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/security gate. Publication mode is `scripts/quality-gate.sh --publish`, reached through the local agent publication/pre-push workflow.
 
 Compose files remain validated with:
 
@@ -114,21 +123,22 @@ Do not start the homelab stack merely to validate configuration. Do not run Mega
 
 Agents must never publish changes immediately after editing files.
 
-Before every `git push`, GitHub API file update, or other remote repository mutation:
+Before every `git push` or other normal remote publication from a checkout:
 
 1. Confirm the target is a dedicated non-default branch and is not `master`.
-2. Run `bash scripts/agent-quality-gate.sh --fix` after the editing batch whenever a local checkout is available; allow its bounded formatter/linter convergence passes to finish.
-3. Review deterministic generator/formatter changes and commit them.
-4. Run `bash scripts/agent-quality-gate.sh --publish` until the final pass is clean and exits successfully.
-5. Fix every formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
-6. Verify `git status --short` is empty.
-7. Publish the complete validated batch once.
+2. Run `mise run agent-fix` after the editing batch and allow all convergence passes to finish.
+3. Review deterministic generator/formatter changes and commit them with the logical change.
+4. Run `mise run agent-pre-push`; the same script is also enforced by the pre-push hook.
+5. If `QG_AUTOFIX_APPLIED` is reported, amend/commit only those deterministic changes and rerun the same local command; do not push yet.
+6. Fix every non-autofixable formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
+7. Verify `git status --short` is empty.
+8. Push the complete validated batch once.
 
 Keep iterative agent pull requests as **drafts** until the strict local agent gate is green. Expensive PR jobs may skip drafts; the cheap deterministic preflight still runs on every PR and runs again when the PR becomes ready.
 
-When `mise run hooks` has been run, the normal Git `pre-commit` hook validates commits and the versioned pre-push hook invokes `scripts/agent-quality-gate.sh --publish`.
+When `mise run hooks` has been run, the normal Git `pre-commit` hook validates commits and the versioned pre-push hook performs convergence plus the complete local publication gate.
 
-An API-only agent must not silently treat remote API writes as a way to bypass local hooks. If its runtime cannot execute a checkout, it must disclose that limitation, reproduce the closest deterministic validations available, keep the patch minimal, inspect resulting CI, and never claim the local gate passed. When several files form one logical patch, batch them into one Git tree/commit when the API supports it so each synchronize event does not start another CI cycle.
+An API-only agent must not silently treat remote API writes as a way to bypass local hooks. If its runtime cannot execute a checkout, it must disclose that limitation, batch the entire logical patch before opening/updating the PR, reproduce the closest deterministic validations available, inspect only the first failing remote step, and never claim the local gate passed. If CI reports only deterministic formatter output, apply that exact formatter diff once, compact/squash the branch again, and do not broaden the investigation into unrelated logs.
 
 Never bypass repository hooks with `git push --no-verify`. Never weaken or disable formatter, lint, security, YAML, Compose, or validation rules merely to make a push or CI build pass.
 

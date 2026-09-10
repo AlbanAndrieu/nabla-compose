@@ -13,6 +13,9 @@ PVC="nabla-csi-rwx"
 STORAGE_CLASS="nabla-truenas-nfs"
 MARKER="nabla-truenas-csi-cross-node-v1"
 SMOKE_IMAGE="${CSI_SMOKE_IMAGE:-busybox@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028}"
+PVC_TIMEOUT_SECONDS="${CSI_PVC_TIMEOUT_SECONDS:-180}"
+DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
+KEEP_ON_FAILURE="${CSI_SMOKE_KEEP_ON_FAILURE:-false}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -30,6 +33,11 @@ for arg in "$@"; do
     *) fail "usage: bash scripts/talos/smoke-truenas-csi-nfs.sh [--check|--apply] [--keep]" ;;
   esac
 done
+
+[[ "${PVC_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_PVC_TIMEOUT_SECONDS must be a positive integer"
+[[ "${DIAGNOSTIC_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_DIAGNOSTIC_TAIL must be a positive integer"
 
 for command in kubectl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
@@ -83,6 +91,39 @@ cleanup() {
 }
 trap cleanup EXIT
 
+dump_pvc_provisioning_diagnostics() {
+  local controller_pod
+
+  printf '\n🔎 TrueNAS CSI PVC provisioning diagnostics\n' >&2
+  printf '%s\n' '--- PVC ---' >&2
+  kubectl -n "${NAMESPACE}" get pvc "${PVC}" -o wide >&2 || true
+  kubectl -n "${NAMESPACE}" describe pvc "${PVC}" 2>&1 |
+    tail -n "${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- recent smoke namespace events ---' >&2
+  kubectl -n "${NAMESPACE}" get events --sort-by=.lastTimestamp 2>&1 |
+    tail -n 30 >&2 || true
+
+  printf '%s\n' '--- CSI controller pod ---' >&2
+  kubectl -n truenas-csi get pods -l app=truenas-csi-controller -o wide >&2 || true
+  controller_pod="$(
+    kubectl -n truenas-csi get pods -l app=truenas-csi-controller \
+      -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true
+  )"
+  if [[ -z "${controller_pod}" ]]; then
+    printf '⚠️  no TrueNAS CSI controller pod found for log collection\n' >&2
+    return
+  fi
+
+  printf '%s\n' '--- csi-provisioner logs ---' >&2
+  kubectl -n truenas-csi logs "${controller_pod}" -c csi-provisioner \
+    --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- TrueNAS csi-controller logs ---' >&2
+  kubectl -n truenas-csi logs "${controller_pod}" -c csi-controller \
+    --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+}
+
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml |
   kubectl apply -f - >/dev/null
 
@@ -102,12 +143,21 @@ spec:
 EOF
 
 phase=""
-for _ in $(seq 1 90); do
+deadline=$((SECONDS + PVC_TIMEOUT_SECONDS))
+while ((SECONDS < deadline)); do
   phase="$(kubectl -n "${NAMESPACE}" get pvc "${PVC}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
   [[ "${phase}" == "Bound" ]] && break
   sleep 2
 done
-[[ "${phase}" == "Bound" ]] || fail "PVC did not become Bound"
+if [[ "${phase}" != "Bound" ]]; then
+  dump_pvc_provisioning_diagnostics
+  if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then
+    KEEP=true
+    printf 'ℹ️  CSI_SMOKE_KEEP_ON_FAILURE=true; namespace %s retained for inspection\n' "${NAMESPACE}" >&2
+  fi
+  fail "PVC did not become Bound within ${PVC_TIMEOUT_SECONDS}s; inspect ProvisioningFailed events and CSI controller logs above"
+fi
+
 pv="$(kubectl -n "${NAMESPACE}" get pvc "${PVC}" -o jsonpath='{.spec.volumeName}')"
 volume_handle="$(kubectl get pv "${pv}" -o jsonpath='{.spec.csi.volumeHandle}')"
 [[ "${volume_handle}" == cpool/k8s/csi/* ]] ||
@@ -186,8 +236,10 @@ reader_value="$(kubectl -n "${NAMESPACE}" exec csi-reader -- cat /data/marker)"
 ok "marker persisted and was read from different worker ${reader_node}"
 
 if [[ "${KEEP}" == "true" ]]; then
-  printf 'ℹ️  retained TrueNAS dataset=%s share_path=%s for inspection\n'     "${volume_handle}" "${truenas_share_path}"
-  printf '✅ TrueNAS NFS CSI persistence smoke passed with resources retained: PVC Bound, write on %s, read on %s.\n'     "${writer_node}" "${reader_node}"
+  printf 'ℹ️  retained TrueNAS dataset=%s share_path=%s for inspection\n' \
+    "${volume_handle}" "${truenas_share_path}"
+  printf '✅ TrueNAS NFS CSI persistence smoke passed with resources retained: PVC Bound, write on %s, read on %s.\n' \
+    "${writer_node}" "${reader_node}"
   exit 0
 fi
 
@@ -207,5 +259,7 @@ done
   fail "PV ${pv} was not reclaimed after namespace/PVC deletion"
 ok "Kubernetes PV ${pv} reclaimed after PVC deletion"
 
-printf 'ℹ️  verify TrueNAS reclaim: dataset=%s share_path=%s\n'   "${volume_handle}" "${truenas_share_path}"
-printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s, Kubernetes PV reclaimed.\n'   "${writer_node}" "${reader_node}"
+printf 'ℹ️  verify TrueNAS reclaim: dataset=%s share_path=%s\n' \
+  "${volume_handle}" "${truenas_share_path}"
+printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s, Kubernetes PV reclaimed.\n' \
+  "${writer_node}" "${reader_node}"
