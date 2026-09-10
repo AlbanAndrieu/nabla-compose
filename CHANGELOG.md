@@ -1,3 +1,10 @@
+# [0.32.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.4...0.32.0) (2026-09-10)
+
+
+### Features
+
+* **catalog:** export canonical monitoring contract ([#179](https://github.com/AlbanAndrieu/nabla-compose/issues/179)) ([d2a1286](https://github.com/AlbanAndrieu/nabla-compose/commit/d2a1286400be507ee29bb1955abd5233a9464896))
+
 ## [0.31.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.3...0.31.4) (2026-09-10)
 
 
