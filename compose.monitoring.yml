@@ -44,7 +44,7 @@ services:
       - ./pgwatch/grafana/postgres/v12:/var/lib/grafana/dashboards/postgres
       - ./pgwatch/grafana/prometheus/v12:/var/lib/grafana/dashboards/prometheus
       - ./temporal/deployment/grafana/dashboards:/var/lib/grafana/dashboards/temporal:ro
-      - ./temporal/deployment/grafana/provisioning/datasources/all.yml:/etc/grafana/provisioning/datasources/temporal_datasource.yml:ro
+      - ./temporal/deployment/grafana/provisioning/datasources/all.yml:/etc/grafana/provisioning/datasources/temporal_datasources.yml:ro
       - ./temporal/deployment/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
       - ./grafana/provisioning/datasources/pyroscope.yml:/etc/grafana/provisioning/datasources/pyroscope.yml
       - type: bind
