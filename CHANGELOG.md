@@ -1,3 +1,10 @@
+# [0.33.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.3...0.33.0) (2026-09-10)
+
+
+### Features
+
+* **kubernetes:** harden Zero Trust posture and agent workflow ([#184](https://github.com/AlbanAndrieu/nabla-compose/issues/184)) ([3aa42f9](https://github.com/AlbanAndrieu/nabla-compose/commit/3aa42f95adbc25bfae2d387b01fb2541ef7bf3e0))
+
 ## [0.32.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.2...0.32.3) (2026-09-10)
 
 
