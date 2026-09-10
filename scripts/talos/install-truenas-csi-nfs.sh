@@ -13,6 +13,7 @@ NAMESPACE="truenas-csi"
 CREDENTIAL_RESOURCE_NAME="truenas-api-credentials"
 EXPECTED_VERSION="v1.0.3"
 ROLLOUT_TIMEOUT="${CSI_ROLLOUT_TIMEOUT:-180s}"
+POD_SECURITY_VERSION="${CSI_POD_SECURITY_VERSION:-v1.36}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -21,6 +22,10 @@ fail() {
 
 ok() {
   printf '✅ %s\n' "$*"
+}
+
+warn() {
+  printf '⚠️  %s\n' "$*" >&2
 }
 
 dump_node_rollout_diagnostics() {
@@ -53,6 +58,66 @@ dump_node_rollout_diagnostics() {
   )
 }
 
+report_namespace_pod_security() {
+  local enforce_level=""
+  local enforce_version=""
+  local audit_level=""
+  local warn_level=""
+
+  if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
+    printf 'ℹ️  namespace %s does not exist yet; Pod Security labels will be applied during --apply\n' "${NAMESPACE}"
+    return
+  fi
+
+  enforce_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce}' 2>/dev/null || true)"
+  enforce_version="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce-version}' 2>/dev/null || true)"
+  audit_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/audit}' 2>/dev/null || true)"
+  warn_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/warn}' 2>/dev/null || true)"
+
+  if [[ "${enforce_level}" == "privileged" ]]; then
+    ok "namespace ${NAMESPACE} Pod Security enforce=privileged version=${enforce_version:-default} audit=${audit_level:-default} warn=${warn_level:-default}"
+  else
+    warn "namespace ${NAMESPACE} Pod Security enforce=${enforce_level:-cluster-default}; the privileged CSI node DaemonSet can be rejected by baseline/restricted admission"
+  fi
+}
+
+ensure_namespace_pod_security() {
+  local enforce_level
+  local enforce_version
+  local audit_level
+  local warn_level
+
+  if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
+    kubectl create namespace "${NAMESPACE}" >/dev/null
+  fi
+
+  # The CSI node plugin must mount kubelet host paths and run privileged. Keep
+  # that exception scoped to this infrastructure namespace only. Baseline
+  # remains enabled in audit/warn modes so privilege use stays visible.
+  kubectl label --overwrite namespace "${NAMESPACE}" \
+    pod-security.kubernetes.io/enforce=privileged \
+    pod-security.kubernetes.io/enforce-version="${POD_SECURITY_VERSION}" \
+    pod-security.kubernetes.io/audit=baseline \
+    pod-security.kubernetes.io/audit-version="${POD_SECURITY_VERSION}" \
+    pod-security.kubernetes.io/warn=baseline \
+    pod-security.kubernetes.io/warn-version="${POD_SECURITY_VERSION}" \
+    >/dev/null
+
+  enforce_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce}')"
+  enforce_version="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce-version}')"
+  audit_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/audit}')"
+  warn_level="$(kubectl get namespace "${NAMESPACE}" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/warn}')"
+
+  [[ "${enforce_level}" == "privileged" ]] ||
+    fail "namespace ${NAMESPACE} must enforce privileged Pod Security for the CSI node plugin"
+  [[ "${enforce_version}" == "${POD_SECURITY_VERSION}" ]] ||
+    fail "namespace ${NAMESPACE} Pod Security version mismatch: ${enforce_version:-missing}"
+  [[ "${audit_level}" == "baseline" && "${warn_level}" == "baseline" ]] ||
+    fail "namespace ${NAMESPACE} must retain baseline Pod Security audit/warn visibility"
+
+  ok "namespace ${NAMESPACE} Pod Security configured: enforce=privileged, audit/warn=baseline, version=${POD_SECURITY_VERSION}"
+}
+
 case "${MODE}" in
   --check | --apply) ;;
   *) fail "usage: bash scripts/talos/install-truenas-csi-nfs.sh [--check|--apply]" ;;
@@ -81,6 +146,8 @@ kubectl apply --dry-run=client -f "${STORAGE_CLASS_MANIFEST}" >/dev/null
 ok "tracked TrueNAS CSI NFS manifests pass kubectl client validation"
 
 if [[ "${MODE}" == "--check" ]]; then
+  report_namespace_pod_security
+
   if kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
     ok "CSIDriver csi.truenas.io is already registered"
   else
@@ -109,8 +176,7 @@ if [[ -n "${TRUENAS_CSI_API_USERNAME:-}" ]]; then
   printf '⚠️  TRUENAS_CSI_API_USERNAME is intentionally not injected: upstream v1.0.3 accepts only TRUENAS_API_KEY and still uses auth.login_with_api_key.\n'
 fi
 
-kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml |
-  kubectl apply -f - >/dev/null
+ensure_namespace_pod_security
 
 printf '%s' "${TRUENAS_CSI_API_KEY}" |
   kubectl -n "${NAMESPACE}" create secret generic "${CREDENTIAL_RESOURCE_NAME}" \
@@ -130,7 +196,8 @@ kubectl get csidriver csi.truenas.io >/dev/null
 ok "CSIDriver csi.truenas.io registered"
 
 kubectl apply -f "${STORAGE_CLASS_MANIFEST}"
-default_value="$(kubectl get storageclass nabla-truenas-nfs   -o jsonpath='{.metadata.annotations.storageclass\.kubernetes\.io/is-default-class}')"
+default_value="$(kubectl get storageclass nabla-truenas-nfs \
+  -o jsonpath='{.metadata.annotations.storageclass\.kubernetes\.io/is-default-class}')"
 [[ "${default_value}" == "false" ]] ||
   fail "nabla-truenas-nfs must not be default before persistence acceptance"
 ok "StorageClass nabla-truenas-nfs installed and remains non-default"
