@@ -35,12 +35,12 @@ image="$(docker inspect "${CONTAINER}" --format '{{.Config.Image}}')"
 version_raw="$(docker exec "${CONTAINER}" /opt/scrutiny/bin/scrutiny-collector-metrics --version 2>&1 || true)"
 version="$(grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' <<<"${version_raw}" | head -n1 || true)"
 
-if [[ "${version}" != "${EXPECTED_VERSION}" ]]; then
+if [[ "${version}" != "${EXPECTED_VERSION}" || "${image}" != "${EXPECTED_IMAGE}" ]]; then
     compose_project="$(docker inspect "${CONTAINER}" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || true)"
     compose_workdir="$(docker inspect "${CONTAINER}" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null || true)"
     compose_files="$(docker inspect "${CONTAINER}" --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null || true)"
 
-    printf 'ERROR: workstation Scrutiny collector version mismatch\n' >&2
+    printf 'ERROR: workstation Scrutiny collector version/image mismatch\n' >&2
     printf '  container=%s\n' "${CONTAINER}" >&2
     printf '  image=%s\n' "${image}" >&2
     printf '  detected_version=%s\n' "${version:-unknown}" >&2
@@ -87,7 +87,7 @@ printf '%s\n' "${scan}"
 if [[ "${MODE}" == "--submit" ]]; then
     set +e
     submission_output="$(
-        docker exec "${CONTAINER}"             /opt/scrutiny/bin/scrutiny-collector-metrics run 2>&1
+        docker exec "${CONTAINER}" /opt/scrutiny/bin/scrutiny-collector-metrics run 2>&1
     )"
     submission_status=$?
     set -e
@@ -102,10 +102,11 @@ if [[ "${MODE}" == "--submit" ]]; then
     summary=""
     for ((attempt = 1; attempt <= SUMMARY_WAIT_ATTEMPTS; attempt++)); do
         summary="$(
-            curl -fsS                 --connect-timeout 3                 --max-time 15                 "${expected_endpoint}/api/summary" 2>/dev/null || true
+            curl -fsS --connect-timeout 3 --max-time 15 \
+                "${expected_endpoint}/api/summary" 2>/dev/null || true
         )"
-        if [[ -n "${summary}" ]] &&
-            jq -e --arg host "${EXPECTED_HOST_ID}" '
+        if [[ -n "${summary}" ]]; then
+            if jq -e --arg host "${EXPECTED_HOST_ID}" '
                 [
                     .data.summary
                     | to_entries[]
@@ -114,8 +115,9 @@ if [[ "${MODE}" == "--submit" ]]; then
                 ]
                 | length > 0
             ' >/dev/null 2>&1 <<<"${summary}"; then
-            registered=true
-            break
+                registered=true
+                break
+            fi
         fi
         sleep "${SUMMARY_WAIT_DELAY}"
     done
@@ -146,7 +148,8 @@ if [[ "${MODE}" == "--submit" ]]; then
             | length
         ' <<<"${summary}"
     )"
-    printf '✅ workstation SMART submission ingested by server: host_id=%s devices=%s\n'         "${EXPECTED_HOST_ID}" "${device_count}"
+    printf '✅ workstation SMART submission ingested by server: host_id=%s devices=%s\n' \
+        "${EXPECTED_HOST_ID}" "${device_count}"
 fi
 
 printf '✅ workstation Scrutiny collector: container=%s endpoint=%s host_id=%s devices=VISIBLE\n' \
