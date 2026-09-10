@@ -19,7 +19,8 @@ services:
       kind: api
       category: development
       description: FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.
-      presentationRole: service
+      presentationRole: support
+      criticality: medium
       environments:
         - name: production
           url: https://fastapi-sample.fastapicloud.dev/api
