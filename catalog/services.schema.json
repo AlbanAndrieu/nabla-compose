@@ -12,14 +12,30 @@
     "services"
   ],
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "type": "integer", "minimum": 1 },
-    "catalogRevision": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-    "topologyVersion": { "type": "integer", "minimum": 1 },
-    "name": { "type": "string", "minLength": 1 },
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "catalogRevision": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "topologyVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
     "services": {
       "type": "array",
-      "items": { "$ref": "#/$defs/service" }
+      "items": {
+        "$ref": "#/$defs/service"
+      }
     }
   },
   "$defs": {
@@ -32,10 +48,20 @@
       "additionalProperties": false,
       "required": ["name", "url", "external", "cloudflareTunnel"],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "url": { "type": "string", "minLength": 1 },
-        "external": { "type": "boolean" },
-        "cloudflareTunnel": { "type": "boolean" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "external": {
+          "type": "boolean"
+        },
+        "cloudflareTunnel": {
+          "type": "boolean"
+        }
       }
     },
     "runtime": {
@@ -47,8 +73,14 @@
           "type": "string",
           "enum": ["truenas-app", "logical", "external", "host"]
         },
-        "appId": { "type": "string", "minLength": 1 },
-        "containerService": { "type": "string", "minLength": 1 }
+        "appId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "containerService": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "service": {
@@ -63,12 +95,27 @@
         "composeService"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/identifier" },
-        "name": { "type": "string", "minLength": 1 },
-        "kind": { "type": "string", "minLength": 1 },
-        "category": { "type": "string", "minLength": 1 },
-        "presentationRole": { "enum": ["service", "core", "support"] },
-        "criticality": { "enum": ["critical", "high", "medium", "low"] },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "presentationRole": {
+          "enum": ["service", "core", "support"]
+        },
+        "criticality": {
+          "enum": ["critical", "high", "medium", "low"]
+        },
         "securityFunctions": {
           "type": "array",
           "minItems": 1,
@@ -84,17 +131,73 @@
             ]
           }
         },
-        "sourcePath": { "type": "string", "minLength": 1 },
-        "composeService": { "type": "string", "minLength": 1 },
-        "url": { "type": "string", "minLength": 1 },
-        "description": { "type": "string", "minLength": 1 },
-        "icon": { "type": "string", "minLength": 1 },
+        "sourcePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "composeService": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1
+        },
         "environments": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/environment" }
+          "items": {
+            "$ref": "#/$defs/environment"
+          }
         },
-        "runtime": { "$ref": "#/$defs/runtime" }
+        "runtime": {
+          "$ref": "#/$defs/runtime"
+        },
+        "monitoring": {
+          "$ref": "#/$defs/monitoring"
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["http", "port"]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   }

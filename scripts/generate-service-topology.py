@@ -215,6 +215,43 @@ def runtime_binding(
     return binding
 
 
+
+def monitoring_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, Any] | None:
+    """Validate and export safe probe metadata from ``x-nabla.monitoring``."""
+    raw = metadata.get("monitoring")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        fail(f"{context}.monitoring must be a mapping")
+
+    probe_type = optional_text(raw, "type")
+    if probe_type not in {"http", "port"}:
+        fail(f"{context}.monitoring.type must be http or port")
+    result: dict[str, Any] = {"type": probe_type}
+
+    for key in ("target", "url", "host"):
+        value = optional_text(raw, key)
+        if value is not None:
+            result[key] = value
+
+    port = raw.get("port")
+    if port is not None:
+        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+            fail(f"{context}.monitoring.port must be an integer between 1 and 65535")
+        result["port"] = port
+
+    conditions = raw.get("conditions")
+    if conditions is not None:
+        if not isinstance(conditions, list) or not all(
+            isinstance(item, str) and item.strip() for item in conditions
+        ):
+            fail(f"{context}.monitoring.conditions must be a list of non-empty strings")
+        result["conditions"] = [item.strip() for item in conditions]
+
+    return result
+
 def declared_service(
     metadata: dict[str, Any],
     source_path: str,
@@ -244,6 +281,9 @@ def declared_service(
     runtime = runtime_binding(metadata, context)
     if runtime is not None:
         service["runtime"] = runtime
+    monitoring = monitoring_metadata(metadata, context)
+    if monitoring is not None:
+        service["monitoring"] = monitoring
     return service
 
 
