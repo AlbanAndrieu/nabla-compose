@@ -64,7 +64,9 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertEqual(data["defaultPool"], "cpool")
         self.assertEqual(data["nfsServer"], "172.17.0.24")
 
-        deployments = [doc for doc in docs if doc.get("kind") in {"Deployment", "DaemonSet"}]
+        deployments = [
+            doc for doc in docs if doc.get("kind") in {"Deployment", "DaemonSet"}
+        ]
         self.assertEqual(len(deployments), 2)
         for workload in deployments:
             aliases = workload["spec"]["template"]["spec"]["hostAliases"]
@@ -130,6 +132,22 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn("get events --sort-by=.lastTimestamp", text)
         self.assertIn("csi-node-driver-registrar", text)
         self.assertIn("did not become Ready within", text)
+
+    def test_install_scopes_privileged_pod_security_to_csi_namespace(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn('POD_SECURITY_VERSION="${CSI_POD_SECURITY_VERSION:-v1.36}"', text)
+        self.assertIn("ensure_namespace_pod_security", text)
+        self.assertIn("pod-security.kubernetes.io/enforce=privileged", text)
+        self.assertIn("pod-security.kubernetes.io/audit=baseline", text)
+        self.assertIn("pod-security.kubernetes.io/warn=baseline", text)
+        self.assertIn("pod-security.kubernetes.io/enforce-version", text)
+        self.assertNotIn("--all", text)
+        self.assertLess(
+            text.index("ensure_namespace_pod_security\n"),
+            text.index('kubectl apply -f "${DRIVER_MANIFEST}"'),
+        )
 
     def test_install_script_keeps_secret_runtime_only(self) -> None:
         text = (
