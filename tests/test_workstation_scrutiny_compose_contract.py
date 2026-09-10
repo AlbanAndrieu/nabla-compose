@@ -31,7 +31,7 @@ def test_workstation_scrutiny_collector_is_declaratively_managed() -> None:
     assert "master-collector" not in compose
 
 
-def test_summary_checks_allow_one_transient_busy_timeout() -> None:
+def test_summary_checks_allow_one_transient_backend_timeout() -> None:
     workstation = read(
         "scripts/observability/verify-scrutiny-workstation-collector.sh"
     )
@@ -46,6 +46,16 @@ def test_summary_checks_allow_one_transient_busy_timeout() -> None:
     assert "SCRUTINY_SUMMARY_RETRY_DELAY_SECONDS" in truenas
     assert "Scrutiny /api/summary recovered after" in truenas
     assert "did not converge" in truenas
+
+
+def test_truenas_collector_gate_requires_every_device_to_be_fresh() -> None:
+    truenas = read("scripts/truenas/verify-scrutiny-collectors.sh")
+
+    assert "device=%s SMART data is stale" in truenas
+    assert "device=%s has no SMART collector timestamp" in truenas
+    assert "stale/invalid device result(s)" in truenas
+    assert "oldest_age=" in truenas
+    assert "latest_age=" not in truenas
 
 
 def test_scrutiny_verifiers_remain_executable_valid_bash() -> None:

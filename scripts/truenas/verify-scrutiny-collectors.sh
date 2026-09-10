@@ -51,14 +51,15 @@ fetch_summary() {
     curl_status=$?
     set -e
 
-    if [[ "${curl_status}" -eq 0 && "${http_code}" == "200" ]] &&
-      jq -e '.success == true and (.data.summary | type == "object")' >/dev/null 2>&1 <"${tmp}"; then
-      if ((transient_failures > 0)); then
-        printf '⚠️  Scrutiny /api/summary recovered after %s transient failure(s)\n' \
-          "${transient_failures}" >&2
+    if [[ "${curl_status}" -eq 0 && "${http_code}" == "200" ]]; then
+      if jq -e '.success == true and (.data.summary | type == "object")' >/dev/null 2>&1 <"${tmp}"; then
+        if ((transient_failures > 0)); then
+          printf '⚠️  Scrutiny /api/summary recovered after %s transient failure(s)\n' \
+            "${transient_failures}" >&2
+        fi
+        cat "${tmp}"
+        return 0
       fi
-      cat "${tmp}"
-      return 0
     fi
 
     transient_failures=$((transient_failures + 1))
@@ -112,45 +113,55 @@ for host_id in ${EXPECTED_HOSTS}; do
     continue
   fi
 
-  latest_date="$(
+  host_failures=0
+  oldest_age=0
+  while IFS=$'\t' read -r device_name collector_date; do
+    if [[ -z "${collector_date}" || "${collector_date}" == "missing" ]]; then
+      printf '❌ collector host_id=%s device=%s has no SMART collector timestamp\n' \
+        "${host_id}" "${device_name}" >&2
+      host_failures=$((host_failures + 1))
+      continue
+    fi
+
+    if ! collector_epoch="$(date -d "${collector_date}" +%s 2>/dev/null)"; then
+      printf '❌ collector host_id=%s device=%s returned an unparsable collector timestamp: %s\n' \
+        "${host_id}" "${device_name}" "${collector_date}" >&2
+      host_failures=$((host_failures + 1))
+      continue
+    fi
+
+    age=$((now_epoch - collector_epoch))
+    if ((age < 0)); then
+      age=0
+    fi
+    if ((age > oldest_age)); then
+      oldest_age="${age}"
+    fi
+
+    if ((age > MAX_AGE_SECONDS)); then
+      printf '❌ collector host_id=%s device=%s SMART data is stale: age=%ss max=%ss latest=%s\n' \
+        "${host_id}" "${device_name}" "${age}" "${MAX_AGE_SECONDS}" "${collector_date}" >&2
+      host_failures=$((host_failures + 1))
+    fi
+  done < <(
     jq -r '
-      [
-        .[]
-        | .smart.collector_date // empty
-        | select(. != "")
-      ]
-      | sort
-      | last // empty
+      .[]
+      | [
+          (.device.device_name // "unknown"),
+          (.smart.collector_date // "missing")
+        ]
+      | @tsv
     ' <<<"${host_rows}"
-  )"
+  )
 
-  if [[ -z "${latest_date}" ]]; then
-    printf '❌ collector host_id=%s has %s device(s) but no SMART collector timestamp\n' \
-      "${host_id}" "${device_count}" >&2
-    failures=$((failures + 1))
+  if ((host_failures > 0)); then
+    printf '❌ collector host_id=%s has %s stale/invalid device result(s) out of %s\n' \
+      "${host_id}" "${host_failures}" "${device_count}" >&2
+    failures=$((failures + host_failures))
     continue
   fi
 
-  if ! latest_epoch="$(date -d "${latest_date}" +%s 2>/dev/null)"; then
-    printf '❌ collector host_id=%s returned an unparsable collector timestamp: %s\n' \
-      "${host_id}" "${latest_date}" >&2
-    failures=$((failures + 1))
-    continue
-  fi
-
-  age=$((now_epoch - latest_epoch))
-  if ((age < 0)); then
-    age=0
-  fi
-
-  if ((age > MAX_AGE_SECONDS)); then
-    printf '❌ collector host_id=%s SMART data is stale: age=%ss max=%ss latest=%s\n' \
-      "${host_id}" "${age}" "${MAX_AGE_SECONDS}" "${latest_date}" >&2
-    failures=$((failures + 1))
-    continue
-  fi
-
-  ok "collector host_id=${host_id} devices=${device_count} latest_age=${age}s"
+  ok "collector host_id=${host_id} devices=${device_count} oldest_age=${oldest_age}s"
 done
 
 [[ "${failures}" -eq 0 ]] ||
