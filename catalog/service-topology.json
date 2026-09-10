@@ -254,7 +254,8 @@
       "category": "development",
       "sourcePath": "apps/sample/compose.yml",
       "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
-      "presentationRole": "service",
+      "presentationRole": "support",
+      "criticality": "medium",
       "environments": [
         {
           "name": "production",
@@ -336,6 +337,17 @@
       "icon": "⚖️"
     },
     {
+      "id": "heimdall",
+      "name": "Heimdall",
+      "kind": "dashboard",
+      "category": "operations",
+      "sourcePath": "catalog/homelab-services.json",
+      "url": "https://heimdall.albandrieu.com",
+      "description": "Application dashboard retained from the legacy homelab inventory and classified canonically for topology consumers.",
+      "presentationRole": "support",
+      "criticality": "low"
+    },
+    {
       "id": "hello-nginx",
       "name": "Hello Nginx",
       "kind": "web-server",
@@ -352,7 +364,9 @@
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
       "url": "http://172.17.0.24:30100",
-      "description": "Homelab application dashboard generated from the Nabla service inventory."
+      "description": "Homelab application dashboard generated from the Nabla service inventory.",
+      "presentationRole": "support",
+      "criticality": "medium"
     },
     {
       "id": "homarr-sync",
@@ -829,7 +843,9 @@
       "category": "observability",
       "sourcePath": "apps/scrutiny/compose.yml",
       "url": "https://scrutiny.albandrieu.com",
-      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service."
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+      "presentationRole": "support",
+      "criticality": "medium"
     },
     {
       "id": "scrutiny-collector",
