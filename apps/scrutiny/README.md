@@ -228,6 +228,35 @@ The existing workstation collector is a second producer for the same Scrutiny
 Web/API. It is **not** another Scrutiny server and does not require a listener
 on the workstation.
 
+### Collector/server version compatibility
+
+The 2026-09-09 runtime diagnosis found that the workstation container was still
+running collector **dev-0.8.2** while the TrueNAS server was **v0.9.3**. This is
+not a compatible hub/spoke pair.
+
+The v0.8.2 collector registration model does not send `scrutiny_uuid`. The
+v0.9.3 server ignores devices without that UUID, while the v0.9.3 collector
+generates it before registration and then publishes SMART payloads to
+`/api/device/<scrutiny_uuid>/smart`.
+
+This explains the misleading old-client behavior:
+
+```text
+Sending detected devices to API, for filtering & validation
+Main: Completed
+```
+
+The old command can exit zero even when the v0.9.3 server accepts no devices,
+so no `host_id=albandrieu` appears in the dashboard.
+
+Pin the workstation collector to:
+
+```text
+ghcr.io/analogj/scrutiny:v0.9.3-collector
+```
+
+Do not use the floating `master-collector` tag for this integration.
+
 Its target must be the TrueNAS LAN endpoint:
 
 ```text
