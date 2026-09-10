@@ -1,3 +1,10 @@
+## [0.31.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.3...0.31.4) (2026-09-10)
+
+
+### Bug Fixes
+
+* **scrutiny:** pin compatible workstation collector ([#177](https://github.com/AlbanAndrieu/nabla-compose/issues/177)) ([99b418e](https://github.com/AlbanAndrieu/nabla-compose/commit/99b418e4bf1bdaab3da0f3c8f1287407cba0eefb))
+
 ## [0.31.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.31.2...0.31.3) (2026-09-09)
 
 
