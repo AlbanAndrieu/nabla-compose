@@ -189,5 +189,9 @@ etcd_member_count="$(count_etcd_members "${etcd_members_output}")" ||
 [[ "${etcd_member_count}" -eq 1 ]] ||
   fail "expected exactly one etcd member for the current single-control-plane topology, found ${etcd_member_count}"
 
-printf '✅ Talos/Kubernetes cluster healthy: %s/%s nodes Ready, etcd members=%s, node pressure=none\n' \
+printf '\n🔐 validating Pod Security Admission / Pod Security Standards posture\n'
+DIAGNOSTIC_FULL_OUTPUT=1 \
+  bash "${ROOT}/scripts/talos/diagnose-security-posture.sh"
+
+printf '✅ Talos/Kubernetes cluster healthy: %s/%s nodes Ready, etcd members=%s, node pressure=none, PSA/PSS posture=accepted\n' \
   "${ready_count}" "${EXPECTED_NODE_COUNT}" "${etcd_member_count}"

@@ -76,6 +76,14 @@ Do not repeatedly poll workflow, deployment, job, check, or observability status
 
 `AGENTS.md` is the canonical cross-agent repository policy. Agent-specific entry files such as `CLAUDE.md`, `.claude/CLAUDE.md`, and `.github/copilot-instructions.md` should point here and contain only adapter-specific routing that cannot live here. Do not duplicate this policy across agent files.
 
+## Protected default-branch policy
+
+Agents must **never** commit, push, create, update, delete, or otherwise mutate files directly on `master`, and must never move, force-update, or write the `master` ref directly.
+
+This applies equally to Git CLI pushes, GitHub API/Contents writes, generated files, documentation-only changes, trivial fixes and emergency fixes. Before every remote mutation, verify that the destination is a dedicated non-default branch. If an API defaults a missing `branch`/`ref` argument to the repository default branch, omitting that argument for a write is prohibited.
+
+All agent-authored changes must use a branch and pull request. Leave the merge to the user/maintainer unless the user explicitly asks the agent to merge. Never use `git push --no-verify`, never force-update `master`, and never weaken quality/security controls to get a change published.
+
 ## Validation
 
 For a focused change, run the closest relevant formatter/linter first.
@@ -88,7 +96,9 @@ bash scripts/agent-quality-gate.sh --fix
 bash scripts/agent-quality-gate.sh
 ```
 
-The strict agent gate checks branch freshness, suspicious large truncations, executable bits for shebang scripts, generated topology/consumer synchronization, and the lightweight unit/contract suite before delegating to the canonical quality gate.
+`--fix` is a bounded convergence loop: when a formatter or autofixer changes files, it reruns the complete changed-file fix pass until the final pass is clean. It stops immediately when a failing pass makes no deterministic change, and fails closed if changes do not converge within the configured pass limit. Do not use remote CI as the edit/format/lint feedback loop.
+
+The strict agent gate checks branch freshness, suspicious large truncations, executable bits for shebang scripts, generated topology/consumer synchronization, and the lightweight unit/contract suite before delegating to the canonical quality gate. CI runs the Git-only `--preflight` before Python/pre-commit setup so stale branches, protected-branch misuse, destructive diffs and executable-bit mistakes fail before expensive build or dependency work.
 
 `scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/security gate. Publication mode is still `scripts/quality-gate.sh --publish`, reached through `scripts/agent-quality-gate.sh --publish`.
 
@@ -98,7 +108,7 @@ Compose files remain validated with:
 docker compose config --quiet --no-interpolate --no-env-resolution
 ```
 
-Do not start the homelab stack merely to validate configuration. Do not run MegaLinter locally unless diagnosing a MegaLinter-specific failure. Keep validation output compact: fix the first deterministic failure, rerun locally, and publish one validated batch rather than using CI as an edit/test loop.
+Do not start the homelab stack merely to validate configuration. Do not run MegaLinter locally unless diagnosing a MegaLinter-specific failure. Keep validation output compact: fix the first deterministic failure, rerun locally until the final pass is clean, and publish one validated batch rather than using CI as an edit/test loop.
 
 ## Mandatory agent publish policy
 
@@ -106,12 +116,13 @@ Agents must never publish changes immediately after editing files.
 
 Before every `git push`, GitHub API file update, or other remote repository mutation:
 
-1. Run `bash scripts/agent-quality-gate.sh --fix` after the editing batch whenever a local checkout is available.
-2. Review deterministic generator/formatter changes and commit them.
-3. Run `bash scripts/agent-quality-gate.sh --publish` until it exits successfully.
-4. Fix every formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
-5. Verify `git status --short` is empty.
-6. Publish the complete validated batch once.
+1. Confirm the target is a dedicated non-default branch and is not `master`.
+2. Run `bash scripts/agent-quality-gate.sh --fix` after the editing batch whenever a local checkout is available; allow its bounded formatter/linter convergence passes to finish.
+3. Review deterministic generator/formatter changes and commit them.
+4. Run `bash scripts/agent-quality-gate.sh --publish` until the final pass is clean and exits successfully.
+5. Fix every formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
+6. Verify `git status --short` is empty.
+7. Publish the complete validated batch once.
 
 Keep iterative agent pull requests as **drafts** until the strict local agent gate is green. Expensive PR jobs may skip drafts; the cheap deterministic preflight still runs on every PR and runs again when the PR becomes ready.
 
