@@ -64,6 +64,17 @@
       "criticality": "high"
     },
     {
+      "id": "heimdall",
+      "name": "Heimdall",
+      "kind": "dashboard",
+      "category": "operations",
+      "sourcePath": "catalog/homelab-services.json",
+      "url": "https://heimdall.albandrieu.com",
+      "description": "Application dashboard retained from the legacy homelab inventory and classified canonically for topology consumers.",
+      "presentationRole": "support",
+      "criticality": "low"
+    },
+    {
       "id": "pfsense-unbound",
       "name": "pfSense Unbound",
       "kind": "dns-resolver",
