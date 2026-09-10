@@ -107,6 +107,25 @@ services:
     environment:
       - TRUENAS_API_KEY=${TRUENAS_API_KEY}
 
+  # Workstation-side spoke only. The Scrutiny Web/API hub runs on TrueNAS.
+  # docker-compose-albandrieu.yml includes this file for the workstation project.
+  scrutiny-collector:
+    image: ghcr.io/analogj/scrutiny:v0.9.3-collector
+    container_name: scrutiny
+    restart: unless-stopped
+    cap_add: [SYS_RAWIO]
+    volumes:
+      - /run/udev:/run/udev:ro
+    environment:
+      COLLECTOR_API_ENDPOINT: http://172.17.0.24:31054/
+      COLLECTOR_HOST_ID: albandrieu
+      COLLECTOR_RUN_STARTUP: "false"
+    devices:
+      - /dev/sda:/dev/sda
+      - /dev/sdb:/dev/sdb
+      - /dev/sdc:/dev/sdc
+    networks: [intranet]
+
   dozzle-agent:
     image: amir20/dozzle:v8.14.4
     container_name: dozzle-agent

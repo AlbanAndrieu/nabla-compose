@@ -9,6 +9,7 @@ EXPECTED_VERSION="${SCRUTINY_WORKSTATION_EXPECTED_VERSION:-0.9.3}"
 EXPECTED_IMAGE="${SCRUTINY_WORKSTATION_EXPECTED_IMAGE:-ghcr.io/analogj/scrutiny:v0.9.3-collector}"
 SUMMARY_WAIT_ATTEMPTS="${SCRUTINY_WORKSTATION_SUMMARY_WAIT_ATTEMPTS:-20}"
 SUMMARY_WAIT_DELAY="${SCRUTINY_WORKSTATION_SUMMARY_WAIT_DELAY_SECONDS:-3}"
+SUMMARY_MAX_TIME="${SCRUTINY_WORKSTATION_SUMMARY_MAX_TIME_SECONDS:-35}"
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -100,12 +101,17 @@ if [[ "${MODE}" == "--submit" ]]; then
 
     registered=false
     summary=""
+    transient_summary_failures=0
     for ((attempt = 1; attempt <= SUMMARY_WAIT_ATTEMPTS; attempt++)); do
+        set +e
         summary="$(
-            curl -fsS --connect-timeout 3 --max-time 15 \
-                "${expected_endpoint}/api/summary" 2>/dev/null || true
+            curl -fsS --connect-timeout 3 --max-time "${SUMMARY_MAX_TIME}" \
+                "${expected_endpoint}/api/summary" 2>/dev/null
         )"
-        if [[ -n "${summary}" ]]; then
+        summary_status=$?
+        set -e
+
+        if [[ "${summary_status}" -eq 0 && -n "${summary}" ]]; then
             if jq -e --arg host "${EXPECTED_HOST_ID}" '
                 [
                     .data.summary
@@ -118,9 +124,19 @@ if [[ "${MODE}" == "--submit" ]]; then
                 registered=true
                 break
             fi
+        else
+            transient_summary_failures=$((transient_summary_failures + 1))
+            printf '⚠️  transient Scrutiny /api/summary failure after submission: attempt=%s/%s curl_exit=%s\n' \
+                "${attempt}" "${SUMMARY_WAIT_ATTEMPTS}" "${summary_status}" >&2
         fi
+
         sleep "${SUMMARY_WAIT_DELAY}"
     done
+
+    if ((transient_summary_failures > 0)) && [[ "${registered}" == "true" ]]; then
+        printf '⚠️  Scrutiny /api/summary recovered after %s transient failure(s)\n' \
+            "${transient_summary_failures}" >&2
+    fi
 
     if [[ "${registered}" != "true" ]]; then
         printf 'Server-side Scrutiny hosts currently visible:\n' >&2
