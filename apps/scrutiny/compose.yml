@@ -9,6 +9,8 @@ services:
       name: Scrutiny
       kind: storage-monitoring
       category: observability
+      presentationRole: support
+      criticality: medium
       url: https://scrutiny.albandrieu.com
       description: SMART disk health monitoring web/API backed by the shared InfluxDB service.
       runtime:

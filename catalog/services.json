@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:0117e7ad429d35c3941f154b6d8cba84b868189b792d800f74281fb43b6d43e6",
+  "catalogRevision": "sha256:0f314f095edda02d0444f902742652002d8f17978f3933edf2fa1784baf2b2e6",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -306,7 +306,8 @@
       "sourcePath": "apps/sample/compose.yml",
       "composeService": "fastapi-sample",
       "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
-      "presentationRole": "service",
+      "presentationRole": "support",
+      "criticality": "medium",
       "environments": [
         {
           "name": "production",
@@ -433,6 +434,8 @@
       "composeService": "homarr",
       "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
+      "presentationRole": "support",
+      "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "homarr"
@@ -1069,6 +1072,8 @@
       "composeService": "scrutiny",
       "url": "https://scrutiny.albandrieu.com",
       "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+      "presentationRole": "support",
+      "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "scrutiny"

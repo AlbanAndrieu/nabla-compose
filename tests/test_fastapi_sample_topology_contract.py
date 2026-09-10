@@ -35,8 +35,8 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
             item for item in services["services"] if item["id"] == "fastapi-sample"
         )
 
-        self.assertEqual(node["presentationRole"], "service")
-        self.assertEqual(service["presentationRole"], "service")
+        self.assertEqual(node["presentationRole"], "support")
+        self.assertEqual(service["presentationRole"], "support")
         self.assertEqual(node["environments"], expected)
         self.assertEqual(service["environments"], expected)
 
