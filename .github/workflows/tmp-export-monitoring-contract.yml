@@ -1,0 +1,77 @@
+name: Temporary export monitoring contract
+
+on:
+  push:
+    branches:
+      - feat/export-monitoring-contract
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/export-monitoring-contract
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install generator/test dependencies
+        run: python -m pip install --disable-pip-version-check --quiet pyyaml pytest pre-commit
+      - name: Export x-nabla monitoring metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          generator_path = Path("scripts/generate-service-topology.py")
+          text = generator_path.read_text()
+          needle = "\ndef declared_service(\n"
+          assert needle in text
+          helper = '''\n\ndef monitoring_metadata(\n    metadata: dict[str, Any], context: str\n) -> dict[str, Any] | None:\n    \"\"\"Validate and export safe probe metadata from ``x-nabla.monitoring``.\"\"\"\n    raw = metadata.get("monitoring")\n    if raw is None:\n        return None\n    if not isinstance(raw, dict):\n        fail(f"{context}.monitoring must be a mapping")\n\n    probe_type = optional_text(raw, "type")\n    if probe_type not in {"http", "port"}:\n        fail(f"{context}.monitoring.type must be http or port")\n    result: dict[str, Any] = {"type": probe_type}\n\n    for key in ("target", "host"):\n        value = optional_text(raw, key)\n        if value is not None:\n            result[key] = value\n\n    port = raw.get("port")\n    if port is not None:\n        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:\n            fail(f"{context}.monitoring.port must be an integer between 1 and 65535")\n        result["port"] = port\n\n    conditions = raw.get("conditions")\n    if conditions is not None:\n        if not isinstance(conditions, list) or not all(\n            isinstance(item, str) and item.strip() for item in conditions\n        ):\n            fail(f"{context}.monitoring.conditions must be a list of non-empty strings")\n        result["conditions"] = [item.strip() for item in conditions]\n\n    if probe_type == "http" and "target" not in result:\n        fail(f"{context}.monitoring.target is required for http probes")\n    if probe_type == "port" and "target" not in result and not (\n        result.get("host") and result.get("port")\n    ):\n        fail(f"{context}.monitoring port probes require target or host+port")\n    return result\n'''
+          text = text.replace(needle, helper + needle, 1)
+          old = '''    runtime = runtime_binding(metadata, context)\n    if runtime is not None:\n        service["runtime"] = runtime\n    return service\n'''
+          new = '''    runtime = runtime_binding(metadata, context)\n    if runtime is not None:\n        service["runtime"] = runtime\n    monitoring = monitoring_metadata(metadata, context)\n    if monitoring is not None:\n        service["monitoring"] = monitoring\n    return service\n'''
+          assert old in text
+          generator_path.write_text(text.replace(old, new, 1))
+
+          schema_path = Path("catalog/services.schema.json")
+          schema = json.loads(schema_path.read_text())
+          schema["$defs"]["monitoring"] = {
+              "type": "object",
+              "additionalProperties": False,
+              "required": ["type"],
+              "properties": {
+                  "type": {"enum": ["http", "port"]},
+                  "target": {"type": "string", "minLength": 1},
+                  "host": {"type": "string", "minLength": 1},
+                  "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+                  "conditions": {
+                      "type": "array",
+                      "items": {"type": "string", "minLength": 1},
+                  },
+              },
+          }
+          schema["$defs"]["service"]["properties"]["monitoring"] = {"$ref": "#/$defs/monitoring"}
+          schema_path.write_text(json.dumps(schema, indent=2) + "\n")
+
+          test_path = Path("tests/test_service_monitoring_contract.py")
+          test_path.write_text('''import json\nfrom pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[1]\n\n\ndef test_languagetool_monitoring_is_exported_from_x_nabla() -> None:\n    payload = json.loads((ROOT / "catalog/services.json").read_text(encoding="utf-8"))\n    service = next(item for item in payload["services"] if item["id"] == "languagetool")\n    assert service["monitoring"] == {\n        "type": "http",\n        "target": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck",\n    }\n''')
+          PY
+          python scripts/generate-service-topology.py
+      - name: Validate monitoring contract
+        run: |
+          pytest -q tests/test_service_monitoring_contract.py tests/test_fastapi_sample_topology_contract.py
+          pre-commit run --files scripts/generate-service-topology.py catalog/services.schema.json catalog/services.json catalog/service-topology.json tests/test_service_monitoring_contract.py || true
+      - name: Remove temporary workflow and commit
+        run: |
+          git rm .github/workflows/tmp-export-monitoring-contract.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(catalog): export canonical monitoring contract"
+          git push
