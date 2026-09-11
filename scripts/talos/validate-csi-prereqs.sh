@@ -36,6 +36,39 @@ ok() {
   printf '✅ %s\n' "$*"
 }
 
+controller_runtime_converged() {
+  local deployment_json desired updated ready available unavailable generation observed progress_deadline
+
+  if ! kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1; then
+    return 0
+  fi
+
+  deployment_json="$(kubectl -n truenas-csi get deployment truenas-csi-controller -o json)"
+  desired="$(jq -r '.spec.replicas // 1' <<<"${deployment_json}")"
+  updated="$(jq -r '.status.updatedReplicas // 0' <<<"${deployment_json}")"
+  ready="$(jq -r '.status.readyReplicas // 0' <<<"${deployment_json}")"
+  available="$(jq -r '.status.availableReplicas // 0' <<<"${deployment_json}")"
+  unavailable="$(jq -r '.status.unavailableReplicas // 0' <<<"${deployment_json}")"
+  generation="$(jq -r '.metadata.generation // 0' <<<"${deployment_json}")"
+  observed="$(jq -r '.status.observedGeneration // 0' <<<"${deployment_json}")"
+  progress_deadline="$(jq -r '[.status.conditions[]? | select(.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")] | length' <<<"${deployment_json}")"
+
+  if [[ "${observed}" -ge "${generation}" &&
+        "${updated}" -eq "${desired}" &&
+        "${ready}" -eq "${desired}" &&
+        "${available}" -eq "${desired}" &&
+        "${unavailable}" -eq 0 &&
+        "${progress_deadline}" -eq 0 ]]; then
+    ok "TrueNAS CSI controller runtime is fully converged"
+    return 0
+  fi
+
+  printf '❌ TrueNAS CSI controller runtime is not converged: desired=%s updated=%s ready=%s available=%s unavailable=%s generation=%s observed=%s progressDeadlineExceeded=%s\n' \
+    "${desired}" "${updated}" "${ready}" "${available}" "${unavailable}" "${generation}" "${observed}" "${progress_deadline}" >&2
+  kubectl -n truenas-csi get deployment,rs,pod -l app=truenas-csi-controller -o wide >&2 2>/dev/null || true
+  return 1
+}
+
 for command in kubectl jq grep timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
@@ -139,6 +172,8 @@ if kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1;
   [[ " ${controller_containers} " == *" csi-attacher "* ]] ||
     fail "installed CSI controller has no csi-attacher; ControllerPublishVolume cannot populate VolumeAttachment attachmentMetadata"
   ok "installed CSI controller includes csi-attacher"
+  controller_runtime_converged ||
+    fail "installed CSI controller is not runtime-converged; authentication/socket/rollout must be healthy before storage acceptance"
 fi
 
 if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
@@ -166,4 +201,4 @@ else
 fi
 
 printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 26 and track SCRAM/username support before TrueNAS 27.\n' "${EXPECTED_CSI_VERSION}"
-printf '✅ CSI preflight complete: cluster, NFS reachability, controller publish path, RBAC and pinned manifests are ready for the explicit install step\n'
+printf '✅ CSI preflight complete: cluster, NFS reachability, controller runtime, publish path, RBAC and pinned manifests are ready for the explicit storage smoke\n'
