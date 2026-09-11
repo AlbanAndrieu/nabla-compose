@@ -65,9 +65,10 @@ SENTRY_TSDB = "sentry.tsdb.redissnuba.RedisSnubaTSDB"
 SENTRY_DIGESTS = "sentry.digests.backends.redis.RedisBackend"
 
 # Upstream self-hosted Sentry uses StatsD for runtime observability. Route the
-# errors-only stack to the repository-managed Prometheus statsd_exporter by
-# default, while keeping the destination overridable for alternate runtimes.
-_sentry_statsd_addr = env("SENTRY_STATSD_ADDR", "172.17.0.24:9125")
+# errors-only stack to the repository-managed Prometheus statsd_exporter over
+# the shared Docker intranet by default, while keeping the destination
+# overridable for alternate runtimes.
+_sentry_statsd_addr = env("SENTRY_STATSD_ADDR", "statsd-exporter:9125")
 if _sentry_statsd_addr:
     _statsd_host, _, _statsd_port = _sentry_statsd_addr.partition(":")
     SENTRY_METRICS_BACKEND = "sentry.metrics.statsd.StatsdMetricsBackend"
