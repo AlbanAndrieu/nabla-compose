@@ -43,6 +43,24 @@ class SentrySuricataRuntimeContractTest(unittest.TestCase):
         self.assertIn("Recent Kafka broker warnings/errors", script)
         self.assertIn("docker logs --since 10m", script)
 
+    def test_taskbroker_backlog_diagnostic_is_read_only(self) -> None:
+        path = ROOT / "scripts/truenas/diagnose-sentry-taskbroker.sh"
+        script = path.read_text(encoding="utf-8")
+
+        self.assertIn("inflight_taskactivations", script)
+        self.assertIn("application_empty=", script)
+        self.assertIn("--group taskworker", script)
+        self.assertIn("mode=ro", script)
+        self.assertIn("READ-ONLY", script)
+        self.assertNotIn("--reset-offsets", script)
+        self.assertNotIn("DELETE FROM inflight_taskactivations", script)
+        self.assertNotIn("docker restart", script)
+
+        mode = path.stat().st_mode
+        self.assertTrue(mode & stat.S_IXUSR)
+        self.assertTrue(mode & stat.S_IXGRP)
+        self.assertTrue(mode & stat.S_IXOTH)
+
     def test_suricata_rule_bootstrap_is_bounded_and_non_reloading(self) -> None:
         path = ROOT / "apps/suricata/entrypoint.sh"
         script = path.read_text(encoding="utf-8")
