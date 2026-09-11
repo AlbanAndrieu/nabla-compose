@@ -3,14 +3,13 @@ x-nabla:
   nodes:
     - id: uptime-kuma
       name: Uptime Kuma
-      kind: uptime-monitor
+      kind: native-truenas-uptime-monitor
       category: observability
       url: http://172.17.0.24:31050
       description: Existing native TrueNAS Uptime Kuma instance on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose.
       runtime:
         provider: truenas-app
         appId: uptime-kuma
-        management: truenas-native
       lifecycle:
         phase: platform-services
         priority: 40
