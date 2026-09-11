@@ -23,7 +23,10 @@ while (($#)); do
   case "$1" in
     --ref)
       shift
-      [[ $# -gt 0 ]] || { usage >&2; exit 2; }
+      [[ $# -gt 0 ]] || {
+        usage >&2
+        exit 2
+      }
       REF="$1"
       ;;
     --activate)
@@ -90,6 +93,14 @@ validate_stage() {
 
   grep -q -- '--continue-prepare' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
     fail "materialized reboot script lacks --continue-prepare"
+  grep -q -- 'build_effective_resume_plan' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
+    fail "materialized reboot script lacks ordering-only resume repair"
+  grep -q -- 'reconcile-reboot-resume.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
+    fail "materialized reboot script does not delegate resume reconciliation"
+  grep -q -- 'start_wave_phases' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
+    fail "materialized lifecycle planner lacks phased startup ordering"
+  grep -q -- 'sourcePath' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
+    fail "materialized lifecycle planner lacks TrueNAS App ownership inference"
 }
 
 verify_bundle() {
@@ -137,4 +148,5 @@ fi
 
 printf 'SOURCE_COMMIT=%s\n' "${COMMIT}"
 printf 'BUNDLE=%s\n' "${FINAL}"
-printf 'SCRIPT_SHA256=%s\n' "$(sha256sum "${FINAL}/scripts/truenas/reboot-homelab.sh" | awk '{print $1}')"
+printf 'SCRIPT_SHA256=%s\n' \
+  "$(sha256sum "${FINAL}/scripts/truenas/reboot-homelab.sh" | awk '{print $1}')"
