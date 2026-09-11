@@ -41,11 +41,11 @@ Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad cle
 4. [x] Reboot TrueNAS through the supported TrueNAS path; boot ID changed.
 5. [x] Run `--post-reboot-check`: TrueNAS ready, Docker/IPAM/br0/observer network valid, Talos APIs reachable and Kubernetes 3/3 Ready.
 6. [x] Run one fresh post-reboot CSI regression: provisioning, publishContext, cross-worker RWX and reclaim are green.
-7. [ ] Complete `--resume` from the saved original manifest. The old resume implementation has already shown two stop-the-world acceptance defects:
+7. [ ] Complete `--resume` from the saved original manifest. The old resume implementation exposed two stop-the-world defects:
    - `code` eventually became healthy but its slow package provisioning exceeded the old RUNNING acceptance window;
-   - `graylog` remains `DEPLOYING` while later Apps are still `STOPPED`.
-8. [ ] Diagnose/recover Graylog dependency ordering before treating the remaining STOPPED Apps as individual failures. Graylog requires Mongo and OpenSearch Security; the lifecycle planner must map those relations to concrete TrueNAS App IDs and start backend waves first.
-9. [ ] Run `--verify`, cluster/network gates, Docker IPAM audit, platform diagnostics and orphan-shim check.
+   - Graylog was started before Mongo/OpenSearch Security, remained `DEPLOYING`, and prevented every later App from being attempted.
+8. [x] Diagnose the Graylog failure: logs proved `UnknownHostException: mongo` followed by connection refusal; `apps/graylog/compose.yml` requires Mongo and OpenSearch Security before `/docker-entrypoint.sh`.
+9. [ ] Materialize/review the repaired #191 lifecycle bundle, resume the frozen membership with the corrected order, then run `--verify`, cluster/network gates, Docker IPAM audit, platform diagnostics and orphan-shim check.
 10. [ ] Only then start bounded P5 cleanup and unlock P1/P2 work.
 
 ## P0.1 — reboot lifecycle hardening
@@ -54,14 +54,47 @@ Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad cle
 - [x] Persist `PREPARING` / `PREPARED`; support `--continue-prepare`; refuse a second same-boot transaction.
 - [x] Validate immutable manifest/bundle identity and checksums.
 - [x] Add targeted Docker/containerd orphan-shim diagnostics/recovery.
-- [x] Add `scripts/truenas/reconcile-reboot-resume.sh` in PR #191: idempotent resume, separate middleware/job/readiness timeouts, per-App overrides, bounded runtime/log diagnostics and wave-level error aggregation.
-- [ ] After the live transaction closes, make `reboot-homelab.sh --resume` delegate to the reconciler and delete the duplicate resume/wait/diagnostic implementation.
+- [x] Add `scripts/truenas/reconcile-reboot-resume.sh`: idempotent resume, separate middleware/job/readiness timeouts, per-App overrides, bounded runtime/log diagnostics and wave-level error aggregation.
+- [x] Make `reboot-homelab.sh --resume` delegate App lifecycle handling to the reconciler instead of maintaining a second start/wait loop.
+- [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
+- [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity. This maps multi-container Apps such as `opensearch-security -> opensearch` without duplicating metadata everywhere.
+- [x] Add a lifecycle fixture proving foundations precede data tiers, Mongo/OpenSearch precede Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
 - [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
 - [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
-- [ ] Make `runtime.appId` canonical for every TrueNAS-backed `x-nabla` service. Prioritize Graylog, Mongo and OpenSearch Security so `dependsOn` / `storesIn` become real lifecycle wave barriers.
-- [ ] Add a lifecycle fixture asserting Graylog cannot be scheduled before Mongo and OpenSearch Security are accepted RUNNING.
-- [ ] Reduce the remaining `no topology mapping` set to zero or an explicit reviewed allowlist.
+- [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
+- [ ] Add health-aware dependency acceptance metadata so a backend wave can require container/service readiness, not only TrueNAS App `RUNNING`, where a consumer cannot self-wait safely.
 - [ ] Keep current + previous known-good reboot bundles until another normal reboot cycle passes.
+
+### TrueNAS lifecycle phase contract
+
+Required `x-nabla` topology relations remain authoritative. Phases are a secondary barrier for Apps that are simultaneously dependency-ready; they do not override an explicit required dependency.
+
+Startup order:
+
+1. **Foundation** — Pi-hole, AdGuard Home, Traefik, Docker Socket Proxy and Vaultwarden. Keep DNS, ingress and restricted Docker API primitives available before consumers.
+2. **Network / edge support** — remaining network/infrastructure services such as Cloudflared, DDNS and secondary reverse-proxy tooling when present in the saved resume set.
+3. **Primary state** — PostgreSQL, MongoDB, InfluxDB, Redis and Kafka/message-broker equivalents.
+4. **Secondary/heavy data** — ClickHouse, OpenSearch, Elasticsearch, MinIO, Garage and other search/object/analytics storage engines.
+5. **Platform services** — observability, security, operations and automation consumers such as Graylog, Prometheus/Grafana, CrowdSec and n8n, subject to their explicit dependencies.
+6. **Applications** — remaining product, productivity and development workloads.
+
+Shutdown is the exact reverse flattened start order:
+
+- applications and consumers stop before platform services;
+- platform services stop before search/analytics stores;
+- heavy stores stop before their primary databases/brokers when no stronger topology relation says otherwise;
+- network/edge support stops after consumers;
+- DNS/ingress/foundation services stop last.
+
+Operational invariants:
+
+- a failed or non-converged wave blocks later dependency waves but reports all failures inside the current wave;
+- `CRASHED`/`ERROR` is never blindly restarted by the reconciler;
+- an already `RUNNING` App is idempotently skipped;
+- a `DEPLOYING` App is waited on instead of receiving a duplicate `app.start`;
+- a historical reboot manifest may have its ordering repaired, but its selected App membership may not change;
+- Apps intentionally STOPPED before the transaction remain excluded unless explicitly present in the reviewed resume set;
+- bundle activation requires syntax/checksum validation plus presence of phased planning and resume reconciliation features.
 
 ## P0.2 — CSI hardening
 
@@ -138,15 +171,15 @@ Entry condition: `--verify` is green and P0 is closed.
 
 The objective is a net reduction of imperative Bash, duplicate lifecycle logic and duplicated documentation, while preserving stable operator entry points for at least one release cycle.
 
-1. [ ] **One resume implementation.** `reboot-homelab.sh --resume` delegates to `reconcile-reboot-resume.sh --apply`; remove the duplicate wave/wait/diagnostic code from the reboot orchestrator.
+1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`; duplicate start/wait/diagnostic logic is removed from the reboot orchestrator.
 2. [ ] **`scripts/lib/truenas.sh`.** Centralize bounded middleware calls, normalized readiness, App state, lifecycle waits and persistent reboot-manifest helpers.
 3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, ok/warn/fail/skipped counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
 6. [ ] **`scripts/lib/secrets.sh`.** Centralize owner/mode/key-presence checks without secret disclosure.
-7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata: `runtime.appId`, startup timeout, readiness type/target, dependency relations, slow-start behavior and criticality.
+7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata: startup phase/priority where inference is insufficient, startup timeout, readiness type/target, dependency relations, slow-start behavior and criticality. Prefer generated runtime ownership from `sourcePath`; use explicit `runtime.appId` only for ambiguous/non-standard ownership.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image; remove startup-time package provisioning.
-9. [ ] **Incident fixtures.** Cover interrupted prepare/continue, Docker ghost shim and lifecycle ordering (including Graylog after Mongo/OpenSearch Security).
+9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures; Graylog/Mongo/OpenSearch lifecycle ordering is now covered.
 10. [ ] **Keep roadmap concise.** Roadmap = status/next action; runbooks = procedure; incident docs = evidence. Link instead of copying command blocks.
 11. [ ] **Anti-duplication quality gate.** Once primitives are migrated, reject redefinitions of middleware/App-state/diagnostic/probe helpers in service scripts.
 
