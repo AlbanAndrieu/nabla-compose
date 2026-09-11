@@ -49,10 +49,14 @@ export KUBECONFIG
 [[ -s "${STORAGE_CLASS_MANIFEST}" ]] || fail "missing ${STORAGE_CLASS_MANIFEST}"
 grep -Fq "ghcr.io/truenas/truenas-csi:${EXPECTED_CSI_VERSION}" "${DRIVER_MANIFEST}" ||
   fail "CSI driver image is not pinned to ${EXPECTED_CSI_VERSION}"
+grep -Fq "registry.k8s.io/sig-storage/csi-attacher:v4.11.0" "${DRIVER_MANIFEST}" ||
+  fail "CSI controller manifest is missing csi-attacher:v4.11.0"
+grep -Fq "attachRequired: true" "${DRIVER_MANIFEST}" ||
+  fail "CSIDriver manifest must enable attachRequired so ControllerPublishVolume supplies publishContext"
 if grep -Eq 'iscsiadm|/etc/iscsi|/var/lib/iscsi' "${DRIVER_MANIFEST}"; then
   fail "Talos first-storage manifest must remain NFS-only"
 fi
-ok "TrueNAS CSI ${EXPECTED_CSI_VERSION} NFS-only repository contract is pinned"
+ok "TrueNAS CSI ${EXPECTED_CSI_VERSION} NFS-only repository contract is pinned with controller publish enabled"
 
 nodes_json="$(kubectl get nodes -o json)"
 node_count="$(jq '.items | length' <<<"${nodes_json}")"
@@ -122,22 +126,37 @@ else
 fi
 
 if kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
-  printf 'ℹ️  CSIDriver csi.truenas.io is already registered; inspect ownership before applying\n'
+  attach_required="$(kubectl get csidriver csi.truenas.io -o jsonpath='{.spec.attachRequired}')"
+  [[ "${attach_required}" == "true" ]] ||
+    fail "installed CSIDriver attachRequired=${attach_required:-missing}; this immutable drift skips ControllerPublishVolume and leaves publishContext empty"
+  ok "installed CSIDriver csi.truenas.io enables ControllerPublishVolume"
 else
   printf 'ℹ️  CSIDriver csi.truenas.io is not registered yet\n'
 fi
 
+if kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1; then
+  controller_containers="$(kubectl -n truenas-csi get deployment truenas-csi-controller -o jsonpath='{.spec.template.spec.containers[*].name}')"
+  [[ " ${controller_containers} " == *" csi-attacher "* ]] ||
+    fail "installed CSI controller has no csi-attacher; ControllerPublishVolume cannot populate VolumeAttachment attachmentMetadata"
+  ok "installed CSI controller includes csi-attacher"
+fi
+
 if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
-  for verb in get list watch; do
+  for verb in get list watch patch; do
     if [[ "$(kubectl auth can-i \
       --as="${CONTROLLER_SERVICE_ACCOUNT}" \
       "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null)" != "yes" ]]; then
-      fail "installed CSI controller cannot ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; external-provisioner may leave PVCs Pending"
+      fail "installed CSI controller cannot ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; csi-attacher cannot complete the controller publish path"
     fi
   done
-  ok "installed CSI controller can get/list/watch ${VOLUME_ATTACHMENT_RESOURCE}"
+  if [[ "$(kubectl auth can-i \
+    --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+    patch "${VOLUME_ATTACHMENT_RESOURCE}" --subresource=status 2>/dev/null)" != "yes" ]]; then
+    fail "installed CSI controller cannot patch ${VOLUME_ATTACHMENT_RESOURCE}/status; publishContext cannot be persisted as attachmentMetadata"
+  fi
+  ok "installed CSI controller can read/patch VolumeAttachment and patch status"
 else
-  printf 'ℹ️  CSI controller ClusterRole is not installed yet; install helper will create and reconcile VolumeAttachment read RBAC\n'
+  printf 'ℹ️  CSI controller ClusterRole is not installed yet; install helper will create the publishContext RBAC contract\n'
 fi
 
 if [[ -n "${TRUENAS_CSI_API_KEY:-}" ]]; then
@@ -147,4 +166,4 @@ else
 fi
 
 printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 26 and track SCRAM/username support before TrueNAS 27.\n' "${EXPECTED_CSI_VERSION}"
-printf '✅ CSI preflight complete: cluster, NFS reachability, controller RBAC and pinned manifests are ready for the explicit install step\n'
+printf '✅ CSI preflight complete: cluster, NFS reachability, controller publish path, RBAC and pinned manifests are ready for the explicit install step\n'

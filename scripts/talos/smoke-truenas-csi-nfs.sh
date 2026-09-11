@@ -14,6 +14,7 @@ STORAGE_CLASS="nabla-truenas-nfs"
 MARKER="nabla-truenas-csi-cross-node-v1"
 SMOKE_IMAGE="${CSI_SMOKE_IMAGE:-busybox@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028}"
 PVC_TIMEOUT_SECONDS="${CSI_PVC_TIMEOUT_SECONDS:-180}"
+ATTACH_TIMEOUT_SECONDS="${CSI_ATTACHMENT_TIMEOUT_SECONDS:-60}"
 POD_READY_TIMEOUT_SECONDS="${CSI_POD_READY_TIMEOUT_SECONDS:-300}"
 NAMESPACE_DELETE_TIMEOUT_SECONDS="${CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS:-120}"
 DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
@@ -38,6 +39,8 @@ done
 
 [[ "${PVC_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_PVC_TIMEOUT_SECONDS must be a positive integer"
+[[ "${ATTACH_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_ATTACHMENT_TIMEOUT_SECONDS must be a positive integer"
 [[ "${POD_READY_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_POD_READY_TIMEOUT_SECONDS must be a positive integer"
 [[ "${NAMESPACE_DELETE_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
@@ -53,11 +56,17 @@ export KUBECONFIG
 
 kubectl get csidriver csi.truenas.io >/dev/null ||
   fail "CSIDriver csi.truenas.io is not registered"
+attach_required="$(kubectl get csidriver csi.truenas.io -o jsonpath='{.spec.attachRequired}')"
+[[ "${attach_required}" == "true" ]] ||
+  fail "CSIDriver csi.truenas.io attachRequired=${attach_required:-missing}; ControllerPublishVolume is skipped and publishContext cannot reach NodeStageVolume"
 kubectl get storageclass "${STORAGE_CLASS}" >/dev/null ||
   fail "StorageClass ${STORAGE_CLASS} is not installed"
 kubectl -n truenas-csi rollout status deployment/truenas-csi-controller --timeout=30s >/dev/null
+controller_containers="$(kubectl -n truenas-csi get deployment truenas-csi-controller -o jsonpath='{.spec.template.spec.containers[*].name}')"
+[[ " ${controller_containers} " == *" csi-attacher "* ]] ||
+  fail "TrueNAS CSI controller is missing csi-attacher; ControllerPublishVolume cannot populate publishContext"
 kubectl -n truenas-csi rollout status daemonset/truenas-csi-node --timeout=30s >/dev/null
-ok "TrueNAS CSI controller, node plugin and StorageClass are ready"
+ok "TrueNAS CSI controller, attacher, node plugin and StorageClass are ready"
 
 workers_json="$(kubectl get nodes -o json)"
 mapfile -t workers < <(
@@ -130,6 +139,87 @@ dump_pvc_provisioning_diagnostics() {
     --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
 }
 
+dump_publish_context_diagnostics() {
+  local pv_name="$1"
+  local node_name="$2"
+
+  printf '\n🔎 TrueNAS CSI controller publish diagnostics: PV=%s node=%s\n' "${pv_name}" "${node_name}" >&2
+  printf '%s\n' '--- matching VolumeAttachments ---' >&2
+  kubectl get volumeattachments.storage.k8s.io -o json 2>/dev/null |
+    jq --arg pv "${pv_name}" --arg node "${node_name}" '
+      .items[]
+      | select(.spec.source.persistentVolumeName == $pv and .spec.nodeName == $node)
+      | {
+          name: .metadata.name,
+          attacher: .spec.attacher,
+          nodeName: .spec.nodeName,
+          attached: .status.attached,
+          attachmentMetadata: .status.attachmentMetadata,
+          attachError: .status.attachError,
+          detachError: .status.detachError
+        }
+    ' >&2 || true
+
+  printf '%s\n' '--- csi-attacher logs ---' >&2
+  kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-attacher \
+    --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- TrueNAS csi-controller logs ---' >&2
+  kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-controller \
+    --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+}
+
+wait_for_nfs_publish_context() {
+  local pv_name="$1"
+  local node_name="$2"
+  local attachment=""
+  local attachment_json=""
+  local attached="false"
+  local protocol=""
+  local nfs_server=""
+  local nfs_path=""
+  local deadline
+
+  deadline=$((SECONDS + ATTACH_TIMEOUT_SECONDS))
+  while ((SECONDS < deadline)); do
+    attachment="$(
+      kubectl get volumeattachments.storage.k8s.io -o json 2>/dev/null |
+        jq -r --arg pv "${pv_name}" --arg node "${node_name}" '
+          .items[]
+          | select(
+              .spec.attacher == "csi.truenas.io"
+              and .spec.source.persistentVolumeName == $pv
+              and .spec.nodeName == $node
+            )
+          | .metadata.name
+        ' |
+        head -n 1
+    )"
+
+    if [[ -n "${attachment}" ]]; then
+      attachment_json="$(kubectl get volumeattachment "${attachment}" -o json 2>/dev/null || true)"
+      if [[ -n "${attachment_json}" ]]; then
+        attached="$(jq -r '.status.attached // false' <<<"${attachment_json}")"
+        protocol="$(jq -r '.status.attachmentMetadata.protocol // empty' <<<"${attachment_json}")"
+        nfs_server="$(jq -r '.status.attachmentMetadata.nfsServer // empty' <<<"${attachment_json}")"
+        nfs_path="$(jq -r '.status.attachmentMetadata.nfsPath // empty' <<<"${attachment_json}")"
+        if [[ "${attached}" == "true" && "${protocol}" == "nfs" && -n "${nfs_server}" && -n "${nfs_path}" ]]; then
+          ok "publishContext ready for ${node_name}: protocol=${protocol} server=${nfs_server} path=${nfs_path}"
+          return 0
+        fi
+      fi
+    fi
+    sleep 2
+  done
+
+  if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then
+    KEEP=true
+    printf 'ℹ️  CSI_SMOKE_KEEP_ON_FAILURE=true; namespace %s retained for publishContext inspection\n' "${NAMESPACE}" >&2
+  fi
+  dump_publish_context_diagnostics "${pv_name}" "${node_name}"
+  fail "NFS publishContext was not ready within ${ATTACH_TIMEOUT_SECONDS}s for ${node_name}; expected attached=true plus protocol/nfsServer/nfsPath"
+}
+
 dump_pod_startup_diagnostics() {
   local pod_name="$1"
   local node_name="$2"
@@ -180,6 +270,10 @@ dump_cleanup_diagnostics() {
 
   printf '%s\n' '--- recent CSI provisioner logs ---' >&2
   kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-provisioner \
+    --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- recent CSI attacher logs ---' >&2
+  kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-attacher \
     --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
 
   printf '%s\n' '--- recent TrueNAS CSI controller logs ---' >&2
@@ -258,6 +352,7 @@ spec:
         claimName: ${PVC}
 EOF
 
+wait_for_nfs_publish_context "${pv}" "${writer_node}"
 if ! kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-writer \
   --timeout="${POD_READY_TIMEOUT_SECONDS}s"; then
   if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then
@@ -302,6 +397,7 @@ spec:
         claimName: ${PVC}
 EOF
 
+wait_for_nfs_publish_context "${pv}" "${reader_node}"
 if ! kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-reader \
   --timeout="${POD_READY_TIMEOUT_SECONDS}s"; then
   if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then

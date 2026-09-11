@@ -41,7 +41,10 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
@@ -89,7 +92,7 @@ kind: CSIDriver
 metadata:
   name: csi.truenas.io
 spec:
-  attachRequired: false
+  attachRequired: true
   podInfoOnMount: true
   fsGroupPolicy: File
   volumeLifecycleModes:
@@ -113,7 +116,7 @@ metadata:
   namespace: truenas-csi
   annotations:
     checkov.io/skip1: "CKV_K8S_35=Upstream TrueNAS CSI v1.0.3 consumes the runtime API key only through TRUENAS_API_KEY."
-    checkov.io/skip2: "CKV_K8S_38=Provisioner and resizer sidecars require Kubernetes API and leader-election access."
+    checkov.io/skip2: "CKV_K8S_38=Provisioner, attacher and resizer sidecars require Kubernetes API and leader-election access."
     checkov.io/skip3: "CKV_K8S_43=Images are pinned to reviewed release tags; digest pinning remains a separate supply-chain hardening task."
     checkov.io/skip4: "CKV_K8S_8=Canonical CSI health is exposed by the driver plus liveness-probe sidecar; helper sidecars expose no independent liveness endpoint."
     checkov.io/skip5: "CKV_K8S_9=Canonical CSI readiness is checked on the driver; helper sidecars expose no independent readiness endpoint."
@@ -227,6 +230,30 @@ spec:
             - "--v=5"
             - "--feature-gates=Topology=true"
             - "--extra-create-metadata"
+            - "--leader-election=true"
+            - "--timeout=60s"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        - name: csi-attacher
+          image: registry.k8s.io/sig-storage/csi-attacher:v4.11.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--v=5"
             - "--leader-election=true"
             - "--timeout=60s"
           volumeMounts:

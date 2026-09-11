@@ -63,50 +63,99 @@ dump_node_rollout_diagnostics() {
 
 controller_volumeattachment_rbac_ok() {
   local verb
-  for verb in get list watch; do
+
+  for verb in get list watch patch; do
     [[ "$(kubectl auth can-i \
       --as="${CONTROLLER_SERVICE_ACCOUNT}" \
       "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null)" == "yes" ]] || return 1
   done
+
+  [[ "$(kubectl auth can-i \
+    --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+    patch "${VOLUME_ATTACHMENT_RESOURCE}" --subresource=status 2>/dev/null)" == "yes" ]]
 }
 
 report_controller_volumeattachment_rbac() {
   local verb result
   local missing=false
 
-  for verb in get list watch; do
+  for verb in get list watch patch; do
     result="$(kubectl auth can-i \
       --as="${CONTROLLER_SERVICE_ACCOUNT}" \
       "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null || true)"
     if [[ "${result}" == "yes" ]]; then
       ok "CSI controller RBAC allows ${verb} ${VOLUME_ATTACHMENT_RESOURCE}"
     else
-      warn "CSI controller RBAC denies ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; external-provisioner cannot fully initialize its informers"
+      warn "CSI controller RBAC denies ${verb} ${VOLUME_ATTACHMENT_RESOURCE}"
       missing=true
     fi
   done
 
+  result="$(kubectl auth can-i \
+    --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+    patch "${VOLUME_ATTACHMENT_RESOURCE}" --subresource=status 2>/dev/null || true)"
+  if [[ "${result}" == "yes" ]]; then
+    ok "CSI controller RBAC allows patch ${VOLUME_ATTACHMENT_RESOURCE}/status"
+  else
+    warn "CSI controller RBAC denies patch ${VOLUME_ATTACHMENT_RESOURCE}/status; csi-attacher cannot persist publishContext"
+    missing=true
+  fi
+
   [[ "${missing}" == "false" ]]
 }
 
-ensure_controller_volumeattachment_rbac() {
-  if controller_volumeattachment_rbac_ok; then
-    ok "CSI controller VolumeAttachment read RBAC already present"
+report_attach_contract() {
+  local attach_required
+  local containers
+
+  if ! kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
+    printf 'ℹ️  CSIDriver csi.truenas.io is not installed yet\n'
+    return 0
+  fi
+
+  attach_required="$(kubectl get csidriver csi.truenas.io -o jsonpath='{.spec.attachRequired}')"
+  if [[ "${attach_required}" == "true" ]]; then
+    ok "CSIDriver csi.truenas.io attachRequired=true"
+  else
+    warn "CSIDriver csi.truenas.io attachRequired=${attach_required:-missing}; ControllerPublishVolume is skipped and NodeStageVolume receives no publishContext"
+    return 1
+  fi
+
+  if kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller >/dev/null 2>&1; then
+    containers="$(kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller -o jsonpath='{.spec.template.spec.containers[*].name}')"
+    if [[ " ${containers} " == *" csi-attacher "* ]]; then
+      ok "TrueNAS CSI controller includes csi-attacher"
+    else
+      warn "TrueNAS CSI controller is missing csi-attacher; no component can call ControllerPublishVolume"
+      return 1
+    fi
+  fi
+}
+
+prepare_immutable_csidriver_migration() {
+  local attach_required
+  local attachment_count
+
+  if ! kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
     return
   fi
 
-  # external-provisioner v6.1.1 initializes a VolumeAttachment informer even
-  # though this NFS CSIDriver declares attachRequired=false. Keep this
-  # compatibility grant read-only: no create/update/patch/delete permission is
-  # granted on VolumeAttachment objects.
-  kubectl patch clusterrole "${CONTROLLER_CLUSTERROLE}" \
-    --type='json' \
-    -p='[{"op":"add","path":"/rules/-","value":{"apiGroups":["storage.k8s.io"],"resources":["volumeattachments"],"verbs":["get","list","watch"]}}]' \
-    >/dev/null
+  attach_required="$(kubectl get csidriver csi.truenas.io -o jsonpath='{.spec.attachRequired}')"
+  [[ "${attach_required}" == "true" ]] && return
 
-  controller_volumeattachment_rbac_ok ||
-    fail "failed to reconcile read-only VolumeAttachment RBAC for ${CONTROLLER_SERVICE_ACCOUNT}"
-  ok "CSI controller VolumeAttachment RBAC reconciled: get/list/watch only"
+  [[ "${attach_required}" == "false" ]] ||
+    fail "unexpected CSIDriver attachRequired value: ${attach_required:-missing}"
+
+  attachment_count="$(
+    kubectl get volumeattachments.storage.k8s.io -o json |
+      jq '[.items[] | select(.spec.attacher == "csi.truenas.io")] | length'
+  )"
+  [[ "${attachment_count}" -eq 0 ]] ||
+    fail "cannot recreate immutable CSIDriver while ${attachment_count} TrueNAS VolumeAttachment object(s) exist"
+
+  warn "recreating CSIDriver csi.truenas.io because attachRequired is immutable and the installed value is false"
+  kubectl delete csidriver csi.truenas.io --wait=true >/dev/null
+  ok "old CSIDriver removed; canonical attachRequired=true object will be recreated"
 }
 
 report_namespace_pod_security() {
@@ -174,7 +223,9 @@ case "${MODE}" in
   *) fail "usage: bash scripts/talos/install-truenas-csi-nfs.sh [--check|--apply]" ;;
 esac
 
-command -v kubectl >/dev/null 2>&1 || fail "kubectl is required"
+for command in kubectl jq; do
+  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
+done
 [[ -s "${KUBECONFIG}" ]] || fail "kubeconfig not found: ${KUBECONFIG}"
 export KUBECONFIG
 
@@ -185,6 +236,8 @@ export KUBECONFIG
 
 grep -Fq "ghcr.io/truenas/truenas-csi:${EXPECTED_VERSION}" "${DRIVER_MANIFEST}" ||
   fail "driver image is not pinned to ${EXPECTED_VERSION}"
+grep -Fq "registry.k8s.io/sig-storage/csi-attacher:v4.11.0" "${DRIVER_MANIFEST}" ||
+  fail "TrueNAS CSI v1.0.3 publishContext path requires csi-attacher:v4.11.0"
 if grep -Eq 'truenas-csi:(latest|master|main)' "${DRIVER_MANIFEST}"; then
   fail "floating TrueNAS CSI image tag detected"
 fi
@@ -199,10 +252,8 @@ ok "tracked TrueNAS CSI NFS manifests pass kubectl client validation"
 if [[ "${MODE}" == "--check" ]]; then
   report_namespace_pod_security
 
-  if kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
-    ok "CSIDriver csi.truenas.io is already registered"
-  else
-    printf 'ℹ️  CSIDriver csi.truenas.io is not installed yet\n'
+  if ! report_attach_contract; then
+    fail "installed CSI attach contract is stale; run --apply to migrate immutable attachRequired=false and deploy csi-attacher"
   fi
 
   if kubectl get storageclass nabla-truenas-nfs >/dev/null 2>&1; then
@@ -219,9 +270,9 @@ if [[ "${MODE}" == "--check" ]]; then
 
   if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
     report_controller_volumeattachment_rbac ||
-      fail "installed CSI controller RBAC is incomplete; run --apply to reconcile it"
+      fail "installed CSI controller RBAC cannot support csi-attacher publishContext persistence; run --apply"
   else
-    printf 'ℹ️  CSI controller ClusterRole is not installed yet; --apply will create and reconcile it\n'
+    printf 'ℹ️  CSI controller ClusterRole is not installed yet; --apply will create the publishContext RBAC contract\n'
   fi
 
   printf 'ℹ️  TrueNAS CSI v1.0.3 still uses deprecated auth.login_with_api_key; validate this path on TrueNAS 26 and replace it before TrueNAS 27.\n'
@@ -243,8 +294,14 @@ printf '%s' "${TRUENAS_CSI_API_KEY}" |
   kubectl apply -f - >/dev/null
 ok "CSI credential Secret reconciled without exposing the key in argv or output"
 
+prepare_immutable_csidriver_migration
 kubectl apply -f "${DRIVER_MANIFEST}"
-ensure_controller_volumeattachment_rbac
+report_attach_contract ||
+  fail "TrueNAS CSI attach contract did not converge after applying the canonical manifest"
+controller_volumeattachment_rbac_ok ||
+  fail "TrueNAS CSI controller VolumeAttachment RBAC did not converge after applying the canonical manifest"
+ok "CSI controller VolumeAttachment RBAC supports read + patch/status only; create/update/delete remain denied"
+
 kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout="${ROLLOUT_TIMEOUT}"
 if ! kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeout="${ROLLOUT_TIMEOUT}"; then
   dump_node_rollout_diagnostics
@@ -252,7 +309,7 @@ if ! kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeo
 fi
 
 kubectl get csidriver csi.truenas.io >/dev/null
-ok "CSIDriver csi.truenas.io registered"
+ok "CSIDriver csi.truenas.io registered with controller publish enabled"
 
 kubectl apply -f "${STORAGE_CLASS_MANIFEST}"
 default_value="$(kubectl get storageclass nabla-truenas-nfs \
