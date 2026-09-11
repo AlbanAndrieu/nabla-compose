@@ -69,54 +69,63 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "dns",
                 "network",
                 "apps/pihole/compose.yml",
+                lifecycle=("foundation", 10),
             ),
             self.service(
                 "traefik",
                 "edge",
                 "network",
                 "apps/traefik/compose.yml",
+                lifecycle=("foundation", 10),
             ),
             self.service(
                 "docker-socket-proxy",
                 "security-proxy",
                 "infrastructure",
                 "docker-compose.yml",
+                lifecycle=("bootstrap-runtime", 0),
             ),
             self.service(
                 "vaultwarden",
                 "password-manager",
                 "security",
                 "apps/vaultwarden/compose.yml",
+                lifecycle=("foundation", 10),
             ),
             self.service(
                 "postgresql",
                 "database",
                 "data",
                 "apps/postgres/compose.yml",
+                lifecycle=("primary-data", 20),
             ),
             self.service(
                 "mongo",
                 "database",
                 "data",
                 "apps/mongo/compose.yml",
+                lifecycle=("primary-data", 20),
             ),
             self.service(
                 "clickhouse",
                 "database",
                 "data",
                 "apps/clickhouse/compose.yml",
+                lifecycle=("secondary-data", 30),
             ),
             self.service(
                 "opensearch-security",
                 "search",
                 "security",
                 "apps/opensearch/compose.yml",
+                lifecycle=("secondary-data", 30),
             ),
             self.service(
                 "graylog",
                 "log-management",
                 "observability",
                 "apps/graylog/compose.yml",
+                lifecycle=("platform-services", 40),
             ),
             self.service(
                 "n8n",
@@ -141,16 +150,21 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         start = plan["start_order"]
         stop = plan["stop_order"]
 
-        foundations = [
+        foundation_after_proxy = [
             "pihole",
             "adguard-home",
             "traefik",
-            "docker-socket-proxy",
             "vaultwarden",
         ]
+        for foundation in foundation_after_proxy:
+            self.assertLess(
+                start.index("docker-socket-proxy"),
+                start.index(foundation),
+            )
+
         primary_data = ["postgres", "mongo"]
         secondary_data = ["clickhouse", "opensearch"]
-        for foundation in foundations:
+        for foundation in foundation_after_proxy:
             for database in primary_data:
                 self.assertLess(start.index(foundation), start.index(database))
         for database in primary_data:
@@ -163,21 +177,104 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertEqual(stop, list(reversed(start)))
 
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["pihole"]["name"],
-            "foundation",
+            plan["lifecycle_phase_by_app"]["docker-socket-proxy"],
+            {"name": "bootstrap-runtime", "order": 0, "source": "x-nabla"},
         )
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["adguard-home"]["name"],
-            "foundation",
+            plan["lifecycle_phase_by_app"]["pihole"],
+            {"name": "foundation", "order": 10, "source": "x-nabla"},
         )
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["mongo"]["name"],
-            "primary-data",
+            plan["lifecycle_phase_by_app"]["adguard-home"],
+            {"name": "foundation", "order": 10, "source": "fallback-app"},
         )
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["opensearch"]["name"],
-            "secondary-data",
+            plan["lifecycle_phase_by_app"]["mongo"],
+            {"name": "primary-data", "order": 20, "source": "x-nabla"},
         )
+        self.assertEqual(
+            plan["lifecycle_phase_by_app"]["opensearch"],
+            {"name": "secondary-data", "order": 30, "source": "x-nabla"},
+        )
+
+    def test_declared_lifecycle_overrides_kind_and_category_fallback(self) -> None:
+        apps = [
+            {"id": "sentry", "state": "RUNNING"},
+            {"id": "mongo", "state": "RUNNING"},
+        ]
+        services = [
+            self.service(
+                "sentry-web",
+                "reverse-proxy",
+                "network",
+                "apps/sentry/compose.yml",
+                lifecycle=("platform-services", 40),
+            ),
+            self.service(
+                "mongo",
+                "database",
+                "data",
+                "apps/mongo/compose.yml",
+                lifecycle=("primary-data", 20),
+            ),
+        ]
+
+        plan = self.run_planner(apps, services, [])
+
+        self.assertLess(
+            plan["start_order"].index("mongo"),
+            plan["start_order"].index("sentry"),
+        )
+        self.assertEqual(
+            plan["lifecycle_phase_by_app"]["sentry"],
+            {"name": "platform-services", "order": 40, "source": "x-nabla"},
+        )
+
+    def test_conflicting_declared_lifecycle_is_rejected(self) -> None:
+        apps = [{"id": "opensearch", "state": "RUNNING"}]
+        services = [
+            self.service(
+                "opensearch",
+                "search",
+                "data",
+                "apps/opensearch/compose.yml",
+                lifecycle=("secondary-data", 30),
+            ),
+            self.service(
+                "opensearch-security",
+                "search",
+                "security",
+                "apps/opensearch/compose.yml",
+                lifecycle=("platform-services", 40),
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps.json").write_text(json.dumps(apps), encoding="utf-8")
+            (root / "services.json").write_text(
+                json.dumps({"services": services}), encoding="utf-8"
+            )
+            (root / "topology.json").write_text(
+                json.dumps({"relations": []}), encoding="utf-8"
+            )
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(PLANNER),
+                    "--apps",
+                    str(root / "apps.json"),
+                    "--services",
+                    str(root / "services.json"),
+                    "--topology",
+                    str(root / "topology.json"),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("conflicting x-nabla.lifecycle", result.stderr)
 
     def test_source_path_maps_multi_service_app_and_normalized_app_id(self) -> None:
         apps = [
@@ -191,6 +288,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "search",
                 "security",
                 "apps/opensearch/compose.yml",
+                lifecycle=("secondary-data", 30),
             ),
             self.service(
                 "elasticsearch",
@@ -203,6 +301,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "log-management",
                 "observability",
                 "apps/graylog/compose.yml",
+                lifecycle=("platform-services", 40),
             ),
         ]
         relations = [
@@ -242,8 +341,10 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         kind: str,
         category: str,
         source_path: str,
+        *,
+        lifecycle: tuple[str, int] | None = None,
     ) -> dict:
-        return {
+        service = {
             "id": service_id,
             "kind": kind,
             "category": category,
@@ -253,6 +354,10 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "containerService": service_id,
             },
         }
+        if lifecycle is not None:
+            phase, priority = lifecycle
+            service["lifecycle"] = {"phase": phase, "priority": priority}
+        return service
 
     @staticmethod
     def relation(source: str, target: str, relation_type: str) -> dict[str, str]:
