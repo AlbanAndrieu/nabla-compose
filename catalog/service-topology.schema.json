@@ -34,6 +34,19 @@
         "cloudflareTunnel": { "type": "boolean" }
       }
     },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["truenas-app", "logical", "external", "host"]
+        },
+        "appId": { "type": "string", "minLength": 1 },
+        "containerService": { "type": "string", "minLength": 1 }
+      }
+    },
     "lifecycle": {
       "type": "object",
       "additionalProperties": false,
@@ -89,6 +102,7 @@
         },
         "description": { "type": "string" },
         "icon": { "type": "string", "minLength": 1 },
+        "runtime": { "$ref": "#/$defs/runtime" },
         "lifecycle": { "$ref": "#/$defs/lifecycle" }
       }
     },
