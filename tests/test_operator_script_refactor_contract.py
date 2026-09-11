@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMMON = ROOT / "scripts/lib/common.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
+RESUME_RECONCILER = ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
 COMMON_USERS = (
     ROOT / "scripts/truenas/audit-docker-network-migration.sh",
     ROOT / "scripts/truenas/diagnose-csi-orphans.sh",
@@ -15,6 +16,7 @@ COMMON_USERS = (
     ROOT / "scripts/truenas/diagnose-influxdb.sh",
     ROOT / "scripts/truenas/diagnose-platform.sh",
     ROOT / "scripts/truenas/materialize-reboot-bundle.sh",
+    ROOT / "scripts/truenas/reconcile-reboot-resume.sh",
     ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh",
     ROOT / "scripts/truenas/verify-talos-vm-autostart.sh",
 )
@@ -47,10 +49,24 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
     def test_immutable_reboot_bundle_tracks_shared_dependencies(self) -> None:
         text = MATERIALIZER.read_text(encoding="utf-8")
         self.assertIn("scripts/lib/common.sh", text)
+        self.assertIn("scripts/truenas/reconcile-reboot-resume.sh", text)
         self.assertIn("SHA256SUMS", text)
         self.assertIn("validate_stage()", text)
         self.assertIn("verify_bundle()", text)
         self.assertIn('bash -n "${STAGE}/${path}"', text)
+
+    def test_resume_reconciler_preserves_dependency_barriers(self) -> None:
+        text = RESUME_RECONCILER.read_text(encoding="utf-8")
+        self.assertIn("NABLA_APP_JOB_TIMEOUT_SECONDS", text)
+        self.assertIn("NABLA_APP_START_WAIT_SECONDS", text)
+        self.assertIn("NABLA_APP_START_WAIT_OVERRIDES", text)
+        self.assertIn("START %s", text)
+        self.assertIn("SKIP %s already RUNNING", text)
+        self.assertIn("WAIT %s already DEPLOYING", text)
+        self.assertIn("dependency barrier", text)
+        self.assertIn("diagnose_app", text)
+        self.assertNotIn("docker restart", text)
+        self.assertNotIn("app.redeploy", text)
 
     def test_documentation_has_canonical_ownership_map(self) -> None:
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
