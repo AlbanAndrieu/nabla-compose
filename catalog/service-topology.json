@@ -21,10 +21,10 @@
     {
       "id": "adguard-home",
       "name": "AdGuard Home",
-      "kind": "dns-filter",
+      "kind": "native-truenas-dns-filter",
       "category": "network",
       "sourcePath": "catalog/homelab-services.json",
-      "description": "TrueNAS-hosted network DNS filtering service retained from the runtime inventory.",
+      "description": "Native TrueNAS App for network DNS filtering. It remains runtime-owned by TrueNAS until migration to repository-owned Compose.",
       "runtime": {
         "provider": "truenas-app",
         "appId": "adguard-home"
@@ -135,6 +135,10 @@
       "category": "observability",
       "sourcePath": "apps/autokuma/compose.yml",
       "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
       "runtime": {
         "provider": "truenas-app",
         "appId": "autokuma",
@@ -1133,8 +1137,10 @@
     {
       "id": "postgresql",
       "name": "PostgreSQL",
-      "kind": "database",
+      "kind": "native-truenas-database",
       "category": "data",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Shared native TrueNAS PostgreSQL App used by repository-managed consumers. Keep it as a runtime-owned native service until migration to repository-owned Compose.",
       "runtime": {
         "provider": "truenas-app",
         "appId": "postgres"
@@ -1366,6 +1372,10 @@
       "securityFunctions": [
         "detect"
       ],
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "suricata"
@@ -1449,10 +1459,19 @@
     {
       "id": "uptime-kuma",
       "name": "Uptime Kuma",
-      "kind": "uptime-monitor",
+      "kind": "native-truenas-uptime-monitor",
       "category": "observability",
       "sourcePath": "apps/autokuma/compose.yml",
-      "description": "Existing Uptime Kuma instance reconciled by AutoKuma."
+      "url": "http://172.17.0.24:31050",
+      "description": "Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "uptime-kuma"
+      }
     },
     {
       "id": "vaultwarden",
@@ -1766,7 +1785,7 @@
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
       "evidence": [
-        "/mnt/cpool/autokuma/.env.secrets:AUTOKUMA__KUMA__URL"
+        "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
       ]
     },
     {

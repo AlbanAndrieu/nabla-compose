@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:ad0456ba53e3da258cb1ac89dd6ab7023813ed99f75c7502003df5205087e619",
+  "catalogRevision": "sha256:157ae41f878fce5b593a622e5df28a6c25e2040c9779ea00af7a855b255d052c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -159,6 +159,10 @@
       "sourcePath": "apps/autokuma/compose.yml",
       "composeService": "autokuma",
       "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
       "runtime": {
         "provider": "truenas-app",
         "appId": "autokuma",
@@ -1483,6 +1487,10 @@
       "securityFunctions": [
         "detect"
       ],
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "suricata"
