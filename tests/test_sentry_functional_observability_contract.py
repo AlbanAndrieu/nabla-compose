@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import unittest
@@ -39,6 +40,24 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertIn("job_name: kafka_exporter", config)
         self.assertIn("172.17.0.24:9308", config)
         self.assertNotIn("job_name: sentry_statsd", config)
+
+    def test_kafka_exporter_generated_consumers_are_synchronized(self) -> None:
+        homarr = json.loads(self.read("apps/homarr/generated/apps.json"))
+        apps = {app["id"]: app for app in homarr["applications"]}
+        self.assertIn("kafka-exporter", apps)
+        self.assertFalse(apps["kafka-exporter"]["syncEligible"])
+        self.assertEqual(apps["kafka-exporter"]["composeService"], "kafka-exporter")
+
+        gatus = self.read("apps/gatus/config/config.yml")
+        self.assertIn("nabla_service_id: kafka-exporter", gatus)
+        self.assertIn("url: http://172.17.0.24:9308/metrics", gatus)
+
+        autokuma = json.loads(
+            self.read("apps/autokuma/static/generated-monitors.json")
+        )
+        monitor = next(item for item in autokuma if item["name"] == "Kafka Exporter")
+        self.assertEqual(monitor["url"], "http://172.17.0.24:9308/metrics")
+        self.assertEqual(monitor["type"], "http")
 
     def test_alerts_detect_process_green_pipeline_dead(self) -> None:
         rules = self.read("apps/prometheus/rules/sentry-kafka.rules.yml")
