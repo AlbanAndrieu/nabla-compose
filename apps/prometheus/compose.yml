@@ -154,5 +154,8 @@ services:
       - "9945:9945"
 
 networks:
+  intranet:
+    external: true
+    name: intranet
   traefik_network:
     external: true

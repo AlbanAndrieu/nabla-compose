@@ -64,10 +64,19 @@ SENTRY_QUOTAS = "sentry.quotas.redis.RedisQuota"
 SENTRY_TSDB = "sentry.tsdb.redissnuba.RedisSnubaTSDB"
 SENTRY_DIGESTS = "sentry.digests.backends.redis.RedisBackend"
 
+# Upstream self-hosted defaults socket.timeout.ms to 1000 ms. On this
+# single-broker homelab that proved too aggressive during short broker/coordinator
+# stalls: librdkafka logged ApiVersionRequest timeouts, AllBrokersDown and group
+# rebalances while the containers still reported healthy. Keep the setting
+# explicit and overridable, but use a bounded 10 s default for this runtime.
+_kafka_socket_timeout_ms = int(env("SENTRY_KAFKA_SOCKET_TIMEOUT_MS", "10000"))
+if _kafka_socket_timeout_ms < 1000:
+    raise RuntimeError("SENTRY_KAFKA_SOCKET_TIMEOUT_MS must be at least 1000")
+
 DEFAULT_KAFKA_OPTIONS = {
     "bootstrap.servers": env("SENTRY_KAFKA_BROKERS", "kafka:9092"),
     "message.max.bytes": 50000000,
-    "socket.timeout.ms": 1000,
+    "socket.timeout.ms": _kafka_socket_timeout_ms,
 }
 KAFKA_CLUSTERS["default"] = DEFAULT_KAFKA_OPTIONS
 SENTRY_EVENTSTREAM = "sentry.eventstream.kafka.KafkaEventStream"

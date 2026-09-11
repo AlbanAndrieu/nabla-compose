@@ -571,6 +571,18 @@
       }
     },
     {
+      "id": "kafka-exporter",
+      "name": "Kafka Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/kafka/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "kafka",
+        "containerService": "kafka-exporter"
+      }
+    },
+    {
       "id": "keycloak",
       "name": "Keycloak",
       "kind": "identity-provider",
@@ -2282,6 +2294,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "kafka-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/kafka/compose.yml:kafka-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "kafka-exporter",
+      "target": "kafka",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Exporter queries broker/topic and consumer-group state from the co-located Kafka App.",
+      "evidence": [
+        "apps/kafka/compose.yml:--kafka.server=kafka:9092"
+      ]
+    },
+    {
+      "source": "kafka-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "required",
+      "description": "Prometheus scrapes Kafka topic/group lag and membership metrics.",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=kafka_exporter"
       ]
     },
     {

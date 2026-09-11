@@ -336,6 +336,16 @@
       "syncEligible": false
     },
     {
+      "id": "kafka-exporter",
+      "name": "Kafka Exporter",
+      "group": "observability",
+      "sourcePath": "apps/kafka/compose.yml",
+      "composeService": "kafka-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "keycloak",
       "name": "Keycloak",
       "group": "security",

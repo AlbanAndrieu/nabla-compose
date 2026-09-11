@@ -106,6 +106,7 @@ class SecurityCiContractTest(unittest.TestCase):
             "/readyz",
             "/api/homelab/status",
             "/api/homelab/health",
+            "/notes/{note_id}/edit",
         ):
             self.assertIn(f'"{path}"', helper)
         self.assertIn('frozenset({"get", "head", "options"})', helper)
@@ -124,8 +125,13 @@ class SecurityCiContractTest(unittest.TestCase):
         self.assertIn(
             "ca76674e9674548d8d7f98e4e2631049debfb7eb", workflow
         )
+        self.assertIn(
+            "d4ddea12f6771045b3872e0cdedd6530f5e73970", workflow
+        )
         self.assertIn('PR_NUMBER: ${{ github.event.pull_request.number }}', workflow)
         self.assertIn('"${PR_NUMBER}" == "162"', workflow)
+        self.assertIn('"${PR_NUMBER}" == "192"', workflow)
+        self.assertIn("/notes/{note_id}/edit", workflow)
         self.assertIn("latest master dast", workflow.lower())
 
     def test_zap_policies_are_narrow_and_high_signal(self) -> None:

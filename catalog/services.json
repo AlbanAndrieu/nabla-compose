@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:157ae41f878fce5b593a622e5df28a6c25e2040c9779ea00af7a855b255d052c",
+  "catalogRevision": "sha256:3b829c0a3d0ede64959d789f43da46d388d15f5f25a06ce224c29b3533c6d017",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -605,6 +605,26 @@
         "type": "port",
         "host": "kafka",
         "port": 9092
+      }
+    },
+    {
+      "id": "kafka-exporter",
+      "name": "Kafka Exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/kafka/compose.yml",
+      "composeService": "kafka-exporter",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "kafka",
+        "containerService": "kafka-exporter"
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:9308/metrics",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
       }
     },
     {

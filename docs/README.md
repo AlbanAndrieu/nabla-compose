@@ -11,6 +11,8 @@ between files.
 | Current priorities/status | [`roadmap.md`](./roadmap.md) | concise state, ordering, open work |
 | Controlled TrueNAS reboot procedure | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) | operator steps, gates, rollback |
 | 2026-09-11 reboot evidence | [`truenas-reboot-incident-20260911.md`](./truenas-reboot-incident-20260911.md) | historical facts and lessons only |
+| 2026-09-11 Sentry Taskbroker/project-config incident — **resolved 2026-09-12** | [`sentry-taskbroker-project-config-incident-20260911.md`](./sentry-taskbroker-project-config-incident-20260911.md) | Kafka membership/backlog evidence, Relay project-config starvation, false-green health signals, root-cause boundary, guardrails and final end-to-end acceptance |
+| Functional observability/exporter strategy | [`observability-exporters.md`](./observability-exporters.md) | Sentry/Taskbroker StatsD, Kafka group lag, Suricata EVE stats and Wazuh metric strategy |
 | CSI orphan diagnosis | [`truenas-csi-orphan-datasets.md`](./truenas-csi-orphan-datasets.md) | correlation and cleanup acceptance |
 | Kubernetes CSI setup/preflight | [`kubernetes-csi-preflight.md`](./kubernetes-csi-preflight.md) | installation and validation contract |
 | Platform migration design | [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md) | long-form target architecture/migration |

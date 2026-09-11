@@ -262,6 +262,15 @@
   },
   {
     "type": "http",
+    "name": "Kafka Exporter",
+    "description": "Nabla generated monitor: kafka-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9308/metrics"
+  },
+  {
+    "type": "http",
     "name": "Keycloak",
     "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
     "interval": 60,

@@ -33,6 +33,9 @@ class PrepareZapOpenApiTest(unittest.TestCase):
                         "tags": ["Homelab", "TrueNAS"],
                     }
                 },
+                "/notes/{note_id}/edit": {
+                    "get": {"summary": "Render note edit form", "tags": ["Notes"]}
+                },
                 "/api/pfsense/status": {
                     "get": {"summary": "pfSense status", "tags": ["pfSense"]}
                 },
@@ -76,6 +79,7 @@ class PrepareZapOpenApiTest(unittest.TestCase):
             set(filtered["paths"]["/v2/version"]),
             {"get"},
         )
+        self.assertTrue(any("/notes/{note_id}/edit" in item for item in excluded))
         self.assertTrue(any("/api/pfsense/status" in item for item in excluded))
         self.assertTrue(any("/api/homelab/status" in item for item in excluded))
         self.assertTrue(any("/healthz" in item for item in excluded))

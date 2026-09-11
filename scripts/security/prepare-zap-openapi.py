@@ -24,6 +24,10 @@ DENIED_PATHS = frozenset(
         "/readyz",
         "/api/homelab/status",
         "/api/homelab/health",
+        # Resource-edit HTML requires a real persisted note. ZAP synthesizes
+        # path parameter values (for example /notes/10/edit), so including it
+        # makes the deterministic baseline depend on mutable application data.
+        "/notes/{note_id}/edit",
         # Intentional failure/demo integrations are not production DAST targets.
         "/async-data",
         "/error_test",
@@ -136,7 +140,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Prepare a read-only OpenAPI document for ZAP while excluding "
-            "pfSense-backed/high-cost probes and intentional demo/error routes."
+            "pfSense-backed/high-cost probes, stateful resource views and "
+            "intentional demo/error routes."
         )
     )
     parser.add_argument("--source", required=True, help="OpenAPI JSON URL or local file")
