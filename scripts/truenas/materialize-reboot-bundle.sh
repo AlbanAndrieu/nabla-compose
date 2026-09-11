@@ -63,6 +63,7 @@ FILES=(
   scripts/truenas/audit-docker-network-migration.sh
   scripts/truenas/diagnose-docker-orphan-shims.sh
   scripts/truenas/diagnose-csi-orphans.sh
+  scripts/truenas/reconcile-reboot-resume.sh
   scripts/truenas/reboot-homelab.sh
 )
 
