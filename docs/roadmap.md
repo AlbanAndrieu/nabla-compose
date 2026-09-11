@@ -14,6 +14,7 @@ remain in the specialized documents:
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
 - [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
+- [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 
 ## Current platform state
@@ -70,6 +71,11 @@ remain in the specialized documents:
 - [x] Standard TrueNAS platform diagnostics include App lifecycle,
   Docker/containerd orphan-shim inventory, Talos/Kubernetes posture and CSI
   dataset/orphan inventory.
+- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use
+  Ubuntu 24.04 LTS and the focused `runner-build` toolchain from
+  `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted
+  runners, prefer an unprivileged LXC plus remote builder, and treat privileged
+  nested Docker as a separate trusted-only security exception.
 
 ## P0 — finish the current controlled TrueNAS reboot
 
