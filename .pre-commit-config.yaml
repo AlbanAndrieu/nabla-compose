@@ -70,7 +70,9 @@ repos:
     hooks:
       - id: bashate
         name: "🐚 shell · Check shell style"
-        args: [-i, "E003,E006"]
+        # shfmt owns formatting and shell-lint/ShellCheck owns semantic shell lint.
+        # These Bashate rules duplicate those checks or false-positive on jq text.
+        args: [-i, "E003,E006,E011,E042,E043"]
         exclude: '^(trunk|scripts/run-python\.sh|scripts/run-wicked\.sh|\.envrc)$'
 
   - repo: https://github.com/mrtazz/checkmake.git

@@ -83,12 +83,14 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
         self.assertIn("bash scripts/agent-pre-push.sh", config)
 
-    def test_shell_formatter_matches_bashate_indentation_policy(self) -> None:
+    def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
         self.assertIn("args: ['-ln=bash', '-i=2']", config)
-        self.assertIn('args: [-i, "E003,E006"]', config)
-        self.assertNotIn('args: [-i, "E002,E003,E006"]', config)
+        self.assertIn('args: [-i, "E003,E006,E011,E042,E043"]', config)
+        self.assertNotIn('args: [-i, "E002,E003,E006,E011,E042,E043"]', config)
+        self.assertIn("shfmt owns formatting", config)
+        self.assertIn("shell-lint/ShellCheck owns semantic shell lint", config)
 
     def test_pre_push_converges_fixes_before_publication(self) -> None:
         config = (ROOT / ".pre-commit-pre-push.yaml").read_text(encoding="utf-8")
