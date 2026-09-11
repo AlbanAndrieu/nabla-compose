@@ -1,3 +1,10 @@
+## [0.34.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.2...0.34.3) (2026-09-11)
+
+
+### Bug Fixes
+
+* **truenas:** make reboot preparation resumable and diagnose CSI/runtime orphans ([#190](https://github.com/AlbanAndrieu/nabla-compose/issues/190)) ([7345685](https://github.com/AlbanAndrieu/nabla-compose/commit/73456852caf2ecac848ed836ef1aa3d13c1c60ba))
+
 ## [0.34.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.1...0.34.2) (2026-09-11)
 
 
