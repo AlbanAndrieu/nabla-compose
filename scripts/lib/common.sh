@@ -17,7 +17,7 @@ ok() {
 }
 
 require_root() {
-  [[ "${EUID}" -eq 0 ]] || fail "run as root"
+  [[ "${EUID}" -eq 0 ]] || fail "${1:-run as root}"
 }
 
 require_commands() {
