@@ -30,9 +30,10 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Immutable reboot bundles are staged, syntax/checksum validated and atomically activated.
 - [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
-- [x] Post-reboot functional baseline: Langfuse web/database + worker are green; Sentry specialist diagnostics and all tested Redis/Kafka/Snuba/ClickHouse/Relay/NGINX paths are green; OpenRAG core is green with Docling still pending.
-- [ ] Immediate runtime priority: restore Suricata from its restart loop and validate IDS logging/consumers.
-- [ ] AutoKuma is currently stopped/restarting until its Uptime Kuma endpoint contract and target availability are reconciled.
+- [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green with Docling still pending.
+- [ ] **Sentry incident:** TrueNAS still reports `DEPLOYING`. Edge health and envelope acceptance are green, but the 2026-09-11 synthetic event was accepted with HTTP 200 and never appeared in `sentry.errors_local`; end-to-end ingestion is therefore not accepted yet.
+- [ ] **Suricata functional completion:** the `eth0` crash loop is fixed and Suricata now captures on TrueNAS `br0`, but the running engine reported zero loaded rules. Provision `suricata.rules`, require a healthy rule file and prove `eve.json` output/consumption.
+- [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
 ## P0 — controlled TrueNAS reboot accepted
@@ -136,11 +137,13 @@ Start after P0 acceptance.
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
 - [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
-- [x] Sentry post-reboot runtime acceptance: specialist diagnostic passes; consumers are healthy; Snuba→ClickHouse/Kafka/Redis, Web→Kafka/Redis, Taskworker→Taskbroker, Relay→Redis and NGINX→Web/Relay are green.
-- [ ] Sentry: add the remaining synthetic event / project-ingestion proof and keep stable consumer heartbeat/Kafka-group acceptance as a regression gate.
-- [ ] **Priority: Suricata** — stop the restart loop, validate the TrueNAS `br0` capture interface, configuration/mount permissions and recent logs, then prove `eve.json` production and CrowdSec/Alloy consumption. `scripts/truenas/diagnose-suricata.sh` is the read-only first gate.
+- [ ] **Priority: Sentry ingestion** — TrueNAS remains `DEPLOYING`; `/health` and envelope HTTP acceptance are not sufficient. An event accepted at the edge on 2026-09-11 was absent from `sentry.errors_local`. Recover only unhealthy errors-only consumers, verify Kafka groups/heartbeats across a full health cycle, then require `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse before marking Sentry accepted.
+- [ ] Track the Sentry self-hosted `26.8` Kafka coordinator/session-timeout instability as upstream/version debt. Do not repeatedly redeploy the full stack for an isolated consumer failure; use the exact allow-listed consumer recovery helper and evaluate a newer upstream release only after its migration impact is reviewed.
+- [x] **Suricata capture interface** — `eth0` restart loop resolved; the engine is RUNNING on TrueNAS `br0` with zero container restarts.
+- [ ] **Suricata rules/EVE acceptance** — the running engine reported no `/var/lib/suricata/rules/suricata.rules`. Provision rules through the one-shot `suricata-update` service before capture starts, require a non-empty rule file, then prove `eve.json` production and CrowdSec/Alloy consumption.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
-- [ ] **Uptime Kuma / AutoKuma** — AutoKuma 2.x must receive `kuma.url`; target Uptime Kuma is intended on host port `31050`. Confirm whether the native Uptime Kuma App still exists, then migrate Uptime Kuma itself to repository-owned Compose and keep AutoKuma as the declarative reconciler. AutoKuma does not replace the Uptime Kuma server.
+- [ ] **Uptime Kuma + AutoKuma Compose** — the former native TrueNAS Uptime Kuma App is confirmed removed. Add repository-owned Uptime Kuma itself on host port `31050`; keep AutoKuma as a separate declarative reconciler that creates/updates monitors through Uptime Kuma. AutoKuma is not the monitoring server/UI and cannot replace Uptime Kuma. Keep AutoKuma stopped while no Uptime Kuma endpoint exists.
+- [ ] Remove the stale `native-truenas-uptime-monitor` topology assumption when the Compose-owned Uptime Kuma service is introduced; generated inventory must then identify Uptime Kuma and AutoKuma as separate Compose-managed services.
 - [ ] **Homarr bootstrap** — `https://homarr.albandrieu.com/init` still asks for manual initialization. Add an idempotent first-run bootstrap that detects the init state, uses secret-backed admin/bootstrap data, then applies the generated topology manifest (`apps/homarr/generated/apps.json`) through `homarr-sync`. Do not put credentials in generated topology.
 - [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps for now and are explicitly represented as `native-truenas-*` topology nodes with `runtime.appId`; migrate both to repository-owned Compose only with data/config backup, rollback and consumer validation.
 - [ ] **Deferred: nginx-proxy-manager** — investigate the persistent `DEPLOYING` / unhealthy state after its long ownership/bootstrap phase. The UID 568 `useradd` warning is not by itself a crash signal; isolate healthcheck/database/startup completion later.
@@ -190,7 +193,7 @@ The objective is a net reduction of imperative Bash, duplicate lifecycle logic a
 3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, ok/warn/fail/skipped counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
-6. [ ] **`scripts/lib/secrets.sh`.** Centralize owner/mode/key-presence checks without secret disclosure.
+6. [ ] **`scripts/lib/secrets.sh`.** Centralize owner/mode/presence checks without secret disclosure.
 7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata: startup phase/priority where inference is insufficient, startup timeout, readiness type/target, dependency relations, slow-start behavior and criticality. Prefer generated runtime ownership from `sourcePath`; use explicit `runtime.appId` only for ambiguous/non-standard ownership.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image; remove startup-time package provisioning.
 9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures; Graylog/Mongo/OpenSearch lifecycle ordering is now covered.
@@ -223,8 +226,9 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-Suricata recovery + Sentry synthetic regression
-  -> AutoKuma/Uptime Kuma endpoint + migration
+Sentry ingestion recovery + end-to-end smoke
+  -> Suricata rule provisioning + eve.json acceptance
+  -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
