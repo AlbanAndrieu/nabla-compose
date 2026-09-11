@@ -25,6 +25,15 @@ RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
 SECURITY_FUNCTIONS = {"govern", "identify", "protect", "detect", "respond", "recover"}
+LIFECYCLE_PHASES = {
+    "bootstrap-runtime",
+    "foundation",
+    "network-edge",
+    "primary-data",
+    "secondary-data",
+    "platform-services",
+    "applications",
+}
 RELATION_TYPES = {
     "dependsOn",
     "consumesApi",
@@ -167,6 +176,31 @@ def environment_metadata(
     return {"environments": environments}
 
 
+def lifecycle_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, dict[str, Any]]:
+    """Validate declarative lifecycle phase/priority exported by ``x-nabla``."""
+
+    raw = metadata.get("lifecycle")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        fail(f"{context}.lifecycle must be a mapping")
+
+    phase = optional_text(raw, "phase")
+    if phase not in LIFECYCLE_PHASES:
+        supported = ", ".join(sorted(LIFECYCLE_PHASES))
+        fail(f"{context}.lifecycle.phase must be one of: {supported}")
+
+    priority = raw.get("priority")
+    if isinstance(priority, bool) or not isinstance(priority, int):
+        fail(f"{context}.lifecycle.priority must be an integer")
+    if not 0 <= priority <= 1000:
+        fail(f"{context}.lifecycle.priority must be between 0 and 1000")
+
+    return {"lifecycle": {"phase": phase, "priority": priority}}
+
+
 def topology_node(
     metadata: dict[str, Any], source_path: str, context: str
 ) -> dict[str, Any]:
@@ -186,6 +220,7 @@ def topology_node(
     node.update(presentation_metadata(metadata, context))
     node.update(security_metadata(metadata, context))
     node.update(environment_metadata(metadata, context))
+    node.update(lifecycle_metadata(metadata, context))
     return node
 
 
@@ -213,7 +248,6 @@ def runtime_binding(
             f"{context}.runtime requires appId or containerService for provider truenas-app"
         )
     return binding
-
 
 
 def monitoring_metadata(
@@ -252,6 +286,7 @@ def monitoring_metadata(
 
     return result
 
+
 def declared_service(
     metadata: dict[str, Any],
     source_path: str,
@@ -275,6 +310,7 @@ def declared_service(
         "criticality",
         "securityFunctions",
         "environments",
+        "lifecycle",
     ):
         if key in node:
             service[key] = node[key]
