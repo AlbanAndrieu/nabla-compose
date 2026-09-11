@@ -193,14 +193,21 @@ make_plans() {
 }
 
 print_plan_summary() {
-  local dir="$1" plan unmapped
+  local dir="$1" plan unmapped explicit_resume="${EXTRA_RESUME_APPS:-}"
+  local -a saved_explicit_resume=()
+
+  if [[ -f "${dir}/explicit-resume.txt" ]]; then
+    mapfile -t saved_explicit_resume <"${dir}/explicit-resume.txt"
+    explicit_resume="${saved_explicit_resume[*]}"
+  fi
+
   printf '\nApps that will resume after reboot:\n'
   jq -r '.start_waves | to_entries[] | "  wave \(.key+1): \(.value|join(" "))"' \
     "${dir}/resume-plan.json"
   printf '\nShutdown waves (reverse dependency order):\n'
   jq -r '.stop_waves | to_entries[] | "  wave \(.key+1): \(.value|join(" "))"' \
     "${dir}/shutdown-plan.json"
-  printf '\nExplicit maintenance-stopped Apps scheduled for resume: %s\n' "${EXTRA_RESUME_APPS:-none}"
+  printf '\nExplicit maintenance-stopped Apps scheduled for resume: %s\n' "${explicit_resume:-none}"
   printf 'Other STOPPED Apps preserved: '
   jq '[.[] | select(.state=="STOPPED")] | length' "${dir}/apps-before.json"
   printf 'Pre-existing CRASHED Apps not auto-resumed: '
