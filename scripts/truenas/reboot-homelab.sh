@@ -22,9 +22,17 @@ IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 warn() { printf 'WARN: %s\n' "$*" >&2; }
 
+usage() {
+  printf '%s\n' \
+    "usage: sudo bash scripts/truenas/reboot-homelab.sh [--check|--prepare|--continue-prepare|--post-reboot-check|--resume|--verify]"
+}
+
 case "${MODE}" in
-  --check | --prepare | --post-reboot-check | --resume | --verify) ;;
-  *) fail "usage: sudo bash scripts/truenas/reboot-homelab.sh [--check|--prepare|--post-reboot-check|--resume|--verify]" ;;
+  --check | --prepare | --continue-prepare | --post-reboot-check | --resume | --verify) ;;
+  *)
+    usage
+    exit 1
+    ;;
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
@@ -72,6 +80,10 @@ midclt_bounded() {
   timeout "${CALL_TIMEOUT}" midclt call "$@"
 }
 
+truenas_ready() {
+  [[ "$(midclt_bounded system.ready | tr '[:upper:]' '[:lower:]')" == "true" ]]
+}
+
 app_state() {
   local app="$1"
   midclt_bounded app.query |
@@ -79,6 +91,45 @@ app_state() {
       [.[] | select(.id == $app or .name == $app)] |
       if length == 1 then .[0].state else "UNKNOWN" end
     '
+}
+
+diagnose_app_runtime() {
+  local app="$1" project="ix-${app}" id row full_id name status running restarting pid
+  local -a ids=()
+
+  mapfile -t ids < <(
+    docker ps -aq --filter "label=com.docker.compose.project=${project}"
+  )
+
+  if ((${#ids[@]} == 0)); then
+    warn "${app}: no Docker containers found with Compose project ${project}"
+    return 0
+  fi
+
+  printf 'Runtime evidence for failed App %s:\n' "${app}" >&2
+  for id in "${ids[@]}"; do
+    row="$(
+      docker inspect "${id}" |
+        jq -r '.[0] | [
+          .Id,
+          (.Name | ltrimstr("/")),
+          (.State.Status // "unknown"),
+          ((.State.Running // false) | tostring),
+          ((.State.Restarting // false) | tostring),
+          ((.State.Pid // 0) | tostring)
+        ] | @tsv'
+    )"
+    IFS=$'\t' read -r full_id name status running restarting pid <<<"${row}"
+    printf '  container=%s id=%s status=%s running=%s restarting=%s pid=%s\n' \
+      "${name}" "${full_id}" "${status}" "${running}" "${restarting}" "${pid}" >&2
+
+    if [[ "${pid}" == "0" && ( "${running}" == "true" || "${restarting}" == "true" ) ]]; then
+      warn "${app}/${name}: probable orphaned containerd shim: Docker reports Running/Restarting but pid=0"
+      pgrep -af containerd-shim-runc-v2 |
+        awk -v cid="${full_id}" 'index($0, "-id " cid) {print "  shim=" $0}' >&2 || true
+      warn "run diagnose-docker-orphan-shims.sh --check and use its exact-id --recover flow only after review"
+    fi
+  done
 }
 
 vm_policy_gate() {
@@ -190,6 +241,106 @@ latest_state_dir() {
   printf '%s\n' "${dir}"
 }
 
+validate_prepare_manifest() {
+  local dir="$1" required
+  for required in \
+    apps-before.json \
+    vms-before.json \
+    docker-config-before.json \
+    kubernetes-nodes-before.json \
+    boot-id-before \
+    shutdown-plan.json \
+    resume-plan.json \
+    resume-apps.txt \
+    intentional-stopped.txt \
+    preexisting-failed.txt; do
+    [[ -f "${dir}/${required}" ]] || fail "incomplete reboot manifest: missing ${dir}/${required}"
+  done
+}
+
+guard_no_incomplete_prepare() {
+  [[ -f "${STATE_ROOT}/latest" ]] || return 0
+
+  local dir before current phase
+  dir="$(cat "${STATE_ROOT}/latest")"
+  [[ -d "${dir}" && -f "${dir}/boot-id-before" ]] || return 0
+
+  before="$(cat "${dir}/boot-id-before")"
+  current="$(midclt_bounded system.boot_id | tr -d '"')"
+  [[ "${before}" == "${current}" ]] || return 0
+
+  phase="$(cat "${dir}/phase" 2>/dev/null || true)"
+  if [[ "${phase}" == "PREPARING" ]] ||
+    { [[ -z "${phase}" ]] && [[ -f "${dir}/shutdown-plan.json" && -f "${dir}/resume-plan.json" ]]; }; then
+    fail "incomplete prepare already exists at ${dir}; remediate the blocker and use --continue-prepare, never rerun --prepare"
+  fi
+}
+
+continue_prepare() {
+  local state_dir="$1" app state node deadline running
+  local -a stop_apps=()
+  local -a leftovers=()
+
+  validate_prepare_manifest "${state_dir}"
+  printf 'PREPARING\n' >"${state_dir}/phase"
+
+  printf '\nStopping remaining TrueNAS Apps from the preserved shutdown plan...\n'
+  mapfile -t stop_apps < <(jq -r '.stop_order[]' "${state_dir}/shutdown-plan.json")
+  for app in "${stop_apps[@]}"; do
+    state="$(app_state "${app}")"
+    if [[ "${state}" == "STOPPED" ]]; then
+      printf 'SKIP %s already STOPPED\n' "${app}"
+      continue
+    fi
+    printf 'STOP %s state=%s\n' "${app}" "${state}"
+    if ! midclt_bounded -j app.stop "${app}" >/dev/null; then
+      diagnose_app_runtime "${app}"
+      fail "${app}: app.stop failed/timed out; preserve this manifest, remediate the blocker, then use --continue-prepare"
+    fi
+    wait_app_stopped "${app}"
+  done
+
+  mapfile -t leftovers < <(docker ps --format '{{.Names}}')
+  if ((${#leftovers[@]})); then
+    printf 'Unmanaged/running Docker containers remain after all TrueNAS Apps stopped:\n' >&2
+    printf '  %s\n' "${leftovers[@]}" >&2
+    fail "refusing Talos/host shutdown while Docker containers still run; preserve this manifest and use --continue-prepare after remediation"
+  fi
+  printf 'OK: no running Docker container remains\n'
+
+  printf '\nGracefully shutting down Talos workers, then control plane...\n'
+  for node in "${TALOS_NODES[@]}"; do
+    printf 'TALOS SHUTDOWN %s via endpoint %s (graceful cordon/drain; never --force)\n' \
+      "${node}" "${TALOS_ENDPOINT}"
+    run_operator timeout 20m "${TALOSCTL}" \
+      --endpoints "${TALOS_ENDPOINT}" \
+      --nodes "${node}" \
+      shutdown --wait --timeout "${TALOS_WAIT}" ||
+      fail "${node}: graceful Talos shutdown failed; host reboot NOT authorized; preserve this manifest"
+  done
+
+  deadline=$((SECONDS + 300))
+  running=3
+  while ((SECONDS < deadline)); do
+    running="$(
+      midclt_bounded vm.query |
+        jq '[.[] | select(
+          (.name=="taloscp01" or .name=="taloswk01" or .name=="taloswk02") and
+          (.status.state // "UNKNOWN") != "STOPPED"
+        )] | length'
+    )"
+    ((running == 0)) && break
+    sleep 5
+  done
+  ((running == 0)) || fail "Talos VMs did not all reach STOPPED; preserve this manifest"
+
+  printf 'PREPARED\n' >"${state_dir}/phase"
+  printf '\nSUCCESS: homelab is prepared for TrueNAS reboot.\n'
+  printf 'State manifest: %s\n' "${state_dir}"
+  printf 'Now reboot TrueNAS through the TrueNAS UI or supported system.reboot API.\n'
+  printf 'After boot, run this script with --post-reboot-check, then --resume.\n'
+}
+
 if [[ "${MODE}" == "--check" ]]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "${tmp}"' EXIT
@@ -203,9 +354,10 @@ if [[ "${MODE}" == "--check" ]]; then
 fi
 
 if [[ "${MODE}" == "--prepare" ]]; then
-  [[ "$(midclt_bounded system.ready)" == "true" ]] || fail "TrueNAS system.ready is not true"
+  truenas_ready || fail "TrueNAS system.ready is not true"
   vm_policy_gate
   cluster_client_preflight
+  guard_no_incomplete_prepare
 
   mkdir -p "${STATE_ROOT}"
   chmod 700 "${STATE_ROOT}"
@@ -229,62 +381,43 @@ if [[ "${MODE}" == "--prepare" ]]; then
   jq -r '.[] | select(.state=="CRASHED" or .state=="ERROR") | .id' \
     "${state_dir}/apps-before.json" | sort -u >"${state_dir}/preexisting-failed.txt"
   jq -r '.selected_apps[]' "${state_dir}/resume-plan.json" >"${state_dir}/resume-apps.txt"
+  printf 'PREPARING\n' >"${state_dir}/phase"
   printf '%s\n' "${state_dir}" >"${STATE_ROOT}/latest"
   print_plan_summary "${state_dir}"
 
-  printf '\nStopping TrueNAS Apps in reverse topology order...\n'
-  mapfile -t stop_apps < <(jq -r '.stop_order[]' "${state_dir}/shutdown-plan.json")
-  for app in "${stop_apps[@]}"; do
-    state="$(app_state "${app}")"
-    if [[ "${state}" == "STOPPED" ]]; then
-      printf 'SKIP %s already STOPPED\n' "${app}"
-      continue
-    fi
-    printf 'STOP %s state=%s\n' "${app}" "${state}"
-    midclt_bounded -j app.stop "${app}" >/dev/null ||
-      fail "${app}: app.stop failed/timed out"
-    wait_app_stopped "${app}"
-  done
+  continue_prepare "${state_dir}"
+  exit 0
+fi
 
-  mapfile -t leftovers < <(docker ps --format '{{.Names}}')
-  if ((${#leftovers[@]})); then
-    printf 'Unmanaged/running Docker containers remain after all TrueNAS Apps stopped:\n' >&2
-    printf '  %s\n' "${leftovers[@]}" >&2
-    fail "refusing Talos/host shutdown while Docker containers still run"
+if [[ "${MODE}" == "--continue-prepare" ]]; then
+  truenas_ready || fail "TrueNAS system.ready is not true"
+  state_dir="$(latest_state_dir)"
+  validate_prepare_manifest "${state_dir}"
+
+  before_boot_id="$(cat "${state_dir}/boot-id-before")"
+  current_boot_id="$(midclt_bounded system.boot_id | tr -d '"')"
+  [[ "${current_boot_id}" == "${before_boot_id}" ]] ||
+    fail "boot_id changed; refusing to continue a pre-reboot manifest after reboot"
+
+  phase="$(cat "${state_dir}/phase" 2>/dev/null || true)"
+  case "${phase}" in
+    PREPARING | "")
+      ;;
+    PREPARED)
+      fail "manifest is already PREPARED; reboot through the supported TrueNAS UI/API instead"
+      ;;
+    *)
+      fail "manifest phase=${phase:-missing} cannot be continued safely"
+      ;;
+  esac
+
+  if [[ -z "${phase}" ]]; then
+    warn "legacy interrupted prepare has no phase marker; manifest validation passed and will be adopted as PREPARING"
   fi
-  printf 'OK: no running Docker container remains\n'
 
-  printf '\nGracefully shutting down Talos workers, then control plane...\n'
-  for node in "${TALOS_NODES[@]}"; do
-    printf 'TALOS SHUTDOWN %s via endpoint %s (graceful cordon/drain; never --force)\n' \
-      "${node}" "${TALOS_ENDPOINT}"
-    run_operator timeout 20m "${TALOSCTL}" \
-      --endpoints "${TALOS_ENDPOINT}" \
-      --nodes "${node}" \
-      shutdown --wait --timeout "${TALOS_WAIT}" ||
-      fail "${node}: graceful Talos shutdown failed; host reboot NOT authorized"
-  done
-
-  deadline=$((SECONDS + 300))
-  running=3
-  while ((SECONDS < deadline)); do
-    running="$(
-      midclt_bounded vm.query |
-        jq '[.[] | select(
-          (.name=="taloscp01" or .name=="taloswk01" or .name=="taloswk02") and
-          (.status.state // "UNKNOWN") != "STOPPED"
-        )] | length'
-    )"
-    ((running == 0)) && break
-    sleep 5
-  done
-  ((running == 0)) || fail "Talos VMs did not all reach STOPPED"
-
-  printf 'PREPARED\n' >"${state_dir}/phase"
-  printf '\nSUCCESS: homelab is prepared for TrueNAS reboot.\n'
-  printf 'State manifest: %s\n' "${state_dir}"
-  printf 'Now reboot TrueNAS through the TrueNAS UI or supported system.reboot API.\n'
-  printf 'After boot, run this script with --post-reboot-check, then --resume.\n'
+  printf 'Continuing preserved reboot manifest: %s\n' "${state_dir}"
+  print_plan_summary "${state_dir}"
+  continue_prepare "${state_dir}"
   exit 0
 fi
 
@@ -295,8 +428,7 @@ current_boot_id="$(midclt_bounded system.boot_id | tr -d '"')"
 if [[ "${MODE}" == "--post-reboot-check" ]]; then
   [[ "${current_boot_id}" != "${before_boot_id}" ]] ||
     fail "boot_id did not change; no reboot has occurred since --prepare"
-  [[ "$(midclt_bounded system.ready)" == "true" ]] ||
-    fail "TrueNAS has not completed boot"
+  truenas_ready || fail "TrueNAS has not completed boot"
 
   [[ -f "${IPAM_CHECK}" ]] || fail "IPAM post-reboot helper not found: ${IPAM_CHECK}"
   bash "${IPAM_CHECK}" --post-reboot-check
@@ -326,7 +458,7 @@ fi
 
 if [[ "${MODE}" == "--resume" ]]; then
   [[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "refusing resume before an actual reboot"
-  [[ "$(midclt_bounded system.ready)" == "true" ]] || fail "TrueNAS is not ready"
+  truenas_ready || fail "TrueNAS is not ready"
 
   run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
   mapfile -t nodes < <(run_operator "${KUBECTL}" get nodes -o name)
@@ -362,7 +494,7 @@ fi
 
 # --verify
 [[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "reboot not observed"
-[[ "$(midclt_bounded system.ready)" == "true" ]] || fail "TrueNAS is not ready"
+truenas_ready || fail "TrueNAS is not ready"
 
 failures=0
 while IFS= read -r app; do
