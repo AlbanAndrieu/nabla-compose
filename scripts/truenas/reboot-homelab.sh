@@ -307,7 +307,7 @@ continue_prepare() {
       --endpoints "${TALOS_ENDPOINT}" \
       --nodes "${node}" \
       shutdown --wait --timeout "${TALOS_WAIT}" ||
-      fail "${node}: graceful Talos shutdown failed; never use shutdown --force"
+      fail "${node}: graceful Talos shutdown failed; never force Talos shutdown"
   done
 
   deadline=$((SECONDS + 300))
