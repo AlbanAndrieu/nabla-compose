@@ -5,8 +5,8 @@ TASKBROKER_CONTAINER="${SENTRY_TASKBROKER_CONTAINER:-ix-sentry-taskbroker-1}"
 TASKWORKER_CONTAINER="${SENTRY_TASKWORKER_CONTAINER:-ix-sentry-sentry-taskworker-1}"
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
 TASKBROKER_DB="${SENTRY_TASKBROKER_DB:-/mnt/cpool/sentry/taskbroker/taskbroker-activations.sqlite}"
-STATSD_METRICS_URL="${SENTRY_STATSD_METRICS_URL:-http://172.17.0.24:9102/metrics}"
-KAFKA_EXPORTER_URL="${SENTRY_KAFKA_EXPORTER_URL:-http://172.17.0.24:9308/metrics}"
+STATSD_METRICS_URL="${SENTRY_STATSD_METRICS_URL:-}"
+KAFKA_EXPORTER_URL="${SENTRY_KAFKA_EXPORTER_URL:-}"
 
 for command in curl docker python3; do
   command -v "${command}" >/dev/null 2>&1 || {
@@ -17,8 +17,8 @@ done
 
 printf 'Sentry taskbroker diagnostic (read-only)\n'
 printf 'db=%s\n' "${TASKBROKER_DB}"
-printf 'statsd_metrics=%s\n' "${STATSD_METRICS_URL}"
-printf 'kafka_exporter=%s\n\n' "${KAFKA_EXPORTER_URL}"
+printf 'statsd_metrics=%s\n' "${STATSD_METRICS_URL:-not-configured}"
+printf 'kafka_exporter=%s\n\n' "${KAFKA_EXPORTER_URL:-not-configured}"
 
 for container in "${TASKBROKER_CONTAINER}" "${TASKWORKER_CONTAINER}"; do
   printf '=== %s ===\n' "${container}"
@@ -51,9 +51,11 @@ else
 fi
 printf '\n'
 
-printf '=== Prometheus exporter correlation ===\n'
+printf '=== Optional exporter correlation ===\n'
 printf '%s\n' '-- Taskbroker / Sentry StatsD --'
-if statsd_metrics="$(curl -fsS --max-time 5 "${STATSD_METRICS_URL}" 2>/dev/null)"; then
+if [[ -z "${STATSD_METRICS_URL}" ]]; then
+  printf 'SKIPPED: SENTRY_STATSD_METRICS_URL is not configured\n'
+elif statsd_metrics="$(curl -fsS --max-time 5 "${STATSD_METRICS_URL}" 2>/dev/null)"; then
   printf '%s\n' "${statsd_metrics}" |
     grep -E '^(taskbroker_|sentry_taskworker_|statsd_exporter_)' |
     head -n 160 || true
@@ -61,8 +63,10 @@ else
   printf 'UNAVAILABLE: %s\n' "${STATSD_METRICS_URL}"
 fi
 
-printf '\n%s\n' '-- Kafka taskworker group --'
-if kafka_metrics="$(curl -fsS --max-time 10 "${KAFKA_EXPORTER_URL}" 2>/dev/null)"; then
+printf '\n%s\n' '-- Kafka taskworker group exporter --'
+if [[ -z "${KAFKA_EXPORTER_URL}" ]]; then
+  printf 'SKIPPED: SENTRY_KAFKA_EXPORTER_URL is not configured\n'
+elif kafka_metrics="$(curl -fsS --max-time 10 "${KAFKA_EXPORTER_URL}" 2>/dev/null)"; then
   printf '%s\n' "${kafka_metrics}" |
     grep -E '^kafka_consumergroup_(members|lag|current_offset)' |
     grep 'consumergroup="taskworker"' |
