@@ -23,6 +23,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: traefik
+      lifecycle:
+        phase: foundation
+        priority: 10
       relations:
         - target: pfsense-haproxy
           type: exposedBy
