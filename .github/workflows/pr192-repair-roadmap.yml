@@ -1,0 +1,66 @@
+---
+name: PR192 repair roadmap
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr192-repair-roadmap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/sentry-kafka-suricata-post191
+          fetch-depth: 0
+      - name: Restore full roadmap and update only Sentry status
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 6219b670b7c532b319f5b383c83f593ff1518181:docs/roadmap.md > docs/roadmap.md
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/roadmap.md')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one occurrence: {old[:100]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'Last updated: 2026-09-11.',
+              'Last updated: 2026-09-12.',
+          )
+          replace_once(
+              '- [ ] **Sentry ingestion incident:** original failure remains a Taskbroker Kafka consumer rejoin problem after `SESSTMOUT`, with zero active `taskworker` members and growing lag while SQLite remains empty. A targeted Taskbroker restart exposed a second, newer startup/configuration failure: the live bind-mounted metrics/StatsD address was not resolvable, causing Taskbroker to panic in `src/metrics.rs`, exit `101` and restart-loop. Restore Taskbroker bootability first, then resume Kafka rejoin diagnosis. Taskworker Docker health remained green while gRPC to `taskbroker:50051` was functionally down, so dependency reachability is now part of acceptance.',
+              '- [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.',
+          )
+          replace_once(
+              '- [ ] **Priority: restore Sentry Taskbroker bootability** — inspect the actual `/etc/taskbroker/config.yml` bind source. The targeted restart exposed a stale/unresolvable metrics destination that makes Taskbroker panic in `src/metrics.rs`, exit `101` and restart-loop. Reconcile the live file with reviewed repository config, then require stable `RUNNING`, `pid>0`, no restart growth, gRPC `:50051` listening and functional Taskworker→Taskbroker reachability.\n- [ ] **Then resume Sentry Kafka rejoin diagnosis** — once Taskbroker is stable, require Kafka group `taskworker` to regain an active member and drain the backlog (observed lag grew from `53204` to `54204+` during the failed restart experiment), Relay project-config pending to clear, and `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse. Do not reset offsets or delete SQLite.',
+              '- [x] **Sentry Taskbroker/Kafka/Relay recovery accepted** — Taskbroker bootability restored, Taskworker→Taskbroker gRPC reachable, Kafka `taskworker` consumer rejoined and drained to lag `1`, Relay project-config path recovered, and the full synthetic event is persisted in ClickHouse. Recovery required no offset reset, topic deletion, SQLite deletion, Kafka restart or whole-App redeploy.\n- [ ] **Sentry upstream/version debt** — monitor self-hosted 26.8 Taskbroker Kafka coordinator/session-timeout/rejoin behavior. Functional health must include Taskworker→Taskbroker reachability, active Kafka membership/lag and end-to-end ingestion; process/container health alone is insufficient.',
+          )
+          replace_once(
+              'StatsD stays deferred until Sentry is functionally recovered. Kafka exporter remains with `apps/kafka` and must be deployed only in a controlled Kafka App update window.',
+              'StatsD remains deferred and is no longer part of incident recovery. Kafka exporter remains with `apps/kafka` and must be deployed only in a controlled Kafka App update window after preserving the accepted Sentry functional baseline.',
+          )
+          replace_once(
+              'restore Taskbroker bootability / gRPC\n  -> Taskbroker Kafka membership + lag recovery\n  -> Sentry end-to-end smoke\n  -> Prometheus DOWN-target reconciliation (Mimir first)',
+              'Prometheus DOWN-target reconciliation (Mimir first)',
+          )
+
+          path.write_text(text)
+          PY
+          git diff --check
+          git rm .github/workflows/pr192-repair-roadmap.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/roadmap.md
+          git commit -m 'docs(roadmap): close sentry ingestion incident'
+          git push origin HEAD:fix/sentry-kafka-suricata-post191
