@@ -38,6 +38,7 @@ ok() {
 
 controller_runtime_converged() {
   local deployment_json desired updated ready available unavailable generation observed progress_deadline
+  local converged=true
 
   if ! kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1; then
     return 0
@@ -53,12 +54,14 @@ controller_runtime_converged() {
   observed="$(jq -r '.status.observedGeneration // 0' <<<"${deployment_json}")"
   progress_deadline="$(jq -r '[.status.conditions[]? | select(.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")] | length' <<<"${deployment_json}")"
 
-  if [[ "${observed}" -ge "${generation}" &&
-        "${updated}" -eq "${desired}" &&
-        "${ready}" -eq "${desired}" &&
-        "${available}" -eq "${desired}" &&
-        "${unavailable}" -eq 0 &&
-        "${progress_deadline}" -eq 0 ]]; then
+  [[ "${observed}" -ge "${generation}" ]] || converged=false
+  [[ "${updated}" -eq "${desired}" ]] || converged=false
+  [[ "${ready}" -eq "${desired}" ]] || converged=false
+  [[ "${available}" -eq "${desired}" ]] || converged=false
+  [[ "${unavailable}" -eq 0 ]] || converged=false
+  [[ "${progress_deadline}" -eq 0 ]] || converged=false
+
+  if [[ "${converged}" == "true" ]]; then
     ok "TrueNAS CSI controller runtime is fully converged"
     return 0
   fi
