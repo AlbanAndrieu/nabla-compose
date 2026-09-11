@@ -20,11 +20,11 @@ An incident is not closed at level 1 or 2 when the service is a pipeline compone
 
 ### Current implementation
 
-Sentry self-hosted uses StatsD for runtime metrics. The homelab sends Sentry and Taskbroker metrics to the Prometheus `statsd-exporter`:
+Sentry self-hosted uses StatsD for runtime metrics. The homelab sends Sentry and Taskbroker metrics to the Prometheus `statsd-exporter` over the Docker-only shared `intranet` network:
 
 ```text
 Sentry processes -----------\
-Sentry Taskworker -----------+--> UDP/TCP 172.17.0.24:9125
+Sentry Taskworker -----------+--> statsd-exporter:9125 (Docker intranet only)
 Taskbroker -----------------/               |
                                             v
                                   statsd-exporter :9102
@@ -39,9 +39,10 @@ Taskbroker -----------------/               |
 Repository configuration:
 
 - `apps/prometheus/compose.yml`: `statsd-exporter`, pinned to `v0.30.0` by default;
+- only Prometheus exposition port `172.17.0.24:9102` is host-published; StatsD TCP/UDP 9125 is not exposed on the LAN;
 - `apps/prometheus/prometheus.yml`: job `sentry_statsd`;
-- `apps/sentry/config/sentry.conf.py`: `SENTRY_STATSD_ADDR`, default `172.17.0.24:9125`;
-- `apps/sentry/config/taskbroker.yml`: `statsd_addr: 172.17.0.24:9125`.
+- `apps/sentry/config/sentry.conf.py`: `SENTRY_STATSD_ADDR`, default `statsd-exporter:9125`;
+- `apps/sentry/config/taskbroker.yml`: `statsd_addr: statsd-exporter:9125`.
 
 The first metrics to validate during the current incident are Taskbroker consumer/backpressure and Sentry Taskworker fetch metrics. In particular, Sentry upstream incident evidence uses metrics in the families:
 
@@ -50,6 +51,8 @@ The first metrics to validate during the current incident are Taskbroker consume
 - exporter self-metrics `statsd_exporter_*`.
 
 Do not hard-code an alert to a Taskbroker metric name until the running 26.8 stack has emitted that metric at least once. Exporter availability plus Kafka membership/lag alerts are safe immediately.
+
+The upstream self-hosted stack can also route Snuba and Relay telemetry through `SNUBA_STATSD_ADDR` and `RELAY_STATSD_ADDR`. Add those after the first Taskbroker incident acceptance if their additional metrics answer a concrete unresolved question; the initial change deliberately keeps the runtime mutation narrow.
 
 ### Current acceptance
 
@@ -133,10 +136,12 @@ Useful API/state surfaces include:
 - `/var/ossec/var/run/wazuh-remoted.state`;
 - `/var/ossec/var/run/wazuh-analysisd.state`.
 
-Recommended sequence:
+The first read-only step is implemented in `scripts/truenas/diagnose-wazuh.sh`: it reads the manager state files directly from the running manager container without introducing API credentials. It reports `remoted` queue size, sessions, event count, discarded messages and queue usage, plus `analysisd` received/processed/dropped events, EPS and queue-pressure counters.
 
-1. extend `diagnose-wazuh.sh` with the read-only API/state counters first;
-2. define a dedicated least-privilege Wazuh API identity for metrics;
+Recommended next sequence:
+
+1. validate the new state-file counters against the live manager and establish normal baselines;
+2. define a dedicated least-privilege Wazuh API identity for metrics only if agent-summary/API-only data is needed continuously;
 3. evaluate a pinned community Wazuh Prometheus exporter only after reviewing its API calls, cardinality and credential handling;
 4. keep the Wazuh indexer separate: use an OpenSearch-compatible exporter for JVM/index/shard health if the existing OpenSearch telemetry does not cover the Wazuh indexer.
 
@@ -167,13 +172,13 @@ Before adding Redis or Memcached exporters specifically for Sentry, first observ
 
 ## Immediate Sentry diagnostic sequence
 
-After deploying only the Prometheus observability changes and the Sentry StatsD configuration:
+After deploying only the Prometheus observability changes:
 
 1. run `scripts/truenas/diagnose-sentry-taskbroker.sh` and capture the exporter sections;
 2. record `kafka_consumergroup_members{consumergroup="taskworker"}` and taskworker lag;
-3. record the current Taskbroker/Sentry StatsD metrics;
-4. if the group still has zero active members, perform the already-reviewed targeted Taskbroker-only restart;
-5. verify group membership reappears and lag decreases;
+3. if the group still has zero active members, run the guarded Taskbroker-only recovery; that targeted restart also reloads `statsd_addr` from the bind-mounted Taskbroker config;
+4. rerun `diagnose-sentry-taskbroker.sh` and record Taskbroker StatsD metrics plus Kafka membership/lag;
+5. require group membership to reappear and lag to decrease;
 6. verify Relay project-config pending counts fall;
 7. rerun `smoke-sentry-event.sh` and require end-to-end success.
 
