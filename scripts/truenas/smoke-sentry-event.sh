@@ -18,6 +18,8 @@ POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-ix-postgres-postgres-1}"
 CLICKHOUSE_CONTAINER="${SENTRY_CLICKHOUSE_CONTAINER:-ix-sentry-clickhouse-sentry-clickhouse-1}"
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
 RELAY_CONTAINER="${SENTRY_RELAY_CONTAINER:-ix-sentry-relay-1}"
+TASKBROKER_CONTAINER="${SENTRY_TASKBROKER_CONTAINER:-ix-sentry-taskbroker-1}"
+TASKWORKER_CONTAINER="${SENTRY_TASKWORKER_CONTAINER:-ix-sentry-sentry-taskworker-1}"
 SMOKE_ATTEMPTS="${SENTRY_SMOKE_ATTEMPTS:-60}"
 SMOKE_DELAY_SECONDS="${SENTRY_SMOKE_DELAY_SECONDS:-2}"
 
@@ -40,11 +42,31 @@ function kafka_group_topic_log_end {
     '
 }
 
+function print_container_diagnostics {
+  local container="$1"
+  local state health
+
+  if ! docker inspect "${container}" >/dev/null 2>&1; then
+    printf '%s MISSING\n' "${container}" >&2
+    return 0
+  fi
+
+  state="$(docker inspect "${container}" --format '{{.State.Status}}')"
+  health="$(docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+  printf '%s state=%s health=%s restarts=%s\n' \
+    "${container}" "${state}" "${health}" \
+    "$(docker inspect "${container}" --format '{{.RestartCount}}')" >&2
+  docker logs --since 10m "${container}" 2>&1 |
+    grep -Ei "${EVENT_ID:-no-event-id}|error|exception|kafka|coordinator|timeout|partition|health|clickhouse|drop|reject|project|relay|taskworker|taskbroker|pending|deadline" |
+    tail -40 >&2 || true
+}
+
 function print_ingestion_diagnostics {
-  local container state health
-  local ingest_after events_after
+  local ingest_after events_after relay_pending=0
   local containers=(
     "${RELAY_CONTAINER}"
+    "${TASKBROKER_CONTAINER}"
+    "${TASKWORKER_CONTAINER}"
     ix-sentry-sentry-events-consumer-1
     ix-sentry-snuba-errors-consumer-1
     ix-sentry-sentry-post-process-forwarder-errors-1
@@ -52,19 +74,14 @@ function print_ingestion_diagnostics {
 
   printf '\n==> Sentry ingestion-chain diagnostics\n' >&2
   for container in "${containers[@]}"; do
-    if ! docker inspect "${container}" >/dev/null 2>&1; then
-      printf '%s MISSING\n' "${container}" >&2
-      continue
-    fi
-    state="$(docker inspect "${container}" --format '{{.State.Status}}')"
-    health="$(docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
-    printf '%s state=%s health=%s restarts=%s\n' \
-      "${container}" "${state}" "${health}" \
-      "$(docker inspect "${container}" --format '{{.RestartCount}}')" >&2
-    docker logs --since 10m "${container}" 2>&1 |
-      grep -Ei "${EVENT_ID:-no-event-id}|error|exception|kafka|coordinator|timeout|partition|health|clickhouse|drop|reject|project" |
-      tail -30 >&2 || true
+    print_container_diagnostics "${container}"
   done
+
+  if docker inspect "${RELAY_CONTAINER}" >/dev/null 2>&1 &&
+    docker logs --since 10m "${RELAY_CONTAINER}" 2>&1 |
+      grep -Eq 'error fetching project state .*deadline exceeded.*was_pending=true'; then
+    relay_pending=1
+  fi
 
   if docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1; then
     printf '\nKafka broker state:\n' >&2
@@ -76,7 +93,7 @@ function print_ingestion_diagnostics {
       printf 'broker metadata request=OK\n' >&2 ||
       printf 'broker metadata request=FAILED\n' >&2
 
-    for group in ingest-consumer snuba-consumers post-process-forwarder; do
+    for group in ingest-consumer snuba-consumers post-process-forwarder taskworker; do
       printf '\nKafka group %s:\n' "${group}" >&2
       docker exec "${KAFKA_CONTAINER}" kafka-consumer-groups \
         --bootstrap-server kafka:9092 \
@@ -96,6 +113,9 @@ function print_ingestion_diagnostics {
           "${EVENTS_BEFORE:-}" =~ ^[0-9]+$ && "${events_after}" =~ ^[0-9]+$ ]]; then
       if ((ingest_after <= INGEST_BEFORE)); then
         printf '  stage=relay-kafka-publish: edge accepted the envelope but ingest-events did not advance\n' >&2
+        if ((relay_pending == 1)); then
+          printf '  substage=relay-project-config-pending: Relay is waiting for Sentry project config; inspect taskbroker/taskworker and project-config cache build path\n' >&2
+        fi
       elif ((events_after <= EVENTS_BEFORE)); then
         printf '  stage=ingest-consumer: ingest-events advanced but events did not\n' >&2
       else
