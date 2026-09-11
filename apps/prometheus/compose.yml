@@ -106,39 +106,6 @@ services:
   # ix-prometheus-cadvisor-1 containers must become orphans so app.update can
   # remove them instead of marking Prometheus CRASHED for optional telemetry.
 
-  statsd-exporter:
-    image: prom/statsd-exporter:${STATSD_EXPORTER_IMG:-v0.30.0}
-    container_name: statsd-exporter
-    restart: unless-stopped
-    x-nabla:
-      id: statsd-exporter
-      name: StatsD Exporter
-      kind: metrics-exporter
-      category: observability
-      runtime:
-        provider: truenas-app
-        containerService: statsd-exporter
-      monitoring:
-        type: http
-        target: http://172.17.0.24:9102/metrics
-        conditions:
-          - "[STATUS] == 200"
-      relations:
-        - target: prometheus
-          type: observedBy
-          strength: required
-          description: Prometheus scrapes StatsD-translated Sentry and Taskbroker metrics.
-          evidence:
-            - apps/prometheus/prometheus.yml:job_name=sentry_statsd
-    # Only the Prometheus exposition endpoint is host-published. StatsD input
-    # stays on the shared Docker intranet because it has no authentication.
-    ports:
-      - "172.17.0.24:9102:9102"
-    networks:
-      intranet:
-        aliases:
-          - statsd-exporter
-
   pfsense-exporter:
     network_mode: bridge
     image: ghcr.io/pfrest/pfsense_exporter:${PFSENSE_EXPORTER_IMG:-v0.0.10}
@@ -192,3 +159,4 @@ networks:
     name: intranet
   traefik_network:
     external: true
+    name: traefik_network
