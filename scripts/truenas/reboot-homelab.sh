@@ -36,7 +36,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
-for command in midclt jq docker python3 timeout getent; do
+for command in midclt jq docker python3 timeout getent pgrep awk tr ps; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 [[ -f "${PLANNER}" ]] || fail "lifecycle planner not found: ${PLANNER}"
