@@ -25,7 +25,7 @@ ok() {
 mode="${1:---check}"
 [[ "${mode}" == "--check" ]] || fail "usage: $(basename "$0") [--check]"
 
-for command in jq midclt zfs; do
+for command in jq midclt timeout zfs; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
