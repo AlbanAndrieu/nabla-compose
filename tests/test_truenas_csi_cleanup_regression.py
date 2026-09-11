@@ -1,4 +1,4 @@
-"""Regression contract for bounded TrueNAS CSI smoke cleanup."""
+"""Regression contracts for bounded TrueNAS CSI smoke cleanup and pod startup."""
 
 from __future__ import annotations
 
@@ -25,6 +25,21 @@ class TrueNasCsiCleanupRegressionTests(unittest.TestCase):
         self.assertIn("spec.csi.volumeHandle", text)
         self.assertIn("recent CSI provisioner logs", text)
         self.assertIn("recent TrueNAS CSI controller logs", text)
+
+    def test_writer_and_reader_readiness_are_bounded_and_diagnostic(self) -> None:
+        text = SMOKE.read_text()
+
+        self.assertIn('POD_READY_TIMEOUT_SECONDS="${CSI_POD_READY_TIMEOUT_SECONDS:-300}"', text)
+        self.assertIn("CSI_POD_READY_TIMEOUT_SECONDS must be a positive integer", text)
+        self.assertIn("dump_pod_startup_diagnostics", text)
+        self.assertIn('describe pod "${pod_name}"', text)
+        self.assertIn("app=truenas-csi-node", text)
+        self.assertIn("csi-node-driver-registrar", text)
+        self.assertIn('pod/csi-writer \\\n  --timeout="${POD_READY_TIMEOUT_SECONDS}s"', text)
+        self.assertIn('pod/csi-reader \\\n  --timeout="${POD_READY_TIMEOUT_SECONDS}s"', text)
+        self.assertIn("writer pod did not become Ready within", text)
+        self.assertIn("reader pod did not become Ready within", text)
+        self.assertIn("CSI_SMOKE_KEEP_ON_FAILURE=true", text)
 
 
 if __name__ == "__main__":
