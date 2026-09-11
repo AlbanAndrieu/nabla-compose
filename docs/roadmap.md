@@ -29,11 +29,15 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Pi-hole ghost runtime and guarded exact-shim recovery are documented and covered by `diagnose-docker-orphan-shims.sh`.
 - [x] Immutable reboot bundles are staged, syntax/checksum validated and atomically activated.
 - [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
+- [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
+- [x] Post-reboot functional baseline: Langfuse web/database + worker are green; Sentry specialist diagnostics and all tested Redis/Kafka/Snuba/ClickHouse/Relay/NGINX paths are green; OpenRAG core is green with Docling still pending.
+- [ ] Immediate runtime priority: restore Suricata from its restart loop and validate IDS logging/consumers.
+- [ ] AutoKuma is currently stopped/restarting until its Uptime Kuma endpoint contract and target availability are reconciled.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
-## P0 — finish the current controlled TrueNAS reboot
+## P0 — controlled TrueNAS reboot accepted
 
-Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad cleanup until this transaction is fully accepted.
+The 2026-09-11 transaction is operationally accepted. Strict historical-manifest verification remains intentionally capable of reporting deferred Apps that were RUNNING before the reboot but were explicitly accepted as non-blocking afterwards.
 
 1. [x] Preserve/restore the original persistent prepare manifest after the accidental second prepare.
 2. [x] Reach the prepare boundary: all TrueNAS Apps stopped, Docker empty, Talos workers then control plane stopped, VMs `STOPPED`, `phase=PREPARED`.
@@ -41,12 +45,10 @@ Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad cle
 4. [x] Reboot TrueNAS through the supported TrueNAS path; boot ID changed.
 5. [x] Run `--post-reboot-check`: TrueNAS ready, Docker/IPAM/br0/observer network valid, Talos APIs reachable and Kubernetes 3/3 Ready.
 6. [x] Run one fresh post-reboot CSI regression: provisioning, publishContext, cross-worker RWX and reclaim are green.
-7. [ ] Complete `--resume` from the saved original manifest. The old resume implementation exposed two stop-the-world defects:
-   - `code` eventually became healthy but its slow package provisioning exceeded the old RUNNING acceptance window;
-   - Graylog was started before Mongo/OpenSearch Security, remained `DEPLOYING`, and prevented every later App from being attempted.
+7. [x] Resume the saved original manifest sufficiently for platform acceptance. All critical services needed for the accepted baseline are RUNNING; `nginx-proxy-manager`, `openarchiver` and `paperless-ngx` are explicitly deferred and do not block this transaction.
 8. [x] Diagnose the Graylog failure: logs proved `UnknownHostException: mongo` followed by connection refusal; `apps/graylog/compose.yml` requires Mongo and OpenSearch Security before `/docker-entrypoint.sh`.
-9. [ ] Materialize/review the repaired #191 lifecycle bundle, resume the frozen membership with the corrected order, then run `--verify`, cluster/network gates, Docker IPAM audit, platform diagnostics and orphan-shim check.
-10. [ ] Only then start bounded P5 cleanup and unlock P1/P2 work.
+9. [x] Validate the repaired #191 lifecycle planner: Docker Socket Proxy is isolated in bootstrap-runtime; foundation, primary-data, secondary-data, platform and application waves are ordered correctly; Talos/Kubernetes preflight is green.
+10. [x] Close the reboot transaction operationally and move the three deferred App failures into P3 service debt. Keep the frozen manifest and strict verifier as incident evidence.
 
 ## P0.1 — reboot lifecycle hardening
 
@@ -58,7 +60,8 @@ Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad cle
 - [x] Make `reboot-homelab.sh --resume` delegate App lifecycle handling to the reconciler instead of maintaining a second start/wait loop.
 - [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
 - [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity. This maps multi-container Apps such as `opensearch-security -> opensearch` without duplicating metadata everywhere.
-- [x] Add a lifecycle fixture proving foundations precede data tiers, Mongo/OpenSearch precede Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
+- [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precede Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
+- [ ] Add an explicit operator-acceptance/deferred annotation for historical manifests so an incident can record non-blocking exceptions without weakening strict verification or changing frozen membership.
 - [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
 - [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
@@ -71,11 +74,12 @@ Required `x-nabla` topology relations remain authoritative. Phases are a seconda
 
 Startup order:
 
-1. **Foundation** — Pi-hole, AdGuard Home, Traefik, Docker Socket Proxy and Vaultwarden. Keep DNS, ingress and restricted Docker API primitives available before consumers.
+0. **Bootstrap runtime** — Docker Socket Proxy. Start restricted Docker API infrastructure before dependent automation and dashboards.
+1. **Foundation** — Pi-hole, AdGuard Home, Traefik and Vaultwarden. Keep DNS, ingress and secret primitives available before consumers.
 2. **Network / edge support** — remaining network/infrastructure services such as Cloudflared, DDNS and secondary reverse-proxy tooling when present in the saved resume set.
 3. **Primary state** — PostgreSQL, MongoDB, InfluxDB, Redis and Kafka/message-broker equivalents.
 4. **Secondary/heavy data** — ClickHouse, OpenSearch, Elasticsearch, MinIO, Garage and other search/object/analytics storage engines.
-5. **Platform services** — observability, security, operations and automation consumers such as Graylog, Prometheus/Grafana, CrowdSec and n8n, subject to their explicit dependencies.
+5. **Platform services** — observability, security, operations and automation consumers such as Graylog, Prometheus/Grafana, CrowdSec, Sentry, Suricata and n8n, subject to their explicit dependencies.
 6. **Applications** — remaining product, productivity and development workloads.
 
 Shutdown is the exact reverse flattened start order:
@@ -84,7 +88,8 @@ Shutdown is the exact reverse flattened start order:
 - platform services stop before search/analytics stores;
 - heavy stores stop before their primary databases/brokers when no stronger topology relation says otherwise;
 - network/edge support stops after consumers;
-- DNS/ingress/foundation services stop last.
+- DNS/ingress/foundation services stop last;
+- Docker Socket Proxy stops after all declared consumers.
 
 Operational invariants:
 
@@ -94,6 +99,7 @@ Operational invariants:
 - a `DEPLOYING` App is waited on instead of receiving a duplicate `app.start`;
 - a historical reboot manifest may have its ordering repaired, but its selected App membership may not change;
 - Apps intentionally STOPPED before the transaction remain excluded unless explicitly present in the reviewed resume set;
+- operator acceptance exceptions are incident annotations, not silent mutations of the frozen manifest or a relaxation of the default verifier;
 - bundle activation requires syntax/checksum validation plus presence of phased planning and resume reconciliation features.
 
 ## P0.2 — CSI hardening
@@ -129,14 +135,22 @@ Start after P0 acceptance.
 ## P3 — runtime/services
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
-- [ ] Sentry: complete stable consumer heartbeat/Kafka-group acceptance and synthetic event proof.
+- [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
+- [x] Sentry post-reboot runtime acceptance: specialist diagnostic passes; consumers are healthy; Snuba→ClickHouse/Kafka/Redis, Web→Kafka/Redis, Taskworker→Taskbroker, Relay→Redis and NGINX→Web/Relay are green.
+- [ ] Sentry: add the remaining synthetic event / project-ingestion proof and keep stable consumer heartbeat/Kafka-group acceptance as a regression gate.
+- [ ] **Priority: Suricata** — stop the restart loop, validate the TrueNAS `br0` capture interface, configuration/mount permissions and recent logs, then prove `eve.json` production and CrowdSec/Alloy consumption. `scripts/truenas/diagnose-suricata.sh` is the read-only first gate.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
-- [ ] AutoKuma TrueNAS registration.
+- [ ] **Uptime Kuma / AutoKuma** — AutoKuma 2.x must receive `kuma.url`; target Uptime Kuma is intended on host port `31050`. Confirm whether the native Uptime Kuma App still exists, then migrate Uptime Kuma itself to repository-owned Compose and keep AutoKuma as the declarative reconciler. AutoKuma does not replace the Uptime Kuma server.
+- [ ] **Homarr bootstrap** — `https://homarr.albandrieu.com/init` still asks for manual initialization. Add an idempotent first-run bootstrap that detects the init state, uses secret-backed admin/bootstrap data, then applies the generated topology manifest (`apps/homarr/generated/apps.json`) through `homarr-sync`. Do not put credentials in generated topology.
+- [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps for now and are explicitly represented as `native-truenas-*` topology nodes with `runtime.appId`; migrate both to repository-owned Compose only with data/config backup, rollback and consumer validation.
+- [ ] **Deferred: nginx-proxy-manager** — investigate the persistent `DEPLOYING` / unhealthy state after its long ownership/bootstrap phase. The UID 568 `useradd` warning is not by itself a crash signal; isolate healthcheck/database/startup completion later.
+- [ ] **Deferred: OpenArchiver** — restore the previously saved App or formally remove it from expected runtime intent after ownership/use review.
+- [ ] **Deferred: Paperless-ngx** — restore health, then refactor its dedicated PostgreSQL and Redis components to the shared PostgreSQL/Redis services with dedicated database/user/Redis DB or namespace, migration backup and rollback.
 - [ ] Akvorado ingestion/query acceptance.
-- [ ] ntopng / Suricata reconciliation.
+- [ ] ntopng reconciliation after Suricata.
 - [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
 - [ ] Build a derived immutable code-server image with required packages/extensions baked in; remove apt/package installation from the reboot/startup critical path.
-- [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route. Sentry completion remains ahead of this work.
+- [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route.
 
 ## P3.1 — FastAPI homelab observer
 
@@ -157,14 +171,14 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 ## P5 — bounded post-reboot cleanup
 
-Entry condition: `--verify` is green and P0 is closed.
+Entry condition: P0 is operationally accepted. A strict frozen-manifest `--verify` may remain red only for explicitly documented deferred Apps; any critical/platform regression still blocks cleanup.
 
-- [ ] Archive reboot manifest, boot IDs, source SHA and incident evidence.
+- [ ] Archive reboot manifest, boot IDs, source SHA, operator acceptance exceptions and incident evidence.
 - [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset remains.
 - [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence; never use `docker network prune`.
 - [ ] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend`.
 - [ ] Remove only reviewed zero-endpoint stale networks through their canonical owner lifecycle.
-- [ ] Keep pre-existing CRASHED Apps as separately tracked debt, not reboot regressions.
+- [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
 - [ ] Re-run orphan-shim diagnostics after Apps settle.
 
 ## Accepted code/debt reduction plan
@@ -206,18 +220,18 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 
 ## Ordering rule
 
-Until P0 closes:
+P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-finish App resume / dependency ordering
-  -> --verify + platform gates
-  -> close P0
+Suricata recovery + Sentry synthetic regression
+  -> AutoKuma/Uptime Kuma endpoint + migration
+  -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
+  -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
   -> Kubernetes ingress + test.albandrieu.com
-  -> Sentry / Scrutiny / remaining service work
+  -> Scrutiny / remaining service work
   -> Docling / OpenRAG-LiteLLM
-  -> bounded P5 cleanup
 ```
