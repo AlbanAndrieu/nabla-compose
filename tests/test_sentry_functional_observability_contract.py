@@ -12,14 +12,16 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
     def read(self, path: str) -> str:
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_statsd_exporter_is_owned_by_prometheus_and_internal(self) -> None:
-        compose = self.read("apps/prometheus/compose.yml")
-        self.assertIn("statsd-exporter:", compose)
-        self.assertIn("prom/statsd-exporter:${STATSD_EXPORTER_IMG:-v0.30.0}", compose)
-        self.assertIn('"172.17.0.24:9102:9102"', compose)
-        self.assertIn("- statsd-exporter", compose)
-        self.assertNotIn('"172.17.0.24:9125:9125"', compose)
-        self.assertNotIn('"172.17.0.24:9125:9125/udp"', compose)
+    def test_statsd_implementation_is_deferred_until_true_nas_preflight(self) -> None:
+        prometheus_compose = self.read("apps/prometheus/compose.yml")
+        prometheus_config = self.read("apps/prometheus/prometheus.yml")
+        sentry_config = self.read("apps/sentry/config/sentry.conf.py")
+        taskbroker_config = self.read("apps/sentry/config/taskbroker.yml")
+        self.assertNotIn("statsd-exporter:", prometheus_compose)
+        self.assertNotIn("job_name: sentry_statsd", prometheus_config)
+        self.assertNotIn("SENTRY_STATSD_ADDR", sentry_config)
+        self.assertNotIn("StatsdMetricsBackend", sentry_config)
+        self.assertNotIn("statsd_addr:", taskbroker_config)
 
     def test_kafka_exporter_is_co_located_with_kafka_app(self) -> None:
         prometheus_compose = self.read("apps/prometheus/compose.yml")
@@ -32,19 +34,11 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertIn("condition: service_healthy", kafka_compose)
         self.assertIn('"172.17.0.24:9308:9308"', kafka_compose)
 
-    def test_prometheus_scrapes_functional_sentry_kafka_metrics(self) -> None:
+    def test_prometheus_scrapes_kafka_exporter(self) -> None:
         config = self.read("apps/prometheus/prometheus.yml")
-        self.assertIn("job_name: sentry_statsd", config)
-        self.assertIn("172.17.0.24:9102", config)
         self.assertIn("job_name: kafka_exporter", config)
         self.assertIn("172.17.0.24:9308", config)
-
-    def test_sentry_and_taskbroker_emit_statsd_over_intranet(self) -> None:
-        sentry_config = self.read("apps/sentry/config/sentry.conf.py")
-        taskbroker_config = self.read("apps/sentry/config/taskbroker.yml")
-        self.assertIn('SENTRY_STATSD_ADDR", "statsd-exporter:9125"', sentry_config)
-        self.assertIn("StatsdMetricsBackend", sentry_config)
-        self.assertIn("statsd_addr: statsd-exporter:9125", taskbroker_config)
+        self.assertNotIn("job_name: sentry_statsd", config)
 
     def test_alerts_detect_process_green_pipeline_dead(self) -> None:
         rules = self.read("apps/prometheus/rules/sentry-kafka.rules.yml")
@@ -54,14 +48,13 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertIn("or vector(0)", rules)
         self.assertIn("alert: SentryTaskbrokerLagHigh", rules)
         self.assertIn("kafka_consumergroup_lag", rules)
-        self.assertIn("alert: SentryStatsdExporterUdpDrops", rules)
+        self.assertNotIn("SentryStatsdExporter", rules)
 
-    def test_taskbroker_diagnostic_correlates_exporter_metrics_read_only(self) -> None:
+    def test_taskbroker_diagnostic_is_read_only_and_exporters_optional(self) -> None:
         script = self.read("scripts/truenas/diagnose-sentry-taskbroker.sh")
         self.assertIn("SENTRY_STATSD_METRICS_URL", script)
         self.assertIn("SENTRY_KAFKA_EXPORTER_URL", script)
-        self.assertIn("taskbroker_", script)
-        self.assertIn("kafka_consumergroup_", script)
+        self.assertIn("UNAVAILABLE", script)
         self.assertIn("READ-ONLY", script)
         self.assertNotIn("docker restart", script)
         self.assertNotIn("--reset-offsets", script)
@@ -80,7 +73,9 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn("app.redeploy", script)
 
     def test_exporter_conflict_preflight_is_read_only(self) -> None:
-        script = self.read("scripts/truenas/check-observability-exporter-conflicts.sh")
+        path = ROOT / "scripts/truenas/check-observability-exporter-conflicts.sh"
+        script = path.read_text(encoding="utf-8")
+        self.assertTrue(os.access(path, os.X_OK), "exporter preflight must be executable")
         self.assertIn("reporting.exporters.query", script)
         for port in ("8125", "9125", "9102", "9308"):
             self.assertIn(port, script)
