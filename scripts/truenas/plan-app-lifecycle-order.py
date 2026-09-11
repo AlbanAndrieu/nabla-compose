@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -22,6 +23,58 @@ TARGET_BEFORE_SOURCE = {
 }
 SOURCE_BEFORE_TARGET = {"providesApi"}
 
+# Phase ordering is deliberately coarse. Required topology relations remain the
+# authority; phases only split simultaneously-ready Apps into safer bootstrap
+# barriers. Stop waves are the exact reverse of start waves.
+FOUNDATION_APPS = {
+    "pihole",
+    "adguard-home",
+    "traefik",
+    "docker-socket-proxy",
+    "vaultwarden",
+}
+PRIMARY_DATA_APPS = {
+    "postgres",
+    "mongo",
+    "influxdb",
+    "redis",
+    "kafka",
+}
+SECONDARY_DATA_APPS = {
+    "clickhouse",
+    "opensearch",
+    "elasticsearch",
+    "elastic-search",
+    "minio",
+    "garage",
+}
+DATABASE_KINDS = {
+    "database",
+    "cache",
+    "message-broker",
+    "queue",
+    "key-value-store",
+}
+SECONDARY_DATA_KINDS = {
+    "search",
+    "object-storage",
+    "analytics",
+    "metrics-storage",
+    "log-storage",
+    "time-series-database",
+}
+NETWORK_CATEGORIES = {"network", "infrastructure"}
+PLATFORM_CATEGORIES = {"observability", "security", "operations", "automation"}
+DEFAULT_PHASE = 50
+PHASE_NAMES = {
+    0: "foundation",
+    10: "network-edge",
+    20: "primary-data",
+    30: "secondary-data",
+    40: "platform-services",
+    50: "applications",
+}
+
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -31,20 +84,111 @@ def parse_states(raw: str) -> set[str]:
     return {item.strip().upper() for item in raw.split(",") if item.strip()}
 
 
-def service_to_app(services: dict) -> dict[str, str]:
+def normalized_app_key(value: object) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(value).lower())
+
+
+def resolve_known_app(candidate: object, known_app_ids: set[str]) -> str | None:
+    if not candidate:
+        return None
+    candidate_text = str(candidate)
+    if candidate_text in known_app_ids:
+        return candidate_text
+
+    key = normalized_app_key(candidate_text)
+    matches = sorted(app for app in known_app_ids if normalized_app_key(app) == key)
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
+    runtime = service.get("runtime") or {}
+    if runtime.get("provider") != "truenas-app":
+        return None
+
+    explicit = resolve_known_app(runtime.get("appId"), known_app_ids)
+    if explicit:
+        return explicit
+
+    # Repository-managed TrueNAS Apps normally live under apps/<app-id>/.
+    # This is stronger evidence than containerService and fixes multi-service
+    # Apps such as opensearch/opensearch-security/dashboards, grafana/alloy,
+    # pihole/pihole-dns-sync and sample/fastapi-sample without duplicating an
+    # appId on every service node.
+    source_path = str(service.get("sourcePath") or "")
+    parts = Path(source_path).parts
+    if len(parts) >= 2 and parts[0] == "apps":
+        inferred = resolve_known_app(parts[1], known_app_ids)
+        if inferred:
+            return inferred
+
+    # Root-level compose services and legacy catalog entries can still map when
+    # their service/container identity is the TrueNAS App identity.
+    for candidate in (
+        service.get("id"),
+        service.get("composeService"),
+        runtime.get("containerService"),
+    ):
+        inferred = resolve_known_app(candidate, known_app_ids)
+        if inferred:
+            return inferred
+    return None
+
+
+def service_to_app(services: dict, known_app_ids: set[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for service in services.get("services", []):
-        runtime = service.get("runtime") or {}
-        if runtime.get("provider") != "truenas-app":
-            continue
-        app_id = runtime.get("appId")
         service_id = service.get("id")
+        app_id = infer_service_app(service, known_app_ids)
         if service_id and app_id:
-            result[str(service_id)] = str(app_id)
+            result[str(service_id)] = app_id
     return result
 
 
-def topo_waves(nodes: set[str], edges: set[tuple[str, str]]) -> list[list[str]]:
+def lifecycle_phase(app: str, app_services: list[dict]) -> int:
+    if app in FOUNDATION_APPS:
+        return 0
+    if app in PRIMARY_DATA_APPS:
+        return 20
+    if app in SECONDARY_DATA_APPS:
+        return 30
+
+    kinds = {str(service.get("kind") or "") for service in app_services}
+    categories = {str(service.get("category") or "") for service in app_services}
+
+    if kinds & DATABASE_KINDS:
+        return 20
+    if kinds & SECONDARY_DATA_KINDS or "data" in categories:
+        return 30
+    if categories & NETWORK_CATEGORIES:
+        return 10
+    if categories & PLATFORM_CATEGORIES:
+        return 40
+    return DEFAULT_PHASE
+
+
+def lifecycle_priorities(
+    services: dict,
+    mapping: dict[str, str],
+    nodes: set[str],
+) -> dict[str, int]:
+    services_by_app: dict[str, list[dict]] = defaultdict(list)
+    for service in services.get("services", []):
+        app = mapping.get(str(service.get("id", "")))
+        if app:
+            services_by_app[app].append(service)
+    return {
+        app: lifecycle_phase(app, services_by_app.get(app, []))
+        for app in nodes
+    }
+
+
+def topo_waves(
+    nodes: set[str],
+    edges: set[tuple[str, str]],
+    priorities: dict[str, int],
+) -> list[list[str]]:
     incoming = {node: 0 for node in nodes}
     outgoing: dict[str, set[str]] = defaultdict(set)
     for before, after in edges:
@@ -54,21 +198,29 @@ def topo_waves(nodes: set[str], edges: set[tuple[str, str]]) -> list[list[str]]:
             outgoing[before].add(after)
             incoming[after] += 1
 
-    ready = sorted(node for node, degree in incoming.items() if degree == 0)
+    ready = {node for node, degree in incoming.items() if degree == 0}
     waves: list[list[str]] = []
     visited: set[str] = set()
 
     while ready:
-        wave = ready
+        # Required relations define readiness. Among all currently-ready nodes,
+        # run only the earliest platform phase and make it a real barrier before
+        # moving to databases/search/platform/application phases.
+        earliest_phase = min(priorities.get(node, DEFAULT_PHASE) for node in ready)
+        wave = sorted(
+            node
+            for node in ready
+            if priorities.get(node, DEFAULT_PHASE) == earliest_phase
+        )
         waves.append(wave)
-        next_ready: set[str] = set()
+
         for node in wave:
+            ready.remove(node)
             visited.add(node)
             for dependent in sorted(outgoing.get(node, ())):
                 incoming[dependent] -= 1
                 if incoming[dependent] == 0:
-                    next_ready.add(dependent)
-        ready = sorted(next_ready)
+                    ready.add(dependent)
 
     remaining = sorted(nodes - visited)
     if remaining:
@@ -117,9 +269,10 @@ def main() -> int:
         )
     selected |= forced
 
-    mapping = service_to_app(services)
+    mapping = service_to_app(services, known_app_ids)
     mapped_apps = set(mapping.values()) & selected
     unmapped_apps = sorted(selected - mapped_apps)
+    priorities = lifecycle_priorities(services, mapping, selected)
 
     edges: set[tuple[str, str]] = set()
     used_relations = []
@@ -154,16 +307,12 @@ def main() -> int:
                 }
             )
 
-    mapped_waves = topo_waves(mapped_apps, edges) if mapped_apps else []
-    start_waves = list(mapped_waves)
-    if unmapped_apps:
-        # Unmapped apps have no safe dependency evidence. Start them only after
-        # topology-backed waves and stop them first.
-        start_waves.append(unmapped_apps)
-
-    stop_waves = [list(reversed(wave)) for wave in reversed(mapped_waves)]
-    if unmapped_apps:
-        stop_waves.insert(0, list(reversed(unmapped_apps)))
+    # All selected Apps participate in phase ordering. Unmapped Apps simply have
+    # no topology edges; the lifecycle phase still keeps known foundations/data
+    # services in a safe position, while unknown Apps default to the final
+    # application phase and remain visible in unmapped_apps for debt tracking.
+    start_waves = topo_waves(selected, edges, priorities) if selected else []
+    stop_waves = [list(reversed(wave)) for wave in reversed(start_waves)]
 
     result = {
         "states": sorted(states),
@@ -171,7 +320,20 @@ def main() -> int:
         "selected_apps": sorted(selected),
         "mapped_apps": sorted(mapped_apps),
         "unmapped_apps": unmapped_apps,
+        "lifecycle_phase_by_app": {
+            app: {
+                "order": priorities.get(app, DEFAULT_PHASE),
+                "name": PHASE_NAMES.get(priorities.get(app, DEFAULT_PHASE), "applications"),
+            }
+            for app in sorted(selected)
+        },
         "start_waves": start_waves,
+        "start_wave_phases": [
+            PHASE_NAMES.get(priorities.get(wave[0], DEFAULT_PHASE), "applications")
+            if wave
+            else "applications"
+            for wave in start_waves
+        ],
         "start_order": [app for wave in start_waves for app in wave],
         "stop_waves": stop_waves,
         "stop_order": [app for wave in stop_waves for app in wave],
