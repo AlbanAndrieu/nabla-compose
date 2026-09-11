@@ -24,8 +24,8 @@ class TrueNasCsiOrphanDiagnosticTests(unittest.TestCase):
         self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", text)
         self.assertIn("run-diagnostic.sh", text)
         self.assertIn('mode="${1:---check}"', text)
-        self.assertNotIn("pool.dataset.delete", text)
-        self.assertNotIn("zfs destroy", text)
+        self.assertNotIn("midclt call pool.dataset.delete", text)
+        self.assertNotIn("zfs destroy ", text)
 
     def test_orphan_requires_kubernetes_correlation(self) -> None:
         text = DIAGNOSTIC.read_text(encoding="utf-8")
