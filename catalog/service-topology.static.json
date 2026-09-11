@@ -37,10 +37,34 @@
       "securityFunctions": ["protect", "detect"]
     },
     {
+      "id": "adguard-home",
+      "name": "AdGuard Home",
+      "kind": "dns-filter",
+      "category": "network",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "TrueNAS-hosted network DNS filtering service retained from the runtime inventory.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "adguard-home"
+      },
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      }
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
       "kind": "database",
-      "category": "data"
+      "category": "data",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "postgres"
+      },
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      }
     },
     {
       "id": "talos",
