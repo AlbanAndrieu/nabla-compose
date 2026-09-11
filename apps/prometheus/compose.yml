@@ -159,4 +159,3 @@ networks:
     name: intranet
   traefik_network:
     external: true
-    name: traefik_network
