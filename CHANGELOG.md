@@ -1,3 +1,10 @@
+## [0.34.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.0...0.34.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **csi:** restore TrueNAS publishContext attach path ([#187](https://github.com/AlbanAndrieu/nabla-compose/issues/187)) ([1e4fc2b](https://github.com/AlbanAndrieu/nabla-compose/commit/1e4fc2b54a0c5ddf144e196b5094276c2c3fc60d))
+
 # [0.34.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.33.1...0.34.0) (2026-09-11)
 
 
