@@ -83,6 +83,29 @@
         }
       }
     },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "priority"],
+      "properties": {
+        "phase": {
+          "enum": [
+            "bootstrap-runtime",
+            "foundation",
+            "network-edge",
+            "primary-data",
+            "secondary-data",
+            "platform-services",
+            "applications"
+          ]
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
@@ -160,6 +183,9 @@
         },
         "runtime": {
           "$ref": "#/$defs/runtime"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle"
         },
         "monitoring": {
           "$ref": "#/$defs/monitoring"
