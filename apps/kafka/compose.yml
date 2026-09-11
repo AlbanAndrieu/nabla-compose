@@ -47,11 +47,17 @@ services:
     volumes:
       - /mnt/cpool/kafka:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 9092"]
-      interval: 10s
+      # A listening TCP socket is not enough: Sentry observed coordinator and
+      # ApiVersion timeouts while 9092 was still open. Require a real broker
+      # metadata request before Kafka is considered ready by dependent Apps.
+      test:
+        - CMD-SHELL
+        - >-
+          kafka-topics --bootstrap-server 127.0.0.1:9092 --list >/dev/null 2>&1
+      interval: 15s
       timeout: 10s
-      retries: 30
-      start_period: 20s
+      retries: 20
+      start_period: 30s
     networks:
       intranet:
         aliases:
