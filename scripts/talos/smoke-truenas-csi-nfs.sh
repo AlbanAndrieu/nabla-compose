@@ -14,6 +14,7 @@ STORAGE_CLASS="nabla-truenas-nfs"
 MARKER="nabla-truenas-csi-cross-node-v1"
 SMOKE_IMAGE="${CSI_SMOKE_IMAGE:-busybox@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028}"
 PVC_TIMEOUT_SECONDS="${CSI_PVC_TIMEOUT_SECONDS:-180}"
+NAMESPACE_DELETE_TIMEOUT_SECONDS="${CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS:-120}"
 DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
 KEEP_ON_FAILURE="${CSI_SMOKE_KEEP_ON_FAILURE:-false}"
 
@@ -36,6 +37,8 @@ done
 
 [[ "${PVC_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_PVC_TIMEOUT_SECONDS must be a positive integer"
+[[ "${NAMESPACE_DELETE_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS must be a positive integer"
 [[ "${DIAGNOSTIC_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_DIAGNOSTIC_TAIL must be a positive integer"
 
@@ -122,6 +125,31 @@ dump_pvc_provisioning_diagnostics() {
   printf '%s\n' '--- TrueNAS csi-controller logs ---' >&2
   kubectl -n truenas-csi logs "${controller_pod}" -c csi-controller \
     --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+}
+
+dump_cleanup_diagnostics() {
+  local pv_name="$1"
+
+  printf '\n🔎 TrueNAS CSI namespace/reclaim diagnostics\n' >&2
+  printf '%s\n' '--- namespace termination ---' >&2
+  kubectl get namespace "${NAMESPACE}" -o json 2>/dev/null |
+    jq '{name: .metadata.name, deletionTimestamp: .metadata.deletionTimestamp, finalizers: .spec.finalizers, conditions: .status.conditions}' >&2 || true
+
+  printf '%s\n' '--- remaining namespace resources ---' >&2
+  kubectl -n "${NAMESPACE}" get pvc,pod -o wide >&2 2>/dev/null || true
+
+  printf '%s\n' '--- persistent volume ---' >&2
+  kubectl get pv "${pv_name}" -o json 2>/dev/null |
+    jq '{name: .metadata.name, deletionTimestamp: .metadata.deletionTimestamp, finalizers: .metadata.finalizers, phase: .status.phase, claimRef: .spec.claimRef, reclaimPolicy: .spec.persistentVolumeReclaimPolicy, volumeHandle: .spec.csi.volumeHandle}' >&2 || true
+  kubectl describe pv "${pv_name}" 2>&1 | tail -n "${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- recent CSI provisioner logs ---' >&2
+  kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-provisioner \
+    --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- recent TrueNAS CSI controller logs ---' >&2
+  kubectl -n truenas-csi logs deployment/truenas-csi-controller -c csi-controller \
+    --since=10m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
 }
 
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml |
@@ -243,9 +271,25 @@ if [[ "${KEEP}" == "true" ]]; then
   exit 0
 fi
 
-printf '🔎 deleting disposable CSI smoke namespace and waiting for PV reclaim\n'
-kubectl delete namespace "${NAMESPACE}" --wait=true >/dev/null
+printf '🔎 deleting disposable CSI smoke namespace and waiting up to %ss for namespace termination\n' \
+  "${NAMESPACE_DELETE_TIMEOUT_SECONDS}"
+kubectl delete namespace "${NAMESPACE}" --wait=false >/dev/null
+namespace_deleted=false
+deadline=$((SECONDS + NAMESPACE_DELETE_TIMEOUT_SECONDS))
+while ((SECONDS < deadline)); do
+  if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
+    namespace_deleted=true
+    break
+  fi
+  sleep 2
+done
+if [[ "${namespace_deleted}" != "true" ]]; then
+  KEEP=true
+  dump_cleanup_diagnostics "${pv}"
+  fail "namespace ${NAMESPACE} did not terminate within ${NAMESPACE_DELETE_TIMEOUT_SECONDS}s; retained current state for finalizer/reclaim diagnosis"
+fi
 CLEANUP_DONE=true
+ok "smoke namespace ${NAMESPACE} terminated"
 
 pv_deleted=false
 for _ in $(seq 1 90); do
@@ -255,8 +299,10 @@ for _ in $(seq 1 90); do
   fi
   sleep 2
 done
-[[ "${pv_deleted}" == "true" ]] ||
+if [[ "${pv_deleted}" != "true" ]]; then
+  dump_cleanup_diagnostics "${pv}"
   fail "PV ${pv} was not reclaimed after namespace/PVC deletion"
+fi
 ok "Kubernetes PV ${pv} reclaimed after PVC deletion"
 
 printf 'ℹ️  verify TrueNAS reclaim: dataset=%s share_path=%s\n' \
