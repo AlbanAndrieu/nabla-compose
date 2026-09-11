@@ -30,12 +30,16 @@ class SentrySuricataRuntimeContractTest(unittest.TestCase):
         script = self.read("scripts/truenas/smoke-sentry-event.sh")
 
         self.assertIn("SENTRY_RELAY_CONTAINER", script)
+        self.assertIn("SENTRY_TASKBROKER_CONTAINER", script)
+        self.assertIn("SENTRY_TASKWORKER_CONTAINER", script)
         self.assertIn("Kafka broker metadata readiness", script)
         self.assertIn("ingest-events log-end before=", script)
         self.assertIn("events        log-end before=", script)
         self.assertIn("stage=relay-kafka-publish", script)
+        self.assertIn("substage=relay-project-config-pending", script)
         self.assertIn("stage=ingest-consumer", script)
         self.assertIn("stage=snuba-clickhouse", script)
+        self.assertIn("for group in ingest-consumer snuba-consumers post-process-forwarder taskworker", script)
         self.assertIn("Recent Kafka broker warnings/errors", script)
         self.assertIn("docker logs --since 10m", script)
 
