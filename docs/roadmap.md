@@ -11,6 +11,7 @@ notes remain in the specialized roadmaps:
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
 - [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
+- [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 
 ## Current platform state
@@ -42,6 +43,7 @@ notes remain in the specialized roadmaps:
 - [x] First real master DAST executed on 2026-09-09: ZAP crawled 18 URLs with `FAIL-NEW=0`; the initial strict policy failed only because nine passive WARN categories were treated as fatal. The follow-up keeps those WARNs visible, promotes high-signal rules to explicit `FAIL`, splits filtered FastAPI API versus TrueNAS API transport coverage, and excludes pfSense/Snort/pfBlocker plus aggregate health routes from the API DAST input to avoid appliance load.
 - [ ] ZAP passive hardening backlog — review cache-control (10015), cross-domain JavaScript (10017), CSP (10038), cacheability (10049), Permissions-Policy (10063), private-IP disclosure on `/sickz` (rule 2), SRI (90003) and COEP (90004). `Modern Web Application` (10109) is informational; do not blanket-ignore the remaining warnings.
 - [ ] GitHub merge enforcement — make `SAST / CodeQL (Python)`, `Production pre/post-deploy smoke`, `DAST master baseline gate` and the agent/pre-commit quality gate required on `master`. #161 merged while MegaLinter was still running, proving workflow presence alone is not sufficient; no repository Ruleset is currently exposed and the connected GitHub App cannot mutate classic branch protection.
+- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use Ubuntu 24.04 LTS and the focused `runner-build` toolchain from `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted runners, prefer an unprivileged LXC plus remote builder, and treat privileged nested Docker as a separate trusted-only security exception.
 - [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
