@@ -13,7 +13,7 @@ The first proven stalled stage is before `ingest-events`: its Kafka log-end offs
 The investigation isolated two distinct Taskbroker failure layers:
 
 1. **Original functional failure:** Taskbroker initially joined Kafka, then hit a 60-second `SESSTMOUT`, revoked `taskworker` and `events-subscription-results`, and never showed a successful rejoin. The process and gRPC server remained alive while Kafka group `taskworker` had zero active members and growing lag.
-2. **Restart/configuration regression exposed by the recovery experiment:** restarting only Taskbroker reloaded a newer bind-mounted metrics configuration. Taskbroker then entered a restart loop with exit code `101`, panicking in `src/metrics.rs` because its configured metrics/StatsD socket address could not be resolved. This startup failure now masks the original Kafka rejoin failure until Taskbroker bootability is restored.
+2. **Restart/configuration regression exposed by the recovery experiment:** restarting only Taskbroker caused it to enter a restart loop with exit code `101`, panicking in `src/metrics.rs` because the effective metrics/StatsD socket address could not be resolved. This startup failure now masks the original Kafka rejoin failure until Taskbroker bootability is restored.
 
 The Sentry Taskworker container remained Docker `healthy` during the Taskbroker crash loop, but its logs showed repeated gRPC `UNAVAILABLE`, `Socket closed`, `No route to host` and `Connection refused` errors against `taskbroker:50051`. Docker health is therefore explicitly insufficient for this path.
 
@@ -106,8 +106,8 @@ The expected recovery did not occur:
 before_members = 0
 before_lag     = 53204
 
-after_members  = 0
-after_lag      ≈54204
+after_members = 0
+after_lag     ≈54204
 ```
 
 During the observation window Taskbroker transitioned into `restarting`. A subsequent diagnostic showed:
@@ -127,9 +127,31 @@ Could not resolve into a socket address
 failed to lookup address information: Name or service not known
 ```
 
-This means the targeted restart did **not** provide a valid test of Kafka consumer rejoin. It first exposed configuration drift between the configuration loaded by the long-running process and the bind-mounted configuration re-read on restart.
+This means the targeted restart did **not** provide a valid test of Kafka consumer rejoin. It first exposed a Taskbroker startup-input drift that must be identified before the Kafka experiment can resume.
 
-The repository branch now intentionally carries no new Taskbroker `statsd_addr` until the live telemetry preflight is complete. The live bind mount must be inspected and reconciled before another restart. A stale value such as `statsd-exporter:9125` is unsafe while that Docker identity does not exist.
+### Effective StatsD configuration precedence
+
+The repository `apps/sentry/config/taskbroker.yml` intentionally has **no explicit `statsd_addr`**. Upstream Taskbroker 26.8 defaults to the numeric loopback `127.0.0.1:8126`, which does not require DNS resolution. Taskbroker configuration precedence is:
+
+```text
+TASKBROKER_STATSD_ADDR environment
+  > /etc/taskbroker/config.yml statsd_addr
+  > upstream default 127.0.0.1:8126
+```
+
+Upstream Sentry self-hosted also supplies `TASKBROKER_STATSD_ADDR` explicitly. Consequently, the current panic must not be attributed to the repository YAML alone: an effective environment override, a stale live bind mount, or a different live image/configuration may supersede the reviewed file.
+
+The read-only Taskbroker diagnostic now reports:
+
+- image and image ID;
+- actual bind source for `/etc/taskbroker/config.yml`;
+- explicit YAML `statsd_addr`, if any;
+- whether `TASKBROKER_STATSD_ADDR` is present in the live container environment;
+- the effective source and value after applying the real precedence;
+- whether that address can be parsed/resolved from the Sentry network;
+- Taskworker → `taskbroker:50051` reachability.
+
+No new StatsD exporter or destination is introduced by this diagnostic work.
 
 ### Taskworker false-green state
 
@@ -173,9 +195,9 @@ This establishes that future telemetry ports are available, but it does **not** 
 
 Before another restart:
 
-1. identify the actual bind source mounted at `/etc/taskbroker/config.yml`;
-2. inspect its effective `statsd_addr`;
-3. if it points to an unresolved service, reconcile the live file with the reviewed repository configuration and preserve a backup;
+1. run `diagnose-sentry-taskbroker.sh` and capture the live image, bind source and effective StatsD source/value;
+2. identify whether the effective value comes from `TASKBROKER_STATSD_ADDR`, the live YAML or Taskbroker's default;
+3. reconcile only the proven source of the invalid value; do not add a new exporter as a workaround;
 4. require Taskbroker to stay `running`, `pid>0`, and stop increasing its restart counter;
 5. require `GRPC server listening on 0.0.0.0:50051`;
 6. require Taskworker to reach `taskbroker:50051` functionally.
@@ -198,16 +220,24 @@ If Taskbroker is stable and reachable but still has zero Kafka members, the orig
 
 ## Guardrails added after the experiment
 
+`diagnose-sentry-taskbroker.sh` now:
+
+- reconstructs the effective StatsD value from environment, live YAML and upstream default;
+- reports image/image ID and the actual bind-mounted config source;
+- validates address parsing/resolution without mutating the runtime;
+- probes Taskworker → `taskbroker:50051` functionally;
+- remains read-only.
+
 `recover-sentry-taskbroker.sh` now:
 
-- inspects the actual bind-mounted `/etc/taskbroker/config.yml` before restart;
-- refuses restart when an explicit non-loopback `statsd_addr` cannot resolve from the Sentry network;
+- performs the same effective configuration reconstruction before a targeted restart;
+- refuses restart when the effective StatsD address cannot be parsed/resolved from the Sentry network;
 - detects `restarting`, `exited` or `dead` immediately and reports logs instead of waiting the full Kafka recovery window;
 - verifies Taskworker can actually reach `taskbroker:50051`;
 - still refuses an unnecessary restart when Kafka already has an active `taskworker` member;
 - still forbids offset reset, topic deletion, SQLite deletion and whole-App redeploy.
 
-`smoke-sentry-event.sh` now invokes `scripts/run-diagnostic.sh` through `bash`, so a missing executable bit on a temporary/worktree copy can no longer hide the Sentry diagnostic behind `Permission denied`.
+`smoke-sentry-event.sh` invokes `scripts/run-diagnostic.sh` through `bash`, so a missing executable bit on a temporary/worktree copy can no longer hide the Sentry diagnostic behind `Permission denied`.
 
 ## Acceptance criteria
 
