@@ -10,6 +10,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: clickhouse
+      lifecycle:
+        phase: secondary-data
+        priority: 30
       relations:
         - target: prometheus
           type: observedBy
