@@ -50,22 +50,31 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertIn("kafka_consumergroup_lag", rules)
         self.assertNotIn("SentryStatsdExporter", rules)
 
-    def test_taskbroker_diagnostic_is_read_only_and_exporters_optional(self) -> None:
+    def test_taskbroker_diagnostic_is_read_only_and_reconstructs_effective_statsd(self) -> None:
         script = self.read("scripts/truenas/diagnose-sentry-taskbroker.sh")
         self.assertIn("SENTRY_STATSD_METRICS_URL", script)
         self.assertIn("SENTRY_KAFKA_EXPORTER_URL", script)
+        self.assertIn("TASKBROKER_STATSD_ADDR", script)
+        self.assertIn("TASKBROKER_DEFAULT_STATSD_ADDR", script)
+        self.assertIn("taskbroker_statsd_source", script)
+        self.assertIn("taskbroker_effective_statsd_addr", script)
+        self.assertIn("socket.getaddrinfo", script)
+        self.assertIn("taskbroker_rpc_from_taskworker", script)
         self.assertIn("UNAVAILABLE", script)
         self.assertIn("READ-ONLY", script)
         self.assertNotIn("docker restart", script)
         self.assertNotIn("--reset-offsets", script)
 
-    def test_targeted_recovery_guards_live_config_and_functional_health(self) -> None:
+    def test_targeted_recovery_guards_effective_config_and_functional_health(self) -> None:
         path = ROOT / "scripts/truenas/recover-sentry-taskbroker.sh"
         script = path.read_text(encoding="utf-8")
         self.assertTrue(os.access(path, os.X_OK), "recovery helper must be executable")
         self.assertIn('docker restart "${TASKBROKER_CONTAINER}"', script)
         self.assertIn('/etc/taskbroker/config.yml', script)
-        self.assertIn("statsd_addr", script)
+        self.assertIn("TASKBROKER_STATSD_ADDR", script)
+        self.assertIn("TASKBROKER_DEFAULT_STATSD_ADDR", script)
+        self.assertIn("taskbroker_statsd_source", script)
+        self.assertIn("effective_statsd_addr", script)
         self.assertIn("socket.getaddrinfo", script)
         self.assertIn("refusing restart", script)
         self.assertIn("restarting|exited|dead", script)
