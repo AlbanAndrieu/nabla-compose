@@ -29,7 +29,7 @@ case "${MODE}" in
     ;;
 esac
 
-require_root
+require_root "run as root on TrueNAS"
 require_commands docker jq pgrep awk kill ps
 
 find_shim_pids() {

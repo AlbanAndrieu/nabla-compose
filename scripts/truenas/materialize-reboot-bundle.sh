@@ -41,7 +41,7 @@ while (($#)); do
   shift
 done
 
-require_root
+require_root "run as root on TrueNAS"
 require_commands git install mktemp sha256sum grep bash python3 mv awk cmp
 [[ -d "${REPO_ROOT}/.git" ]] || fail "repository not found: ${REPO_ROOT}"
 
