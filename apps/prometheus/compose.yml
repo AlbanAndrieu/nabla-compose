@@ -107,7 +107,6 @@ services:
   # remove them instead of marking Prometheus CRASHED for optional telemetry.
 
   statsd-exporter:
-    network_mode: bridge
     image: prom/statsd-exporter:${STATSD_EXPORTER_IMG:-v0.30.0}
     container_name: statsd-exporter
     restart: unless-stopped
@@ -131,10 +130,14 @@ services:
           description: Prometheus scrapes StatsD-translated Sentry and Taskbroker metrics.
           evidence:
             - apps/prometheus/prometheus.yml:job_name=sentry_statsd
+    # Only the Prometheus exposition endpoint is host-published. StatsD input
+    # stays on the shared Docker intranet because it has no authentication.
     ports:
       - "172.17.0.24:9102:9102"
-      - "172.17.0.24:9125:9125"
-      - "172.17.0.24:9125:9125/udp"
+    networks:
+      intranet:
+        aliases:
+          - statsd-exporter
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
