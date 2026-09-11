@@ -22,7 +22,7 @@ notes remain in the specialized roadmaps:
 - [x] **Pod Security baseline is now measured, not assumed** — Talos effective PSA defaults are `enforce=baseline`, `audit=restricted`, `warn=restricted`; `kube-system` is exempt by Talos admission configuration. `truenas-csi` is the explicit `enforce=privileged` infrastructure exception. Normal workloads continue toward `Restricted` enforcement.
 - [x] **Persistent Kubernetes operator CLI after reboot** — Helm `v4.3.0` and Kubara `v0.14.0` are available from the persistent TrueNAS operator tool path and the Kubara CLI contract is green.
 - [ ] **Platform security tools are prepared, not installed** — Vault is `BLOCKED_BY_CSI_ACCEPTANCE`; Falco is `PREFLIGHT_READY` on all three `6.18.44-talos` kernels but remains uninstalled; Kubara CLI is ready but bootstrap is `GATED_CONFIG_MISSING` until a reviewed `config.yaml` exists.
-- [ ] **CSI remains the stateful blocker, now at attach/publishContext** — PR #187 restored `attachRequired=true`, `csi-attacher` and least-privilege VolumeAttachment RBAC. The retained `nabla-csi-rwx` PVC is now `Bound`, but its VolumeAttachment remains `attached=false`, the writer is still `ContainerCreating`, and the controller Deployment has two generations with an old replica pending termination. Resolve the retained controller/VolumeAttachment path, then prove cross-worker RWX + reclaim before Vault.
+- [ ] **CSI remains the stateful blocker, now at credential reload + attach/publishContext acceptance** — PR #187 restores `attachRequired=true`, `csi-attacher` and least-privilege VolumeAttachment RBAC. The retained `nabla-csi-rwx` PVC is `Bound`. The failed corrected-controller rollout has now been attributed to a malformed local `TRUENAS_CSI_API_KEY` that was written into the Kubernetes Secret: the old healthy Pod had a different key fingerprint, while the new controller connected to TrueNAS but was rejected during authentication and therefore never created `/csi/csi.sock`. The Secret was corrected at `2026-09-11T03:19:01Z`; because Secret-backed environment variables are loaded at Pod start, controller and node consumers still need a controlled reload. Require controller `5/5`, old generation retirement, retained VolumeAttachment `attached=true` + NFS metadata, writer/RWX and reclaim before Vault or the planned TrueNAS reboot.
 - [x] FastAPI Sample uses the repository-owned `sample-observer` bridge.
 - [x] TrueNAS observer source is pinned to `10.254.255.9/32`.
 - [x] persisted and active TrueNAS `ui_allowlist` values converge after UI restart/reconciliation.
@@ -119,10 +119,13 @@ green cloud observation must not mask a broken local path.
     Kubara `v0.14.0`). Root owns tool installation/upgrades; `albandrieu` is the
     non-root cluster operator. The 2026-09-11 post-reboot base validation is green
     (Talos transport, 3/3 Kubernetes Ready, etcd, pressure and PSA/PSS). PR #187
-    has moved CSI provisioning to a `Bound` PVC but the retained VolumeAttachment
-    is still `attached=false`; finish controller rollout/publishContext,
-    cross-worker persistence and reclaim before Vault, Kubara/Traefik and the
-    immutable FastAPI ingress smoke on `test.albandrieu.com`.
+    has moved CSI provisioning to a `Bound` PVC. The failed new-controller rollout
+    is now attributed to the malformed local CSI API key and the Kubernetes Secret
+    was corrected at `03:19:01Z`; reload controller/node consumers, require a
+    `5/5` controller and retired old generation, then finish retained
+    VolumeAttachment/publishContext, cross-worker persistence and reclaim before
+    Vault, Kubara/Traefik and the immutable FastAPI ingress smoke on
+    `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
 13. [ ] **Scrutiny + InfluxDB — parallel** — the migration-token fix is now validated on TrueNAS: the legacy authorization `114da3d49d117000` was revoked, the replacement secret is root-owned mode `0600`, `bootstrap-scrutiny-influxdb.sh --check` reports `token=VALID scope=v2`, and `deploy-scrutiny.sh --check` discovers `/dev/sda` through `/dev/sdd` with `target=MISSING ready=APPLY`. A reviewed fresh cutover has now been started with `SCRUTINY_RESET_SQLITE=1`; acceptance remains pending until TrueNAS reports `RUNNING`, the web/API is healthy, the TrueNAS collector sees SMART devices, and the workstation collector is proven to submit its own inventory. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
@@ -251,9 +254,9 @@ TrueNAS-backed NFS/CSI persistence.
 - [x] Talos API TCP/50000 reachability is restored on all three nodes;
 - [x] post-reboot `validate-cluster.sh` acceptance proves 3/3 Ready, etcd members=1, node pressure=none and the effective PSA/PSS posture;
 - [x] effective Talos PSA defaults are observed as `enforce=baseline`, `audit=restricted`, `warn=restricted`; keep `Restricted` as the normal-workload hardening target;
-- [ ] apply the IaC autostart change only if the plan is exactly 3 in-place VM updates, 0 create and 0 destroy;
-- [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` and require all three VMs to report `autostart=true` and `RUNNING`;
-- [ ] separately prove all three Talos VMs start automatically after a controlled TrueNAS reboot without manual VM start intervention;
+- [x] OpenTofu owns the steady-state Talos VM policy with `autostart=true` and `shutdown_timeout=180`; the live policy was reconciled in-place on `taloscp01`, `taloswk01` and `taloswk02` with all three VMs `RUNNING`;
+- [x] `scripts/truenas/reconcile-talos-vm-policy.sh --check` proves the three live VMs match the steady-state boot/shutdown policy;
+- [ ] separately prove all three Talos VMs start automatically after the next controlled TrueNAS reboot without manual VM start intervention;
 - [ ] rerun `scripts/talos/validate-cluster.sh` and `scripts/talos/smoke-kubernetes-network.sh` immediately before CSI changes as regression proof for CoreDNS, Service/ClusterIP and cross-node routing;
 - [ ] before production workload migration, decide whether to enable Talos 1.13 Flannel NetworkPolicy enforcement with `kubeNetworkPoliciesEnabled: true`; without it, NetworkPolicy objects are accepted but not enforced by the default Flannel path.
 
@@ -274,6 +277,7 @@ VolumeAttachment read/patch/status RBAC are required even for this NFS-only path
 - [x] add the NFS-only Talos driver manifest plus explicit non-default `nabla-truenas-nfs` StorageClass;
 - [x] constrain provisioning to `cpool/k8s/csi`, NFSv4.1 and worker-only NFS clients `172.17.0.51/32,172.17.0.52/32`;
 - [x] keep the CSI API key runtime-only: `scripts/talos/install-truenas-csi-nfs.sh` renders the Kubernetes Secret without committing or printing it;
+- [x] fail closed on accidental CSI credential changes: a differing local key is rejected unless `TRUENAS_CSI_ROTATE_CREDENTIAL=1` explicitly authorizes rotation; a corrected out-of-band Secret can be reloaded with `TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1`;
 - [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, VolumeAttachment/publishContext, worker-A write, pod recreation and worker-B persistence;
 - [ ] create a dedicated least-privilege TrueNAS CSI identity/API key; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
 - [x] run the read-only `scripts/talos/validate-csi-prereqs.sh` and retain NFS/manifest evidence;
@@ -281,7 +285,12 @@ VolumeAttachment read/patch/status RBAC are required even for this NFS-only path
 - [x] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the runtime API key and create `nabla-truenas-nfs` as a non-default StorageClass;
 - [x] PR #187 corrects the original missing publishContext cause by restoring `attachRequired=true`, adding `csi-attacher:v4.11.0` and minimum VolumeAttachment RBAC;
 - [x] the retained disposable PVC now reaches `Bound`, proving `CreateVolume`/dynamic provisioning progresses beyond the original timeout;
-- [ ] **finish controller rollout** — two controller generations remain and one old replica is pending termination; identify the new Pod by exact name and require its `csi-attacher` container to be running before interpreting attacher logs;
+- [x] **identify the corrected-controller rollout failure cause** — the new five-container controller reached TrueNAS over WebSocket but authentication was rejected because the local `.env.secrets` `TRUENAS_CSI_API_KEY` contained an erroneous extra `==`; its `csi-controller` exited before creating `/csi/csi.sock`, so attacher/provisioner/resizer failures were secondary;
+- [x] **prove old/new credential divergence without exposing either key** — the old healthy controller carries SHA-256 `3230bacb9571e200f4927e281af935677df83ab5c9ebb718cf9dfa45bdc3a652`, different from the malformed local/Secret fingerprint observed during the failed rollout;
+- [x] **correct the Kubernetes CSI Secret** from the fixed local source; `managedFields` records `kubectl-client-side-apply` update at `2026-09-11T03:19:01Z` while preserving the original Secret creation timestamp;
+- [x] **harden controller runtime checks** — install/preflight now reject non-converged replicas and `ProgressDeadlineExceeded` instead of treating a correct Pod template as runtime readiness;
+- [ ] **reload corrected credential consumers** — run the current #187 install helper with `TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1`, require controller and node rollouts to consume the corrected Secret, and preserve diagnostics if authentication still fails;
+- [ ] **finish controller rollout** — require the newest controller to be `5/5 Running`, `ProgressDeadlineExceeded` cleared and the old no-attacher controller generation retired naturally;
 - [ ] **make retained VolumeAttachment converge** from `attached=false` to `attached=true` with `attachmentMetadata.protocol=nfs`, non-empty `nfsServer` and non-empty `nfsPath`;
 - [ ] **make retained writer Pod leave `ContainerCreating`** and prove NodeStageVolume/NFS mount succeeds without recreating the retained PVC;
 - [ ] harden platform preflight error propagation so a nested CSI `rollout status` failure cannot be followed by a false-green aggregate summary;
