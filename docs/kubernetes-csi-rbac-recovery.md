@@ -63,6 +63,10 @@ RBAC after applying the tracked driver manifest and before waiting for the CSI
 rollout. The operation is idempotent: it patches the ClusterRole only when one
 of the three permissions is missing.
 
+The tracked `kubernetes/truenas-csi/nfs-driver.yaml` also declares the same
+`get/list/watch` permission, so a normal manifest reconciliation cannot remove
+the runtime fix.
+
 `scripts/talos/install-truenas-csi-nfs.sh --check` and
 `scripts/talos/validate-csi-prereqs.sh` both detect an installed RBAC drift and
 fail with an actionable message instead of allowing a PVC to wait until the
@@ -116,3 +120,64 @@ kubectl -n truenas-csi logs deployment/truenas-csi-controller \
 The next expected transition is `CreateVolume` reaching the TrueNAS CSI driver.
 Only after the retained PVC either binds or produces the next concrete error
 should the namespace be removed and the full cross-worker smoke rerun.
+
+## Provisioning and reclaim acceptance reached
+
+After the RBAC correction, the retained PVC resumed without recreation and
+became `Bound`. Kubernetes created a CSI PV whose volume handle mapped to the
+expected child dataset below `cpool/k8s/csi`.
+
+The subsequent cleanup also proved the reclaim path:
+
+```text
+PVC/PV Bound
+  -> namespace/PVC deletion
+  -> PV Released
+  -> external provisioner calls Controller/DeleteVolume
+  -> TrueNAS CSI removes the NFS share/dataset
+  -> provisioner removes its finalizer
+  -> Kubernetes deletes the PV
+```
+
+The appliance-side verification confirmed that the old child dataset no longer
+existed and `sharing.nfs.query` returned no matching share. This closes the
+initial provisioning/RBAC blocker and proves `reclaimPolicy: Delete` for that
+disposable volume.
+
+## Pod mount/readiness timeout
+
+The next full smoke successfully provisioned a fresh RWX PVC but the writer Pod
+did not become Ready within the previous hard-coded 120 second wait. The Pod was
+admitted; the `restricted:latest` PodSecurity output was a warning rather than
+an admission rejection. The next diagnostic boundary is therefore Pod startup
+and NFS mount readiness on the selected worker.
+
+`scripts/talos/smoke-truenas-csi-nfs.sh` now uses:
+
+```text
+CSI_POD_READY_TIMEOUT_SECONDS=300
+```
+
+by default for writer and reader readiness. The value remains configurable for
+a deliberately slower environment.
+
+On writer or reader timeout the smoke now prints:
+
+- Pod status and `describe` output;
+- recent namespace events;
+- `csi-node` logs from the exact worker selected for the Pod;
+- `csi-node-driver-registrar` logs from the same worker.
+
+When `CSI_SMOKE_KEEP_ON_FAILURE=true` is set, writer/reader failures now retain
+the namespace too. Earlier behavior retained only PVC provisioning failures,
+which could destroy the most useful mount-failure evidence via the exit cleanup
+trap.
+
+A deliberate slower rerun can use:
+
+```bash
+CSI_SMOKE_KEEP_ON_FAILURE=true \
+CSI_PVC_TIMEOUT_SECONDS=180 \
+CSI_POD_READY_TIMEOUT_SECONDS=300 \
+  bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
+```
