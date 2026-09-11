@@ -5,8 +5,10 @@ TASKBROKER_CONTAINER="${SENTRY_TASKBROKER_CONTAINER:-ix-sentry-taskbroker-1}"
 TASKWORKER_CONTAINER="${SENTRY_TASKWORKER_CONTAINER:-ix-sentry-sentry-taskworker-1}"
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
 TASKBROKER_DB="${SENTRY_TASKBROKER_DB:-/mnt/cpool/sentry/taskbroker/taskbroker-activations.sqlite}"
+STATSD_METRICS_URL="${SENTRY_STATSD_METRICS_URL:-http://172.17.0.24:9102/metrics}"
+KAFKA_EXPORTER_URL="${SENTRY_KAFKA_EXPORTER_URL:-http://172.17.0.24:9308/metrics}"
 
-for command in docker python3; do
+for command in curl docker python3; do
   command -v "${command}" >/dev/null 2>&1 || {
     printf 'ERROR: %s is required\n' "${command}" >&2
     exit 1
@@ -14,7 +16,9 @@ for command in docker python3; do
 done
 
 printf 'Sentry taskbroker diagnostic (read-only)\n'
-printf 'db=%s\n\n' "${TASKBROKER_DB}"
+printf 'db=%s\n' "${TASKBROKER_DB}"
+printf 'statsd_metrics=%s\n' "${STATSD_METRICS_URL}"
+printf 'kafka_exporter=%s\n\n' "${KAFKA_EXPORTER_URL}"
 
 for container in "${TASKBROKER_CONTAINER}" "${TASKWORKER_CONTAINER}"; do
   printf '=== %s ===\n' "${container}"
@@ -44,6 +48,27 @@ if docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1; then
     --group taskworker 2>&1 || true
 else
   printf 'Kafka container missing: %s\n' "${KAFKA_CONTAINER}"
+fi
+printf '\n'
+
+printf '=== Prometheus exporter correlation ===\n'
+printf '%s\n' '-- Taskbroker / Sentry StatsD --'
+if statsd_metrics="$(curl -fsS --max-time 5 "${STATSD_METRICS_URL}" 2>/dev/null)"; then
+  printf '%s\n' "${statsd_metrics}" |
+    grep -E '^(taskbroker_|sentry_taskworker_|statsd_exporter_)' |
+    head -n 160 || true
+else
+  printf 'UNAVAILABLE: %s\n' "${STATSD_METRICS_URL}"
+fi
+
+printf '\n%s\n' '-- Kafka taskworker group --'
+if kafka_metrics="$(curl -fsS --max-time 10 "${KAFKA_EXPORTER_URL}" 2>/dev/null)"; then
+  printf '%s\n' "${kafka_metrics}" |
+    grep -E '^kafka_consumergroup_(members|lag|current_offset)' |
+    grep 'consumergroup="taskworker"' |
+    head -n 120 || true
+else
+  printf 'UNAVAILABLE: %s\n' "${KAFKA_EXPORTER_URL}"
 fi
 printf '\n'
 
