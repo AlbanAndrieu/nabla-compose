@@ -5,29 +5,74 @@ to the TrueNAS Docker/Apps IPAM migration.
 
 ## Current acceptance state · 2026-09-11
 
-The persistent operator CLI is proven after the TrueNAS reboot:
+The persistent operator CLI and Talos/Kubernetes base were revalidated after the
+TrueNAS reboot:
 
 ```text
-helm   v4.3.0
-kubara v0.14.0
-Kubernetes API Ready
-nodes  3/3 Ready
+helm                   v4.3.0
+kubara                  v0.14.0
+Kubernetes API          Ready
+Kubernetes nodes        3/3 Ready
+Talos API TCP/50000     reachable on control-plane + both workers
+etcd members            1
+node pressure           none
 ```
 
-Vault and Falco are intentionally not installed yet. Therefore `--check all` is
-expected to fail for those two components: `--check` is the strict runtime
-health gate, not an installation-readiness command.
+The effective Talos Pod Security Admission configuration is also proven:
+
+```text
+cluster default enforce = baseline
+cluster default audit   = restricted
+cluster default warn    = restricted
+kube-system             = admission exemption
+truenas-csi enforce     = privileged (explicit infrastructure exception)
+```
+
+`Restricted` remains the hardening target for normal application namespaces.
+`truenas-csi` is deliberately privileged because the CSI node plugin requires
+host-level mount/kubelet access; keep that exception namespace-scoped and RBAC
+restricted.
+
+The current namespaces observed during the post-reboot preparation were:
+
+```text
+default           inherit Talos defaults
+kube-node-lease   inherit Talos defaults
+kube-public       inherit Talos defaults
+kube-system       exempt by Talos admission configuration
+nabla-csi-smoke   inherit Talos defaults; retained from CSI failure diagnostics
+truenas-csi       enforce=privileged, version=v1.36
+```
+
+### Platform-tool state
+
+Vault and Falco are intentionally not installed yet. Kubara CLI is installed but
+bootstrap is intentionally gated because no reviewed root `config.yaml` exists.
+
+The current status model is therefore:
+
+```text
+Vault   = NOT_INSTALLED / BLOCKED_BY_CSI_ACCEPTANCE
+Falco   = NOT_INSTALLED / PREFLIGHT_READY
+Kubara  = CLI_READY / CONFIG_MISSING / BOOTSTRAP_GATED
+```
+
+`--check all` is expected to fail while Vault/Falco are absent: `--check` is the
+strict runtime-health gate, not an installation-readiness command.
 
 Use the staged modes:
 
 ```bash
+# Consolidated read-only preparation view.
+bash scripts/talos/prepare-platform-tools.sh --summary
+
 # Read-only readiness; planned absence is acceptable.
 bash scripts/talos/install-platform-tools.sh --preflight all
 
 # Read-only inventory; NOT_INSTALLED is informational.
 bash scripts/talos/install-platform-tools.sh --status all
 
-# Strict SLO: selected components must be installed and healthy.
+# Strict final SLO: selected components must be installed and healthy.
 bash scripts/talos/install-platform-tools.sh --check all
 ```
 
@@ -41,6 +86,42 @@ bash scripts/talos/install-platform-tools.sh --apply kubara
 
 This prevents a failed Vault/CSI gate from being followed accidentally by an
 unrelated Falco or ingress bootstrap.
+
+## Known CSI blocker observed after reboot
+
+The 2026-09-11 `prepare-platform-tools.sh --summary` run proved the base cluster
+healthy, but the Vault storage preflight emitted:
+
+```text
+error: deployment "truenas-csi-controller" exceeded its progress deadline
+```
+
+The existing preparation aggregation then continued and printed the static
+StorageClass/CSI preflight as ready. **Do not interpret that final summary as CSI
+acceptance.** The earlier dynamic smoke also created `nabla-csi-rwx` but the PVC
+did not become `Bound`.
+
+Before Vault installation, the CSI gate must therefore be resumed and prove all
+of the following in one clean acceptance run:
+
+```text
+controller current/available state
+  → PVC dynamic Bound
+  → TrueNAS dataset/share created
+  → worker-A write
+  → worker-B read of same marker
+  → PVC/PV cleanup
+  → TrueNAS dataset/share reclaim
+```
+
+The preparation scripts must also be hardened so a failed nested CSI check
+cannot be masked by Bash conditional/`set -e` semantics. Until that fix is
+validated, any explicit CSI error line is a blocker even if the aggregate
+`--summary` command exits zero.
+
+The retained `nabla-csi-smoke` namespace should stay in place only while its
+PVC/events/logs are useful evidence; clean it after the CSI root cause is
+captured or after a successful acceptance run.
 
 ## Pinned baseline
 
@@ -65,6 +146,11 @@ nodes, and the TrueNAS CSI/NFS contract where persistent storage is explicitly
 required. Do not add Docker `intranet`, `traefik_network`, bridge gateways or
 `sample-observer` addresses to these scripts.
 
+While the Docker/IPAM migration is active, do not install any Kubernetes platform
+component solely because its static preflight is green. Finish the TrueNAS
+network migration first, then take one fresh baseline snapshot and resume the
+ordered Kubernetes acceptance gates.
+
 ## Persistent operator CLI
 
 Trusted Helm and Kubara binaries live beside `kubectl`/`talosctl` under
@@ -80,6 +166,14 @@ Then, as `albandrieu`:
 ```bash
 . ~/.profile
 bash scripts/truenas/install-k8s-platform-cli.sh --check
+```
+
+The post-reboot acceptance proved:
+
+```text
+✅ helm v4.3.0 present
+✅ kubara 0.14.0 present
+✅ Kubara CLI contract supports generate --helm/--dry-run and bootstrap CLUSTER_NAME
 ```
 
 ## Vault
@@ -102,11 +196,12 @@ PVC dynamic bind
   → Vault install permitted
 ```
 
-If that dynamic smoke fails, Vault is not installed.
+If that dynamic smoke fails, Vault is not installed. The current state is
+therefore explicitly `BLOCKED_BY_CSI_ACCEPTANCE`.
 
 ### PSS Restricted from the first deployment
 
-Vault now targets:
+Vault targets:
 
 ```text
 enforce = restricted
@@ -151,9 +246,10 @@ warn    = restricted
 
 Normal application namespaces continue toward Restricted enforcement.
 
-`--preflight falco` validates that every node reports a kernel >= 5.8. Actual
-BPF/BTF loading is proven by the DaemonSet rollout rather than assumed from the
-version string.
+The post-reboot preflight proves all three Talos nodes expose kernel
+`6.18.44-talos`, well above the minimum kernel gate used by the script. Actual
+BPF/BTF loading must still be proven by the DaemonSet rollout rather than
+assumed from the version string.
 
 A green `--check falco` requires:
 
@@ -181,8 +277,15 @@ and event-drop baselines, Graylog/SIEM routing, and CRD/RBAC review.
 ## Kubara
 
 Kubara stays on the reviewed `0.14.0` pin. A reviewed `config.yaml` remains
-mandatory. If none exists, `--preflight`/`--status` report bootstrap as `GATED`
-rather than misclassifying the missing configuration as a runtime outage.
+mandatory. The post-reboot status proves the CLI is healthy while bootstrap is
+correctly classified as gated:
+
+```text
+Kubara CLI 0.14.0
+preflight-kubara exit=0
+config.yaml missing
+bootstrap=GATED
+```
 
 Preparation remains non-destructive:
 
@@ -197,45 +300,64 @@ single-Traefik ownership check.
 
 ## Zero Trust ordering
 
+The desired end state is the most restrictive posture that remains functional.
+The operational sequence is deliberately dependency-driven:
+
 ```text
-Talos/Kubernetes trust root
+Talos/Kubernetes trust root                    ✅ post-reboot baseline healthy
   ↓
-PSS/PSA + least-privilege RBAC
+PSA/PSS + least-privilege RBAC                 ✅ baseline; Restricted target
   ↓
-CSI persistence acceptance
+TrueNAS CSI dynamic persistence/reclaim        ⛔ current blocker
   ↓
-Vault bootstrap / workload identity
+Vault bootstrap / workload identity            ⏸️ blocked by CSI
   ↓
-network-policy capable CNI + default deny
+network-policy enforcement + default deny      ⏳ planned
   ↓
-Kyverno or Gatekeeper policy-as-code
+Kyverno or Gatekeeper policy-as-code           ⏳ planned
   ↓
-Falco runtime detection
+Falco runtime detection                        ✅ preflight-ready, not installed
   ↓
-SIEM/Graylog alert routing
+SIEM/Graylog alert routing                     ⏳ after Falco signal baseline
   ↓
-Headlamp least-privilege visibility
+Headlamp least-privilege visibility            ⏳ planned in-cluster service
   ↓
-application workloads
+Kubara/Traefik platform bootstrap              ⏸️ config/review gated
+  ↓
+application workloads                          ⏳ after platform gates
 ```
 
 Falco is detection, not NetworkPolicy. Kyverno/Gatekeeper is admission policy,
 not runtime syscall detection. Vault is identity/secrets, not a substitute for
 either layer.
 
-## While TrueNAS Docker/IPAM work continues
+## Next execution sequence after TrueNAS Docker/IPAM stabilization
 
-Do not install Vault while CSI dynamic provisioning is unresolved. Keep to the
-read-only commands:
+Do not mutate the Kubernetes platform while the TrueNAS network migration is
+still changing. Once that migration is accepted:
 
 ```bash
-git switch feat/k8s-platform-security-tools
-git pull --ff-only
-bash scripts/talos/install-platform-tools.sh --status all
-bash scripts/talos/install-platform-tools.sh --preflight all
+# 1. Fresh read-only baseline.
+bash scripts/talos/prepare-platform-tools.sh --summary
+
+# 2. Resume CSI with retained evidence on failure.
+CSI_PVC_TIMEOUT_SECONDS=60 \
+CSI_SMOKE_KEEP_ON_FAILURE=true \
+  bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
+
+# 3. Only after complete CSI acceptance.
+bash scripts/talos/install-platform-tools.sh --apply vault
+
+# 4. Runtime security sensor once the platform baseline is stable.
+bash scripts/talos/install-platform-tools.sh --apply falco
+
+# 5. Kubara only after preparing/reviewing config.yaml and Traefik exposure.
+KUBARA_WORKDIR=/path/to/reviewed/kubara-config \
+  bash scripts/talos/install-platform-tools.sh --apply kubara
 ```
 
-After the TrueNAS network migration stabilizes, resume the CSI diagnostic. Vault
-`--apply` comes only after the dynamic storage smoke is green. Falco is storage
-independent, but keeping it prepared until the network migration settles avoids
-changing two infrastructure layers at once.
+After all selected components are installed and operational:
+
+```bash
+bash scripts/talos/prepare-platform-tools.sh --strict
+```
