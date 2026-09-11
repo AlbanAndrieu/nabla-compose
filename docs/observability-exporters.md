@@ -16,11 +16,50 @@ The useful hierarchy is:
 
 An incident is not closed at level 1 or 2 when the service is a pipeline component.
 
+Before deploying a new receiver/exporter on TrueNAS, run:
+
+```bash
+sudo bash scripts/truenas/check-observability-exporter-conflicts.sh --check
+```
+
+The preflight is read-only. It inspects TrueNAS `reporting.exporters.query`, the native Netdata service, host listeners `8125/9125/9102/9308`, Docker publishers and relevant containers on `intranet`.
+
+TrueNAS 26 uses Netdata internally for system reporting. The supported Reporting Exporters configuration currently exposes Graphite export; that native reporting path is separate from the application-specific StatsD/Kafka metrics proposed here. The runtime preflight remains authoritative for the actual host because Custom Apps or manually managed containers can still occupy the same ports.
+
 ## Sentry / Taskbroker / Taskworker
 
-### Current implementation
+### Current incident priority
 
-Sentry self-hosted uses StatsD for runtime metrics. The homelab sends Sentry and Taskbroker metrics to the Prometheus `statsd-exporter` over the Docker-only shared `intranet` network:
+The Taskbroker recovery experiment does **not** require StatsD or `kafka-exporter`. Diagnose and recover the broken Kafka consumer membership first with the existing Kafka CLI signal:
+
+```text
+Taskbroker process running
+        +
+Taskworker healthy
+        +
+Kafka group taskworker has zero active members
+        ↓
+restart Taskbroker only
+        ↓
+require active member > 0 AND lag decreases
+        ↓
+rerun Sentry end-to-end smoke
+```
+
+Use:
+
+```bash
+sudo bash scripts/truenas/diagnose-sentry-taskbroker.sh
+sudo bash scripts/truenas/recover-sentry-taskbroker.sh
+sudo bash scripts/truenas/diagnose-sentry-taskbroker.sh
+sudo bash scripts/truenas/smoke-sentry-event.sh
+```
+
+The recovery helper refuses to restart Taskbroker if the `taskworker` group already has an active member. It never resets Kafka offsets, deletes topics, deletes Taskbroker SQLite state or redeploys the whole Sentry App.
+
+### Staged StatsD instrumentation
+
+Sentry self-hosted uses StatsD for runtime metrics. The staged homelab design sends Sentry and Taskbroker metrics to the Prometheus `statsd-exporter` over the Docker-only shared `intranet` network:
 
 ```text
 Sentry processes -----------\
@@ -38,21 +77,23 @@ Taskbroker -----------------/               |
 
 Repository configuration:
 
-- `apps/prometheus/compose.yml`: `statsd-exporter`, pinned to `v0.30.0` by default;
+- `apps/prometheus/compose.yml`: staged `statsd-exporter`, pinned to `v0.30.0` by default;
 - only Prometheus exposition port `172.17.0.24:9102` is host-published; StatsD TCP/UDP 9125 is not exposed on the LAN;
 - `apps/prometheus/prometheus.yml`: job `sentry_statsd`;
 - `apps/sentry/config/sentry.conf.py`: `SENTRY_STATSD_ADDR`, default `statsd-exporter:9125`;
 - `apps/sentry/config/taskbroker.yml`: `statsd_addr: statsd-exporter:9125`.
 
-The first metrics to validate during the current incident are Taskbroker consumer/backpressure and Sentry Taskworker fetch metrics. In particular, Sentry upstream incident evidence uses metrics in the families:
+Do not deploy this staged receiver until `check-observability-exporter-conflicts.sh --check` proves there is no conflicting host publisher and identifies any pre-existing StatsD/Netdata receiver on the TrueNAS host.
+
+The first metrics to validate during the current incident are Taskbroker consumer/backpressure and Sentry Taskworker fetch metrics. Useful families include:
 
 - `taskbroker_consumer_*`;
 - `sentry_taskworker_*`;
 - exporter self-metrics `statsd_exporter_*`.
 
-Do not hard-code an alert to a Taskbroker metric name until the running 26.8 stack has emitted that metric at least once. Exporter availability plus Kafka membership/lag alerts are safe immediately.
+Do not hard-code an alert to a Taskbroker metric name until the running 26.8 stack has emitted that metric at least once. Exporter availability plus Kafka membership/lag alerts are safe immediately after the exporter is actually deployed.
 
-The upstream self-hosted stack can also route Snuba and Relay telemetry through `SNUBA_STATSD_ADDR` and `RELAY_STATSD_ADDR`. Add those after the first Taskbroker incident acceptance if their additional metrics answer a concrete unresolved question; the initial change deliberately keeps the runtime mutation narrow.
+The upstream self-hosted stack can also route Snuba and Relay telemetry through `SNUBA_STATSD_ADDR` and `RELAY_STATSD_ADDR`. Add those only after Taskbroker incident acceptance if their metrics answer a concrete unresolved question.
 
 ### Current acceptance
 
@@ -68,17 +109,24 @@ StatsD metrics accelerate diagnosis; they do not replace `smoke-sentry-event.sh`
 
 ### Current implementation
 
-Kafka itself stays unchanged. The exporter deliberately lives in the Prometheus TrueNAS App so adding observability cannot trigger a Kafka lifecycle change.
+`kafka-exporter` belongs to the Kafka service boundary and therefore lives in `apps/kafka/compose.yml` beside the broker. It waits for the Kafka service healthcheck before starting and is explicitly bound to TrueNAS App ID `kafka`.
 
 ```text
-Kafka :9092 <-intranet- kafka-exporter :9308 -> Prometheus
+Kafka App
+├── kafka :9092
+└── kafka-exporter :9308
+             |
+             v
+         Prometheus
 ```
 
 Repository configuration:
 
-- `apps/prometheus/compose.yml`: `danielqsj/kafka-exporter:v1.9.0`;
+- `apps/kafka/compose.yml`: `danielqsj/kafka-exporter:v1.9.0`;
 - `apps/prometheus/prometheus.yml`: job `kafka_exporter`, 30-second scrape;
 - `apps/prometheus/rules/sentry-kafka.rules.yml`: Taskbroker membership/lag alerts.
+
+Because the exporter is in the Kafka TrueNAS App, adding or changing it is a Kafka App lifecycle mutation. Do **not** deploy it during the first Taskbroker recovery experiment. First complete the targeted Taskbroker-only restart and end-to-end smoke; then use the exporter conflict preflight and a controlled Kafka App update window.
 
 Primary metrics:
 
@@ -172,14 +220,12 @@ Before adding Redis or Memcached exporters specifically for Sentry, first observ
 
 ## Immediate Sentry diagnostic sequence
 
-After deploying only the Prometheus observability changes:
-
-1. run `scripts/truenas/diagnose-sentry-taskbroker.sh` and capture the exporter sections;
-2. record `kafka_consumergroup_members{consumergroup="taskworker"}` and taskworker lag;
-3. if the group still has zero active members, run the guarded Taskbroker-only recovery; that targeted restart also reloads `statsd_addr` from the bind-mounted Taskbroker config;
-4. rerun `diagnose-sentry-taskbroker.sh` and record Taskbroker StatsD metrics plus Kafka membership/lag;
-5. require group membership to reappear and lag to decrease;
-6. verify Relay project-config pending counts fall;
-7. rerun `smoke-sentry-event.sh` and require end-to-end success.
+1. Run `diagnose-sentry-taskbroker.sh` now; exporter sections may legitimately report `UNAVAILABLE` because they are not required for this recovery gate.
+2. If Kafka group `taskworker` has zero active members while Taskbroker is running and Taskworker is healthy, run `recover-sentry-taskbroker.sh`.
+3. Require Taskbroker to rejoin the group and `taskworker` lag to decrease.
+4. Rerun `diagnose-sentry-taskbroker.sh`, then `smoke-sentry-event.sh`; require Relay project config to clear and end-to-end ingestion to pass.
+5. Only after Sentry functional acceptance, run `check-observability-exporter-conflicts.sh --check`.
+6. If the preflight is clean and no equivalent native/custom receiver already exists, deploy the staged StatsD exporter.
+7. Deploy `kafka-exporter` later through the Kafka App in a controlled lifecycle window, then validate Prometheus membership/lag alerts.
 
 No Kafka offset reset, topic purge, Taskbroker SQLite deletion or full Sentry redeploy is justified before this sequence is observed.
