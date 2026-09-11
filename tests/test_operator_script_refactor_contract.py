@@ -8,10 +8,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMMON = ROOT / "scripts/lib/common.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
-DIAGNOSTICS = (
-    ROOT / "scripts/truenas/diagnose-platform.sh",
-    ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh",
+COMMON_USERS = (
+    ROOT / "scripts/truenas/audit-docker-network-migration.sh",
     ROOT / "scripts/truenas/diagnose-csi-orphans.sh",
+    ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh",
+    ROOT / "scripts/truenas/diagnose-influxdb.sh",
+    ROOT / "scripts/truenas/diagnose-platform.sh",
+    ROOT / "scripts/truenas/materialize-reboot-bundle.sh",
+    ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh",
+    ROOT / "scripts/truenas/verify-talos-vm-autostart.sh",
 )
 
 
@@ -27,8 +32,8 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
         self.assertNotIn("docker ", text)
         self.assertNotIn("kubectl ", text)
 
-    def test_refactored_diagnostics_source_common_library(self) -> None:
-        for path in DIAGNOSTICS:
+    def test_refactored_scripts_source_common_library_and_parse(self) -> None:
+        for path in COMMON_USERS:
             text = path.read_text(encoding="utf-8")
             self.assertIn('source "${SCRIPT_DIR}/../lib/common.sh"', text, path)
             result = subprocess.run(
