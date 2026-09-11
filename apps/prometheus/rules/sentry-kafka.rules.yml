@@ -1,0 +1,55 @@
+---
+groups:
+  - name: sentry-kafka
+    rules:
+      - alert: SentryStatsdExporterDown
+        expr: up{job="sentry_statsd"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: sentry
+        annotations:
+          summary: Sentry StatsD exporter is unavailable
+          description: >-
+            Prometheus cannot scrape the Sentry/Taskbroker StatsD exporter on
+            172.17.0.24:9102, so process-level runtime metrics are unavailable.
+
+      - alert: KafkaExporterDown
+        expr: up{job="kafka_exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: kafka
+        annotations:
+          summary: Kafka exporter is unavailable
+          description: >-
+            Prometheus cannot scrape Kafka consumer-group membership and lag
+            metrics from 172.17.0.24:9308.
+
+      - alert: SentryTaskbrokerConsumerMissing
+        expr: kafka_consumergroup_members{job="kafka_exporter",consumergroup="taskworker"} < 1
+        for: 2m
+        labels:
+          severity: critical
+          service: sentry-taskbroker
+        annotations:
+          summary: Sentry Taskbroker has no active Kafka consumer
+          description: >-
+            Kafka group taskworker has no active member. The Taskbroker process
+            may still be running and its gRPC endpoint may still be healthy, but
+            asynchronous Sentry tasks such as Relay project-config builds can no
+            longer be drained.
+
+      - alert: SentryTaskbrokerLagHigh
+        expr: >-
+          sum(kafka_consumergroup_lag{job="kafka_exporter",consumergroup="taskworker",topic="taskworker"}) > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: sentry-taskbroker
+        annotations:
+          summary: Sentry Taskbroker Kafka lag is high
+          description: >-
+            Consumer group taskworker has accumulated more than 100 messages of
+            lag for at least five minutes. Check group membership, Taskbroker
+            StatsD backpressure metrics and Relay project-config latency.
