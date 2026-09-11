@@ -19,6 +19,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         apps: list[dict[str, str]],
         services: list[dict[str, object]],
         relations: list[dict[str, str]],
+        topology_nodes: list[dict[str, object]] | None = None,
     ) -> dict[str, object]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -27,7 +28,13 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 json.dumps({"services": services}), encoding="utf-8"
             )
             (root / "topology.json").write_text(
-                json.dumps({"relations": relations}), encoding="utf-8"
+                json.dumps(
+                    {
+                        "nodes": topology_nodes or [],
+                        "relations": relations,
+                    }
+                ),
+                encoding="utf-8",
             )
             result = subprocess.run(
                 [
@@ -93,13 +100,6 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 lifecycle=("foundation", 10),
             ),
             self.service(
-                "postgresql",
-                "database",
-                "data",
-                "apps/postgres/compose.yml",
-                lifecycle=("primary-data", 20),
-            ),
-            self.service(
                 "mongo",
                 "database",
                 "data",
@@ -140,13 +140,29 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "apps/code/compose.yml",
             ),
         ]
+        topology_nodes = [
+            self.runtime_node(
+                "adguard-home",
+                "adguard-home",
+                "dns-filter",
+                "network",
+                lifecycle=("foundation", 10),
+            ),
+            self.runtime_node(
+                "postgresql",
+                "postgres",
+                "database",
+                "data",
+                lifecycle=("primary-data", 20),
+            ),
+        ]
         relations = [
             self.relation("graylog", "mongo", "dependsOn"),
             self.relation("graylog", "opensearch-security", "storesIn"),
             self.relation("n8n", "postgresql", "dependsOn"),
         ]
 
-        plan = self.run_planner(apps, services, relations)
+        plan = self.run_planner(apps, services, relations, topology_nodes)
         start = plan["start_order"]
         stop = plan["stop_order"]
 
@@ -176,26 +192,19 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertLess(start.index("postgres"), start.index("n8n"))
         self.assertEqual(stop, list(reversed(start)))
 
-        self.assertEqual(
-            plan["lifecycle_phase_by_app"]["docker-socket-proxy"],
-            {"name": "bootstrap-runtime", "order": 0, "source": "x-nabla"},
-        )
-        self.assertEqual(
-            plan["lifecycle_phase_by_app"]["pihole"],
-            {"name": "foundation", "order": 10, "source": "x-nabla"},
-        )
-        self.assertEqual(
-            plan["lifecycle_phase_by_app"]["adguard-home"],
-            {"name": "foundation", "order": 10, "source": "fallback-app"},
-        )
-        self.assertEqual(
-            plan["lifecycle_phase_by_app"]["mongo"],
-            {"name": "primary-data", "order": 20, "source": "x-nabla"},
-        )
-        self.assertEqual(
-            plan["lifecycle_phase_by_app"]["opensearch"],
-            {"name": "secondary-data", "order": 30, "source": "x-nabla"},
-        )
+        for app, expected in {
+            "docker-socket-proxy": ("bootstrap-runtime", 0),
+            "pihole": ("foundation", 10),
+            "adguard-home": ("foundation", 10),
+            "postgres": ("primary-data", 20),
+            "mongo": ("primary-data", 20),
+            "opensearch": ("secondary-data", 30),
+        }.items():
+            phase, priority = expected
+            self.assertEqual(
+                plan["lifecycle_phase_by_app"][app],
+                {"name": phase, "order": priority, "source": "catalog"},
+            )
 
     def test_declared_lifecycle_overrides_kind_and_category_fallback(self) -> None:
         apps = [
@@ -227,7 +236,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         )
         self.assertEqual(
             plan["lifecycle_phase_by_app"]["sentry"],
-            {"name": "platform-services", "order": 40, "source": "x-nabla"},
+            {"name": "platform-services", "order": 40, "source": "catalog"},
         )
 
     def test_conflicting_declared_lifecycle_is_rejected(self) -> None:
@@ -256,7 +265,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 json.dumps({"services": services}), encoding="utf-8"
             )
             (root / "topology.json").write_text(
-                json.dumps({"relations": []}), encoding="utf-8"
+                json.dumps({"nodes": [], "relations": []}), encoding="utf-8"
             )
             result = subprocess.run(
                 [
@@ -274,7 +283,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 check=False,
             )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("conflicting x-nabla.lifecycle", result.stderr)
+        self.assertIn("conflicting declared lifecycle", result.stderr)
 
     def test_source_path_maps_multi_service_app_and_normalized_app_id(self) -> None:
         apps = [
@@ -315,6 +324,40 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertLess(
             plan["start_order"].index("opensearch"),
             plan["start_order"].index("graylog"),
+        )
+
+    def test_runtime_topology_node_maps_app_without_compose_service(self) -> None:
+        apps = [
+            {"id": "adguard-home", "state": "RUNNING"},
+            {"id": "postgres", "state": "RUNNING"},
+        ]
+        topology_nodes = [
+            self.runtime_node(
+                "adguard-home",
+                "adguard-home",
+                "dns-filter",
+                "network",
+                lifecycle=("foundation", 10),
+            ),
+            self.runtime_node(
+                "postgresql",
+                "postgres",
+                "database",
+                "data",
+                lifecycle=("primary-data", 20),
+            ),
+        ]
+
+        plan = self.run_planner(apps, [], [], topology_nodes)
+
+        self.assertEqual(plan["unmapped_apps"], [])
+        self.assertLess(
+            plan["start_order"].index("adguard-home"),
+            plan["start_order"].index("postgres"),
+        )
+        self.assertEqual(
+            plan["lifecycle_phase_by_app"]["postgres"],
+            {"name": "primary-data", "order": 20, "source": "catalog"},
         )
 
     def test_reboot_resume_repairs_order_without_replacing_manifest(self) -> None:
@@ -358,6 +401,29 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
             phase, priority = lifecycle
             service["lifecycle"] = {"phase": phase, "priority": priority}
         return service
+
+    @staticmethod
+    def runtime_node(
+        node_id: str,
+        app_id: str,
+        kind: str,
+        category: str,
+        *,
+        lifecycle: tuple[str, int] | None = None,
+    ) -> dict:
+        node = {
+            "id": node_id,
+            "kind": kind,
+            "category": category,
+            "runtime": {
+                "provider": "truenas-app",
+                "appId": app_id,
+            },
+        }
+        if lifecycle is not None:
+            phase, priority = lifecycle
+            node["lifecycle"] = {"phase": phase, "priority": priority}
+        return node
 
     @staticmethod
     def relation(source: str, target: str, relation_type: str) -> dict[str, str]:
