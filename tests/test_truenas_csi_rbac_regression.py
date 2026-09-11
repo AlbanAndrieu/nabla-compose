@@ -9,9 +9,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 INSTALL = ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
 PREFLIGHT = ROOT / "scripts" / "talos" / "validate-csi-prereqs.sh"
+DRIVER = ROOT / "kubernetes" / "truenas-csi" / "nfs-driver.yaml"
 
 
 class TrueNasCsiRbacRegressionTests(unittest.TestCase):
+    def test_manifest_persists_volumeattachment_read_only_rbac(self) -> None:
+        text = DRIVER.read_text()
+
+        self.assertIn('resources: ["volumeattachments"]', text)
+        self.assertIn('verbs: ["get", "list", "watch"]', text)
+
     def test_installer_reconciles_volumeattachment_read_only_rbac(self) -> None:
         text = INSTALL.read_text()
 
