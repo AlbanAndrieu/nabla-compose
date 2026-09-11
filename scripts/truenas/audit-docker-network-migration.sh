@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
+
 TARGET_IPV4_BASE="${TRUENAS_DOCKER_IPV4_BASE:-10.200.0.0/16}"
 LEGACY_IPV4_BASE="${TRUENAS_DOCKER_LEGACY_IPV4_BASE:-172.16.0.0/12}"
 PROTECTED_NETWORKS="${TRUENAS_DOCKER_PROTECTED_NETWORKS:-intranet traefik_network sample-observer nabla-security secrets-backend}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
 [[ "${1:---check}" == "--check" ]] ||
   fail "usage: sudo bash scripts/truenas/audit-docker-network-migration.sh --check"
-[[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
-
-for command in docker jq python3 date; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+require_root "run as root on TrueNAS"
+require_commands docker jq python3 date
 
 umask 077
 timestamp="$(date +%Y%m%d-%H%M%S)"
