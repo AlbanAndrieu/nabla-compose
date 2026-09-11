@@ -119,9 +119,10 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_runbook_does_not_promote_preexisting_crashed_apps(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn('$before_state == "RUNNING"', text)
-        self.assertIn('$before_state == "DEPLOYING"', text)
+        self.assertIn("Safe default behavior preserves Apps that were already `STOPPED`", text)
         self.assertIn("CRASHED -> STOPPED", text)
+        self.assertIn("must not be promoted into the healthy resume set", text)
+        self.assertIn("resume-plan.json", text)
 
     def test_runbook_documents_partial_prepare_recovery(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
