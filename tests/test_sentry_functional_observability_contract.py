@@ -59,11 +59,18 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn("docker restart", script)
         self.assertNotIn("--reset-offsets", script)
 
-    def test_targeted_recovery_only_restarts_taskbroker(self) -> None:
+    def test_targeted_recovery_guards_live_config_and_functional_health(self) -> None:
         path = ROOT / "scripts/truenas/recover-sentry-taskbroker.sh"
         script = path.read_text(encoding="utf-8")
         self.assertTrue(os.access(path, os.X_OK), "recovery helper must be executable")
         self.assertIn('docker restart "${TASKBROKER_CONTAINER}"', script)
+        self.assertIn('/etc/taskbroker/config.yml', script)
+        self.assertIn("statsd_addr", script)
+        self.assertIn("socket.getaddrinfo", script)
+        self.assertIn("refusing restart", script)
+        self.assertIn("restarting|exited|dead", script)
+        self.assertIn("taskworker_can_reach_taskbroker", script)
+        self.assertIn("socket.create_connection", script)
         self.assertIn("before_members", script)
         self.assertIn("before_lag", script)
         self.assertIn("lag did not decrease", script)
@@ -71,6 +78,11 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn("kafka-topics --delete", script)
         self.assertNotIn("DELETE FROM", script)
         self.assertNotIn("app.redeploy", script)
+
+    def test_sentry_smoke_does_not_require_wrapper_exec_bit(self) -> None:
+        script = self.read("scripts/truenas/smoke-sentry-event.sh")
+        self.assertIn('exec bash "${NABLA_DIAGNOSTIC_WRAPPER}"', script)
+        self.assertNotIn('exec "${NABLA_DIAGNOSTIC_WRAPPER}"', script)
 
     def test_exporter_conflict_preflight_is_read_only(self) -> None:
         path = ROOT / "scripts/truenas/check-observability-exporter-conflicts.sh"
