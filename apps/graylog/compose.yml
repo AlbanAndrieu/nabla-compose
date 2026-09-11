@@ -12,6 +12,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: graylog
+      lifecycle:
+        phase: platform-services
+        priority: 40
       relations:
         - target: mongo
           type: dependsOn
