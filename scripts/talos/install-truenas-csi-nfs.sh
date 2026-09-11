@@ -17,6 +17,11 @@ VOLUME_ATTACHMENT_RESOURCE="volumeattachments.storage.k8s.io"
 EXPECTED_VERSION="v1.0.3"
 ROLLOUT_TIMEOUT="${CSI_ROLLOUT_TIMEOUT:-180s}"
 POD_SECURITY_VERSION="${CSI_POD_SECURITY_VERSION:-v1.36}"
+ROTATE_CREDENTIAL="${TRUENAS_CSI_ROTATE_CREDENTIAL:-0}"
+FORCE_CREDENTIAL_RELOAD="${TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD:-0}"
+credential_changed=false
+controller_existed_before_apply=false
+node_existed_before_apply=false
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -29,6 +34,33 @@ ok() {
 
 warn() {
   printf '⚠️  %s\n' "$*" >&2
+}
+
+dump_controller_rollout_diagnostics() {
+  local pod
+
+  printf '⚠️  TrueNAS CSI controller rollout diagnostics\n' >&2
+  kubectl -n "${NAMESPACE}" get deployment,rs,pod \
+    -l app=truenas-csi-controller -o wide >&2 2>/dev/null || true
+  kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller -o json 2>/dev/null |
+    jq '{generation: .metadata.generation, observedGeneration: .status.observedGeneration, desired: .spec.replicas, updated: .status.updatedReplicas, ready: .status.readyReplicas, available: .status.availableReplicas, unavailable: .status.unavailableReplicas, conditions: .status.conditions}' >&2 || true
+
+  while IFS= read -r pod; do
+    [[ -n "${pod}" ]] || continue
+    printf 'ℹ️  %s container state\n' "${pod}" >&2
+    kubectl -n "${NAMESPACE}" get pod "${pod}" -o json 2>/dev/null |
+      jq '{name: .metadata.name, created: .metadata.creationTimestamp, node: .spec.nodeName, containers: [.status.containerStatuses[]? | {name, ready, restartCount, state, lastState}]}' >&2 || true
+    for container in csi-controller csi-attacher csi-provisioner csi-resizer; do
+      if kubectl -n "${NAMESPACE}" get pod "${pod}" \
+        -o jsonpath='{.spec.containers[*].name}' 2>/dev/null | grep -qw "${container}"; then
+        printf 'ℹ️  %s/%s logs (tail 40)\n' "${pod}" "${container}" >&2
+        kubectl -n "${NAMESPACE}" logs "${pod}" -c "${container}" --tail=40 >&2 2>/dev/null || true
+      fi
+    done
+  done < <(
+    kubectl -n "${NAMESPACE}" get pods -l app=truenas-csi-controller \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true
+  )
 }
 
 dump_node_rollout_diagnostics() {
@@ -132,6 +164,54 @@ report_attach_contract() {
   fi
 }
 
+controller_runtime_converged() {
+  local deployment_json desired updated ready available unavailable generation observed progress_deadline
+
+  if ! kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller >/dev/null 2>&1; then
+    return 0
+  fi
+
+  deployment_json="$(kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller -o json)"
+  desired="$(jq -r '.spec.replicas // 1' <<<"${deployment_json}")"
+  updated="$(jq -r '.status.updatedReplicas // 0' <<<"${deployment_json}")"
+  ready="$(jq -r '.status.readyReplicas // 0' <<<"${deployment_json}")"
+  available="$(jq -r '.status.availableReplicas // 0' <<<"${deployment_json}")"
+  unavailable="$(jq -r '.status.unavailableReplicas // 0' <<<"${deployment_json}")"
+  generation="$(jq -r '.metadata.generation // 0' <<<"${deployment_json}")"
+  observed="$(jq -r '.status.observedGeneration // 0' <<<"${deployment_json}")"
+  progress_deadline="$(jq -r '[.status.conditions[]? | select(.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")] | length' <<<"${deployment_json}")"
+
+  [[ "${observed}" -ge "${generation}" &&
+     "${updated}" -eq "${desired}" &&
+     "${ready}" -eq "${desired}" &&
+     "${available}" -eq "${desired}" &&
+     "${unavailable}" -eq 0 &&
+     "${progress_deadline}" -eq 0 ]]
+}
+
+report_controller_runtime() {
+  local deployment_json desired updated ready available unavailable
+
+  if ! kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller >/dev/null 2>&1; then
+    printf 'ℹ️  TrueNAS CSI controller Deployment is not installed yet\n'
+    return 0
+  fi
+
+  if controller_runtime_converged; then
+    ok "TrueNAS CSI controller Deployment is fully converged"
+    return 0
+  fi
+
+  deployment_json="$(kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller -o json)"
+  desired="$(jq -r '.spec.replicas // 1' <<<"${deployment_json}")"
+  updated="$(jq -r '.status.updatedReplicas // 0' <<<"${deployment_json}")"
+  ready="$(jq -r '.status.readyReplicas // 0' <<<"${deployment_json}")"
+  available="$(jq -r '.status.availableReplicas // 0' <<<"${deployment_json}")"
+  unavailable="$(jq -r '.status.unavailableReplicas // 0' <<<"${deployment_json}")"
+  warn "TrueNAS CSI controller runtime is not converged: desired=${desired} updated=${updated} ready=${ready} available=${available} unavailable=${unavailable}"
+  return 1
+}
+
 prepare_immutable_csidriver_migration() {
   local attach_required
   local attachment_count
@@ -191,9 +271,6 @@ ensure_namespace_pod_security() {
     kubectl create namespace "${NAMESPACE}" >/dev/null
   fi
 
-  # The CSI node plugin must mount kubelet host paths and run privileged. Keep
-  # that exception scoped to this infrastructure namespace only. Baseline
-  # remains enabled in audit/warn modes so privilege use stays visible.
   kubectl label --overwrite namespace "${NAMESPACE}" \
     pod-security.kubernetes.io/enforce=privileged \
     pod-security.kubernetes.io/enforce-version="${POD_SECURITY_VERSION}" \
@@ -216,6 +293,58 @@ ensure_namespace_pod_security() {
     fail "namespace ${NAMESPACE} must retain baseline Pod Security audit/warn visibility"
 
   ok "namespace ${NAMESPACE} Pod Security configured: enforce=privileged, audit/warn=baseline, version=${POD_SECURITY_VERSION}"
+}
+
+reconcile_credential_secret() {
+  local candidate_hash existing_hash
+
+  candidate_hash="$(printf '%s' "${TRUENAS_CSI_API_KEY}" | sha256sum | awk '{print $1}')"
+
+  if kubectl -n "${NAMESPACE}" get secret "${CREDENTIAL_RESOURCE_NAME}" >/dev/null 2>&1; then
+    existing_hash="$(
+      kubectl -n "${NAMESPACE}" get secret "${CREDENTIAL_RESOURCE_NAME}" \
+        -o jsonpath='{.data.api-key}' |
+        base64 -d |
+        sha256sum |
+        awk '{print $1}'
+    )"
+    if [[ "${candidate_hash}" == "${existing_hash}" ]]; then
+      ok "CSI credential matches the existing Kubernetes Secret (value not printed)"
+      return 0
+    fi
+
+    [[ "${ROTATE_CREDENTIAL}" == "1" ]] ||
+      fail "TRUENAS_CSI_API_KEY differs from the existing CSI Secret; refusing implicit credential rotation. Review the source secret and set TRUENAS_CSI_ROTATE_CREDENTIAL=1 only for an intentional rotation"
+    warn "explicit CSI credential rotation approved; existing Pods will be restarted to reload the Secret"
+  else
+    printf 'ℹ️  CSI credential Secret does not exist yet; creating initial credential\n'
+  fi
+
+  printf '%s' "${TRUENAS_CSI_API_KEY}" |
+    kubectl -n "${NAMESPACE}" create secret generic "${CREDENTIAL_RESOURCE_NAME}" \
+      --from-file=api-key=/dev/stdin \
+      --dry-run=client -o yaml |
+    kubectl apply -f - >/dev/null
+  credential_changed=true
+  ok "CSI credential Secret reconciled without exposing the key in argv or output"
+}
+
+reload_credential_consumers_if_needed() {
+  local reload=false
+
+  if [[ "${credential_changed}" == "true" || "${FORCE_CREDENTIAL_RELOAD}" == "1" ]]; then
+    reload=true
+  fi
+  [[ "${reload}" == "true" ]] || return 0
+
+  if [[ "${controller_existed_before_apply}" == "true" || "${FORCE_CREDENTIAL_RELOAD}" == "1" ]]; then
+    kubectl -n "${NAMESPACE}" rollout restart deployment/truenas-csi-controller >/dev/null
+    ok "CSI controller restart requested so TRUENAS_API_KEY is reloaded from the Secret"
+  fi
+  if [[ "${node_existed_before_apply}" == "true" || "${FORCE_CREDENTIAL_RELOAD}" == "1" ]]; then
+    kubectl -n "${NAMESPACE}" rollout restart daemonset/truenas-csi-node >/dev/null
+    ok "CSI node restart requested so TRUENAS_API_KEY is reloaded from the Secret"
+  fi
 }
 
 case "${MODE}" in
@@ -275,24 +404,37 @@ if [[ "${MODE}" == "--check" ]]; then
     printf 'ℹ️  CSI controller ClusterRole is not installed yet; --apply will create the publishContext RBAC contract\n'
   fi
 
+  if ! report_controller_runtime; then
+    dump_controller_rollout_diagnostics
+    fail "installed CSI controller is not runtime-converged; fix authentication/rollout before storage acceptance"
+  fi
+
   printf 'ℹ️  TrueNAS CSI v1.0.3 still uses deprecated auth.login_with_api_key; validate this path on TrueNAS 26 and replace it before TrueNAS 27.\n'
   exit 0
 fi
 
+for command in base64 sha256sum awk; do
+  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required for credential reconciliation"
+done
 [[ -n "${TRUENAS_CSI_API_KEY:-}" ]] ||
   fail "TRUENAS_CSI_API_KEY is required for --apply"
+[[ "${ROTATE_CREDENTIAL}" =~ ^[01]$ ]] ||
+  fail "TRUENAS_CSI_ROTATE_CREDENTIAL must be 0 or 1"
+[[ "${FORCE_CREDENTIAL_RELOAD}" =~ ^[01]$ ]] ||
+  fail "TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD must be 0 or 1"
 if [[ -n "${TRUENAS_CSI_API_USERNAME:-}" ]]; then
-  printf '⚠️  TRUENAS_CSI_API_USERNAME is intentionally not injected: upstream v1.0.3 accepts only TRUENAS_API_KEY and still uses auth.login_with_api_key.\n'
+  warn "TRUENAS_CSI_API_USERNAME is intentionally not injected: upstream v1.0.3 accepts only TRUENAS_API_KEY and still uses auth.login_with_api_key."
+fi
+
+if kubectl -n "${NAMESPACE}" get deployment truenas-csi-controller >/dev/null 2>&1; then
+  controller_existed_before_apply=true
+fi
+if kubectl -n "${NAMESPACE}" get daemonset truenas-csi-node >/dev/null 2>&1; then
+  node_existed_before_apply=true
 fi
 
 ensure_namespace_pod_security
-
-printf '%s' "${TRUENAS_CSI_API_KEY}" |
-  kubectl -n "${NAMESPACE}" create secret generic "${CREDENTIAL_RESOURCE_NAME}" \
-    --from-file=api-key=/dev/stdin \
-    --dry-run=client -o yaml |
-  kubectl apply -f - >/dev/null
-ok "CSI credential Secret reconciled without exposing the key in argv or output"
+reconcile_credential_secret
 
 prepare_immutable_csidriver_migration
 kubectl apply -f "${DRIVER_MANIFEST}"
@@ -302,7 +444,15 @@ controller_volumeattachment_rbac_ok ||
   fail "TrueNAS CSI controller VolumeAttachment RBAC did not converge after applying the canonical manifest"
 ok "CSI controller VolumeAttachment RBAC supports read + patch/status only; create/update/delete remain denied"
 
-kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout="${ROLLOUT_TIMEOUT}"
+reload_credential_consumers_if_needed
+
+if ! kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout="${ROLLOUT_TIMEOUT}"; then
+  dump_controller_rollout_diagnostics
+  fail "TrueNAS CSI controller Deployment did not become Ready within ${ROLLOUT_TIMEOUT}; inspect authentication and socket diagnostics above before retrying"
+fi
+report_controller_runtime ||
+  fail "TrueNAS CSI controller rollout returned but runtime status is not fully converged"
+
 if ! kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeout="${ROLLOUT_TIMEOUT}"; then
   dump_node_rollout_diagnostics
   fail "TrueNAS CSI node DaemonSet did not become Ready within ${ROLLOUT_TIMEOUT}; inspect the diagnostics above before retrying"
