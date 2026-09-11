@@ -17,6 +17,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: vaultwarden
+      lifecycle:
+        phase: foundation
+        priority: 10
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     environment:
