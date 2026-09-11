@@ -59,7 +59,8 @@ stale_worktree=0
 for container in "${CORE_CONTAINERS[@]}"; do
   docker inspect "${container}" >/dev/null 2>&1 || continue
   mapfile -t repo_mounts < <(
-    docker inspect "${container}"       --format '{{range .Mounts}}{{println .Source}}{{end}}' |
+    docker inspect "${container}" \
+      --format '{{range .Mounts}}{{println .Source}}{{end}}' |
       grep '^/mnt/cpool/compose/' || true
   )
   if [[ "${#repo_mounts[@]}" -gt 0 ]]; then
@@ -101,7 +102,9 @@ container_context() {
 
   printf '\n--- %s process/resource context ---\n' "${container}" >&2
   docker top "${container}" -eo pid,etime,comm,args >&2 2>/dev/null | head -20 || true
-  docker stats --no-stream     --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}} pids={{.PIDs}}'     "${container}" >&2 2>/dev/null || true
+  docker stats --no-stream \
+    --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}} pids={{.PIDs}}' \
+    "${container}" >&2 2>/dev/null || true
   printf '%s recent logs:\n' "${container}" >&2
   docker logs --tail 60 "${container}" >&2 2>/dev/null || true
 }
@@ -136,6 +139,34 @@ probe_https() {
 probe_https "indexer" "https://127.0.0.1:9202/" "200|401|403" "wazuh-indexer"
 probe_https "manager_api" "https://127.0.0.1:55000/" "200|401|403|404" "wazuh-manager"
 probe_https "dashboard" "https://127.0.0.1:8444/" "200|302|401|403" "wazuh-dashboard"
+
+printf '\n==> Wazuh manager functional statistics (read-only)\n'
+if docker inspect wazuh-manager >/dev/null 2>&1; then
+  printf '%s\n' '-- wazuh-remoted.state --'
+  docker exec wazuh-manager sh -lc '
+    file=/var/ossec/var/run/wazuh-remoted.state
+    if [ -r "$file" ]; then
+      grep -E "^(queue_size|total_queue_size|tcp_sessions|evt_count|discarded_count|recv_bytes|sent_bytes|dequeued_after_close|ctrl_msg_queue_usage)=" "$file" || true
+    else
+      echo "UNAVAILABLE: $file"
+    fi
+  ' || true
+
+  printf '%s\n' '-- wazuh-analysisd.state --'
+  docker exec wazuh-manager sh -lc '
+    file=/var/ossec/var/run/wazuh-analysisd.state
+    if [ -r "$file" ]; then
+      grep -E "^(total_events_decoded|events_processed|events_received|events_dropped|events_edps|event_queue_usage|rule_matching_queue_usage|alerts_queue_usage|firewall_queue_usage|statistical_queue_usage|archives_queue_usage)=" "$file" || true
+    else
+      echo "UNAVAILABLE: $file"
+    fi
+  ' || true
+else
+  printf 'UNAVAILABLE: wazuh-manager container missing\n'
+fi
+
+printf '%s\n' 'These state files are refreshed by Wazuh and are read without API credentials.'
+printf '%s\n' 'Queue usage, discarded_count and events_dropped are stronger functional signals than TCP listener health alone.'
 
 if docker inspect wazuh-forwarder >/dev/null 2>&1; then
   forwarder_state="$(
