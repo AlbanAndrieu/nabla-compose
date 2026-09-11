@@ -2,9 +2,13 @@
 
 Last updated: 2026-09-11.
 
-This is the concise operational index. Detailed design, evidence and rollback
-notes remain in the specialized roadmaps:
+This file is the concise operational index. Detailed design and rollback notes
+remain in the specialized documents:
 
+- [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
+- [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
+- [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
+- [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
 - [Secrets migration roadmap](./secrets-migration-roadmap.md)
 - [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
@@ -16,464 +20,302 @@ notes remain in the specialized roadmaps:
 
 ## Current platform state
 
-- [x] Talos control plane and both workers are Kubernetes `Ready`.
-- [x] kubelet, kube-proxy, CoreDNS and the Talos-managed default Flannel CNI are running; all three nodes report `NetworkUnavailable=False` / `FlannelIsUp`, and the single-control-plane etcd member is healthy.
-- [x] `scripts/talos/validate-cluster.sh` provides the read-only base-cluster gate.
-- [x] **Post-reboot Kubernetes acceptance on 2026-09-11** — Talos API TCP/50000 is reachable on control plane + both workers, Kubernetes reports 3/3 nodes `Ready`, etcd members=1 and node pressure=none.
-- [x] **Pod Security baseline is now measured, not assumed** — Talos effective PSA defaults are `enforce=baseline`, `audit=restricted`, `warn=restricted`; `kube-system` is exempt by Talos admission configuration. `truenas-csi` is the explicit `enforce=privileged` infrastructure exception. Normal workloads continue toward `Restricted` enforcement.
-- [x] **Persistent Kubernetes operator CLI after reboot** — Helm `v4.3.0` and Kubara `v0.14.0` are available from the persistent TrueNAS operator tool path and the Kubara CLI contract is green.
-- [ ] **Platform security tools are prepared, not installed** — Vault is `BLOCKED_BY_CSI_ACCEPTANCE`; Falco is `PREFLIGHT_READY` on all three `6.18.44-talos` kernels but remains uninstalled; Kubara CLI is ready but bootstrap is `GATED_CONFIG_MISSING` until a reviewed `config.yaml` exists.
-- [ ] **CSI remains the stateful blocker, now at credential reload + attach/publishContext acceptance** — PR #187 restores `attachRequired=true`, `csi-attacher` and least-privilege VolumeAttachment RBAC. The retained `nabla-csi-rwx` PVC is `Bound`. The failed corrected-controller rollout has now been attributed to a malformed local `TRUENAS_CSI_API_KEY` that was written into the Kubernetes Secret: the old healthy Pod had a different key fingerprint, while the new controller connected to TrueNAS but was rejected during authentication and therefore never created `/csi/csi.sock`. The Secret was corrected at `2026-09-11T03:19:01Z`; because Secret-backed environment variables are loaded at Pod start, controller and node consumers still need a controlled reload. Require controller `5/5`, old generation retirement, retained VolumeAttachment `attached=true` + NFS metadata, writer/RWX and reclaim before Vault or the planned TrueNAS reboot.
-- [x] FastAPI Sample uses the repository-owned `sample-observer` bridge.
-- [x] TrueNAS observer source is pinned to `10.254.255.9/32`.
-- [x] persisted and active TrueNAS `ui_allowlist` values converge after UI restart/reconciliation.
-- [x] authenticated TrueNAS WebSocket `system.version` and `app.query` succeed with TLS verification enabled.
-- [x] PR #144 fixed allowlist activation so persisted state is never treated as sufficient by itself.
-- [x] FastAPI Sample runtime promoted and validated on `1.13.3` (`a19676f`): health/version, observer source `10.254.255.9`, TLS verification and authenticated TrueNAS WebSocket calls are green.
-- [ ] FastAPI TrueNAS observer least-privilege migration is in A/B validation: the TrueNAS-local runtime now uses `TRUENAS_API_USERNAME=fastapi_observer`; `auth.me` has matched that identity and the read gate sees 94 TrueNAS apps. FastAPI Cloud temporarily keeps `albandrieu` until A/B inventory parity is green.
-- [x] Prometheus is `RUNNING` with Prometheus, Alertmanager, node-exporter and pfSense exporter; cAdvisor is retained separately in `apps/cadvisor/disabled.yml` and is not part of the active Prometheus lifecycle.
-- [x] pfSense exporter uses the low-impact steady-state contract: 300-second Prometheus scrape, serialized collectors, `system/gateways/service`, timeout 8s; routine lifecycle audits do not invoke the expensive metrics fan-out.
-- [x] OpenRAG backend + OpenSearch + global Langflow + frontend collective health are green; the remaining OpenRAG functional gap is Docling/document ingestion.
-- [ ] Sentry 26.8 remains externally functional but aggregate `DEPLOYING` until every Kafka-backed heartbeat is stable. The 2026-09-09 coordinator incident first affected `snuba-subscription-consumer-events` + `snuba-replacer`; targeted recovery restored both and recreated `snuba-events-subscriptions-consumers`/`snuba-replacers`. The same incident then surfaced on `sentry-events-consumer` + `sentry-attachments-consumer`. The recovery helper now restarts only unhealthy allow-listed consumers, waits a full stability cycle and checks their Kafka groups; do not redeploy all 19 containers.
-- [x] Wazuh core converged on 2026-09-09 after fixing TLS private-key ownership and removing stale `nabla-compose-pr168` bind paths. Accepted evidence: TrueNAS `RUNNING`, Indexer HTTP 401, Manager API HTTP 401, Dashboard HTTP 302, `vm.max_map_count=1048576`. The optional shared-OpenSearch forwarder remains a separate gate.
-- [ ] AutoKuma is repository-ready but still `MISSING` on TrueNAS.
-- [x] Pull-request security now includes CodeQL SAST plus a live FastAPI Cloud production smoke; OWASP ZAP DAST runs only on `master`/daily to control CI cost, with a pfSense-safe read-only FastAPI OpenAPI scan, a passive TrueNAS API surface scan, and a passive `sample.albandrieu.com` web scan, while every PR requires the latest successful master DAST baseline to be no older than 36 hours.
-- [x] API-aware DAST policy — master ZAP now includes a safe-mode filtered FastAPI OpenAPI scan plus a passive TrueNAS `/api/versions` scan when the generic runner is permitted and a passive zero-spider `sample.albandrieu.com` web scan; pfSense TCP/10443 is explicitly excluded from ZAP and load-generating tests and remains on low-frequency posture/observer checks.
-- [ ] FastAPI Cloud response-header hardening — production currently lacks `X-Content-Type-Options: nosniff`, anti-framing (`X-Frame-Options` or CSP `frame-ancestors`) and HSTS. CI carries only these three explicit temporary baseline exceptions; remove each exception when the production header is fixed.
-- [x] First real master DAST executed on 2026-09-09: ZAP crawled 18 URLs with `FAIL-NEW=0`; the initial strict policy failed only because nine passive WARN categories were treated as fatal. The follow-up keeps those WARNs visible, promotes high-signal rules to explicit `FAIL`, splits filtered FastAPI API versus TrueNAS API transport coverage, and excludes pfSense/Snort/pfBlocker plus aggregate health routes from the API DAST input to avoid appliance load.
-- [ ] ZAP passive hardening backlog — review cache-control (10015), cross-domain JavaScript (10017), CSP (10038), cacheability (10049), Permissions-Policy (10063), private-IP disclosure on `/sickz` (rule 2), SRI (90003) and COEP (90004). `Modern Web Application` (10109) is informational; do not blanket-ignore the remaining warnings.
-- [ ] GitHub merge enforcement — make `SAST / CodeQL (Python)`, `Production pre/post-deploy smoke`, `DAST master baseline gate` and the agent/pre-commit quality gate required on `master`. #161 merged while MegaLinter was still running, proving workflow presence alone is not sufficient; no repository Ruleset is currently exposed and the connected GitHub App cannot mutate classic branch protection.
-- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use Ubuntu 24.04 LTS and the focused `runner-build` toolchain from `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted runners, prefer an unprivileged LXC plus remote builder, and treat privileged nested Docker as a separate trusted-only security exception.
-- [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
+- [x] Talos control plane `172.17.0.50` and workers `172.17.0.51` /
+  `172.17.0.52` were healthy before the controlled reboot transaction.
+- [x] Talos `v1.13.9`, Kubernetes `v1.36.3`, etcd single member healthy and no
+  node pressure before quiesce.
+- [x] CoreDNS, kube-proxy and Talos-managed Flannel were operational before
+  quiesce.
+- [x] Persistent operator tooling is installed outside TrueNAS package
+  management: `kubectl`, `talosctl`, Helm and Kubara.
+- [x] Talos VM steady-state policy is reconciled with `autostart=true` and
+  graceful shutdown timeout `180s`.
+- [x] TrueNAS Docker target IPAM is configured as `10.200.0.0/16` with `/24`
+  allocations; the protected `sample-observer=10.254.255.0/28` network was
+  intact before reboot.
+- [x] PR #187 restored the TrueNAS CSI controller-publish path:
+  `attachRequired=true`, `csi-attacher`, VolumeAttachment RBAC and NFS
+  publishContext.
+- [x] Fresh TrueNAS CSI RWX acceptance is green: dynamic PVC/PV, attached
+  VolumeAttachment, NFS publishContext, worker-A write, worker-B read, namespace
+  cleanup, PV reclaim, NFS share removal and actual fresh ZFS dataset removal.
+- [x] Historical CSI dataset
+  `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` was proven orphaned
+  and successfully removed with supported `zfs.resource.destroy` only after
+  complete quiesce of TrueNAS Apps, Docker containers and Talos VMs. The final
+  ZFS postcondition was `dataset does not exist`; no forced destroy was used.
+- [x] `scripts/truenas/diagnose-csi-orphans.sh --check` inventories dynamic
+  `pvc-*` datasets and distinguishes referenced, orphan and candidate states.
+- [x] The CSI orphan documentation records that a real ZFS dataset may be absent
+  from the TrueNAS Storage UI; ZFS/middleware evidence is authoritative.
+- [x] TrueNAS 26 dataset deletion false-success behavior is tracked against
+  upstream NAS-143316; cleanup acceptance is based on postconditions, not a
+  successful high-level return value.
+- [x] TrueNAS `midclt call system.ready` on this host can render `True`.
+  Reboot orchestration now normalizes boolean case/whitespace rather than
+  comparing literally with lowercase `true`.
+- [x] A partial reboot prepare failure exposed the need for a persistent prepare
+  state machine. `reboot-homelab.sh` writes `PREPARING` before mutation,
+  refuses another same-boot transaction, and supports `--continue-prepare`.
+- [x] Pi-hole stop failure root cause identified: `pihole-dns-sync` was in a
+  Docker ghost state with `Running=true`, `Restarting=true`, `.State.Pid=0` and
+  an orphaned `containerd-shim-runc-v2`.
+- [x] Targeted Pi-hole runtime recovery succeeded without restarting
+  Docker/containerd globally: restart policy disabled for the exact container,
+  exact orphan shim terminated, Docker state converged, then
+  `midclt call -j app.stop pihole` reached `STOPPED`.
+- [x] Suricata demonstrated that `restarting=true,pid=0` can also be transient:
+  normal `docker stop -t 60 suricata` converged to `exited`, so orphan-shim
+  recovery must remain a reviewed fallback rather than the first action.
+- [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --check` detects the
+  `Running/Restarting + Pid=0` ghost-state pattern.
+- [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --recover <container>`
+  provides guarded single-container recovery and refuses to touch a live
+  container PID.
+- [x] `scripts/truenas/materialize-reboot-bundle.sh` creates immutable reboot
+  bundles through a temporary staging directory, validates syntax and required
+  features, writes `SOURCE_COMMIT`/`SHA256SUMS`, refuses mismatched reuse and
+  updates `current` atomically only after successful validation.
+- [x] Standard TrueNAS platform diagnostics include App lifecycle,
+  Docker/containerd orphan-shim inventory, Talos/Kubernetes posture and CSI
+  dataset/orphan inventory.
+- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use
+  Ubuntu 24.04 LTS and the focused `runner-build` toolchain from
+  `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted
+  runners, prefer an unprivileged LXC plus remote builder, and treat privileged
+  nested Docker as a separate trusted-only security exception.
 
-## Immediate runtime stabilization gate
+## P0 — finish the current controlled TrueNAS reboot
 
-**Priority #1 is now the TrueNAS-hosted FastAPI Sample runtime itself.** Before
-continuing Talos/Kubara/CSI, prove that the local deployment can consume every
-critical homelab API/observability dependency that it is expected to expose in
-`/api`. FastAPI Cloud remains the comparison baseline where useful, but a
-green cloud observation must not mask a broken local path.
+Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad
+cleanup until this transaction is complete.
 
-1. [ ] **FastAPI Sample local dependency convergence — P0 / priority #1** —
-   make the TrueNAS-hosted runtime prove, from inside the `fastapi-sample`
-   container, the same intended read-only integrations used by the health board:
-   TrueNAS API, pfSense API, Cloudflare API, Prometheus, local Sentry and local
-   Pyroscope. Do not call the local runtime stable until all six dependencies
-   have an explicit transport/auth/application-level result and failures expose
-   the failing phase in `/api`.
-2. [ ] **TrueNAS API local parity — first blocker** — explain why the
-   TrueNAS-hosted FastAPI reports the TrueNAS observer unhealthy/unreachable
-   while FastAPI Cloud can observe TrueNAS. Treat the dedicated
-   `fastapi_observer` RBAC difference versus the temporary cloud
-   `albandrieu` identity as one hypothesis, not the conclusion: the direct
-   verification already proves `fastapi_observer` authentication,
-   `APPS_READ,CATALOG_READ`, `system.version` and 94 apps from
-   `app.query`. Compare the actual FastAPI runtime status, deployed revision,
-   canonical environment, WebSocket path, proxy/`NO_PROXY`, DNS route,
-   source allowlist and API failure phase. Require the local runtime itself to
-   report `configured=true`, `reachable=true`, `stale=false` and the same
-   intended app inventory before changing RBAC.
-3. [ ] **pfSense API from local FastAPI** — prove the TrueNAS-hosted container
-   reaches the split-DNS/LAN pfSense endpoint with the dedicated posture and
-   security credentials, classify DNS/TCP/TLS/auth/response failures separately,
-   and require the low-impact posture/service/Unbound path plus the intended
-   security-table observation to succeed without using the public/shared-WAN
-   diagnostic model.
-4. [ ] **Cloudflare API from local FastAPI** — prove the local runtime can
-   authenticate to the Cloudflare API with its intended read-only token/service
-   credential and retrieve the account/tunnel/Access-policy evidence required by
-   the health board. Distinguish Cloudflare API authorization from Cloudflare
-   Access protection of public service URLs.
-5. [ ] **Prometheus API from local FastAPI** — prove the local runtime can query
-   the local Prometheus HTTP API, not merely that the Prometheus container is
-   `RUNNING`; require a cheap instant query and the TrueNAS/pfSense/core target
-   metadata used by FastAPI, with bounded timeout/cache behaviour.
-6. [ ] **Sentry local API/event path** — keep the already-green Sentry lifecycle,
-   then prove FastAPI can authenticate to the local Sentry API through the
-   intended edge/Cloudflare path and complete the pending synthetic event smoke;
-   retain event id plus Relay/Kafka/Snuba/ClickHouse evidence.
-7. [ ] **Pyroscope local API/query path** — prove the local
-   `http://172.17.0.24:4040` endpoint is ready and that FastAPI can query/read
-   its own `service_name=fastapi-sample` profiling data; surface readiness,
-   query/auth/transport failures independently instead of only checking that the
-   container exists.
-8. [ ] **Cross-runtime A/B report** — extend the runtime comparison so each of
-   the six dependencies reports `local` versus `FastAPI Cloud` with
-   configured/reachable/authenticated/application-result/stale/error-stage
-   evidence. The comparison must identify which runtime failed instead of using
-   generic messages such as “one runtime is unhealthy”.
-9. [ ] **Runtime validation baseline** — before calling the local FastAPI runtime
-   stable, run the bounded integration, non-destructive HTTP pentest and basic
-   performance modes from `scripts/testing/runtime-baseline.py`. Require
-   `/health` + `/v2/version` integration success, the HTTP security baseline
-   to pass, and a low-volume latency/error smoke with explicit p95/error-rate
-   thresholds. CI proves the harness against a deterministic local fixture; the
-   TrueNAS-local targets remain explicit/manual runs, while the FastAPI Cloud
-   production target is checked automatically before merge and after `master`
-   changes.
-10. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
-   convergence is proven (`exit=0`, aggregate `RUNNING`, zero
-   unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
-   healthy); finish the synthetic event proof as part of the local FastAPI gate.
-11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
-    TrueNAS operator binaries are now installed persistently under
-    `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`, Helm `v4.3.0`,
-    Kubara `v0.14.0`). Root owns tool installation/upgrades; `albandrieu` is the
-    non-root cluster operator. The 2026-09-11 post-reboot base validation is green
-    (Talos transport, 3/3 Kubernetes Ready, etcd, pressure and PSA/PSS). PR #187
-    has moved CSI provisioning to a `Bound` PVC. The failed new-controller rollout
-    is now attributed to the malformed local CSI API key and the Kubernetes Secret
-    was corrected at `03:19:01Z`; reload controller/node consumers, require a
-    `5/5` controller and retired old generation, then finish retained
-    VolumeAttachment/publishContext, cross-worker persistence and reclaim before
-    Vault, Kubara/Traefik and the immutable FastAPI ingress smoke on
-    `test.albandrieu.com`.
-12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
-13. [ ] **Scrutiny + InfluxDB — parallel** — the migration-token fix is now validated on TrueNAS: the legacy authorization `114da3d49d117000` was revoked, the replacement secret is root-owned mode `0600`, `bootstrap-scrutiny-influxdb.sh --check` reports `token=VALID scope=v2`, and `deploy-scrutiny.sh --check` discovers `/dev/sda` through `/dev/sdd` with `target=MISSING ready=APPLY`. A reviewed fresh cutover has now been started with `SCRUTINY_RESET_SQLITE=1`; acceptance remains pending until TrueNAS reports `RUNNING`, the web/API is healthy, the TrueNAS collector sees SMART devices, and the workstation collector is proven to submit its own inventory. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
-    then prove the existing workstation collector posts its own SMART inventory to
-    `http://172.17.0.24:31054`. The helper discovers TrueNAS host disks with
-    `smartctl --scan-open`, renders explicit device passthrough for the collector,
-    adds `SYS_ADMIN` only when NVMe is detected, and fails acceptance if the
-    running collector cannot see any SMART devices.
-14. [ ] **Docling for OpenRAG — after Sentry** — deploy Docling only after the
-    Sentry acceptance gate above is green, then prove document
-    ingestion/index/search end-to-end.
-15. [ ] **OpenRAG ↔ LiteLLM — after Docling** — only after Sentry acceptance plus
-    Docling + one ingestion/search path are green, activate the workstation GPU
-    route and prove chat/tool-calling + embeddings.
-16. [ ] **Secondary runtime debt** — AutoKuma registration, Bichon OAuth2
-    re-authorization and the separately tracked Suricata/pihole-dns-sync loops.
+The strict order is:
 
-**Ordering gate:** the FastAPI local dependency convergence above is the first
-blocking gate. Kubernetes implementation work may be prepared, but P0
-acceptance resumes only after the local FastAPI runtime can prove its critical
-TrueNAS/pfSense/Cloudflare/Prometheus/Sentry/Pyroscope dependencies. Once that
-gate is green, treat the already-installed Talos/Flannel/CoreDNS path as a
-regression gate and make **TrueNAS NFS + CSI the first remaining Kubernetes
-implementation gate, before Vault, Kubara/Traefik and the external FastAPI
-ingress smoke**. Persistent/stateful workloads remain blocked until CSI
-provisioning, attach/publishContext, persistence, reclaim and rollback are
-proven. Falco is storage independent but should not be installed while the
-TrueNAS Docker/IPAM migration is actively changing the infrastructure baseline.
-Sentry must also be accepted before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work
-may proceed in parallel because it does not replace either acceptance gate.
+1. [x] Preserve and restore the **original** persistent prepare manifest after
+   the accidental second prepare. The original resume set remains authoritative.
+2. [x] Complete the prepare boundary: all TrueNAS Apps stopped, `docker ps`
+   empty, Talos workers `.51`/`.52` shut down before control plane `.50`, all
+   three VMs `STOPPED` with `autostart=true`, and `phase=PREPARED`.
+3. [x] Retry the historical CSI orphan after real quiesce with supported
+   `zfs.resource.destroy`. It succeeded and the dataset is absent.
+4. [ ] Reboot TrueNAS through the supported TrueNAS UI/API after
+   `phase=PREPARED` — reboot initiated; post-boot acceptance is still pending.
+5. [ ] Run `reboot-homelab.sh --post-reboot-check` and require:
+   changed boot ID, normalized `system.ready`, Docker middleware/systemd healthy,
+   IPAM persisted, `br0=172.17.0.24/24`, protected observer network intact,
+   Talos VMs autostarted, all Talos APIs reachable and Kubernetes 3/3 Ready.
+6. [x] Historical CSI orphan no longer needs a post-reboot retry; it was removed
+   before crossing the reboot boundary.
+7. [ ] Run one **fresh post-reboot CSI regression** and verify dynamic
+   provisioning, publishContext, cross-worker RWX and TrueNAS-side share/dataset
+   reclaim.
+8. [ ] Run `--resume` from the saved **original** manifest only. The reviewed
+   explicit maintenance set remains `crowdsec sample`; do not resume every
+   historically stopped App.
+9. [ ] Run `--verify`, cluster/network gates, Docker IPAM audit and orphan-shim
+   diagnostic.
+10. [ ] Only then start bounded P5 cleanup.
 
-### TrueNAS platform compatibility debt — BETA.2 + CSI auth
+### Current reboot incident evidence
 
-Keep these two upgrade debts coupled and visible before the next TrueNAS major
-transition:
+The current prepare transaction established permanent requirements:
 
-- [ ] **Leave TrueNAS `26.0.0-BETA.2` deliberately pinned until a reviewed
-  stable-26.x upgrade window is prepared.** Before upgrading, capture the
-  boot-environment/config backup, verify `cpool`, Apps/Compose datasets,
-  Talos VM autostart/networking and NFS, then validate the pinned
-  `truenas/api_client`, `PjSalty/truenas` provider, observer/MCP clients and
-  CSI path against the target release. After the upgrade, rerun the TrueNAS,
-  Talos, application and storage acceptance gates before deleting the rollback
-  boot environment.
-- [ ] **Remove the TrueNAS CSI v1.0.3 authentication compatibility bridge.**
-  Upstream still calls deprecated `auth.login_with_api_key` on TrueNAS 26.
-  Upgrade/patch the CSI client to the modern username + API-key SCRAM flow and
-  prove dynamic NFS provisioning/reclaim with that path **before TrueNAS 27**,
-  where the legacy method must not be assumed available.
+- **CLI boolean representation is not an API semantic.** A healthy
+  `system.state=READY` was initially rejected because `midclt` printed `True`.
+- **Prepare is not atomic.** A later App can fail after earlier Apps were
+  already stopped. The original manifest and resume plan must remain immutable
+  and resumable.
+- **A second prepare can corrupt resume intent.** The first manifest observed 49
+  pre-existing STOPPED Apps; the accidental second prepare observed 57. The
+  original manifest was restored before reboot.
+- **A bundle path is not proof of bundle identity.** The active `current`
+  pointer still referenced `540ffa...-readyfix1`, while a proposed
+  `1fddc...-continue-prepare` directory had never been created. Future bundle
+  construction must be atomic and checksum-verified.
+- **`Running/Restarting + Pid=0` requires correlation.** Pi-hole had a real
+  orphan shim and needed targeted recovery; Suricata converged with ordinary
+  `docker stop` and did not need shim recovery.
+- **CSI EBUSY can be runtime/mount debt.** The historical orphan could not be
+  destroyed while the platform was active, but disappeared immediately through
+  supported middleware deletion after complete Apps/Docker/Talos quiesce.
 
-Do not resolve either debt by independently upgrading the TrueNAS host, API
-client/provider or CSI driver: treat them as one compatibility matrix and keep
-the current NFS smoke/rollback proof as the acceptance gate.
+See `truenas-reboot-incident-20260911.md` for the complete evidence chain.
 
-### Sentry startup note — long 70% plateau
+## P0.1 — reboot lifecycle hardening
 
-A Sentry 26.8 deployment can remain around **70%** in TrueNAS for several
-minutes while the containers already exist and the aggregate app remains
-`DEPLOYING`. The percentage is an orchestration-progress value, not a Sentry
-readiness percentage.
+- [x] Normalize all TrueNAS `system.ready` gates, including whitespace.
+- [x] Add `PREPARING` and `--continue-prepare`.
+- [x] Refuse another same-boot `--prepare` by scanning existing transaction
+  directories, not only trusting the mutable `latest` pointer.
+- [x] Validate required manifest files before continuation.
+- [x] Preserve legacy interrupted manifests with no phase only when boot ID and
+  plan files are intact.
+- [x] Add failed-App runtime evidence to the reboot script.
+- [x] Add detailed evidence for unmanaged/running Docker containers before the
+  zero-running gate fails.
+- [x] Add guarded Docker/containerd orphan-shim diagnostics and recovery.
+- [x] Persist bundle/script identity plus prepare/continue history in the reboot
+  manifest.
+- [x] Add checksum verification when an immutable bundle contains `SHA256SUMS`.
+- [x] Add atomic immutable bundle materialization/activation helper so `current`
+  can never be advanced to an unverified or missing bundle.
+- [ ] Add a fixture/integration test that simulates an App stop failure after
+  some earlier Apps have stopped and proves `--continue-prepare` does not
+  regenerate `apps-before.json` or `resume-plan.json`.
+- [ ] Add a Docker fixture test for `Running=true`, `Pid=0`, exactly-one-shim
+  recovery and refusal when `Pid>0`.
+- [ ] Reduce the large `no topology mapping` warning set by mapping remaining
+  TrueNAS App IDs to canonical `x-nabla` service runtime ownership.
+- [ ] Keep the current bundle plus at least one previous known-good rollback
+  bundle until a complete reboot cycle is accepted.
 
-- consumer heartbeat healthchecks use a first-start grace of up to 600 seconds;
-- `snuba-migrate` and `sentry-migrate` are expected one-shot services and may already be exited while steady-state consumers continue starting;
-- do not repeatedly redeploy during that grace window;
-- `app.update` already applies a changed Custom App Compose definition and can start a deployment cycle. Do not immediately follow it with an unnecessary `app.redeploy`, because that starts another cycle and resets healthcheck grace;
-- use `app.redeploy` alone when the stored Compose configuration is unchanged and only a restart is intended;
-- after approximately 10 minutes, run `sudo bash scripts/truenas/diagnose-sentry.sh --check` before deciding that the deployment is stuck.
+## P0.2 — CSI hardening after reboot
 
-## FastAPI TrueNAS observer least-privilege migration
-
-This security hardening runs in parallel with Talos P0 and does not change the
-platform execution order above. The goal is to remove the human/admin identity
-from FastAPI after proving that the dedicated observer has complete read
-visibility.
-
-- [x] FastAPI Sample #223 requires only the canonical
-      `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` pair; legacy, MCP and
-      `TRUENAS_INFRA_*` credentials are ignored rather than used as fallbacks;
-- [x] finish the TrueNAS-local redeploy with
-      `TRUENAS_API_USERNAME=fastapi_observer`; 2026-09-08 runtime evidence
-      confirms canonical username/key selection, TLS verification and 94 apps;
-- [x] run
-      `scripts/security/verify-truenas-observer-access.sh --local`; evidence
-      confirms `authenticated_username=fastapi_observer`,
-      `roles=APPS_READ,CATALOG_READ`, `rbac_scope=apps_read`,
-      `system.version` success and 94 apps from `app.query`;
-- [ ] inspect the effective roles: prefer the narrow `APPS_READ` scope if it
-      satisfies the complete FastAPI observer contract; accept
-      `READONLY_ADMIN` only as an intermediate read-only state because it is
-      broader than required;
-- [ ] while FastAPI Cloud still uses `TRUENAS_API_USERNAME=albandrieu`, run
-      `scripts/security/verify-truenas-observer-access.sh --compare-cloud` and
-      require the same catalog revision plus the exact same TrueNAS application
-      IDs from both runtimes; the first attempt reached comparison but one
-      `/api/homelab/status` snapshot failed the health predicate, so the helper
-      now reports the failing runtime and configured/reachable/stale/credential
-      condition explicitly;
-- [ ] **switch FastAPI Cloud to `fastapi_observer`** only after A/B parity:
-      change `TRUENAS_API_USERNAME=fastapi_observer` and its paired dedicated
-      `TRUENAS_API_KEY` together, keep `TRUENAS_API_VERIFY_SSL=true`,
-      redeploy and prove the same inventory/production smoke before retiring the
-      `albandrieu` FastAPI credential;
-- [ ] rerun the FastAPI Cloud production deployment/smoke and require homelab
-      status, topology, TrueNAS runtime inventory and UI smoke to remain green;
-- [ ] remove the FastAPI workload's use of the `albandrieu` credential after
-      rollback evidence is retained; keep human/infrastructure credentials
-      outside the application observer boundary.
-
-## P0 — Kubernetes platform: TrueNAS NFS + CSI first
-
-The Talos/Kubernetes base is already operational. Talos v1.13 installs Flannel
-as its default CNI unless explicitly disabled, and CoreDNS is deployed during
-cluster bootstrap unless explicitly disabled. Repository runtime evidence
-already confirms CoreDNS, kube-proxy and Flannel are running, all three nodes
-are `Ready`, and `NetworkUnavailable=False` reports `FlannelIsUp`.
-
-Do **not** reinstall Flannel or CoreDNS. Keep the network checks as a regression
-gate around storage changes. The first remaining implementation phase is
-TrueNAS-backed NFS/CSI persistence.
-
-### P0.A — Talos/Kubernetes baseline — already present
-
-- [x] Kubernetes `v1.36.3` runs on all three Talos `v1.13.9` nodes;
-- [x] control plane `172.17.0.50` and workers `172.17.0.51` / `172.17.0.52` are `Ready`;
-- [x] Talos-managed Flannel is installed and all nodes report `NetworkUnavailable=False` / `FlannelIsUp`;
-- [x] CoreDNS, kube-proxy and Flannel pods are running;
-- [x] Talos API TCP/50000 reachability is restored on all three nodes;
-- [x] post-reboot `validate-cluster.sh` acceptance proves 3/3 Ready, etcd members=1, node pressure=none and the effective PSA/PSS posture;
-- [x] effective Talos PSA defaults are observed as `enforce=baseline`, `audit=restricted`, `warn=restricted`; keep `Restricted` as the normal-workload hardening target;
-- [x] OpenTofu owns the steady-state Talos VM policy with `autostart=true` and `shutdown_timeout=180`; the live policy was reconciled in-place on `taloscp01`, `taloswk01` and `taloswk02` with all three VMs `RUNNING`;
-- [x] `scripts/truenas/reconcile-talos-vm-policy.sh --check` proves the three live VMs match the steady-state boot/shutdown policy;
-- [ ] separately prove all three Talos VMs start automatically after the next controlled TrueNAS reboot without manual VM start intervention;
-- [ ] rerun `scripts/talos/validate-cluster.sh` and `scripts/talos/smoke-kubernetes-network.sh` immediately before CSI changes as regression proof for CoreDNS, Service/ClusterIP and cross-node routing;
-- [ ] before production workload migration, decide whether to enable Talos 1.13 Flannel NetworkPolicy enforcement with `kubeNetworkPoliciesEnabled: true`; without it, NetworkPolicy objects are accepted but not enforced by the default Flannel path.
-
-### P0.B — TrueNAS NFS + CSI — active first implementation gate
-
-TrueNAS already exposes NFSv4 on `172.17.0.24:2049`, and the parent dataset
-`cpool/k8s/csi` already exists. Talos ships the NFS client in its maintained
-kubelet image, so the first NFS-backed CSI path does not require an extra
-`nfs-utils` Talos system extension.
-
-The first implementation selects the official `truenas/truenas-csi` driver
-pinned to **v1.0.3**. PR #187 now restores its required controller-publish
-contract: NFS connection metadata is produced by `ControllerPublishVolume`, so
-`CSIDriver.spec.attachRequired=true`, `csi-attacher` and the least-privilege
-VolumeAttachment read/patch/status RBAC are required even for this NFS-only path.
-
-- [x] select and pin TrueNAS CSI `v1.0.3` and its Kubernetes sidecars;
-- [x] add the NFS-only Talos driver manifest plus explicit non-default `nabla-truenas-nfs` StorageClass;
-- [x] constrain provisioning to `cpool/k8s/csi`, NFSv4.1 and worker-only NFS clients `172.17.0.51/32,172.17.0.52/32`;
-- [x] keep the CSI API key runtime-only: `scripts/talos/install-truenas-csi-nfs.sh` renders the Kubernetes Secret without committing or printing it;
-- [x] fail closed on accidental CSI credential changes: a differing local key is rejected unless `TRUENAS_CSI_ROTATE_CREDENTIAL=1` explicitly authorizes rotation; a corrected out-of-band Secret can be reloaded with `TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1`;
-- [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, VolumeAttachment/publishContext, worker-A write, pod recreation and worker-B persistence;
-- [ ] create a dedicated least-privilege TrueNAS CSI identity/API key; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
-- [x] run the read-only `scripts/talos/validate-csi-prereqs.sh` and retain NFS/manifest evidence;
-- [x] verify the NFS client network contract covers both workers and no conflicting `csi.truenas.io` owner already exists;
-- [x] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the runtime API key and create `nabla-truenas-nfs` as a non-default StorageClass;
-- [x] PR #187 corrects the original missing publishContext cause by restoring `attachRequired=true`, adding `csi-attacher:v4.11.0` and minimum VolumeAttachment RBAC;
-- [x] the retained disposable PVC now reaches `Bound`, proving `CreateVolume`/dynamic provisioning progresses beyond the original timeout;
-- [x] **identify the corrected-controller rollout failure cause** — the new five-container controller reached TrueNAS over WebSocket but authentication was rejected because the local `.env.secrets` `TRUENAS_CSI_API_KEY` contained an erroneous extra `==`; its `csi-controller` exited before creating `/csi/csi.sock`, so attacher/provisioner/resizer failures were secondary;
-- [x] **prove old/new credential divergence without exposing either key** — the old healthy controller carries SHA-256 `3230bacb9571e200f4927e281af935677df83ab5c9ebb718cf9dfa45bdc3a652`, different from the malformed local/Secret fingerprint observed during the failed rollout;
-- [x] **correct the Kubernetes CSI Secret** from the fixed local source; `managedFields` records `kubectl-client-side-apply` update at `2026-09-11T03:19:01Z` while preserving the original Secret creation timestamp;
-- [x] **harden controller runtime checks** — install/preflight now reject non-converged replicas and `ProgressDeadlineExceeded` instead of treating a correct Pod template as runtime readiness;
-- [ ] **reload corrected credential consumers** — run the current #187 install helper with `TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1`, require controller and node rollouts to consume the corrected Secret, and preserve diagnostics if authentication still fails;
-- [ ] **finish controller rollout** — require the newest controller to be `5/5 Running`, `ProgressDeadlineExceeded` cleared and the old no-attacher controller generation retired naturally;
-- [ ] **make retained VolumeAttachment converge** from `attached=false` to `attached=true` with `attachmentMetadata.protocol=nfs`, non-empty `nfsServer` and non-empty `nfsPath`;
-- [ ] **make retained writer Pod leave `ContainerCreating`** and prove NodeStageVolume/NFS mount succeeds without recreating the retained PVC;
-- [ ] harden platform preflight error propagation so a nested CSI `rollout status` failure cannot be followed by a false-green aggregate summary;
-- [ ] run the cross-worker persistence smoke and require the same marker on worker B;
-- [ ] prove PVC deletion removes the dynamically-created TrueNAS share/dataset according to `reclaimPolicy: Delete`;
-- [ ] after retained-state recovery, run one fresh end-to-end smoke so acceptance covers newly created VolumeAttachment/publishContext objects;
-- [ ] document and test one rollback/uninstall path before allowing stateful workloads;
-- [ ] track upstream replacement of deprecated `auth.login_with_api_key`; do not carry that compatibility bridge into TrueNAS 27.
-
-### P0.C — Kubara/Traefik + FastAPI ingress — only after CSI
-
-Kubara remains pinned to `v0.14.0`, but ingress is no longer a prerequisite
-for CSI. Start this phase only after P0.B persistence and rollback are green.
-
-- [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and retain the read-only `scripts/talos/preflight-kubara.sh` ownership contract;
-- [x] persistent Kubara `v0.14.0` CLI and `generate --helm/--dry-run` + `bootstrap CLUSTER_NAME` command contract are green after reboot;
-- [ ] create and review the intended Kubara `config.yaml`; until then report `CLI_READY / CONFIG_MISSING / BOOTSTRAP_GATED`, not a platform outage;
-- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then `kubara generate --helm --dry-run` from the reviewed workdir;
-- [ ] inspect the generated Traefik Service exposure mode. On this local/bare-metal cluster, do not assume a cloud `LoadBalancer` implementation exists: explicitly select the existing HAProxy/NodePort or host-network path, or deliberately add a reviewed bare-metal load-balancer implementation such as MetalLB/kube-vip if the generated platform requires `type: LoadBalancer`;
-- [ ] bootstrap/reconcile the minimal Kubara platform and require exactly one intended Traefik `IngressClass`/controller;
-- [ ] run `scripts/talos/smoke-fastapi-sample.sh --preflight`;
-- [ ] prove no existing Ingress claims `test.albandrieu.com` and prove its DNS/edge route;
-- [ ] deploy FastAPI Sample from an immutable `@sha256:` image;
-- [ ] prove Deployment rollout and ready Service EndpointSlice addresses;
-- [ ] prove external `https://test.albandrieu.com/health`;
-- [ ] prove external `https://test.albandrieu.com/v2/version`;
-- [ ] attach the already-proven CSI StorageClass/PVC to the final acceptance workload when useful, without making storage debugging depend on ingress;
-- [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence and clean up/recreate the smoke workload without affecting `sample.albandrieu.com`.
-
-### P0.D — Security platform tools · prepared, gated
-
-The next tool wave is prepared in `scripts/talos/install-platform-tools.sh` and
-`scripts/talos/prepare-platform-tools.sh`. Keep mutation serialized with the
-TrueNAS Docker/IPAM work: preparation/read-only checks may run, but do not change
-multiple infrastructure layers concurrently.
-
-- [x] install/check persistent Helm `v4.3.0` and Kubara `v0.14.0` without TrueNAS package management;
-- [x] add `--preflight`, `--status`, `--check` and single-target `--apply` semantics;
-- [x] add the consolidated read-only `prepare-platform-tools.sh --summary` posture/inventory report;
-- [x] prove Falco kernel preflight on all three Talos nodes (`6.18.44-talos`);
-- [ ] fix and regression-test nested failure propagation so the preparation summary cannot mask a failed CSI prerequisite;
-- [ ] install Vault `2.0.4` / chart `0.34.1` only after P0.B dynamic storage + attach/publish + reclaim acceptance; never auto-init/unseal or expose recovery material;
-- [ ] install Falco `0.44.1` / chart `9.1.0` with `modern_ebpf`, then prove DaemonSet coverage, runtime version and Prometheus metrics before SIEM routing;
-- [ ] retain Falco's dedicated PSA `privileged` namespace as an explicit runtime-sensor exception with restricted audit/warn and tightly scoped RBAC;
-- [ ] prepare Kubara `config.yaml`, review generated Traefik exposure and keep real bootstrap behind explicit operator approval;
-- [ ] after selected tools are installed and healthy, require `scripts/talos/prepare-platform-tools.sh --strict` to pass.
-
-## Sentry lifecycle convergence — final acceptance pending
-
-Sentry remains ahead of Docling/OpenRAG-LiteLLM until this gate is complete.
-
-- [x] both one-shot migrations have exited after the current redeploy;
-- [x] all 19 workloads are created;
-- [x] `snuba-replacer` and `snuba-subscription-consumer-events` are running in the current supervised snapshot;
-- [x] allow the 600-second first-start healthcheck grace to elapse without another redeploy;
-- [x] run `scripts/truenas/diagnose-sentry.sh --check` and prove the required Kafka topics plus consumer heartbeat health (`exit=0`, `ok=8`, `failed=0`, `warnings=0` on 2026-09-08);
-- [ ] require no unexpected `starting`/`unhealthy` steady-state workload. The 2026-09-09 Kafka coordinator incident first affected two Snuba consumers and then `sentry-events-consumer` plus `sentry-attachments-consumer`; targeted restarts recovered the first pair but the latter pair still need the same bounded recovery/stability proof.
-- [ ] require TrueNAS aggregate state to converge from `DEPLOYING` to `RUNNING` after all Kafka-backed consumer heartbeats are stable;
-- [ ] rerun the synthetic Sentry event smoke and preserve edge -> Relay -> Kafka -> Snuba -> ClickHouse evidence as the final regression proof.
-
+- [x] Dynamic provisioning and controller publishContext path are green.
+- [x] Cross-worker NFS RWX smoke is green.
+- [x] Fresh reclaim was verified on the TrueNAS side.
+- [x] Historical orphan cleanup established the operational sequence:
+  correlate references -> quiesce Apps/Docker/Talos -> supported destroy ->
+  verify ZFS absence; no force cleanup.
+- [ ] Make `smoke-truenas-csi-nfs.sh` itself verify bounded TrueNAS-side NFS
+  share and ZFS dataset disappearance after Kubernetes reclaim.
+- [ ] Treat TrueNAS API success as insufficient when the resource postcondition
+  is still present, specifically for NAS-143316.
+- [ ] Keep read-only validation independent from write/admin CSI credentials
+  where possible.
+- [ ] Harden smoke Pods toward Restricted-compatible security context:
+  `allowPrivilegeEscalation=false`, drop `ALL`, `runAsNonRoot=true`, seccomp
+  `RuntimeDefault`, while retaining BusyBox compatibility.
+- [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is
+  stable; do not upgrade during this transaction.
+- [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27.
 
 ## P1 — infrastructure secrets
 
-After CSI persistence/rollback is proven:
+Start only after the reboot and post-reboot CSI regression are accepted.
 
-1. OpenTofu/Terragrunt + Garage backend credentials;
-2. dedicated TrueNAS automation credentials (`TRUENAS_INFRA_API_USERNAME` + `TRUENAS_INFRA_API_KEY`), never the FastAPI observer pair;
-3. Nexus automation credentials;
-4. Talos/Kubernetes/CSI credentials;
-5. Vaultwarden-backed rendering into minimum root-owned `0600` runtime files;
-6. retain git-crypt as encrypted recovery material;
-7. move long-term machine secrets to Vault/OpenBao only after Kubernetes storage is proven.
+1. [ ] OpenTofu/Terragrunt and Garage backend credentials.
+2. [ ] Dedicated TrueNAS infrastructure automation credential; never reuse the
+   FastAPI observer identity.
+3. [ ] Nexus automation credentials.
+4. [ ] Talos/Kubernetes/CSI machine credentials.
+5. [ ] Root-owned `0600` runtime rendering.
+6. [ ] Retain encrypted recovery material.
+7. [ ] Move long-lived machine secrets to Vault/OpenBao only after storage
+   persistence and rollback are proven.
 
-## P2/P3 — core services and migrations
+## P2 — platform/security tools
 
-Current status after runtime stabilization:
+- [ ] Vault: keep blocked until CSI post-reboot acceptance is green.
+- [ ] Falco: kernel preflight is ready; install only after the infrastructure
+  baseline stops changing.
+- [ ] Kubara: CLI is ready; create/review `config.yaml` before bootstrap.
+- [ ] Traefik/Kubara ingress: choose an explicit bare-metal exposure model;
+  do not assume a cloud LoadBalancer.
+- [ ] FastAPI Kubernetes smoke: deploy an immutable image and prove
+  `test.albandrieu.com` only after storage and ingress ownership are stable.
 
-1. [x] Prometheus core runtime;
-2. [x] Grafana runtime;
-3. [x] Graylog runtime;
-4. [x] CrowdSec runtime;
-5. [ ] Scrutiny repository migration + standalone InfluxDB acceptance;
-6. [x] Langflow runtime;
-7. [ ] AutoKuma TrueNAS registration;
-8. [ ] OpenRAG **Docling ingestion** acceptance (core runtime already green);
-9. [x] Wazuh manager/indexer/dashboard acceptance;
-10. [x] Akvorado runtime start; validate ingestion/query path before calling it complete;
-11. [ ] ntopng / Suricata reconciliation;
-12. [ ] Pi-hole and remaining application cutovers.
+## P3 — runtime/services
 
-## P4 — identity
+- [x] Prometheus core runtime.
+- [x] Grafana runtime.
+- [x] Graylog runtime.
+- [x] CrowdSec runtime/maintenance resume intent.
+- [x] Langflow runtime.
+- [x] Wazuh manager/indexer/dashboard core acceptance.
+- [x] OpenRAG core runtime; Docling ingestion remains pending.
+- [ ] Sentry: complete stable consumer heartbeat/Kafka-group acceptance and
+  synthetic event proof; avoid whole-stack redeploy for isolated consumers.
+- [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector using
+  the pinned v0.9.3 collector.
+- [ ] AutoKuma TrueNAS registration.
+- [ ] Akvorado ingestion/query acceptance.
+- [ ] ntopng / Suricata reconciliation.
+- [ ] Pi-hole post-reboot functional acceptance:
+  DNS, UI/API, `pihole-dns-sync`, exporter and restart-loop absence.
+- [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route.
 
-Keycloak/GitHub SSO and Vault/OpenBao human authentication remain after the
-network, storage and infrastructure-secret gates.
+## P3.1 — FastAPI homelab observer
 
+Keep FastAPI as an observer, not an appliance recovery controller.
+
+- [ ] Prove TrueNAS, pfSense, Cloudflare, Prometheus, Sentry and Pyroscope
+  transport/auth/application results independently.
+- [ ] Keep Cloudflare API uncertainty as a warning when the API cannot be
+  confirmed; do not mark an otherwise healthy service down solely because the
+  Cloudflare observer timed out.
+- [ ] Continue the dedicated `fastapi_observer` least-privilege A/B validation
+  before switching the cloud runtime away from the current human/admin
+  credential.
+- [ ] Keep expensive fan-out probes bounded, cached and staggered.
+- [ ] Prefer Prometheus runtime evidence where metrics exist, while retaining
+  TrueNAS App state and direct HTTP/HTTPS/TCP probes as independent evidence.
+
+## P4 — identity and policy
+
+- [ ] Keycloak/GitHub SSO after network/storage stability.
+- [ ] Vault/OpenBao human authentication after infrastructure secrets.
+- [ ] Continue NIST CSF 2.0 mapping across Govern, Identify, Protect, Detect,
+  Respond and Recover.
+- [ ] Keep Kubernetes normal workloads moving toward Restricted Pod Security;
+  retain explicit privileged exceptions only for infrastructure components that
+  require them.
+
+## P5 — post-reboot cleanup
+
+Entry condition: reboot `--verify` and fresh CSI regression are both green.
+
+- [ ] Archive reboot manifest, boot IDs, source SHA and incident evidence.
+- [ ] Keep current + previous reboot bundles until another normal reboot passes.
+- [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset
+  remains.
+- [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner and endpoint
+  evidence.
+- [ ] Never use `docker network prune`.
+- [ ] Protect `intranet`, `traefik_network`, `sample-observer`,
+  `nabla-security` and `secrets-backend`.
+- [ ] Remove only reviewed zero-endpoint stale networks through their canonical
+  owner lifecycle.
+- [ ] Keep pre-existing `CRASHED` Apps as separately tracked debt; do not
+  relabel them as reboot regressions.
+- [ ] Re-run `scripts/truenas/diagnose-docker-orphan-shims.sh --check` after
+  Apps settle and investigate any new `Pid=0` ghost state.
 
 ## Script architecture refactor
 
-The repository now has **67 files under `scripts/`**, including **21 TrueNAS
-operator scripts**. The current diagnostics duplicate the same middleware,
-Docker, probe, secret and reporting primitives, so the next maintainability
-gate is to refactor them without breaking existing operator entrypoints.
+After the reboot transaction, continue the operator-script consolidation:
 
-Reference design: `docs/operator-scripts-refactor.md`.
+- [ ] `scripts/lib/common.sh`: root/operator checks, required commands, temp
+  files and traps.
+- [ ] `scripts/lib/diagnostic.sh`: ok/fail/warn/skipped counters, compact/full
+  output and stable exit codes.
+- [ ] `scripts/lib/truenas.sh`: bounded middleware calls, App state, lifecycle
+  waits and persistent reboot-manifest helpers.
+- [ ] `scripts/lib/docker.sh`: container state, health, restart count,
+  mounts/networks and orphan-shim correlation.
+- [ ] `scripts/lib/probe.sh`: HTTP/HTTPS/TCP/DNS probes with bounded retry.
+- [ ] `scripts/lib/secrets.sh`: owner/mode/key-presence checks without secret
+  disclosure.
+- [ ] Preserve current operator paths as wrappers for at least one release cycle.
+- [ ] Add quality gates for shebang/executable mode, `bash -n`, ShellCheck and
+  duplicate runtime primitives.
 
-### P1 — reusable operator library
+## Ordering rule
 
-- [ ] extract `scripts/lib/common.sh` for strict runtime helpers,
-  `require_command`, root/operator checks, temp files and cleanup traps;
-- [ ] extract `scripts/lib/diagnostic.sh` for ok/fail/warn/skipped counters,
-  compact/full output, report files and stable exit codes;
-- [ ] extract `scripts/lib/truenas.sh` for `app.query`, app state,
-  recent jobs, lifecycle evidence, canonical worktree detection and bounded
-  app-state waits;
-- [ ] extract `scripts/lib/docker.sh` for container state/health/restarts,
-  health history, mounts/networks, bounded logs, process/resource context and
-  stable-health waits;
-- [ ] extract `scripts/lib/probe.sh` for HTTP/HTTPS/TCP/DNS probes,
-  accepted-status sets and bounded retry/backoff;
-- [ ] extract `scripts/lib/secrets.sh` for owner/mode/key-presence contracts
-  without printing secret values;
-- [ ] extract a guarded `scripts/lib/startup-capture.sh` based on
-  `diagnose-scrutiny.sh --capture-startup` so failed TrueNAS Custom Apps can
-  preserve startup logs before middleware cleanup removes their containers.
+The immediate controlled reboot is the only P0 transaction. Do not interleave
+new platform mutations with it.
 
-### P2 — migrate diagnostics without behavior change
+After reboot acceptance:
 
-- [ ] migrate `diagnose-influxdb.sh` first as the smallest reference;
-- [ ] migrate `diagnose-wazuh.sh`;
-- [ ] migrate `diagnose-scrutiny.sh`;
-- [ ] migrate `diagnose-sentry.sh` last because Kafka topics/groups,
-  heartbeat files and one-shot migrations are specialized;
-- [ ] keep current CLI paths as compatibility wrappers during the migration;
-- [ ] preserve the global `audit-app-lifecycle.sh` as the orchestrator and
-  remove duplicate service-specific probing from it.
+```text
+CSI regression
+  -> infrastructure secrets
+  -> Vault / Falco / Kubara
+  -> Kubernetes ingress + test.albandrieu.com
+  -> remaining service migrations
+  -> bounded cleanup / architecture refactor
+```
 
-### P3 — service contracts + thin adapters
-
-- [ ] add declarative contracts under `scripts/contracts/truenas/` for
-  app id, required containers, endpoints/status codes, dependencies, mounts,
-  networks, secret contracts and stabilization windows;
-- [ ] add generic `scripts/truenas/diagnose-service.sh <service>`;
-- [ ] keep thin specialized adapters only where domain semantics require them:
-  Sentry Kafka, Scrutiny SMART/InfluxDB migrations, Wazuh TLS ownership,
-  InfluxDB scraper/token details and Talos/Kubernetes resource semantics;
-- [ ] allow the global TrueNAS audit and later FastAPI topology/health APIs to
-  consume the same contract/result model.
-
-### P4 — reorganize `scripts/` safely
-
-- [ ] split TrueNAS implementations into `diagnose/`, `bootstrap/`,
-  `deploy/` and `recover/`;
-- [ ] preserve old paths as wrappers for at least one release cycle so docs,
-  CI and operator habits do not break;
-- [ ] add quality gates for shebang/executable mode, `bash -n`/ShellCheck and
-  discourage new duplicated runtime primitives outside `scripts/lib/`.
-
-### Scrutiny authorization follow-up
-
-- [x] implement the Scrutiny v0.9.3 migration-capable token contract: scope v2
-  grants read access to the `nabla` org plus organization-scoped read/write
-  for buckets and tasks, which is the minimum InfluxDB resource scope that can
-  create/delete/rename temporary `*_new` buckets and recreate missing tasks.
-  The bootstrap validates the returned authorization, writes the replacement
-  secret atomically, records the scope version/auth ID and revokes superseded
-  Scrutiny authorizations when possible.
-- [x] runtime token rotation accepted on 2026-09-09: legacy authorization
-  `114da3d49d117000` revoked, replacement authorization installed,
-  `.env.secrets` mode `0600`, `token=VALID scope=v2`, and the Scrutiny
-  cutover preflight reports InfluxDB=RUNNING, SMART=VISIBLE and target=MISSING.
-- [ ] runtime acceptance: the reviewed fresh cutover is now in progress with
-  `SCRUTINY_RESET_SQLITE=1`. Require TrueNAS `RUNNING`, web/API health,
-  SMART visibility on the TrueNAS collector, a fresh workstation
-  `verify-scrutiny-workstation-collector.sh --submit`, then
-  `verify-scrutiny-collectors.sh` proving both `host_id=truenas` and
-  `host_id=albandrieu` are present in `/api/summary` with fresh SMART
-  timestamps before marking Scrutiny complete.
-- [ ] workstation collector compatibility: replace the currently running
-  `dev-0.8.2` / floating `master-collector` runtime with pinned
-  `ghcr.io/analogj/scrutiny:v0.9.3-collector`. The v0.8.2 registration model
-  does not send `scrutiny_uuid`, so the v0.9.3 server filters those devices.
-  The workstation verifier now fails on version mismatch and, after
-  `--submit`, requires both actual SMART collection and
-  `host_id=albandrieu` visibility in `/api/summary`.
+Sentry completion remains ahead of Docling/OpenRAG-LiteLLM. Scrutiny and other
+service-specific work may proceed only after the reboot baseline is stable.
