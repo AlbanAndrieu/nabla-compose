@@ -135,9 +135,23 @@ bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
 
 The final smoke must prove PVC bind, cross-worker persistence, and cleanup of the dynamically-created TrueNAS dataset/share after PVC deletion.
 
+On TrueNAS, also inventory dynamic CSI datasets independently from the web UI:
+
+```bash
+bash scripts/truenas/diagnose-csi-orphans.sh --check
+```
+
+The current TrueNAS 26 host has demonstrated that a `cpool/k8s/csi/pvc-*`
+dataset can still exist in ZFS while it is not visible in the Storage UI. It
+has also demonstrated the TrueNAS 26 `NAS-143316` false-success delete bug,
+where `pool.dataset.delete` may return `True` while the underlying destroy has
+failed. Never use UI visibility or a successful middleware return value alone as
+reclaim evidence. See [`truenas-csi-orphan-datasets.md`](./truenas-csi-orphan-datasets.md)
+for the read-only correlation and `EBUSY` recovery procedure.
+
 ## Upgrade coupling
 
 Keep the TrueNAS host and CSI authentication debts coupled:
 
-- TrueNAS is currently validated on `26.0.0-BETA.2`; a stable 26.x upgrade requires rollback/boot-environment, Apps/Compose, Talos VM/network, NFS/CSI, API clients, observer and MCP validation.
+- TrueNAS is currently validated on `26.0.0-BETA.3`; a stable 26.x upgrade requires rollback/boot-environment, Apps/Compose, Talos VM/network, NFS/CSI, API clients, observer and MCP validation.
 - TrueNAS CSI `v1.0.3` still uses deprecated `auth.login_with_api_key`; migrate to the modern username + API-key/SCRAM authentication path before TrueNAS 27 and rerun provision/persistence/reclaim validation.
