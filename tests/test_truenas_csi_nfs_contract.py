@@ -119,7 +119,14 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn("timeout", text)
         self.assertIn("TrueNAS CSI parent mountpoint exists", text)
         self.assertIn("pool.dataset.query", text)
-        self.assertIn("dataset API verification unavailable", text)
+        self.assertIn(
+            "TrueNAS dataset/mountpoint verification skipped on this non-appliance operator",
+            text,
+        )
+        self.assertIn(
+            "TCP/2049 reachability remains the workstation-side storage prerequisite",
+            text,
+        )
 
     def test_install_surfaces_bounded_node_rollout_diagnostics(self) -> None:
         text = (
