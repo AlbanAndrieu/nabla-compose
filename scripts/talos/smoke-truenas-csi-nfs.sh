@@ -14,6 +14,7 @@ STORAGE_CLASS="nabla-truenas-nfs"
 MARKER="nabla-truenas-csi-cross-node-v1"
 SMOKE_IMAGE="${CSI_SMOKE_IMAGE:-busybox@sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028}"
 PVC_TIMEOUT_SECONDS="${CSI_PVC_TIMEOUT_SECONDS:-180}"
+POD_READY_TIMEOUT_SECONDS="${CSI_POD_READY_TIMEOUT_SECONDS:-300}"
 NAMESPACE_DELETE_TIMEOUT_SECONDS="${CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS:-120}"
 DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
 KEEP_ON_FAILURE="${CSI_SMOKE_KEEP_ON_FAILURE:-false}"
@@ -37,6 +38,8 @@ done
 
 [[ "${PVC_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_PVC_TIMEOUT_SECONDS must be a positive integer"
+[[ "${POD_READY_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_POD_READY_TIMEOUT_SECONDS must be a positive integer"
 [[ "${NAMESPACE_DELETE_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS must be a positive integer"
 [[ "${DIAGNOSTIC_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
@@ -125,6 +128,38 @@ dump_pvc_provisioning_diagnostics() {
   printf '%s\n' '--- TrueNAS csi-controller logs ---' >&2
   kubectl -n truenas-csi logs "${controller_pod}" -c csi-controller \
     --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+}
+
+dump_pod_startup_diagnostics() {
+  local pod_name="$1"
+  local node_name="$2"
+  local node_csi_pod
+
+  printf '\n🔎 TrueNAS CSI pod startup/mount diagnostics: %s on %s\n' "${pod_name}" "${node_name}" >&2
+  printf '%s\n' '--- pod ---' >&2
+  kubectl -n "${NAMESPACE}" get pod "${pod_name}" -o wide >&2 || true
+  kubectl -n "${NAMESPACE}" describe pod "${pod_name}" 2>&1 |
+    tail -n "${DIAGNOSTIC_TAIL}" >&2 || true
+
+  printf '%s\n' '--- recent smoke namespace events ---' >&2
+  kubectl -n "${NAMESPACE}" get events --sort-by=.lastTimestamp 2>&1 |
+    tail -n 40 >&2 || true
+
+  node_csi_pod="$(
+    kubectl -n truenas-csi get pods -l app=truenas-csi-node -o json 2>/dev/null |
+      jq -r --arg node "${node_name}" '.items[] | select(.spec.nodeName == $node) | .metadata.name' |
+      head -n 1
+  )"
+  if [[ -n "${node_csi_pod}" ]]; then
+    printf '%s\n' "--- CSI node logs (${node_csi_pod}) ---" >&2
+    kubectl -n truenas-csi logs "${node_csi_pod}" -c csi-node \
+      --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+    printf '%s\n' "--- CSI registrar logs (${node_csi_pod}) ---" >&2
+    kubectl -n truenas-csi logs "${node_csi_pod}" -c csi-node-driver-registrar \
+      --since=15m --tail="${DIAGNOSTIC_TAIL}" >&2 || true
+  else
+    printf '⚠️  no TrueNAS CSI node pod found on %s\n' "${node_name}" >&2
+  fi
 }
 
 dump_cleanup_diagnostics() {
@@ -223,12 +258,21 @@ spec:
         claimName: ${PVC}
 EOF
 
-kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-writer --timeout=120s
+if ! kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-writer \
+  --timeout="${POD_READY_TIMEOUT_SECONDS}s"; then
+  if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then
+    KEEP=true
+    printf 'ℹ️  CSI_SMOKE_KEEP_ON_FAILURE=true; namespace %s retained for inspection\n' "${NAMESPACE}" >&2
+  fi
+  dump_pod_startup_diagnostics csi-writer "${writer_node}"
+  fail "writer pod did not become Ready within ${POD_READY_TIMEOUT_SECONDS}s; inspect mount/events and CSI node logs above"
+fi
 writer_value="$(kubectl -n "${NAMESPACE}" exec csi-writer -- cat /data/marker)"
 [[ "${writer_value}" == "${MARKER}" ]] || fail "writer marker verification failed"
 ok "marker written on ${writer_node}"
 
-kubectl -n "${NAMESPACE}" delete pod csi-writer --wait=true >/dev/null
+kubectl -n "${NAMESPACE}" delete pod csi-writer --wait=true \
+  --timeout="${POD_READY_TIMEOUT_SECONDS}s" >/dev/null
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -258,7 +302,15 @@ spec:
         claimName: ${PVC}
 EOF
 
-kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-reader --timeout=120s
+if ! kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod/csi-reader \
+  --timeout="${POD_READY_TIMEOUT_SECONDS}s"; then
+  if [[ "${KEEP_ON_FAILURE}" == "true" ]]; then
+    KEEP=true
+    printf 'ℹ️  CSI_SMOKE_KEEP_ON_FAILURE=true; namespace %s retained for inspection\n' "${NAMESPACE}" >&2
+  fi
+  dump_pod_startup_diagnostics csi-reader "${reader_node}"
+  fail "reader pod did not become Ready within ${POD_READY_TIMEOUT_SECONDS}s; inspect mount/events and CSI node logs above"
+fi
 reader_value="$(kubectl -n "${NAMESPACE}" exec csi-reader -- cat /data/marker)"
 [[ "${reader_value}" == "${MARKER}" ]] || fail "reader marker verification failed"
 ok "marker persisted and was read from different worker ${reader_node}"
