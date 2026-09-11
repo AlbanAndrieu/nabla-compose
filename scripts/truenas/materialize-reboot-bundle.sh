@@ -38,10 +38,13 @@ while (($#)); do
 done
 
 [[ "${EUID}" -eq 0 ]] || { echo "ERROR: run as root on TrueNAS" >&2; exit 1; }
-for command in git install mktemp sha256sum grep bash python3 mv; do
+for command in git install mktemp sha256sum grep bash python3 mv awk cmp; do
   command -v "${command}" >/dev/null 2>&1 || { echo "ERROR: ${command} is required" >&2; exit 1; }
 done
 [[ -d "${REPO_ROOT}/.git" ]] || { echo "ERROR: repository not found: ${REPO_ROOT}" >&2; exit 1; }
+
+mkdir -p "${BUNDLE_ROOT}"
+chmod 700 "${BUNDLE_ROOT}"
 
 COMMIT="$(git -C "${REPO_ROOT}" rev-parse --verify "${REF}^{commit}")"
 FINAL="${BUNDLE_ROOT}/${COMMIT}"
@@ -60,9 +63,6 @@ FILES=(
   scripts/truenas/reboot-homelab.sh
 )
 
-mkdir -p "${BUNDLE_ROOT}"
-chmod 700 "${BUNDLE_ROOT}"
-
 materialize_file() {
   local path="$1" mode=0644 tmp
   case "${path}" in
@@ -79,22 +79,20 @@ for path in "${FILES[@]}"; do
   materialize_file "${path}"
 done
 
-printf '%s\n' "${COMMIT}" >"${STAGE}/SOURCE_COMMIT"
-(
-  cd "${STAGE}"
-  sha256sum "${FILES[@]}" >SHA256SUMS
-)
-
 bash -n "${STAGE}/scripts/truenas/reboot-homelab.sh"
 bash -n "${STAGE}/scripts/truenas/diagnose-docker-orphan-shims.sh"
 bash -n "${STAGE}/scripts/truenas/diagnose-csi-orphans.sh"
 python3 -m py_compile "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py"
+rm -rf "${STAGE}/scripts/truenas/__pycache__"
 grep -q -- '--continue-prepare' "${STAGE}/scripts/truenas/reboot-homelab.sh" || {
   echo "ERROR: materialized reboot script lacks --continue-prepare" >&2
   exit 1
 }
+
+printf '%s\n' "${COMMIT}" >"${STAGE}/SOURCE_COMMIT"
 (
   cd "${STAGE}"
+  sha256sum "${FILES[@]}" >SHA256SUMS
   sha256sum --quiet -c SHA256SUMS
 )
 
@@ -118,6 +116,10 @@ if [[ -e "${FINAL}" ]]; then
     echo "ERROR: existing bundle checksum mismatch; refusing silent overwrite: ${FINAL}" >&2
     exit 1
   }
+  cmp -s "${STAGE}/SHA256SUMS" "${FINAL}/SHA256SUMS" || {
+    echo "ERROR: existing bundle contents do not match commit ${COMMIT}; refusing silent overwrite" >&2
+    exit 1
+  }
   rm -rf "${STAGE}"
   trap - EXIT
   echo "OK: verified existing immutable bundle ${FINAL}"
@@ -130,7 +132,7 @@ fi
 if ((ACTIVATE)); then
   pointer_tmp="$(mktemp "${BUNDLE_ROOT}/.current.XXXXXX")"
   printf '%s\n' "${FINAL}" >"${pointer_tmp}"
-  chmod 600 "${pointer_tmp}"
+  chmod 0644 "${pointer_tmp}"
   mv "${pointer_tmp}" "${BUNDLE_ROOT}/current"
   echo "OK: activated ${FINAL}"
 fi
