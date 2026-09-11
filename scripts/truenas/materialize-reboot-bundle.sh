@@ -101,6 +101,10 @@ validate_stage() {
     fail "materialized lifecycle planner lacks phased startup ordering"
   grep -q -- 'sourcePath' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
     fail "materialized lifecycle planner lacks TrueNAS App ownership inference"
+  grep -q -- 'catalog_to_app' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
+    fail "materialized lifecycle planner does not consume service/topology runtime bindings"
+  grep -q -- 'declared_lifecycle' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
+    fail "materialized lifecycle planner does not consume declarative lifecycle metadata"
 }
 
 verify_bundle() {
