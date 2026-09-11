@@ -11,6 +11,9 @@ STORAGE_CLASS_MANIFEST="${ROOT}/kubernetes/truenas-csi/storageclass-nfs.yaml"
 VERSION_FILE="${ROOT}/kubernetes/truenas-csi/VERSION"
 NAMESPACE="truenas-csi"
 CREDENTIAL_RESOURCE_NAME="truenas-api-credentials"
+CONTROLLER_CLUSTERROLE="truenas-csi-controller-role"
+CONTROLLER_SERVICE_ACCOUNT="system:serviceaccount:${NAMESPACE}:truenas-csi-controller-sa"
+VOLUME_ATTACHMENT_RESOURCE="volumeattachments.storage.k8s.io"
 EXPECTED_VERSION="v1.0.3"
 ROLLOUT_TIMEOUT="${CSI_ROLLOUT_TIMEOUT:-180s}"
 POD_SECURITY_VERSION="${CSI_POD_SECURITY_VERSION:-v1.36}"
@@ -56,6 +59,54 @@ dump_node_rollout_diagnostics() {
     kubectl -n "${NAMESPACE}" get pods -l app=truenas-csi-node \
       -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true
   )
+}
+
+controller_volumeattachment_rbac_ok() {
+  local verb
+  for verb in get list watch; do
+    [[ "$(kubectl auth can-i \
+      --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+      "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null)" == "yes" ]] || return 1
+  done
+}
+
+report_controller_volumeattachment_rbac() {
+  local verb result
+  local missing=false
+
+  for verb in get list watch; do
+    result="$(kubectl auth can-i \
+      --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+      "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null || true)"
+    if [[ "${result}" == "yes" ]]; then
+      ok "CSI controller RBAC allows ${verb} ${VOLUME_ATTACHMENT_RESOURCE}"
+    else
+      warn "CSI controller RBAC denies ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; external-provisioner cannot fully initialize its informers"
+      missing=true
+    fi
+  done
+
+  [[ "${missing}" == "false" ]]
+}
+
+ensure_controller_volumeattachment_rbac() {
+  if controller_volumeattachment_rbac_ok; then
+    ok "CSI controller VolumeAttachment read RBAC already present"
+    return
+  fi
+
+  # external-provisioner v6.1.1 initializes a VolumeAttachment informer even
+  # though this NFS CSIDriver declares attachRequired=false. Keep this
+  # compatibility grant read-only: no create/update/patch/delete permission is
+  # granted on VolumeAttachment objects.
+  kubectl patch clusterrole "${CONTROLLER_CLUSTERROLE}" \
+    --type='json' \
+    -p='[{"op":"add","path":"/rules/-","value":{"apiGroups":["storage.k8s.io"],"resources":["volumeattachments"],"verbs":["get","list","watch"]}}]' \
+    >/dev/null
+
+  controller_volumeattachment_rbac_ok ||
+    fail "failed to reconcile read-only VolumeAttachment RBAC for ${CONTROLLER_SERVICE_ACCOUNT}"
+  ok "CSI controller VolumeAttachment RBAC reconciled: get/list/watch only"
 }
 
 report_namespace_pod_security() {
@@ -166,6 +217,13 @@ if [[ "${MODE}" == "--check" ]]; then
     printf 'ℹ️  CSI credential Secret is not installed yet\n'
   fi
 
+  if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
+    report_controller_volumeattachment_rbac ||
+      fail "installed CSI controller RBAC is incomplete; run --apply to reconcile it"
+  else
+    printf 'ℹ️  CSI controller ClusterRole is not installed yet; --apply will create and reconcile it\n'
+  fi
+
   printf 'ℹ️  TrueNAS CSI v1.0.3 still uses deprecated auth.login_with_api_key; validate this path on TrueNAS 26 and replace it before TrueNAS 27.\n'
   exit 0
 fi
@@ -186,6 +244,7 @@ printf '%s' "${TRUENAS_CSI_API_KEY}" |
 ok "CSI credential Secret reconciled without exposing the key in argv or output"
 
 kubectl apply -f "${DRIVER_MANIFEST}"
+ensure_controller_volumeattachment_rbac
 kubectl -n "${NAMESPACE}" rollout status deployment/truenas-csi-controller --timeout="${ROLLOUT_TIMEOUT}"
 if ! kubectl -n "${NAMESPACE}" rollout status daemonset/truenas-csi-node --timeout="${ROLLOUT_TIMEOUT}"; then
   dump_node_rollout_diagnostics

@@ -10,6 +10,7 @@ cd "${ROOT}"
 
 MODE="check"
 PUBLISH=false
+CI_FAST=false
 case "${1:-}" in
   --fix)
     MODE="fix"
@@ -19,6 +20,11 @@ case "${1:-}" in
     MODE="preflight"
     shift
     ;;
+  --ci)
+    MODE="ci"
+    CI_FAST=true
+    shift
+    ;;
   --publish)
     PUBLISH=true
     shift
@@ -26,18 +32,19 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Usage:
-  bash scripts/agent-quality-gate.sh [--fix|--preflight|--publish]
+  bash scripts/agent-quality-gate.sh [--fix|--preflight|--ci|--publish]
 
 Modes:
-  default      strict validation gate
+  default      strict local validation gate
   --fix        regenerate deterministic artifacts and converge pre-commit fixes
   --preflight  Git-only safety gate before dependency installation/build work
-  --publish    strict gate plus canonical clean-tree publication check
+  --ci         check-only changed-file gate; skips the full unit suite already required locally before push
+  --publish    strict local gate plus canonical clean-tree publication check
 
 Environment:
   QUALITY_BASE_REF                 override comparison base
   QUALITY_LOG_TAIL                 failure log lines to print (default: 80)
-  QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 4)
+  QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
 EOF
     exit 0
@@ -56,7 +63,7 @@ if (($# > 0)); then
 fi
 
 LOG_TAIL="${QUALITY_LOG_TAIL:-80}"
-FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-4}"
+FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
 if ! [[ "${FIX_MAX_PASSES}" =~ ^[1-9][0-9]*$ ]] || ((FIX_MAX_PASSES > 10)); then
   printf '❌ QUALITY_FIX_MAX_PASSES must be an integer between 1 and 10\n' >&2
   exit 2
@@ -275,6 +282,34 @@ worktree_fingerprint() {
   } | git hash-object --stdin
 }
 
+run_autofix_hook() {
+  local hook="$1"
+  local log
+  local before
+  local after
+  local rc=0
+
+  before="$(worktree_fingerprint)"
+  log="$(mktemp)"
+  pre-commit run "${hook}" --hook-stage pre-commit \
+    --files "${CHANGED_FILES[@]}" --show-diff-on-failure >"${log}" 2>&1 || rc=$?
+  mapfile -t CHANGED_FILES < <(collect_changed_files)
+  after="$(worktree_fingerprint)"
+
+  if [[ "${after}" != "${before}" ]]; then
+    printf '🛠️  %s applied deterministic fixes\n' "${hook}"
+    rm -f "${log}"
+    return 0
+  fi
+  if ((rc != 0)); then
+    printf '❌ autofix hook %s failed without changing files\n' "${hook}" >&2
+    tail -n "${LOG_TAIL}" "${log}" >&2 || true
+    rm -f "${log}"
+    return "${rc}"
+  fi
+  rm -f "${log}"
+}
+
 if [[ "${MODE}" == "fix" ]]; then
   command -v python >/dev/null 2>&1 || {
     echo "❌ python is required" >&2
@@ -284,6 +319,16 @@ if [[ "${MODE}" == "fix" ]]; then
     echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
     exit 1
   }
+
+  AUTOFIX_HOOKS=(
+    trailing-whitespace
+    fix-byte-order-marker
+    mixed-line-ending
+    end-of-file-fixer
+    shfmt-docker
+    biome-check
+    prettier
+  )
 
   for ((pass = 1; pass <= FIX_MAX_PASSES; pass++)); do
     printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
@@ -299,7 +344,12 @@ if [[ "${MODE}" == "fix" ]]; then
     fi
 
     before_fingerprint="$(worktree_fingerprint)"
-    if run_compact "apply/check pre-commit hooks on changed files" \
+    for hook in "${AUTOFIX_HOOKS[@]}"; do
+      run_autofix_hook "${hook}"
+    done
+
+    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if run_compact "strict pre-commit check after deterministic autofix batch" \
       pre-commit run --hook-stage pre-commit \
       --files "${CHANGED_FILES[@]}" --show-diff-on-failure; then
       printf '✅ deterministic formatter/linter fixes converged in %d pass(es)\n' "${pass}"
@@ -325,8 +375,13 @@ run_compact "declared service topology is synchronized" \
   python scripts/generate-service-topology.py --check
 run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
   python scripts/generate-service-consumers.py --check
-run_compact "repository unit/contract tests" \
-  python -m unittest discover -s tests -p 'test_*.py' -q
+
+if [[ "${CI_FAST}" == true ]]; then
+  printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
+else
+  run_compact "repository unit/contract tests" \
+    python -m unittest discover -s tests -p 'test_*.py' -q
+fi
 
 CANONICAL_SKIP="service-topology-sync,service-consumer-contract"
 if [[ -n "${SKIP:-}" ]]; then

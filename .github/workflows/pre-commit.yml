@@ -35,7 +35,7 @@ jobs:
           QUALITY_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: bash scripts/agent-quality-gate.sh --preflight
 
-      - name: Detect MegaLinter scope
+      - name: Detect MegaLinter security/IaC scope
         id: scope
         if: github.event_name == 'pull_request'
         shell: bash
@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           changed="$(git diff --name-only --diff-filter=ACMRTUXB "${BASE_SHA}...HEAD")"
-          if grep -Eq '([.](ya?ml|json5?|sh)$|(^|/)Dockerfile[^/]*$|^Makefile$|^Taskfile[.]yml$|^[.]mega-linter[.]yml$|^[.]github/workflows/)' <<< "${changed}"; then
+          if grep -Eq '(^[.]github/workflows/.*[.]ya?ml$|(^|/)Dockerfile[^/]*$|(^|/)(compose|docker-compose)([.][^.]*)?[.]ya?ml$|^kubernetes/.*[.]ya?ml$|[.](tf|tofu|hcl)$|^[.]mega-linter[.]yml$)' <<< "${changed}"; then
             echo "run_megalinter=true" >> "${GITHUB_OUTPUT}"
           else
             echo "run_megalinter=false" >> "${GITHUB_OUTPUT}"
@@ -56,20 +56,22 @@ jobs:
           python-version: "3.13"
 
       - name: Install quality-gate dependencies
-        run: python -m pip install --disable-pip-version-check --quiet pre-commit PyYAML==6.0.3
+        run: python -m pip install --disable-pip-version-check --quiet pre-commit==4.6.2 PyYAML==6.0.3
 
       - name: Cache pre-commit environments
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-
 
-      - name: Run agent-first quality gate before CI
+      - name: Run targeted check-only agent gate
         if: github.event_name == 'pull_request'
         env:
           QUALITY_BASE_REF: ${{ github.event.pull_request.base.sha }}
           QUALITY_LOG_TAIL: "120"
-        run: bash scripts/agent-quality-gate.sh
+        run: bash scripts/agent-quality-gate.sh --ci
 
       - name: Run pre-commit on all files
         if: github.event_name != 'pull_request'

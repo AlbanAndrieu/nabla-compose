@@ -39,6 +39,9 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses", "csinodes", "volumeattributesclasses"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
@@ -295,11 +298,11 @@ metadata:
     checkov.io/skip1: "CKV_K8S_35=Upstream TrueNAS CSI v1.0.3 consumes the runtime API key only through TRUENAS_API_KEY."
     checkov.io/skip2: "CKV_K8S_16=CSI node must be privileged to mount NFS volumes into kubelet host paths."
     checkov.io/skip3: "CKV_K8S_38=The upstream node service account/RBAC contract is retained for CSI compatibility."
-    checkov.io/skip4: "CKV_K8S_8=Canonical node health is exposed by the driver plus liveness-probe sidecar; registrar has no liveness endpoint."
+    checkov.io/skip4: "CKV_K8S_8=Canonical node health is exposed by the driver plus liveness-probe sidecar; registrar has no independent liveness endpoint."
     checkov.io/skip5: "CKV_K8S_19=hostNetwork keeps storage mounts independent from CNI availability and matches upstream CSI node architecture."
     checkov.io/skip6: "CKV_K8S_40=The privileged node mount process must run as root."
     checkov.io/skip7: "CKV_K8S_43=Images are pinned to reviewed release tags; digest pinning remains a separate supply-chain hardening task."
-    checkov.io/skip8: "CKV_K8S_9=Canonical node readiness is checked on the driver; registrar and liveness helper expose no independent readiness endpoint."
+    checkov.io/skip8: "CKV_K8S_9=Canonical node readiness is checked on the driver; registrar has no independent readiness endpoint."
     checkov.io/skip9: "CKV_K8S_28=Privileged CSI mount operations necessarily receive host capabilities."
     checkov.io/skip10: "CKV_K8S_37=Privileged CSI mount operations necessarily receive host capabilities."
     checkov.io/skip11: "CKV_K8S_20=Privilege escalation is intrinsic to the privileged mount helper and is limited to worker nodes."
