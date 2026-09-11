@@ -112,9 +112,9 @@ green cloud observation must not mask a broken local path.
    production target is checked automatically before merge and after `master`
    changes.
 10. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
-    convergence is proven (`exit=0`, aggregate `RUNNING`, zero
-    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
-    healthy); finish the synthetic event proof as part of the local FastAPI gate.
+   convergence is proven (`exit=0`, aggregate `RUNNING`, zero
+   unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
+   healthy); finish the synthetic event proof as part of the local FastAPI gate.
 11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
     TrueNAS operator binaries are now installed persistently under
     `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`, Helm `v4.3.0`,
@@ -476,5 +476,4 @@ Reference design: `docs/operator-scripts-refactor.md`.
   does not send `scrutiny_uuid`, so the v0.9.3 server filters those devices.
   The workstation verifier now fails on version mismatch and, after
   `--submit`, requires both actual SMART collection and
-  `host_id=albandrieu` visibility in `/api/summary` with fresh SMART
-  timestamps before marking Scrutiny complete.
+  `host_id=albandrieu` visibility in `/api/summary`.
