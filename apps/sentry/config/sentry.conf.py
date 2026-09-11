@@ -64,6 +64,18 @@ SENTRY_QUOTAS = "sentry.quotas.redis.RedisQuota"
 SENTRY_TSDB = "sentry.tsdb.redissnuba.RedisSnubaTSDB"
 SENTRY_DIGESTS = "sentry.digests.backends.redis.RedisBackend"
 
+# Upstream self-hosted Sentry uses StatsD for runtime observability. Route the
+# errors-only stack to the repository-managed Prometheus statsd_exporter by
+# default, while keeping the destination overridable for alternate runtimes.
+_sentry_statsd_addr = env("SENTRY_STATSD_ADDR", "172.17.0.24:9125")
+if _sentry_statsd_addr:
+    _statsd_host, _, _statsd_port = _sentry_statsd_addr.partition(":")
+    SENTRY_METRICS_BACKEND = "sentry.metrics.statsd.StatsdMetricsBackend"
+    SENTRY_METRICS_OPTIONS = {
+        "host": _statsd_host,
+        "port": int(_statsd_port or "8125"),
+    }
+
 # Upstream self-hosted defaults socket.timeout.ms to 1000 ms. On this
 # single-broker homelab that proved too aggressive during short broker/coordinator
 # stalls: librdkafka logged ApiVersionRequest timeouts, AllBrokersDown and group
