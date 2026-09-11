@@ -40,7 +40,7 @@ default           inherit Talos defaults
 kube-node-lease   inherit Talos defaults
 kube-public       inherit Talos defaults
 kube-system       exempt by Talos admission configuration
-nabla-csi-smoke   inherit Talos defaults; retained from CSI failure diagnostics
+nabla-csi-smoke   retained CSI diagnostic namespace
 truenas-csi       enforce=privileged, version=v1.36
 ```
 
@@ -87,41 +87,66 @@ bash scripts/talos/install-platform-tools.sh --apply kubara
 This prevents a failed Vault/CSI gate from being followed accidentally by an
 unrelated Falco or ingress bootstrap.
 
-## Known CSI blocker observed after reboot
+## Current CSI blocker · publishContext / controller rollout
 
-The 2026-09-11 `prepare-platform-tools.sh --summary` run proved the base cluster
-healthy, but the Vault storage preflight emitted:
+The original dynamic-provisioning failure has progressed. PR #187 identified a
+controller/node contract mismatch in the repository NFS-only manifest:
+`CSIDriver.spec.attachRequired=false` plus a missing `csi-attacher` caused
+Kubernetes to skip `ControllerPublishVolume`, so the node received an empty
+`publishContext` and could not determine the NFS protocol.
 
-```text
-error: deployment "truenas-csi-controller" exceeded its progress deadline
-```
-
-The existing preparation aggregation then continued and printed the static
-StorageClass/CSI preflight as ready. **Do not interpret that final summary as CSI
-acceptance.** The earlier dynamic smoke also created `nabla-csi-rwx` but the PVC
-did not become `Bound`.
-
-Before Vault installation, the CSI gate must therefore be resumed and prove all
-of the following in one clean acceptance run:
+PR #187 restores the upstream-compatible path:
 
 ```text
-controller current/available state
-  → PVC dynamic Bound
-  → TrueNAS dataset/share created
-  → worker-A write
-  → worker-B read of same marker
-  → PVC/PV cleanup
-  → TrueNAS dataset/share reclaim
+CSIDriver attachRequired=true
+  → csi-attacher
+  → VolumeAttachment
+  → ControllerPublishVolume
+  → attachmentMetadata.protocol=nfs
+  → attachmentMetadata.nfsServer
+  → attachmentMetadata.nfsPath
+  → NodeStageVolume
+  → NFS mount
 ```
 
-The preparation scripts must also be hardened so a failed nested CSI check
-cannot be masked by Bash conditional/`set -e` semantics. Until that fix is
-validated, any explicit CSI error line is a blocker even if the aggregate
-`--summary` command exits zero.
+The immutable CSIDriver migration has already been applied and the current
+retained evidence is:
 
-The retained `nabla-csi-smoke` namespace should stay in place only while its
-PVC/events/logs are useful evidence; clean it after the CSI root cause is
-captured or after a successful acceptance run.
+```text
+PVC nabla-csi-rwx                 Bound
+PV                                pvc-03741395-a00a-4eaf-a04e-da10e08ec530
+writer csi-writer                 ContainerCreating on talos-7fc-fdt
+VolumeAttachment                  exists
+VolumeAttachment.status.attached  false
+controller generations            2
+new controller requirement        csi-attacher container present
+```
+
+The controller Deployment rollout itself timed out because one old replica is
+still pending termination. This is now the first CSI runtime issue to resolve.
+Do not delete/recreate the retained PVC or use a reboot as a workaround before
+capturing the new controller Pod and attachment evidence.
+
+The required retained-state success is:
+
+```yaml
+status:
+  attached: true
+  attachmentMetadata:
+    protocol: nfs
+    nfsServer: 172.17.0.24
+    nfsPath: /mnt/cpool/k8s/csi/pvc-...
+```
+
+Then finish worker-A write, worker-B read of the same marker, PVC/PV deletion and
+automatic TrueNAS dataset/share reclaim. Only a fresh end-to-end smoke after the
+retained object recovers completes acceptance.
+
+The 2026-09-11 `prepare-platform-tools.sh --summary` also demonstrated a script
+semantics issue: a nested `rollout status` failure could be printed while the
+aggregate preflight later returned success. Harden that propagation before using
+`--summary` as an installation authorization. Until then, **any explicit CSI
+error line blocks Vault even if the aggregate command exits zero**.
 
 ## Pinned baseline
 
@@ -189,6 +214,7 @@ acceptance:
 
 ```text
 PVC dynamic bind
+  → ControllerPublishVolume / publishContext
   → writer
   → cross-node reader
   → cleanup
@@ -308,7 +334,7 @@ Talos/Kubernetes trust root                    ✅ post-reboot baseline healthy
   ↓
 PSA/PSS + least-privilege RBAC                 ✅ baseline; Restricted target
   ↓
-TrueNAS CSI dynamic persistence/reclaim        ⛔ current blocker
+TrueNAS CSI attach/publish + RWX/reclaim        ⛔ current blocker
   ↓
 Vault bootstrap / workload identity            ⏸️ blocked by CSI
   ↓
@@ -340,18 +366,26 @@ still changing. Once that migration is accepted:
 # 1. Fresh read-only baseline.
 bash scripts/talos/prepare-platform-tools.sh --summary
 
-# 2. Resume CSI with retained evidence on failure.
-CSI_PVC_TIMEOUT_SECONDS=60 \
+# 2. Resume the retained #187 controller/VolumeAttachment diagnosis first.
+kubectl -n truenas-csi get deployment,rs,pod \
+  -l app=truenas-csi-controller -o wide
+kubectl -n truenas-csi describe deployment truenas-csi-controller
+kubectl get volumeattachment -o wide
+
+# 3. After retained publishContext evidence is fixed, run a fresh complete smoke.
 CSI_SMOKE_KEEP_ON_FAILURE=true \
+CSI_PVC_TIMEOUT_SECONDS=180 \
+CSI_ATTACHMENT_TIMEOUT_SECONDS=60 \
+CSI_POD_READY_TIMEOUT_SECONDS=300 \
   bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
 
-# 3. Only after complete CSI acceptance.
+# 4. Only after complete CSI acceptance.
 bash scripts/talos/install-platform-tools.sh --apply vault
 
-# 4. Runtime security sensor once the platform baseline is stable.
+# 5. Runtime security sensor once the platform baseline is stable.
 bash scripts/talos/install-platform-tools.sh --apply falco
 
-# 5. Kubara only after preparing/reviewing config.yaml and Traefik exposure.
+# 6. Kubara only after preparing/reviewing config.yaml and Traefik exposure.
 KUBARA_WORKDIR=/path/to/reviewed/kubara-config \
   bash scripts/talos/install-platform-tools.sh --apply kubara
 ```
