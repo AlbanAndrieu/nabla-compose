@@ -34,6 +34,25 @@
         "cloudflareTunnel": { "type": "boolean" }
       }
     },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "priority"],
+      "properties": {
+        "phase": {
+          "enum": [
+            "bootstrap-runtime",
+            "foundation",
+            "network-edge",
+            "primary-data",
+            "secondary-data",
+            "platform-services",
+            "applications"
+          ]
+        },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    },
     "node": {
       "type": "object",
       "additionalProperties": false,
@@ -69,7 +88,8 @@
           "items": { "$ref": "#/$defs/environment" }
         },
         "description": { "type": "string" },
-        "icon": { "type": "string", "minLength": 1 }
+        "icon": { "type": "string", "minLength": 1 },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" }
       }
     },
     "relation": {
