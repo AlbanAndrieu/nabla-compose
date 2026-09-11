@@ -60,7 +60,7 @@ services:
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      - /:/rootfs:ro
+      - /:/rootfs:ro,rslave
       - /:/host:ro,rslave
     command:
       - "--path.rootfs=/host"
@@ -138,44 +138,6 @@ services:
       intranet:
         aliases:
           - statsd-exporter
-
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
-    restart: unless-stopped
-    x-nabla:
-      id: kafka-exporter
-      name: Kafka Exporter
-      kind: metrics-exporter
-      category: observability
-      runtime:
-        provider: truenas-app
-        containerService: kafka-exporter
-      monitoring:
-        type: http
-        target: http://172.17.0.24:9308/metrics
-        conditions:
-          - "[STATUS] == 200"
-      relations:
-        - target: kafka
-          type: dependsOn
-          strength: required
-          description: Exporter queries broker/topic and consumer-group state without joining the Kafka TrueNAS App lifecycle.
-          evidence:
-            - apps/prometheus/compose.yml:--kafka.server=kafka:9092
-        - target: prometheus
-          type: observedBy
-          strength: required
-          description: Prometheus scrapes Kafka topic/group lag and membership metrics.
-          evidence:
-            - apps/prometheus/prometheus.yml:job_name=kafka_exporter
-    command:
-      - --kafka.server=kafka:9092
-      - --web.listen-address=:9308
-      - --verbosity=0
-    ports:
-      - "172.17.0.24:9308:9308"
-    networks:
-      - intranet
 
   pfsense-exporter:
     network_mode: bridge
