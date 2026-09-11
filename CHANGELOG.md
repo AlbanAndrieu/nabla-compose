@@ -1,3 +1,10 @@
+## [0.34.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.1...0.34.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **pfsense:** own recovery diagnostics in nabla-compose ([#188](https://github.com/AlbanAndrieu/nabla-compose/issues/188)) ([1bae89b](https://github.com/AlbanAndrieu/nabla-compose/commit/1bae89b9dac43aceda3eaaf0adf3003627a3229a))
+
 ## [0.34.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.0...0.34.1) (2026-09-11)
 
 
