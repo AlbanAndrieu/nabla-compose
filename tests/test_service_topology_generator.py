@@ -206,6 +206,68 @@ services:
         self.assertEqual(service["presentationRole"], "service")
         self.assertEqual(service["criticality"], "medium")
 
+    def test_lifecycle_metadata_propagates_to_node_and_service(self) -> None:
+        metadata = {
+            "id": "docker-socket-proxy",
+            "name": "Docker Socket Proxy",
+            "kind": "security-proxy",
+            "category": "infrastructure",
+            "lifecycle": {"phase": "bootstrap-runtime", "priority": 0},
+            "runtime": {
+                "provider": "truenas-app",
+                "containerService": "docker-socket-proxy",
+            },
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "docker-compose.yml",
+            "fixture.x-nabla",
+        )
+        service = MODULE.declared_service(
+            metadata,
+            "docker-compose.yml",
+            "docker-socket-proxy",
+            "fixture.x-nabla",
+        )
+
+        expected = {"phase": "bootstrap-runtime", "priority": 0}
+        self.assertEqual(node["lifecycle"], expected)
+        self.assertEqual(service["lifecycle"], expected)
+
+    def test_invalid_lifecycle_metadata_is_rejected(self) -> None:
+        base = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "application",
+            "category": "test",
+        }
+
+        with self.assertRaisesRegex(ValueError, "lifecycle.phase must be one of"):
+            MODULE.topology_node(
+                {
+                    **base,
+                    "lifecycle": {"phase": "magic", "priority": 10},
+                },
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
+        for invalid_priority in (True, "10", -1, 1001):
+            with self.subTest(priority=invalid_priority):
+                with self.assertRaisesRegex(ValueError, "lifecycle.priority"):
+                    MODULE.topology_node(
+                        {
+                            **base,
+                            "lifecycle": {
+                                "phase": "applications",
+                                "priority": invalid_priority,
+                            },
+                        },
+                        "apps/fixture/compose.yml",
+                        "fixture.x-nabla",
+                    )
+
     def test_core_role_is_normalized_to_critical(self) -> None:
         metadata = {
             "id": "kubernetes",
