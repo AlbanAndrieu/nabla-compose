@@ -250,6 +250,15 @@ endpoints:
   url: tcp://kafka:9092
   conditions:
   - '[CONNECTED] == true'
+- name: Kafka Exporter
+  group: observability
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: kafka-exporter
+    nabla_service_id: kafka-exporter
+  url: http://172.17.0.24:9308/metrics
+  conditions:
+  - '[STATUS] == 200'
 - name: Keycloak
   group: security
   interval: 60s
