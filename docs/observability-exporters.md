@@ -24,7 +24,7 @@ sudo bash scripts/truenas/check-observability-exporter-conflicts.sh --check
 
 ## TrueNAS native/exporter preflight — accepted 2026-09-11
 
-The live TrueNAS preflight is now complete:
+The live TrueNAS preflight is complete:
 
 ```text
 native reporting exporter: netdata, enabled=false, GRAPHITE -> 172.17.0.57:2003
