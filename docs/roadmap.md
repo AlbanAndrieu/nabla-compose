@@ -31,8 +31,10 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green with Docling still pending.
-- [ ] **Sentry incident:** TrueNAS still reports `DEPLOYING`. Edge health and envelope acceptance are green, but the 2026-09-11 synthetic event was accepted with HTTP 200 and never appeared in `sentry.errors_local`; end-to-end ingestion is therefore not accepted yet.
-- [ ] **Suricata functional completion:** the `eth0` crash loop is fixed and Suricata now captures on TrueNAS `br0`, but the running engine reported zero loaded rules. Provision `suricata.rules`, require a healthy rule file and prove `eve.json` output/consumption.
+- [ ] **Sentry ingestion incident:** TrueNAS now reports `RUNNING`, the errors-only consumers are healthy and Kafka broker metadata is green, but synthetic envelopes accepted with HTTP 200 do not advance `ingest-events`. Relay repeatedly times out waiting for project state from Sentry upstream (`pending` project config), so end-to-end ingestion is not accepted yet.
+- [x] **Suricata engine/rules:** the `eth0` crash loop is fixed, Suricata captures on TrueNAS `br0`, `/var/lib/suricata/rules/suricata.rules` is populated, 52k+ rules are loaded and `eve.json` is actively produced.
+- [ ] **Suricata downstream consumption:** prove CrowdSec/Alloy/central observability consumes the current `eve.json` stream and keep rule refresh bounded/observable.
+- [ ] **pfSense NetFlow → Cloudflare Network Analytics:** flow data no longer appears in Cloudflare Flow Analytics (`https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/networking-insights/analytics/network-analytics/flow-analytics`). Re-establish exporter/collector path, prove packet/flow emission from pfSense and confirm fresh flows arrive in Cloudflare before closing.
 - [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
@@ -137,10 +139,11 @@ Start after P0 acceptance.
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
 - [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
-- [ ] **Priority: Sentry ingestion** — TrueNAS remains `DEPLOYING`; `/health` and envelope HTTP acceptance are not sufficient. An event accepted at the edge on 2026-09-11 was absent from `sentry.errors_local`. Recover only unhealthy errors-only consumers, verify Kafka groups/heartbeats across a full health cycle, then require `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse before marking Sentry accepted.
-- [ ] Track the Sentry self-hosted `26.8` Kafka coordinator/session-timeout instability as upstream/version debt. Do not repeatedly redeploy the full stack for an isolated consumer failure; use the exact allow-listed consumer recovery helper and evaluate a newer upstream release only after its migration impact is reviewed.
-- [x] **Suricata capture interface** — `eth0` restart loop resolved; the engine is RUNNING on TrueNAS `br0` with zero container restarts.
-- [ ] **Suricata rules/EVE acceptance** — the running engine reported no `/var/lib/suricata/rules/suricata.rules`. Provision rules through the one-shot `suricata-update` service before capture starts, require a non-empty rule file, then prove `eve.json` production and CrowdSec/Alloy consumption.
+- [ ] **Priority: Sentry Relay/project-config ingestion** — TrueNAS App is `RUNNING`; Kafka metadata readiness, consumer health and lag are green. Synthetic envelopes are accepted at the edge but `ingest-events` does not advance. Relay reports repeated `deadline exceeded` with `was_pending=true` while fetching the project config from `/api/0/relays/projectconfigs/?version=3`. Diagnose the async project-config build/cache path (`schedule_build_project_config` → taskbroker/taskworker → Redis project-config cache), then require `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse.
+- [ ] Track the Sentry self-hosted `26.8` Kafka coordinator/session-timeout instability as upstream/version debt, but do not attribute the current smoke failure to Kafka while broker metadata is healthy and the `ingest-events` log-end offset does not advance.
+- [x] **Suricata capture + rules/EVE acceptance** — `eth0` restart loop resolved; engine RUNNING on TrueNAS `br0`; persistent rules file contains ~68k rules, ~52k rules load successfully, alerts are generated and `eve.json` is actively written.
+- [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes the current EVE stream and monitor kernel drops/rule refresh health.
+- [ ] **pfSense NetFlow → Cloudflare Network Analytics** — restore the flow export path because fresh NetFlow no longer appears in Cloudflare Flow Analytics. Verify exporter configuration/interface selection on pfSense, destination/transport and any local collector/tunnel component, capture packets at each hop, then confirm new flows appear in `networking-insights/analytics/network-analytics/flow-analytics`. Add a bounded diagnostic/runbook so future loss is detected independently of the Cloudflare UI.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
 - [ ] **Uptime Kuma + AutoKuma Compose** — the former native TrueNAS Uptime Kuma App is confirmed removed. Add repository-owned Uptime Kuma itself on host port `31050`; keep AutoKuma as a separate declarative reconciler that creates/updates monitors through Uptime Kuma. AutoKuma is not the monitoring server/UI and cannot replace Uptime Kuma. Keep AutoKuma stopped while no Uptime Kuma endpoint exists.
 - [ ] Remove the stale `native-truenas-uptime-monitor` topology assumption when the Compose-owned Uptime Kuma service is introduced; generated inventory must then identify Uptime Kuma and AutoKuma as separate Compose-managed services.
@@ -152,7 +155,7 @@ Start after P0 acceptance.
 - [ ] Akvorado ingestion/query acceptance.
 - [ ] ntopng reconciliation after Suricata.
 - [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
-- [ ] Build a derived immutable code-server image with required packages/extensions baked in; remove apt/package installation from the reboot/startup critical path.
+- [ ] Build a derived immutable code-server image with required packages/extensions baked in; remove startup-time package provisioning.
 - [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route.
 
 ## P3.1 — FastAPI homelab observer
@@ -226,8 +229,9 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-Sentry ingestion recovery + end-to-end smoke
-  -> Suricata rule provisioning + eve.json acceptance
+Sentry Relay/project-config recovery + end-to-end smoke
+  -> Suricata downstream EVE consumption
+  -> pfSense NetFlow -> Cloudflare Flow Analytics recovery
   -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
