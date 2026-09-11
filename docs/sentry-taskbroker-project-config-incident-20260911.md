@@ -75,6 +75,12 @@ While `taskworker` had no active Kafka consumer member:
 
 The incident evidence does not prove which individual production events, if any, were permanently lost versus delayed. Therefore the safe statement is that the ingestion path was unreliable during the incident window; HTTP acceptance alone cannot be used as proof of durable ingestion for that period.
 
+### Why Relay showed the symptom
+
+Relay was not the primary failing component. Relay needed project configuration that Sentry builds asynchronously. That asynchronous work travels through the `taskworker` Kafka topic, Taskbroker and Sentry Taskworker. When Taskbroker lost its Kafka consumer membership, project-config jobs stopped progressing. Relay therefore waited for data that was not being produced, reported `pending`, and eventually hit `deadline exceeded`.
+
+Once Taskbroker rejoined Kafka and Taskworker processing resumed, the project-config path recovered without a Relay-specific repair. The final E2E smoke is the strongest evidence of that recovery.
+
 ### What was not the root cause
 
 The final recovery shows that these components were not the primary root cause:
