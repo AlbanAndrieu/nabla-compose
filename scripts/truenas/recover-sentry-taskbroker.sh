@@ -7,6 +7,7 @@ TASKWORKER_CONTAINER="${SENTRY_TASKWORKER_CONTAINER:-ix-sentry-sentry-taskworker
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
 WAIT_ATTEMPTS="${SENTRY_TASKBROKER_RECOVERY_ATTEMPTS:-36}"
 WAIT_DELAY="${SENTRY_TASKBROKER_RECOVERY_DELAY_SECONDS:-5}"
+TASKBROKER_DEFAULT_STATSD_ADDR="127.0.0.1:8126"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -19,6 +20,44 @@ for command in awk docker jq midclt; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
+extract_yaml_statsd_addr() {
+  local path="$1"
+  awk '
+    /^[[:space:]]*statsd_addr:[[:space:]]*/ {
+      sub(/^[[:space:]]*statsd_addr:[[:space:]]*/, "")
+      gsub(/["'"'"'[:space:]]/, "")
+      print
+      exit
+    }
+  ' "${path}"
+}
+
+validate_statsd_addr_from_taskworker() {
+  local address="$1"
+  docker exec \
+    -e NABLA_STATSD_ADDR="${address}" \
+    "${TASKWORKER_CONTAINER}" \
+    python -c '
+import os
+import socket
+
+address = os.environ["NABLA_STATSD_ADDR"]
+if not address:
+    raise SystemExit("empty StatsD address")
+
+if address.startswith("["):
+    host, separator, port = address[1:].partition("]:")
+    if not separator:
+        raise SystemExit(f"invalid bracketed StatsD address: {address}")
+else:
+    host, separator, port = address.rpartition(":")
+    if not separator or not host:
+        raise SystemExit(f"invalid StatsD address: {address}")
+
+socket.getaddrinfo(host, int(port), type=socket.SOCK_DGRAM)
+' >/dev/null 2>&1
+}
+
 app_state="$(
   midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
     jq -r '.[0].state // "MISSING"'
@@ -30,64 +69,73 @@ for container in "${TASKBROKER_CONTAINER}" "${TASKWORKER_CONTAINER}" "${KAFKA_CO
   docker inspect "${container}" >/dev/null 2>&1 || fail "required container is missing: ${container}"
 done
 
-taskbroker_state="$(docker inspect "${TASKBROKER_CONTAINER}" --format '{{.State.Status}}')"
-[[ "${taskbroker_state}" == "running" ]] ||
-  fail "Taskbroker is not running; run diagnose-sentry-taskbroker.sh instead of targeted recovery"
-
 taskworker_state="$(docker inspect "${TASKWORKER_CONTAINER}" --format '{{.State.Status}}')"
 taskworker_health="$(docker inspect "${TASKWORKER_CONTAINER}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
 [[ "${taskworker_state}" == "running" ]] || fail "Sentry Taskworker is not running"
 [[ "${taskworker_health}" == "healthy" ]] ||
   fail "Sentry Taskworker is not healthy (${taskworker_health}); diagnose before Taskbroker restart"
 
-# A container restart reloads the bind-mounted Taskbroker config. Validate the
-# live mount rather than assuming it matches the config the running process
-# originally loaded. This specifically protects against a stale/unresolvable
-# StatsD hostname turning a functional-but-stalled Taskbroker into a crash loop.
+# Taskbroker merges defaults, YAML, then TASKBROKER_* environment variables.
+# Reconstruct the effective StatsD destination before checking whether a restart
+# is allowed. This keeps the current crash-loop diagnosable: an env override can
+# supersede an otherwise safe bind-mounted YAML file.
 taskbroker_config_source="$(
   docker inspect "${TASKBROKER_CONTAINER}" |
     jq -r '.[0].Mounts[]? | select(.Destination == "/etc/taskbroker/config.yml") | .Source' |
     head -n1
 )"
 
+yaml_statsd_addr=""
 if [[ -n "${taskbroker_config_source}" && -f "${taskbroker_config_source}" ]]; then
-  statsd_addr="$(
-    awk '
-      /^[[:space:]]*statsd_addr:[[:space:]]*/ {
-        sub(/^[[:space:]]*statsd_addr:[[:space:]]*/, "")
-        gsub(/["'\''[:space:]]/, "")
-        print
-        exit
-      }
-    ' "${taskbroker_config_source}"
-  )"
-
-  if [[ -n "${statsd_addr}" ]]; then
-    statsd_host="${statsd_addr%:*}"
-    statsd_port="${statsd_addr##*:}"
-    printf 'taskbroker_live_config=%s\n' "${taskbroker_config_source}"
-    printf 'taskbroker_statsd_addr=%s\n' "${statsd_addr}"
-
-    case "${statsd_host}" in
-      127.0.0.1|localhost|::1)
-        ;;
-      *)
-        if ! docker exec \
-          -e NABLA_STATSD_HOST="${statsd_host}" \
-          -e NABLA_STATSD_PORT="${statsd_port}" \
-          "${TASKWORKER_CONTAINER}" \
-          python -c 'import os, socket; socket.getaddrinfo(os.environ["NABLA_STATSD_HOST"], int(os.environ["NABLA_STATSD_PORT"]))' \
-          >/dev/null 2>&1; then
-          fail "live Taskbroker statsd_addr ${statsd_addr} cannot be resolved from the Sentry network; refusing restart because Taskbroker metrics initialization would panic"
-        fi
-        ;;
-    esac
-  else
-    printf 'taskbroker_live_config=%s statsd_addr=default\n' "${taskbroker_config_source}"
-  fi
+  yaml_statsd_addr="$(extract_yaml_statsd_addr "${taskbroker_config_source}")"
 else
-  printf 'WARN: could not identify readable live /etc/taskbroker/config.yml bind source; restart preflight cannot validate metrics destination\n' >&2
+  printf 'WARN: could not identify readable live /etc/taskbroker/config.yml bind source\n' >&2
 fi
+
+env_statsd_entry="$(
+  docker inspect "${TASKBROKER_CONTAINER}" |
+    jq -r '.[0].Config.Env[]? | select(startswith("TASKBROKER_STATSD_ADDR="))' |
+    head -n1
+)"
+
+if [[ -n "${env_statsd_entry}" ]]; then
+  effective_statsd_addr="${env_statsd_entry#*=}"
+  statsd_source="environment:TASKBROKER_STATSD_ADDR"
+elif [[ -n "${yaml_statsd_addr}" ]]; then
+  effective_statsd_addr="${yaml_statsd_addr}"
+  statsd_source="yaml:/etc/taskbroker/config.yml"
+else
+  effective_statsd_addr="${TASKBROKER_DEFAULT_STATSD_ADDR}"
+  statsd_source="taskbroker-default"
+fi
+
+printf 'taskbroker_live_config=%s\n' "${taskbroker_config_source:-not-found}"
+printf 'taskbroker_yaml_statsd_addr=%s\n' "${yaml_statsd_addr:-not-set}"
+printf 'taskbroker_statsd_source=%s\n' "${statsd_source}"
+printf 'taskbroker_effective_statsd_addr=%s\n' "${effective_statsd_addr:-<empty>}"
+
+if ! validate_statsd_addr_from_taskworker "${effective_statsd_addr}"; then
+  fail "effective Taskbroker StatsD address '${effective_statsd_addr:-<empty>}' from ${statsd_source} cannot be parsed/resolved from the Sentry network; refusing restart because metrics initialization would panic"
+fi
+printf 'taskbroker_statsd_resolution=ok\n'
+
+taskbroker_state="$(docker inspect "${TASKBROKER_CONTAINER}" --format '{{.State.Status}}')"
+case "${taskbroker_state}" in
+  running)
+    ;;
+  restarting|exited|dead)
+    restart_count="$(docker inspect "${TASKBROKER_CONTAINER}" --format '{{.RestartCount}}')"
+    exit_code="$(docker inspect "${TASKBROKER_CONTAINER}" --format '{{.State.ExitCode}}')"
+    pid="$(docker inspect "${TASKBROKER_CONTAINER}" --format '{{.State.Pid}}')"
+    printf 'Taskbroker is not bootable: state=%s restarts=%s pid=%s exit=%s\n' \
+      "${taskbroker_state}" "${restart_count}" "${pid}" "${exit_code}" >&2
+    docker logs --tail 160 "${TASKBROKER_CONTAINER}" >&2 2>/dev/null || true
+    fail "repair Taskbroker startup/configuration first; targeted Kafka recovery deliberately does not mutate config or whole-App state"
+    ;;
+  *)
+    fail "Taskbroker is not running (state=${taskbroker_state}); run diagnose-sentry-taskbroker.sh first"
+    ;;
+esac
 
 get_group_detail() {
   docker exec "${KAFKA_CONTAINER}" \
