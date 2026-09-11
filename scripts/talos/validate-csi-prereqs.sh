@@ -5,7 +5,8 @@ set -euo pipefail
 if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
   NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
   NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
-  exec "${NABLA_DIAGNOSTIC_WRAPPER}"     "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
+  exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
+    "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -22,6 +23,9 @@ CSI_ROOT="${ROOT}/kubernetes/truenas-csi"
 DRIVER_MANIFEST="${CSI_ROOT}/nfs-driver.yaml"
 STORAGE_CLASS_MANIFEST="${CSI_ROOT}/storageclass-nfs.yaml"
 EXPECTED_CSI_VERSION="v1.0.3"
+CONTROLLER_CLUSTERROLE="truenas-csi-controller-role"
+CONTROLLER_SERVICE_ACCOUNT="system:serviceaccount:truenas-csi:truenas-csi-controller-sa"
+VOLUME_ATTACHMENT_RESOURCE="volumeattachments.storage.k8s.io"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -86,12 +90,16 @@ else
   fail "TrueNAS NFS TCP/2049 is not reachable at ${TRUENAS_HOST}"
 fi
 
-[[ -d "${TRUENAS_CSI_MOUNTPOINT}" ]] ||
-  fail "TrueNAS CSI parent mountpoint is missing: ${TRUENAS_CSI_MOUNTPOINT}"
-ok "TrueNAS CSI parent mountpoint exists: ${TRUENAS_CSI_MOUNTPOINT}"
+# /mnt/cpool/... belongs to the TrueNAS appliance. Do not interpret its absence
+# on a workstation as storage failure. Verify the mountpoint only when the
+# current execution environment has the TrueNAS middleware client.
+if command -v midclt >/dev/null 2>&1; then
+  [[ -d "${TRUENAS_CSI_MOUNTPOINT}" ]] ||
+    fail "TrueNAS CSI parent mountpoint is missing on the appliance: ${TRUENAS_CSI_MOUNTPOINT}"
+  ok "TrueNAS CSI parent mountpoint exists on the appliance: ${TRUENAS_CSI_MOUNTPOINT}"
 
-if command -v midclt >/dev/null 2>&1 &&
-  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${TRUENAS_CSI_DATASET}\"]]" 2>/dev/null)"; then
+  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${TRUENAS_CSI_DATASET}\"]]" 2>/dev/null)" ||
+    fail "TrueNAS dataset API query failed for ${TRUENAS_CSI_DATASET}"
   dataset_count="$(jq 'length' <<<"${dataset_json}")"
   [[ "${dataset_count}" -eq 1 ]] ||
     fail "TrueNAS CSI parent dataset not found: ${TRUENAS_CSI_DATASET}"
@@ -100,7 +108,7 @@ if command -v midclt >/dev/null 2>&1 &&
     fail "TrueNAS CSI parent dataset mountpoint mismatch: ${dataset_mountpoint:-missing}"
   ok "TrueNAS CSI parent dataset verified: ${TRUENAS_CSI_DATASET}"
 else
-  printf 'ℹ️  dataset API verification unavailable to current operator; filesystem parent check remains green\n'
+  printf 'ℹ️  TrueNAS dataset/mountpoint verification skipped on this non-appliance operator; TCP/2049 reachability remains the workstation-side storage prerequisite\n'
 fi
 
 kubectl apply --dry-run=client -f "${DRIVER_MANIFEST}" >/dev/null
@@ -119,6 +127,19 @@ else
   printf 'ℹ️  CSIDriver csi.truenas.io is not registered yet\n'
 fi
 
+if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
+  for verb in get list watch; do
+    if [[ "$(kubectl auth can-i \
+      --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+      "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null)" != "yes" ]]; then
+      fail "installed CSI controller cannot ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; external-provisioner may leave PVCs Pending"
+    fi
+  done
+  ok "installed CSI controller can get/list/watch ${VOLUME_ATTACHMENT_RESOURCE}"
+else
+  printf 'ℹ️  CSI controller ClusterRole is not installed yet; install helper will create and reconcile VolumeAttachment read RBAC\n'
+fi
+
 if [[ -n "${TRUENAS_CSI_API_KEY:-}" ]]; then
   ok "TRUENAS_CSI_API_KEY is present in the environment (value not printed)"
 else
@@ -126,4 +147,4 @@ else
 fi
 
 printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 26 and track SCRAM/username support before TrueNAS 27.\n' "${EXPECTED_CSI_VERSION}"
-printf '✅ CSI preflight complete: cluster, NFS reachability and pinned manifests are ready for the explicit install step\n'
+printf '✅ CSI preflight complete: cluster, NFS reachability, controller RBAC and pinned manifests are ready for the explicit install step\n'
