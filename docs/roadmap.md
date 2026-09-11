@@ -6,6 +6,7 @@ This file is the concise operational index. Detailed design and rollback notes
 remain in the specialized documents:
 
 - [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
+- [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
 - [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
 - [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
@@ -20,28 +21,29 @@ remain in the specialized documents:
 ## Current platform state
 
 - [x] Talos control plane `172.17.0.50` and workers `172.17.0.51` /
-  `172.17.0.52` are Kubernetes `Ready`.
+  `172.17.0.52` were healthy before the controlled reboot transaction.
 - [x] Talos `v1.13.9`, Kubernetes `v1.36.3`, etcd single member healthy and no
-  node pressure.
-- [x] CoreDNS, kube-proxy and Talos-managed Flannel are operational.
+  node pressure before quiesce.
+- [x] CoreDNS, kube-proxy and Talos-managed Flannel were operational before
+  quiesce.
 - [x] Persistent operator tooling is installed outside TrueNAS package
   management: `kubectl`, `talosctl`, Helm and Kubara.
 - [x] Talos VM steady-state policy is reconciled with `autostart=true` and
   graceful shutdown timeout `180s`.
 - [x] TrueNAS Docker target IPAM is configured as `10.200.0.0/16` with `/24`
-  allocations; the protected `sample-observer=10.254.255.0/28` network is
-  intact.
+  allocations; the protected `sample-observer=10.254.255.0/28` network was
+  intact before reboot.
 - [x] PR #187 restored the TrueNAS CSI controller-publish path:
   `attachRequired=true`, `csi-attacher`, VolumeAttachment RBAC and NFS
   publishContext.
 - [x] Fresh TrueNAS CSI RWX acceptance is green: dynamic PVC/PV, attached
   VolumeAttachment, NFS publishContext, worker-A write, worker-B read, namespace
   cleanup, PV reclaim, NFS share removal and actual fresh ZFS dataset removal.
-- [ ] Historical CSI dataset
-  `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` is separately
-  tracked as an orphan: no PV, no VolumeAttachment, no NFS reference, no
-  snapshots/children, but `zfs.resource.destroy` returns `EBUSY`. Do not use
-  `zfs destroy -f`.
+- [x] Historical CSI dataset
+  `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` was proven orphaned
+  and successfully removed with supported `zfs.resource.destroy` only after
+  complete quiesce of TrueNAS Apps, Docker containers and Talos VMs. The final
+  ZFS postcondition was `dataset does not exist`; no forced destroy was used.
 - [x] `scripts/truenas/diagnose-csi-orphans.sh --check` inventories dynamic
   `pvc-*` datasets and distinguishes referenced, orphan and candidate states.
 - [x] The CSI orphan documentation records that a real ZFS dataset may be absent
@@ -50,12 +52,11 @@ remain in the specialized documents:
   upstream NAS-143316; cleanup acceptance is based on postconditions, not a
   successful high-level return value.
 - [x] TrueNAS `midclt call system.ready` on this host can render `True`.
-  Reboot orchestration now normalizes boolean case rather than comparing
-  literally with lowercase `true`.
+  Reboot orchestration now normalizes boolean case/whitespace rather than
+  comparing literally with lowercase `true`.
 - [x] A partial reboot prepare failure exposed the need for a persistent prepare
-  state machine. `reboot-homelab.sh` now writes `PREPARING` before mutation,
-  refuses a second fresh prepare on the same boot, and supports
-  `--continue-prepare`.
+  state machine. `reboot-homelab.sh` writes `PREPARING` before mutation,
+  refuses another same-boot transaction, and supports `--continue-prepare`.
 - [x] Pi-hole stop failure root cause identified: `pihole-dns-sync` was in a
   Docker ghost state with `Running=true`, `Restarting=true`, `.State.Pid=0` and
   an orphaned `containerd-shim-runc-v2`.
@@ -63,11 +64,18 @@ remain in the specialized documents:
   Docker/containerd globally: restart policy disabled for the exact container,
   exact orphan shim terminated, Docker state converged, then
   `midclt call -j app.stop pihole` reached `STOPPED`.
+- [x] Suricata demonstrated that `restarting=true,pid=0` can also be transient:
+  normal `docker stop -t 60 suricata` converged to `exited`, so orphan-shim
+  recovery must remain a reviewed fallback rather than the first action.
 - [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --check` detects the
   `Running/Restarting + Pid=0` ghost-state pattern.
 - [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --recover <container>`
   provides guarded single-container recovery and refuses to touch a live
   container PID.
+- [x] `scripts/truenas/materialize-reboot-bundle.sh` creates immutable reboot
+  bundles through a temporary staging directory, validates syntax and required
+  features, writes `SOURCE_COMMIT`/`SHA256SUMS`, refuses mismatched reuse and
+  updates `current` atomically only after successful validation.
 - [x] Standard TrueNAS platform diagnostics include App lifecycle,
   Docker/containerd orphan-shim inventory, Talos/Kubernetes posture and CSI
   dataset/orphan inventory.
@@ -84,67 +92,79 @@ cleanup until this transaction is complete.
 
 The strict order is:
 
-1. [ ] **Continue the existing prepare transaction** using the original
-   persistent manifest. The failed first prepare already stopped several Apps;
-   do not run a fresh `--prepare`.
-2. [ ] Run `reboot-homelab.sh --continue-prepare` and require all remaining
-   Apps to reach `STOPPED`, `docker ps` to be empty, Talos workers to shut down
-   before the control plane, all three VMs to reach `STOPPED`, and
-   `phase=PREPARED`.
-3. [ ] **Retry the historical CSI orphan after real quiesce** with supported
-   `zfs.resource.destroy`. If it still returns `EBUSY`, preserve evidence and do
-   not force deletion.
-4. [ ] Reboot TrueNAS only through the supported TrueNAS UI/API after
-   `phase=PREPARED`.
+1. [x] Preserve and restore the **original** persistent prepare manifest after
+   the accidental second prepare. The original resume set remains authoritative.
+2. [x] Complete the prepare boundary: all TrueNAS Apps stopped, `docker ps`
+   empty, Talos workers `.51`/`.52` shut down before control plane `.50`, all
+   three VMs `STOPPED` with `autostart=true`, and `phase=PREPARED`.
+3. [x] Retry the historical CSI orphan after real quiesce with supported
+   `zfs.resource.destroy`. It succeeded and the dataset is absent.
+4. [ ] Reboot TrueNAS through the supported TrueNAS UI/API after
+   `phase=PREPARED` — reboot initiated; post-boot acceptance is still pending.
 5. [ ] Run `reboot-homelab.sh --post-reboot-check` and require:
    changed boot ID, normalized `system.ready`, Docker middleware/systemd healthy,
    IPAM persisted, `br0=172.17.0.24/24`, protected observer network intact,
    Talos VMs autostarted, all Talos APIs reachable and Kubernetes 3/3 Ready.
-6. [ ] If the historical CSI orphan survived, retry its supported deletion
-   post-reboot before creating new smoke resources.
+6. [x] Historical CSI orphan no longer needs a post-reboot retry; it was removed
+   before crossing the reboot boundary.
 7. [ ] Run one **fresh post-reboot CSI regression** and verify dynamic
    provisioning, publishContext, cross-worker RWX and TrueNAS-side share/dataset
    reclaim.
-8. [ ] Run `--resume` from the saved manifest only. The reviewed explicit
-   maintenance set remains `crowdsec sample`; do not resume every stopped App.
-9. [ ] Run `--verify`, cluster/network gates, Docker IPAM audit and
-   orphan-shim diagnostic.
+8. [ ] Run `--resume` from the saved **original** manifest only. The reviewed
+   explicit maintenance set remains `crowdsec sample`; do not resume every
+   historically stopped App.
+9. [ ] Run `--verify`, cluster/network gates, Docker IPAM audit and orphan-shim
+   diagnostic.
 10. [ ] Only then start bounded P5 cleanup.
 
 ### Current reboot incident evidence
 
-The current prepare transaction demonstrated two important failure modes that
-are now permanent requirements:
+The current prepare transaction established permanent requirements:
 
 - **CLI boolean representation is not an API semantic.** A healthy
-  `system.state=READY` was initially rejected because `midclt` printed `True`
-  and the script compared it with lowercase `true`.
+  `system.state=READY` was initially rejected because `midclt` printed `True`.
 - **Prepare is not atomic.** A later App can fail after earlier Apps were
-  already stopped. The original manifest and resume plan must therefore survive
-  and be resumable; a second fresh snapshot is unsafe.
+  already stopped. The original manifest and resume plan must remain immutable
+  and resumable.
+- **A second prepare can corrupt resume intent.** The first manifest observed 49
+  pre-existing STOPPED Apps; the accidental second prepare observed 57. The
+  original manifest was restored before reboot.
+- **A bundle path is not proof of bundle identity.** The active `current`
+  pointer still referenced `540ffa...-readyfix1`, while a proposed
+  `1fddc...-continue-prepare` directory had never been created. Future bundle
+  construction must be atomic and checksum-verified.
+- **`Running/Restarting + Pid=0` requires correlation.** Pi-hole had a real
+  orphan shim and needed targeted recovery; Suricata converged with ordinary
+  `docker stop` and did not need shim recovery.
+- **CSI EBUSY can be runtime/mount debt.** The historical orphan could not be
+  destroyed while the platform was active, but disappeared immediately through
+  supported middleware deletion after complete Apps/Docker/Talos quiesce.
 
-The Pi-hole failure also proved that
-`tried to kill container, but did not receive an exit event` does not
-necessarily mean a live workload is stuck. Always compare Docker's
-`Running/Restarting` flags with `.State.Pid` and the exact containerd shim.
+See `truenas-reboot-incident-20260911.md` for the complete evidence chain.
 
-## P0.1 — reboot lifecycle hardening after the transaction
+## P0.1 — reboot lifecycle hardening
 
-- [x] Normalize all TrueNAS `system.ready` gates.
+- [x] Normalize all TrueNAS `system.ready` gates, including whitespace.
 - [x] Add `PREPARING` and `--continue-prepare`.
-- [x] Refuse a same-boot fresh `--prepare` when an incomplete manifest exists.
+- [x] Refuse another same-boot `--prepare` by scanning existing transaction
+  directories, not only trusting the mutable `latest` pointer.
 - [x] Validate required manifest files before continuation.
 - [x] Preserve legacy interrupted manifests with no phase only when boot ID and
   plan files are intact.
 - [x] Add failed-App runtime evidence to the reboot script.
+- [x] Add detailed evidence for unmanaged/running Docker containers before the
+  zero-running gate fails.
 - [x] Add guarded Docker/containerd orphan-shim diagnostics and recovery.
+- [x] Persist bundle/script identity plus prepare/continue history in the reboot
+  manifest.
+- [x] Add checksum verification when an immutable bundle contains `SHA256SUMS`.
+- [x] Add atomic immutable bundle materialization/activation helper so `current`
+  can never be advanced to an unverified or missing bundle.
 - [ ] Add a fixture/integration test that simulates an App stop failure after
   some earlier Apps have stopped and proves `--continue-prepare` does not
   regenerate `apps-before.json` or `resume-plan.json`.
 - [ ] Add a Docker fixture test for `Running=true`, `Pid=0`, exactly-one-shim
   recovery and refusal when `Pid>0`.
-- [ ] Persist an explicit incident/evidence note in the reboot manifest when
-  `--continue-prepare` is used.
 - [ ] Reduce the large `no topology mapping` warning set by mapping remaining
   TrueNAS App IDs to canonical `x-nabla` service runtime ownership.
 - [ ] Keep the current bundle plus at least one previous known-good rollback
@@ -155,6 +175,9 @@ necessarily mean a live workload is stuck. Always compare Docker's
 - [x] Dynamic provisioning and controller publishContext path are green.
 - [x] Cross-worker NFS RWX smoke is green.
 - [x] Fresh reclaim was verified on the TrueNAS side.
+- [x] Historical orphan cleanup established the operational sequence:
+  correlate references -> quiesce Apps/Docker/Talos -> supported destroy ->
+  verify ZFS absence; no force cleanup.
 - [ ] Make `smoke-truenas-csi-nfs.sh` itself verify bounded TrueNAS-side NFS
   share and ZFS dataset disappearance after Kubernetes reclaim.
 - [ ] Treat TrueNAS API success as insufficient when the resource postcondition
