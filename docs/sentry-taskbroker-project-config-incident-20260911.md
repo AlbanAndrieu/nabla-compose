@@ -1,83 +1,101 @@
 # Sentry Taskbroker / Relay project-config incident — 2026-09-11
 
-This document preserves the runtime evidence and current analysis for the Sentry 26.8 ingestion failure observed after the controlled TrueNAS reboot. It is historical incident evidence; current priorities remain in `docs/roadmap.md` and supported operator commands stay in `apps/sentry/README.md` / `scripts/truenas/*`.
+Status: **resolved and end-to-end accepted on 2026-09-12**.
+
+This document is the post-mortem for the Sentry 26.8 ingestion incident observed after the controlled TrueNAS reboot. Current priorities remain in `docs/roadmap.md`; supported operator commands remain in `apps/sentry/README.md` and `scripts/truenas/*`.
 
 ## Executive summary
 
-Sentry is not functionally healthy end to end even when most process/container health signals are green.
+The incident was not an HTTP availability failure and not a ClickHouse/Snuba storage failure. It was a failure in Sentry's asynchronous control/task path between Relay, Kafka, Taskbroker and Sentry Taskworker.
 
-The TrueNAS App reports `RUNNING`, the edge accepts synthetic envelopes with HTTP 200, Kafka answers metadata requests, and the errors-only Sentry/Snuba consumers report healthy. Nevertheless, synthetic events do not reach `sentry.errors_local`.
+The misleading symptom was that several shallow health indicators stayed green:
 
-The first proven stalled stage is before `ingest-events`: its Kafka log-end offset does not advance after envelope acceptance. Relay repeatedly reports that project config remains `pending` and eventually times out while fetching project state from Sentry.
+- the TrueNAS Sentry App was `RUNNING`;
+- the Sentry edge returned HTTP 200 and accepted envelopes;
+- Kafka broker metadata was reachable;
+- Sentry Taskworker could still report Docker `healthy`;
+- some Snuba/error consumers remained healthy.
 
-The investigation isolated two distinct Taskbroker failure layers:
+Despite that, newly accepted events did not reach `sentry.errors_local`.
 
-1. **Original functional failure:** Taskbroker initially joined Kafka, then hit a 60-second `SESSTMOUT`, revoked `taskworker` and `events-subscription-results`, and never showed a successful rejoin. The process and gRPC server remained alive while Kafka group `taskworker` had zero active members and growing lag.
-2. **Restart/configuration regression exposed by the recovery experiment:** restarting only Taskbroker caused it to enter a restart loop with exit code `101`, panicking in `src/metrics.rs` because the effective metrics/StatsD socket address could not be resolved. This startup failure now masks the original Kafka rejoin failure until Taskbroker bootability is restored.
-
-The Sentry Taskworker container remained Docker `healthy` during the Taskbroker crash loop, but its logs showed repeated gRPC `UNAVAILABLE`, `Socket closed`, `No route to host` and `Connection refused` errors against `taskbroker:50051`. Docker health is therefore explicitly insufficient for this path.
-
-## Runtime evidence
-
-### End-to-end smoke before targeted recovery
-
-`smoke-sentry-event.sh` proved all of the following in one run:
-
-- Kafka broker metadata request succeeds;
-- Sentry edge health succeeds;
-- synthetic envelope is accepted with HTTP 200;
-- `ingest-events` log-end remains unchanged;
-- `events` log-end therefore also remains unchanged;
-- the event is absent from `sentry.errors_local` after the bounded wait;
-- stage classification is `relay-kafka-publish`;
-- Relay reports `deadline exceeded`, `errors=0`, `was_pending=true`, with roughly 275 project-config requests pending.
-
-This places the original ingestion fault before normal Sentry ingest/Snuba processing.
-
-### Relay / project config
-
-Relay repeatedly logs failures equivalent to:
+The causal chain was:
 
 ```text
-error fetching project state <project-key>: deadline exceeded
-errors=0
-pending≈275
-was_pending=true
+Taskbroker Kafka consumer session failure
+  -> taskworker consumer group loses its active member
+  -> Kafka task backlog grows and Taskbroker SQLite receives no activations
+  -> Sentry Taskworker does not execute async project-config work
+  -> Relay project config remains pending / deadline exceeded
+  -> Relay cannot complete the normal ingest publication path
+  -> envelope HTTP 200 does not translate into an ingested event
+  -> no row appears in sentry.errors_local
 ```
 
-When project config is not cached, Sentry schedules asynchronous `sentry.tasks.relay.build_project_config` work. The critical path is therefore:
+A targeted Taskbroker restart then exposed a second, temporary startup/configuration problem: Taskbroker restart-looped with `exit=101` in metrics initialization because an effective StatsD socket address could not be resolved. That restart regression masked the original Kafka rejoin problem until Taskbroker bootability was restored.
+
+The final runtime acceptance on 2026-09-12 proved recovery:
 
 ```text
-Relay
-  -> Sentry project-config API
-  -> schedule_build_project_config
-  -> taskworker Kafka topic
-  -> Taskbroker
-  -> Sentry Taskworker over gRPC
-  -> project-config cache
-  -> Relay can publish ingest event
+Taskbroker state=running restarts=0 exit=0
+Taskbroker effective statsd_addr=127.0.0.1:8126
+Taskworker -> taskbroker:50051 reachable
+Kafka group taskworker: active member present
+Kafka taskworker lag: 1
+Taskbroker SQLite: 182 Pending activations, application='sentry'
+diagnose-sentry: exit=0 ok=8 failed=0 warnings=0 skipped=0
+smoke-sentry-event: exit=0 ok=5 failed=0 warnings=0 skipped=0
 ```
 
-### Original Taskbroker runtime state
+The final smoke accepted event `61aa04ce88bd49dd85aa69d65f897210` at the Sentry edge and then found exactly one matching row in ClickHouse for `project=1`, proving:
 
-Before the targeted restart, Taskbroker was `running`, restart count `0`, with gRPC listening on `0.0.0.0:50051`. Its effective startup configuration reported:
+```text
+edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse
+```
 
-- Kafka cluster `default -> kafka:9092`;
-- topic/group `taskworker`;
-- `consumer_disabled=false`;
-- `kafka_session_timeout_ms=60000`;
-- SQLite `/opt/sqlite/taskbroker-activations.sqlite`;
-- delivery mode `pull`;
-- effective `statsd_addr=127.0.0.1:8126`;
-- worker map `sentry -> http://127.0.0.1:50052`.
+## User-visible and operational consequences
 
-At startup it received assignments for both `taskworker/0` and `events-subscription-results/0`.
+For this homelab, the practical consequence was **silent observability data loss/delay at the ingestion pipeline level while the front door still looked healthy**.
 
-At `17:01:22` it logged Kafka `SESSTMOUT` after roughly 60 seconds without a successful coordinator response, revoked both assignments and shut down the affected consumer actors. No later `taskworker` assignment appeared in the captured logs.
+### What could be trusted
 
-### Kafka group and SQLite before restart
+During the incident, HTTP 200 from the Sentry envelope endpoint proved only that the edge/Relay accepted the request. It did **not** prove that the event had reached Kafka ingest, Snuba or ClickHouse.
 
-Immediately before the targeted recovery:
+Likewise, Docker `healthy` on Sentry Taskworker did not prove that Taskworker could communicate with Taskbroker or that Taskbroker still owned a Kafka partition.
+
+### What was affected
+
+While `taskworker` had no active Kafka consumer member:
+
+- asynchronous Sentry tasks accumulated in Kafka;
+- project-config build work required by Relay was not processed normally;
+- Relay requests could remain `pending` and reach their deadline;
+- accepted error events could fail to progress into the durable Sentry event store;
+- alerts, issue creation, dashboards and downstream processing based on those missing events could therefore be delayed or absent;
+- Sentry could appear partially healthy from container/process checks while being functionally unable to ingest new errors end to end.
+
+The incident evidence does not prove which individual production events, if any, were permanently lost versus delayed. Therefore the safe statement is that the ingestion path was unreliable during the incident window; HTTP acceptance alone cannot be used as proof of durable ingestion for that period.
+
+### What was not the root cause
+
+The final recovery shows that these components were not the primary root cause:
+
+- ClickHouse storage;
+- Snuba final write path;
+- Kafka broker availability itself;
+- Relay HTTP edge availability;
+- the canonical repository `taskbroker.yml` StatsD configuration.
+
+Once Taskbroker was stable and its Kafka consumer rejoined, Relay project-config processing recovered and the complete event path succeeded without resetting Kafka offsets, deleting topics, deleting SQLite state or redeploying the whole Sentry App.
+
+## Detailed timeline and failure layers
+
+### Layer 1 — original Taskbroker Kafka consumer failure
+
+Taskbroker initially started normally and received partition assignments for both `taskworker/0` and `events-subscription-results/0`.
+
+It later logged Kafka `SESSTMOUT` after roughly the configured 60-second session timeout, revoked its assignments and shut down the affected consumer actors. No successful `taskworker` reassignment was present in the captured failure window.
+
+The Kafka group then showed:
 
 ```text
 taskworker current-offset = 562523
@@ -86,179 +104,253 @@ lag                       = 53204
 active members            = 0
 ```
 
-Taskbroker SQLite was empty:
+The lag continued growing during the failed recovery experiment.
+
+Taskbroker SQLite was initially empty:
 
 ```text
 inflight_taskactivations total = 0
-application_empty              = 0
 application_sentry             = 0
 ```
 
-This excludes a full local inflight queue and the previously considered legacy `application=''` activation pattern. The backlog remained in Kafka and was not entering the local Taskbroker store.
+That combination is important: work existed in Kafka, but Taskbroker was not consuming it into its local activation store.
 
-## Targeted Taskbroker restart experiment
+### Layer 2 — Relay project-config starvation
 
-The guarded recovery restarted **only** `ix-sentry-taskbroker-1`. It did not reset Kafka offsets, delete topics, delete SQLite state, restart Kafka or redeploy the Sentry App.
-
-The expected recovery did not occur:
+Relay repeatedly reported project-state fetches equivalent to:
 
 ```text
-before_members = 0
-before_lag     = 53204
-
-after_members = 0
-after_lag     ≈54204
+error fetching project state <project-key>: deadline exceeded
+errors=0
+pending≈275
+was_pending=true
 ```
 
-During the observation window Taskbroker transitioned into `restarting`. A subsequent diagnostic showed:
+Relay project configuration depends on asynchronous Sentry work. The relevant path is:
+
+```text
+Relay
+  -> Sentry project-config API
+  -> schedule_build_project_config
+  -> Kafka topic taskworker
+  -> Taskbroker consumer
+  -> Sentry Taskworker over gRPC
+  -> project-config/cache update
+  -> Relay can continue normal ingest publication
+```
+
+With the `taskworker` consumer group having zero members, this async path stalled. Relay therefore surfaced the downstream symptom (`pending` / deadline exceeded), but Relay itself was not the primary failure.
+
+### Layer 3 — targeted restart exposed a startup-input regression
+
+A guarded recovery restarted **only** `ix-sentry-taskbroker-1`. It deliberately did not:
+
+- reset Kafka offsets;
+- delete Kafka topics;
+- delete Taskbroker SQLite;
+- restart Kafka;
+- redeploy the entire Sentry App.
+
+Instead of testing Kafka rejoin, that restart initially exposed a second failure:
 
 ```text
 state    = restarting
 restarts = 11
 pid      = 0
 exit     = 101
-```
 
-Every restart failed at metrics initialization:
-
-```text
 thread 'main' panicked at src/metrics.rs:18:14
 Could not resolve into a socket address
 failed to lookup address information: Name or service not known
 ```
 
-This means the targeted restart did **not** provide a valid test of Kafka consumer rejoin. It first exposed a Taskbroker startup-input drift that must be identified before the Kafka experiment can resume.
+This was a bootability problem, not evidence that Kafka itself was still broken.
 
-### Effective StatsD configuration precedence
-
-The repository `apps/sentry/config/taskbroker.yml` intentionally has **no explicit `statsd_addr`**. Upstream Taskbroker 26.8 defaults to the numeric loopback `127.0.0.1:8126`, which does not require DNS resolution. Taskbroker configuration precedence is:
+The diagnostic was therefore hardened to reconstruct Taskbroker's effective StatsD configuration using the real precedence:
 
 ```text
 TASKBROKER_STATSD_ADDR environment
   > /etc/taskbroker/config.yml statsd_addr
-  > upstream default 127.0.0.1:8126
+  > Taskbroker default 127.0.0.1:8126
 ```
 
-Upstream Sentry self-hosted also supplies `TASKBROKER_STATSD_ADDR` explicitly. Consequently, the current panic must not be attributed to the repository YAML alone: an effective environment override, a stale live bind mount, or a different live image/configuration may supersede the reviewed file.
+The canonical repository `apps/sentry/config/taskbroker.yml` contains no explicit `statsd_addr`.
 
-The read-only Taskbroker diagnostic now reports:
-
-- image and image ID;
-- actual bind source for `/etc/taskbroker/config.yml`;
-- explicit YAML `statsd_addr`, if any;
-- whether `TASKBROKER_STATSD_ADDR` is present in the live container environment;
-- the effective source and value after applying the real precedence;
-- whether that address can be parsed/resolved from the Sentry network;
-- Taskworker → `taskbroker:50051` reachability.
-
-No new StatsD exporter or destination is introduced by this diagnostic work.
-
-### Taskworker false-green state
-
-While Taskbroker crash-looped, `ix-sentry-sentry-taskworker-1` still reported:
+At final acceptance the live inputs were:
 
 ```text
-state=running
-health=healthy
+taskbroker_live_config=/mnt/cpool/compose/nabla-compose/apps/sentry/config/taskbroker.yml
+taskbroker_yaml_statsd_addr=not-set
+taskbroker_statsd_source=taskbroker-default
+taskbroker_effective_statsd_addr=127.0.0.1:8126
+taskbroker_statsd_resolution=ok
 ```
 
-but functional logs repeatedly showed failures such as:
+Taskbroker then started cleanly, gRPC listened on `0.0.0.0:50051`, and it immediately received assignments for `events-subscription-results/0` and `taskworker/0`.
+
+## Why the incident was difficult to detect
+
+The incident exposed three false-green classes.
+
+### 1. HTTP acceptance is not durable ingestion
+
+An envelope returning HTTP 200 only proves edge acceptance. It does not prove the event traversed Kafka, ingest consumers, Snuba and ClickHouse.
+
+The required functional health signal is therefore a synthetic event that is later queryable in ClickHouse.
+
+### 2. Container health is not dependency health
+
+Sentry Taskworker stayed Docker `healthy` while logs showed gRPC failures such as:
 
 ```text
-taskworker.fetch_task.failed ... StatusCode.UNAVAILABLE
+StatusCode.UNAVAILABLE
 Socket closed
 No route to host
 Connection refused
 ```
 
-The failing peer addresses moved across stale/current Docker IPv4/IPv6 addresses while `taskbroker:50051` remained unavailable. This proves that container health for Taskworker does not validate the Taskbroker RPC dependency.
+A process-local Docker health check did not validate Taskworker -> Taskbroker RPC.
 
-The recovery contract now requires a direct TCP reachability check from Taskworker to `taskbroker:50051` in addition to Docker state/health.
+The contract now includes direct reachability from Taskworker to `taskbroker:50051`.
 
-## Exporter / TrueNAS preflight result
+### 3. A running Taskbroker is not a consuming Taskbroker
 
-The read-only TrueNAS conflict preflight found:
+Before the restart experiment, Taskbroker itself was running and gRPC was listening, but Kafka group `taskworker` had zero active members and lag was growing.
 
-- native `netdata` service active;
-- one configured TrueNAS Reporting Exporter named `netdata`, disabled, type `GRAPHITE`, destination `172.17.0.57:2003`;
-- no listener on `8125`, `9125`, `9102` or `9308`;
-- no Docker publisher on host ports `9102` or `9308`;
-- existing exporters include Redis `:9121` and Pi-hole `:9617`;
-- Kafka is present on the shared `intranet` network;
-- no conflicting publisher for the proposed future StatsD exposition `:9102` or Kafka exporter `:9308`.
+Therefore process liveness and RPC liveness must be combined with **Kafka consumer-group membership and lag**.
 
-This establishes that future telemetry ports are available, but it does **not** justify changing Taskbroker metrics configuration during the current recovery. Restore Taskbroker functional startup first. StatsD remains deferred; Kafka exporter deployment remains a separate controlled Kafka App lifecycle change.
+## Recovery evidence
 
-## Current two-stage recovery model
+### Taskbroker startup accepted
 
-### Stage A — restore Taskbroker bootability
+After the corrected targeted restart:
 
-Before another restart:
+```text
+taskbroker state=running pid>0 restarts=0 exit=0
+statsd_addr=127.0.0.1:8126
+GRPC server listening on 0.0.0.0:50051
+Taskworker -> taskbroker:50051 connected
+```
 
-1. run `diagnose-sentry-taskbroker.sh` and capture the live image, bind source and effective StatsD source/value;
-2. identify whether the effective value comes from `TASKBROKER_STATSD_ADDR`, the live YAML or Taskbroker's default;
-3. reconcile only the proven source of the invalid value; do not add a new exporter as a workaround;
-4. require Taskbroker to stay `running`, `pid>0`, and stop increasing its restart counter;
-5. require `GRPC server listening on 0.0.0.0:50051`;
-6. require Taskworker to reach `taskbroker:50051` functionally.
+The historical `metrics.rs` panic lines remained in Docker logs, but they were previous restart-loop entries rather than the state of the current process.
 
-Do not run the end-to-end Sentry smoke while Taskbroker is crash-looping.
+### Kafka consumer rejoined
 
-### Stage B — resume the original Kafka/rejoin diagnosis
+The Kafka group recovered to:
 
-Once Taskbroker is stably running:
+```text
+GROUP       TOPIC       PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG  CONSUMER
+ taskworker taskworker  0          625511+         625512+         1    rdkafka
+```
 
-1. inspect Kafka group `taskworker`;
-2. require an active member to appear;
-3. require lag to decrease from the recorded backlog;
-4. confirm SQLite begins receiving/processing activations when work exists;
-5. require Relay project-config `pending` counts to fall;
-6. rerun the synthetic smoke;
-7. require `ingest-events`, then `events`, then `sentry.errors_local` to advance.
+Later diagnostic output showed the offset continuing to advance while lag remained `1`.
 
-If Taskbroker is stable and reachable but still has zero Kafka members, the original Kafka coordinator/session-timeout/rejoin hypothesis remains active and becomes the next diagnostic target.
+### Taskbroker SQLite became active
 
-## Guardrails added after the experiment
+After consumer recovery:
 
-`diagnose-sentry-taskbroker.sh` now:
+```text
+total: 182
+application_sentry: 182
+by_status:
+  Pending: 182
+```
 
-- reconstructs the effective StatsD value from environment, live YAML and upstream default;
-- reports image/image ID and the actual bind-mounted config source;
-- validates address parsing/resolution without mutating the runtime;
-- probes Taskworker → `taskbroker:50051` functionally;
+This is the inverse of the failure state: Taskbroker was again consuming Kafka work into its activation store and Sentry Taskworker was processing tasks.
+
+Taskworker logs also showed normal child recycling after `taskworker.max_task_count_reached (count=10000)`, followed by clean child exits and replacements.
+
+### Full Sentry acceptance
+
+Final diagnostic:
+
+```text
+diagnose-sentry: exit=0 ok=8 failed=0 warnings=0 skipped=0
+```
+
+Final E2E smoke:
+
+```text
+✅ Kafka broker metadata readiness
+✅ Sentry edge health
+✅ Sentry envelope accepted: event_id=61aa04ce88bd49dd85aa69d65f897210 http=200
+✅ Sentry event queryable in ClickHouse: project=1 event_id=61aa04ce88bd49dd85aa69d65f897210 rows=1
+✅ Sentry end-to-end smoke passed: edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse
+
+smoke-sentry-event: exit=0 ok=5 failed=0 warnings=0 skipped=0
+```
+
+This closes the functional incident.
+
+## Root-cause statement
+
+The root operational failure was **loss of the active Taskbroker Kafka consumer for the `taskworker` group after a Kafka session timeout, without automatic functional recovery being detected by the existing health model**.
+
+That caused asynchronous Sentry work, including Relay project-config generation, to stop progressing even though several containers and HTTP surfaces remained healthy.
+
+A targeted restart then temporarily introduced/exposed an independent Taskbroker startup configuration failure in metrics address resolution. That second failure complicated recovery but was not the original cause of the project-config backlog.
+
+The exact lower-level reason for the original Kafka coordinator/session timeout and why Taskbroker did not rejoin automatically remains **upstream/version debt to monitor**; the evidence in this incident is sufficient to identify the failed functional boundary, but not to prove a deeper librdkafka/network implementation cause.
+
+## Permanent guardrails
+
+### `diagnose-sentry-taskbroker.sh`
+
+The diagnostic now:
+
+- reports image and image ID;
+- reports the actual bind source for `/etc/taskbroker/config.yml`;
+- reconstructs the effective StatsD source/value;
+- validates StatsD address parsing/resolution;
+- reports container state, restart count, PID and exit code;
+- probes Taskworker -> `taskbroker:50051`;
+- inspects Kafka `taskworker` topic/group membership and lag;
+- inspects Taskbroker SQLite activation counts;
 - remains read-only.
 
-`recover-sentry-taskbroker.sh` now:
+### `recover-sentry-taskbroker.sh`
 
-- performs the same effective configuration reconstruction before a targeted restart;
-- refuses restart when the effective StatsD address cannot be parsed/resolved from the Sentry network;
-- detects `restarting`, `exited` or `dead` immediately and reports logs instead of waiting the full Kafka recovery window;
-- verifies Taskworker can actually reach `taskbroker:50051`;
-- still refuses an unnecessary restart when Kafka already has an active `taskworker` member;
-- still forbids offset reset, topic deletion, SQLite deletion and whole-App redeploy.
+The recovery helper:
 
-`smoke-sentry-event.sh` invokes `scripts/run-diagnostic.sh` through `bash`, so a missing executable bit on a temporary/worktree copy can no longer hide the Sentry diagnostic behind `Permission denied`.
+- validates effective startup inputs before restart;
+- refuses invalid/unresolvable StatsD configuration;
+- refuses unnecessary recovery when Kafka already has an active member;
+- fast-fails on `restarting`, `exited` or `dead`;
+- verifies gRPC reachability after restart;
+- requires Kafka membership to return and lag to decrease;
+- never resets offsets, deletes topics, deletes SQLite or redeploys the whole Sentry App.
 
-## Acceptance criteria
+### `smoke-sentry-event.sh`
+
+Sentry is considered functionally healthy only when a synthetic event proves the full path:
+
+```text
+edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse
+```
+
+The smoke invokes diagnostics through `bash` so an executable-bit problem cannot hide the real Sentry state.
+
+## Acceptance criteria after this incident
 
 Sentry ingestion is accepted only when all of the following hold simultaneously:
 
 - TrueNAS Sentry App is `RUNNING`;
-- Taskbroker is stably `running`, not restart-looping, and gRPC `:50051` is reachable from Taskworker;
+- Taskbroker is stably `running`, with no restart growth;
+- Taskworker can reach Taskbroker gRPC `:50051`;
 - Kafka broker metadata readiness succeeds;
 - Kafka group `taskworker` has an active member;
-- `taskworker` lag is bounded and decreases under backlog;
-- Relay project-config requests resolve instead of remaining indefinitely `pending`;
-- synthetic envelope acceptance advances `ingest-events`;
-- normal ingest advances `events`;
-- Snuba writes the event into `sentry.errors_local`;
+- `taskworker` lag is bounded and moves under load/backlog;
+- Taskbroker SQLite receives activations when work exists;
+- Relay project-config does not remain indefinitely pending;
+- a synthetic envelope is accepted;
+- the same event becomes queryable in `sentry.errors_local` / ClickHouse;
 - `smoke-sentry-event.sh` exits 0.
 
-Container/process health alone is explicitly insufficient for this acceptance.
+Container/process health alone is explicitly insufficient.
 
-## Diagnostics and guardrails
+## Operator commands
 
-Use the repository diagnostics before mutating runtime state:
+Read-only diagnosis:
 
 ```bash
 sudo bash scripts/truenas/diagnose-sentry.sh --check
@@ -266,7 +358,25 @@ sudo bash scripts/truenas/diagnose-sentry-taskbroker.sh
 sudo bash scripts/truenas/check-observability-exporter-conflicts.sh --check
 ```
 
-Only after Taskbroker is stable should `smoke-sentry-event.sh` be rerun.
+Functional acceptance:
+
+```bash
+sudo bash scripts/truenas/smoke-sentry-event.sh
+```
+
+Use `recover-sentry-taskbroker.sh` only when functional diagnostics prove that recovery is actually required. Do not restart a healthy Taskbroker just to re-test it.
+
+## Deferred work
+
+The incident is closed, but the following are still valid follow-ups:
+
+- monitor Sentry self-hosted 26.8 / Taskbroker Kafka coordinator-session behavior as upstream/version debt;
+- alert when Kafka `taskworker` has zero active members or sustained/growing lag;
+- alert when Taskworker cannot reach `taskbroker:50051` even if Docker health is green;
+- alert on repeated Relay project-config deadline/pending growth;
+- keep end-to-end Sentry smoke available as the authoritative functional check;
+- keep StatsD exporter deployment deferred until separately justified;
+- deploy Kafka exporter only in a controlled Kafka App lifecycle window after the functional Sentry recovery baseline is preserved.
 
 ## Related platform findings from the same recovery window
 
