@@ -6,6 +6,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 
 - [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
 - [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
+- [Sentry Taskbroker / Relay project-config incident · 2026-09-11](./sentry-taskbroker-project-config-incident-20260911.md)
 - [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
 - [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
@@ -31,7 +32,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green with Docling still pending.
-- [ ] **Sentry ingestion incident:** TrueNAS now reports `RUNNING`, the errors-only consumers are healthy and Kafka broker metadata is green, but synthetic envelopes accepted with HTTP 200 do not advance `ingest-events`. Relay repeatedly times out waiting for project state from Sentry upstream (`pending` project config), so end-to-end ingestion is not accepted yet.
+- [ ] **Sentry ingestion incident:** TrueNAS reports `RUNNING`, edge HTTP acceptance is green and Kafka metadata is healthy, but Taskbroker no longer has an active member in Kafka group `taskworker`. The observed group lag grew to `35589` while Taskbroker SQLite `inflight_taskactivations` remained empty. Taskbroker had initially received the partition, then logged `SESSTMOUT`, revoked it and shut down the consumer actor. This leaves Relay project config indefinitely `pending` and prevents accepted envelopes from advancing `ingest-events`. See the dated incident document for evidence and recovery gates.
 - [x] **Suricata engine/rules:** the `eth0` crash loop is fixed, Suricata captures on TrueNAS `br0`, `/var/lib/suricata/rules/suricata.rules` is populated, 52k+ rules are loaded and `eve.json` is actively produced.
 - [ ] **Suricata downstream consumption:** prove CrowdSec/Alloy/central observability consumes the current `eve.json` stream and keep rule refresh bounded/observable.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics:** flow data no longer appears in Cloudflare Flow Analytics (`https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/networking-insights/analytics/network-analytics/flow-analytics`). Re-establish exporter/collector path, prove packet/flow emission from pfSense and confirm fresh flows arrive in Cloudflare before closing.
@@ -139,8 +140,8 @@ Start after P0 acceptance.
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
 - [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
-- [ ] **Priority: Sentry Relay/project-config ingestion** — TrueNAS App is `RUNNING`; Kafka metadata readiness, consumer health and lag are green. Synthetic envelopes are accepted at the edge but `ingest-events` does not advance. Relay reports repeated `deadline exceeded` with `was_pending=true` while fetching the project config from `/api/0/relays/projectconfigs/?version=3`. Diagnose the async project-config build/cache path (`schedule_build_project_config` → taskbroker/taskworker → Redis project-config cache), then require `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse.
-- [ ] Track the Sentry self-hosted `26.8` Kafka coordinator/session-timeout instability as upstream/version debt, but do not attribute the current smoke failure to Kafka while broker metadata is healthy and the `ingest-events` log-end offset does not advance.
+- [ ] **Priority: Sentry Taskbroker/project-config ingestion** — TrueNAS App is `RUNNING`, Kafka broker metadata is healthy, but Kafka group `taskworker` has no active member and its lag reached `35589`. Taskbroker SQLite contains zero inflight activations, ruling out a local pending-capacity or legacy `application=''` backlog. Runtime logs show Taskbroker initially received the `taskworker` partition, then hit `SESSTMOUT`, revoked the partition and shut down the consumer actor. Validate a targeted Taskbroker-only restart: require the group member to reappear, lag to fall, Relay project-config `pending` to clear, and `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse. Do not reset offsets or delete SQLite based on current evidence. See [`sentry-taskbroker-project-config-incident-20260911.md`](./sentry-taskbroker-project-config-incident-20260911.md).
+- [ ] Track Sentry self-hosted 26.8 Kafka coordinator/session-timeout and Taskbroker consumer-rejoin behavior as upstream/version debt. Process/container health is insufficient: functional health must include active Kafka membership and end-to-end ingestion.
 - [x] **Suricata capture + rules/EVE acceptance** — `eth0` restart loop resolved; engine RUNNING on TrueNAS `br0`; persistent rules file contains ~68k rules, ~52k rules load successfully, alerts are generated and `eve.json` is actively written.
 - [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes the current EVE stream and monitor kernel drops/rule refresh health.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics** — restore the flow export path because fresh NetFlow no longer appears in Cloudflare Flow Analytics. Verify exporter configuration/interface selection on pfSense, destination/transport and any local collector/tunnel component, capture packets at each hop, then confirm new flows appear in `networking-insights/analytics/network-analytics/flow-analytics`. Add a bounded diagnostic/runbook so future loss is detected independently of the Cloudflare UI.
@@ -229,9 +230,9 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-Sentry Relay/project-config recovery + end-to-end smoke
-  -> Suricata downstream EVE consumption
-  -> pfSense NetFlow -> Cloudflare Flow Analytics recovery
+Sentry Taskbroker consumer recovery + end-to-end smoke
+  -> Suricata EVE downstream consumption
+  -> pfSense NetFlow -> Cloudflare Flow Analytics
   -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
