@@ -1,3 +1,10 @@
+# [0.34.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.33.1...0.34.0) (2026-09-11)
+
+
+### Features
+
+* **kubernetes:** prepare Vault Falco and Kubara tooling ([#186](https://github.com/AlbanAndrieu/nabla-compose/issues/186)) ([e33f8b6](https://github.com/AlbanAndrieu/nabla-compose/commit/e33f8b64ea6677798faa5aa6d193107d6669302a))
+
 ## [0.33.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.33.0...0.33.1) (2026-09-11)
 
 
