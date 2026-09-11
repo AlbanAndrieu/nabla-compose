@@ -76,6 +76,18 @@ scrape_configs:
           platform: truenas
           role: message-broker-metrics
 
+  - job_name: fastapi_sample
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - 172.17.0.24:8091
+        labels:
+          platform: truenas
+          role: homelab-observer
+          service: fastapi-sample
+
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
