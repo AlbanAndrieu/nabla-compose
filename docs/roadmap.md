@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-11.
 
 This is the concise operational index. Detailed design, evidence and rollback
 notes remain in the specialized roadmaps:
@@ -10,6 +10,7 @@ notes remain in the specialized roadmaps:
 - [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
+- [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 
 ## Current platform state
@@ -17,6 +18,11 @@ notes remain in the specialized roadmaps:
 - [x] Talos control plane and both workers are Kubernetes `Ready`.
 - [x] kubelet, kube-proxy, CoreDNS and the Talos-managed default Flannel CNI are running; all three nodes report `NetworkUnavailable=False` / `FlannelIsUp`, and the single-control-plane etcd member is healthy.
 - [x] `scripts/talos/validate-cluster.sh` provides the read-only base-cluster gate.
+- [x] **Post-reboot Kubernetes acceptance on 2026-09-11** — Talos API TCP/50000 is reachable on control plane + both workers, Kubernetes reports 3/3 nodes `Ready`, etcd members=1 and node pressure=none.
+- [x] **Pod Security baseline is now measured, not assumed** — Talos effective PSA defaults are `enforce=baseline`, `audit=restricted`, `warn=restricted`; `kube-system` is exempt by Talos admission configuration. `truenas-csi` is the explicit `enforce=privileged` infrastructure exception. Normal workloads continue toward `Restricted` enforcement.
+- [x] **Persistent Kubernetes operator CLI after reboot** — Helm `v4.3.0` and Kubara `v0.14.0` are available from the persistent TrueNAS operator tool path and the Kubara CLI contract is green.
+- [ ] **Platform security tools are prepared, not installed** — Vault is `BLOCKED_BY_CSI_ACCEPTANCE`; Falco is `PREFLIGHT_READY` on all three `6.18.44-talos` kernels but remains uninstalled; Kubara CLI is ready but bootstrap is `GATED_CONFIG_MISSING` until a reviewed `config.yaml` exists.
+- [ ] **CSI remains the stateful blocker after reboot** — `nabla-truenas-nfs` exists and is non-default, but the previous disposable RWX PVC did not become `Bound`. The 2026-09-11 platform preflight also emitted `deployment "truenas-csi-controller" exceeded its progress deadline`; diagnose current controller conditions/events/logs and complete dynamic bind + cross-node persistence + reclaim before Vault.
 - [x] FastAPI Sample uses the repository-owned `sample-observer` bridge.
 - [x] TrueNAS observer source is pinned to `10.254.255.9/32`.
 - [x] persisted and active TrueNAS `ui_allowlist` values converge after UI restart/reconciliation.
@@ -109,13 +115,14 @@ green cloud observation must not mask a broken local path.
    healthy); finish the synthetic event proof as part of the local FastAPI gate.
 11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
     TrueNAS operator binaries are now installed persistently under
-    `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`).
-    Root owns tool installation/upgrades; `albandrieu` is the non-root cluster
-    operator. Next restore private `talosconfig` + `kubeconfig` under
-    `~/.config/nabla/talos`, run the operator check, finish VM-autostart
-    persistence, rerun the Talos/CoreDNS/Flannel network regression gate, then
-    make TrueNAS NFS + CSI persistence green before Kubara/Traefik and the
-    immutable FastAPI ingress smoke on `test.albandrieu.com`.
+    `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`, Helm `v4.3.0`,
+    Kubara `v0.14.0`). Root owns tool installation/upgrades; `albandrieu` is the
+    non-root cluster operator. The 2026-09-11 post-reboot base validation is green
+    (Talos transport, 3/3 Kubernetes Ready, etcd, pressure and PSA/PSS). Resume
+    the CSI controller/PVC diagnostic after the TrueNAS Docker/IPAM migration,
+    then require dynamic provisioning, cross-worker persistence and reclaim
+    before Vault, Kubara/Traefik and the immutable FastAPI ingress smoke on
+    `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
 13. [ ] **Scrutiny + InfluxDB — parallel** — the migration-token fix is now validated on TrueNAS: the legacy authorization `114da3d49d117000` was revoked, the replacement secret is root-owned mode `0600`, `bootstrap-scrutiny-influxdb.sh --check` reports `token=VALID scope=v2`, and `deploy-scrutiny.sh --check` discovers `/dev/sda` through `/dev/sdd` with `target=MISSING ready=APPLY`. A reviewed fresh cutover has now been started with `SCRUTINY_RESET_SQLITE=1`; acceptance remains pending until TrueNAS reports `RUNNING`, the web/API is healthy, the TrueNAS collector sees SMART devices, and the workstation collector is proven to submit its own inventory. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
@@ -138,9 +145,11 @@ acceptance resumes only after the local FastAPI runtime can prove its critical
 TrueNAS/pfSense/Cloudflare/Prometheus/Sentry/Pyroscope dependencies. Once that
 gate is green, treat the already-installed Talos/Flannel/CoreDNS path as a
 regression gate and make **TrueNAS NFS + CSI the first remaining Kubernetes
-implementation gate, before Kubara/Traefik and the external FastAPI ingress
-smoke**. Persistent/stateful workloads remain blocked until CSI provisioning,
-persistence, reclaim and rollback are proven. Sentry must also be accepted
+implementation gate, before Vault, Kubara/Traefik and the external FastAPI
+ingress smoke**. Persistent/stateful workloads remain blocked until CSI
+provisioning, persistence, reclaim and rollback are proven. Falco is storage
+independent but should not be installed while the TrueNAS Docker/IPAM migration
+is actively changing the infrastructure baseline. Sentry must also be accepted
 before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work may proceed in parallel
 because it does not replace either acceptance gate.
 
@@ -240,9 +249,11 @@ TrueNAS-backed NFS/CSI persistence.
 - [x] Talos-managed Flannel is installed and all nodes report `NetworkUnavailable=False` / `FlannelIsUp`;
 - [x] CoreDNS, kube-proxy and Flannel pods are running;
 - [x] Talos API TCP/50000 reachability is restored on all three nodes;
+- [x] post-reboot `validate-cluster.sh` acceptance proves 3/3 Ready, etcd members=1, node pressure=none and the effective PSA/PSS posture;
+- [x] effective Talos PSA defaults are observed as `enforce=baseline`, `audit=restricted`, `warn=restricted`; keep `Restricted` as the normal-workload hardening target;
 - [ ] apply the IaC autostart change only if the plan is exactly 3 in-place VM updates, 0 create and 0 destroy;
 - [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` and require all three VMs to report `autostart=true` and `RUNNING`;
-- [ ] prove all three Talos VMs start automatically after the next TrueNAS reboot;
+- [ ] separately prove all three Talos VMs start automatically after a controlled TrueNAS reboot without manual VM start intervention;
 - [ ] rerun `scripts/talos/validate-cluster.sh` and `scripts/talos/smoke-kubernetes-network.sh` immediately before CSI changes as regression proof for CoreDNS, Service/ClusterIP and cross-node routing;
 - [ ] before production workload migration, decide whether to enable Talos 1.13 Flannel NetworkPolicy enforcement with `kubeNetworkPoliciesEnabled: true`; without it, NetworkPolicy objects are accepted but not enforced by the default Flannel path.
 
@@ -265,10 +276,12 @@ snapshot/attacher sidecars are introduced for this gate.
 - [x] keep the CSI API key runtime-only: `scripts/talos/install-truenas-csi-nfs.sh` renders the Kubernetes Secret without committing or printing it;
 - [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, worker-A write, pod recreation and worker-B persistence;
 - [ ] create a dedicated least-privilege TrueNAS CSI identity/API key; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
-- [ ] run the read-only `scripts/talos/validate-csi-prereqs.sh`;
-- [ ] verify the NFS client network contract covers both workers and no conflicting `csi.truenas.io` owner already exists;
-- [ ] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the dedicated runtime API key;
-- [ ] dynamically provision the disposable RWX PVC and require `Bound`;
+- [x] run the read-only `scripts/talos/validate-csi-prereqs.sh` and retain NFS/manifest evidence;
+- [x] verify the NFS client network contract covers both workers and no conflicting `csi.truenas.io` owner already exists;
+- [x] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the dedicated runtime API key; controller/node resources converged and `nabla-truenas-nfs` was created non-default;
+- [ ] **resolve the post-reboot controller rollout anomaly** — `prepare-platform-tools.sh --summary` emitted `deployment "truenas-csi-controller" exceeded its progress deadline`; inspect Deployment conditions, current ReplicaSet/Pod readiness, recent events and both `csi-provisioner`/`csi-controller` logs before retrying provisioning;
+- [ ] **dynamically provision the disposable RWX PVC and require `Bound`** — the last attempt created `nabla-csi-rwx` but timed out `Pending`; keep `nabla-csi-smoke` only while it contains useful failure evidence;
+- [ ] harden platform preflight error propagation so a nested CSI `rollout status` failure cannot be followed by a false-green aggregate summary;
 - [ ] run the cross-worker persistence smoke and require the same marker on worker B;
 - [ ] prove PVC deletion removes the dynamically-created TrueNAS share/dataset according to `reclaimPolicy: Delete`;
 - [ ] document and test one rollback/uninstall path before allowing stateful workloads;
@@ -280,7 +293,9 @@ Kubara remains pinned to `v0.14.0`, but ingress is no longer a prerequisite
 for CSI. Start this phase only after P0.B persistence and rollback are green.
 
 - [x] pin Kubara `v0.14.0` in `config/kubara/VERSION` and retain the read-only `scripts/talos/preflight-kubara.sh` ownership contract;
-- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then `kubara generate --helm`;
+- [x] persistent Kubara `v0.14.0` CLI and `generate --helm/--dry-run` + `bootstrap CLUSTER_NAME` command contract are green after reboot;
+- [ ] create and review the intended Kubara `config.yaml`; until then report `CLI_READY / CONFIG_MISSING / BOOTSTRAP_GATED`, not a platform outage;
+- [ ] run `scripts/talos/preflight-kubara.sh --pre-bootstrap`, then `kubara generate --helm --dry-run` from the reviewed workdir;
 - [ ] inspect the generated Traefik Service exposure mode. On this local/bare-metal cluster, do not assume a cloud `LoadBalancer` implementation exists: explicitly select the existing HAProxy/NodePort or host-network path, or deliberately add a reviewed bare-metal load-balancer implementation such as MetalLB/kube-vip if the generated platform requires `type: LoadBalancer`;
 - [ ] bootstrap/reconcile the minimal Kubara platform and require exactly one intended Traefik `IngressClass`/controller;
 - [ ] run `scripts/talos/smoke-fastapi-sample.sh --preflight`;
@@ -291,6 +306,24 @@ for CSI. Start this phase only after P0.B persistence and rollback are green.
 - [ ] prove external `https://test.albandrieu.com/v2/version`;
 - [ ] attach the already-proven CSI StorageClass/PVC to the final acceptance workload when useful, without making storage debugging depend on ingress;
 - [ ] retain Pod/Node/PodIP/Service/Ingress correlation evidence and clean up/recreate the smoke workload without affecting `sample.albandrieu.com`.
+
+### P0.D — Security platform tools · prepared, gated
+
+The next tool wave is prepared in `scripts/talos/install-platform-tools.sh` and
+`scripts/talos/prepare-platform-tools.sh`. Keep mutation serialized with the
+TrueNAS Docker/IPAM work: preparation/read-only checks may run, but do not change
+multiple infrastructure layers concurrently.
+
+- [x] install/check persistent Helm `v4.3.0` and Kubara `v0.14.0` without TrueNAS package management;
+- [x] add `--preflight`, `--status`, `--check` and single-target `--apply` semantics;
+- [x] add the consolidated read-only `prepare-platform-tools.sh --summary` posture/inventory report;
+- [x] prove Falco kernel preflight on all three Talos nodes (`6.18.44-talos`);
+- [ ] fix and regression-test nested failure propagation so the preparation summary cannot mask a failed CSI prerequisite;
+- [ ] install Vault `2.0.4` / chart `0.34.1` only after P0.B dynamic storage acceptance; never auto-init/unseal or expose recovery material;
+- [ ] install Falco `0.44.1` / chart `9.1.0` with `modern_ebpf`, then prove DaemonSet coverage, runtime version and Prometheus metrics before SIEM routing;
+- [ ] retain Falco's dedicated PSA `privileged` namespace as an explicit runtime-sensor exception with restricted audit/warn and tightly scoped RBAC;
+- [ ] prepare Kubara `config.yaml`, review generated Traefik exposure and keep real bootstrap behind explicit operator approval;
+- [ ] after selected tools are installed and healthy, require `scripts/talos/prepare-platform-tools.sh --strict` to pass.
 
 ## Sentry lifecycle convergence — final acceptance pending
 
