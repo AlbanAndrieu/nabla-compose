@@ -65,6 +65,27 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
+  - job_name: sentry_statsd
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.24:9102
+        labels:
+          platform: truenas
+          role: sentry-runtime-metrics
+
+  - job_name: kafka_exporter
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets:
+          - 172.17.0.24:9308
+        labels:
+          platform: truenas
+          role: message-broker-metrics
+
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
