@@ -14,6 +14,18 @@ groups:
             Prometheus cannot scrape the Sentry/Taskbroker StatsD exporter on
             172.17.0.24:9102, so process-level runtime metrics are unavailable.
 
+      - alert: SentryStatsdExporterUdpDrops
+        expr: increase(statsd_exporter_udp_packet_drops_total{job="sentry_statsd"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: sentry
+        annotations:
+          summary: Sentry StatsD exporter is dropping UDP packets
+          description: >-
+            The StatsD exporter reports dropped UDP telemetry. Runtime metrics
+            may be incomplete even though the exporter /metrics endpoint is up.
+
       - alert: KafkaExporterDown
         expr: up{job="kafka_exporter"} == 0
         for: 2m
@@ -27,7 +39,8 @@ groups:
             metrics from 172.17.0.24:9308.
 
       - alert: SentryTaskbrokerConsumerMissing
-        expr: kafka_consumergroup_members{job="kafka_exporter",consumergroup="taskworker"} < 1
+        expr: >-
+          (max(kafka_consumergroup_members{job="kafka_exporter",consumergroup="taskworker"}) or vector(0)) < 1
         for: 2m
         labels:
           severity: critical
@@ -35,10 +48,10 @@ groups:
         annotations:
           summary: Sentry Taskbroker has no active Kafka consumer
           description: >-
-            Kafka group taskworker has no active member. The Taskbroker process
-            may still be running and its gRPC endpoint may still be healthy, but
-            asynchronous Sentry tasks such as Relay project-config builds can no
-            longer be drained.
+            Kafka group taskworker has no active member, or the expected member
+            metric is absent. The Taskbroker process may still be running and
+            its gRPC endpoint may still be healthy, but asynchronous Sentry
+            tasks such as Relay project-config builds can no longer be drained.
 
       - alert: SentryTaskbrokerLagHigh
         expr: >-
