@@ -22,6 +22,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: docker-socket-proxy
+      lifecycle:
+        phase: bootstrap-runtime
+        priority: 0
       relations:
         - target: docker
           type: consumesApi

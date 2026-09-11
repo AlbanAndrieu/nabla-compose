@@ -34,6 +34,38 @@
         "cloudflareTunnel": { "type": "boolean" }
       }
     },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["truenas-app", "logical", "external", "host"]
+        },
+        "appId": { "type": "string", "minLength": 1 },
+        "containerService": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "priority"],
+      "properties": {
+        "phase": {
+          "enum": [
+            "bootstrap-runtime",
+            "foundation",
+            "network-edge",
+            "primary-data",
+            "secondary-data",
+            "platform-services",
+            "applications"
+          ]
+        },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    },
     "node": {
       "type": "object",
       "additionalProperties": false,
@@ -69,7 +101,9 @@
           "items": { "$ref": "#/$defs/environment" }
         },
         "description": { "type": "string" },
-        "icon": { "type": "string", "minLength": 1 }
+        "icon": { "type": "string", "minLength": 1 },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" }
       }
     },
     "relation": {

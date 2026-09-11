@@ -3,9 +3,16 @@ x-nabla:
   nodes:
     - id: uptime-kuma
       name: Uptime Kuma
-      kind: uptime-monitor
+      kind: native-truenas-uptime-monitor
       category: observability
-      description: Existing Uptime Kuma instance reconciled by AutoKuma.
+      url: http://172.17.0.24:31050
+      description: Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.
+      runtime:
+        provider: truenas-app
+        appId: uptime-kuma
+      lifecycle:
+        phase: platform-services
+        priority: 40
 
 services:
   autokuma:
@@ -21,18 +28,24 @@ services:
         provider: truenas-app
         appId: autokuma
         containerService: autokuma
+      lifecycle:
+        phase: platform-services
+        priority: 40
       relations:
         - target: uptime-kuma
           type: consumesApi
           strength: required
           description: AutoKuma reconciles generated monitors into Uptime Kuma.
           evidence:
-            - /mnt/cpool/autokuma/.env.secrets:AUTOKUMA__KUMA__URL
+            - apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL
     restart: unless-stopped
     env_file:
       - path: /mnt/cpool/autokuma/.env.secrets
         required: false
     environment:
+      # AutoKuma 2.x requires kuma.url at startup. Uptime Kuma is still a
+      # native TrueNAS target for now and is intended on the host at :31050.
+      AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:-http://172.17.0.24:31050}
       AUTOKUMA__STATIC_MONITORS: /config/static
       AUTOKUMA__FILES__ENABLED: "true"
       AUTOKUMA__DOCKER__ENABLED: "false"

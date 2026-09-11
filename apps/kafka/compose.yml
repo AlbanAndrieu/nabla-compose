@@ -10,6 +10,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: kafka
+      lifecycle:
+        phase: primary-data
+        priority: 20
       monitoring:
         type: port
         host: kafka

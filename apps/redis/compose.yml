@@ -13,6 +13,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: redis
+      lifecycle:
+        phase: primary-data
+        priority: 20
     restart: unless-stopped
     # CHANGEME: row below to secure redis password
     command: >

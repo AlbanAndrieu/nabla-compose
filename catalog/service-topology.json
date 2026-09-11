@@ -12,7 +12,27 @@
       "securityFunctions": [
         "protect"
       ],
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "twofactor-auth"
+      },
       "icon": "🔐"
+    },
+    {
+      "id": "adguard-home",
+      "name": "AdGuard Home",
+      "kind": "native-truenas-dns-filter",
+      "category": "network",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Native TrueNAS App for network DNS filtering. It remains runtime-owned by TrueNAS until migration to repository-owned Compose.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "adguard-home"
+      },
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      }
     },
     {
       "id": "aistor",
@@ -22,7 +42,11 @@
       "sourcePath": "apps/aistor/compose.yml",
       "description": "MinIO AIStor-compatible object storage service.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "aistor"
+      }
     },
     {
       "id": "akvorado-console",
@@ -35,7 +59,11 @@
       "securityFunctions": [
         "identify",
         "detect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-console"
+      }
     },
     {
       "id": "akvorado-inlet",
@@ -48,7 +76,11 @@
       "securityFunctions": [
         "identify",
         "detect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-inlet"
+      }
     },
     {
       "id": "akvorado-orchestrator",
@@ -61,7 +93,11 @@
       "securityFunctions": [
         "identify",
         "detect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-orchestrator"
+      }
     },
     {
       "id": "akvorado-outlet",
@@ -74,7 +110,11 @@
       "securityFunctions": [
         "identify",
         "detect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-outlet"
+      }
     },
     {
       "id": "alloy",
@@ -82,6 +122,10 @@
       "kind": "telemetry-collector",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alloy"
+      },
       "icon": "🧬"
     },
     {
@@ -90,7 +134,16 @@
       "kind": "monitoring-controller",
       "category": "observability",
       "sourcePath": "apps/autokuma/compose.yml",
-      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance."
+      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "autokuma",
+        "containerService": "autokuma"
+      }
     },
     {
       "id": "autoxpose",
@@ -100,14 +153,22 @@
       "sourcePath": "apps/autoxpose/compose.yml",
       "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "autoxpose"
+      }
     },
     {
       "id": "bichon",
       "name": "Bichon",
       "kind": "application",
       "category": "productivity",
-      "sourcePath": "apps/bichon/compose.yml"
+      "sourcePath": "apps/bichon/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bichon"
+      }
     },
     {
       "id": "clamav",
@@ -131,6 +192,14 @@
       "kind": "database",
       "category": "data",
       "sourcePath": "apps/clickhouse/compose.yml",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "clickhouse"
+      },
       "icon": "⚡"
     },
     {
@@ -151,7 +220,11 @@
       "sourcePath": "apps/code/compose.yml",
       "description": "Browser-based development environment for homelab repositories.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "code-server"
+      }
     },
     {
       "id": "crowdsec",
@@ -163,6 +236,10 @@
         "detect",
         "respond"
       ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "crowdsec"
+      },
       "icon": "🛡️"
     },
     {
@@ -186,7 +263,15 @@
       "criticality": "high",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "lifecycle": {
+        "phase": "bootstrap-runtime",
+        "priority": 0
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "docker-socket-proxy"
+      }
     },
     {
       "id": "dockhand",
@@ -196,7 +281,11 @@
       "sourcePath": "apps/dockhand/compose.yml",
       "description": "Docker container management UI.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dockhand"
+      }
     },
     {
       "id": "doco-cd",
@@ -206,7 +295,11 @@
       "sourcePath": "docker-compose.yml",
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "doco-cd"
+      }
     },
     {
       "id": "dozzle",
@@ -216,7 +309,11 @@
       "sourcePath": "apps/dozzle/compose.yml",
       "description": "Live Docker log viewer and MCP-enabled operations UI.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dozzle"
+      }
     },
     {
       "id": "drawio",
@@ -226,7 +323,11 @@
       "sourcePath": "apps/drawio/compose.yml",
       "description": "Self-hosted diagrams.net editor.",
       "presentationRole": "service",
-      "criticality": "low"
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "drawio"
+      }
     },
     {
       "id": "elasticsearch",
@@ -234,6 +335,10 @@
       "kind": "search",
       "category": "data",
       "sourcePath": "apps/elasticsearch/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "elasticsearch"
+      },
       "icon": "🔎"
     },
     {
@@ -269,7 +374,11 @@
           "external": false,
           "cloudflareTunnel": false
         }
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "fastapi-sample"
+      }
     },
     {
       "id": "garage",
@@ -279,6 +388,10 @@
       "sourcePath": "apps/garage/compose.yml",
       "url": "https://s3.int.albandrieu.com",
       "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "garage"
+      },
       "icon": "🪣"
     },
     {
@@ -301,6 +414,10 @@
       "sourcePath": "apps/garage/compose.yml",
       "url": "https://garage.albandrieu.com",
       "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "webui"
+      },
       "icon": "🖥️"
     },
     {
@@ -310,7 +427,11 @@
       "category": "observability",
       "sourcePath": "apps/gatus/compose.yml",
       "url": "http://172.17.0.24:8085",
-      "description": "Declarative status monitoring generated from Nabla Compose services."
+      "description": "Declarative status monitoring generated from Nabla Compose services.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "gatus"
+      }
     },
     {
       "id": "grafana",
@@ -318,6 +439,10 @@
       "kind": "observability-ui",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "grafana"
+      },
       "icon": "📈"
     },
     {
@@ -326,6 +451,14 @@
       "kind": "log-management",
       "category": "observability",
       "sourcePath": "apps/graylog/compose.yml",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "graylog"
+      },
       "icon": "🪵"
     },
     {
@@ -334,6 +467,10 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "haproxy-exporter"
+      },
       "icon": "⚖️"
     },
     {
@@ -355,7 +492,11 @@
       "sourcePath": "apps/nginx/compose.yml",
       "description": "Small internal Nginx service used for ingress and routing experiments.",
       "presentationRole": "support",
-      "criticality": "low"
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx"
+      }
     },
     {
       "id": "homarr",
@@ -366,7 +507,11 @@
       "url": "http://172.17.0.24:30100",
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homarr"
+      }
     },
     {
       "id": "homarr-sync",
@@ -374,7 +519,11 @@
       "kind": "configuration-reconciler",
       "category": "operations",
       "sourcePath": "apps/homarr/compose.yml",
-      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API."
+      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API.",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homarr-sync"
+      }
     },
     {
       "id": "homeassistant",
@@ -384,7 +533,11 @@
       "sourcePath": "apps/homeassistant/compose.yml",
       "description": "Home automation control plane exposed through the dedicated IoT network.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "homeassistant"
+      }
     },
     {
       "id": "influxdb",
@@ -392,14 +545,30 @@
       "kind": "time-series-database",
       "category": "data",
       "sourcePath": "apps/influxdb/compose.yml",
-      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "influxdb"
+      }
     },
     {
       "id": "kafka",
       "name": "Apache Kafka",
       "kind": "message-broker",
       "category": "data",
-      "sourcePath": "apps/kafka/compose.yml"
+      "sourcePath": "apps/kafka/compose.yml",
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "kafka"
+      }
     },
     {
       "id": "keycloak",
@@ -409,7 +578,11 @@
       "sourcePath": "apps/keycloak/compose.yml",
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "keycloak"
+      }
     },
     {
       "id": "kibana",
@@ -417,6 +590,10 @@
       "kind": "dashboard",
       "category": "observability",
       "sourcePath": "apps/elasticsearch/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "kibana"
+      },
       "icon": "📊"
     },
     {
@@ -436,6 +613,10 @@
       "kind": "workflow",
       "category": "ai",
       "sourcePath": "apps/langflow/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langflow"
+      },
       "icon": "🔗"
     },
     {
@@ -453,6 +634,10 @@
       "kind": "application",
       "category": "ai",
       "sourcePath": "apps/langfuse/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langfuse-web"
+      },
       "icon": "🖥️"
     },
     {
@@ -461,6 +646,10 @@
       "kind": "worker",
       "category": "ai",
       "sourcePath": "apps/langfuse/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "langfuse-worker"
+      },
       "icon": "⚙️"
     },
     {
@@ -471,7 +660,11 @@
       "sourcePath": "apps/languagetool/compose.yml",
       "description": "Self-hosted grammar and style checking API.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "languagetool"
+      }
     },
     {
       "id": "litellm",
@@ -479,6 +672,10 @@
       "kind": "gateway",
       "category": "ai",
       "sourcePath": "apps/litellm/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "litellm"
+      },
       "icon": "🧠"
     },
     {
@@ -487,6 +684,10 @@
       "kind": "log-store",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "loki"
+      },
       "icon": "🧾"
     },
     {
@@ -495,6 +696,10 @@
       "kind": "metrics-store",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mimir"
+      },
       "icon": "📐"
     },
     {
@@ -503,6 +708,10 @@
       "kind": "object-storage",
       "category": "data",
       "sourcePath": "apps/minio/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "minio"
+      },
       "icon": "🪣"
     },
     {
@@ -511,6 +720,14 @@
       "kind": "database",
       "category": "data",
       "sourcePath": "apps/mongo/compose.yml",
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mongo"
+      },
       "icon": "🍃"
     },
     {
@@ -519,6 +736,10 @@
       "kind": "workflow",
       "category": "automation",
       "sourcePath": "apps/n8n/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "n8n"
+      },
       "icon": "⚙️"
     },
     {
@@ -529,7 +750,11 @@
       "sourcePath": "apps/nexus/compose.yml",
       "description": "Repository manager for development artifacts and package proxies.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nexus"
+      }
     },
     {
       "id": "nginx-proxy-manager",
@@ -539,7 +764,11 @@
       "sourcePath": "apps/nginx-proxy-manager/compose.yml",
       "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "app"
+      }
     },
     {
       "id": "npmplus",
@@ -549,7 +778,11 @@
       "sourcePath": "apps/npmplus/compose.yml",
       "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "npmplus"
+      }
     },
     {
       "id": "ntopng",
@@ -557,6 +790,10 @@
       "kind": "network-observability",
       "category": "network",
       "sourcePath": "apps/ntopng/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "ntopng"
+      },
       "icon": "🌐"
     },
     {
@@ -565,6 +802,10 @@
       "kind": "application",
       "category": "productivity",
       "sourcePath": "apps/obsidian/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "obsidian"
+      },
       "icon": "💎"
     },
     {
@@ -573,6 +814,10 @@
       "kind": "model-runtime",
       "category": "ai",
       "sourcePath": "apps/ollama/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "ollama"
+      },
       "icon": "🦙"
     },
     {
@@ -586,7 +831,11 @@
       "criticality": "high",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "op-connect-api"
+      }
     },
     {
       "id": "op-connect-sync",
@@ -599,7 +848,11 @@
       "criticality": "high",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "op-connect-sync"
+      }
     },
     {
       "id": "open-terminal",
@@ -618,7 +871,11 @@
       "sourcePath": "apps/openclaw/compose.yml",
       "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
       "presentationRole": "support",
-      "criticality": "low"
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openclaw-sandbox"
+      }
     },
     {
       "id": "openhands",
@@ -628,7 +885,11 @@
       "sourcePath": "apps/openhands/compose.yml",
       "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
       "presentationRole": "service",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openhands"
+      }
     },
     {
       "id": "openrag-backend",
@@ -636,6 +897,10 @@
       "kind": "service",
       "category": "ai",
       "sourcePath": "apps/openrag/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openrag-backend"
+      },
       "icon": "📚"
     },
     {
@@ -644,6 +909,10 @@
       "kind": "application",
       "category": "ai",
       "sourcePath": "apps/openrag/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openrag-frontend"
+      },
       "icon": "🔍"
     },
     {
@@ -652,6 +921,14 @@
       "kind": "search",
       "category": "data",
       "sourcePath": "apps/opensearch/compose.yml",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch"
+      },
       "icon": "🔎"
     },
     {
@@ -660,6 +937,14 @@
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/opensearch/compose.yml",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dashboards"
+      },
       "icon": "📊"
     },
     {
@@ -668,6 +953,10 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-exporter"
+      },
       "icon": "📡"
     },
     {
@@ -676,6 +965,14 @@
       "kind": "search",
       "category": "security",
       "sourcePath": "apps/opensearch/compose.yml",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-security"
+      },
       "icon": "🛡️"
     },
     {
@@ -684,6 +981,10 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opensearch-security-exporter"
+      },
       "icon": "📡"
     },
     {
@@ -692,6 +993,11 @@
       "kind": "application",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "openwebui",
+        "containerService": "open-webui"
+      },
       "icon": "💬"
     },
     {
@@ -700,6 +1006,10 @@
       "kind": "service",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pipelines"
+      },
       "icon": "🔧"
     },
     {
@@ -723,6 +1033,10 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pfsense-exporter"
+      },
       "icon": "📡"
     },
     {
@@ -754,7 +1068,15 @@
       "sourcePath": "apps/pihole/compose.yml",
       "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer.",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole"
+      }
     },
     {
       "id": "pihole-dns-sync",
@@ -764,7 +1086,11 @@
       "sourcePath": "apps/pihole/compose.yml",
       "description": "Synchronizes repository-managed Docker/Traefik service names into Pi-hole private DNS.",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole-dns-sync"
+      }
     },
     {
       "id": "pihole-exporter",
@@ -774,7 +1100,11 @@
       "sourcePath": "apps/pihole/compose.yml",
       "description": "Prometheus-compatible metrics exporter for Pi-hole.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole-exporter"
+      }
     },
     {
       "id": "portracker",
@@ -784,7 +1114,11 @@
       "sourcePath": "apps/portracker/compose.yml",
       "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "portracker"
+      }
     },
     {
       "id": "postgres-exporter",
@@ -794,13 +1128,27 @@
       "sourcePath": "apps/postgres/compose.yml",
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "postgres_exporter"
+      }
     },
     {
       "id": "postgresql",
       "name": "PostgreSQL",
-      "kind": "database",
+      "kind": "native-truenas-database",
       "category": "data",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Shared native TrueNAS PostgreSQL App used by repository-managed consumers. Keep it as a runtime-owned native service until migration to repository-owned Compose.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "postgres"
+      },
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      },
       "icon": "🐘"
     },
     {
@@ -809,6 +1157,10 @@
       "kind": "observability",
       "category": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prometheus"
+      },
       "icon": "📊"
     },
     {
@@ -816,7 +1168,11 @@
       "name": "Alertmanager",
       "kind": "alerting",
       "category": "observability",
-      "sourcePath": "apps/prometheus/compose.yml"
+      "sourcePath": "apps/prometheus/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alertmanager"
+      }
     },
     {
       "id": "pyroscope",
@@ -826,7 +1182,11 @@
       "sourcePath": "apps/pyroscope/compose.yml",
       "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pyroscope"
+      }
     },
     {
       "id": "redis",
@@ -834,6 +1194,14 @@
       "kind": "cache",
       "category": "data",
       "sourcePath": "apps/redis/compose.yml",
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "redis"
+      },
       "icon": "🔴"
     },
     {
@@ -845,14 +1213,22 @@
       "url": "https://scrutiny.albandrieu.com",
       "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scrutiny"
+      }
     },
     {
       "id": "scrutiny-collector",
       "name": "Scrutiny Collector",
       "kind": "metrics-collector",
       "category": "observability",
-      "sourcePath": "apps/scrutiny/compose.yml"
+      "sourcePath": "apps/scrutiny/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scrutiny-collector"
+      }
     },
     {
       "id": "searxng",
@@ -872,7 +1248,11 @@
       "url": "https://sentry.albandrieu.com",
       "description": "Self-hosted Sentry 26.8 errors-only application service.",
       "presentationRole": "service",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-web"
+      }
     },
     {
       "id": "sentry-clickhouse",
@@ -881,7 +1261,15 @@
       "category": "data",
       "sourcePath": "apps/sentry-clickhouse/compose.yml",
       "presentationRole": "support",
-      "criticality": "critical"
+      "criticality": "critical",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-clickhouse"
+      }
     },
     {
       "id": "sentry-edge",
@@ -890,7 +1278,11 @@
       "category": "network",
       "sourcePath": "apps/sentry/compose.yml",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx"
+      }
     },
     {
       "id": "sentry-relay",
@@ -899,7 +1291,11 @@
       "category": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "relay"
+      }
     },
     {
       "id": "sentry-snuba-api",
@@ -909,7 +1305,11 @@
       "sourcePath": "apps/sentry/compose.yml",
       "description": "Sentry query API backed by the dedicated temporary Sentry ClickHouse.",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "snuba-api"
+      }
     },
     {
       "id": "sentry-taskbroker",
@@ -918,7 +1318,11 @@
       "category": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "taskbroker"
+      }
     },
     {
       "id": "sentry-taskworker",
@@ -927,7 +1331,11 @@
       "category": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-taskworker"
+      }
     },
     {
       "id": "sonarqube",
@@ -935,6 +1343,10 @@
       "kind": "code-quality",
       "category": "development",
       "sourcePath": "apps/sonarqube/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sonarqube"
+      },
       "icon": "🧹"
     },
     {
@@ -945,7 +1357,11 @@
       "sourcePath": "apps/squid/compose.yml",
       "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
       "presentationRole": "support",
-      "criticality": "medium"
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "squid"
+      }
     },
     {
       "id": "suricata",
@@ -956,6 +1372,14 @@
       "securityFunctions": [
         "detect"
       ],
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "suricata"
+      },
       "icon": "🦈"
     },
     {
@@ -973,6 +1397,10 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/sybase-exporter/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sybase-exporter"
+      },
       "icon": "📡"
     },
     {
@@ -992,6 +1420,10 @@
       "kind": "trace-store",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "tempo"
+      },
       "icon": "⏱️"
     },
     {
@@ -1003,6 +1435,14 @@
       "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
       "presentationRole": "core",
       "criticality": "critical",
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "traefik"
+      },
       "icon": "🚦"
     },
     {
@@ -1019,10 +1459,19 @@
     {
       "id": "uptime-kuma",
       "name": "Uptime Kuma",
-      "kind": "uptime-monitor",
+      "kind": "native-truenas-uptime-monitor",
       "category": "observability",
       "sourcePath": "apps/autokuma/compose.yml",
-      "description": "Existing Uptime Kuma instance reconciled by AutoKuma."
+      "url": "http://172.17.0.24:31050",
+      "description": "Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "uptime-kuma"
+      }
     },
     {
       "id": "vaultwarden",
@@ -1036,7 +1485,15 @@
       "criticality": "high",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "vaultwarden"
+      }
     },
     {
       "id": "vaultwarden-rest-api",
@@ -1049,7 +1506,11 @@
       "criticality": "medium",
       "securityFunctions": [
         "protect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bitwarden-api"
+      }
     },
     {
       "id": "wazuh",
@@ -1066,6 +1527,10 @@
       "kind": "application",
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.dashboard"
+      },
       "icon": "🖥️"
     },
     {
@@ -1074,6 +1539,10 @@
       "kind": "telemetry-forwarder",
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh-forwarder"
+      },
       "icon": "🔁"
     },
     {
@@ -1082,6 +1551,10 @@
       "kind": "search",
       "category": "security",
       "sourcePath": "apps/wazuh/compose.yml",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.indexer"
+      },
       "icon": "🗂️"
     },
     {
@@ -1093,6 +1566,10 @@
       "securityFunctions": [
         "detect"
       ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wazuh.manager"
+      },
       "icon": "🛡️"
     },
     {
@@ -1103,7 +1580,11 @@
       "sourcePath": "apps/wordpress/compose.yml",
       "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
       "presentationRole": "service",
-      "criticality": "low"
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "wordpress"
+      }
     }
   ],
   "relations": [
@@ -1304,7 +1785,7 @@
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
       "evidence": [
-        "/mnt/cpool/autokuma/.env.secrets:AUTOKUMA__KUMA__URL"
+        "apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL"
       ]
     },
     {

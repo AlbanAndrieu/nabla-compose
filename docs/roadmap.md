@@ -2,8 +2,7 @@
 
 Last updated: 2026-09-11.
 
-This file is the concise operational index. Detailed design and rollback notes
-remain in the specialized documents:
+This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
 - [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
 - [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
@@ -20,302 +19,223 @@ remain in the specialized documents:
 
 ## Current platform state
 
-- [x] Talos control plane `172.17.0.50` and workers `172.17.0.51` /
-  `172.17.0.52` were healthy before the controlled reboot transaction.
-- [x] Talos `v1.13.9`, Kubernetes `v1.36.3`, etcd single member healthy and no
-  node pressure before quiesce.
-- [x] CoreDNS, kube-proxy and Talos-managed Flannel were operational before
-  quiesce.
-- [x] Persistent operator tooling is installed outside TrueNAS package
-  management: `kubectl`, `talosctl`, Helm and Kubara.
-- [x] Talos VM steady-state policy is reconciled with `autostart=true` and
-  graceful shutdown timeout `180s`.
-- [x] TrueNAS Docker target IPAM is configured as `10.200.0.0/16` with `/24`
-  allocations; the protected `sample-observer=10.254.255.0/28` network was
-  intact before reboot.
-- [x] PR #187 restored the TrueNAS CSI controller-publish path:
-  `attachRequired=true`, `csi-attacher`, VolumeAttachment RBAC and NFS
-  publishContext.
-- [x] Fresh TrueNAS CSI RWX acceptance is green: dynamic PVC/PV, attached
-  VolumeAttachment, NFS publishContext, worker-A write, worker-B read, namespace
-  cleanup, PV reclaim, NFS share removal and actual fresh ZFS dataset removal.
-- [x] Historical CSI dataset
-  `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` was proven orphaned
-  and successfully removed with supported `zfs.resource.destroy` only after
-  complete quiesce of TrueNAS Apps, Docker containers and Talos VMs. The final
-  ZFS postcondition was `dataset does not exist`; no forced destroy was used.
-- [x] `scripts/truenas/diagnose-csi-orphans.sh --check` inventories dynamic
-  `pvc-*` datasets and distinguishes referenced, orphan and candidate states.
-- [x] The CSI orphan documentation records that a real ZFS dataset may be absent
-  from the TrueNAS Storage UI; ZFS/middleware evidence is authoritative.
-- [x] TrueNAS 26 dataset deletion false-success behavior is tracked against
-  upstream NAS-143316; cleanup acceptance is based on postconditions, not a
-  successful high-level return value.
-- [x] TrueNAS `midclt call system.ready` on this host can render `True`.
-  Reboot orchestration now normalizes boolean case/whitespace rather than
-  comparing literally with lowercase `true`.
-- [x] A partial reboot prepare failure exposed the need for a persistent prepare
-  state machine. `reboot-homelab.sh` writes `PREPARING` before mutation,
-  refuses another same-boot transaction, and supports `--continue-prepare`.
-- [x] Pi-hole stop failure root cause identified: `pihole-dns-sync` was in a
-  Docker ghost state with `Running=true`, `Restarting=true`, `.State.Pid=0` and
-  an orphaned `containerd-shim-runc-v2`.
-- [x] Targeted Pi-hole runtime recovery succeeded without restarting
-  Docker/containerd globally: restart policy disabled for the exact container,
-  exact orphan shim terminated, Docker state converged, then
-  `midclt call -j app.stop pihole` reached `STOPPED`.
-- [x] Suricata demonstrated that `restarting=true,pid=0` can also be transient:
-  normal `docker stop -t 60 suricata` converged to `exited`, so orphan-shim
-  recovery must remain a reviewed fallback rather than the first action.
-- [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --check` detects the
-  `Running/Restarting + Pid=0` ghost-state pattern.
-- [x] `scripts/truenas/diagnose-docker-orphan-shims.sh --recover <container>`
-  provides guarded single-container recovery and refuses to touch a live
-  container PID.
-- [x] `scripts/truenas/materialize-reboot-bundle.sh` creates immutable reboot
-  bundles through a temporary staging directory, validates syntax and required
-  features, writes `SOURCE_COMMIT`/`SHA256SUMS`, refuses mismatched reuse and
-  updates `current` atomically only after successful validation.
-- [x] Standard TrueNAS platform diagnostics include App lifecycle,
-  Docker/containerd orphan-shim inventory, Talos/Kubernetes posture and CSI
-  dataset/orphan inventory.
-- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use
-  Ubuntu 24.04 LTS and the focused `runner-build` toolchain from
-  `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted
-  runners, prefer an unprivileged LXC plus remote builder, and treat privileged
-  nested Docker as a separate trusted-only security exception.
+- [x] Talos `v1.13.9` / Kubernetes `v1.36.3`: control plane `172.17.0.50`, workers `172.17.0.51` / `172.17.0.52`, all Ready after reboot.
+- [x] Talos VM policy: `autostart=true`, graceful shutdown timeout `180s`.
+- [x] TrueNAS Docker IPAM persisted after reboot: `10.200.0.0/16`, `/24` allocations, `br0=172.17.0.24/24`, protected `sample-observer=10.254.255.0/28` intact.
+- [x] TrueNAS controlled reboot completed; boot ID changed and `system.ready` / Docker / VM autostart / Kubernetes readiness postconditions passed.
+- [x] TrueNAS CSI controller publish path is green: `attachRequired=true`, csi-attacher, VolumeAttachment RBAC and NFS publishContext.
+- [x] Fresh post-reboot TrueNAS CSI RWX acceptance is green: dynamic PVC/PV, publishContext, cross-worker write/read, namespace cleanup and Kubernetes PV reclaim.
+- [x] Historical CSI dataset `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` was removed with supported middleware deletion after complete quiesce; no forced ZFS destroy.
+- [x] Pi-hole ghost runtime and guarded exact-shim recovery are documented and covered by `diagnose-docker-orphan-shims.sh`.
+- [x] Immutable reboot bundles are staged, syntax/checksum validated and atomically activated.
+- [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
+- [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
+- [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green with Docling still pending.
+- [ ] **Sentry incident:** TrueNAS still reports `DEPLOYING`. Edge health and envelope acceptance are green, but the 2026-09-11 synthetic event was accepted with HTTP 200 and never appeared in `sentry.errors_local`; end-to-end ingestion is therefore not accepted yet.
+- [ ] **Suricata functional completion:** the `eth0` crash loop is fixed and Suricata now captures on TrueNAS `br0`, but the running engine reported zero loaded rules. Provision `suricata.rules`, require a healthy rule file and prove `eve.json` output/consumption.
+- [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
+- [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
-## P0 — finish the current controlled TrueNAS reboot
+## P0 — controlled TrueNAS reboot accepted
 
-Do not start Vault, Falco, Kubara bootstrap, new service migrations or broad
-cleanup until this transaction is complete.
+The 2026-09-11 transaction is operationally accepted. Strict historical-manifest verification remains intentionally capable of reporting deferred Apps that were RUNNING before the reboot but were explicitly accepted as non-blocking afterwards.
 
-The strict order is:
-
-1. [x] Preserve and restore the **original** persistent prepare manifest after
-   the accidental second prepare. The original resume set remains authoritative.
-2. [x] Complete the prepare boundary: all TrueNAS Apps stopped, `docker ps`
-   empty, Talos workers `.51`/`.52` shut down before control plane `.50`, all
-   three VMs `STOPPED` with `autostart=true`, and `phase=PREPARED`.
-3. [x] Retry the historical CSI orphan after real quiesce with supported
-   `zfs.resource.destroy`. It succeeded and the dataset is absent.
-4. [ ] Reboot TrueNAS through the supported TrueNAS UI/API after
-   `phase=PREPARED` — reboot initiated; post-boot acceptance is still pending.
-5. [ ] Run `reboot-homelab.sh --post-reboot-check` and require:
-   changed boot ID, normalized `system.ready`, Docker middleware/systemd healthy,
-   IPAM persisted, `br0=172.17.0.24/24`, protected observer network intact,
-   Talos VMs autostarted, all Talos APIs reachable and Kubernetes 3/3 Ready.
-6. [x] Historical CSI orphan no longer needs a post-reboot retry; it was removed
-   before crossing the reboot boundary.
-7. [ ] Run one **fresh post-reboot CSI regression** and verify dynamic
-   provisioning, publishContext, cross-worker RWX and TrueNAS-side share/dataset
-   reclaim.
-8. [ ] Run `--resume` from the saved **original** manifest only. The reviewed
-   explicit maintenance set remains `crowdsec sample`; do not resume every
-   historically stopped App.
-9. [ ] Run `--verify`, cluster/network gates, Docker IPAM audit and orphan-shim
-   diagnostic.
-10. [ ] Only then start bounded P5 cleanup.
-
-### Current reboot incident evidence
-
-The current prepare transaction established permanent requirements:
-
-- **CLI boolean representation is not an API semantic.** A healthy
-  `system.state=READY` was initially rejected because `midclt` printed `True`.
-- **Prepare is not atomic.** A later App can fail after earlier Apps were
-  already stopped. The original manifest and resume plan must remain immutable
-  and resumable.
-- **A second prepare can corrupt resume intent.** The first manifest observed 49
-  pre-existing STOPPED Apps; the accidental second prepare observed 57. The
-  original manifest was restored before reboot.
-- **A bundle path is not proof of bundle identity.** The active `current`
-  pointer still referenced `540ffa...-readyfix1`, while a proposed
-  `1fddc...-continue-prepare` directory had never been created. Future bundle
-  construction must be atomic and checksum-verified.
-- **`Running/Restarting + Pid=0` requires correlation.** Pi-hole had a real
-  orphan shim and needed targeted recovery; Suricata converged with ordinary
-  `docker stop` and did not need shim recovery.
-- **CSI EBUSY can be runtime/mount debt.** The historical orphan could not be
-  destroyed while the platform was active, but disappeared immediately through
-  supported middleware deletion after complete Apps/Docker/Talos quiesce.
-
-See `truenas-reboot-incident-20260911.md` for the complete evidence chain.
+1. [x] Preserve/restore the original persistent prepare manifest after the accidental second prepare.
+2. [x] Reach the prepare boundary: all TrueNAS Apps stopped, Docker empty, Talos workers then control plane stopped, VMs `STOPPED`, `phase=PREPARED`.
+3. [x] Remove the historical CSI orphan after quiesce and verify the dataset is absent.
+4. [x] Reboot TrueNAS through the supported TrueNAS path; boot ID changed.
+5. [x] Run `--post-reboot-check`: TrueNAS ready, Docker/IPAM/br0/observer network valid, Talos APIs reachable and Kubernetes 3/3 Ready.
+6. [x] Run one fresh post-reboot CSI regression: provisioning, publishContext, cross-worker RWX and reclaim are green.
+7. [x] Resume the saved original manifest sufficiently for platform acceptance. All critical services needed for the accepted baseline are RUNNING; `nginx-proxy-manager`, `openarchiver` and `paperless-ngx` are explicitly deferred and do not block this transaction.
+8. [x] Diagnose the Graylog failure: logs proved `UnknownHostException: mongo` followed by connection refusal; `apps/graylog/compose.yml` requires Mongo and OpenSearch Security before `/docker-entrypoint.sh`.
+9. [x] Validate the repaired #191 lifecycle planner: Docker Socket Proxy is isolated in bootstrap-runtime; foundation, primary-data, secondary-data, platform and application waves are ordered correctly; Talos/Kubernetes preflight is green.
+10. [x] Close the reboot transaction operationally and move the three deferred App failures into P3 service debt. Keep the frozen manifest and strict verifier as incident evidence.
 
 ## P0.1 — reboot lifecycle hardening
 
-- [x] Normalize all TrueNAS `system.ready` gates, including whitespace.
-- [x] Add `PREPARING` and `--continue-prepare`.
-- [x] Refuse another same-boot `--prepare` by scanning existing transaction
-  directories, not only trusting the mutable `latest` pointer.
-- [x] Validate required manifest files before continuation.
-- [x] Preserve legacy interrupted manifests with no phase only when boot ID and
-  plan files are intact.
-- [x] Add failed-App runtime evidence to the reboot script.
-- [x] Add detailed evidence for unmanaged/running Docker containers before the
-  zero-running gate fails.
-- [x] Add guarded Docker/containerd orphan-shim diagnostics and recovery.
-- [x] Persist bundle/script identity plus prepare/continue history in the reboot
-  manifest.
-- [x] Add checksum verification when an immutable bundle contains `SHA256SUMS`.
-- [x] Add atomic immutable bundle materialization/activation helper so `current`
-  can never be advanced to an unverified or missing bundle.
-- [ ] Add a fixture/integration test that simulates an App stop failure after
-  some earlier Apps have stopped and proves `--continue-prepare` does not
-  regenerate `apps-before.json` or `resume-plan.json`.
-- [ ] Add a Docker fixture test for `Running=true`, `Pid=0`, exactly-one-shim
-  recovery and refusal when `Pid>0`.
-- [ ] Reduce the large `no topology mapping` warning set by mapping remaining
-  TrueNAS App IDs to canonical `x-nabla` service runtime ownership.
-- [ ] Keep the current bundle plus at least one previous known-good rollback
-  bundle until a complete reboot cycle is accepted.
+- [x] Normalize TrueNAS `system.ready` representation.
+- [x] Persist `PREPARING` / `PREPARED`; support `--continue-prepare`; refuse a second same-boot transaction.
+- [x] Validate immutable manifest/bundle identity and checksums.
+- [x] Add targeted Docker/containerd orphan-shim diagnostics/recovery.
+- [x] Add `scripts/truenas/reconcile-reboot-resume.sh`: idempotent resume, separate middleware/job/readiness timeouts, per-App overrides, bounded runtime/log diagnostics and wave-level error aggregation.
+- [x] Make `reboot-homelab.sh --resume` delegate App lifecycle handling to the reconciler instead of maintaining a second start/wait loop.
+- [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
+- [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity. This maps multi-container Apps such as `opensearch-security -> opensearch` without duplicating metadata everywhere.
+- [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precede Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
+- [ ] Add an explicit operator-acceptance/deferred annotation for historical manifests so an incident can record non-blocking exceptions without weakening strict verification or changing frozen membership.
+- [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
+- [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
+- [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
+- [ ] Add health-aware dependency acceptance metadata so a backend wave can require container/service readiness, not only TrueNAS App `RUNNING`, where a consumer cannot self-wait safely.
+- [ ] Keep current + previous known-good reboot bundles until another normal reboot cycle passes.
 
-## P0.2 — CSI hardening after reboot
+### TrueNAS lifecycle phase contract
 
-- [x] Dynamic provisioning and controller publishContext path are green.
-- [x] Cross-worker NFS RWX smoke is green.
-- [x] Fresh reclaim was verified on the TrueNAS side.
-- [x] Historical orphan cleanup established the operational sequence:
-  correlate references -> quiesce Apps/Docker/Talos -> supported destroy ->
-  verify ZFS absence; no force cleanup.
-- [ ] Make `smoke-truenas-csi-nfs.sh` itself verify bounded TrueNAS-side NFS
-  share and ZFS dataset disappearance after Kubernetes reclaim.
-- [ ] Treat TrueNAS API success as insufficient when the resource postcondition
-  is still present, specifically for NAS-143316.
-- [ ] Keep read-only validation independent from write/admin CSI credentials
-  where possible.
-- [ ] Harden smoke Pods toward Restricted-compatible security context:
-  `allowPrivilegeEscalation=false`, drop `ALL`, `runAsNonRoot=true`, seccomp
-  `RuntimeDefault`, while retaining BusyBox compatibility.
-- [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is
-  stable; do not upgrade during this transaction.
+Required `x-nabla` topology relations remain authoritative. Phases are a secondary barrier for Apps that are simultaneously dependency-ready; they do not override an explicit required dependency.
+
+Startup order:
+
+0. **Bootstrap runtime** — Docker Socket Proxy. Start restricted Docker API infrastructure before dependent automation and dashboards.
+1. **Foundation** — Pi-hole, AdGuard Home, Traefik and Vaultwarden. Keep DNS, ingress and secret primitives available before consumers.
+2. **Network / edge support** — remaining network/infrastructure services such as Cloudflared, DDNS and secondary reverse-proxy tooling when present in the saved resume set.
+3. **Primary state** — PostgreSQL, MongoDB, InfluxDB, Redis and Kafka/message-broker equivalents.
+4. **Secondary/heavy data** — ClickHouse, OpenSearch, Elasticsearch, MinIO, Garage and other search/object/analytics storage engines.
+5. **Platform services** — observability, security, operations and automation consumers such as Graylog, Prometheus/Grafana, CrowdSec, Sentry, Suricata and n8n, subject to their explicit dependencies.
+6. **Applications** — remaining product, productivity and development workloads.
+
+Shutdown is the exact reverse flattened start order:
+
+- applications and consumers stop before platform services;
+- platform services stop before search/analytics stores;
+- heavy stores stop before their primary databases/brokers when no stronger topology relation says otherwise;
+- network/edge support stops after consumers;
+- DNS/ingress/foundation services stop last;
+- Docker Socket Proxy stops after all declared consumers.
+
+Operational invariants:
+
+- a failed or non-converged wave blocks later dependency waves but reports all failures inside the current wave;
+- `CRASHED`/`ERROR` is never blindly restarted by the reconciler;
+- an already `RUNNING` App is idempotently skipped;
+- a `DEPLOYING` App is waited on instead of receiving a duplicate `app.start`;
+- a historical reboot manifest may have its ordering repaired, but its selected App membership may not change;
+- Apps intentionally STOPPED before the transaction remain excluded unless explicitly present in the reviewed resume set;
+- operator acceptance exceptions are incident annotations, not silent mutations of the frozen manifest or a relaxation of the default verifier;
+- bundle activation requires syntax/checksum validation plus presence of phased planning and resume reconciliation features.
+
+## P0.2 — CSI hardening
+
+- [x] Dynamic provisioning, controller publishContext, cross-worker RWX and fresh reclaim are green.
+- [ ] Make `smoke-truenas-csi-nfs.sh` directly verify bounded TrueNAS NFS share and ZFS dataset disappearance after Kubernetes reclaim.
+- [ ] Treat TrueNAS API success as insufficient unless the resource postcondition is also satisfied, especially for NAS-143316.
+- [ ] Keep read-only validation separate from write/admin CSI credentials where possible.
+- [ ] Harden smoke Pods toward Restricted PSS: `allowPrivilegeEscalation=false`, drop `ALL`, `runAsNonRoot=true`, seccomp `RuntimeDefault`.
+- [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is stable.
 - [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27.
 
 ## P1 — infrastructure secrets
 
-Start only after the reboot and post-reboot CSI regression are accepted.
+Start after P0 acceptance.
 
 1. [ ] OpenTofu/Terragrunt and Garage backend credentials.
-2. [ ] Dedicated TrueNAS infrastructure automation credential; never reuse the
-   FastAPI observer identity.
+2. [ ] Dedicated TrueNAS infrastructure automation identity; never reuse the FastAPI observer identity.
 3. [ ] Nexus automation credentials.
 4. [ ] Talos/Kubernetes/CSI machine credentials.
 5. [ ] Root-owned `0600` runtime rendering.
 6. [ ] Retain encrypted recovery material.
-7. [ ] Move long-lived machine secrets to Vault/OpenBao only after storage
-   persistence and rollback are proven.
+7. [ ] Move long-lived machine secrets to Vault/OpenBao only after storage persistence and rollback are proven.
 
 ## P2 — platform/security tools
 
-- [ ] Vault: keep blocked until CSI post-reboot acceptance is green.
-- [ ] Falco: kernel preflight is ready; install only after the infrastructure
-  baseline stops changing.
-- [ ] Kubara: CLI is ready; create/review `config.yaml` before bootstrap.
-- [ ] Traefik/Kubara ingress: choose an explicit bare-metal exposure model;
-  do not assume a cloud LoadBalancer.
-- [ ] FastAPI Kubernetes smoke: deploy an immutable image and prove
-  `test.albandrieu.com` only after storage and ingress ownership are stable.
+- [ ] Vault/OpenBao after CSI/reboot acceptance.
+- [ ] Falco after infrastructure baseline stabilizes.
+- [ ] Kubara config/bootstrap.
+- [ ] Traefik/Kubara ingress with an explicit bare-metal exposure model.
+- [ ] FastAPI Kubernetes smoke using an immutable image and `test.albandrieu.com` after storage and ingress ownership are stable.
 
 ## P3 — runtime/services
 
-- [x] Prometheus core runtime.
-- [x] Grafana runtime.
-- [x] Graylog runtime.
-- [x] CrowdSec runtime/maintenance resume intent.
-- [x] Langflow runtime.
-- [x] Wazuh manager/indexer/dashboard core acceptance.
-- [x] OpenRAG core runtime; Docling ingestion remains pending.
-- [ ] Sentry: complete stable consumer heartbeat/Kafka-group acceptance and
-  synthetic event proof; avoid whole-stack redeploy for isolated consumers.
-- [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector using
-  the pinned v0.9.3 collector.
-- [ ] AutoKuma TrueNAS registration.
+- [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
+- [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
+- [ ] **Priority: Sentry ingestion** — TrueNAS remains `DEPLOYING`; `/health` and envelope HTTP acceptance are not sufficient. An event accepted at the edge on 2026-09-11 was absent from `sentry.errors_local`. Recover only unhealthy errors-only consumers, verify Kafka groups/heartbeats across a full health cycle, then require `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse before marking Sentry accepted.
+- [ ] Track the Sentry self-hosted `26.8` Kafka coordinator/session-timeout instability as upstream/version debt. Do not repeatedly redeploy the full stack for an isolated consumer failure; use the exact allow-listed consumer recovery helper and evaluate a newer upstream release only after its migration impact is reviewed.
+- [x] **Suricata capture interface** — `eth0` restart loop resolved; the engine is RUNNING on TrueNAS `br0` with zero container restarts.
+- [ ] **Suricata rules/EVE acceptance** — the running engine reported no `/var/lib/suricata/rules/suricata.rules`. Provision rules through the one-shot `suricata-update` service before capture starts, require a non-empty rule file, then prove `eve.json` production and CrowdSec/Alloy consumption.
+- [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
+- [ ] **Uptime Kuma + AutoKuma Compose** — the former native TrueNAS Uptime Kuma App is confirmed removed. Add repository-owned Uptime Kuma itself on host port `31050`; keep AutoKuma as a separate declarative reconciler that creates/updates monitors through Uptime Kuma. AutoKuma is not the monitoring server/UI and cannot replace Uptime Kuma. Keep AutoKuma stopped while no Uptime Kuma endpoint exists.
+- [ ] Remove the stale `native-truenas-uptime-monitor` topology assumption when the Compose-owned Uptime Kuma service is introduced; generated inventory must then identify Uptime Kuma and AutoKuma as separate Compose-managed services.
+- [ ] **Homarr bootstrap** — `https://homarr.albandrieu.com/init` still asks for manual initialization. Add an idempotent first-run bootstrap that detects the init state, uses secret-backed admin/bootstrap data, then applies the generated topology manifest (`apps/homarr/generated/apps.json`) through `homarr-sync`. Do not put credentials in generated topology.
+- [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps for now and are explicitly represented as `native-truenas-*` topology nodes with `runtime.appId`; migrate both to repository-owned Compose only with data/config backup, rollback and consumer validation.
+- [ ] **Deferred: nginx-proxy-manager** — investigate the persistent `DEPLOYING` / unhealthy state after its long ownership/bootstrap phase. The UID 568 `useradd` warning is not by itself a crash signal; isolate healthcheck/database/startup completion later.
+- [ ] **Deferred: OpenArchiver** — restore the previously saved App or formally remove it from expected runtime intent after ownership/use review.
+- [ ] **Deferred: Paperless-ngx** — restore health, then refactor its dedicated PostgreSQL and Redis components to the shared PostgreSQL/Redis services with dedicated database/user/Redis DB or namespace, migration backup and rollback.
 - [ ] Akvorado ingestion/query acceptance.
-- [ ] ntopng / Suricata reconciliation.
-- [ ] Pi-hole post-reboot functional acceptance:
-  DNS, UI/API, `pihole-dns-sync`, exporter and restart-loop absence.
+- [ ] ntopng reconciliation after Suricata.
+- [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
+- [ ] Build a derived immutable code-server image with required packages/extensions baked in; remove apt/package installation from the reboot/startup critical path.
 - [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route.
 
 ## P3.1 — FastAPI homelab observer
 
 Keep FastAPI as an observer, not an appliance recovery controller.
 
-- [ ] Prove TrueNAS, pfSense, Cloudflare, Prometheus, Sentry and Pyroscope
-  transport/auth/application results independently.
-- [ ] Keep Cloudflare API uncertainty as a warning when the API cannot be
-  confirmed; do not mark an otherwise healthy service down solely because the
-  Cloudflare observer timed out.
-- [ ] Continue the dedicated `fastapi_observer` least-privilege A/B validation
-  before switching the cloud runtime away from the current human/admin
-  credential.
+- [ ] Prove TrueNAS, pfSense, Cloudflare, Prometheus, Sentry and Pyroscope transport/auth/application results independently.
+- [ ] Keep Cloudflare API uncertainty as warning-only when global status cannot be confirmed.
+- [ ] Continue least-privilege `fastapi_observer` A/B validation.
 - [ ] Keep expensive fan-out probes bounded, cached and staggered.
-- [ ] Prefer Prometheus runtime evidence where metrics exist, while retaining
-  TrueNAS App state and direct HTTP/HTTPS/TCP probes as independent evidence.
+- [ ] Prefer Prometheus runtime evidence where metrics exist while retaining TrueNAS App state and direct HTTP/HTTPS/TCP probes as independent evidence.
 
 ## P4 — identity and policy
 
 - [ ] Keycloak/GitHub SSO after network/storage stability.
 - [ ] Vault/OpenBao human authentication after infrastructure secrets.
-- [ ] Continue NIST CSF 2.0 mapping across Govern, Identify, Protect, Detect,
-  Respond and Recover.
-- [ ] Keep Kubernetes normal workloads moving toward Restricted Pod Security;
-  retain explicit privileged exceptions only for infrastructure components that
-  require them.
+- [ ] Continue NIST CSF 2.0 mapping.
+- [ ] Move normal Kubernetes workloads toward Restricted Pod Security; retain explicit privileged exceptions only for infrastructure components that require them.
 
-## P5 — post-reboot cleanup
+## P5 — bounded post-reboot cleanup
 
-Entry condition: reboot `--verify` and fresh CSI regression are both green.
+Entry condition: P0 is operationally accepted. A strict frozen-manifest `--verify` may remain red only for explicitly documented deferred Apps; any critical/platform regression still blocks cleanup.
 
-- [ ] Archive reboot manifest, boot IDs, source SHA and incident evidence.
-- [ ] Keep current + previous reboot bundles until another normal reboot passes.
-- [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset
-  remains.
-- [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner and endpoint
-  evidence.
-- [ ] Never use `docker network prune`.
-- [ ] Protect `intranet`, `traefik_network`, `sample-observer`,
-  `nabla-security` and `secrets-backend`.
-- [ ] Remove only reviewed zero-endpoint stale networks through their canonical
-  owner lifecycle.
-- [ ] Keep pre-existing `CRASHED` Apps as separately tracked debt; do not
-  relabel them as reboot regressions.
-- [ ] Re-run `scripts/truenas/diagnose-docker-orphan-shims.sh --check` after
-  Apps settle and investigate any new `Pid=0` ghost state.
+- [ ] Archive reboot manifest, boot IDs, source SHA, operator acceptance exceptions and incident evidence.
+- [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset remains.
+- [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence; never use `docker network prune`.
+- [ ] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend`.
+- [ ] Remove only reviewed zero-endpoint stale networks through their canonical owner lifecycle.
+- [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
+- [ ] Re-run orphan-shim diagnostics after Apps settle.
 
-## Script architecture refactor
+## Accepted code/debt reduction plan
 
-After the reboot transaction, continue the operator-script consolidation:
+The objective is a net reduction of imperative Bash, duplicate lifecycle logic and duplicated documentation, while preserving stable operator entry points for at least one release cycle.
 
-- [ ] `scripts/lib/common.sh`: root/operator checks, required commands, temp
-  files and traps.
-- [ ] `scripts/lib/diagnostic.sh`: ok/fail/warn/skipped counters, compact/full
-  output and stable exit codes.
-- [ ] `scripts/lib/truenas.sh`: bounded middleware calls, App state, lifecycle
-  waits and persistent reboot-manifest helpers.
-- [ ] `scripts/lib/docker.sh`: container state, health, restart count,
-  mounts/networks and orphan-shim correlation.
-- [ ] `scripts/lib/probe.sh`: HTTP/HTTPS/TCP/DNS probes with bounded retry.
-- [ ] `scripts/lib/secrets.sh`: owner/mode/key-presence checks without secret
-  disclosure.
-- [ ] Preserve current operator paths as wrappers for at least one release cycle.
-- [ ] Add quality gates for shebang/executable mode, `bash -n`, ShellCheck and
-  duplicate runtime primitives.
+1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`; duplicate start/wait/diagnostic logic is removed from the reboot orchestrator.
+2. [ ] **`scripts/lib/truenas.sh`.** Centralize bounded middleware calls, normalized readiness, App state, lifecycle waits and persistent reboot-manifest helpers.
+3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
+4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, ok/warn/fail/skipped counters and stable exit codes.
+5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
+6. [ ] **`scripts/lib/secrets.sh`.** Centralize owner/mode/presence checks without secret disclosure.
+7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata: startup phase/priority where inference is insufficient, startup timeout, readiness type/target, dependency relations, slow-start behavior and criticality. Prefer generated runtime ownership from `sourcePath`; use explicit `runtime.appId` only for ambiguous/non-standard ownership.
+8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image; remove startup-time package provisioning.
+9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures; Graylog/Mongo/OpenSearch lifecycle ordering is now covered.
+10. [ ] **Keep roadmap concise.** Roadmap = status/next action; runbooks = procedure; incident docs = evidence. Link instead of copying command blocks.
+11. [ ] **Anti-duplication quality gate.** Once primitives are migrated, reject redefinitions of middleware/App-state/diagnostic/probe helpers in service scripts.
+
+## Target operator-script architecture
+
+```text
+scripts/
+├── lib/
+│   ├── common.sh       # generic shell primitives
+│   ├── diagnostic.sh   # output, counters, stable exit codes
+│   ├── truenas.sh      # middleware, Apps, lifecycle, manifests
+│   ├── docker.sh       # container/runtime/containerd evidence
+│   ├── probe.sh        # HTTP/HTTPS/TCP/DNS probes
+│   └── secrets.sh      # ownership/mode/presence, never secret values
+├── truenas/
+│   ├── reboot-homelab.sh          # orchestration only
+│   ├── reconcile-reboot-resume.sh # post-reboot lifecycle reconciliation
+│   ├── diagnose-platform.sh       # composition of diagnostics
+│   └── ...                         # stable operator wrappers
+└── talos/
+```
+
+Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contract tests and duplicate runtime primitives. Existing operator paths remain wrappers for at least one release cycle.
 
 ## Ordering rule
 
-The immediate controlled reboot is the only P0 transaction. Do not interleave
-new platform mutations with it.
-
-After reboot acceptance:
+P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-CSI regression
+Sentry ingestion recovery + end-to-end smoke
+  -> Suricata rule provisioning + eve.json acceptance
+  -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
+  -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
+  -> bounded P5 cleanup
+  -> lifecycle/topology + script-debt consolidation
+  -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
   -> Kubernetes ingress + test.albandrieu.com
-  -> remaining service migrations
-  -> bounded cleanup / architecture refactor
+  -> Scrutiny / remaining service work
+  -> Docling / OpenRAG-LiteLLM
 ```
-
-Sentry completion remains ahead of Docling/OpenRAG-LiteLLM. Scrutiny and other
-service-specific work may proceed only after the reboot baseline is stable.

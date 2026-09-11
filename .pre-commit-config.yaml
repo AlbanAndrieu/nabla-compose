@@ -61,7 +61,8 @@ repos:
     hooks:
       - id: shell-lint
         name: "🐚 shell · Lint shell scripts"
-        args: [-x]
+        # Resolve source=../... directives relative to each script, not repo root.
+        args: [-x, -P, SCRIPTDIR]
         exclude: >-
           ^(mvnw|biscuitcutter\.sh|hooks|tests/.*|docs/Makefile|\.envrc|scripts/run-wicked\.sh|build\.sh)$
 

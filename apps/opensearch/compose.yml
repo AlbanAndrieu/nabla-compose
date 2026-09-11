@@ -16,6 +16,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: opensearch
+      lifecycle:
+        phase: secondary-data
+        priority: 30
     env_file:
       - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
     environment:
@@ -60,6 +63,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: opensearch-security
+      lifecycle:
+        phase: secondary-data
+        priority: 30
     environment:
       DISABLE_INSTALL_DEMO_CONFIG: "true"
       DISABLE_SECURITY_PLUGIN: "true"
@@ -93,6 +99,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: dashboards
+      lifecycle:
+        phase: secondary-data
+        priority: 30
       relations:
         - target: opensearch
           type: dependsOn

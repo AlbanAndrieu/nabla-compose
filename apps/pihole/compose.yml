@@ -14,6 +14,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: pihole
+      lifecycle:
+        phase: foundation
+        priority: 10
       monitoring:
         type: http
         target: http://172.17.0.24:20720/admin/

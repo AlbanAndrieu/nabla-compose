@@ -25,6 +25,15 @@ RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
 SECURITY_FUNCTIONS = {"govern", "identify", "protect", "detect", "respond", "recover"}
+LIFECYCLE_PHASES = {
+    "bootstrap-runtime",
+    "foundation",
+    "network-edge",
+    "primary-data",
+    "secondary-data",
+    "platform-services",
+    "applications",
+}
 RELATION_TYPES = {
     "dependsOn",
     "consumesApi",
@@ -167,26 +176,29 @@ def environment_metadata(
     return {"environments": environments}
 
 
-def topology_node(
-    metadata: dict[str, Any], source_path: str, context: str
-) -> dict[str, Any]:
-    node: dict[str, Any] = {
-        "id": require_identifier(metadata.get("id"), f"{context}.id"),
-        "name": optional_text(metadata, "name"),
-        "kind": optional_text(metadata, "kind"),
-        "category": optional_text(metadata, "category"),
-        "sourcePath": optional_text(metadata, "sourcePath") or source_path,
-    }
-    if not node["name"] or not node["kind"] or not node["category"]:
-        fail(f"{context} requires name, kind and category")
-    for key in ("url", "internalUrl", "description"):
-        value = optional_text(metadata, key)
-        if value is not None:
-            node[key] = value
-    node.update(presentation_metadata(metadata, context))
-    node.update(security_metadata(metadata, context))
-    node.update(environment_metadata(metadata, context))
-    return node
+def lifecycle_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, dict[str, Any]]:
+    """Validate declarative lifecycle phase/priority exported by ``x-nabla``."""
+
+    raw = metadata.get("lifecycle")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        fail(f"{context}.lifecycle must be a mapping")
+
+    phase = optional_text(raw, "phase")
+    if phase not in LIFECYCLE_PHASES:
+        supported = ", ".join(sorted(LIFECYCLE_PHASES))
+        fail(f"{context}.lifecycle.phase must be one of: {supported}")
+
+    priority = raw.get("priority")
+    if isinstance(priority, bool) or not isinstance(priority, int):
+        fail(f"{context}.lifecycle.priority must be an integer")
+    if not 0 <= priority <= 1000:
+        fail(f"{context}.lifecycle.priority must be between 0 and 1000")
+
+    return {"lifecycle": {"phase": phase, "priority": priority}}
 
 
 def runtime_binding(
@@ -214,6 +226,31 @@ def runtime_binding(
         )
     return binding
 
+
+def topology_node(
+    metadata: dict[str, Any], source_path: str, context: str
+) -> dict[str, Any]:
+    node: dict[str, Any] = {
+        "id": require_identifier(metadata.get("id"), f"{context}.id"),
+        "name": optional_text(metadata, "name"),
+        "kind": optional_text(metadata, "kind"),
+        "category": optional_text(metadata, "category"),
+        "sourcePath": optional_text(metadata, "sourcePath") or source_path,
+    }
+    if not node["name"] or not node["kind"] or not node["category"]:
+        fail(f"{context} requires name, kind and category")
+    for key in ("url", "internalUrl", "description"):
+        value = optional_text(metadata, key)
+        if value is not None:
+            node[key] = value
+    node.update(presentation_metadata(metadata, context))
+    node.update(security_metadata(metadata, context))
+    node.update(environment_metadata(metadata, context))
+    node.update(lifecycle_metadata(metadata, context))
+    runtime = runtime_binding(metadata, context)
+    if runtime is not None:
+        node["runtime"] = runtime
+    return node
 
 
 def monitoring_metadata(
@@ -252,6 +289,7 @@ def monitoring_metadata(
 
     return result
 
+
 def declared_service(
     metadata: dict[str, Any],
     source_path: str,
@@ -275,6 +313,7 @@ def declared_service(
         "criticality",
         "securityFunctions",
         "environments",
+        "lifecycle",
     ):
         if key in node:
             service[key] = node[key]
@@ -395,16 +434,19 @@ def load_static_topology(
     for index, node in enumerate(raw_nodes):
         if not isinstance(node, dict):
             fail(f"static node {index} must be an object")
-        node_id = require_identifier(node.get("id"), f"static node {index}.id")
+        context = f"static node {index}"
+        node_id = require_identifier(node.get("id"), f"{context}.id")
         normalized_node = dict(node)
-        normalized_node.update(
-            presentation_metadata(normalized_node, f"static node {index}")
-        )
+        normalized_node.update(presentation_metadata(normalized_node, context))
+        normalized_node.update(lifecycle_metadata(normalized_node, context))
+        runtime = runtime_binding(normalized_node, context)
+        if runtime is not None:
+            normalized_node["runtime"] = runtime
         add_unique(
             nodes,
             node_id,
             normalized_node,
-            f"static node {index}",
+            context,
             "topology node",
         )
     for index, relation in enumerate(raw_relations):

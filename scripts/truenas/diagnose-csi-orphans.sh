@@ -1,33 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
+
 # Keep interactive diagnostics compact while preserving full CI/non-TTY output.
 if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
-  NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-  NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${NABLA_SCRIPT_DIR}")/run-diagnostic.sh"
+  NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${SCRIPT_DIR}")/run-diagnostic.sh"
   exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
-    "${NABLA_SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
+    "${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
 fi
-
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
-
-warn() {
-  printf 'WARN: %s\n' "$*"
-}
-
-ok() {
-  printf 'OK: %s\n' "$*"
-}
 
 mode="${1:---check}"
 [[ "${mode}" == "--check" ]] || fail "usage: $(basename "$0") [--check]"
-
-for command in jq midclt timeout zfs; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+require_commands jq midclt timeout zfs mktemp tee awk head
 
 CSI_PARENT="${TRUENAS_CSI_DATASET:-cpool/k8s/csi}"
 CSI_DRIVER="${TRUENAS_CSI_DRIVER:-csi.truenas.io}"

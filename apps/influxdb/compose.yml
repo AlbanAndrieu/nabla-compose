@@ -13,6 +13,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: influxdb
+      lifecycle:
+        phase: primary-data
+        priority: 20
     ports:
       - "127.0.0.1:31055:8086"
     environment:

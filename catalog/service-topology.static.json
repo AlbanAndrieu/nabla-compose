@@ -37,10 +37,36 @@
       "securityFunctions": ["protect", "detect"]
     },
     {
+      "id": "adguard-home",
+      "name": "AdGuard Home",
+      "kind": "native-truenas-dns-filter",
+      "category": "network",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Native TrueNAS App for network DNS filtering. It remains runtime-owned by TrueNAS until migration to repository-owned Compose.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "adguard-home"
+      },
+      "lifecycle": {
+        "phase": "foundation",
+        "priority": 10
+      }
+    },
+    {
       "id": "postgresql",
       "name": "PostgreSQL",
-      "kind": "database",
-      "category": "data"
+      "kind": "native-truenas-database",
+      "category": "data",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Shared native TrueNAS PostgreSQL App used by repository-managed consumers. Keep it as a runtime-owned native service until migration to repository-owned Compose.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "postgres"
+      },
+      "lifecycle": {
+        "phase": "primary-data",
+        "priority": 20
+      }
     },
     {
       "id": "talos",

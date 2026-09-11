@@ -12,6 +12,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: mongo
+      lifecycle:
+        phase: primary-data
+        priority: 20
     env_file:
       - /mnt/cpool/mongo/.env.secrets
     volumes:

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -22,6 +23,48 @@ TARGET_BEFORE_SOURCE = {
 }
 SOURCE_BEFORE_TARGET = {"providesApi"}
 
+# Declarative lifecycle metadata from the generated catalog is authoritative.
+# These app-specific entries are compatibility fallbacks for legacy/runtime-only
+# Apps while their topology ownership is migrated. They are deliberately kept
+# small and visible in lifecycle_phase_by_app.source.
+FALLBACK_APP_POLICIES: dict[str, tuple[str, int]] = {
+    "docker-socket-proxy": ("bootstrap-runtime", 0),
+    "adguard-home": ("foundation", 10),
+    "pihole": ("foundation", 10),
+    "traefik": ("foundation", 10),
+    "vaultwarden": ("foundation", 10),
+    "postgres": ("primary-data", 20),
+    "mongo": ("primary-data", 20),
+    "influxdb": ("primary-data", 20),
+    "redis": ("primary-data", 20),
+    "kafka": ("primary-data", 20),
+    "sentry-clickhouse": ("secondary-data", 30),
+    "clickhouse": ("secondary-data", 30),
+    "opensearch": ("secondary-data", 30),
+    "elasticsearch": ("secondary-data", 30),
+    "elastic-search": ("secondary-data", 30),
+    "minio": ("secondary-data", 30),
+    "garage": ("secondary-data", 30),
+}
+DATABASE_KINDS = {
+    "database",
+    "cache",
+    "message-broker",
+    "queue",
+    "key-value-store",
+}
+SECONDARY_DATA_KINDS = {
+    "search",
+    "object-storage",
+    "analytics",
+    "metrics-storage",
+    "log-storage",
+    "time-series-database",
+}
+NETWORK_CATEGORIES = {"network", "infrastructure"}
+PLATFORM_CATEGORIES = {"observability", "security", "operations", "automation"}
+DEFAULT_PRIORITY = 50
+
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -31,20 +74,172 @@ def parse_states(raw: str) -> set[str]:
     return {item.strip().upper() for item in raw.split(",") if item.strip()}
 
 
-def service_to_app(services: dict) -> dict[str, str]:
-    result: dict[str, str] = {}
-    for service in services.get("services", []):
-        runtime = service.get("runtime") or {}
-        if runtime.get("provider") != "truenas-app":
+def normalized_app_key(value: object) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(value).lower())
+
+
+def resolve_known_app(candidate: object, known_app_ids: set[str]) -> str | None:
+    if not candidate:
+        return None
+    candidate_text = str(candidate)
+    if candidate_text in known_app_ids:
+        return candidate_text
+
+    key = normalized_app_key(candidate_text)
+    matches = sorted(app for app in known_app_ids if normalized_app_key(app) == key)
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def infer_catalog_app(entry: dict, known_app_ids: set[str]) -> str | None:
+    """Resolve a generated service/topology node to one concrete TrueNAS App."""
+
+    runtime = entry.get("runtime") or {}
+    if runtime.get("provider") != "truenas-app":
+        return None
+
+    explicit = resolve_known_app(runtime.get("appId"), known_app_ids)
+    if explicit:
+        return explicit
+
+    source_path = str(entry.get("sourcePath") or "")
+    parts = Path(source_path).parts
+    if len(parts) >= 2 and parts[0] == "apps":
+        inferred = resolve_known_app(parts[1], known_app_ids)
+        if inferred:
+            return inferred
+
+    for candidate in (
+        entry.get("id"),
+        entry.get("composeService"),
+        runtime.get("containerService"),
+    ):
+        inferred = resolve_known_app(candidate, known_app_ids)
+        if inferred:
+            return inferred
+    return None
+
+
+def catalog_entries(services: dict, topology: dict) -> list[dict]:
+    """Return both service and logical topology declarations.
+
+    Generated topology nodes mirror declared Compose services, so duplicate ids
+    are expected. Logical/static nodes matter for runtime Apps that have no
+    canonical Compose service yet, such as shared PostgreSQL or AdGuard Home.
+    """
+
+    entries: list[dict] = []
+    for collection in (services.get("services", []), topology.get("nodes", [])):
+        if not isinstance(collection, list):
             continue
-        app_id = runtime.get("appId")
-        service_id = service.get("id")
-        if service_id and app_id:
-            result[str(service_id)] = str(app_id)
+        entries.extend(item for item in collection if isinstance(item, dict))
+    return entries
+
+
+def catalog_to_app(
+    services: dict,
+    topology: dict,
+    known_app_ids: set[str],
+) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for entry in catalog_entries(services, topology):
+        entry_id = entry.get("id")
+        app_id = infer_catalog_app(entry, known_app_ids)
+        if not entry_id or not app_id:
+            continue
+        key = str(entry_id)
+        previous = result.get(key)
+        if previous is not None and previous != app_id:
+            raise ValueError(
+                f"catalog id {key} maps to conflicting TrueNAS Apps: {previous}, {app_id}"
+            )
+        result[key] = app_id
     return result
 
 
-def topo_waves(nodes: set[str], edges: set[tuple[str, str]]) -> list[list[str]]:
+def declared_lifecycle(app: str, app_entries: list[dict]) -> dict | None:
+    declared: set[tuple[str, int]] = set()
+    for entry in app_entries:
+        lifecycle = entry.get("lifecycle")
+        if not isinstance(lifecycle, dict):
+            continue
+        phase = lifecycle.get("phase")
+        priority = lifecycle.get("priority")
+        if (
+            isinstance(phase, str)
+            and isinstance(priority, int)
+            and not isinstance(priority, bool)
+        ):
+            declared.add((phase, priority))
+
+    if len(declared) > 1:
+        values = ", ".join(
+            f"{phase}:{priority}" for phase, priority in sorted(declared)
+        )
+        raise ValueError(
+            f"conflicting declared lifecycle policy for TrueNAS App {app}: {values}"
+        )
+    if not declared:
+        return None
+
+    phase, priority = next(iter(declared))
+    return {"phase": phase, "priority": priority, "source": "catalog"}
+
+
+def fallback_lifecycle(app: str, app_entries: list[dict]) -> dict:
+    if app in FALLBACK_APP_POLICIES:
+        phase, priority = FALLBACK_APP_POLICIES[app]
+        return {"phase": phase, "priority": priority, "source": "fallback-app"}
+
+    kinds = {str(entry.get("kind") or "") for entry in app_entries}
+    categories = {str(entry.get("category") or "") for entry in app_entries}
+
+    if kinds & DATABASE_KINDS:
+        return {"phase": "primary-data", "priority": 20, "source": "fallback-kind"}
+    if kinds & SECONDARY_DATA_KINDS or "data" in categories:
+        return {"phase": "secondary-data", "priority": 30, "source": "fallback-kind"}
+    if categories & NETWORK_CATEGORIES:
+        return {"phase": "network-edge", "priority": 15, "source": "fallback-category"}
+    if categories & PLATFORM_CATEGORIES:
+        return {
+            "phase": "platform-services",
+            "priority": 40,
+            "source": "fallback-category",
+        }
+    return {
+        "phase": "applications",
+        "priority": DEFAULT_PRIORITY,
+        "source": "fallback-default",
+    }
+
+
+def lifecycle_policies(
+    services: dict,
+    topology: dict,
+    mapping: dict[str, str],
+    nodes: set[str],
+) -> dict[str, dict]:
+    entries_by_app: dict[str, list[dict]] = defaultdict(list)
+    for entry in catalog_entries(services, topology):
+        app = mapping.get(str(entry.get("id", "")))
+        if app:
+            entries_by_app[app].append(entry)
+
+    result: dict[str, dict] = {}
+    for app in nodes:
+        app_entries = entries_by_app.get(app, [])
+        result[app] = declared_lifecycle(app, app_entries) or fallback_lifecycle(
+            app, app_entries
+        )
+    return result
+
+
+def topo_waves(
+    nodes: set[str],
+    edges: set[tuple[str, str]],
+    priorities: dict[str, int],
+) -> list[list[str]]:
     incoming = {node: 0 for node in nodes}
     outgoing: dict[str, set[str]] = defaultdict(set)
     for before, after in edges:
@@ -54,21 +249,28 @@ def topo_waves(nodes: set[str], edges: set[tuple[str, str]]) -> list[list[str]]:
             outgoing[before].add(after)
             incoming[after] += 1
 
-    ready = sorted(node for node, degree in incoming.items() if degree == 0)
+    ready = {node for node, degree in incoming.items() if degree == 0}
     waves: list[list[str]] = []
     visited: set[str] = set()
 
     while ready:
-        wave = ready
+        earliest_priority = min(
+            priorities.get(node, DEFAULT_PRIORITY) for node in ready
+        )
+        wave = sorted(
+            node
+            for node in ready
+            if priorities.get(node, DEFAULT_PRIORITY) == earliest_priority
+        )
         waves.append(wave)
-        next_ready: set[str] = set()
+
         for node in wave:
+            ready.remove(node)
             visited.add(node)
             for dependent in sorted(outgoing.get(node, ())):
                 incoming[dependent] -= 1
                 if incoming[dependent] == 0:
-                    next_ready.add(dependent)
-        ready = sorted(next_ready)
+                    ready.add(dependent)
 
     remaining = sorted(nodes - visited)
     if remaining:
@@ -77,6 +279,20 @@ def topo_waves(nodes: set[str], edges: set[tuple[str, str]]) -> list[list[str]]:
             + ", ".join(remaining)
         )
     return waves
+
+
+def wave_phase(wave: list[str], policies: dict[str, dict]) -> str:
+    phases = sorted(
+        {
+            str(policies.get(app, {}).get("phase", "applications"))
+            for app in wave
+        }
+    )
+    if not phases:
+        return "applications"
+    if len(phases) == 1:
+        return phases[0]
+    return "mixed:" + "+".join(phases)
 
 
 def main() -> int:
@@ -105,9 +321,7 @@ def main() -> int:
     }
     known_app_ids = {str(app["id"]) for app in apps}
     forced = {
-        item
-        for item in args.include_apps.replace(",", " ").split()
-        if item
+        item for item in args.include_apps.replace(",", " ").split() if item
     }
     missing_forced = sorted(forced - known_app_ids)
     if missing_forced:
@@ -117,9 +331,11 @@ def main() -> int:
         )
     selected |= forced
 
-    mapping = service_to_app(services)
+    mapping = catalog_to_app(services, topology, known_app_ids)
     mapped_apps = set(mapping.values()) & selected
     unmapped_apps = sorted(selected - mapped_apps)
+    policies = lifecycle_policies(services, topology, mapping, selected)
+    priorities = {app: int(policy["priority"]) for app, policy in policies.items()}
 
     edges: set[tuple[str, str]] = set()
     used_relations = []
@@ -154,16 +370,8 @@ def main() -> int:
                 }
             )
 
-    mapped_waves = topo_waves(mapped_apps, edges) if mapped_apps else []
-    start_waves = list(mapped_waves)
-    if unmapped_apps:
-        # Unmapped apps have no safe dependency evidence. Start them only after
-        # topology-backed waves and stop them first.
-        start_waves.append(unmapped_apps)
-
-    stop_waves = [list(reversed(wave)) for wave in reversed(mapped_waves)]
-    if unmapped_apps:
-        stop_waves.insert(0, list(reversed(unmapped_apps)))
+    start_waves = topo_waves(selected, edges, priorities) if selected else []
+    stop_waves = [list(reversed(wave)) for wave in reversed(start_waves)]
 
     result = {
         "states": sorted(states),
@@ -171,12 +379,22 @@ def main() -> int:
         "selected_apps": sorted(selected),
         "mapped_apps": sorted(mapped_apps),
         "unmapped_apps": unmapped_apps,
+        "lifecycle_phase_by_app": {
+            app: {
+                "order": priorities.get(app, DEFAULT_PRIORITY),
+                "name": policies.get(app, {}).get("phase", "applications"),
+                "source": policies.get(app, {}).get("source", "fallback-default"),
+            }
+            for app in sorted(selected)
+        },
         "start_waves": start_waves,
+        "start_wave_phases": [wave_phase(wave, policies) for wave in start_waves],
         "start_order": [app for wave in start_waves for app in wave],
         "stop_waves": stop_waves,
         "stop_order": [app for wave in stop_waves for app in wave],
         "required_edges": [
-            {"before": before, "after": after} for before, after in sorted(edges)
+            {"before": before, "after": after}
+            for before, after in sorted(edges)
         ],
         "relations_used": used_relations,
         "ignored_required_relation_types": sorted(ignored_relation_types),

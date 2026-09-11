@@ -1,7 +1,21 @@
 # AutoKuma on TrueNAS
 
-AutoKuma reconciles the repository-generated monitor inventory into the existing
-Uptime Kuma instance. The repository owns the desired monitor definitions under:
+AutoKuma is a **configuration reconciler for Uptime Kuma**, not an Uptime Kuma
+server replacement. It reads the repository-generated monitor inventory and
+creates/updates those monitors through an already-running Uptime Kuma API.
+
+The former native TrueNAS Uptime Kuma App has been removed. The target
+architecture is therefore two repository-owned Compose workloads:
+
+1. **Uptime Kuma** — monitoring engine/UI, exposed on TrueNAS host port `31050`;
+2. **AutoKuma** — declarative controller that reconciles generated Nabla
+   monitors into Uptime Kuma.
+
+Until the Uptime Kuma Compose service exists and `172.17.0.24:31050` is
+reachable, keep AutoKuma stopped. Starting AutoKuma alone cannot provide uptime
+monitoring and will fail its required `kuma.url`/connection contract.
+
+The repository owns the desired monitor definitions under:
 
 ```text
 apps/autokuma/static/generated-monitors.json
@@ -26,28 +40,28 @@ sudoedit /mnt/cpool/autokuma/.env.secrets
 ```
 
 The file must contain `AUTOKUMA__KUMA__URL` plus one authentication method.
+For the planned local Compose endpoint, use `http://172.17.0.24:31050` unless
+the final Uptime Kuma deployment deliberately exposes a different reviewed
+internal URL.
 
 Preferred token form:
 
 ```dotenv
-AUTOKUMA__KUMA__URL=https://uptime-kuma.example.internal
+AUTOKUMA__KUMA__URL=http://172.17.0.24:31050
 AUTOKUMA__KUMA__AUTH_TOKEN=<jwt-or-auth-token>
-AUTOKUMA__KUMA__TLS__VERIFY=true
 ```
 
 Or username/password:
 
 ```dotenv
-AUTOKUMA__KUMA__URL=https://uptime-kuma.example.internal
+AUTOKUMA__KUMA__URL=http://172.17.0.24:31050
 AUTOKUMA__KUMA__USERNAME=<username>
 AUTOKUMA__KUMA__PASSWORD=<password>
-AUTOKUMA__KUMA__TLS__VERIFY=true
 ```
 
-Do not commit the real URL credential set. If the selected internal endpoint
-uses a certificate that cannot be validated by that hostname, review the
-endpoint/certificate first; use `AUTOKUMA__KUMA__TLS__VERIFY=false` only as an
-explicit local exception.
+Do not commit credentials. If a future HTTPS internal endpoint is selected,
+review its hostname/certificate first and keep TLS verification enabled unless
+a documented local exception is required.
 
 The Compose file loads this file directly. This avoids depending on
 `UPTIME_KUMA_*` variables being present in the TrueNAS middleware process when
@@ -56,35 +70,26 @@ the Custom App parses the repository include.
 ## Generate the Uptime Kuma JWT
 
 AutoKuma 2.0.0 includes the `kuma` CLI. Generate a JWT from an existing Uptime
-Kuma user without printing the password or token:
+Kuma user without printing the password or token **only after Uptime Kuma has
+been deployed and initialized**:
 
 ```bash
 sudo bash scripts/truenas/bootstrap-autokuma-token.sh \
-  --url '<internal Uptime Kuma URL>' \
+  --url 'http://172.17.0.24:31050' \
   --username '<Uptime Kuma username>'
 ```
 
 The password is requested interactively without echo. The helper runs the
 bundled `/usr/local/bin/kuma login`, extracts the returned JWT and atomically
-writes only:
+writes the selected URL plus generated token to `/mnt/cpool/autokuma/.env.secrets`
+with mode `0600`.
 
-```dotenv
-AUTOKUMA__KUMA__URL=<selected URL>
-AUTOKUMA__KUMA__AUTH_TOKEN=<generated JWT>
-AUTOKUMA__KUMA__TLS__VERIFY=true
-```
-
-to `/mnt/cpool/autokuma/.env.secrets` mode `0600`.
-
-Prefer an internal URL that reaches Uptime Kuma directly. Do not route this
-controller through Cloudflare Access merely to reach a service on the same
-homelab. If the reviewed internal endpoint intentionally uses a certificate
-that cannot be validated, pass `--tls-no-verify`; otherwise keep TLS
-verification enabled.
+Prefer the direct internal Uptime Kuma URL. Do not route this controller through
+Cloudflare Access merely to reach a service on the same homelab.
 
 ## Create or update the TrueNAS Custom App
 
-Use the idempotent migration helper:
+Deploy AutoKuma only after the Uptime Kuma endpoint is healthy:
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
@@ -129,19 +134,27 @@ steady state.
 
 ## Acceptance
 
-After deployment:
+First prove Uptime Kuma itself:
 
 ```bash
-midclt call app.query   '[["id","=","autokuma"]]' |
+curl -fsS --max-time 5 http://172.17.0.24:31050/ >/dev/null &&
+echo 'Uptime Kuma reachable'
+```
+
+Then, after AutoKuma deployment:
+
+```bash
+midclt call app.query '[["id","=","autokuma"]]' |
 jq '.[0] | {id,state,active_workloads}'
 
-docker ps --filter 'name=^/autokuma$'   --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+docker ps --filter 'name=^/autokuma$' \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 
 docker logs --since 5m autokuma 2>&1 |
 tail -100
 ```
 
-Then verify in Uptime Kuma that the generated monitors are tagged `Nabla` and
-that the pfSense Exporter monitor is TCP-only. Keep `AUTOKUMA__ON_DELETE=keep`
-during migration so an incomplete first reconciliation cannot delete unmanaged
-monitors.
+Finally verify in Uptime Kuma that the generated monitors are tagged `Nabla`
+and that the pfSense Exporter monitor is TCP-only. Keep
+`AUTOKUMA__ON_DELETE=keep` during migration so an incomplete first
+reconciliation cannot delete unmanaged monitors.
