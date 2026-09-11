@@ -11,6 +11,7 @@ notes remain in the specialized roadmaps:
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
 - [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
+- [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 
 ## Current platform state
@@ -42,6 +43,7 @@ notes remain in the specialized roadmaps:
 - [x] First real master DAST executed on 2026-09-09: ZAP crawled 18 URLs with `FAIL-NEW=0`; the initial strict policy failed only because nine passive WARN categories were treated as fatal. The follow-up keeps those WARNs visible, promotes high-signal rules to explicit `FAIL`, splits filtered FastAPI API versus TrueNAS API transport coverage, and excludes pfSense/Snort/pfBlocker plus aggregate health routes from the API DAST input to avoid appliance load.
 - [ ] ZAP passive hardening backlog — review cache-control (10015), cross-domain JavaScript (10017), CSP (10038), cacheability (10049), Permissions-Policy (10063), private-IP disclosure on `/sickz` (rule 2), SRI (90003) and COEP (90004). `Modern Web Application` (10109) is informational; do not blanket-ignore the remaining warnings.
 - [ ] GitHub merge enforcement — make `SAST / CodeQL (Python)`, `Production pre/post-deploy smoke`, `DAST master baseline gate` and the agent/pre-commit quality gate required on `master`. #161 merged while MegaLinter was still running, proving workflow presence alone is not sufficient; no repository Ruleset is currently exposed and the connected GitHub App cannot mutate classic branch protection.
+- [ ] **TrueNAS LXC GitHub Actions runner is planned but remains dormant** — use Ubuntu 24.04 LTS and the focused `runner-build` toolchain from `AlbanAndrieu/ansible-jenkins-slave-docker`; keep public PRs on GitHub-hosted runners, prefer an unprivileged LXC plus remote builder, and treat privileged nested Docker as a separate trusted-only security exception.
 - [x] Large checks/diagnostics use compact interactive summaries with detailed mode-`0600` reports under `/tmp`; CI/non-TTY output remains verbose. See [Diagnostic output policy](./diagnostic-output.md).
 
 ## Immediate runtime stabilization gate
@@ -110,9 +112,9 @@ green cloud observation must not mask a broken local path.
    production target is checked automatically before merge and after `master`
    changes.
 10. [ ] **Sentry — final smoke before Docling/OpenRAG-LiteLLM** — lifecycle
-   convergence is proven (`exit=0`, aggregate `RUNNING`, zero
-   unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
-   healthy); finish the synthetic event proof as part of the local FastAPI gate.
+    convergence is proven (`exit=0`, aggregate `RUNNING`, zero
+    unhealthy/starting/unexpected exits, Kafka topics present, edge + Snuba
+    healthy); finish the synthetic event proof as part of the local FastAPI gate.
 11. [ ] **Kubernetes storage P0 — resumes after FastAPI local dependency convergence** —
     TrueNAS operator binaries are now installed persistently under
     `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`, Helm `v4.3.0`,
@@ -474,4 +476,5 @@ Reference design: `docs/operator-scripts-refactor.md`.
   does not send `scrutiny_uuid`, so the v0.9.3 server filters those devices.
   The workstation verifier now fails on version mismatch and, after
   `--submit`, requires both actual SMART collection and
-  `host_id=albandrieu` visibility in `/api/summary`.
+  `host_id=albandrieu` visibility in `/api/summary` with fresh SMART
+  timestamps before marking Scrutiny complete.
