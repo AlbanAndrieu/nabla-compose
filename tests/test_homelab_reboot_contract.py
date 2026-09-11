@@ -14,11 +14,12 @@ RUNBOOK = ROOT / "docs/homelab-reboot-runbook.md"
 VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
+ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE):
+        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -71,11 +72,58 @@ class HomelabRebootContractTests(unittest.TestCase):
         )
         self.assertNotIn('version --nodes "${node}" >/dev/null', text)
 
+    def test_system_ready_is_case_normalized(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("truenas_ready()", text)
+        self.assertIn("tr '[:upper:]' '[:lower:]'", text)
+        self.assertNotIn(
+            '[[ "$(midclt_bounded system.ready)" == "true" ]]',
+            text,
+        )
+
+    def test_prepare_is_resumable_without_recapturing_manifest(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("--continue-prepare", text)
+        self.assertIn("PREPARING", text)
+        self.assertIn("guard_no_incomplete_prepare", text)
+        self.assertIn("continue_prepare()", text)
+        self.assertIn("never rerun --prepare", text)
+        self.assertIn("Continuing preserved reboot manifest", text)
+
+    def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("diagnose_app_runtime", text)
+        self.assertIn("probable orphaned containerd shim", text)
+        self.assertIn("Running/Restarting but pid=0", text)
+        self.assertIn("diagnose-docker-orphan-shims.sh", text)
+
+    def test_orphan_shim_recovery_is_narrow(self) -> None:
+        text = ORPHAN_SHIMS.read_text(encoding="utf-8")
+        self.assertIn("--recover", text)
+        self.assertIn('[[ "${pid}" == "0" ]]', text)
+        self.assertIn("expected exactly one containerd shim", text)
+        self.assertIn("docker update --restart=no", text)
+        self.assertIn('kill -TERM "${shim_pid}"', text)
+        self.assertIn('kill -KILL "${shim_pid}"', text)
+        self.assertNotIn("docker kill", text)
+        self.assertNotIn("pkill", text)
+        self.assertNotIn("killall", text)
+        self.assertNotIn("systemctl restart docker", text)
+        self.assertNotIn("systemctl restart containerd", text)
+
     def test_runbook_does_not_promote_preexisting_crashed_apps(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
         self.assertIn('$before_state == "RUNNING"', text)
         self.assertIn('$before_state == "DEPLOYING"', text)
         self.assertIn("CRASHED -> STOPPED", text)
+
+    def test_runbook_documents_partial_prepare_recovery(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("--continue-prepare", text)
+        self.assertIn("Running=true", text)
+        self.assertIn("Pid=0", text)
+        self.assertIn("containerd-shim-runc-v2", text)
+        self.assertIn("do not rerun `--prepare`", text)
 
     def test_app_reconcile_network_detail_is_best_effort(self) -> None:
         text = APP_RECONCILE.read_text(encoding="utf-8")
