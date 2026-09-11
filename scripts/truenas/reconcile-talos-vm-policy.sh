@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
+
 MODE="${1:---check}"
 TARGET_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"
 TARGET_SHUTDOWN_TIMEOUT="${TALOS_VM_SHUTDOWN_TIMEOUT:-180}"
 VM_NAMES=(taloscp01 taloswk01 taloswk02)
-
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 case "${MODE}" in
   --check | --apply) ;;
   *) fail "usage: sudo bash scripts/truenas/reconcile-talos-vm-policy.sh [--check|--apply]" ;;
 esac
 
-[[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
-for command in midclt jq; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+require_root "run as root on TrueNAS"
+require_commands midclt jq
 
 [[ "${TARGET_AUTOSTART}" == "true" ]] ||
   fail "steady-state Talos VM policy requires TALOS_VM_AUTOSTART=true"
