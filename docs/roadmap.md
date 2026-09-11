@@ -68,7 +68,7 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [x] Make `reboot-homelab.sh --resume` delegate App lifecycle handling to the reconciler instead of maintaining a second start/wait loop.
 - [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
 - [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity.
-- [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precede Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
+- [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precedes Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
 - [ ] Add an explicit operator-acceptance/deferred annotation for historical manifests so an incident can record non-blocking exceptions without weakening strict verification or changing frozen membership.
 - [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
 - [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
