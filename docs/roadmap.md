@@ -22,7 +22,7 @@ notes remain in the specialized roadmaps:
 - [x] **Pod Security baseline is now measured, not assumed** — Talos effective PSA defaults are `enforce=baseline`, `audit=restricted`, `warn=restricted`; `kube-system` is exempt by Talos admission configuration. `truenas-csi` is the explicit `enforce=privileged` infrastructure exception. Normal workloads continue toward `Restricted` enforcement.
 - [x] **Persistent Kubernetes operator CLI after reboot** — Helm `v4.3.0` and Kubara `v0.14.0` are available from the persistent TrueNAS operator tool path and the Kubara CLI contract is green.
 - [ ] **Platform security tools are prepared, not installed** — Vault is `BLOCKED_BY_CSI_ACCEPTANCE`; Falco is `PREFLIGHT_READY` on all three `6.18.44-talos` kernels but remains uninstalled; Kubara CLI is ready but bootstrap is `GATED_CONFIG_MISSING` until a reviewed `config.yaml` exists.
-- [ ] **CSI remains the stateful blocker after reboot** — `nabla-truenas-nfs` exists and is non-default, but the previous disposable RWX PVC did not become `Bound`. The 2026-09-11 platform preflight also emitted `deployment "truenas-csi-controller" exceeded its progress deadline`; diagnose current controller conditions/events/logs and complete dynamic bind + cross-node persistence + reclaim before Vault.
+- [ ] **CSI remains the stateful blocker, now at attach/publishContext** — PR #187 restored `attachRequired=true`, `csi-attacher` and least-privilege VolumeAttachment RBAC. The retained `nabla-csi-rwx` PVC is now `Bound`, but its VolumeAttachment remains `attached=false`, the writer is still `ContainerCreating`, and the controller Deployment has two generations with an old replica pending termination. Resolve the retained controller/VolumeAttachment path, then prove cross-worker RWX + reclaim before Vault.
 - [x] FastAPI Sample uses the repository-owned `sample-observer` bridge.
 - [x] TrueNAS observer source is pinned to `10.254.255.9/32`.
 - [x] persisted and active TrueNAS `ui_allowlist` values converge after UI restart/reconciliation.
@@ -118,11 +118,11 @@ green cloud observation must not mask a broken local path.
     `/mnt/cpool/tools/bin` (`kubectl v1.36.3`, `talosctl v1.13.9`, Helm `v4.3.0`,
     Kubara `v0.14.0`). Root owns tool installation/upgrades; `albandrieu` is the
     non-root cluster operator. The 2026-09-11 post-reboot base validation is green
-    (Talos transport, 3/3 Kubernetes Ready, etcd, pressure and PSA/PSS). Resume
-    the CSI controller/PVC diagnostic after the TrueNAS Docker/IPAM migration,
-    then require dynamic provisioning, cross-worker persistence and reclaim
-    before Vault, Kubara/Traefik and the immutable FastAPI ingress smoke on
-    `test.albandrieu.com`.
+    (Talos transport, 3/3 Kubernetes Ready, etcd, pressure and PSA/PSS). PR #187
+    has moved CSI provisioning to a `Bound` PVC but the retained VolumeAttachment
+    is still `attached=false`; finish controller rollout/publishContext,
+    cross-worker persistence and reclaim before Vault, Kubara/Traefik and the
+    immutable FastAPI ingress smoke on `test.albandrieu.com`.
 12. [x] **Wazuh core — converged 2026-09-09** — TLS ownership repaired, stale PR-worktree mounts removed, TrueNAS aggregate state is `RUNNING`, indexer returns `401`, manager API `401`, dashboard `302`, and the optional forwarder remains disabled pending the separate shared-OpenSearch integration gate.
 13. [ ] **Scrutiny + InfluxDB — parallel** — the migration-token fix is now validated on TrueNAS: the legacy authorization `114da3d49d117000` was revoked, the replacement secret is root-owned mode `0600`, `bootstrap-scrutiny-influxdb.sh --check` reports `token=VALID scope=v2`, and `deploy-scrutiny.sh --check` discovers `/dev/sda` through `/dev/sdd` with `target=MISSING ready=APPLY`. A reviewed fresh cutover has now been started with `SCRUTINY_RESET_SQLITE=1`; acceptance remains pending until TrueNAS reports `RUNNING`, the web/API is healthy, the TrueNAS collector sees SMART devices, and the workstation collector is proven to submit its own inventory. The helper continues to reuse healthy shared InfluxDB instead of redeploying it. After web health is green, complete TrueNAS SMART collection and the workstation collector submission,
     then prove the existing workstation collector posts its own SMART inventory to
@@ -147,11 +147,11 @@ gate is green, treat the already-installed Talos/Flannel/CoreDNS path as a
 regression gate and make **TrueNAS NFS + CSI the first remaining Kubernetes
 implementation gate, before Vault, Kubara/Traefik and the external FastAPI
 ingress smoke**. Persistent/stateful workloads remain blocked until CSI
-provisioning, persistence, reclaim and rollback are proven. Falco is storage
-independent but should not be installed while the TrueNAS Docker/IPAM migration
-is actively changing the infrastructure baseline. Sentry must also be accepted
-before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work may proceed in parallel
-because it does not replace either acceptance gate.
+provisioning, attach/publishContext, persistence, reclaim and rollback are
+proven. Falco is storage independent but should not be installed while the
+TrueNAS Docker/IPAM migration is actively changing the infrastructure baseline.
+Sentry must also be accepted before Docling/OpenRAG-LiteLLM. Wazuh/Scrutiny work
+may proceed in parallel because it does not replace either acceptance gate.
 
 ### TrueNAS platform compatibility debt — BETA.2 + CSI auth
 
@@ -264,26 +264,30 @@ TrueNAS already exposes NFSv4 on `172.17.0.24:2049`, and the parent dataset
 kubelet image, so the first NFS-backed CSI path does not require an extra
 `nfs-utils` Talos system extension.
 
-The first implementation now selects the official `truenas/truenas-csi`
-driver pinned to **v1.0.3**, because it targets TrueNAS SCALE 25.10+ and uses
-the modern `/api/current` WebSocket API required by TrueNAS 26. The repository
-carries an NFS-only Talos manifest: no `iscsiadm`, no iSCSI host mounts and no
-snapshot/attacher sidecars are introduced for this gate.
+The first implementation selects the official `truenas/truenas-csi` driver
+pinned to **v1.0.3**. PR #187 now restores its required controller-publish
+contract: NFS connection metadata is produced by `ControllerPublishVolume`, so
+`CSIDriver.spec.attachRequired=true`, `csi-attacher` and the least-privilege
+VolumeAttachment read/patch/status RBAC are required even for this NFS-only path.
 
 - [x] select and pin TrueNAS CSI `v1.0.3` and its Kubernetes sidecars;
 - [x] add the NFS-only Talos driver manifest plus explicit non-default `nabla-truenas-nfs` StorageClass;
 - [x] constrain provisioning to `cpool/k8s/csi`, NFSv4.1 and worker-only NFS clients `172.17.0.51/32,172.17.0.52/32`;
 - [x] keep the CSI API key runtime-only: `scripts/talos/install-truenas-csi-nfs.sh` renders the Kubernetes Secret without committing or printing it;
-- [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, worker-A write, pod recreation and worker-B persistence;
+- [x] add `scripts/talos/smoke-truenas-csi-nfs.sh` to prove PVC `Bound`, VolumeAttachment/publishContext, worker-A write, pod recreation and worker-B persistence;
 - [ ] create a dedicated least-privilege TrueNAS CSI identity/API key; never reuse `fastapi_observer` or the OpenTofu/Terragrunt credential;
 - [x] run the read-only `scripts/talos/validate-csi-prereqs.sh` and retain NFS/manifest evidence;
 - [x] verify the NFS client network contract covers both workers and no conflicting `csi.truenas.io` owner already exists;
-- [x] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the dedicated runtime API key; controller/node resources converged and `nabla-truenas-nfs` was created non-default;
-- [ ] **resolve the post-reboot controller rollout anomaly** — `prepare-platform-tools.sh --summary` emitted `deployment "truenas-csi-controller" exceeded its progress deadline`; inspect Deployment conditions, current ReplicaSet/Pod readiness, recent events and both `csi-provisioner`/`csi-controller` logs before retrying provisioning;
-- [ ] **dynamically provision the disposable RWX PVC and require `Bound`** — the last attempt created `nabla-csi-rwx` but timed out `Pending`; keep `nabla-csi-smoke` only while it contains useful failure evidence;
+- [x] run `scripts/talos/install-truenas-csi-nfs.sh --apply` with the runtime API key and create `nabla-truenas-nfs` as a non-default StorageClass;
+- [x] PR #187 corrects the original missing publishContext cause by restoring `attachRequired=true`, adding `csi-attacher:v4.11.0` and minimum VolumeAttachment RBAC;
+- [x] the retained disposable PVC now reaches `Bound`, proving `CreateVolume`/dynamic provisioning progresses beyond the original timeout;
+- [ ] **finish controller rollout** — two controller generations remain and one old replica is pending termination; identify the new Pod by exact name and require its `csi-attacher` container to be running before interpreting attacher logs;
+- [ ] **make retained VolumeAttachment converge** from `attached=false` to `attached=true` with `attachmentMetadata.protocol=nfs`, non-empty `nfsServer` and non-empty `nfsPath`;
+- [ ] **make retained writer Pod leave `ContainerCreating`** and prove NodeStageVolume/NFS mount succeeds without recreating the retained PVC;
 - [ ] harden platform preflight error propagation so a nested CSI `rollout status` failure cannot be followed by a false-green aggregate summary;
 - [ ] run the cross-worker persistence smoke and require the same marker on worker B;
 - [ ] prove PVC deletion removes the dynamically-created TrueNAS share/dataset according to `reclaimPolicy: Delete`;
+- [ ] after retained-state recovery, run one fresh end-to-end smoke so acceptance covers newly created VolumeAttachment/publishContext objects;
 - [ ] document and test one rollback/uninstall path before allowing stateful workloads;
 - [ ] track upstream replacement of deprecated `auth.login_with_api_key`; do not carry that compatibility bridge into TrueNAS 27.
 
@@ -319,7 +323,7 @@ multiple infrastructure layers concurrently.
 - [x] add the consolidated read-only `prepare-platform-tools.sh --summary` posture/inventory report;
 - [x] prove Falco kernel preflight on all three Talos nodes (`6.18.44-talos`);
 - [ ] fix and regression-test nested failure propagation so the preparation summary cannot mask a failed CSI prerequisite;
-- [ ] install Vault `2.0.4` / chart `0.34.1` only after P0.B dynamic storage acceptance; never auto-init/unseal or expose recovery material;
+- [ ] install Vault `2.0.4` / chart `0.34.1` only after P0.B dynamic storage + attach/publish + reclaim acceptance; never auto-init/unseal or expose recovery material;
 - [ ] install Falco `0.44.1` / chart `9.1.0` with `modern_ebpf`, then prove DaemonSet coverage, runtime version and Prometheus metrics before SIEM routing;
 - [ ] retain Falco's dedicated PSA `privileged` namespace as an explicit runtime-sensor exception with restricted audit/warn and tightly scoped RBAC;
 - [ ] prepare Kubara `config.yaml`, review generated Traefik exposure and keep real bootstrap behind explicit operator approval;
