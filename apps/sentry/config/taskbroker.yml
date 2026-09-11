@@ -1,4 +1,8 @@
 ---
+# Taskbroker emits its internal consumer/queue metrics through the shared
+# Prometheus statsd_exporter. This keeps process health separate from functional
+# Kafka-consumer health (membership, backlog and backpressure).
+statsd_addr: 172.17.0.24:9125
 kafka_session_timeout_ms: 60000
 kafka_deadletter_topic: taskworker-dlq
 kafka_retry_topic: taskworker
