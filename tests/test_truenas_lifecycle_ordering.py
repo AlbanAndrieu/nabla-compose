@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLANNER = ROOT / "scripts/truenas/plan-app-lifecycle-order.py"
 REBOOT = ROOT / "scripts/truenas/reboot-homelab.sh"
+MATERIALIZE = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
 
 
 class TrueNASLifecycleOrderingTests(unittest.TestCase):
@@ -49,6 +50,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
     def test_foundation_data_and_dependents_start_in_safe_order(self) -> None:
         app_ids = [
             "pihole",
+            "adguard-home",
             "traefik",
             "docker-socket-proxy",
             "vaultwarden",
@@ -62,8 +64,18 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         ]
         apps = [{"id": app, "state": "RUNNING"} for app in app_ids]
         services = [
-            self.service("pihole", "dns", "network", "apps/pihole/compose.yml"),
-            self.service("traefik", "edge", "network", "apps/traefik/compose.yml"),
+            self.service(
+                "pihole",
+                "dns",
+                "network",
+                "apps/pihole/compose.yml",
+            ),
+            self.service(
+                "traefik",
+                "edge",
+                "network",
+                "apps/traefik/compose.yml",
+            ),
             self.service(
                 "docker-socket-proxy",
                 "security-proxy",
@@ -77,11 +89,22 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "apps/vaultwarden/compose.yml",
             ),
             self.service(
-                "postgresql", "database", "data", "apps/postgres/compose.yml"
+                "postgresql",
+                "database",
+                "data",
+                "apps/postgres/compose.yml",
             ),
-            self.service("mongo", "database", "data", "apps/mongo/compose.yml"),
             self.service(
-                "clickhouse", "database", "data", "apps/clickhouse/compose.yml"
+                "mongo",
+                "database",
+                "data",
+                "apps/mongo/compose.yml",
+            ),
+            self.service(
+                "clickhouse",
+                "database",
+                "data",
+                "apps/clickhouse/compose.yml",
             ),
             self.service(
                 "opensearch-security",
@@ -95,7 +118,12 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 "observability",
                 "apps/graylog/compose.yml",
             ),
-            self.service("n8n", "workflow", "automation", "apps/n8n/compose.yml"),
+            self.service(
+                "n8n",
+                "workflow",
+                "automation",
+                "apps/n8n/compose.yml",
+            ),
             self.service(
                 "code-server",
                 "development-environment",
@@ -113,7 +141,13 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         start = plan["start_order"]
         stop = plan["stop_order"]
 
-        foundations = ["pihole", "traefik", "docker-socket-proxy", "vaultwarden"]
+        foundations = [
+            "pihole",
+            "adguard-home",
+            "traefik",
+            "docker-socket-proxy",
+            "vaultwarden",
+        ]
         primary_data = ["postgres", "mongo"]
         secondary_data = ["clickhouse", "opensearch"]
         for foundation in foundations:
@@ -129,10 +163,16 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertEqual(stop, list(reversed(start)))
 
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["pihole"]["name"], "foundation"
+            plan["lifecycle_phase_by_app"]["pihole"]["name"],
+            "foundation",
         )
         self.assertEqual(
-            plan["lifecycle_phase_by_app"]["mongo"]["name"], "primary-data"
+            plan["lifecycle_phase_by_app"]["adguard-home"]["name"],
+            "foundation",
+        )
+        self.assertEqual(
+            plan["lifecycle_phase_by_app"]["mongo"]["name"],
+            "primary-data",
         )
         self.assertEqual(
             plan["lifecycle_phase_by_app"]["opensearch"]["name"],
@@ -188,14 +228,30 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertIn("reconcile-reboot-resume.sh", script)
         self.assertNotIn("Starting saved Apps in topology dependency order", script)
 
+    def test_bundle_requires_phased_planner_and_resume_reconciler(self) -> None:
+        script = MATERIALIZE.read_text(encoding="utf-8")
+
+        self.assertIn("start_wave_phases", script)
+        self.assertIn("sourcePath", script)
+        self.assertIn("build_effective_resume_plan", script)
+        self.assertIn("reconcile-reboot-resume.sh", script)
+
     @staticmethod
-    def service(service_id: str, kind: str, category: str, source_path: str) -> dict:
+    def service(
+        service_id: str,
+        kind: str,
+        category: str,
+        source_path: str,
+    ) -> dict:
         return {
             "id": service_id,
             "kind": kind,
             "category": category,
             "sourcePath": source_path,
-            "runtime": {"provider": "truenas-app", "containerService": service_id},
+            "runtime": {
+                "provider": "truenas-app",
+                "containerService": service_id,
+            },
         }
 
     @staticmethod
