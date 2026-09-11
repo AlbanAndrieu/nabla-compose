@@ -14,6 +14,7 @@ TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
 VM_NAMES=(taloscp01 taloswk01 taloswk02)
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BUNDLE_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 PLANNER="${NABLA_REBOOT_PLANNER:-${SCRIPT_DIR}/plan-app-lifecycle-order.py}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool.sh}"
@@ -36,7 +37,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
-for command in midclt jq docker python3 timeout getent pgrep awk tr ps; do
+for command in midclt jq docker python3 timeout getent pgrep awk tr ps sha256sum; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 [[ -f "${PLANNER}" ]] || fail "lifecycle planner not found: ${PLANNER}"
@@ -81,7 +82,23 @@ midclt_bounded() {
 }
 
 truenas_ready() {
-  [[ "$(midclt_bounded system.ready | tr '[:upper:]' '[:lower:]')" == "true" ]]
+  local raw
+  raw="$(midclt_bounded system.ready | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  [[ "${raw}" == "true" ]]
+}
+
+bundle_identity() {
+  local source="workspace" script_sha
+  [[ -f "${BUNDLE_ROOT}/SOURCE_COMMIT" ]] && source="$(cat "${BUNDLE_ROOT}/SOURCE_COMMIT")"
+  script_sha="$(sha256sum "${BASH_SOURCE[0]}" | awk '{print $1}')"
+  printf '%s %s\n' "${source}" "${script_sha}"
+}
+
+verify_bundle_integrity() {
+  [[ -f "${BUNDLE_ROOT}/SHA256SUMS" ]] || return 0
+  if ! (cd "${BUNDLE_ROOT}" && sha256sum --quiet -c SHA256SUMS); then
+    fail "bundle checksum verification failed under ${BUNDLE_ROOT}; refuse lifecycle mutation"
+  fi
 }
 
 app_state() {
@@ -94,7 +111,9 @@ app_state() {
 }
 
 diagnose_app_runtime() {
-  local app="$1" project="ix-${app}" id row full_id name status running restarting pid
+  local app="$1"
+  local project="ix-${app}"
+  local id row full_id name status running restarting pid
   local -a ids=()
 
   mapfile -t ids < <(
@@ -128,6 +147,31 @@ diagnose_app_runtime() {
       pgrep -af containerd-shim-runc-v2 |
         awk -v cid="${full_id}" 'index($0, "-id " cid) {print "  shim=" $0}' >&2 || true
       warn "run diagnose-docker-orphan-shims.sh --check and use its exact-id --recover flow only after review"
+    fi
+  done
+}
+
+diagnose_running_containers() {
+  local name row full_id status running restarting pid restart_policy
+  local -a names=("$@")
+
+  for name in "${names[@]}"; do
+    row="$(
+      docker inspect "${name}" |
+        jq -r '.[0] | [
+          .Id,
+          (.State.Status // "unknown"),
+          ((.State.Running // false) | tostring),
+          ((.State.Restarting // false) | tostring),
+          ((.State.Pid // 0) | tostring),
+          (.HostConfig.RestartPolicy.Name // "")
+        ] | @tsv'
+    )"
+    IFS=$'\t' read -r full_id status running restarting pid restart_policy <<<"${row}"
+    printf '  container=%s id=%s status=%s running=%s restarting=%s pid=%s restart=%s\n' \
+      "${name}" "${full_id}" "${status}" "${running}" "${restarting}" "${pid}" "${restart_policy}" >&2
+    if [[ "${pid}" == "0" && ( "${running}" == "true" || "${restarting}" == "true" ) ]]; then
+      warn "${name}: Docker reports Running/Restarting with pid=0; inspect for an orphaned containerd shim before retrying"
     fi
   done
 }
@@ -266,21 +310,28 @@ validate_prepare_manifest() {
 }
 
 guard_no_incomplete_prepare() {
-  [[ -f "${STATE_ROOT}/latest" ]] || return 0
+  [[ -d "${STATE_ROOT}" ]] || return 0
 
   local dir before current phase
-  dir="$(cat "${STATE_ROOT}/latest")"
-  [[ -d "${dir}" && -f "${dir}/boot-id-before" ]] || return 0
-
-  before="$(cat "${dir}/boot-id-before")"
   current="$(midclt_bounded system.boot_id | tr -d '"')"
-  [[ "${before}" == "${current}" ]] || return 0
 
-  phase="$(cat "${dir}/phase" 2>/dev/null || true)"
-  if [[ "${phase}" == "PREPARING" ]] ||
-    { [[ -z "${phase}" ]] && [[ -f "${dir}/shutdown-plan.json" && -f "${dir}/resume-plan.json" ]]; }; then
-    fail "incomplete prepare already exists at ${dir}; remediate the blocker and use --continue-prepare, never rerun --prepare"
-  fi
+  for dir in "${STATE_ROOT}"/*-"${current}"; do
+    [[ -d "${dir}" && -f "${dir}/boot-id-before" ]] || continue
+    before="$(cat "${dir}/boot-id-before")"
+    [[ "${before}" == "${current}" ]] || continue
+    phase="$(cat "${dir}/phase" 2>/dev/null || true)"
+    if [[ "${phase}" == "PREPARING" || "${phase}" == "PREPARED" ]] ||
+      { [[ -z "${phase}" ]] && [[ -f "${dir}/shutdown-plan.json" && -f "${dir}/resume-plan.json" ]]; }; then
+      fail "same-boot reboot transaction already exists at ${dir} phase=${phase:-legacy}; use --continue-prepare or complete/recover that transaction, never create a fresh --prepare"
+    fi
+  done
+}
+
+record_prepare_history() {
+  local state_dir="$1" action="$2" identity
+  identity="$(bundle_identity)"
+  printf '%s action=%s bundle=%s identity=%s\n' \
+    "$(date -Iseconds)" "${action}" "${BUNDLE_ROOT}" "${identity}" >>"${state_dir}/prepare-history.log"
 }
 
 continue_prepare() {
@@ -290,6 +341,7 @@ continue_prepare() {
 
   validate_prepare_manifest "${state_dir}"
   printf 'PREPARING\n' >"${state_dir}/phase"
+  record_prepare_history "${state_dir}" "continue-prepare"
 
   printf '\nStopping remaining TrueNAS Apps from the preserved shutdown plan...\n'
   mapfile -t stop_apps < <(jq -r '.stop_order[]' "${state_dir}/shutdown-plan.json")
@@ -310,7 +362,7 @@ continue_prepare() {
   mapfile -t leftovers < <(docker ps --format '{{.Names}}')
   if ((${#leftovers[@]})); then
     printf 'Unmanaged/running Docker containers remain after all TrueNAS Apps stopped:\n' >&2
-    printf '  %s\n' "${leftovers[@]}" >&2
+    diagnose_running_containers "${leftovers[@]}"
     fail "refusing Talos/host shutdown while Docker containers still run; preserve this manifest and use --continue-prepare after remediation"
   fi
   printf 'OK: no running Docker container remains\n'
@@ -342,11 +394,15 @@ continue_prepare() {
   ((running == 0)) || fail "Talos VMs did not all reach STOPPED; preserve this manifest"
 
   printf 'PREPARED\n' >"${state_dir}/phase"
+  record_prepare_history "${state_dir}" "prepared"
   printf '\nSUCCESS: homelab is prepared for TrueNAS reboot.\n'
   printf 'State manifest: %s\n' "${state_dir}"
-  printf 'Now reboot TrueNAS through the TrueNAS UI or supported system.reboot API.\n'
+  printf 'Now retry any proven CSI orphan with supported middleware deletion before reboot.\n'
+  printf 'Then reboot TrueNAS through the TrueNAS UI or supported system.reboot API.\n'
   printf 'After boot, run this script with --post-reboot-check, then --resume.\n'
 }
+
+verify_bundle_integrity
 
 if [[ "${MODE}" == "--check" ]]; then
   tmp="$(mktemp -d)"
@@ -381,14 +437,18 @@ if [[ "${MODE}" == "--prepare" ]]; then
   run_operator "${KUBECTL}" get nodes -o json >"${state_dir}/kubernetes-nodes-before.json"
   printf '%s\n' "${boot_id}" >"${state_dir}/boot-id-before"
   make_plans "${state_dir}/apps-before.json" "${state_dir}"
-  printf '%s\n' "${EXTRA_RESUME_APPS}" | tr ', ' '\n\n' | sed '/^$/d' | sort -u >"${state_dir}/explicit-resume.txt"
+  printf '%s\n' "${EXTRA_RESUME_APPS}" |
+    awk 'BEGIN { RS="[,[:space:]]+" } NF { print }' |
+    sort -u >"${state_dir}/explicit-resume.txt"
   jq -r '.[] | select(.state=="STOPPED") | .id' "${state_dir}/apps-before.json" |
     sort -u |
     grep -Fvx -f "${state_dir}/explicit-resume.txt" >"${state_dir}/intentional-stopped.txt" || true
   jq -r '.[] | select(.state=="CRASHED" or .state=="ERROR") | .id' \
     "${state_dir}/apps-before.json" | sort -u >"${state_dir}/preexisting-failed.txt"
   jq -r '.selected_apps[]' "${state_dir}/resume-plan.json" >"${state_dir}/resume-apps.txt"
+  bundle_identity >"${state_dir}/orchestrator-identity.txt"
   printf 'PREPARING\n' >"${state_dir}/phase"
+  record_prepare_history "${state_dir}" "prepare"
   printf '%s\n' "${state_dir}" >"${STATE_ROOT}/latest"
   print_plan_summary "${state_dir}"
 
