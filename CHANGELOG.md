@@ -1,3 +1,10 @@
+## [0.33.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.33.0...0.33.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** enforce local-first gates and diagnose CSI provisioning ([#185](https://github.com/AlbanAndrieu/nabla-compose/issues/185)) ([d059e83](https://github.com/AlbanAndrieu/nabla-compose/commit/d059e83128813ce7d1ef1aeae2f0aef6199fc727))
+
 # [0.33.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.32.3...0.33.0) (2026-09-10)
 
 
