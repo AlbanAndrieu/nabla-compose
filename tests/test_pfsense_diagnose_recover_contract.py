@@ -16,6 +16,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("Canonical pfSense diagnosis/recovery helper for nabla-compose", text)
         self.assertIn("--api-only", text)
         self.assertIn("PFSENSE_SSH_PORT", text)
+        self.assertIn('PFSENSE_SSH_TARGET:-home.albandrieu.com', text)
         self.assertIn("==> HTTPS/API vantage points", text)
         self.assertIn("==> Deep appliance evidence over SSH", text)
         self.assertLess(
@@ -53,6 +54,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
 
         self.assertIn("does **not** prove that TCP/22 is reachable", text)
         self.assertIn("Do not assume port 22", text)
+        self.assertIn("admin@home.albandrieu.com:9922", text)
         self.assertIn("`--apply` requires a successful SSH control path", text)
 
 
