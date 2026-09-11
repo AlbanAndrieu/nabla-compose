@@ -4,9 +4,9 @@ This document defines the homelab metrics/exporter strategy for runtime diagnosi
 
 ## Design rule
 
-Prefer the service's native metrics surface first, then a thin exporter. Do not add an exporter only to reproduce an existing TCP/HTTP healthcheck.
+Prefer the service's native metrics surface first, then a thin exporter. Do not add an exporter only to reproduce a TCP/HTTP healthcheck that already exists.
 
-Use this hierarchy:
+The useful hierarchy is:
 
 1. process/container state;
 2. protocol readiness;
@@ -14,68 +14,95 @@ Use this hierarchy:
 4. successful end-to-end work;
 5. durable downstream result.
 
-Before deploying any new receiver/exporter on TrueNAS, run:
+An incident is not closed at level 1 or 2 when the service is a pipeline component.
+
+Before deploying a new receiver/exporter on TrueNAS, run:
 
 ```bash
 sudo bash scripts/truenas/check-observability-exporter-conflicts.sh --check
 ```
 
-The preflight is read-only. It inspects TrueNAS `reporting.exporters.query`, native Netdata state, listeners `8125/9125/9102/9308`, Docker publishers and relevant `intranet` containers.
+## TrueNAS native/exporter preflight — accepted 2026-09-11
 
-TrueNAS 26 uses Netdata for system reporting. Its supported Reporting Exporters configuration currently exposes Graphite export, not an application-facing StatsD or Prometheus receiver. The live preflight remains authoritative because a Custom App or manually managed container can still own the proposed ports.
+The live TrueNAS preflight is now complete:
+
+```text
+native reporting exporter: netdata, enabled=false, GRAPHITE -> 172.17.0.57:2003
+netdata service: active
+8125: FREE
+9125: FREE
+9102: FREE
+9308: FREE
+Docker publisher 9102: none
+Docker publisher 9308: none
+```
+
+Existing exporter containers include Redis exporter on `:9121` and Pi-hole exporter on `:9617`; Kafka is present on the shared `intranet` network. No conflicting Docker publisher was found for proposed future StatsD exposition `:9102` or Kafka exporter `:9308`.
+
+TrueNAS 26 uses Netdata internally for system reporting. Its configured Reporting Exporter path here is Graphite and is currently disabled. This does not provide an application StatsD receiver for Sentry/Taskbroker.
+
+The clean port inventory means future exporters are technically possible, but it is **not** a reason to mutate Sentry during the active incident. Functional recovery stays ahead of new telemetry.
 
 ## Sentry / Taskbroker / Taskworker
 
 ### Current incident priority
 
-Taskbroker recovery does **not** depend on StatsD or `kafka-exporter`. Recover Kafka consumer membership first with existing Kafka CLI evidence:
+The targeted Taskbroker restart exposed two separate failure layers:
 
 ```text
-Taskbroker running + Taskworker healthy
-        +
-Kafka group taskworker has zero active members
-        ↓
+original state
+  Taskbroker running
+  Kafka group taskworker has zero active members
+  lag growing
+       |
+       v
 restart Taskbroker only
-        ↓
-require active members > 0 AND lag decreases
-        ↓
-rerun Sentry end-to-end smoke
+       |
+       v
+new startup failure exposed
+  live metrics/StatsD hostname cannot resolve
+  Taskbroker panic in src/metrics.rs
+  exit=101 / restart loop
+       |
+       v
+Taskworker still Docker healthy but gRPC unavailable
 ```
 
-Use:
+Therefore the recovery order is now:
 
-```bash
-sudo bash scripts/truenas/diagnose-sentry-taskbroker.sh
-sudo bash scripts/truenas/recover-sentry-taskbroker.sh
-sudo bash scripts/truenas/diagnose-sentry-taskbroker.sh
-sudo bash scripts/truenas/smoke-sentry-event.sh
-```
+1. restore Taskbroker bootability and gRPC reachability;
+2. only then resume Kafka membership/lag diagnosis;
+3. only then rerun the Sentry end-to-end smoke;
+4. only after functional Sentry recovery consider adding StatsD instrumentation.
 
-The recovery helper refuses an unnecessary restart if `taskworker` already has an active member. It never resets offsets, deletes topics, deletes Taskbroker SQLite state, restarts Kafka or redeploys the Sentry App.
+`recover-sentry-taskbroker.sh` now validates the actual bind-mounted `/etc/taskbroker/config.yml` before restarting. An explicit non-loopback `statsd_addr` must resolve from the Sentry network or the restart is refused. After restart, `restarting`/`exited`/`dead` is a fast failure and Taskworker must be able to reach `taskbroker:50051`.
 
-The diagnostic treats the optional exporter endpoints as supplemental evidence; `UNAVAILABLE` is expected before those exporters are deployed and does not block this recovery gate.
+The repository configuration intentionally contains no new `statsd_addr` while this incident is active. The long-running pre-restart Taskbroker had reported the default effective value `127.0.0.1:8126`; a stale bind-mounted external hostname must not be allowed to turn the original Kafka problem into another crash loop.
 
-### StatsD candidate — intentionally not implemented yet
+### Future StatsD instrumentation
 
-Sentry self-hosted can emit useful runtime telemetry over StatsD, including Taskbroker consumer/backpressure and Taskworker metrics. A candidate design is:
+Sentry self-hosted can emit StatsD runtime metrics. If functional recovery later leaves an observability gap, a repository-managed `statsd-exporter` remains a candidate design:
 
 ```text
-Sentry / Taskbroker -> statsd-exporter:9125 on Docker intranet
-                                 |
-                                 v
-                         /metrics :9102
-                                 |
-                                 v
-                            Prometheus
+Sentry / Taskbroker -> statsd-exporter:9125 (Docker intranet only)
+                              |
+                              v
+                     Prometheus :9102
 ```
 
-However, PR #192 deliberately does **not** add the StatsD receiver, the Prometheus `sentry_statsd` scrape, or Sentry/Taskbroker StatsD configuration until the live TrueNAS conflict preflight has been reviewed. This prevents a duplicate receiver, port collision, or another knowingly DOWN Prometheus target.
+Requirements before implementation:
 
-If the preflight proves there is no equivalent existing receiver, a follow-up can add a pinned exporter with StatsD input kept internal to `intranet` and only its Prometheus `/metrics` endpoint exposed on the trusted LAN.
+- no LAN publication for unauthenticated StatsD ingestion;
+- only Prometheus exposition may be host-published;
+- pin the exporter version;
+- validate the metric names emitted by the running Sentry/Taskbroker version before creating alerts;
+- do not make Sentry startup depend on a DNS name that is absent from the current Docker network.
+
+StatsD accelerates diagnosis; it never replaces the end-to-end Sentry smoke.
 
 ## Kafka
 
-`kafka-exporter` belongs to the Kafka service boundary and therefore lives in `apps/kafka/compose.yml` beside the broker. It is explicitly bound to TrueNAS App ID `kafka`, waits for Kafka health, and exposes `172.17.0.24:9308/metrics` for Prometheus.
+`kafka-exporter` belongs to the Kafka service boundary and lives in `apps/kafka/compose.yml` beside the broker. It waits for Kafka health before starting and is explicitly bound to TrueNAS App ID `kafka`.
 
 ```text
 Kafka App
@@ -86,6 +113,14 @@ Kafka App
          Prometheus
 ```
 
+Repository configuration:
+
+- `apps/kafka/compose.yml`: `danielqsj/kafka-exporter:v1.9.0`;
+- `apps/prometheus/prometheus.yml`: job `kafka_exporter`;
+- `apps/prometheus/rules/sentry-kafka.rules.yml`: Taskbroker membership/lag alerts.
+
+Because exporter addition is a Kafka TrueNAS App lifecycle mutation, do **not** deploy it during Taskbroker recovery. First restore Taskbroker and prove end-to-end Sentry ingestion. Then use a controlled Kafka App update window.
+
 Primary metrics:
 
 - `kafka_consumergroup_members`;
@@ -93,63 +128,60 @@ Primary metrics:
 - `kafka_consumergroup_current_offset`;
 - topic/partition offsets and broker count.
 
-Because adding this sidecar mutates the Kafka TrueNAS App lifecycle, do **not** deploy it during the initial Taskbroker recovery experiment. First restore/validate Sentry ingestion, then run the exporter conflict preflight and schedule a controlled Kafka App update.
-
-Do not add JMX Exporter yet. Add it only if consumer membership/lag is insufficient to explain future coordinator stalls; then broker request latency, queue time, network-processor idle, controller/coordinator activity, ISR and JVM/GC become justified signals.
-
-## Prometheus target reconciliation
-
-Current connection-refused targets are tracked as runtime debt:
-
-- Alloy `172.17.0.24:12345`;
-- HAProxy exporter `:9101`;
-- Loki `:3100`;
-- Mimir `:9009`;
-- OpenSearch exporter `:9114`;
-- OpenSearch Security exporter `:9115`;
-- PostgreSQL exporter `:9187`;
-- Sybase exporter `:9113`;
-- Tempo `:3200`.
-
-For every target, prove owner/App/container state, host listener, `/metrics` behavior and Prometheus scrape result before changing the scrape config. A connection refusal can mean a stopped service, an exporter not published, a wrong port, or stale configuration; it is not by itself proof that the underlying application is down.
-
-Mimir is first priority because Prometheus also remote-writes to `172.17.0.24:9009/api/v1/push`.
+Do not add JMX Exporter yet. Add it only if broker-internal metrics are needed after consumer membership/lag is observable.
 
 ## Suricata
 
-Do not add another exporter first. Suricata 8 already emits EVE `stats` records and Alloy tails `/var/log/suricata/*.json` into Loki.
+Do not add another exporter first. Suricata 8 already emits periodic statistics and EVE `stats` records, and Alloy already tails `/var/log/suricata/*.json` into Loki.
+
+Current path:
+
+```text
+Suricata eve.json -> Alloy -> Loki -> Grafana
+                  -> CrowdSec acquisition
+```
 
 Next work:
 
-1. prove recent `event_type=stats` records exist;
-2. reconcile the currently DOWN Alloy metrics target;
-3. prove Alloy and CrowdSec advance while Suricata writes EVE;
-4. alert on capture drops, decoder errors and EVE freshness;
-5. add a dedicated exporter only if Loki/EVE statistics are insufficient.
+1. prove recent `event_type=stats` records exist in EVE;
+2. build Grafana/Loki panels and alerts for capture drops, decoder errors and EVE freshness;
+3. prove CrowdSec and Alloy both advance while Suricata writes EVE;
+4. only introduce a dedicated Suricata Prometheus exporter if Loki-derived statistics are insufficient.
 
 ## Wazuh
 
-Wazuh exposes useful operational statistics through its API and manager state files but has no first-party Prometheus endpoint equivalent to node_exporter in the current design.
+Wazuh operational statistics are currently collected from official manager state files without adding API credentials. `scripts/truenas/diagnose-wazuh.sh` reads:
 
-`scripts/truenas/diagnose-wazuh.sh` reads the manager state files without introducing API credentials. Priority evidence includes:
+- `/var/ossec/var/run/wazuh-remoted.state`;
+- `/var/ossec/var/run/wazuh-analysisd.state`.
 
-- active/disconnected/pending agents when API access is later added;
-- `wazuh-remoted` queue usage and discarded messages;
-- `analysisd` event rate, dropped events and queue pressure;
-- manager daemon availability;
-- indexer cluster/JVM/shard health.
+Priority evidence includes queue usage, discarded messages, received/processed/dropped events and EPS. A community Prometheus exporter remains deferred until a least-privilege API identity, credential handling and metric cardinality are reviewed.
 
-A community Prometheus exporter remains deferred until a dedicated least-privilege API identity, credential handling and metric cardinality are reviewed.
+## Existing metrics already worth using
 
-## Immediate sequence
+The homelab already exposes or plans to reconcile several useful surfaces:
 
-1. Diagnose Taskbroker now.
-2. If `taskworker` still has zero active members while Taskbroker is running and Taskworker is healthy, run the guarded Taskbroker-only recovery.
-3. Require membership recovery and lag decrease.
-4. Rerun the diagnostic and `smoke-sentry-event.sh`; require Relay project config and end-to-end ingestion to recover.
-5. Run the TrueNAS exporter/StatsD conflict preflight.
-6. Reconcile the existing Prometheus DOWN targets, starting with Mimir.
-7. Only then decide whether StatsD adds unique value and implement it if no equivalent receiver already exists.
-8. Deploy `kafka-exporter` later through the Kafka App in a controlled lifecycle window.
+- TrueNAS node exporter;
+- PostgreSQL exporter;
+- pfSense exporter with intentionally slow scrape cadence;
+- CrowdSec metrics;
+- ClickHouse `/metrics`;
+- OpenSearch exporters;
+- Akvorado inlet/outlet metrics;
+- Grafana, Alloy, Loki, Mimir, Tempo and Alertmanager self-metrics.
+
+The current Prometheus target page also has several connection-refused DOWN targets. Reconcile those endpoints before adding broad new exporter coverage; Mimir `:9009` is highest priority because Prometheus remote-write depends on it.
+
+## Immediate Sentry sequence
+
+```text
+repair live Taskbroker config / stop exit=101 restart loop
+  -> prove Taskworker -> taskbroker:50051
+  -> inspect taskworker Kafka group
+  -> require active member + decreasing lag
+  -> rerun Relay/project-config diagnostics
+  -> rerun smoke-sentry-event.sh
+  -> only then deploy optional telemetry
+```
 
 No Kafka offset reset, topic purge, Taskbroker SQLite deletion or full Sentry redeploy is justified by the current evidence.
