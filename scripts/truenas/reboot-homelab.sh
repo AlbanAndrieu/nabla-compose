@@ -124,7 +124,9 @@ diagnose_app_runtime() {
     docker inspect "${id}" |
       jq -r '.[0] | "  container=\(.Name|ltrimstr("/")) status=\(.State.Status) running=\(.State.Running) restarting=\(.State.Restarting) pid=\(.State.Pid) restarts=\(.RestartCount) exit=\(.State.ExitCode)"' >&2 || true
   done
-  [[ -f "${ORPHAN_SHIMS}" ]] && bash "${ORPHAN_SHIMS}" --check || true
+  if [[ -f "${ORPHAN_SHIMS}" ]]; then
+    bash "${ORPHAN_SHIMS}" --check || true
+  fi
 }
 
 vm_policy_gate() {
@@ -296,7 +298,9 @@ continue_prepare() {
   mapfile -t leftovers < <(docker ps --format '{{.Names}}')
   if ((${#leftovers[@]})); then
     printf 'Running Docker leftovers:\n  %s\n' "${leftovers[*]}" >&2
-    [[ -f "${ORPHAN_SHIMS}" ]] && bash "${ORPHAN_SHIMS}" --check || true
+    if [[ -f "${ORPHAN_SHIMS}" ]]; then
+      bash "${ORPHAN_SHIMS}" --check || true
+    fi
     fail "refusing Talos/host shutdown while Docker containers still run"
   fi
   ok "no running Docker container remains"
