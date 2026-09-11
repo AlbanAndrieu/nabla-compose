@@ -45,11 +45,18 @@ daemon state reported by pfSense. It does **not** prove that TCP/22 is reachable
 from the workstation. Firewall policy, interface binding, or a non-default SSH
 port may still make `172.17.0.1:22` time out.
 
-Do not assume port 22. Prefer an existing workstation SSH alias, or set the port
-explicitly:
+Do not assume port 22. Prefer the existing workstation SSH alias. The currently
+validated workstation contract resolves as `admin@home.albandrieu.com:9922`:
 
 ```bash
-scripts/pfsense/diagnose-recover.sh --check --target root@172.17.0.1 --port PORT
+ssh -G home.albandrieu.com | grep -E '^(hostname|user|port) '
+```
+
+The recovery helper therefore defaults to `home.albandrieu.com` and lets
+`~/.ssh/config` supply the user and port. Explicit overrides remain available:
+
+```bash
+scripts/pfsense/diagnose-recover.sh --check --target admin@home.albandrieu.com --port 9922
 ```
 
 The existing posture auditor remains useful for capacity/posture regression work:
