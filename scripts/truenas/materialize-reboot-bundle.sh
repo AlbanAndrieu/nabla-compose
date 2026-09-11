@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
+
 REPO_ROOT="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
 BUNDLE_ROOT="${NABLA_REBOOT_BUNDLE_ROOT:-/mnt/cpool/tools/nabla-reboot}"
 REF="HEAD"
@@ -37,11 +41,9 @@ while (($#)); do
   shift
 done
 
-[[ "${EUID}" -eq 0 ]] || { echo "ERROR: run as root on TrueNAS" >&2; exit 1; }
-for command in git install mktemp sha256sum grep bash python3 mv awk cmp; do
-  command -v "${command}" >/dev/null 2>&1 || { echo "ERROR: ${command} is required" >&2; exit 1; }
-done
-[[ -d "${REPO_ROOT}/.git" ]] || { echo "ERROR: repository not found: ${REPO_ROOT}" >&2; exit 1; }
+require_root
+require_commands git install mktemp sha256sum grep bash python3 mv awk cmp
+[[ -d "${REPO_ROOT}/.git" ]] || fail "repository not found: ${REPO_ROOT}"
 
 mkdir -p "${BUNDLE_ROOT}"
 chmod 700 "${BUNDLE_ROOT}"
@@ -54,7 +56,18 @@ trap 'rm -rf "${STAGE}"' EXIT
 FILES=(
   catalog/services.json
   catalog/service-topology.json
+  scripts/lib/common.sh
   scripts/truenas/plan-app-lifecycle-order.py
+  scripts/truenas/reconcile-talos-vm-policy.sh
+  scripts/truenas/migrate-docker-address-pool.sh
+  scripts/truenas/audit-docker-network-migration.sh
+  scripts/truenas/diagnose-docker-orphan-shims.sh
+  scripts/truenas/diagnose-csi-orphans.sh
+  scripts/truenas/reboot-homelab.sh
+)
+
+SHELL_FILES=(
+  scripts/lib/common.sh
   scripts/truenas/reconcile-talos-vm-policy.sh
   scripts/truenas/migrate-docker-address-pool.sh
   scripts/truenas/audit-docker-network-migration.sh
@@ -75,19 +88,33 @@ materialize_file() {
   rm -f "${tmp}"
 }
 
+validate_stage() {
+  local path
+  for path in "${SHELL_FILES[@]}"; do
+    bash -n "${STAGE}/${path}"
+  done
+
+  python3 -m py_compile "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py"
+  rm -rf "${STAGE}/scripts/truenas/__pycache__"
+
+  grep -q -- '--continue-prepare' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
+    fail "materialized reboot script lacks --continue-prepare"
+}
+
+verify_bundle() {
+  local bundle="$1"
+  [[ -f "${bundle}/SOURCE_COMMIT" ]] || fail "bundle has no SOURCE_COMMIT: ${bundle}"
+  [[ "$(cat "${bundle}/SOURCE_COMMIT")" == "${COMMIT}" ]] ||
+    fail "bundle identity mismatch: ${bundle}"
+  [[ -f "${bundle}/SHA256SUMS" ]] || fail "bundle has no SHA256SUMS: ${bundle}"
+  (cd "${bundle}" && sha256sum --quiet -c SHA256SUMS) ||
+    fail "bundle checksum mismatch: ${bundle}"
+}
+
 for path in "${FILES[@]}"; do
   materialize_file "${path}"
 done
-
-bash -n "${STAGE}/scripts/truenas/reboot-homelab.sh"
-bash -n "${STAGE}/scripts/truenas/diagnose-docker-orphan-shims.sh"
-bash -n "${STAGE}/scripts/truenas/diagnose-csi-orphans.sh"
-python3 -m py_compile "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py"
-rm -rf "${STAGE}/scripts/truenas/__pycache__"
-grep -q -- '--continue-prepare' "${STAGE}/scripts/truenas/reboot-homelab.sh" || {
-  echo "ERROR: materialized reboot script lacks --continue-prepare" >&2
-  exit 1
-}
+validate_stage
 
 printf '%s\n' "${COMMIT}" >"${STAGE}/SOURCE_COMMIT"
 (
@@ -97,36 +124,16 @@ printf '%s\n' "${COMMIT}" >"${STAGE}/SOURCE_COMMIT"
 )
 
 if [[ -e "${FINAL}" ]]; then
-  [[ -f "${FINAL}/SOURCE_COMMIT" ]] || {
-    echo "ERROR: existing bundle has no SOURCE_COMMIT: ${FINAL}" >&2
-    exit 1
-  }
-  [[ "$(cat "${FINAL}/SOURCE_COMMIT")" == "${COMMIT}" ]] || {
-    echo "ERROR: existing bundle identity mismatch: ${FINAL}" >&2
-    exit 1
-  }
-  [[ -f "${FINAL}/SHA256SUMS" ]] || {
-    echo "ERROR: existing bundle has no SHA256SUMS: ${FINAL}" >&2
-    exit 1
-  }
-  (
-    cd "${FINAL}"
-    sha256sum --quiet -c SHA256SUMS
-  ) || {
-    echo "ERROR: existing bundle checksum mismatch; refusing silent overwrite: ${FINAL}" >&2
-    exit 1
-  }
-  cmp -s "${STAGE}/SHA256SUMS" "${FINAL}/SHA256SUMS" || {
-    echo "ERROR: existing bundle contents do not match commit ${COMMIT}; refusing silent overwrite" >&2
-    exit 1
-  }
+  verify_bundle "${FINAL}"
+  cmp -s "${STAGE}/SHA256SUMS" "${FINAL}/SHA256SUMS" ||
+    fail "existing bundle contents do not match commit ${COMMIT}; refusing silent overwrite"
   rm -rf "${STAGE}"
   trap - EXIT
-  echo "OK: verified existing immutable bundle ${FINAL}"
+  ok "verified existing immutable bundle ${FINAL}"
 else
   mv "${STAGE}" "${FINAL}"
   trap - EXIT
-  echo "OK: materialized immutable bundle ${FINAL}"
+  ok "materialized immutable bundle ${FINAL}"
 fi
 
 if ((ACTIVATE)); then
@@ -134,7 +141,7 @@ if ((ACTIVATE)); then
   printf '%s\n' "${FINAL}" >"${pointer_tmp}"
   chmod 0644 "${pointer_tmp}"
   mv "${pointer_tmp}" "${BUNDLE_ROOT}/current"
-  echo "OK: activated ${FINAL}"
+  ok "activated ${FINAL}"
 fi
 
 printf 'SOURCE_COMMIT=%s\n' "${COMMIT}"
