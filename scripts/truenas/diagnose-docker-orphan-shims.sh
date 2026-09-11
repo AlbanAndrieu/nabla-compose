@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
+
 MODE="${1:---check}"
 TARGET="${2:-}"
-
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-warn() { printf 'WARN: %s\n' "$*" >&2; }
 
 usage() {
   cat <<'EOF'
@@ -28,10 +29,8 @@ case "${MODE}" in
     ;;
 esac
 
-[[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
-for command in docker jq pgrep awk kill ps; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+require_root
+require_commands docker jq pgrep awk kill ps
 
 find_shim_pids() {
   local cid="$1"
@@ -76,7 +75,7 @@ if [[ "${MODE}" == "--check" ]]; then
   done < <(docker ps -aq)
 
   if ((candidates == 0)); then
-    printf 'OK: no Docker container reports Running/Restarting with pid=0\n'
+    ok "no Docker container reports Running/Restarting with pid=0"
   else
     warn "${candidates} Docker container(s) have runtime state without a live init PID"
     warn "verify the exact container id and shim before any recovery; never kill shims in bulk"
@@ -162,4 +161,4 @@ if [[ -n "${row}" ]]; then
     fail "${name}: Docker state did not converge after orphan-shim recovery"
 fi
 
-printf 'OK: orphan shim recovery completed for %s; retry the supported TrueNAS app.stop operation\n' "${name}"
+ok "orphan shim recovery completed for ${name}; retry the supported TrueNAS app.stop operation"
