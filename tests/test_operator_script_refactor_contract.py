@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMMON = ROOT / "scripts/lib/common.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
 RESUME_RECONCILER = ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
+PLATFORM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-platform.sh"
 COMMON_USERS = (
     ROOT / "scripts/truenas/audit-docker-network-migration.sh",
     ROOT / "scripts/truenas/diagnose-csi-orphans.sh",
@@ -67,6 +68,15 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
         self.assertIn("diagnose_app", text)
         self.assertNotIn("docker restart", text)
         self.assertNotIn("app.redeploy", text)
+
+    def test_platform_diagnostic_includes_resume_and_functional_acceptance(self) -> None:
+        text = PLATFORM_DIAGNOSTIC.read_text(encoding="utf-8")
+        self.assertIn("application lifecycle + functional probes", text)
+        self.assertIn("reconcile-reboot-resume.sh", text)
+        self.assertIn("frozen reboot resume manifest acceptance", text)
+        self.assertIn("Docker/containerd orphan-shim inventory", text)
+        self.assertIn("Talos/Kubernetes + PSA/PSS posture", text)
+        self.assertIn("TrueNAS CSI dynamic dataset/orphan inventory", text)
 
     def test_documentation_has_canonical_ownership_map(self) -> None:
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
