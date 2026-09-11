@@ -14,6 +14,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: suricata
+      lifecycle:
+        phase: platform-services
+        priority: 40
       relations:
         - target: crowdsec
           type: observedBy
@@ -36,8 +39,11 @@ services:
       ENABLE_CRON: "yes"
       PGID: ${PGID:-568}
       PUID: ${PUID:-568}
-      SURICATA_OPTIONS: -i ${SURICATA_INTERFACE:-eth0}
+      # TrueNAS exposes the LAN through br0. With host networking Suricata sees
+      # the host interfaces, so eth0 is not a safe default on this appliance.
+      SURICATA_OPTIONS: -i ${SURICATA_INTERFACE:-br0}
       TZ: ${TZ:-Europe/Paris}
+    stop_grace_period: 30s
     volumes:
       - /mnt/cpool/suricata/etc:/etc/suricata
       - /mnt/cpool/suricata/log:/var/log/suricata
