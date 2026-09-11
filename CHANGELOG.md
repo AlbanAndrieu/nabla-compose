@@ -1,3 +1,10 @@
+## [0.34.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.3...0.34.4) (2026-09-11)
+
+
+### Bug Fixes
+
+* **runtime:** stabilize Sentry Kafka and Suricata rule bootstrap ([#192](https://github.com/AlbanAndrieu/nabla-compose/issues/192)) ([6c147f1](https://github.com/AlbanAndrieu/nabla-compose/commit/6c147f19f49c9243860b1f2fd37be753e15edf5c))
+
 ## [0.34.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.2...0.34.3) (2026-09-11)
 
 
