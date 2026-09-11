@@ -157,7 +157,7 @@ services:
           - "[STATUS] == 200"
       relations:
         - target: kafka
-          type: observes
+          type: dependsOn
           strength: required
           description: Exporter queries broker/topic and consumer-group state without joining the Kafka TrueNAS App lifecycle.
           evidence:
