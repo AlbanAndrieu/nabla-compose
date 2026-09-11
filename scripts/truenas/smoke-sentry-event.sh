@@ -16,10 +16,48 @@ SENTRY_URL="${SENTRY_URL%/}"
 PROJECT_ID="${SENTRY_PROJECT_ID:-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-ix-postgres-postgres-1}"
 CLICKHOUSE_CONTAINER="${SENTRY_CLICKHOUSE_CONTAINER:-ix-sentry-clickhouse-sentry-clickhouse-1}"
+KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
+SMOKE_ATTEMPTS="${SENTRY_SMOKE_ATTEMPTS:-60}"
+SMOKE_DELAY_SECONDS="${SENTRY_SMOKE_DELAY_SECONDS:-2}"
 
 function fail {
   printf '❌ %s\n' "$*" >&2
   exit 1
+}
+
+function print_ingestion_diagnostics {
+  local container state health
+  local containers=(
+    ix-sentry-sentry-events-consumer-1
+    ix-sentry-snuba-errors-consumer-1
+    ix-sentry-sentry-post-process-forwarder-errors-1
+  )
+
+  printf '\n==> Sentry ingestion-chain diagnostics\n' >&2
+  for container in "${containers[@]}"; do
+    if ! docker inspect "${container}" >/dev/null 2>&1; then
+      printf '%s MISSING\n' "${container}" >&2
+      continue
+    fi
+    state="$(docker inspect "${container}" --format '{{.State.Status}}')"
+    health="$(docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+    printf '%s state=%s health=%s restarts=%s\n' \
+      "${container}" "${state}" "${health}" \
+      "$(docker inspect "${container}" --format '{{.RestartCount}}')" >&2
+    docker logs --tail 40 "${container}" 2>&1 |
+      grep -Ei 'error|exception|kafka|coordinator|timeout|partition|health|clickhouse' |
+      tail -20 >&2 || true
+  done
+
+  if docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1; then
+    for group in ingest-consumer snuba-consumers post-process-forwarder; do
+      printf '\nKafka group %s:\n' "${group}" >&2
+      docker exec "${KAFKA_CONTAINER}" kafka-consumer-groups \
+        --bootstrap-server kafka:9092 \
+        --describe \
+        --group "${group}" 2>&1 >&2 || true
+    done
+  fi
 }
 
 for command in curl docker python3; do
@@ -92,7 +130,7 @@ case "${HTTP_CODE}" in
 esac
 
 FOUND=0
-for _ in {1..15}; do
+for ((attempt = 1; attempt <= SMOKE_ATTEMPTS; attempt++)); do
   FOUND="$(
     docker exec \
       -e SMOKE_EVENT_UUID="${EVENT_UUID}" \
@@ -117,11 +155,12 @@ for _ in {1..15}; do
   if [[ "${FOUND}" =~ ^[0-9]+$ ]] && ((FOUND > 0)); then
     break
   fi
-  sleep 2
+  sleep "${SMOKE_DELAY_SECONDS}"
 done
 
 if [[ ! "${FOUND}" =~ ^[0-9]+$ ]] || ((FOUND < 1)); then
-  fail "event ${EVENT_ID} was accepted at the edge but not found in sentry.errors_local"
+  print_ingestion_diagnostics
+  fail "event ${EVENT_ID} was accepted at the edge but not found in sentry.errors_local after $((SMOKE_ATTEMPTS * SMOKE_DELAY_SECONDS))s"
 fi
 
 printf '✅ Sentry event queryable in ClickHouse: project=%s event_id=%s rows=%s\n' \
