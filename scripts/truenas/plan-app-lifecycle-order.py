@@ -23,30 +23,26 @@ TARGET_BEFORE_SOURCE = {
 }
 SOURCE_BEFORE_TARGET = {"providesApi"}
 
-# Phase ordering is deliberately coarse. Required topology relations remain the
-# authority; phases only split simultaneously-ready Apps into safer bootstrap
-# barriers. Stop waves are the exact reverse of start waves.
-FOUNDATION_APPS = {
-    "pihole",
-    "adguard-home",
-    "traefik",
-    "docker-socket-proxy",
-    "vaultwarden",
-}
-PRIMARY_DATA_APPS = {
-    "postgres",
-    "mongo",
-    "influxdb",
-    "redis",
-    "kafka",
-}
-SECONDARY_DATA_APPS = {
-    "clickhouse",
-    "opensearch",
-    "elasticsearch",
-    "elastic-search",
-    "minio",
-    "garage",
+# x-nabla.lifecycle is authoritative. These values are fallback policy only for
+# legacy/runtime-only Apps that have not yet been migrated into the catalog.
+FALLBACK_APP_POLICIES: dict[str, tuple[str, int]] = {
+    "docker-socket-proxy": ("bootstrap-runtime", 0),
+    "adguard-home": ("foundation", 10),
+    "pihole": ("foundation", 10),
+    "traefik": ("foundation", 10),
+    "vaultwarden": ("foundation", 10),
+    "postgres": ("primary-data", 20),
+    "mongo": ("primary-data", 20),
+    "influxdb": ("primary-data", 20),
+    "redis": ("primary-data", 20),
+    "kafka": ("primary-data", 20),
+    "sentry-clickhouse": ("secondary-data", 30),
+    "clickhouse": ("secondary-data", 30),
+    "opensearch": ("secondary-data", 30),
+    "elasticsearch": ("secondary-data", 30),
+    "elastic-search": ("secondary-data", 30),
+    "minio": ("secondary-data", 30),
+    "garage": ("secondary-data", 30),
 }
 DATABASE_KINDS = {
     "database",
@@ -65,15 +61,7 @@ SECONDARY_DATA_KINDS = {
 }
 NETWORK_CATEGORIES = {"network", "infrastructure"}
 PLATFORM_CATEGORIES = {"observability", "security", "operations", "automation"}
-DEFAULT_PHASE = 50
-PHASE_NAMES = {
-    0: "foundation",
-    10: "network-edge",
-    20: "primary-data",
-    30: "secondary-data",
-    40: "platform-services",
-    50: "applications",
-}
+DEFAULT_PRIORITY = 50
 
 
 def load_json(path: Path):
@@ -111,11 +99,6 @@ def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
     if explicit:
         return explicit
 
-    # Repository-managed TrueNAS Apps normally live under apps/<app-id>/.
-    # This is stronger evidence than containerService and fixes multi-service
-    # Apps such as opensearch/opensearch-security/dashboards, grafana/alloy,
-    # pihole/pihole-dns-sync and sample/fastapi-sample without duplicating an
-    # appId on every service node.
     source_path = str(service.get("sourcePath") or "")
     parts = Path(source_path).parts
     if len(parts) >= 2 and parts[0] == "apps":
@@ -123,8 +106,6 @@ def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
         if inferred:
             return inferred
 
-    # Root-level compose services and legacy catalog entries can still map when
-    # their service/container identity is the TrueNAS App identity.
     for candidate in (
         service.get("id"),
         service.get("composeService"),
@@ -146,42 +127,64 @@ def service_to_app(services: dict, known_app_ids: set[str]) -> dict[str, str]:
     return result
 
 
-def lifecycle_phase(app: str, app_services: list[dict]) -> int:
-    if app in FOUNDATION_APPS:
-        return 0
-    if app in PRIMARY_DATA_APPS:
-        return 20
-    if app in SECONDARY_DATA_APPS:
-        return 30
+def declared_lifecycle(app: str, app_services: list[dict]) -> dict | None:
+    declared: set[tuple[str, int]] = set()
+    for service in app_services:
+        lifecycle = service.get("lifecycle")
+        if not isinstance(lifecycle, dict):
+            continue
+        phase = lifecycle.get("phase")
+        priority = lifecycle.get("priority")
+        if isinstance(phase, str) and isinstance(priority, int) and not isinstance(priority, bool):
+            declared.add((phase, priority))
+
+    if len(declared) > 1:
+        values = ", ".join(f"{phase}:{priority}" for phase, priority in sorted(declared))
+        raise ValueError(f"conflicting x-nabla.lifecycle policy for TrueNAS App {app}: {values}")
+    if not declared:
+        return None
+
+    phase, priority = next(iter(declared))
+    return {"phase": phase, "priority": priority, "source": "x-nabla"}
+
+
+def fallback_lifecycle(app: str, app_services: list[dict]) -> dict:
+    if app in FALLBACK_APP_POLICIES:
+        phase, priority = FALLBACK_APP_POLICIES[app]
+        return {"phase": phase, "priority": priority, "source": "fallback-app"}
 
     kinds = {str(service.get("kind") or "") for service in app_services}
     categories = {str(service.get("category") or "") for service in app_services}
 
     if kinds & DATABASE_KINDS:
-        return 20
+        return {"phase": "primary-data", "priority": 20, "source": "fallback-kind"}
     if kinds & SECONDARY_DATA_KINDS or "data" in categories:
-        return 30
+        return {"phase": "secondary-data", "priority": 30, "source": "fallback-kind"}
     if categories & NETWORK_CATEGORIES:
-        return 10
+        return {"phase": "network-edge", "priority": 15, "source": "fallback-category"}
     if categories & PLATFORM_CATEGORIES:
-        return 40
-    return DEFAULT_PHASE
+        return {"phase": "platform-services", "priority": 40, "source": "fallback-category"}
+    return {"phase": "applications", "priority": DEFAULT_PRIORITY, "source": "fallback-default"}
 
 
-def lifecycle_priorities(
+def lifecycle_policies(
     services: dict,
     mapping: dict[str, str],
     nodes: set[str],
-) -> dict[str, int]:
+) -> dict[str, dict]:
     services_by_app: dict[str, list[dict]] = defaultdict(list)
     for service in services.get("services", []):
         app = mapping.get(str(service.get("id", "")))
         if app:
             services_by_app[app].append(service)
-    return {
-        app: lifecycle_phase(app, services_by_app.get(app, []))
-        for app in nodes
-    }
+
+    result: dict[str, dict] = {}
+    for app in nodes:
+        app_services = services_by_app.get(app, [])
+        result[app] = declared_lifecycle(app, app_services) or fallback_lifecycle(
+            app, app_services
+        )
+    return result
 
 
 def topo_waves(
@@ -203,14 +206,11 @@ def topo_waves(
     visited: set[str] = set()
 
     while ready:
-        # Required relations define readiness. Among all currently-ready nodes,
-        # run only the earliest platform phase and make it a real barrier before
-        # moving to databases/search/platform/application phases.
-        earliest_phase = min(priorities.get(node, DEFAULT_PHASE) for node in ready)
+        earliest_priority = min(priorities.get(node, DEFAULT_PRIORITY) for node in ready)
         wave = sorted(
             node
             for node in ready
-            if priorities.get(node, DEFAULT_PHASE) == earliest_phase
+            if priorities.get(node, DEFAULT_PRIORITY) == earliest_priority
         )
         waves.append(wave)
 
@@ -229,6 +229,17 @@ def topo_waves(
             + ", ".join(remaining)
         )
     return waves
+
+
+def wave_phase(wave: list[str], policies: dict[str, dict]) -> str:
+    phases = sorted(
+        {str(policies.get(app, {}).get("phase", "applications")) for app in wave}
+    )
+    if not phases:
+        return "applications"
+    if len(phases) == 1:
+        return phases[0]
+    return "mixed:" + "+".join(phases)
 
 
 def main() -> int:
@@ -272,7 +283,8 @@ def main() -> int:
     mapping = service_to_app(services, known_app_ids)
     mapped_apps = set(mapping.values()) & selected
     unmapped_apps = sorted(selected - mapped_apps)
-    priorities = lifecycle_priorities(services, mapping, selected)
+    policies = lifecycle_policies(services, mapping, selected)
+    priorities = {app: int(policy["priority"]) for app, policy in policies.items()}
 
     edges: set[tuple[str, str]] = set()
     used_relations = []
@@ -307,10 +319,6 @@ def main() -> int:
                 }
             )
 
-    # All selected Apps participate in phase ordering. Unmapped Apps simply have
-    # no topology edges; the lifecycle phase still keeps known foundations/data
-    # services in a safe position, while unknown Apps default to the final
-    # application phase and remain visible in unmapped_apps for debt tracking.
     start_waves = topo_waves(selected, edges, priorities) if selected else []
     stop_waves = [list(reversed(wave)) for wave in reversed(start_waves)]
 
@@ -322,18 +330,14 @@ def main() -> int:
         "unmapped_apps": unmapped_apps,
         "lifecycle_phase_by_app": {
             app: {
-                "order": priorities.get(app, DEFAULT_PHASE),
-                "name": PHASE_NAMES.get(priorities.get(app, DEFAULT_PHASE), "applications"),
+                "order": priorities.get(app, DEFAULT_PRIORITY),
+                "name": policies.get(app, {}).get("phase", "applications"),
+                "source": policies.get(app, {}).get("source", "fallback-default"),
             }
             for app in sorted(selected)
         },
         "start_waves": start_waves,
-        "start_wave_phases": [
-            PHASE_NAMES.get(priorities.get(wave[0], DEFAULT_PHASE), "applications")
-            if wave
-            else "applications"
-            for wave in start_waves
-        ],
+        "start_wave_phases": [wave_phase(wave, policies) for wave in start_waves],
         "start_order": [app for wave in start_waves for app in wave],
         "stop_waves": stop_waves,
         "stop_order": [app for wave in stop_waves for app in wave],
