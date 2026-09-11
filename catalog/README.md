@@ -38,7 +38,24 @@ x-nabla:
       category: ai
 ```
 
-This is used for integrations such as SearXNG and Open Terminal without inventing containers that do not exist in this repository.
+Runtime-only or partially migrated TrueNAS Apps may also use a logical topology node with an explicit runtime binding instead of inventing a fake Compose service. This is the transitional ownership model used for shared PostgreSQL and AdGuard Home:
+
+```yaml
+x-nabla:
+  nodes:
+    - id: postgresql
+      name: PostgreSQL
+      kind: database
+      category: data
+      runtime:
+        provider: truenas-app
+        appId: postgres
+      lifecycle:
+        phase: primary-data
+        priority: 20
+```
+
+The target remains to co-locate metadata with the real deployment owner whenever one exists.
 
 ## Service environments
 
@@ -77,7 +94,7 @@ x-nabla:
 Supported phases are:
 
 1. `bootstrap-runtime` — runtime primitives such as `docker-socket-proxy`;
-2. `foundation` — DNS, ingress and bootstrap secret services such as Pi-hole, Traefik and Vaultwarden;
+2. `foundation` — DNS, ingress and bootstrap secret services such as Pi-hole, AdGuard Home, Traefik and Vaultwarden;
 3. `network-edge` — remaining edge/network support;
 4. `primary-data` — PostgreSQL, MongoDB, InfluxDB, Redis and Kafka-class stateful foundations;
 5. `secondary-data` — ClickHouse, OpenSearch, Elasticsearch and object/search/analytics stores;
@@ -86,7 +103,7 @@ Supported phases are:
 
 Lower numeric `priority` starts first and therefore stops last. Required topology relations remain stronger than phase/priority ordering: if Graylog `dependsOn` MongoDB or `storesIn` OpenSearch, those backends must be accepted before Graylog regardless of their otherwise inferred category. Shutdown is the exact reverse flattened start order.
 
-Lifecycle policy belongs in service-local `x-nabla` whenever the TrueNAS App is repository-owned. Temporary planner fallbacks exist only for runtime-only or partially migrated Apps and must stay visible as migration debt rather than becoming a second source of truth.
+Lifecycle policy belongs in service-local `x-nabla` whenever the TrueNAS App is repository-owned. Logical topology nodes may carry the same `runtime + lifecycle` contract for a real runtime App whose deployment owner has not yet migrated into a tracked Compose service. Planner fallbacks remain only a final compatibility layer and must stay visible as migration debt rather than becoming a second source of truth.
 
 ## Generation
 
