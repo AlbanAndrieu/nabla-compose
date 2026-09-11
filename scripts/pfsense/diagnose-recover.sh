@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="check"
-SSH_TARGET="${PFSENSE_SSH_TARGET:-root@172.17.0.1}"
+SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
 API_URL="${PFSENSE_API_URL:-https://home.albandrieu.com:10443}"
 LAN_API_URL="${PFSENSE_LAN_API_URL:-https://172.17.0.1:10443}"
@@ -25,7 +25,7 @@ Options:
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
-  --target USER@HOST        SSH target (default: root@172.17.0.1).
+  --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
   --port PORT               Optional SSH port; otherwise SSH config/default applies.
   --api-url URL             Hostname/public HTTPS URL.
   --lan-api-url URL         Direct LAN HTTPS URL used as a second vantage point.
