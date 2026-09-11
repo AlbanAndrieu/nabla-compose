@@ -1,0 +1,39 @@
+---
+name: PR192 dedupe roadmap
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr192-dedupe-roadmap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  dedupe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/sentry-kafka-suricata-post191
+      - name: Remove obsolete duplicate Sentry debt line
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/roadmap.md')
+          text = path.read_text()
+          obsolete = '- [ ] Track Sentry self-hosted 26.8 Kafka coordinator/session-timeout and Taskbroker consumer-rejoin behavior as upstream/version debt. Process/container health is insufficient; functional health must include Taskworker→Taskbroker reachability, active Kafka membership and end-to-end ingestion.\n'
+          if text.count(obsolete) != 1:
+              raise SystemExit('obsolete Sentry debt line not found exactly once')
+          path.write_text(text.replace(obsolete, '', 1))
+          PY
+          git diff --check
+          git rm .github/workflows/pr192-dedupe-roadmap.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/roadmap.md
+          git commit -m 'docs(roadmap): dedupe sentry upstream debt'
+          git push origin HEAD:fix/sentry-kafka-suricata-post191
