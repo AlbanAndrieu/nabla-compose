@@ -19,7 +19,7 @@ def load_documents(path: Path) -> list[dict]:
 
 
 class TrueNasCsiNfsContractTests(unittest.TestCase):
-    def test_driver_is_pinned_and_nfs_only_for_talos(self) -> None:
+    def test_driver_is_pinned_nfs_only_and_controller_publish_enabled(self) -> None:
         version = (CSI_ROOT / "VERSION").read_text().strip()
         self.assertEqual(version, "v1.0.3")
 
@@ -29,14 +29,23 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn("iscsiadm", text)
         self.assertNotIn("/etc/iscsi", text)
         self.assertNotIn("/var/lib/iscsi", text)
-        self.assertNotIn("csi-attacher", text)
+        self.assertIn("registry.k8s.io/sig-storage/csi-attacher:v4.11.0", text)
         self.assertNotIn("csi-snapshotter", text)
         self.assertNotIn("--default-fstype=ext4", text)
 
         docs = load_documents(DRIVER)
         csi_driver = next(doc for doc in docs if doc.get("kind") == "CSIDriver")
-        self.assertFalse(csi_driver["spec"]["attachRequired"])
+        self.assertTrue(csi_driver["spec"]["attachRequired"])
         self.assertEqual(csi_driver["spec"]["volumeLifecycleModes"], ["Persistent"])
+
+        controller = next(doc for doc in docs if doc.get("kind") == "Deployment")
+        containers = controller["spec"]["template"]["spec"]["containers"]
+        containers_by_name = {container["name"]: container for container in containers}
+        self.assertIn("csi-attacher", containers_by_name)
+        self.assertEqual(
+            containers_by_name["csi-attacher"]["image"],
+            "registry.k8s.io/sig-storage/csi-attacher:v4.11.0",
+        )
 
         node = next(doc for doc in docs if doc.get("kind") == "DaemonSet")
         expressions = (
@@ -51,6 +60,37 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             },
             expressions,
         )
+
+    def test_controller_rbac_can_persist_publish_context_without_create_delete(self) -> None:
+        docs = load_documents(DRIVER)
+        role = next(
+            doc
+            for doc in docs
+            if doc.get("kind") == "ClusterRole"
+            and doc.get("metadata", {}).get("name") == "truenas-csi-controller-role"
+        )
+        rules = role["rules"]
+        attachment_rule = next(
+            rule
+            for rule in rules
+            if rule.get("apiGroups") == ["storage.k8s.io"]
+            and rule.get("resources") == ["volumeattachments"]
+        )
+        self.assertEqual(
+            attachment_rule["verbs"],
+            ["get", "list", "watch", "patch"],
+        )
+        self.assertNotIn("create", attachment_rule["verbs"])
+        self.assertNotIn("update", attachment_rule["verbs"])
+        self.assertNotIn("delete", attachment_rule["verbs"])
+
+        status_rule = next(
+            rule
+            for rule in rules
+            if rule.get("apiGroups") == ["storage.k8s.io"]
+            and rule.get("resources") == ["volumeattachments/status"]
+        )
+        self.assertEqual(status_rule["verbs"], ["patch"])
 
     def test_truenas_connection_matches_homelab_contract(self) -> None:
         docs = load_documents(DRIVER)
@@ -108,7 +148,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertEqual(sc["volumeBindingMode"], "Immediate")
         self.assertTrue(sc["allowVolumeExpansion"])
 
-    def test_preflight_requires_parent_mountpoint_and_timeout(self) -> None:
+    def test_preflight_requires_parent_mountpoint_timeout_and_runtime_convergence(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "validate-csi-prereqs.sh"
         ).read_text()
@@ -127,18 +167,40 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             "TCP/2049 reachability remains the workstation-side storage prerequisite",
             text,
         )
+        self.assertIn("attachRequired", text)
+        self.assertIn("csi-attacher", text)
+        self.assertIn("--subresource=status", text)
+        self.assertIn("publishContext", text)
+        self.assertIn("controller_runtime_converged", text)
+        self.assertIn("ProgressDeadlineExceeded", text)
+        self.assertIn("runtime is not converged", text)
 
-    def test_install_surfaces_bounded_node_rollout_diagnostics(self) -> None:
+    def test_install_surfaces_bounded_controller_and_node_rollout_diagnostics(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
         ).read_text()
         self.assertIn("CSI_ROLLOUT_TIMEOUT", text)
+        self.assertIn("dump_controller_rollout_diagnostics", text)
         self.assertIn("dump_node_rollout_diagnostics", text)
         self.assertIn("desiredNumberScheduled", text)
         self.assertIn("numberReady", text)
         self.assertIn("get events --sort-by=.lastTimestamp", text)
         self.assertIn("csi-node-driver-registrar", text)
+        self.assertIn("ProgressDeadlineExceeded", text)
         self.assertIn("did not become Ready within", text)
+
+    def test_install_migrates_immutable_attach_required_safely(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("prepare_immutable_csidriver_migration", text)
+        self.assertIn("attachRequired is immutable", text)
+        self.assertIn("attachment_count", text)
+        self.assertIn("cannot recreate immutable CSIDriver", text)
+        self.assertIn("kubectl delete csidriver csi.truenas.io --wait=true", text)
+        self.assertIn("csi-attacher:v4.11.0", text)
+        self.assertIn("--subresource=status", text)
+        self.assertIn("create/update/delete remain denied", text)
 
     def test_install_scopes_privileged_pod_security_to_csi_namespace(self) -> None:
         text = (
@@ -156,7 +218,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             text.index('kubectl apply -f "${DRIVER_MANIFEST}"'),
         )
 
-    def test_install_script_keeps_secret_runtime_only(self) -> None:
+    def test_install_keeps_secret_runtime_only_and_rotation_fail_closed(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
         ).read_text()
@@ -168,6 +230,13 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn("set -x", text)
         self.assertIn("auth.login_with_api_key", text)
         self.assertIn("TrueNAS 27", text)
+        self.assertIn("TRUENAS_CSI_ROTATE_CREDENTIAL", text)
+        self.assertIn("TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD", text)
+        self.assertIn("sha256sum", text)
+        self.assertIn("refusing implicit credential rotation", text)
+        self.assertIn("rollout restart deployment/truenas-csi-controller", text)
+        self.assertIn("rollout restart daemonset/truenas-csi-node", text)
+        self.assertNotIn('printf "%s\\n" "${TRUENAS_CSI_API_KEY}"', text)
 
     def test_smoke_proves_cross_worker_persistence(self) -> None:
         text = (
@@ -183,6 +252,25 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn(r'test "\$(cat /data/marker)"', text)
         self.assertNotIn('test "$(cat /data/marker)"', text)
         self.assertIn("--keep", text)
+
+    def test_smoke_fails_fast_when_publish_context_is_missing(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("CSI_ATTACHMENT_TIMEOUT_SECONDS", text)
+        self.assertIn("attachRequired", text)
+        self.assertIn("csi-attacher", text)
+        self.assertIn("wait_for_nfs_publish_context", text)
+        self.assertIn("volumeattachments.storage.k8s.io", text)
+        self.assertIn("attachmentMetadata.protocol", text)
+        self.assertIn("attachmentMetadata.nfsServer", text)
+        self.assertIn("attachmentMetadata.nfsPath", text)
+        self.assertIn("dump_publish_context_diagnostics", text)
+        self.assertIn("attached=true plus protocol/nfsServer/nfsPath", text)
+        self.assertLess(
+            text.index('wait_for_nfs_publish_context "${pv}" "${writer_node}"'),
+            text.index("wait --for=condition=Ready pod/csi-writer"),
+        )
 
     def test_smoke_surfaces_bounded_pvc_provisioning_evidence(self) -> None:
         text = (

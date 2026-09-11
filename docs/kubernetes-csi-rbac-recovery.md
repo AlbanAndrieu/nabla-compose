@@ -1,17 +1,33 @@
-# TrueNAS CSI VolumeAttachment RBAC recovery
+# TrueNAS CSI VolumeAttachment and publishContext recovery
 
-## Incident checkpoint — 2026-09-11
+Last updated: 2026-09-11.
 
-A disposable RWX PVC using `nabla-truenas-nfs` remained `Pending` while:
+## Incident summary
 
-- all three Talos/Kubernetes nodes were Ready;
-- cross-node DNS, ClusterIP and pod routing were healthy;
-- TrueNAS NFS TCP/2049 was reachable at `172.17.0.24`;
-- `cpool/k8s/csi` existed on TrueNAS, was mounted at `/mnt/cpool/k8s/csi`, and was writable;
-- the TrueNAS CSI controller and node plugin were Ready;
-- the CSI driver repeatedly logged successful TrueNAS pings.
+The TrueNAS NFS CSI recovery has exposed three distinct layers of failure. They
+must remain separate because each layer has different evidence and a different
+recovery action.
 
-The decisive evidence was in the `csi-provisioner` sidecar:
+1. **Provisioning RBAC** — the controller ServiceAccount could not list
+   `VolumeAttachment`, so the provisioner could not fully initialize. Adding the
+   required read permissions allowed the retained PVC to become `Bound`.
+2. **Controller-publish contract** — the repository declared
+   `CSIDriver.spec.attachRequired=false` and omitted `csi-attacher`, while
+   TrueNAS CSI v1.0.3 builds the NFS connection metadata in
+   `ControllerPublishVolume`. PR #187 restores that contract.
+3. **Runtime credential incident during the migration rollout** — the newly
+   created controller generation contained the correct attacher but its
+   `csi-controller` could not authenticate to TrueNAS, so it exited before
+   creating `/csi/csi.sock`. The sidecars then failed secondarily while waiting
+   for that socket.
+
+The third failure does not invalidate the `attachRequired=true` correction. It
+prevented the corrected controller generation from reaching the point where
+`ControllerPublishVolume` could be tested.
+
+## First blocker — provisioning RBAC
+
+The first decisive controller-side evidence was:
 
 ```text
 volumeattachments.storage.k8s.io is forbidden:
@@ -20,164 +36,274 @@ cannot list resource "volumeattachments" in API group "storage.k8s.io"
 at the cluster scope
 ```
 
-The provisioner renewed its leader lease but could not fully initialize its
-Kubernetes informers. During the failed provisioning window, the TrueNAS CSI
-driver received health probes but no `CreateVolume` request.
+Adding the required VolumeAttachment read access allowed the retained PVC to
+resume without recreation and become `Bound`.
 
-## Required permission
+## Second blocker — empty publishContext
 
-The controller ServiceAccount needs read-only access to cluster-scoped
-`VolumeAttachment` resources:
+The writer then stayed in `ContainerCreating`, with kubelet reporting:
 
 ```text
-apiGroup: storage.k8s.io
-resource: volumeattachments
-verbs: get, list, watch
+MountVolume.MountDevice failed:
+rpc error: code = InvalidArgument desc = failed to determine protocol:
+unknown or missing protocol in publish context: ""
 ```
 
-No `create`, `update`, `patch` or `delete` permission is granted on
-`VolumeAttachment` objects.
-
-Check the effective authorization with:
-
-```bash
-kubectl auth can-i \
-  --as=system:serviceaccount:truenas-csi:truenas-csi-controller-sa \
-  get volumeattachments.storage.k8s.io
-
-kubectl auth can-i \
-  --as=system:serviceaccount:truenas-csi:truenas-csi-controller-sa \
-  list volumeattachments.storage.k8s.io
-
-kubectl auth can-i \
-  --as=system:serviceaccount:truenas-csi:truenas-csi-controller-sa \
-  watch volumeattachments.storage.k8s.io
-```
-
-All three answers must be `yes` when the driver is installed.
-
-## Repository reconciliation
-
-`scripts/talos/install-truenas-csi-nfs.sh --apply` now reconciles this read-only
-RBAC after applying the tracked driver manifest and before waiting for the CSI
-rollout. The operation is idempotent: it patches the ClusterRole only when one
-of the three permissions is missing.
-
-The tracked `kubernetes/truenas-csi/nfs-driver.yaml` also declares the same
-`get/list/watch` permission, so a normal manifest reconciliation cannot remove
-the runtime fix.
-
-`scripts/talos/install-truenas-csi-nfs.sh --check` and
-`scripts/talos/validate-csi-prereqs.sh` both detect an installed RBAC drift and
-fail with an actionable message instead of allowing a PVC to wait until the
-smoke timeout.
-
-## Workstation versus TrueNAS filesystem checks
-
-`/mnt/cpool/k8s/csi` is a TrueNAS appliance path. Its absence on an operator
-workstation is not evidence of a missing TrueNAS dataset.
-
-The CSI preflight therefore:
-
-- always checks NFS TCP/2049 from the operator host;
-- verifies `/mnt/cpool/k8s/csi` and `cpool/k8s/csi` directly only when `midclt`
-  is available, indicating an appliance-side execution context;
-- otherwise reports that dataset/mountpoint verification is skipped rather
-  than failing on the workstation filesystem.
-
-When an explicit appliance-side proof is needed from the workstation:
-
-```bash
-ssh albandrieu@172.17.0.24 \
-  'zfs list cpool/k8s/csi && \
-   zfs get mounted,mountpoint,readonly cpool/k8s/csi'
-```
-
-## Resume a retained failed smoke
-
-If `CSI_SMOKE_KEEP_ON_FAILURE=true` preserved `nabla-csi-smoke`, do not create a
-second PVC immediately. After fixing RBAC, first inspect whether the existing
-provisioner resumes processing:
-
-```bash
-kubectl -n nabla-csi-smoke get pvc nabla-csi-rwx -w
-```
-
-Follow the sidecars without relying on a shell variable for the controller pod:
-
-```bash
-kubectl -n truenas-csi logs deployment/truenas-csi-controller \
-  -c csi-provisioner --since=10m --follow
-```
-
-and, separately:
-
-```bash
-kubectl -n truenas-csi logs deployment/truenas-csi-controller \
-  -c csi-controller --since=10m --follow
-```
-
-The next expected transition is `CreateVolume` reaching the TrueNAS CSI driver.
-Only after the retained PVC either binds or produces the next concrete error
-should the namespace be removed and the full cross-worker smoke rerun.
-
-## Provisioning and reclaim acceptance reached
-
-After the RBAC correction, the retained PVC resumed without recreation and
-became `Bound`. Kubernetes created a CSI PV whose volume handle mapped to the
-expected child dataset below `cpool/k8s/csi`.
-
-The subsequent cleanup also proved the reclaim path:
+The node driver confirmed:
 
 ```text
-PVC/PV Bound
-  -> namespace/PVC deletion
-  -> PV Released
-  -> external provisioner calls Controller/DeleteVolume
-  -> TrueNAS CSI removes the NFS share/dataset
-  -> provisioner removes its finalizer
-  -> Kubernetes deletes the PV
+NodeStageVolume received ... publishContext=null
 ```
 
-The appliance-side verification confirmed that the old child dataset no longer
-existed and `sharing.nfs.query` returned no matching share. This closes the
-initial provisioning/RBAC blocker and proves `reclaimPolicy: Delete` for that
-disposable volume.
-
-## Pod mount/readiness timeout
-
-The next full smoke successfully provisioned a fresh RWX PVC but the writer Pod
-did not become Ready within the previous hard-coded 120 second wait. The Pod was
-admitted; the `restricted:latest` PodSecurity output was a warning rather than
-an admission rejection. The next diagnostic boundary is therefore Pod startup
-and NFS mount readiness on the selected worker.
-
-`scripts/talos/smoke-truenas-csi-nfs.sh` now uses:
+TrueNAS CSI v1.0.3 uses this controller-to-node path:
 
 ```text
-CSI_POD_READY_TIMEOUT_SECONDS=300
+StorageClass protocol=nfs
+  -> CreateVolume
+  -> TrueNAS dataset + NFS share
+  -> Kubernetes VolumeAttachment
+  -> csi-attacher
+  -> ControllerPublishVolume
+  -> publishContext
+       protocol=nfs
+       nfsServer=172.17.0.24
+       nfsPath=/mnt/cpool/k8s/csi/pvc-...
+  -> VolumeAttachment.status.attachmentMetadata
+  -> kubelet NodeStageVolume
+  -> NFS mount
 ```
 
-by default for writer and reader readiness. The value remains configurable for
-a deliberately slower environment.
+The repository had diverged from the upstream v1.0.3 contract with:
 
-On writer or reader timeout the smoke now prints:
+```yaml
+spec:
+  attachRequired: false
+```
 
-- Pod status and `describe` output;
-- recent namespace events;
-- `csi-node` logs from the exact worker selected for the Pod;
-- `csi-node-driver-registrar` logs from the same worker.
+and no `csi-attacher`. Kubernetes therefore skipped the controller-publish path.
+PR #187 restores:
 
-When `CSI_SMOKE_KEEP_ON_FAILURE=true` is set, writer/reader failures now retain
-the namespace too. Earlier behavior retained only PVC provisioning failures,
-which could destroy the most useful mount-failure evidence via the exit cleanup
-trap.
+- `CSIDriver.spec.attachRequired: true`;
+- `csi-attacher:v4.11.0`;
+- `get/list/watch/patch` on `volumeattachments`;
+- `patch` on `volumeattachments/status`;
+- no unnecessary `create/update/delete` permission for VolumeAttachment.
 
-A deliberate slower rerun can use:
+`CSIDriver.spec.attachRequired` is immutable. The install helper therefore
+refuses to recreate the CSIDriver while TrueNAS VolumeAttachments exist, deletes
+only the stale CSIDriver when safe, and reapplies the canonical object.
+
+## Third blocker — malformed local CSI credential
+
+During the first rollout of the corrected controller, Kubernetes correctly
+created a new ReplicaSet containing `csi-attacher`, but the new Pod stayed
+`1/5 CrashLoopBackOff` while the old `4/4` controller remained available.
+
+The new `csi-attacher` repeatedly reported that `/csi/csi.sock` did not exist.
+The primary failure was in the new `csi-controller`:
+
+```text
+Starting TrueNAS CSI Driver version=v1.0.3
+Connecting to TrueNAS wss://truenas.albandrieu.com:7000/api/current
+WebSocket connected, authenticating
+TrueNAS authentication rejected
+Failed to create driver: failed to connect to TrueNAS: truenas: authentication failed
+```
+
+The socket was therefore absent because the CSI driver exited before serving,
+not because the `emptyDir` mount was wrong.
+
+The local `.env.secrets` value for `TRUENAS_CSI_API_KEY` was then found to have
+an erroneous extra `==` suffix. Evidence proved that the old running controller
+had loaded a different credential before the Kubernetes Secret was rewritten:
+
+```text
+old running controller TRUENAS_API_KEY SHA256:
+3230bacb9571e200f4927e281af935677df83ab5c9ebb718cf9dfa45bdc3a652
+
+bad local/current Secret SHA256 observed before correction:
+8eeb9e8e9208abbbc95eab6e219c8fa9d85fe37cc6366f805ae45fec2ca55dd2
+```
+
+Only fingerprints are retained; secret values must never be logged.
+
+The corrected local key was written back to Kubernetes with the runtime-only
+pipeline:
+
+```bash
+printf '%s' "${TRUENAS_CSI_API_KEY}" |
+  kubectl -n truenas-csi create secret generic truenas-api-credentials \
+    --from-file=api-key=/dev/stdin \
+    --dry-run=client -o yaml |
+  kubectl apply -f -
+```
+
+The Secret keeps its original creation timestamp but its managed field records
+the correction:
+
+```text
+creationTimestamp = 2026-09-09T15:45:43Z
+manager           = kubectl-client-side-apply
+operation         = Update
+time              = 2026-09-11T03:19:01Z
+```
+
+A Secret-backed environment variable is captured when a Pod starts. Updating
+the Secret does not mutate `TRUENAS_API_KEY` inside an already-running
+controller or node Pod. The CSI workloads therefore need an explicit controlled
+restart/reload after a credential update.
+
+## Credential rotation safety contract
+
+`scripts/talos/install-truenas-csi-nfs.sh --apply` now treats credential changes
+as a privileged operation:
+
+- candidate and existing Secret values are compared only by SHA-256;
+- fingerprints and secret values are not printed by the helper;
+- an identical credential is idempotent;
+- a differing credential is rejected by default;
+- an intentional rotation requires `TRUENAS_CSI_ROTATE_CREDENTIAL=1`;
+- a credential change reloads existing controller and node workloads;
+- `TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1` can reload the workloads when the
+  Secret was changed out-of-band, as happened during this incident.
+
+The guard deliberately does not claim to pre-authenticate against TrueNAS. The
+upstream v1.0.3 driver still uses deprecated `auth.login_with_api_key`; runtime
+controller readiness remains the authoritative authentication proof.
+
+For this incident, after checking out the current PR #187 code and confirming
+the corrected `TRUENAS_CSI_API_KEY` is loaded locally, use:
+
+```bash
+TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD=1 \
+TRUENAS_CSI_API_KEY="$TRUENAS_CSI_API_KEY" \
+  mise exec -- bash scripts/talos/install-truenas-csi-nfs.sh --apply
+```
+
+Because the corrected Secret already equals the local value, this command does
+not rotate it again. It explicitly restarts the consumers so their environment
+is refreshed, then waits for controller and node convergence.
+
+For a future intentional credential replacement:
+
+```bash
+TRUENAS_CSI_ROTATE_CREDENTIAL=1 \
+TRUENAS_CSI_API_KEY="$TRUENAS_CSI_API_KEY" \
+  mise exec -- bash scripts/talos/install-truenas-csi-nfs.sh --apply
+```
+
+Do not set the rotation flag simply to bypass a mismatch. First confirm that the
+local secret source is the intended credential.
+
+## Runtime convergence is part of the preflight
+
+A correct Deployment template is not proof of a healthy CSI controller. The
+read-only install/preflight gates now reject a controller when any of these is
+true:
+
+- `observedGeneration < metadata.generation`;
+- updated replicas differ from desired replicas;
+- ready or available replicas differ from desired replicas;
+- unavailable replicas are non-zero;
+- the Deployment has `Progressing=False` with
+  `reason=ProgressDeadlineExceeded`.
+
+This prevents a `1/5 CrashLoopBackOff` controller generation from being reported
+as ready merely because `csi-attacher` exists in the Pod template.
+
+## Retained runtime evidence
+
+Do not recreate the retained smoke while the migration is being proved:
+
+```text
+PVC:    nabla-csi-rwx                       Bound
+PV:     pvc-03741395-a00a-4eaf-a04e-da10e08ec530
+writer: csi-writer                          ContainerCreating
+target: talos-7fc-fdt
+VA:     csi-2db054df7894042dbfee6309d758e9540ff5b11a2191d8316c58b3cd634a8712
+state:  attached=false
+```
+
+The old controller generation lacks `csi-attacher`. The first corrected/new
+generation contains all five expected containers but failed authentication with
+the malformed key. After the controlled credential reload, identify the newest
+controller Pod explicitly and verify it is `5/5 Running`; do not rely on
+`kubectl logs deployment/...` while two generations exist.
+
+Useful checks:
+
+```bash
+mise exec -- kubectl -n truenas-csi get deployment,rs,pod \
+  -l app=truenas-csi-controller -o wide
+
+mise exec -- kubectl -n truenas-csi get pods \
+  -l app=truenas-csi-controller \
+  -o custom-columns='POD:.metadata.name,CREATED:.metadata.creationTimestamp,READY:.status.containerStatuses[*].ready,CONTAINERS:.spec.containers[*].name'
+
+mise exec -- kubectl get volumeattachment \
+  csi-2db054df7894042dbfee6309d758e9540ff5b11a2191d8316c58b3cd634a8712 \
+  -o yaml
+```
+
+Expected attachment state:
+
+```yaml
+status:
+  attached: true
+  attachmentMetadata:
+    protocol: nfs
+    nfsServer: 172.17.0.24
+    nfsPath: /mnt/cpool/k8s/csi/pvc-...
+```
+
+## Final retained-smoke acceptance
+
+After the corrected controller becomes healthy:
+
+1. require the old controller generation to terminate normally;
+2. require the retained VolumeAttachment to become `attached=true`;
+3. require `protocol=nfs`, non-empty `nfsServer`, and non-empty `nfsPath`;
+4. require `csi-writer` to become `Running` without recreating the retained PVC;
+5. write the marker on worker A;
+6. remove the writer;
+7. schedule the reader on worker B and read the same marker;
+8. delete the disposable namespace only after evidence capture;
+9. require PV reclaim and automatic TrueNAS dataset/NFS-share deletion.
+
+Then run one completely fresh smoke so acceptance covers both recovery of the
+retained objects and creation of new ones:
 
 ```bash
 CSI_SMOKE_KEEP_ON_FAILURE=true \
 CSI_PVC_TIMEOUT_SECONDS=180 \
+CSI_ATTACHMENT_TIMEOUT_SECONDS=60 \
 CSI_POD_READY_TIMEOUT_SECONDS=300 \
-  bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
+  mise exec -- bash scripts/talos/smoke-truenas-csi-nfs.sh --apply
 ```
+
+CSI is accepted only after:
+
+```text
+Bound
++ controller runtime converged
++ attached=true
++ publishContext NFS metadata
++ cross-worker RWX
++ PV/dataset/share reclaim
++ one fresh clean smoke
+```
+
+## Reboot interaction
+
+Do not use a TrueNAS reboot as the repair for the CSI rollout. The ordered
+homelab reboot remains gated by this acceptance. If a host reboot becomes
+operationally mandatory before CSI acceptance, persist the retained
+Deployment/ReplicaSet/Pod/VolumeAttachment/log evidence and mark the CSI gate as
+explicitly deferred. A successful post-reboot smoke is then regression evidence,
+not proof of the pre-reboot failure cause.
+
+## TrueNAS 27 compatibility debt
+
+TrueNAS CSI v1.0.3 still authenticates through deprecated
+`auth.login_with_api_key`. Keep the current TrueNAS 26 path tested and track a
+supported username/SCRAM-capable driver/API path before moving to TrueNAS 27.

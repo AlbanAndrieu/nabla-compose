@@ -36,6 +36,42 @@ ok() {
   printf '✅ %s\n' "$*"
 }
 
+controller_runtime_converged() {
+  local deployment_json desired updated ready available unavailable generation observed progress_deadline
+  local converged=true
+
+  if ! kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1; then
+    return 0
+  fi
+
+  deployment_json="$(kubectl -n truenas-csi get deployment truenas-csi-controller -o json)"
+  desired="$(jq -r '.spec.replicas // 1' <<<"${deployment_json}")"
+  updated="$(jq -r '.status.updatedReplicas // 0' <<<"${deployment_json}")"
+  ready="$(jq -r '.status.readyReplicas // 0' <<<"${deployment_json}")"
+  available="$(jq -r '.status.availableReplicas // 0' <<<"${deployment_json}")"
+  unavailable="$(jq -r '.status.unavailableReplicas // 0' <<<"${deployment_json}")"
+  generation="$(jq -r '.metadata.generation // 0' <<<"${deployment_json}")"
+  observed="$(jq -r '.status.observedGeneration // 0' <<<"${deployment_json}")"
+  progress_deadline="$(jq -r '[.status.conditions[]? | select(.type == "Progressing" and .status == "False" and .reason == "ProgressDeadlineExceeded")] | length' <<<"${deployment_json}")"
+
+  [[ "${observed}" -ge "${generation}" ]] || converged=false
+  [[ "${updated}" -eq "${desired}" ]] || converged=false
+  [[ "${ready}" -eq "${desired}" ]] || converged=false
+  [[ "${available}" -eq "${desired}" ]] || converged=false
+  [[ "${unavailable}" -eq 0 ]] || converged=false
+  [[ "${progress_deadline}" -eq 0 ]] || converged=false
+
+  if [[ "${converged}" == "true" ]]; then
+    ok "TrueNAS CSI controller runtime is fully converged"
+    return 0
+  fi
+
+  printf '❌ TrueNAS CSI controller runtime is not converged: desired=%s updated=%s ready=%s available=%s unavailable=%s generation=%s observed=%s progressDeadlineExceeded=%s\n' \
+    "${desired}" "${updated}" "${ready}" "${available}" "${unavailable}" "${generation}" "${observed}" "${progress_deadline}" >&2
+  kubectl -n truenas-csi get deployment,rs,pod -l app=truenas-csi-controller -o wide >&2 2>/dev/null || true
+  return 1
+}
+
 for command in kubectl jq grep timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
@@ -49,10 +85,14 @@ export KUBECONFIG
 [[ -s "${STORAGE_CLASS_MANIFEST}" ]] || fail "missing ${STORAGE_CLASS_MANIFEST}"
 grep -Fq "ghcr.io/truenas/truenas-csi:${EXPECTED_CSI_VERSION}" "${DRIVER_MANIFEST}" ||
   fail "CSI driver image is not pinned to ${EXPECTED_CSI_VERSION}"
+grep -Fq "registry.k8s.io/sig-storage/csi-attacher:v4.11.0" "${DRIVER_MANIFEST}" ||
+  fail "CSI controller manifest is missing csi-attacher:v4.11.0"
+grep -Fq "attachRequired: true" "${DRIVER_MANIFEST}" ||
+  fail "CSIDriver manifest must enable attachRequired so ControllerPublishVolume supplies publishContext"
 if grep -Eq 'iscsiadm|/etc/iscsi|/var/lib/iscsi' "${DRIVER_MANIFEST}"; then
   fail "Talos first-storage manifest must remain NFS-only"
 fi
-ok "TrueNAS CSI ${EXPECTED_CSI_VERSION} NFS-only repository contract is pinned"
+ok "TrueNAS CSI ${EXPECTED_CSI_VERSION} NFS-only repository contract is pinned with controller publish enabled"
 
 nodes_json="$(kubectl get nodes -o json)"
 node_count="$(jq '.items | length' <<<"${nodes_json}")"
@@ -122,22 +162,39 @@ else
 fi
 
 if kubectl get csidriver csi.truenas.io >/dev/null 2>&1; then
-  printf 'ℹ️  CSIDriver csi.truenas.io is already registered; inspect ownership before applying\n'
+  attach_required="$(kubectl get csidriver csi.truenas.io -o jsonpath='{.spec.attachRequired}')"
+  [[ "${attach_required}" == "true" ]] ||
+    fail "installed CSIDriver attachRequired=${attach_required:-missing}; this immutable drift skips ControllerPublishVolume and leaves publishContext empty"
+  ok "installed CSIDriver csi.truenas.io enables ControllerPublishVolume"
 else
   printf 'ℹ️  CSIDriver csi.truenas.io is not registered yet\n'
 fi
 
+if kubectl -n truenas-csi get deployment truenas-csi-controller >/dev/null 2>&1; then
+  controller_containers="$(kubectl -n truenas-csi get deployment truenas-csi-controller -o jsonpath='{.spec.template.spec.containers[*].name}')"
+  [[ " ${controller_containers} " == *" csi-attacher "* ]] ||
+    fail "installed CSI controller has no csi-attacher; ControllerPublishVolume cannot populate VolumeAttachment attachmentMetadata"
+  ok "installed CSI controller includes csi-attacher"
+  controller_runtime_converged ||
+    fail "installed CSI controller is not runtime-converged; authentication/socket/rollout must be healthy before storage acceptance"
+fi
+
 if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
-  for verb in get list watch; do
+  for verb in get list watch patch; do
     if [[ "$(kubectl auth can-i \
       --as="${CONTROLLER_SERVICE_ACCOUNT}" \
       "${verb}" "${VOLUME_ATTACHMENT_RESOURCE}" 2>/dev/null)" != "yes" ]]; then
-      fail "installed CSI controller cannot ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; external-provisioner may leave PVCs Pending"
+      fail "installed CSI controller cannot ${verb} ${VOLUME_ATTACHMENT_RESOURCE}; csi-attacher cannot complete the controller publish path"
     fi
   done
-  ok "installed CSI controller can get/list/watch ${VOLUME_ATTACHMENT_RESOURCE}"
+  if [[ "$(kubectl auth can-i \
+    --as="${CONTROLLER_SERVICE_ACCOUNT}" \
+    patch "${VOLUME_ATTACHMENT_RESOURCE}" --subresource=status 2>/dev/null)" != "yes" ]]; then
+    fail "installed CSI controller cannot patch ${VOLUME_ATTACHMENT_RESOURCE}/status; publishContext cannot be persisted as attachmentMetadata"
+  fi
+  ok "installed CSI controller can read/patch VolumeAttachment and patch status"
 else
-  printf 'ℹ️  CSI controller ClusterRole is not installed yet; install helper will create and reconcile VolumeAttachment read RBAC\n'
+  printf 'ℹ️  CSI controller ClusterRole is not installed yet; install helper will create the publishContext RBAC contract\n'
 fi
 
 if [[ -n "${TRUENAS_CSI_API_KEY:-}" ]]; then
@@ -147,4 +204,4 @@ else
 fi
 
 printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 26 and track SCRAM/username support before TrueNAS 27.\n' "${EXPECTED_CSI_VERSION}"
-printf '✅ CSI preflight complete: cluster, NFS reachability, controller RBAC and pinned manifests are ready for the explicit install step\n'
+printf '✅ CSI preflight complete: cluster, NFS reachability, controller runtime, publish path, RBAC and pinned manifests are ready for the explicit storage smoke\n'
