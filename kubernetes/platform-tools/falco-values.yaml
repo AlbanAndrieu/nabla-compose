@@ -1,0 +1,30 @@
+controller:
+  kind: daemonset
+
+driver:
+  enabled: true
+  kind: modern_ebpf
+  modernEbpf:
+    leastPrivileged: true
+
+metrics:
+  enabled: true
+  interval: 15m
+  service:
+    create: true
+    type: ClusterIP
+
+falcosidekick:
+  enabled: false
+
+collectors:
+  kubernetes:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: 750m
+    memory: 768Mi

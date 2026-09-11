@@ -70,6 +70,17 @@ variable "talos_vm_autostart" {
   default     = true
 }
 
+variable "talos_vm_shutdown_timeout" {
+  description = "Graceful TrueNAS VM shutdown timeout in seconds. Talos normally drains through talosctl first; this is the hypervisor-side safety window."
+  type        = number
+  default     = 180
+
+  validation {
+    condition     = var.talos_vm_shutdown_timeout >= 5 && var.talos_vm_shutdown_timeout <= 300
+    error_message = "talos_vm_shutdown_timeout must be between 5 and 300 seconds."
+  }
+}
+
 variable "talos_iso_path" {
   description = "Optional TrueNAS-local Talos ISO path. Leave empty to create VMs without a CDROM device."
   type        = string
