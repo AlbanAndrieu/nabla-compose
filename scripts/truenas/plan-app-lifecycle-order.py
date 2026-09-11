@@ -23,8 +23,10 @@ TARGET_BEFORE_SOURCE = {
 }
 SOURCE_BEFORE_TARGET = {"providesApi"}
 
-# x-nabla.lifecycle is authoritative. These values are fallback policy only for
-# legacy/runtime-only Apps that have not yet been migrated into the catalog.
+# Declarative lifecycle metadata from the generated catalog is authoritative.
+# These app-specific entries are compatibility fallbacks for legacy/runtime-only
+# Apps while their topology ownership is migrated. They are deliberately kept
+# small and visible in lifecycle_phase_by_app.source.
 FALLBACK_APP_POLICIES: dict[str, tuple[str, int]] = {
     "docker-socket-proxy": ("bootstrap-runtime", 0),
     "adguard-home": ("foundation", 10),
@@ -90,8 +92,10 @@ def resolve_known_app(candidate: object, known_app_ids: set[str]) -> str | None:
     return None
 
 
-def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
-    runtime = service.get("runtime") or {}
+def infer_catalog_app(entry: dict, known_app_ids: set[str]) -> str | None:
+    """Resolve a generated service/topology node to one concrete TrueNAS App."""
+
+    runtime = entry.get("runtime") or {}
     if runtime.get("provider") != "truenas-app":
         return None
 
@@ -99,7 +103,7 @@ def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
     if explicit:
         return explicit
 
-    source_path = str(service.get("sourcePath") or "")
+    source_path = str(entry.get("sourcePath") or "")
     parts = Path(source_path).parts
     if len(parts) >= 2 and parts[0] == "apps":
         inferred = resolve_known_app(parts[1], known_app_ids)
@@ -107,8 +111,8 @@ def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
             return inferred
 
     for candidate in (
-        service.get("id"),
-        service.get("composeService"),
+        entry.get("id"),
+        entry.get("composeService"),
         runtime.get("containerService"),
     ):
         inferred = resolve_known_app(candidate, known_app_ids)
@@ -117,44 +121,79 @@ def infer_service_app(service: dict, known_app_ids: set[str]) -> str | None:
     return None
 
 
-def service_to_app(services: dict, known_app_ids: set[str]) -> dict[str, str]:
+def catalog_entries(services: dict, topology: dict) -> list[dict]:
+    """Return both service and logical topology declarations.
+
+    Generated topology nodes mirror declared Compose services, so duplicate ids
+    are expected. Logical/static nodes matter for runtime Apps that have no
+    canonical Compose service yet, such as shared PostgreSQL or AdGuard Home.
+    """
+
+    entries: list[dict] = []
+    for collection in (services.get("services", []), topology.get("nodes", [])):
+        if not isinstance(collection, list):
+            continue
+        entries.extend(item for item in collection if isinstance(item, dict))
+    return entries
+
+
+def catalog_to_app(
+    services: dict,
+    topology: dict,
+    known_app_ids: set[str],
+) -> dict[str, str]:
     result: dict[str, str] = {}
-    for service in services.get("services", []):
-        service_id = service.get("id")
-        app_id = infer_service_app(service, known_app_ids)
-        if service_id and app_id:
-            result[str(service_id)] = app_id
+    for entry in catalog_entries(services, topology):
+        entry_id = entry.get("id")
+        app_id = infer_catalog_app(entry, known_app_ids)
+        if not entry_id or not app_id:
+            continue
+        key = str(entry_id)
+        previous = result.get(key)
+        if previous is not None and previous != app_id:
+            raise ValueError(
+                f"catalog id {key} maps to conflicting TrueNAS Apps: {previous}, {app_id}"
+            )
+        result[key] = app_id
     return result
 
 
-def declared_lifecycle(app: str, app_services: list[dict]) -> dict | None:
+def declared_lifecycle(app: str, app_entries: list[dict]) -> dict | None:
     declared: set[tuple[str, int]] = set()
-    for service in app_services:
-        lifecycle = service.get("lifecycle")
+    for entry in app_entries:
+        lifecycle = entry.get("lifecycle")
         if not isinstance(lifecycle, dict):
             continue
         phase = lifecycle.get("phase")
         priority = lifecycle.get("priority")
-        if isinstance(phase, str) and isinstance(priority, int) and not isinstance(priority, bool):
+        if (
+            isinstance(phase, str)
+            and isinstance(priority, int)
+            and not isinstance(priority, bool)
+        ):
             declared.add((phase, priority))
 
     if len(declared) > 1:
-        values = ", ".join(f"{phase}:{priority}" for phase, priority in sorted(declared))
-        raise ValueError(f"conflicting x-nabla.lifecycle policy for TrueNAS App {app}: {values}")
+        values = ", ".join(
+            f"{phase}:{priority}" for phase, priority in sorted(declared)
+        )
+        raise ValueError(
+            f"conflicting declared lifecycle policy for TrueNAS App {app}: {values}"
+        )
     if not declared:
         return None
 
     phase, priority = next(iter(declared))
-    return {"phase": phase, "priority": priority, "source": "x-nabla"}
+    return {"phase": phase, "priority": priority, "source": "catalog"}
 
 
-def fallback_lifecycle(app: str, app_services: list[dict]) -> dict:
+def fallback_lifecycle(app: str, app_entries: list[dict]) -> dict:
     if app in FALLBACK_APP_POLICIES:
         phase, priority = FALLBACK_APP_POLICIES[app]
         return {"phase": phase, "priority": priority, "source": "fallback-app"}
 
-    kinds = {str(service.get("kind") or "") for service in app_services}
-    categories = {str(service.get("category") or "") for service in app_services}
+    kinds = {str(entry.get("kind") or "") for entry in app_entries}
+    categories = {str(entry.get("category") or "") for entry in app_entries}
 
     if kinds & DATABASE_KINDS:
         return {"phase": "primary-data", "priority": 20, "source": "fallback-kind"}
@@ -163,26 +202,35 @@ def fallback_lifecycle(app: str, app_services: list[dict]) -> dict:
     if categories & NETWORK_CATEGORIES:
         return {"phase": "network-edge", "priority": 15, "source": "fallback-category"}
     if categories & PLATFORM_CATEGORIES:
-        return {"phase": "platform-services", "priority": 40, "source": "fallback-category"}
-    return {"phase": "applications", "priority": DEFAULT_PRIORITY, "source": "fallback-default"}
+        return {
+            "phase": "platform-services",
+            "priority": 40,
+            "source": "fallback-category",
+        }
+    return {
+        "phase": "applications",
+        "priority": DEFAULT_PRIORITY,
+        "source": "fallback-default",
+    }
 
 
 def lifecycle_policies(
     services: dict,
+    topology: dict,
     mapping: dict[str, str],
     nodes: set[str],
 ) -> dict[str, dict]:
-    services_by_app: dict[str, list[dict]] = defaultdict(list)
-    for service in services.get("services", []):
-        app = mapping.get(str(service.get("id", "")))
+    entries_by_app: dict[str, list[dict]] = defaultdict(list)
+    for entry in catalog_entries(services, topology):
+        app = mapping.get(str(entry.get("id", "")))
         if app:
-            services_by_app[app].append(service)
+            entries_by_app[app].append(entry)
 
     result: dict[str, dict] = {}
     for app in nodes:
-        app_services = services_by_app.get(app, [])
-        result[app] = declared_lifecycle(app, app_services) or fallback_lifecycle(
-            app, app_services
+        app_entries = entries_by_app.get(app, [])
+        result[app] = declared_lifecycle(app, app_entries) or fallback_lifecycle(
+            app, app_entries
         )
     return result
 
@@ -206,7 +254,9 @@ def topo_waves(
     visited: set[str] = set()
 
     while ready:
-        earliest_priority = min(priorities.get(node, DEFAULT_PRIORITY) for node in ready)
+        earliest_priority = min(
+            priorities.get(node, DEFAULT_PRIORITY) for node in ready
+        )
         wave = sorted(
             node
             for node in ready
@@ -233,7 +283,10 @@ def topo_waves(
 
 def wave_phase(wave: list[str], policies: dict[str, dict]) -> str:
     phases = sorted(
-        {str(policies.get(app, {}).get("phase", "applications")) for app in wave}
+        {
+            str(policies.get(app, {}).get("phase", "applications"))
+            for app in wave
+        }
     )
     if not phases:
         return "applications"
@@ -268,9 +321,7 @@ def main() -> int:
     }
     known_app_ids = {str(app["id"]) for app in apps}
     forced = {
-        item
-        for item in args.include_apps.replace(",", " ").split()
-        if item
+        item for item in args.include_apps.replace(",", " ").split() if item
     }
     missing_forced = sorted(forced - known_app_ids)
     if missing_forced:
@@ -280,10 +331,10 @@ def main() -> int:
         )
     selected |= forced
 
-    mapping = service_to_app(services, known_app_ids)
+    mapping = catalog_to_app(services, topology, known_app_ids)
     mapped_apps = set(mapping.values()) & selected
     unmapped_apps = sorted(selected - mapped_apps)
-    policies = lifecycle_policies(services, mapping, selected)
+    policies = lifecycle_policies(services, topology, mapping, selected)
     priorities = {app: int(policy["priority"]) for app, policy in policies.items()}
 
     edges: set[tuple[str, str]] = set()
@@ -342,7 +393,8 @@ def main() -> int:
         "stop_waves": stop_waves,
         "stop_order": [app for wave in stop_waves for app in wave],
         "required_edges": [
-            {"before": before, "after": after} for before, after in sorted(edges)
+            {"before": before, "after": after}
+            for before, after in sorted(edges)
         ],
         "relations_used": used_relations,
         "ignored_required_relation_types": sorted(ignored_relation_types),
