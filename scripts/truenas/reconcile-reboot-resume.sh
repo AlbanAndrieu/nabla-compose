@@ -25,6 +25,7 @@ Timeouts:
   NABLA_MIDCLT_TIMEOUT_SECONDS      simple middleware calls, default 180
   NABLA_APP_JOB_TIMEOUT_SECONDS     app.start job, default 900
   NABLA_APP_START_WAIT_SECONDS      post-job RUNNING acceptance, default 600
+  NABLA_APP_START_WAIT_OVERRIDES    optional "app=seconds app=seconds" overrides
 EOF
 }
 
@@ -41,7 +42,7 @@ case "${MODE}" in
 esac
 
 require_root "run as root on TrueNAS"
-require_commands midclt jq docker timeout awk
+require_commands midclt jq docker timeout sed tr
 
 for value in CALL_TIMEOUT APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL; do
   current="${!value}"
@@ -74,7 +75,9 @@ app_state() {
 
 app_timeout() {
   local app="$1" key value pair
-  for pair in ${NABLA_APP_START_WAIT_OVERRIDES:-}; do
+  local -a overrides=()
+  read -r -a overrides <<<"${NABLA_APP_START_WAIT_OVERRIDES:-}"
+  for pair in "${overrides[@]}"; do
     key="${pair%%=*}"
     value="${pair#*=}"
     if [[ "${key}" == "${app}" && "${value}" =~ ^[1-9][0-9]*$ ]]; then
