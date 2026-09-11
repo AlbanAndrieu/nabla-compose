@@ -12,12 +12,14 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
     def read(self, path: str) -> str:
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_statsd_exporter_is_owned_by_prometheus(self) -> None:
+    def test_statsd_exporter_is_owned_by_prometheus_and_internal(self) -> None:
         compose = self.read("apps/prometheus/compose.yml")
         self.assertIn("statsd-exporter:", compose)
         self.assertIn("prom/statsd-exporter:${STATSD_EXPORTER_IMG:-v0.30.0}", compose)
         self.assertIn('"172.17.0.24:9102:9102"', compose)
-        self.assertIn('"172.17.0.24:9125:9125/udp"', compose)
+        self.assertIn("- statsd-exporter", compose)
+        self.assertNotIn('"172.17.0.24:9125:9125"', compose)
+        self.assertNotIn('"172.17.0.24:9125:9125/udp"', compose)
 
     def test_kafka_exporter_is_observer_not_broker_sibling(self) -> None:
         prometheus_compose = self.read("apps/prometheus/compose.yml")
@@ -35,20 +37,22 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertIn("job_name: kafka_exporter", config)
         self.assertIn("172.17.0.24:9308", config)
 
-    def test_sentry_and_taskbroker_emit_statsd(self) -> None:
+    def test_sentry_and_taskbroker_emit_statsd_over_intranet(self) -> None:
         sentry_config = self.read("apps/sentry/config/sentry.conf.py")
         taskbroker_config = self.read("apps/sentry/config/taskbroker.yml")
-        self.assertIn('SENTRY_STATSD_ADDR", "172.17.0.24:9125"', sentry_config)
+        self.assertIn('SENTRY_STATSD_ADDR", "statsd-exporter:9125"', sentry_config)
         self.assertIn("StatsdMetricsBackend", sentry_config)
-        self.assertIn("statsd_addr: 172.17.0.24:9125", taskbroker_config)
+        self.assertIn("statsd_addr: statsd-exporter:9125", taskbroker_config)
 
     def test_alerts_detect_process_green_pipeline_dead(self) -> None:
         rules = self.read("apps/prometheus/rules/sentry-kafka.rules.yml")
         self.assertIn("alert: SentryTaskbrokerConsumerMissing", rules)
         self.assertIn('consumergroup="taskworker"', rules)
         self.assertIn("kafka_consumergroup_members", rules)
+        self.assertIn("or vector(0)", rules)
         self.assertIn("alert: SentryTaskbrokerLagHigh", rules)
         self.assertIn("kafka_consumergroup_lag", rules)
+        self.assertIn("alert: SentryStatsdExporterUdpDrops", rules)
 
     def test_taskbroker_diagnostic_correlates_exporter_metrics_read_only(self) -> None:
         script = self.read("scripts/truenas/diagnose-sentry-taskbroker.sh")
@@ -72,6 +76,16 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn("kafka-topics --delete", script)
         self.assertNotIn("DELETE FROM", script)
         self.assertNotIn("app.redeploy", script)
+
+    def test_wazuh_diagnostic_reads_functional_state_files(self) -> None:
+        script = self.read("scripts/truenas/diagnose-wazuh.sh")
+        self.assertIn("/var/ossec/var/run/wazuh-remoted.state", script)
+        self.assertIn("discarded_count", script)
+        self.assertIn("ctrl_msg_queue_usage", script)
+        self.assertIn("/var/ossec/var/run/wazuh-analysisd.state", script)
+        self.assertIn("events_dropped", script)
+        self.assertIn("rule_matching_queue_usage", script)
+        self.assertNotIn("manager/daemons/stats", script)
 
 
 if __name__ == "__main__":
