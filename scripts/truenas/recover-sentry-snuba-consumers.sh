@@ -7,11 +7,19 @@ WAIT_DELAY="${SENTRY_SNUBA_RECOVERY_DELAY_SECONDS:-5}"
 STABILITY_DELAY="${SENTRY_SNUBA_STABILITY_DELAY_SECONDS:-65}"
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
 
+# Exact allow-list for the errors-only ingestion path. Never broaden this to
+# arbitrary ix-sentry-* containers: migrations, web and task services have
+# different lifecycle semantics.
 TARGETS=(
-  ix-sentry-snuba-subscription-consumer-events-1
+  ix-sentry-snuba-errors-consumer-1
+  ix-sentry-snuba-outcomes-consumer-1
+  ix-sentry-snuba-outcomes-billing-consumer-1
+  ix-sentry-snuba-group-attributes-consumer-1
   ix-sentry-snuba-replacer-1
+  ix-sentry-snuba-subscription-consumer-events-1
   ix-sentry-sentry-events-consumer-1
   ix-sentry-sentry-attachments-consumer-1
+  ix-sentry-sentry-post-process-forwarder-errors-1
 )
 
 fail() {
@@ -44,20 +52,29 @@ for container in "${TARGETS[@]}"; do
   [[ "${state}" == "running" ]] ||
     fail "${container} is not running; use the full Sentry diagnostic before recovery"
 
-  if [[ "${health}" == "healthy" ]]; then
-    printf '  already healthy; no restart needed\n'
-    continue
-  fi
-
-  printf '  restarting only this unhealthy Sentry consumer...\n'
-  docker restart "${container}" >/dev/null
+  case "${health}" in
+    healthy)
+      printf '  already healthy; no restart needed\n'
+      ;;
+    starting)
+      printf '  still starting; do not reset its healthcheck grace period\n'
+      ;;
+    unhealthy)
+      printf '  restarting only this unhealthy Sentry consumer...\n'
+      docker restart "${container}" >/dev/null
+      ;;
+    *)
+      fail "${container} has no usable Docker health status: ${health}"
+      ;;
+  esac
 done
 
 for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
   all_healthy=1
   for container in "${TARGETS[@]}"; do
+    state="$(docker inspect "${container}" --format '{{.State.Status}}')"
     health="$(docker inspect "${container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
-    if [[ "${health}" != "healthy" ]]; then
+    if [[ "${state}" != "running" || "${health}" != "healthy" ]]; then
       all_healthy=0
     fi
   done
@@ -92,12 +109,15 @@ if docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1; then
   printf '\nKafka groups after recovery:\n'
   docker exec "${KAFKA_CONTAINER}" \
     kafka-consumer-groups --bootstrap-server kafka:9092 --list 2>/dev/null |
-    grep -E 'snuba|replac|subscription|ingest-consumer' || true
+    grep -E 'snuba|replac|subscription|ingest-consumer|post-process-forwarder' || true
 
   required_groups=(
+    ingest-consumer
+    snuba-consumers
+    snuba-group-attributes-consumers
     snuba-events-subscriptions-consumers
     snuba-replacers
-    ingest-consumer
+    post-process-forwarder
   )
   for group in "${required_groups[@]}"; do
     group_detail="$(
@@ -118,4 +138,5 @@ fi
 [[ "${failures}" -eq 0 ]] ||
   fail "targeted Sentry consumer recovery left ${failures} unhealthy Sentry consumer(s)"
 
-printf '✅ targeted Sentry consumer recovery converged; rerun diagnose-sentry.sh --check\n'
+printf '✅ targeted Sentry errors-only ingestion recovery converged\n'
+printf 'Next: rerun diagnose-sentry.sh --check, then smoke-sentry-event.sh.\n'
