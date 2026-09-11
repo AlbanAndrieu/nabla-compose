@@ -21,14 +21,16 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn('"172.17.0.24:9125:9125"', compose)
         self.assertNotIn('"172.17.0.24:9125:9125/udp"', compose)
 
-    def test_kafka_exporter_is_observer_not_broker_sibling(self) -> None:
+    def test_kafka_exporter_is_co_located_with_kafka_app(self) -> None:
         prometheus_compose = self.read("apps/prometheus/compose.yml")
         kafka_compose = self.read("apps/kafka/compose.yml")
-        self.assertIn("kafka-exporter:", prometheus_compose)
-        self.assertIn("danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}", prometheus_compose)
-        self.assertIn("--kafka.server=kafka:9092", prometheus_compose)
-        self.assertIn("- intranet", prometheus_compose)
-        self.assertNotIn("kafka-exporter:", kafka_compose)
+        self.assertNotIn("kafka-exporter:", prometheus_compose)
+        self.assertIn("kafka-exporter:", kafka_compose)
+        self.assertIn("danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}", kafka_compose)
+        self.assertIn("appId: kafka", kafka_compose)
+        self.assertIn("--kafka.server=kafka:9092", kafka_compose)
+        self.assertIn("condition: service_healthy", kafka_compose)
+        self.assertIn('"172.17.0.24:9308:9308"', kafka_compose)
 
     def test_prometheus_scrapes_functional_sentry_kafka_metrics(self) -> None:
         config = self.read("apps/prometheus/prometheus.yml")
@@ -76,6 +78,17 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
         self.assertNotIn("kafka-topics --delete", script)
         self.assertNotIn("DELETE FROM", script)
         self.assertNotIn("app.redeploy", script)
+
+    def test_exporter_conflict_preflight_is_read_only(self) -> None:
+        script = self.read("scripts/truenas/check-observability-exporter-conflicts.sh")
+        self.assertIn("reporting.exporters.query", script)
+        for port in ("8125", "9125", "9102", "9308"):
+            self.assertIn(port, script)
+        self.assertIn("netdata", script)
+        self.assertIn("READ-ONLY", script)
+        self.assertNotIn("app.update", script)
+        self.assertNotIn("app.redeploy", script)
+        self.assertNotIn("docker restart", script)
 
     def test_wazuh_diagnostic_reads_functional_state_files(self) -> None:
         script = self.read("scripts/truenas/diagnose-wazuh.sh")
