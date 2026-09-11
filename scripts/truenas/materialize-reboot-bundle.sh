@@ -66,20 +66,10 @@ FILES=(
   scripts/truenas/reboot-homelab.sh
 )
 
-SHELL_FILES=(
-  scripts/lib/common.sh
-  scripts/truenas/reconcile-talos-vm-policy.sh
-  scripts/truenas/migrate-docker-address-pool.sh
-  scripts/truenas/audit-docker-network-migration.sh
-  scripts/truenas/diagnose-docker-orphan-shims.sh
-  scripts/truenas/diagnose-csi-orphans.sh
-  scripts/truenas/reboot-homelab.sh
-)
-
 materialize_file() {
   local path="$1" mode=0644 tmp
   case "${path}" in
-    scripts/*.sh | scripts/*.py) mode=0755 ;;
+    scripts/truenas/*.sh | scripts/truenas/*.py) mode=0755 ;;
   esac
   install -d -m 0755 "${STAGE}/$(dirname -- "${path}")"
   tmp="$(mktemp)"
@@ -90,8 +80,8 @@ materialize_file() {
 
 validate_stage() {
   local path
-  for path in "${SHELL_FILES[@]}"; do
-    bash -n "${STAGE}/${path}"
+  for path in "${FILES[@]}"; do
+    [[ "${path}" == *.sh ]] && bash -n "${STAGE}/${path}"
   done
 
   python3 -m py_compile "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py"
