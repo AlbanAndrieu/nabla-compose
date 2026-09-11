@@ -148,7 +148,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertEqual(sc["volumeBindingMode"], "Immediate")
         self.assertTrue(sc["allowVolumeExpansion"])
 
-    def test_preflight_requires_parent_mountpoint_and_timeout(self) -> None:
+    def test_preflight_requires_parent_mountpoint_timeout_and_runtime_convergence(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "validate-csi-prereqs.sh"
         ).read_text()
@@ -171,17 +171,22 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn("csi-attacher", text)
         self.assertIn("--subresource=status", text)
         self.assertIn("publishContext", text)
+        self.assertIn("controller_runtime_converged", text)
+        self.assertIn("ProgressDeadlineExceeded", text)
+        self.assertIn("runtime is not converged", text)
 
-    def test_install_surfaces_bounded_node_rollout_diagnostics(self) -> None:
+    def test_install_surfaces_bounded_controller_and_node_rollout_diagnostics(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
         ).read_text()
         self.assertIn("CSI_ROLLOUT_TIMEOUT", text)
+        self.assertIn("dump_controller_rollout_diagnostics", text)
         self.assertIn("dump_node_rollout_diagnostics", text)
         self.assertIn("desiredNumberScheduled", text)
         self.assertIn("numberReady", text)
         self.assertIn("get events --sort-by=.lastTimestamp", text)
         self.assertIn("csi-node-driver-registrar", text)
+        self.assertIn("ProgressDeadlineExceeded", text)
         self.assertIn("did not become Ready within", text)
 
     def test_install_migrates_immutable_attach_required_safely(self) -> None:
@@ -213,7 +218,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             text.index('kubectl apply -f "${DRIVER_MANIFEST}"'),
         )
 
-    def test_install_script_keeps_secret_runtime_only(self) -> None:
+    def test_install_keeps_secret_runtime_only_and_rotation_fail_closed(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "install-truenas-csi-nfs.sh"
         ).read_text()
@@ -225,6 +230,13 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn("set -x", text)
         self.assertIn("auth.login_with_api_key", text)
         self.assertIn("TrueNAS 27", text)
+        self.assertIn("TRUENAS_CSI_ROTATE_CREDENTIAL", text)
+        self.assertIn("TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD", text)
+        self.assertIn("sha256sum", text)
+        self.assertIn("refusing implicit credential rotation", text)
+        self.assertIn("rollout restart deployment/truenas-csi-controller", text)
+        self.assertIn("rollout restart daemonset/truenas-csi-node", text)
+        self.assertNotIn('printf "%s\\n" "${TRUENAS_CSI_API_KEY}"', text)
 
     def test_smoke_proves_cross_worker_persistence(self) -> None:
         text = (
