@@ -47,7 +47,7 @@ pv_json="$(mktemp)"
 va_json="$(mktemp)"
 trap 'rm -f "${nfs_json}" "${pv_json}" "${va_json}"' EXIT
 
-sudo midclt call sharing.nfs.query >"${nfs_json}"
+sudo midclt call sharing.nfs.query | tee "${nfs_json}" >/dev/null
 
 kubernetes_state="unavailable"
 if command -v "${KUBECTL_BIN}" >/dev/null 2>&1; then
