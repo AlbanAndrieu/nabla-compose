@@ -7,6 +7,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
 - [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
 - [Sentry Taskbroker / Relay project-config incident · 2026-09-11](./sentry-taskbroker-project-config-incident-20260911.md)
+- [Functional observability exporters](./observability-exporters.md)
 - [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
 - [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
@@ -31,8 +32,10 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Immutable reboot bundles are staged, syntax/checksum validated and atomically activated.
 - [x] PR #191 introduces a manifest-aware, idempotent reboot resume reconciler and starts operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
-- [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green with Docling still pending.
+- [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
+- [ ] **Docling / OpenRAG ingest:** the native `docling-serve` service is stopped, so OpenRAG knowledge ingestion is unavailable until Docling is restored and its ingestion path is validated.
 - [ ] **Sentry ingestion incident:** TrueNAS reports `RUNNING`, edge HTTP acceptance is green and Kafka metadata is healthy, but Taskbroker no longer has an active member in Kafka group `taskworker`. The observed group lag grew to `35589` while Taskbroker SQLite `inflight_taskactivations` remained empty. Taskbroker had initially received the partition, then logged `SESSTMOUT`, revoked it and shut down the consumer actor. This leaves Relay project config indefinitely `pending` and prevents accepted envelopes from advancing `ingest-events`. See the dated incident document for evidence and recovery gates.
+- [ ] **Prometheus target debt:** the current target page reports connection-refused DOWN scrapes for Alloy `:12345`, HAProxy `:9101`, Loki `:3100`, Mimir `:9009`, OpenSearch `:9114`, OpenSearch Security `:9115`, postgres_exporter `:9187`, Sybase `:9113` and Tempo `:3200`. Treat each as an ownership/listener/configuration diagnosis, not automatically as a service outage. Mimir is high priority because Prometheus remote-write also targets `172.17.0.24:9009`.
 - [x] **Suricata engine/rules:** the `eth0` crash loop is fixed, Suricata captures on TrueNAS `br0`, `/var/lib/suricata/rules/suricata.rules` is populated, 52k+ rules are loaded and `eve.json` is actively produced.
 - [ ] **Suricata downstream consumption:** prove CrowdSec/Alloy/central observability consumes the current `eve.json` stream and keep rule refresh bounded/observable.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics:** flow data no longer appears in Cloudflare Flow Analytics (`https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/networking-insights/analytics/network-analytics/flow-analytics`). Re-establish exporter/collector path, prove packet/flow emission from pfSense and confirm fresh flows arrive in Cloudflare before closing.
@@ -140,10 +143,12 @@ Start after P0 acceptance.
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
 - [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
-- [ ] **Priority: Sentry Taskbroker/project-config ingestion** — TrueNAS App is `RUNNING`, Kafka broker metadata is healthy, but Kafka group `taskworker` has no active member and its lag reached `35589`. Taskbroker SQLite contains zero inflight activations, ruling out a local pending-capacity or legacy `application=''` backlog. Runtime logs show Taskbroker initially received the `taskworker` partition, then hit `SESSTMOUT`, revoked the partition and shut down the consumer actor. Validate a targeted Taskbroker-only restart: require the group member to reappear, lag to fall, Relay project-config `pending` to clear, and `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse. Do not reset offsets or delete SQLite based on current evidence. See [`sentry-taskbroker-project-config-incident-20260911.md`](./sentry-taskbroker-project-config-incident-20260911.md).
+- [ ] **Priority: Sentry Taskbroker/project-config ingestion** — TrueNAS App is `RUNNING`, Kafka broker metadata is healthy, but Kafka group `taskworker` has no active member and its lag reached `35589`. Taskbroker SQLite contains zero inflight activations, ruling out a local pending-capacity or legacy `application=''` backlog. Runtime logs show Taskbroker initially received the `taskworker` partition, then hit `SESSTMOUT`, revoked the partition and shut down the consumer actor. Run the read-only diagnostic first, then validate a targeted Taskbroker-only restart if and only if the group still has zero active members: require the group member to reappear, lag to fall, Relay project-config `pending` to clear, and `smoke-sentry-event.sh` to prove edge → Relay → Kafka → ingest → Snuba → ClickHouse. Do not wait for new exporters and do not reset offsets or delete SQLite based on current evidence. See [`sentry-taskbroker-project-config-incident-20260911.md`](./sentry-taskbroker-project-config-incident-20260911.md).
+- [ ] **Exporter conflict preflight before deployment** — run `scripts/truenas/check-observability-exporter-conflicts.sh --check` after Taskbroker functional recovery. Confirm TrueNAS native reporting exporters, Netdata, listeners `8125/9125/9102/9308`, Docker publishers and shared-network identities before deploying StatsD or Kafka exporters. Do not create a redundant receiver when an equivalent supported service already exists.
 - [ ] Track Sentry self-hosted 26.8 Kafka coordinator/session-timeout and Taskbroker consumer-rejoin behavior as upstream/version debt. Process/container health is insufficient: functional health must include active Kafka membership and end-to-end ingestion.
+- [ ] **Prometheus DOWN-target reconciliation** — repair or intentionally remove stale scrapes for Alloy `172.17.0.24:12345`, HAProxy `:9101`, Loki `:3100`, Mimir `:9009`, OpenSearch `:9114`, OpenSearch Security `:9115`, postgres_exporter `:9187`, Sybase `:9113` and Tempo `:3200`. For every target, prove the intended owner, container/App state, host listener, `/metrics` behavior and Prometheus scrape result. `connection refused` must not be papered over: restore the exporter/service if it is intended to exist, or remove the scrape config only if the target is intentionally absent. Fix Mimir first because Prometheus remote-write also points to `172.17.0.24:9009/api/v1/push`.
 - [x] **Suricata capture + rules/EVE acceptance** — `eth0` restart loop resolved; engine RUNNING on TrueNAS `br0`; persistent rules file contains ~68k rules, ~52k rules load successfully, alerts are generated and `eve.json` is actively written.
-- [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes the current EVE stream and monitor kernel drops/rule refresh health.
+- [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes the current EVE stream and monitor kernel drops/rule refresh health. Reconcile the Alloy `:12345` Prometheus target as part of the DOWN-target work so Alloy runtime health and EVE forwarding are independently observable.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics** — restore the flow export path because fresh NetFlow no longer appears in Cloudflare Flow Analytics. Verify exporter configuration/interface selection on pfSense, destination/transport and any local collector/tunnel component, capture packets at each hop, then confirm new flows appear in `networking-insights/analytics/network-analytics/flow-analytics`. Add a bounded diagnostic/runbook so future loss is detected independently of the Cloudflare UI.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
 - [ ] **Uptime Kuma + AutoKuma Compose** — the former native TrueNAS Uptime Kuma App is confirmed removed. Add repository-owned Uptime Kuma itself on host port `31050`; keep AutoKuma as a separate declarative reconciler that creates/updates monitors through Uptime Kuma. AutoKuma is not the monitoring server/UI and cannot replace Uptime Kuma. Keep AutoKuma stopped while no Uptime Kuma endpoint exists.
@@ -157,7 +162,7 @@ Start after P0 acceptance.
 - [ ] ntopng reconciliation after Suricata.
 - [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
 - [ ] Build a derived immutable code-server image with required packages/extensions baked in; remove startup-time package provisioning.
-- [ ] OpenRAG Docling ingestion, then OpenRAG ↔ workstation LiteLLM/GPU route.
+- [ ] **Docling restore for OpenRAG** — `docling-serve` native service is stopped; restore it, prove its health/API, then validate one bounded document ingestion into OpenRAG before continuing the OpenRAG ↔ workstation LiteLLM/GPU route.
 
 ## P3.1 — FastAPI homelab observer
 
@@ -230,7 +235,9 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 P0 is accepted. Immediate priority is runtime stabilization, then the planned platform roadmap:
 
 ```text
-Sentry Taskbroker consumer recovery + end-to-end smoke
+Sentry Taskbroker diagnostic + targeted recovery + end-to-end smoke
+  -> TrueNAS exporter/StatsD conflict preflight
+  -> Prometheus DOWN-target reconciliation (Mimir first)
   -> Suricata EVE downstream consumption
   -> pfSense NetFlow -> Cloudflare Flow Analytics
   -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
@@ -242,5 +249,6 @@ Sentry Taskbroker consumer recovery + end-to-end smoke
   -> Vault / Falco / Kubara
   -> Kubernetes ingress + test.albandrieu.com
   -> Scrutiny / remaining service work
-  -> Docling / OpenRAG-LiteLLM
+  -> Docling restore + OpenRAG ingestion
+  -> OpenRAG-LiteLLM/GPU integration
 ```
