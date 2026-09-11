@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+require_commands git bash sudo
+ROOT="$(git rev-parse --show-toplevel)"
 
 [[ -x "${ROOT}/scripts/truenas/audit-app-lifecycle.sh" ]] ||
   fail "missing TrueNAS lifecycle audit"
