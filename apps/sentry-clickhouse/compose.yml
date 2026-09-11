@@ -14,6 +14,9 @@ services:
       runtime:
         provider: truenas-app
         containerService: sentry-clickhouse
+      lifecycle:
+        phase: secondary-data
+        priority: 30
       presentationRole: support
       criticality: critical
       monitoring:
