@@ -17,6 +17,7 @@ PROJECT_ID="${SENTRY_PROJECT_ID:-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-ix-postgres-postgres-1}"
 CLICKHOUSE_CONTAINER="${SENTRY_CLICKHOUSE_CONTAINER:-ix-sentry-clickhouse-sentry-clickhouse-1}"
 KAFKA_CONTAINER="${SENTRY_KAFKA_CONTAINER:-ix-kafka-kafka-1}"
+RELAY_CONTAINER="${SENTRY_RELAY_CONTAINER:-ix-sentry-relay-1}"
 SMOKE_ATTEMPTS="${SENTRY_SMOKE_ATTEMPTS:-60}"
 SMOKE_DELAY_SECONDS="${SENTRY_SMOKE_DELAY_SECONDS:-2}"
 
@@ -25,9 +26,25 @@ function fail {
   exit 1
 }
 
+function kafka_group_topic_log_end {
+  local group="$1"
+  local topic="$2"
+
+  docker exec "${KAFKA_CONTAINER}" kafka-consumer-groups \
+    --bootstrap-server kafka:9092 \
+    --describe \
+    --group "${group}" 2>/dev/null |
+    awk -v topic="${topic}" '
+      $2 == topic && $5 ~ /^[0-9]+$/ { sum += $5; found = 1 }
+      END { if (found) print sum; else print "-1" }
+    '
+}
+
 function print_ingestion_diagnostics {
   local container state health
+  local ingest_after events_after
   local containers=(
+    "${RELAY_CONTAINER}"
     ix-sentry-sentry-events-consumer-1
     ix-sentry-snuba-errors-consumer-1
     ix-sentry-sentry-post-process-forwarder-errors-1
@@ -44,12 +61,21 @@ function print_ingestion_diagnostics {
     printf '%s state=%s health=%s restarts=%s\n' \
       "${container}" "${state}" "${health}" \
       "$(docker inspect "${container}" --format '{{.RestartCount}}')" >&2
-    docker logs --tail 40 "${container}" 2>&1 |
-      grep -Ei 'error|exception|kafka|coordinator|timeout|partition|health|clickhouse' |
-      tail -20 >&2 || true
+    docker logs --since 10m "${container}" 2>&1 |
+      grep -Ei "${EVENT_ID:-no-event-id}|error|exception|kafka|coordinator|timeout|partition|health|clickhouse|drop|reject|project" |
+      tail -30 >&2 || true
   done
 
   if docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1; then
+    printf '\nKafka broker state:\n' >&2
+    docker inspect "${KAFKA_CONTAINER}" --format \
+      'state={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}}' >&2 || true
+    docker exec "${KAFKA_CONTAINER}" kafka-topics \
+      --bootstrap-server kafka:9092 \
+      --list >/dev/null 2>&1 &&
+      printf 'broker metadata request=OK\n' >&2 ||
+      printf 'broker metadata request=FAILED\n' >&2
+
     for group in ingest-consumer snuba-consumers post-process-forwarder; do
       printf '\nKafka group %s:\n' "${group}" >&2
       docker exec "${KAFKA_CONTAINER}" kafka-consumer-groups \
@@ -57,6 +83,30 @@ function print_ingestion_diagnostics {
         --describe \
         --group "${group}" 2>&1 >&2 || true
     done
+
+    ingest_after="$(kafka_group_topic_log_end ingest-consumer ingest-events || printf '%s' -1)"
+    events_after="$(kafka_group_topic_log_end snuba-consumers events || printf '%s' -1)"
+    printf '\nKafka topic progress during smoke:\n' >&2
+    printf '  ingest-events log-end before=%s after=%s\n' \
+      "${INGEST_BEFORE:-unknown}" "${ingest_after}" >&2
+    printf '  events        log-end before=%s after=%s\n' \
+      "${EVENTS_BEFORE:-unknown}" "${events_after}" >&2
+
+    if [[ "${INGEST_BEFORE:-}" =~ ^[0-9]+$ && "${ingest_after}" =~ ^[0-9]+$ &&
+          "${EVENTS_BEFORE:-}" =~ ^[0-9]+$ && "${events_after}" =~ ^[0-9]+$ ]]; then
+      if ((ingest_after <= INGEST_BEFORE)); then
+        printf '  stage=relay-kafka-publish: edge accepted the envelope but ingest-events did not advance\n' >&2
+      elif ((events_after <= EVENTS_BEFORE)); then
+        printf '  stage=ingest-consumer: ingest-events advanced but events did not\n' >&2
+      else
+        printf '  stage=snuba-clickhouse: events advanced but errors_local still lacks the event\n' >&2
+      fi
+    fi
+
+    printf '\nRecent Kafka broker warnings/errors:\n' >&2
+    docker logs --since 10m "${KAFKA_CONTAINER}" 2>&1 |
+      grep -Ei 'error|warn|coordinator|timeout|controller|raft|request|disconnect' |
+      tail -40 >&2 || true
   fi
 }
 
@@ -68,6 +118,17 @@ docker inspect "${POSTGRES_CONTAINER}" >/dev/null 2>&1 ||
   fail "PostgreSQL container not found: ${POSTGRES_CONTAINER}"
 docker inspect "${CLICKHOUSE_CONTAINER}" >/dev/null 2>&1 ||
   fail "Sentry ClickHouse container not found: ${CLICKHOUSE_CONTAINER}"
+docker inspect "${KAFKA_CONTAINER}" >/dev/null 2>&1 ||
+  fail "Kafka container not found: ${KAFKA_CONTAINER}"
+docker inspect "${RELAY_CONTAINER}" >/dev/null 2>&1 ||
+  fail "Sentry Relay container not found: ${RELAY_CONTAINER}"
+
+if ! docker exec "${KAFKA_CONTAINER}" kafka-topics \
+  --bootstrap-server kafka:9092 \
+  --list >/dev/null 2>&1; then
+  fail "Kafka broker metadata request failed before Sentry smoke"
+fi
+printf '✅ Kafka broker metadata readiness\n'
 
 if ! curl --fail --silent --show-error --max-time 8 "${SENTRY_URL}/_health/" >/dev/null; then
   fail "Sentry edge health failed at ${SENTRY_URL}/_health/"
@@ -88,6 +149,9 @@ PUBLIC_KEY="$(
 )"
 
 [[ -n "${PUBLIC_KEY}" ]] || fail "no project key found for Sentry project ${PROJECT_ID}"
+
+INGEST_BEFORE="$(kafka_group_topic_log_end ingest-consumer ingest-events || printf '%s' -1)"
+EVENTS_BEFORE="$(kafka_group_topic_log_end snuba-consumers events || printf '%s' -1)"
 
 EVENT_UUID="$(python3 - <<'PY'
 import uuid
