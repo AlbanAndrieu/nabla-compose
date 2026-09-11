@@ -90,6 +90,12 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("never rerun --prepare", text)
         self.assertIn("Continuing preserved reboot manifest", text)
 
+    def test_continue_prepare_reports_saved_explicit_resume_set(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn('[[ -f "${dir}/explicit-resume.txt" ]]', text)
+        self.assertIn("mapfile -t saved_explicit_resume", text)
+        self.assertIn('explicit_resume="${saved_explicit_resume[*]}"', text)
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
