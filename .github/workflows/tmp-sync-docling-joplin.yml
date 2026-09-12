@@ -1,0 +1,216 @@
+---
+name: Temporary Docling Joplin sync
+
+on:
+  push:
+    branches: [feat/docling-joplin-codeql-101]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: feat/docling-joplin-codeql-101
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
+        with:
+          python-version: "3.13"
+
+      - name: Install generator test dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyYAML==6.0.3 pytest==8.4.2
+
+      - name: Apply deterministic follow-up edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          def replace(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected source fragment missing in {path}: {old[:100]!r}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          cloudflare = Path("scripts/cloudflare/diagnose-cloudflare-api.py")
+          text = cloudflare.read_text(encoding="utf-8")
+          old = '''    location = str(headers.get("Location") or "").lower()
+              server = str(headers.get("Server") or "").lower()
+              cf_ray = str(headers.get("CF-Ray") or "")
+              text = body.decode("utf-8", errors="replace").lower()
+              access_redirect = status in {301, 302, 303, 307, 308} and (
+                  "cloudflareaccess.com" in location or "/cdn-cgi/access/" in location
+              )
+          '''
+          # Keep indentation matching the function body rather than relying on a URL substring.
+          old = old.replace("              ", "    ")
+          new = '''    location = str(headers.get("Location") or "").strip()
+              server = str(headers.get("Server") or "").lower()
+              cf_ray = str(headers.get("CF-Ray") or "")
+              text = body.decode("utf-8", errors="replace").lower()
+              try:
+                  parsed_location = urlsplit(location)
+              except ValueError:
+                  redirect_host = ""
+                  redirect_path = ""
+              else:
+                  redirect_host = (parsed_location.hostname or "").lower().rstrip(".")
+                  redirect_path = parsed_location.path or "/"
+              first_party_access_path = redirect_path.startswith("/cdn-cgi/access/") and (
+                  not redirect_host
+                  or redirect_host == "albandrieu.com"
+                  or redirect_host.endswith(".albandrieu.com")
+              )
+              access_redirect = status in {301, 302, 303, 307, 308} and (
+                  redirect_host == "cloudflareaccess.com"
+                  or redirect_host.endswith(".cloudflareaccess.com")
+                  or first_party_access_path
+              )
+          '''
+          new = new.replace("              ", "    ")
+          if old not in text:
+              raise SystemExit("CodeQL #101 source fragment no longer matches")
+          cloudflare.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace(
+              "apps/openrag/compose.yml",
+              "DOCLING_SERVE_URL: ${DOCLING_SERVE_URL:-http://host.docker.internal:5001}",
+              "DOCLING_SERVE_URL: ${DOCLING_SERVE_URL:-http://docling:5001}",
+          )
+          replace(
+              "scripts/truenas/audit-app-lifecycle.sh",
+              "${DOCLING_SERVE_URL:-http://host.docker.internal:5001}",
+              "${DOCLING_SERVE_URL:-http://docling:5001}",
+          )
+
+          prometheus = Path("apps/prometheus/prometheus.yml")
+          prom = prometheus.read_text(encoding="utf-8")
+          needle = '''  - job_name: n8n
+          '''
+          job = '''  - job_name: docling
+              metrics_path: /metrics
+              scrape_interval: 30s
+              scrape_timeout: 10s
+              static_configs:
+                - targets:
+                    - 172.17.0.24:5001
+                  labels:
+                    platform: truenas
+                    role: document-processing
+                    service: docling
+
+            - job_name: n8n
+          '''
+          job = job.replace("            ", "  ")
+          if needle not in prom:
+              raise SystemExit("Prometheus n8n insertion point missing")
+          prometheus.write_text(prom.replace(needle, job, 1), encoding="utf-8")
+
+          # The Kubernetes smoke is private/LAN-only. Replace every tracked textual
+          # reference so scripts, tests and runbooks cannot drift back to the public name.
+          matches = subprocess.run(
+              ["git", "grep", "-Il", "test.albandrieu.com"],
+              check=False,
+              capture_output=True,
+              text=True,
+          ).stdout.splitlines()
+          for raw_path in matches:
+              path = Path(raw_path)
+              data = path.read_text(encoding="utf-8")
+              path.write_text(
+                  data.replace("test.albandrieu.com", "test.int.albandrieu.com"),
+                  encoding="utf-8",
+              )
+
+          doc = Path("docs/docling-openrag-deployment.md")
+          doc_text = doc.read_text(encoding="utf-8")
+          doc_text = doc_text.replace(
+              "ghcr.io/docling-project/docling-serve-cpu:v1.31.0",
+              "quay.io/docling-project/docling-serve-cpu:v1.32.0",
+          )
+          doc_text = doc_text.replace(
+              "document ingestion remains intentionally open until a\nrepository-managed Docling Serve instance is deployed and validated.",
+              "the repository-managed Docling Serve definition now exists; document ingestion remains\nopen until the TrueNAS runtime is deployed and validated.",
+          )
+          doc.write_text(doc_text, encoding="utf-8")
+
+          lifecycle = Path("docs/truenas-app-lifecycle.md")
+          lifecycle_text = lifecycle.read_text(encoding="utf-8")
+          lifecycle_text = lifecycle_text.replace(
+              "OpenRAG document ingestion also depends on Docling. The upstream 0.7.1 default\nis `DOCLING_SERVE_URL=http://host.docker.internal:5001`; Linux Docker requires\nthe `host.docker.internal:host-gateway` mapping. The repository now preserves\nthat routing contract, but no repository-managed Docling service is deployed\nyet. Treat a failed Docling probe as an explicit ingestion warning until the",
+              "OpenRAG document ingestion also depends on Docling. The repository-managed\nDocling service now joins `intranet`, and OpenRAG defaults to\n`DOCLING_SERVE_URL=http://docling:5001`. Keep the host-gateway mapping only for\nexplicit rollback compatibility. Treat a failed Docling probe as an explicit\ningestion warning until the",
+          )
+          lifecycle.write_text(lifecycle_text, encoding="utf-8")
+
+          readme = Path("apps/openrag/README.md")
+          readme_text = readme.read_text(encoding="utf-8")
+          readme_text = readme_text.replace(
+              "No repository-managed Docling\nservice currently exists in `nabla-compose`.",
+              "The repository-managed Docling service now lives in `apps/docling/compose.yml`.",
+          )
+          readme_text = readme_text.replace(
+              "DOCLING_SERVE_URL=http://host.docker.internal:5001",
+              "DOCLING_SERVE_URL=http://docling:5001",
+          )
+          readme_text = readme_text.replace(
+              "${DOCLING_SERVE_URL:-http://host.docker.internal:5001}",
+              "${DOCLING_SERVE_URL:-http://docling:5001}",
+          )
+          readme.write_text(readme_text, encoding="utf-8")
+
+          roadmap = Path("docs/roadmap.md")
+          roadmap_text = roadmap.read_text(encoding="utf-8")
+          roadmap_text = roadmap_text.replace(
+              "**Docling / OpenRAG ingest:** native `docling-serve` is stopped, so OpenRAG knowledge ingestion is unavailable until Docling is restored and its ingestion path is validated.",
+              "**Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.",
+          )
+          marker = "- [ ] **Uptime Kuma + AutoKuma Compose**"
+          if marker in roadmap_text and "**Joplin Server**" not in roadmap_text:
+              roadmap_text = roadmap_text.replace(
+                  marker,
+                  "- [ ] **Joplin Server** — deploy `apps/joplin/compose.yml`, bootstrap the dedicated shared-PostgreSQL role/database, change the bootstrap administrator credentials and validate `/api/ping` plus client sync through `joplin.int.albandrieu.com`.\n" + marker,
+                  1,
+              )
+          roadmap.write_text(roadmap_text, encoding="utf-8")
+          PY
+
+      - name: Regenerate service contracts and consumers
+        run: |
+          set -euo pipefail
+          python scripts/generate-service-topology.py
+          python scripts/generate-service-consumers.py
+          python scripts/generate-service-topology.py --check
+          python scripts/generate-service-consumers.py --check
+
+      - name: Run targeted regression tests
+        run: |
+          python -m pytest -q \
+            tests/test_codeql_101_contract.py \
+            tests/test_docling_joplin_contract.py \
+            tests/test_kubernetes_fastapi_smoke_contract.py \
+            tests/test_cloudflare_api_diagnostic.py
+
+      - name: Commit synchronized outputs
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git reset -- .github/workflows/tmp-sync-docling-joplin.yml
+          if git diff --cached --quiet; then
+            echo "No synchronization changes to commit"
+            exit 0
+          fi
+          git commit -m "feat(homelab): integrate Docling Joplin and private smoke host"
+          git push origin HEAD:feat/docling-joplin-codeql-101
