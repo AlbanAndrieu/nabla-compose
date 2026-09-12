@@ -4,7 +4,7 @@ from workers import WorkerEntrypoint
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 
-environment = jinja2.Environment()
+environment = jinja2.Environment(autoescape=True)
 template = environment.from_string("Hello, {{ name }}!")
 
 app = FastAPI(

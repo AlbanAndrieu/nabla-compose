@@ -5,9 +5,8 @@ import json
 import os
 import stat
 import tempfile
-import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, main, mock
 
 ROOT = Path(__file__).parents[1]
 MODULE_PATH = ROOT / "scripts" / "secrets" / "render_from_bitwarden.py"
@@ -24,7 +23,7 @@ with mock.patch.dict("sys.modules", {"render_from_bitwarden": renderer}):
     IMPORT_SPEC.loader.exec_module(importer)
 
 
-class SecretsRendererTests(unittest.TestCase):
+class SecretsRendererTests(TestCase):
     def test_repository_manifest_is_metadata_only_and_valid(self) -> None:
         manifest_path = ROOT / "config" / "secrets" / "manifest.json"
         manifest = renderer.load_manifest(manifest_path)
@@ -218,4 +217,4 @@ class SecretsRendererTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

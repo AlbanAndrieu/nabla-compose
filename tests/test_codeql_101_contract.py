@@ -1,4 +1,4 @@
-"""Regression contract for CodeQL alert #101."""
+"""Regression contracts for CodeQL URL-sanitization alerts #101/#102."""
 
 from pathlib import Path
 
@@ -11,6 +11,7 @@ def test_access_redirect_detection_parses_hostname_instead_of_substring() -> Non
     source = SCRIPT.read_text(encoding="utf-8")
 
     assert '"cloudflareaccess.com" in location' not in source
+    assert '"/cdn-cgi/access/" in location' not in source
     assert 'redirect_host == "cloudflareaccess.com"' in source
     assert 'redirect_host.endswith(".cloudflareaccess.com")' in source
     assert 'redirect_path.startswith("/cdn-cgi/access/")' in source

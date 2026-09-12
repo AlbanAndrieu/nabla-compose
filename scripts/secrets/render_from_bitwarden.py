@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import suppress
 import json
 import os
 import re
@@ -277,10 +278,8 @@ def write_env_file(
         os.replace(tmp_name, target)
         os.chmod(target, 0o600)
     except Exception:
-        try:
+        with suppress(FileNotFoundError):
             os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
         raise
     return target
 
