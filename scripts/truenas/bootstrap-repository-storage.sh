@@ -112,8 +112,17 @@ if ((${#declared_paths[@]} == 0)); then
 fi
 
 dataset_is_empty() {
-  local mountpoint="$1"
+  local dataset="$1" mountpoint="$2"
+  local -a descendants=()
+
   [[ -d "${mountpoint}" ]] || return 1
+
+  # A ZFS parent that contains child filesystems or zvols is not empty even if
+  # its own mountpoint has no directory entries. This matters for parents such
+  # as cpool/k8s/talos-vms, whose durable content is entirely child zvols.
+  mapfile -t descendants < <(zfs list -H -o name -r "${dataset}" 2>/dev/null)
+  ((${#descendants[@]} <= 1)) || return 1
+
   ! find "${mountpoint}" -mindepth 1 -maxdepth 1 -print -quit |
     grep -q .
 }
@@ -172,7 +181,7 @@ while IFS= read -r relative; do
     fail "dataset ${dataset} mounted at ${mountpoint}, expected ${mount_root}"
 
   empty="no"
-  if dataset_is_empty "${mountpoint}"; then
+  if dataset_is_empty "${dataset}" "${mountpoint}"; then
     empty="yes"
   fi
 
@@ -213,7 +222,7 @@ if [[ -z "${APP_FILTER}" ]]; then
     [[ -n "${owned_top_level[${root}]:-}" ]] && continue
     [[ "${mountpoint}" == "${CANONICAL_MOUNT}/"* ]] || continue
 
-    if dataset_is_empty "${mountpoint}"; then
+    if dataset_is_empty "${dataset}" "${mountpoint}"; then
       orphan_empty=$((orphan_empty + 1))
       printf '⚠️  %-32s empty=yes; review before deletion\n' "${dataset}"
     fi
