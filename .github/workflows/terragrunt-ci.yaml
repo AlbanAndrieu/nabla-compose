@@ -49,7 +49,7 @@ jobs:
 
       - name: Check OpenTofu formatting
         shell: bash
-        run: tofu fmt -check -recursive terraform
+        run: tofu fmt -check -diff -recursive terraform
 
       - name: Check infrastructure shell syntax
         shell: bash
@@ -116,6 +116,16 @@ jobs:
         shell: bash
         run: tofu validate -no-color
 
+      - name: Initialize GitHub governance module without backend
+        working-directory: terraform/github
+        shell: bash
+        run: tofu init -backend=false -input=false
+
+      - name: Validate GitHub governance OpenTofu module
+        working-directory: terraform/github
+        shell: bash
+        run: tofu validate -no-color
+
       - name: Publish static-check summary
         if: always()
         shell: bash
@@ -124,9 +134,9 @@ jobs:
             echo "## 🏗️ Infrastructure static checks"
             echo
             echo "PR validation intentionally runs on a GitHub-hosted runner."
-            echo "It does **not** load homelab credentials, contact the internal state backend, or run a real Terragrunt plan."
+            echo "It does **not** load homelab credentials, contact the internal state backend, run a real Terragrunt plan, or mutate GitHub settings."
             echo
-            echo "- OpenTofu: \`fmt -check\`"
+            echo "- OpenTofu: \`fmt -check -diff\`"
             echo "- Infrastructure scripts: Bash syntax"
             echo "- Garage state: single-writer safety contract"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
@@ -134,5 +144,6 @@ jobs:
             echo "- Garage module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
             echo "- TrueNAS provider: committed dependency lock enforced read-only"
             echo "- TrueNAS module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
-            echo "- Real backend I/O remains an explicit workstation preflight."
+            echo "- GitHub governance module: backend disabled, provider schema initialized, \`validate\` only"
+            echo "- Real backend I/O and all GitHub mutations remain explicit workstation/operator actions."
           } >> "${GITHUB_STEP_SUMMARY}"
