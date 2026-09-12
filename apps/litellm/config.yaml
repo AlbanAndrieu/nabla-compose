@@ -112,6 +112,12 @@ model_list:
       temperature: 0
       num_ctx: 8192
 
+mcp_servers:
+  cyberbro:
+    transport: http
+    url: os.environ/CYBERBRO_MCP_URL
+    description: Cyberbro threat-intelligence and IoC analysis tools
+
 general_settings:
   # master_key: sk_XXX
   # database_url: "postgresql://<user>:<password>@<host>:<port>/<dbname>"
