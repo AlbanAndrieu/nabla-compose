@@ -75,28 +75,43 @@ discover_persistent_mounts() {
   done < <(git ls-files 'apps/*/compose.yml')
 }
 
-mapfile -t mount_records < <(discover_persistent_mounts | sort -u)
-declare -A declared_roots=()
-for record in "${mount_records[@]}"; do
-  root="${record#*|}"
-  declared_roots["${root}"]=1
-done
+dataset_preset() {
+  case "$1" in
+    compose | logs | model | secrets | iso | k8s | k8s/*) printf 'GENERIC\n' ;;
+    *) printf 'APPS\n' ;;
+  esac
+}
 
-if ((${#declared_roots[@]} == 0)); then
+declare -A declared_paths=()
+declare -A app_owned_roots=()
+
+while IFS='|' read -r app root; do
+  [[ -n "${app}" && -n "${root}" ]] || continue
+  app_owned_roots["${root}"]=1
+  declared_paths["${root}"]="$(dataset_preset "${root}")"
+done < <(discover_persistent_mounts | sort -u)
+
+# These datasets are repository-owned platform prerequisites rather than Docker
+# Compose bind mounts. Keep them explicit so a full bootstrap can reconstruct
+# the TrueNAS control/storage hierarchy used by Vaultwarden materialization,
+# Talos VM disks, Kubernetes NFS/CSI, and the pinned Talos installation ISO.
+if [[ -z "${APP_FILTER}" ]]; then
+  declared_paths["secrets"]="GENERIC"
+  declared_paths["k8s"]="GENERIC"
+  declared_paths["k8s/talos-vms"]="GENERIC"
+  declared_paths["k8s/nfs"]="GENERIC"
+  declared_paths["k8s/csi"]="GENERIC"
+  declared_paths["iso"]="GENERIC"
+fi
+
+if ((${#declared_paths[@]} == 0)); then
   if [[ -n "${APP_FILTER}" ]]; then
     printf 'ℹ️  app %s declares no application-owned %s/<dataset> bind mounts.\n' \
       "${APP_FILTER}" "${CANONICAL_MOUNT}"
     exit 0
   fi
-  fail "no active ${CANONICAL_MOUNT}/<dataset> bind mounts found"
+  fail "no repository-owned TrueNAS datasets discovered"
 fi
-
-dataset_preset() {
-  case "$1" in
-    compose | logs | model | secrets) printf 'GENERIC\n' ;;
-    *) printf 'APPS\n' ;;
-  esac
-}
 
 dataset_is_empty() {
   local mountpoint="$1"
@@ -130,12 +145,14 @@ if [[ -n "${APP_FILTER}" ]]; then
   printf 'Repository-owned TrueNAS dataset roots (%s, app=%s):\n' \
     "${POOL}" "${APP_FILTER}"
 else
-  printf 'Repository-owned TrueNAS dataset roots (%s):\n' "${POOL}"
+  printf 'Repository-owned TrueNAS datasets (%s; apps + platform prerequisites):\n' \
+    "${POOL}"
 fi
-while IFS= read -r root; do
-  dataset="${POOL}/${root}"
-  mount_root="${CANONICAL_MOUNT}/${root}"
-  preset="$(dataset_preset "${root}")"
+
+while IFS= read -r relative; do
+  dataset="${POOL}/${relative}"
+  mount_root="${CANONICAL_MOUNT}/${relative}"
+  preset="${declared_paths["${relative}"]}"
 
   if ! zfs list -H -o name "${dataset}" >/dev/null 2>&1; then
     missing=$((missing + 1))
@@ -169,26 +186,33 @@ while IFS= read -r root; do
     printf '✅ %-32s mountpoint=%s empty=%s preset=%s\n' \
       "${dataset}" "${mountpoint}" "${empty}" "${preset}"
   fi
-done < <(printf '%s\n' "${!declared_roots[@]}" | sort)
+done < <(printf '%s\n' "${!declared_paths[@]}" | sort)
 
 if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
-  printf '❌ %d repository-owned dataset root(s) are missing.\n' \
+  printf '❌ %d repository-owned dataset(s) are missing.\n' \
     "${missing}" >&2
   printf '   Apply with: sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply%s\n' \
     "${APP_FILTER:+ ${APP_FILTER}}" >&2
   exit 1
 fi
 
-# Global inventory reports unowned empty datasets. App-scoped checks deliberately
-# omit this unrelated cleanup inventory so one service deployment stays bounded.
+# Global inventory reports unowned empty direct-child datasets. App-scoped
+# checks deliberately omit this unrelated cleanup inventory so one service
+# deployment stays bounded.
 if [[ -z "${APP_FILTER}" ]]; then
-  printf 'Empty direct child datasets not owned by an active application bind mount:\n'
+  declare -A owned_top_level=()
+  while IFS= read -r relative; do
+    root="${relative%%/*}"
+    owned_top_level["${root}"]=1
+  done < <(printf '%s\n' "${!declared_paths[@]}" | sort -u)
+
+  printf 'Empty direct child datasets not owned by repository application/platform storage:\n'
   orphan_empty=0
   while IFS=$'\t' read -r dataset mountpoint; do
     [[ "${dataset}" == "${POOL}" ]] && continue
     root="${dataset#"${POOL}"/}"
     [[ "${root}" == */* ]] && continue
-    [[ -n "${declared_roots[${root}]:-}" ]] && continue
+    [[ -n "${owned_top_level[${root}]:-}" ]] && continue
     [[ "${mountpoint}" == "${CANONICAL_MOUNT}/"* ]] || continue
 
     if dataset_is_empty "${mountpoint}"; then
@@ -208,5 +232,5 @@ if ((preset_warnings > 0)); then
   printf '   Do not recreate non-empty datasets automatically; review empty candidates first.\n'
 fi
 
-printf '✅ repository-owned TrueNAS dataset roots are present (%d checked).\n' \
-  "${#declared_roots[@]}"
+printf '✅ repository-owned TrueNAS datasets are present (%d checked).\n' \
+  "${#declared_paths[@]}"

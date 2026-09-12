@@ -20,14 +20,32 @@ def test_repository_storage_bootstrap_uses_active_owned_bind_mounts() -> None:
     assert "git ls-files 'apps/*/compose.yml'" in script
     assert 'if [[ "${app}" == "code" && "${root}" != "code" ]]' in script
     assert "dataset_preset()" in script
-    assert "compose | logs | model | secrets" in script
-    assert 'printf \'APPS\\n\'' in script
+    assert "compose | logs | model | secrets | iso | k8s | k8s/*" in script
     assert "midclt call pool.dataset.create" in script
     assert '"share_type":"%s"' in script
     assert "dataset_is_empty()" in script
     assert "Empty direct child datasets not owned" in script
     assert 'zfs create -p "${dataset}"' not in script
     assert "--check | --apply" in script
+
+
+def test_repository_storage_bootstrap_includes_platform_prerequisites() -> None:
+    script = STORAGE.read_text(encoding="utf-8")
+
+    for relative in (
+        "secrets",
+        "k8s",
+        "k8s/talos-vms",
+        "k8s/nfs",
+        "k8s/csi",
+        "iso",
+    ):
+        assert f'declared_paths["{relative}"]="GENERIC"' in script
+
+    assert 'if [[ -z "${APP_FILTER}" ]]' in script
+    assert "apps + platform prerequisites" in script
+    assert "repository-owned platform prerequisites" in script
+    assert "owned_top_level" in script
 
 
 def test_repository_env_bootstrap_centralizes_materializations() -> None:
@@ -40,10 +58,10 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert "implicit-local" in script
     assert "legacy-root" in script
     assert "install -o root -g root -m 600" in script
-    assert 'ln -s "${canonical}" "${source}"' in script
+    assert 'ln -s "${target}" "${source}"' in script
     assert "check_private_directory" in script
     assert 'if [[ "${MODE}" == "--check" ]]' in script
-    assert "--check | --apply" in script
+    assert "--check | --apply | --finalize" in script
 
 
 def test_repository_runtime_bootstrap_orders_storage_before_env_files() -> None:
@@ -61,8 +79,8 @@ def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
     canonical = "/mnt/cpool/compose/nabla-compose"
 
     assert canonical in script
-    assert "bootstrap-repository-runtime.sh --apply" in script
-    assert "bootstrap-repository-runtime.sh --check" in script
+    assert 'bootstrap-repository-runtime.sh --apply "${APP_ID}"' in script
+    assert 'bootstrap-repository-runtime.sh --check "${APP_ID}"' in script
     assert "midclt call -j app.create" in script
     assert "midclt call -j app.update" in script
     assert f"apps/{app}/compose.yml" in script
