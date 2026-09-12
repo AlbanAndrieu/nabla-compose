@@ -98,6 +98,10 @@ scrape_configs:
           platform: truenas
           role: dns-filter
 
+  # Canonical homelab data-plane telemetry. Sybase is intentionally excluded:
+  # the shared databases are PostgreSQL, Redis, ClickHouse, InfluxDB and
+  # OpenSearch. Prefer private Docker-network endpoints where a database API
+  # should not be exposed on the LAN solely for Prometheus.
   - job_name: postgres_exporter
     metrics_path: /metrics
     scrape_interval: 15s
@@ -107,6 +111,29 @@ scrape_configs:
         labels:
           platform: truenas
           role: database
+          database: postgresql
+
+  - job_name: redis_exporter
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - redis_exporter:9121
+        labels:
+          platform: truenas
+          role: database
+          database: redis
+
+  - job_name: influxdb
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - influxdb:8086
+        labels:
+          platform: truenas
+          role: database
+          database: influxdb
 
   - job_name: pfsense_exporter
     metrics_path: /metrics
@@ -172,28 +199,37 @@ scrape_configs:
       - targets:
           - 172.17.0.24:6060
 
+  # This exporter is intentionally a pfSense HAProxy observer. Its scrape input
+  # is configured by PFSENSE_HAPROXY_SCRAPE_URI in apps/haproxy-exporter.
   - job_name: haproxy
     static_configs:
       - targets:
           - 172.17.0.24:9101
-
-  - job_name: sybase
-    static_configs:
-      - targets:
-          - 172.17.0.24:9113
 
   - job_name: clickhouse
     metrics_path: /metrics
     static_configs:
       - targets:
           - 172.17.0.24:9363
+        labels:
+          platform: truenas
+          role: database
+          database: clickhouse
 
   - job_name: opensearch
     static_configs:
       - targets:
           - 172.17.0.24:9114
+        labels:
+          platform: truenas
+          role: database
+          database: opensearch
 
   - job_name: opensearch-security
     static_configs:
       - targets:
           - 172.17.0.24:9115
+        labels:
+          platform: truenas
+          role: database
+          database: opensearch-security
