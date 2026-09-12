@@ -23,6 +23,7 @@ usage:
 
 The password is requested interactively without echo. The resulting JWT is
 stored in /mnt/cpool/secrets/runtime/autokuma/.env.secrets and is never printed.
+The Uptime Kuma endpoint remains non-secret Compose configuration.
 EOF
 }
 
@@ -100,11 +101,11 @@ tmp="$(mktemp "${RUNTIME_DIR}/.env.secrets.XXXXXX")"
 trap 'rm -f "${tmp:-}"' EXIT
 
 if [[ -f "${SECRET_FILE}" ]]; then
+  # Remove legacy URL/token/TLS entries before writing the canonical auth state.
   grep -Ev '^(AUTOKUMA__KUMA__(URL|AUTH_TOKEN|TLS__VERIFY))=' "${SECRET_FILE}" >"${tmp}" || true
 fi
 
 {
-  printf 'AUTOKUMA__KUMA__URL=%s\n' "${URL}"
   printf 'AUTOKUMA__KUMA__AUTH_TOKEN=%s\n' "${token}"
   printf 'AUTOKUMA__KUMA__TLS__VERIFY=%s\n' "${TLS_VERIFY}"
 } >>"${tmp}"
@@ -117,5 +118,5 @@ trap - EXIT
 
 grep -q '^AUTOKUMA__KUMA__AUTH_TOKEN=.' "${SECRET_FILE}" ||
   fail "JWT token was not persisted"
-printf 'OK: AutoKuma URL + JWT + TLS policy stored in %s without printing credentials\n' \
+printf 'OK: AutoKuma JWT + TLS policy stored in %s without printing credentials\n' \
   "${SECRET_FILE}"
