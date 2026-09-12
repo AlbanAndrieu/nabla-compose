@@ -197,9 +197,10 @@ class ObservabilityContractTests(unittest.TestCase):
         expected_exporters = {
             "pihole_exporter": "172.17.0.24:9617",
             "postgres_exporter": "172.17.0.24:9187",
+            "redis_exporter": "redis_exporter:9121",
+            "influxdb": "influxdb:8086",
             "pfsense_exporter": "172.17.0.24:9945",
             "haproxy": "172.17.0.24:9101",
-            "sybase": "172.17.0.24:9113",
             "opensearch": "172.17.0.24:9114",
             "opensearch-security": "172.17.0.24:9115",
         }
@@ -208,6 +209,10 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn(f"- job_name: {job}", prometheus)
             self.assertIn(target, prometheus)
 
+        self.assertNotIn("- job_name: sybase", prometheus)
+        self.assertNotIn("172.17.0.24:9113", prometheus)
+        self.assertIn("- job_name: clickhouse", prometheus)
+        self.assertIn("172.17.0.24:9363", prometheus)
         self.assertIn("- job_name: keycloak", prometheus)
         self.assertIn("172.17.0.24:30239", prometheus)
         self.assertIn("- job_name: crowdsec", prometheus)
@@ -216,6 +221,20 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:9100", prometheus)
         self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
         self.assertNotIn("172.17.0.24:8089", prometheus)
+
+        prometheus_compose = (
+            ROOT / "apps" / "prometheus" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("networks:\n      - intranet", prometheus_compose)
+
+        haproxy_compose = (
+            ROOT / "apps" / "haproxy-exporter" / "compose.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "--haproxy.scrape-uri=${PFSENSE_HAPROXY_SCRAPE_URI}",
+            haproxy_compose,
+        )
+        self.assertIn("target: pfsense", haproxy_compose)
 
         rules = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
@@ -249,7 +268,6 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
         self.assertNotIn("nabla:telemetry:truenas_cadvisor_up", core_rules)
         self.assertIn("TrueNASCAdvisorDown", disabled_rules)
-
 
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
         rules = (
@@ -608,7 +626,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("dry_run: true", configure)
         self.assertIn("no PATCH request was sent", configure)
         self.assertIn("all three pfSense remote syslog slots are already occupied", configure)
-        self.assertIn('PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"', configure)
+        self.assertIn(
+            'PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"',
+            configure,
+        )
         self.assertIn('verify-stack.sh" --strict', configure)
 
         self.assertIn("RFC5424", syslog)
@@ -640,15 +661,17 @@ class ObservabilityContractTests(unittest.TestCase):
         for exporter_job in (
             "pihole_exporter",
             "postgres_exporter",
+            "redis_exporter",
+            "influxdb",
             "pfsense_exporter",
             "haproxy",
-            "sybase",
             "opensearch",
             "opensearch-security",
             "crowdsec",
             "truenas_node",
         ):
             self.assertIn(exporter_job, stack)
+        self.assertNotIn("\n    sybase\n", stack)
         self.assertIn("cAdvisor Prometheus target is absent by policy", stack)
         self.assertIn("cAdvisor Prometheus target must remain disabled", stack)
 
