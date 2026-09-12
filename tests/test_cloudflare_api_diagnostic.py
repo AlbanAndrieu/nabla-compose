@@ -15,7 +15,7 @@ def test_cloudflare_api_diagnostic_is_read_only_and_redacts_credentials() -> Non
     assert 'f"/accounts/{account_id}/access/apps?per_page=100"' in source
     assert 'f"/accounts/{account_id}/access/policies?per_page=100"' in source
     assert 'method="GET"' in source
-    assert "credentials are never printed" in source
+    assert "without printing secrets" in source
     assert '"Authorization": f"Bearer {token}"' in source
     assert "socket.getaddrinfo(\"api.cloudflare.com\", 443" in source
 
