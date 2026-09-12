@@ -30,8 +30,10 @@ def test_repository_env_bootstrap_discovers_only_declared_env_files() -> None:
     assert "/mnt/cpool/" in script
     assert "git ls-files 'apps/*/compose.yml'" in script
     assert "install -o root -g root -m 600 /dev/null" in script
-    assert "stat -c '%u:%g %a'" in script
-    assert "root:root mode=0600" in script
+    assert "stat -c '%U:%G %a'" in script
+    assert "left unchanged" in script
+    assert 'chown root:root "${env_file}"' not in script
+    assert 'chmod 600 "${env_file}"' not in script
     assert "--check | --apply" in script
 
 
