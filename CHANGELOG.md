@@ -1,3 +1,10 @@
+# [0.36.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.35.0...0.36.0) (2026-09-12)
+
+
+### Features
+
+* **network:** add Scanopy topology discovery ([#196](https://github.com/AlbanAndrieu/nabla-compose/issues/196)) ([760e2bf](https://github.com/AlbanAndrieu/nabla-compose/commit/760e2bfb1087d86f30b14771fdb436de543111a6))
+
 # [0.35.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.5...0.35.0) (2026-09-12)
 
 
