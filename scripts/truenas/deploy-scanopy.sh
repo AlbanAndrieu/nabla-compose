@@ -16,12 +16,9 @@ for command in docker git grep jq midclt; do
 done
 
 ROOT="$(git rev-parse --show-toplevel)"
-cd "${ROOT}"
-
-if [[ "${ROOT}" != "${CANONICAL_ROOT}" ]]; then
-  printf 'NOTE: Scanopy include will reference non-canonical checkout: %s\n' "${ROOT}"
-  printf '      rerun from %s after merge to eliminate worktree drift.\n' "${CANONICAL_ROOT}"
-fi
+[[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
+  fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
+cd "${CANONICAL_ROOT}"
 
 bash scripts/truenas/bootstrap-repository-storage.sh --apply
 bash scripts/truenas/bootstrap-repository-storage.sh --check
@@ -31,7 +28,7 @@ grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} mus
 grep -Eq '^SCANOPY_DATABASE_URL=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define SCANOPY_DATABASE_URL"
 chmod 600 "${SECRETS_FILE}"
 
-compose_path="${ROOT}/apps/scanopy/compose.yml"
+compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
 
 docker compose \
