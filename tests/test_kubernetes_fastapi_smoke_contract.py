@@ -70,7 +70,7 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
         self.assertNotIn("TRUENAS_API_KEY", self.smoke)
         self.assertNotIn("NEXUS_PASSWORD", self.smoke)
 
-    def test_preflight_checks_ingress_class_and_public_dns(self) -> None:
+    def test_preflight_checks_ingress_class_and_private_dns(self) -> None:
         required = (
             "--preflight",
             'kubectl get ingressclass "${INGRESS_CLASS}"',
@@ -79,13 +79,13 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
             "kubectl get ingress --all-namespaces -o json",
             "Ingress host ${HOST} is already claimed by",
             "socket.getaddrinfo",
-            "public DNS lookup failed",
+            "private DNS lookup failed",
         )
         for marker in required:
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.smoke)
 
-    def test_validation_covers_rollout_service_image_and_public_endpoints(self) -> None:
+    def test_validation_covers_rollout_service_image_and_private_endpoints(self) -> None:
         required = (
             "kubectl rollout status deployment/fastapi-sample",
             "kubectl get endpointslice",
