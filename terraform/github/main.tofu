@@ -39,12 +39,12 @@ resource "github_repository_ruleset" "default_branch" {
     non_fast_forward = true
 
     pull_request {
-      allowed_merge_methods               = sort(tolist(each.value.allowed_merge_methods))
-      dismiss_stale_reviews_on_push       = false
-      require_code_owner_review           = false
-      require_last_push_approval           = false
-      required_approving_review_count     = each.value.required_approving_review_count
-      required_review_thread_resolution   = each.value.required_review_thread_resolution
+      allowed_merge_methods             = sort(tolist(each.value.allowed_merge_methods))
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_approving_review_count   = each.value.required_approving_review_count
+      required_review_thread_resolution = each.value.required_review_thread_resolution
     }
 
     dynamic "required_status_checks" {
