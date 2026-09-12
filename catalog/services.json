@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4866fe300bd5e8b5071b6b3bf70ab2e4857d39c8be1c1b04d87d4b4bf64952fb",
+  "catalogRevision": "sha256:c9268ace8b268282f5da6f0a8550c12c24745f286ebbce8d0edb9653cc6ea1d3",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1423,7 +1423,8 @@
       "criticality": "medium",
       "monitoring": {
         "type": "http",
-        "target": "http://172.17.0.24:4040/ready"
+        "target": "http://172.17.0.24:4040/",
+        "url": "http://172.17.0.24:4040/metrics"
       },
       "runtime": {
         "provider": "truenas-app",
