@@ -23,10 +23,12 @@ def test_scanopy_deploy_reconciles_dataset_and_truenas_custom_app() -> None:
 
     assert "bootstrap-repository-storage.sh --apply" in script
     assert "bootstrap-repository-storage.sh --check" in script
+    assert 'CANONICAL_ROOT="${SCANOPY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"' in script
+    assert '[[ "${ROOT}" == "${CANONICAL_ROOT}" ]]' in script
     assert 'SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/scanopy/.env.secrets}"' in script
     assert "POSTGRES_PASSWORD" in script
     assert "SCANOPY_DATABASE_URL" in script
-    assert 'compose_path="${ROOT}/apps/scanopy/compose.yml"' in script
+    assert 'compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"' in script
     assert "midclt call -j app.create" in script
     assert "midclt call -j app.update" in script
     assert "custom_compose_config_string" in script
