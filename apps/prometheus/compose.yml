@@ -1,7 +1,6 @@
 ---
 services:
   prometheus:
-    network_mode: bridge
     image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
     container_name: prometheus
     restart: unless-stopped
@@ -45,7 +44,11 @@ services:
         target: /etc/prometheus
         read_only: true
       - /mnt/cpool/prometheus/data:/prometheus
-    # networks: ["traefik_network"]
+    # Prometheus joins the shared private Docker network so database metrics
+    # such as InfluxDB can be scraped without publishing their full API on the
+    # LAN. Host/LAN targets remain reachable through the Docker bridge route.
+    networks:
+      - intranet
     # labels:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
