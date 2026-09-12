@@ -155,10 +155,18 @@ fi
 printf '✅ Sentry tracing persisted: eap_spans=%s transactions=%s\n' \
   "${EAP_SPANS}" "${TRANSACTIONS}"
 
-if ! curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/ready" >/dev/null; then
-  fail "Pyroscope readiness failed at ${PYROSCOPE_URL}/ready"
+if ! curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/" >/dev/null; then
+  fail "Pyroscope HTTP root failed at ${PYROSCOPE_URL}/"
 fi
-printf '✅ Pyroscope readiness\n'
+printf '✅ Pyroscope HTTP root\n'
+
+PYROSCOPE_METRICS="$(
+  curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/metrics"
+)" || fail "Pyroscope metrics endpoint failed at ${PYROSCOPE_URL}/metrics"
+if ! grep -Eq '(^# (HELP|TYPE) )|(^[A-Za-z_:][A-Za-z0-9_:]*([[:space:]]|\{))' <<<"${PYROSCOPE_METRICS}"; then
+  fail "Pyroscope /metrics did not return recognizable Prometheus exposition"
+fi
+printf '✅ Pyroscope Prometheus metrics exposition\n'
 
 END_MS="$(( $(date +%s) * 1000 ))"
 START_MS="$(( END_MS - PYROSCOPE_LOOKBACK_SECONDS * 1000 ))"
