@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ID="${SCANOPY_APP_ID:-scanopy}"
-CANONICAL_ROOT="${SCANOPY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/secrets/runtime/scanopy/.env.secrets}"
+APP_ID="${DOCLING_APP_ID:-docling}"
+CANONICAL_ROOT="${DOCLING_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -11,7 +10,7 @@ fail() {
 }
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
-for command in docker git grep jq midclt; do
+for command in docker git jq midclt; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -23,12 +22,7 @@ cd "${CANONICAL_ROOT}"
 bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
-[[ -f "${SECRETS_FILE}" ]] || fail "missing Scanopy secret file: ${SECRETS_FILE}"
-grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define POSTGRES_PASSWORD"
-grep -Eq '^SCANOPY_DATABASE_URL=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define SCANOPY_DATABASE_URL"
-chmod 600 "${SECRETS_FILE}"
-
-compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
+compose_path="${CANONICAL_ROOT}/apps/docling/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
 
 docker compose \
@@ -64,8 +58,10 @@ else
 fi
 
 app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
-printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null || fail "TrueNAS app ${APP_ID} is not uniquely present after reconciliation"
-printf '%s\n' "${app_json}" | jq -r '.[0] | "✅ TrueNAS app \(.id): state=\(.state // \"UNKNOWN\")"'
+printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null ||
+  fail "TrueNAS app ${APP_ID} is not uniquely present after reconciliation"
+printf '%s\n' "${app_json}" |
+  jq -r '.[0] | "✅ TrueNAS app \(.id): state=\(.state // \"UNKNOWN\")"'
 
 printf 'Expected Custom App YAML include:\n'
 printf 'include:\n  - %s\n' "${compose_path}"

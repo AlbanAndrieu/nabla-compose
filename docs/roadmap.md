@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-12.
+Last updated: 2026-09-13.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -10,6 +10,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Functional observability exporters](./observability-exporters.md)
 - [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
 - [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
+- [TrueNAS application storage and runtime env layout](./truenas-runtime-layout.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
 - [Secrets migration roadmap](./secrets-migration-roadmap.md)
 - [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
@@ -43,6 +44,8 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [ ] **Suricata downstream consumption:** prove CrowdSec/Alloy/central observability consumes the current `eve.json` stream and keep rule refresh bounded/observable.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics:** flow data no longer appears in Cloudflare Flow Analytics. Re-establish exporter/collector path, prove packet/flow emission from pfSense and confirm fresh flows arrive in Cloudflare before closing.
 - [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
+- [x] **TrueNAS storage/runtime architecture:** repository-owned data, tracked Compose/config and runtime secret materialization are now separate contracts; `cpool/secrets` is the planned `GENERIC` root-only security dataset and application-owned datasets use the `APPS` preset when local persistence is real.
+- [ ] **TrueNAS runtime env migration:** baseline inventory found 52 env materializations requiring migration work, 23 application datasets with Apps-preset drift and eight empty unowned direct-child dataset candidates. Stage canonical copies first; do not bulk-finalize env paths or recreate non-empty datasets.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
 ## P0 — controlled TrueNAS reboot accepted
@@ -104,13 +107,34 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 - [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is stable.
 - [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27.
 
+## P0.3 — TrueNAS storage + runtime secret normalization
+
+This is now a gate before further broad service migration. `docs/truenas-runtime-layout.md` is the architecture source of truth.
+
+1. [x] Separate tracked `apps/<service>` code/config, application-owned `/mnt/cpool/<service>` data and root-only `/mnt/cpool/secrets` runtime materializations.
+2. [x] Make storage discovery depend on active application bind mounts instead of arbitrary `/mnt/cpool/...` strings or Code Server workspace references.
+3. [x] Define missing application datasets as TrueNAS `APPS`; keep shared/security host datasets (`compose`, `logs`, `model`, `secrets`) `GENERIC`.
+4. [x] Add read-only reporting for empty datasets, Apps-preset property drift and empty unowned direct-child candidates; never auto-delete/recreate an existing dataset.
+5. [x] Add canonical runtime env discovery across explicit `env_file`, repository-local ignored `.env*` and legacy `/mnt/cpool/<service>/.env*` files.
+6. [x] Split migration into read-only preview, non-destructive canonical staging, per-service validation and explicit per-service finalization.
+7. [ ] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; preserve all legacy paths during the staging pass.
+8. [ ] Resolve any source collisions before staging. Project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
+9. [ ] Fix declarations with no recoverable source instead of creating empty files; current inventory includes a missing Home Assistant project/service env declaration that requires explicit review.
+10. [ ] Validate and finalize first wave one service at a time: Scanopy, Joplin and AutoKuma already reference canonical paths and are the preferred acceptance wave.
+11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
+12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
+13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
+14. [ ] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service.
+15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`.
+16. [ ] Add/maintain agent-skill rules so every created or materially modified Compose service follows this architecture instead of introducing new legacy paths.
+
 ## P1 — infrastructure secrets
 
 1. [ ] OpenTofu/Terragrunt and Garage backend credentials.
 2. [ ] Dedicated TrueNAS infrastructure automation identity; never reuse the FastAPI observer identity.
 3. [ ] Nexus automation credentials.
 4. [ ] Talos/Kubernetes/CSI machine credentials.
-5. [ ] Root-owned `0600` runtime rendering.
+5. [ ] Root-owned `0600` runtime rendering under `/mnt/cpool/secrets/runtime/<service>/`.
 6. [ ] Retain encrypted recovery material.
 7. [ ] Move long-lived machine secrets to Vault/OpenBao only after storage persistence and rollback are proven.
 
@@ -209,6 +233,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures.
 10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
 11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
+12. [ ] **Runtime-layout non-regression gate.** New/modified services must not introduce repository-local live env files, legacy service-root secret paths, or application datasets without active persistence ownership.
 
 ## Target operator-script architecture
 
@@ -234,7 +259,8 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 ## Ordering rule
 
 ```text
-Grafana native -> Compose migration (:30037 + preserved /mnt/cpool/grafana/data)
+TrueNAS storage + runtime secret normalization (preview -> stage -> per-service validate/finalize)
+  -> Grafana native -> Compose migration (:30037 + preserved /mnt/cpool/grafana/data)
   -> Prometheus canonical DB target reconciliation (PostgreSQL, Redis, ClickHouse, InfluxDB, OpenSearch + pfSense HAProxy exporter; no Sybase)
   -> Mimir / Loki / Tempo / Alloy reconciliation
   -> FastAPI observability correlation (Sentry + Prometheus/Grafana + Alloy/Loki/Tempo + Pyroscope)

@@ -49,7 +49,7 @@
       "tunnelUrl": "https://adguardhome.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/adguard-home.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Heimdall",
@@ -85,7 +85,7 @@
       "tunnelUrl": "https://prometheus.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Prometheus - albandrieu",
@@ -206,7 +206,7 @@
       "tunnelUrl": "https://uptime-kuma.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/uptime-kuma.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Vaultwarden",
@@ -278,7 +278,7 @@
       "tunnelUrl": "https://grafana.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/grafana.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Keycloak",
@@ -326,7 +326,7 @@
       "tunnelUrl": "https://gatus.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/gatus.png",
-      "external": false
+      "external": true
     },
     {
       "name": "DDNS Updater",
@@ -446,7 +446,7 @@
       "tunnelUrl": "https://affine.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/affine.png",
-      "external": false
+      "external": true
     },
     {
       "name": "ConvertX",
@@ -774,7 +774,7 @@
       "tunnelUrl": "https://freshrss.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/freshrss.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Hello",
@@ -798,7 +798,7 @@
       "tunnelUrl": "https://clickhouse.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/clickhouse.png",
-      "external": false
+      "external": true
     },
     {
       "name": "Minio",
@@ -873,6 +873,19 @@
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/garage.png",
+      "external": true
+    },
+    {
+      "id": "joplin",
+      "name": "Joplin",
+      "icons": ["fas fa-note-sticky"],
+      "description": "Private Joplin synchronization server",
+      "internalHost": "172.17.0.24",
+      "internalPort": 22300,
+      "internalSecure": false,
+      "tunnelUrl": "https://joplin.int.albandrieu.com",
+      "tunnelSecure": true,
+      "iconSrc": "assets/selfh-icons/joplin.png",
       "external": true
     }
   ]

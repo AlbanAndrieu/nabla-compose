@@ -26,22 +26,21 @@ def source_env_name(spec: dict[str, Any]) -> str:
 
 def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
     values: dict[str, str] = {}
-    missing: list[str] = []
+    missing_count = 0
     for spec in app_spec["secrets"]:
         env_name = source_env_name(spec)
         value = os.environ.get(env_name)
         if value is None or (not value and not spec.get("allowEmpty", False)):
-            missing.append(env_name)
+            missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:
             raise SecretsError(
-                f"{app_spec['app']}/{env_name}: multiline/NUL values are unsupported"
+                f"{app_spec['app']}: an exported secret contains unsupported multiline/NUL data"
             )
         values[spec["env"]] = value
-    if missing:
+    if missing_count:
         raise SecretsError(
-            f"{app_spec['app']}: missing exported environment variable(s): "
-            + ", ".join(sorted(missing))
+            f"{app_spec['app']}: {missing_count} required exported environment variable(s) are missing"
         )
     return values
 
@@ -190,10 +189,10 @@ def main() -> int:
 
     if not args.apply:
         for item in selected:
-            names = ", ".join(source_env_name(spec) for spec in item["secrets"])
+            mapping_count = len(item["secrets"])
             print(
                 f"dry-run: {item['app']} -> {item['item']} "
-                f"(source env: {names}; no values printed)"
+                f"({mapping_count} secret mapping(s); names and values suppressed)"
             )
         print("dry-run complete; rerun with --apply to write Vaultwarden")
         return 0

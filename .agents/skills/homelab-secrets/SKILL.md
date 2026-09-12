@@ -1,6 +1,6 @@
 ---
 name: homelab-secrets
-description: Inventory, preserve, render and migrate Nabla homelab secrets before Docker Compose or TrueNAS application cutovers.
+description: Inventory, preserve, stage, render and migrate Nabla homelab secrets before Docker Compose or TrueNAS application cutovers.
 ---
 
 # Homelab secrets
@@ -11,14 +11,42 @@ Secret management is a **precondition** for native TrueNAS -> Docker Compose cut
 
 ## Required first step
 
-Before changing storage or stopping a native application, inspect:
+Before changing storage, `env_file`, project `.env`, or stopping a native application, inspect:
 
 - `config/secrets/manifest.json`;
 - `config/secrets/README.md`;
+- `docs/truenas-runtime-layout.md`;
 - `docs/secrets-migration-roadmap.md`;
 - `docs/homelab-platform-migration-roadmap.md`.
 
 If the application is missing from the manifest, inventory its secret **names and semantics** before implementing its cutover. Never place a live value in tracked metadata.
+
+## Canonical runtime layout
+
+Live runtime env files do not belong beside tracked Compose files and do not belong in application-data datasets.
+
+```text
+/mnt/cpool/compose/nabla-compose/apps/<service>/
+  compose.yml                 tracked
+  config.*                    tracked only when non-secret
+  .env.example                optional metadata/example only
+
+/mnt/cpool/<service>/         application data only
+
+/mnt/cpool/secrets/           TrueNAS GENERIC dataset, root:root 0700
+  runtime/<service>/
+    .env                      service env_file materialization when needed
+    .env.secrets              secret materialization
+    .env.compose              transitional Compose-project interpolation cache
+  bootstrap/vaultwarden/
+    .env*                     Vaultwarden bootstrap/break-glass material only
+```
+
+Canonical runtime files are `root:root 0600`. `/mnt/cpool/secrets` is host security material and must not use the Apps preset or be writable by application containers.
+
+A repository-local `.env` or `/mnt/cpool/<service>/.env*` is **legacy migration input**, not the pattern for a new or modified service. A compatibility symlink may exist temporarily after migration finalization, but new/edited Compose declarations should reference `/mnt/cpool/secrets/runtime/<service>/...` directly.
+
+Compose project interpolation and service `env_file:` are different mechanisms. Never merge two historical files only because they are both called `.env`. Repository-local project interpolation is staged as `.env.compose` so it cannot collide with a service runtime `.env`.
 
 ## Canonical Vaultwarden scope
 
@@ -31,16 +59,19 @@ TrueNAS
 
 The repository CLI importer and renderer scope operator-driven lookups to this personal folder. Unattended Doco-CD access must use a dedicated account restricted to an organization collection; follow `docs/vaultwarden-truenas-dococd-account.md`. Do not rely only on globally unique item names.
 
+Vaultwarden is the transitional **source of truth**. Persistent `.env*` files under `/mnt/cpool/secrets/runtime` are reproducible caches/materializations, not canonical secret stores.
+
 ## Existing sources during migration
 
 Do not discard the current secret estate:
 
 - private `AlbanAndrieu/nabla` repository `env/home/pass/**`, encrypted with `git-crypt`;
 - environment variables already loaded from those files by `.bashrc`;
-- local per-service `.env` files on TrueNAS;
+- historical `/mnt/cpool/<service>/.env*` files;
+- historical ignored `apps/<service>/.env*` files;
 - existing Doco-CD/Vaultwarden mappings.
 
-Treat the shell environment and manually maintained `.env` files as migration inputs. Retain the encrypted git-crypt files as a permanent secondary recovery source even after Vaultwarden becomes the runtime source of truth.
+Treat those files and shell exports as migration inputs. Retain the encrypted git-crypt files as a permanent secondary recovery source even after Vaultwarden becomes the runtime source of truth.
 
 Prefer importing from the already-exported process environment rather than parsing or automatically sourcing shell files:
 
@@ -51,6 +82,32 @@ python scripts/secrets/import_env_to_bitwarden.py --app <app> --apply
 
 Dry-run is the default. The importer never prints values and refuses to overwrite an existing exact item unless `--update-existing` is explicit.
 
+## Runtime materialization migration gate
+
+Inventory is always read-only first:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+```
+
+Migration is intentionally split into stages:
+
+1. `--check` reports missing canonical files, source conflicts, dataset/preset drift, and legacy paths without changing the host.
+2. `bootstrap-repository-runtime.sh --apply` creates the canonical `cpool/secrets` layout and **stages verified copies only**. Historical files remain intact.
+3. Validate the consuming service against the canonical copy. For a Compose change, validate configuration first and then perform a controlled runtime/restart acceptance.
+4. Only after acceptance, finalize one service at a time:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize <service>
+```
+
+Finalization replaces byte-identical historical files with compatibility symlinks. It must refuse a missing or differing canonical copy. Do not bulk-finalize unresolved services.
+
+5. Update the service Compose/deployment tooling to reference the canonical path directly.
+6. After restart/reboot acceptance, remove the compatibility symlink when nothing consumes the historical path.
+
+Never create an empty secret file merely to make a check green. A declared env file with no recoverable source is an operator action item.
+
 ## Secrets Gate
 
 A migration may continue only when:
@@ -59,16 +116,23 @@ A migration may continue only when:
 2. migration-critical values are identified;
 3. preserve-versus-rotate policy is explicit;
 4. the current value has been recovered without printing/committing it;
-5. the value is stored in the operator `TrueNAS` folder, or in the restricted Doco-CD collection, or explicitly classified as bootstrap;
+5. the value is stored in the operator `TrueNAS` folder, restricted Doco-CD collection, or explicitly classified as bootstrap;
 6. the target Compose variable name is known;
-7. the secret can be rendered/injected without editing tracked files;
-8. rollback can restore the original value when preservation is required.
+7. the secret can be rendered into `/mnt/cpool/secrets/runtime/<service>/...` without editing tracked files;
+8. staging reports no source collision or byte mismatch;
+9. rollback can restore the original value/path when preservation is required.
 
 ## Bootstrap boundary
 
 Vaultwarden cannot fetch the credentials required to start itself.
 
-Keep the minimum Vaultwarden bootstrap set outside Git in a root-restricted host file/dataset (`0600`) or equivalent break-glass mechanism. `config/secrets/manifest.json` tracks bootstrap variable names only.
+Keep the minimum Vaultwarden bootstrap set outside Git under:
+
+```text
+/mnt/cpool/secrets/bootstrap/vaultwarden/
+```
+
+with `root:root 0600` files and a separate break-glass/recovery path. `config/secrets/manifest.json` tracks bootstrap variable names only.
 
 The existing `bitwarden-api` container is a **legacy Doco-CD compatibility adapter**. Do not create new consumers of that sidecar. Remove it only after every Doco-CD dependency has a proven replacement.
 
@@ -79,7 +143,7 @@ Two patterns are supported during transition:
 - a single-secret login item using `login.password`, such as `N8N_INTERNAL_API_KEY`;
 - one app item with hidden custom fields, such as `nabla/prod/karakeep`.
 
-The manifest is authoritative for representation and mapping. The personal folder scopes operator tooling; a restricted organization collection scopes unattended access.
+The manifest is authoritative for representation and mapping. Target env names are scoped per application, so two apps may legitimately render `POSTGRES_PASSWORD`; import/source env names must remain globally unambiguous when they represent different credentials.
 
 If a secret is stored in `login.password`, retrieve it with `bw get password ...`; `bw get notes ...` only retrieves the notes field.
 
@@ -88,6 +152,7 @@ If a secret is stored in `login.password`, retrieve it with `bw get password ...
 ```bash
 python scripts/secrets/render_from_bitwarden.py --check
 python -m unittest discover -s tests -p test_secrets_renderer.py -v
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 ```
 
 ## Configure and unlock Bitwarden CLI
@@ -108,27 +173,24 @@ unset BW_SESSION
 
 ## Render for Compose
 
-Preferred ephemeral path:
+Preferred ephemeral path for ad-hoc use:
 
 ```bash
 python scripts/secrets/render_from_bitwarden.py --app 2fauth
-
-docker compose \
-  --env-file /run/nabla-secrets/2fauth.env \
-  --project-directory apps/2fauth \
-  -f apps/2fauth/compose.yml \
-  up -d
 ```
 
-A service-local TrueNAS `.env` is acceptable as a reproducible **runtime cache** when tooling expects it:
+Preferred persistent TrueNAS materialization for a service:
 
 ```bash
+sudo install -d -o root -g root -m 700 /mnt/cpool/secrets/runtime/<service>
 python scripts/secrets/render_from_bitwarden.py \
-  --app 2fauth \
-  --output-file /path/to/apps/2fauth/.env
+  --app <service> \
+  --output-file /mnt/cpool/secrets/runtime/<service>/.env.secrets
 ```
 
-Generated files must be ignored by Git, mode `0600`, and reproducible from Vaultwarden. Prefer `/run/nabla-secrets` or `/mnt/cpool/secrets/runtime` when no service-local `.env` is required.
+Use an exact `.env` rather than `.env.secrets` when the Compose contract intentionally names it that way. Use `.env.compose` only for transitional project interpolation. Do not render long-lived files into `apps/<service>/` for new work.
+
+Generated files must be mode `0600`, ignored by Git by virtue of being outside the checkout, and reproducible from Vaultwarden.
 
 ## Preservation policy
 
@@ -148,9 +210,9 @@ For each secret currently in `AlbanAndrieu/nabla/env/home/pass/**`:
 4. render back and validate the consumer;
 5. optionally stop loading it automatically from `.bashrc` when no longer needed interactively;
 6. retain and periodically verify the encrypted git-crypt copy indefinitely;
-7. rotate the live credential later according to policy and exposure history, then update both Vaultwarden and the encrypted recovery copy deliberately.
+7. rotate later according to policy/exposure history, then update both Vaultwarden and the encrypted recovery copy deliberately.
 
-A private repository plus `git-crypt` is useful defense in depth and a recovery layer, but is not the runtime source of truth and does not remove values from long-lived shell environments. Migration tooling and roadmaps must never schedule automatic deletion of these files.
+Migration tooling and roadmaps must never schedule automatic deletion of those encrypted recovery files.
 
 ## Official Bitwarden MCP
 
@@ -166,14 +228,16 @@ Repository MCP configs reference `BW_SESSION` from the local environment and nev
 2. record secret names only;
 3. recover actual values privately;
 4. import/create Vaultwarden items in `TrueNAS`;
-5. render the target app environment;
+5. stage canonical runtime files under `/mnt/cpool/secrets`;
 6. validate Compose without exposing values;
-7. snapshot/copy data;
-8. perform cutover;
+7. snapshot/copy application data separately from secret materialization;
+8. perform controlled cutover;
 9. validate functional health and restart persistence;
-10. retain the git-crypt recovery source permanently and keep the service rollback path through its observation period.
+10. finalize only the accepted service's legacy env paths;
+11. update Compose to the canonical path and remove compatibility debt after observation;
+12. retain the git-crypt recovery source permanently.
 
-Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and `.agents/skills/nabla-service-catalog/SKILL.md` when Compose/catalog metadata changes.
+Use `.agents/skills/docker-compose-orchestration/SKILL.md` for service layout, `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation, and `.agents/skills/nabla-service-catalog/SKILL.md` when Compose/catalog metadata changes.
 
 ## Security rules
 
@@ -182,6 +246,8 @@ Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and 
 - Never make Vaultwarden depend on itself for its only bootstrap credentials.
 - Never silently regenerate a migration-critical key.
 - Never automatically execute legacy shell secret files from migration tooling.
+- Never overwrite a differing canonical/legacy env pair; stop for operator review.
+- Never delete/recreate application datasets as part of secret-file migration.
 - Never expose Vaultwarden automation, Bitwarden MCP, Bitwarden adapter, Docker socket or docker-socket-proxy publicly.
 - Prefer exact folder- or collection-scoped item identifiers/names and fail on ambiguity.
 - Treat secrets seen in Git history or public logs as compromised and rotate them when the application permits.
@@ -190,7 +256,7 @@ Use `.agents/skills/homelab-runtime-status/SKILL.md` for runtime validation and 
 
 Vaultwarden + `bw` is the interim secret source for Compose migrations. After application migrations stabilize:
 
-- deploy HashiCorp Vault;
+- deploy HashiCorp Vault/OpenBao;
 - stream values item-by-item without long-lived plaintext bulk exports;
 - use Keycloak OIDC for human Vault login;
 - use AppRole/JWT for standalone workloads and CI;

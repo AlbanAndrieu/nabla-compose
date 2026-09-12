@@ -40,7 +40,7 @@ services:
             - apps/autokuma/compose.yml:AUTOKUMA__KUMA__URL
     restart: unless-stopped
     env_file:
-      - path: /mnt/cpool/autokuma/.env.secrets
+      - path: /mnt/cpool/secrets/runtime/autokuma/.env.secrets
         required: false
     environment:
       # AutoKuma 2.x requires kuma.url at startup. Uptime Kuma is still a
