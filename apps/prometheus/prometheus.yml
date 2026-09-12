@@ -88,6 +88,18 @@ scrape_configs:
           role: homelab-observer
           service: fastapi-sample
 
+  - job_name: pyroscope
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - 172.17.0.24:4040
+        labels:
+          platform: truenas
+          role: continuous-profiler
+          service: pyroscope
+
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
