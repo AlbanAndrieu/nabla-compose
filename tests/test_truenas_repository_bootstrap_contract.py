@@ -24,6 +24,8 @@ def test_repository_storage_bootstrap_uses_active_owned_bind_mounts() -> None:
     assert "midclt call pool.dataset.create" in script
     assert '"share_type":"%s"' in script
     assert "dataset_is_empty()" in script
+    assert 'mapfile -t descendants < <(zfs list -H -o name -r "${dataset}"' in script
+    assert 'dataset_is_empty "${dataset}" "${mountpoint}"' in script
     assert "Empty direct child datasets not owned" in script
     assert 'zfs create -p "${dataset}"' not in script
     assert "--check | --apply" in script
@@ -62,6 +64,17 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert "check_private_directory" in script
     assert 'if [[ "${MODE}" == "--check" ]]' in script
     assert "--check | --apply | --finalize" in script
+
+
+def test_repository_env_bootstrap_rejects_empty_secret_placeholders() -> None:
+    script = ENV_FILES.read_text(encoding="utf-8")
+
+    assert "requires_nonempty_materialization()" in script
+    assert ".env.secrets | .env.*.secrets" in script
+    assert "is an empty secret placeholder; populate/render it before staging" in script
+    assert "empty-placeholder; populate/render secret material before acceptance" in script
+    assert '[[ ! -s "${primary}" ]]' in script
+    assert '[[ ! -s "${target}" ]]' in script
 
 
 def test_repository_runtime_bootstrap_orders_storage_before_env_files() -> None:
