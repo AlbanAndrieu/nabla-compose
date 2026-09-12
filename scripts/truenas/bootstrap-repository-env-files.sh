@@ -21,11 +21,13 @@ usage: bootstrap-repository-env-files.sh [--check|--apply|--finalize] [app]
 
   --check       read-only migration/status preview
   --apply       stage verified root-only canonical copies; keep old paths intact
-  --finalize    replace byte-identical legacy paths with compatibility symlinks
+  --finalize    replace accepted legacy paths with compatibility symlinks
 
 The optional app argument scopes the operation to one repository app. Finalize
 is intentionally separate from staging so operators can validate canonical
-copies and service health before old paths are replaced.
+copies and service health before old paths are replaced. Non-empty legacy data
+must remain byte-identical; a zero-byte placeholder may be retired in favor of
+a non-empty accepted canonical secret materialization.
 USAGE
 }
 
@@ -423,6 +425,24 @@ while IFS= read -r source; do
   if requires_nonempty_materialization "${target}" && [[ ! -s "${target}" ]]; then
     continue
   fi
+
+  # Historical bootstrap used to create empty placeholders. Once a real secret
+  # has been rendered canonically, there is no legacy payload to preserve. This
+  # is the only non-byte-identical finalization case allowed.
+  if requires_nonempty_materialization "${target}" && [[ ! -s "${source}" && -s "${target}" ]]; then
+    if [[ "${MODE}" == "--finalize" ]]; then
+      rm -f "${source}"
+      ln -s "${target}" "${source}"
+      printf '✅ %s app=%s kind=%s -> %s finalized empty-placeholder compatibility-link\n' \
+        "${source}" "${app}" "${kind}" "${target}"
+    else
+      finalize_pending=$((finalize_pending + 1))
+      printf '⚠️  %s app=%s kind=%s empty-placeholder -> %s canonical non-empty; finalize pending\n' \
+        "${source}" "${app}" "${kind}" "${target}"
+    fi
+    continue
+  fi
+
   if ! cmp -s "${source}" "${target}"; then
     printf '❌ migration conflict: %s differs from staged target %s\n' \
       "${source}" "${target}"
