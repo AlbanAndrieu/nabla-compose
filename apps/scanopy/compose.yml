@@ -35,39 +35,6 @@ services:
       # Required for native Docker discovery. Keep the socket read-only.
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  scanopy-postgres:
-    image: postgres:17-alpine
-    container_name: scanopy-postgres
-    x-nabla:
-      id: scanopy-postgres
-      name: Scanopy PostgreSQL
-      kind: relational-database
-      category: data
-      presentationRole: support
-      criticality: medium
-      description: Dedicated PostgreSQL database for Scanopy topology and discovery data.
-      runtime:
-        provider: truenas-app
-        containerService: scanopy-postgres
-    restart: unless-stopped
-    env_file:
-      # Must define POSTGRES_PASSWORD; materialized from Vaultwarden later.
-      - /mnt/cpool/secrets/runtime/scanopy/.env.secrets
-    environment:
-      POSTGRES_DB: scanopy
-      POSTGRES_USER: scanopy
-      TZ: ${TZ:-Europe/Paris}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scanopy -d scanopy"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    volumes:
-      - /mnt/cpool/scanopy/postgres:/var/lib/postgresql/data
-    networks:
-      - intranet
-
   scanopy:
     image: ghcr.io/scanopy/scanopy/server:latest
     container_name: scanopy
@@ -82,7 +49,7 @@ services:
         - identify
         - detect
       url: http://172.17.0.24:60072
-      description: Agentless network discovery and continuously updated topology documentation.
+      description: Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.
       runtime:
         provider: truenas-app
         containerService: scanopy
@@ -91,10 +58,10 @@ services:
         host: 172.17.0.24
         port: 60072
       relations:
-        - target: scanopy-postgres
+        - target: postgresql
           type: storesIn
           strength: required
-          description: Scanopy stores its topology, inventory, and discovery history in its dedicated PostgreSQL database.
+          description: Scanopy stores topology, inventory, and discovery history in its dedicated scanopy database on the shared PostgreSQL service.
           evidence:
             - apps/scanopy/compose.yml:SCANOPY_DATABASE_URL
         - target: scanopy-daemon
@@ -105,7 +72,7 @@ services:
             - apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL
     restart: unless-stopped
     env_file:
-      # Must define SCANOPY_DATABASE_URL with the same password as POSTGRES_PASSWORD.
+      # Must define SCANOPY_DATABASE_URL for role/database scanopy on 172.17.0.24:5432.
       - /mnt/cpool/secrets/runtime/scanopy/.env.secrets
     environment:
       SCANOPY_LOG_LEVEL: ${SCANOPY_LOG_LEVEL:-info}
@@ -118,8 +85,6 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      scanopy-postgres:
-        condition: service_healthy
       scanopy-daemon:
         condition: service_healthy
     volumes:

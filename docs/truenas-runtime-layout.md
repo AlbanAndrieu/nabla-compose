@@ -36,11 +36,33 @@ Whenever a service is created or materially modified:
 4. reference secrets through `/mnt/cpool/secrets/runtime/<service>/...`;
 5. keep non-secret configuration in tracked Compose defaults or tracked config files instead of hiding it in `.env.secrets`;
 6. add metadata-only Vaultwarden mappings before a new secret-bearing service is cut over;
-7. run the read-only repository runtime inventory before publication/runtime changes.
+7. inventory reusable shared infrastructure before adding any bundled database/cache/search/telemetry dependency;
+8. run the read-only repository runtime inventory before publication/runtime changes.
 
 A stateless service does not receive a dataset merely because `apps/<service>` exists. A Code Server workspace mount of another service path is not evidence that the target application owns persistent data.
 
 The repository skill enforcing this contract is `.agents/skills/docker-compose-orchestration/SKILL.md`; secret-bearing changes additionally use `.agents/skills/homelab-secrets/SKILL.md`.
+
+## Shared infrastructure is reuse-first
+
+Application stacks must reuse an existing compatible shared service before introducing another infrastructure instance. Upstream example Compose files are implementation examples, not authority to duplicate an already available homelab service.
+
+Prefer, when compatible:
+
+- the shared PostgreSQL service with one dedicated least-privileged role/database per application;
+- shared Redis with explicit application identity/key namespace and compatible persistence/eviction semantics;
+- shared ClickHouse with a dedicated user/database when server version and global settings are compatible;
+- shared InfluxDB with a dedicated organization/bucket/token or equivalent isolation;
+- OpenSearch for Elasticsearch-compatible consumers only after validating API/version/plugin/query compatibility;
+- existing MinIO/S3, Traefik, LiteLLM, Prometheus/Grafana and other established platform services when their contracts satisfy the new workload.
+
+Reuse avoids duplicate datasets, backup paths, exporters, patch cycles, credentials, resource reservations and failure modes. Isolation is achieved first with service-native boundaries such as roles, databases, schemas, buckets, indexes, ACLs and application-specific credentials.
+
+A dedicated infrastructure instance is allowed only when a concrete incompatibility or isolation requirement is documented. Typical reasons are an incompatible hard version pin, required extension/plugin/API, incompatible global settings, destructive lifecycle semantics, explicit performance/fault-domain/security/compliance isolation, or a vendor-supported topology requirement.
+
+The exception must be recorded in the service README/PR and represented as its own `x-nabla` node/relation. Sentry's dedicated ClickHouse is the reference exception: runtime validation demonstrated a Snuba/global-setting incompatibility, so the shared ClickHouse was deliberately not modified.
+
+Scanopy is the reference shared-PostgreSQL pattern: it uses role/database `scanopy` on `172.17.0.24:5432`; it does not run `scanopy-postgres` and does not own a PostgreSQL dataset.
 
 ## Docker Compose `.env` versus `env_file`
 
@@ -127,7 +149,7 @@ Validate Compose against the canonical path, then perform the service-specific c
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize <service>
 ```
 
-Finalization is per service. It only replaces a historical regular file with a compatibility symlink when the canonical file exists and is byte-identical. It must fail on mismatch, missing target, or invalid permissions.
+Finalization is per service. It only replaces a historical regular file with a compatibility symlink when the canonical file exists and is byte-identical. The explicit migration exception is a zero-byte historical placeholder being replaced by a non-empty canonical materialization. Other mismatches, missing targets, or invalid permissions fail closed.
 
 The compatibility symlink is transitional. Update Compose/deployment tooling to reference the canonical path directly, validate restart/reboot persistence, then remove the old compatibility path when no consumer uses it.
 
@@ -135,18 +157,18 @@ The compatibility symlink is transitional. Update Compose/deployment tooling to 
 
 The first canonical read-only inventory established the current debt boundary:
 
-- 52 repository-owned dataset roots are present;
+- 52 repository-owned dataset roots were present at the initial baseline;
 - 23 application datasets differ from the current TrueNAS Apps preset expectations;
 - several of those 23 are non-empty and must **not** be recreated automatically;
-- empty unowned direct-child review candidates include `cpool/2fauth`, `cpool/alertmanager`, `cpool/drawio`, `cpool/jenkins`, `cpool/jenkins-slave`, `cpool/litellm`, `cpool/rancherui`, and `cpool/sabnzbd`;
-- `cpool/secrets` is not yet present at that baseline;
-- the env inventory reports 52 historical/canonical materializations requiring migration work before full convergence.
+- empty unowned direct-child review candidates included `cpool/2fauth`, `cpool/alertmanager`, `cpool/drawio`, `cpool/jenkins`, `cpool/jenkins-slave`, `cpool/litellm`, `cpool/rancherui`, and `cpool/sabnzbd`;
+- `cpool/secrets` was absent at that initial baseline and has since been created as `GENERIC`;
+- the initial env inventory reported 52 historical/canonical materializations requiring migration work before full convergence.
 
-This is a migration baseline, not a deletion list. Re-run the check before every cleanup decision because runtime ownership may change.
+The post-bootstrap storage check confirms `cpool/k8s/talos-vms` is non-empty because its child zvols are counted and confirms `cpool/secrets` as `GENERIC`. This is a migration baseline, not a deletion list. Re-run the check before every cleanup decision because runtime ownership may change.
 
 ## Dataset ownership and presets
 
-`scripts/truenas/bootstrap-repository-storage.sh` considers active application bind-mount sources, not arbitrary `/mnt/cpool/...` strings. Commented examples and Code Server sibling workspace mounts must not create application datasets.
+`scripts/truenas/bootstrap-repository-storage.sh` considers active application bind-mount sources, not arbitrary `/mnt/cpool/...` strings. Commented examples and Code Server sibling workspace mounts must not create application datasets. Dataset emptiness also accounts for descendant ZFS datasets/zvols, not only visible files in the parent mountpoint.
 
 For missing datasets:
 
@@ -162,7 +184,7 @@ Do not recreate a non-empty dataset merely to make its preset match. Preset drif
 For an **empty** application-owned dataset, recreation with the Apps preset may be appropriate only after confirming:
 
 - no running container uses it;
-- no child dataset exists;
+- no child dataset or zvol exists;
 - no snapshot/replication policy depends on it;
 - no SMB/NFS/share depends on it;
 - the owning Compose bind mount still requires the dataset.

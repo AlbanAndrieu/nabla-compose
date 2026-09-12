@@ -142,6 +142,17 @@
       "syncEligible": false
     },
     {
+      "id": "cyberbro",
+      "name": "Cyberbro",
+      "group": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "cyberbro",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5100",
+      "syncEligible": true,
+      "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines."
+    },
+    {
       "id": "docker",
       "name": "Docker",
       "group": "infrastructure",
@@ -448,6 +459,17 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
+    },
+    {
+      "id": "mcp-cyberbro",
+      "name": "Cyberbro MCP",
+      "group": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "mcp-cyberbro",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM."
     },
     {
       "id": "mimir",
@@ -834,7 +856,7 @@
       "dockerManaged": true,
       "href": "http://172.17.0.24:60072",
       "syncEligible": true,
-      "description": "Agentless network discovery and continuously updated topology documentation."
+      "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service."
     },
     {
       "id": "scanopy-daemon",
@@ -846,17 +868,6 @@
       "href": null,
       "syncEligible": false,
       "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology."
-    },
-    {
-      "id": "scanopy-postgres",
-      "name": "Scanopy PostgreSQL",
-      "group": "data",
-      "sourcePath": "apps/scanopy/compose.yml",
-      "composeService": "scanopy-postgres",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
-      "description": "Dedicated PostgreSQL database for Scanopy topology and discovery data."
     },
     {
       "id": "scrutiny",

@@ -29,8 +29,15 @@ def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
     missing_count = 0
     for spec in app_spec["secrets"]:
         env_name = source_env_name(spec)
+        allow_empty = spec.get("allowEmpty", False)
         value = os.environ.get(env_name)
-        if value is None or (not value and not spec.get("allowEmpty", False)):
+        if value is None:
+            if allow_empty:
+                value = ""
+            else:
+                missing_count += 1
+                continue
+        elif not value and not allow_empty:
             missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:

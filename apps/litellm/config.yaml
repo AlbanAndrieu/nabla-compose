@@ -1,7 +1,6 @@
 model_list:
-
   # ========== Ollama ==========
-  #- model_name: llama3.2
+  # - model_name: llama3.2
   #  litellm_params:
   #    model: "ollama/llama3.2"
   #    api_base: "http://172.17.0.57:11434"
@@ -17,7 +16,7 @@ model_list:
       num_ctx: 4096
 
   # open commit model
-  #- model_name: llama3.1
+  # - model_name: llama3.1
   #  litellm_params:
   #    model: "ollama_chat/llama3.1:8b"
   #    api_base: "http://172.17.0.24:30068"
@@ -107,10 +106,16 @@ model_list:
   # reactive resume
   - model_name: rr-json
     litellm_params:
-      model: "ollama_chat/qwen2.5:3b" #:14b
+      model: "ollama_chat/qwen2.5:3b" # :14b
       api_base: "http://172.17.0.24:30068"
       temperature: 0
       num_ctx: 8192
+
+mcp_servers:
+  cyberbro:
+    transport: http
+    url: os.environ/CYBERBRO_MCP_URL
+    description: Cyberbro threat-intelligence and IoC analysis tools
 
 general_settings:
   # master_key: sk_XXX
@@ -136,12 +141,12 @@ general_settings:
       litellm_user_role: customer
 litellm_settings:
   fallbacks:
-    - {"gpt-5.1": ["gpt-4.1", "gpt-4o", "gpt-4.1-mini"]}
-    - {"gpt-4.1": ["gpt-4o", "gpt-4.1-mini"]}
-    - {"gpt-4o": ["gpt-4.1-mini"]}
-    - {"llama3.2": ["gpt-4.1-mini"]}
-    - {"gemma3": ["gpt-4.1-mini"]}
-    - {"qwen": ["llama3.2"]}
+    - { "gpt-5.1": ["gpt-4.1", "gpt-4o", "gpt-4.1-mini"] }
+    - { "gpt-4.1": ["gpt-4o", "gpt-4.1-mini"] }
+    - { "gpt-4o": ["gpt-4.1-mini"] }
+    - { "llama3.2": ["gpt-4.1-mini"] }
+    - { "gemma3": ["gpt-4.1-mini"] }
+    - { "qwen": ["llama3.2"] }
   default_fallbacks: ["llama3.2"]
   cache: true
   cache_params:

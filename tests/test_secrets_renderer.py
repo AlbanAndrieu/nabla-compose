@@ -53,6 +53,7 @@ class SecretsRendererTests(TestCase):
                 "scanopy",
                 "joplin",
                 "autokuma",
+                "cyberbro",
             },
         )
         serialized = json.dumps(manifest)
@@ -246,6 +247,23 @@ class SecretsRendererTests(TestCase):
         with mock.patch.dict(os.environ, {"LEGACY_EXPORTED_TOKEN": "secret-value"}, clear=False):
             values = importer.collect_values(app_spec)
         self.assertEqual(values, {"TARGET_TOKEN": "secret-value"})
+
+    def test_importer_defaults_missing_allow_empty_source_to_empty_string(self) -> None:
+        app_spec = {
+            "app": "example",
+            "item": "example",
+            "secrets": [
+                {
+                    "env": "OPTIONAL_TOKEN",
+                    "importEnv": "OPTIONAL_SOURCE_TOKEN",
+                    "field": "OPTIONAL_TOKEN",
+                    "allowEmpty": True,
+                }
+            ],
+        }
+        with mock.patch.dict(os.environ, {}, clear=True):
+            values = importer.collect_values(app_spec)
+        self.assertEqual(values, {"OPTIONAL_TOKEN": ""})
 
     def test_importer_builds_hidden_custom_fields(self) -> None:
         app_spec = {

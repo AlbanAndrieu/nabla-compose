@@ -1,6 +1,6 @@
 ---
 name: docker-compose-orchestration
-description: Apply Nabla-specific Docker Compose conventions for service definitions, networking, TrueNAS storage, runtime environment materialization, health, and safe validation.
+description: Apply Nabla-specific Docker Compose conventions for service definitions, networking, TrueNAS storage, runtime environment materialization, shared-service reuse, health, and safe validation.
 ---
 
 # Nabla Docker Compose orchestration
@@ -40,6 +40,43 @@ sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 ```
 
 Do not delete/recreate a non-empty dataset just to change its preset. Empty unowned datasets are review candidates, not automatic cleanup targets.
+
+## Shared-service reuse gate
+
+Before adding a database, cache, search/index, telemetry store, object store, message broker, reverse proxy, identity provider, model proxy, or other supporting infrastructure **inside a new application stack**, inventory the shared services already present in `apps/`, `x-nabla`, the generated catalog, and the known TrueNAS runtime.
+
+**Reuse a compatible existing shared service by default.** Do not copy an upstream example Compose dependency merely because the upstream project bundles one.
+
+Current important reuse candidates include:
+
+- **PostgreSQL** — prefer the shared PostgreSQL service with a dedicated least-privileged role and database per consumer;
+- **Redis** — reuse the shared Redis service when protocol/version, persistence, eviction and ACL requirements are compatible; use an application-specific identity/key namespace where supported. A Redis logical database number alone is not a security boundary;
+- **ClickHouse** — prefer the shared ClickHouse service with a dedicated database/user when the required server version and global settings are compatible;
+- **InfluxDB** — prefer the shared InfluxDB deployment with a dedicated organization/bucket/token or equivalent least-privileged isolation;
+- **OpenSearch / Elasticsearch-compatible consumers** — prefer the existing OpenSearch service when the consumer's Elasticsearch API, plugin, mapping/query and version requirements are demonstrably compatible. Do not silently substitute OpenSearch when an application requires Elasticsearch-specific behavior;
+- other shared platform services such as MinIO/S3, Traefik, LiteLLM, Prometheus/Grafana and identity services should likewise be reused when their published contract satisfies the consumer.
+
+A dedicated duplicate is acceptable only when there is a concrete, documented incompatibility or isolation requirement, for example:
+
+- a hard server-version pin that conflicts with the shared service;
+- a required extension/plugin or API unavailable on the shared service;
+- incompatible global settings or storage-engine semantics;
+- a destructive schema/migration lifecycle that cannot safely share the instance;
+- explicit performance, fault-domain, compliance or security-isolation requirements;
+- an upstream/vendor support requirement that depends on an exact dedicated runtime.
+
+Document the exception in the service README/PR and model the dedicated component in `x-nabla`. Sentry's dedicated ClickHouse is the reference exception: runtime testing proved an upstream Snuba compatibility/global-setting conflict, so the shared ClickHouse was intentionally left unchanged.
+
+When reusing shared infrastructure:
+
+1. give the workload a dedicated least-privileged identity and logical namespace (`database`, schema, bucket, index, user, ACL, etc.);
+2. keep its credentials in the canonical Vaultwarden/runtime-secret flow;
+3. model an `x-nabla` dependency/relation to the canonical shared service node;
+4. do not create a duplicate dataset, backup target, exporter or health monitor for infrastructure the application does not own;
+5. add a small idempotent `--check`/`--apply` bootstrap when role/database/bucket/index provisioning is required, and make deployment fail closed if the shared dependency is not ready;
+6. verify compatibility before cutover and record any material version/extension/global-setting assumptions.
+
+Scanopy is the reference PostgreSQL reuse pattern: it uses role/database `scanopy` on the shared `172.17.0.24:5432` service instead of a bundled `scanopy-postgres` container.
 
 ## Secrets are part of service design
 
