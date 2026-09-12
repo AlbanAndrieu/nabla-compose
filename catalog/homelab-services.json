@@ -784,7 +784,7 @@
       "internalPort": 8099,
       "internalSecure": true,
       "tunnelUrl": "https://hello.int.albandrieu.com",
-      "tunnelSecure": true,
+      "tunnelSecure": false,
       "iconSrc": "assets/selfh-icons/nginx.png",
       "external": false
     },
