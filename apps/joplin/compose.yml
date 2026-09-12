@@ -39,7 +39,7 @@ services:
           evidence:
             - apps/joplin/compose.yml:traefik.http.routers.joplin
     env_file:
-      - /mnt/cpool/joplin/.env.secrets
+      - /mnt/cpool/secrets/runtime/joplin/.env.secrets
     environment:
       APP_PORT: "22300"
       APP_BASE_URL: https://joplin.int.albandrieu.com
