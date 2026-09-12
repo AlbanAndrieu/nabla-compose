@@ -70,6 +70,13 @@ is_runtime_env_name() {
   esac
 }
 
+requires_nonempty_materialization() {
+  case "$(basename "$1")" in
+    .env.secrets | .env.*.secrets) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 canonical_env_file() {
   local app="$1" source="$2" kind="$3" name root
   name="$(basename "${source}")"
@@ -337,6 +344,13 @@ while IFS= read -r target; do
       continue
     fi
 
+    if requires_nonempty_materialization "${target}" && [[ ! -s "${primary}" ]]; then
+      printf '❌ %s app=%s source=%s is an empty secret placeholder; populate/render it before staging\n' \
+        "${target}" "${app}" "${primary}"
+      invalid=$((invalid + 1))
+      continue
+    fi
+
     stage_required=$((stage_required + 1))
     if [[ "${MODE}" == "--check" ]]; then
       printf '⚠️  %s app=%s source=%s -> stage-required\n' \
@@ -376,6 +390,11 @@ while IFS= read -r target; do
     fi
   fi
 
+  if requires_nonempty_materialization "${target}" && [[ ! -s "${target}" ]]; then
+    printf '❌ %s app=%s empty-placeholder; populate/render secret material before acceptance\n' \
+      "${target}" "${app}"
+    invalid=$((invalid + 1))
+  fi
 done < <(printf '%s\n' "${!target_app[@]}" | sort)
 
 # Report or finalize historical paths only after canonical copies exist.
@@ -399,6 +418,9 @@ while IFS= read -r source; do
 
   [[ -f "${source}" ]] || continue
   if [[ ! -f "${target}" ]]; then
+    continue
+  fi
+  if requires_nonempty_materialization "${target}" && [[ ! -s "${target}" ]]; then
     continue
   fi
   if ! cmp -s "${source}" "${target}"; then
