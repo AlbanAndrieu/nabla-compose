@@ -19,7 +19,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo so the shared PostgreSQL container can be inspected"
-for command in docker python3 stat; do
+for command in docker grep head python3 stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
