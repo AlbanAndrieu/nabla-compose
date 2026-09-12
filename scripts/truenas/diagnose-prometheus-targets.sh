@@ -81,7 +81,7 @@ else
     sort
 
   grep -E '^[[:space:]]*-[[:space:]]+job_name:[[:space:]]*' "${CONFIG}" |
-    sed -E 's/.*job_name:[[:space:]]*["'"']?([^"'"'[:space:]]+)["'"']?.*/\1/' |
+    sed -E "s/.*job_name:[[:space:]]*['\"]?([^'\"[:space:]]+)['\"]?.*/\\1/" |
     sort -u >"${TMP_DIR}/expected-jobs.txt"
   jq -r '.data.activeTargets[]?.labels.job // empty' "${TARGETS_JSON}" |
     sort -u >"${TMP_DIR}/live-jobs.txt"
