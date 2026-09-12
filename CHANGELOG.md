@@ -1,3 +1,10 @@
+# [0.35.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.5...0.35.0) (2026-09-12)
+
+
+### Features
+
+* **homelab:** add Docling and Joplin services ([#195](https://github.com/AlbanAndrieu/nabla-compose/issues/195)) ([f3eceb8](https://github.com/AlbanAndrieu/nabla-compose/commit/f3eceb8e429eb51676a38a4695005b490d6d4d59))
+
 ## [0.34.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.4...0.34.5) (2026-09-12)
 
 
