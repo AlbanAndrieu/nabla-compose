@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_ID="${JOPLIN_APP_ID:-joplin}"
 CANONICAL_ROOT="${JOPLIN_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-SECRETS_FILE="${JOPLIN_SECRETS_FILE:-/mnt/cpool/joplin/.env.secrets}"
+SECRETS_FILE="${JOPLIN_SECRETS_FILE:-/mnt/cpool/secrets/runtime/joplin/.env.secrets}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
