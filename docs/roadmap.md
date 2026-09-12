@@ -35,6 +35,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
 - [ ] **Docling / OpenRAG ingest:** native `docling-serve` is stopped, so OpenRAG knowledge ingestion is unavailable until Docling is restored and its ingestion path is validated.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
+- [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
 - [x] **Exporter conflict preflight:** TrueNAS Netdata is active; the only configured Reporting Exporter is disabled Graphite to `172.17.0.57:2003`; host ports/listeners `8125`, `9125`, `9102`, `9308` are free and no Docker publisher conflicts were found. StatsD remains deferred; Kafka exporter remains a separate controlled Kafka App lifecycle change.
 - [ ] **Prometheus target debt:** connection-refused DOWN scrapes remain for Alloy `:12345`, HAProxy `:9101`, Loki `:3100`, Mimir `:9009`, OpenSearch `:9114`, OpenSearch Security `:9115`, postgres_exporter `:9187`, Sybase `:9113` and Tempo `:3200`. Treat each as an ownership/listener/configuration diagnosis, not automatically as a service outage. Mimir is high priority because Prometheus remote-write also targets `172.17.0.24:9009`.
 - [x] **Suricata engine/rules:** the `eth0` crash loop is fixed, Suricata captures on TrueNAS `br0`, `/var/lib/suricata/rules/suricata.rules` is populated, 52k+ rules are loaded and `eve.json` is actively produced.
@@ -149,6 +150,12 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 Keep FastAPI as an observer, not an appliance recovery controller.
 
 - [ ] Prove TrueNAS, pfSense, Cloudflare, Prometheus, Sentry and Pyroscope transport/auth/application results independently.
+- [ ] **FastAPI Sentry tracing acceptance:** deploy the route-based transaction naming from `fastapi-sample#251`, run `scripts/truenas/smoke-fastapi-observability.sh`, and require one `/sentry-debug` event in project `2` whose stored `trace_id` matches the injected trace plus at least one corresponding row in `eap_spans_local` or `transactions_local`. Error ingestion without a persisted transaction/span is not tracing acceptance.
+- [ ] **Pyroscope runtime acceptance:** require `/ready` success plus recent Pyroscope series for `service_name="fastapi-sample"`; keep process profiling independent from Sentry availability so one telemetry backend cannot disable the other.
+- [ ] **Prometheus FastAPI scrape acceptance:** require `up{job="fastapi_sample"} == 1` and queryable `fastapi_requests_total`/latency metrics after the merged scrape configuration is actually deployed to the Prometheus runtime.
+- [ ] **Grafana observability correlation:** expose Sentry errors, Prometheus/Mimir metrics, Tempo traces, Pyroscope profiles and Loki logs as separate evidence planes, then add Grafana links from traces to profiles using stable service labels and from traces to logs using `trace_id`/`span_id` where available.
+- [ ] **Alloy / Loki / Tempo pipeline:** Alloy should collect/forward FastAPI logs to Loki and OTLP traces to Tempo; do not treat Loki as a trace store. Standardize `service_name`/`service.name`, environment, release, route, `trace_id` and `span_id` labels/fields across FastAPI telemetry without introducing unbounded Prometheus label cardinality.
+- [ ] **Cross-signal smoke:** extend runtime validation so one controlled FastAPI request can be correlated across Sentry event/trace, Prometheus request metrics, Loki log record, Tempo trace/span and Pyroscope profile evidence; keep every backend independently diagnosable and report partial telemetry as warning/degraded observability rather than application DOWN.
 - [ ] Keep Cloudflare API uncertainty warning-only when global status cannot be confirmed.
 - [ ] Continue least-privilege `fastapi_observer` A/B validation.
 - [ ] Keep expensive fan-out probes bounded, cached and staggered.
@@ -209,7 +216,8 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 ## Ordering rule
 
 ```text
-Prometheus DOWN-target reconciliation (Mimir first)
+Prometheus DOWN-target reconciliation (Mimir, Alloy/Loki and Tempo first)
+  -> FastAPI observability correlation (Sentry + Prometheus/Grafana + Alloy/Loki/Tempo + Pyroscope)
   -> Suricata EVE downstream consumption
   -> pfSense NetFlow -> Cloudflare Flow Analytics
   -> Uptime Kuma Compose :31050 + AutoKuma reconciliation
