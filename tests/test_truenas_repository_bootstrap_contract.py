@@ -8,6 +8,7 @@ RUNTIME = ROOT / "scripts" / "truenas" / "bootstrap-repository-runtime.sh"
 SCANOPY = ROOT / "scripts" / "truenas" / "deploy-scanopy.sh"
 AUTOKUMA = ROOT / "scripts" / "truenas" / "deploy-autokuma.sh"
 AUTOKUMA_TOKEN = ROOT / "scripts" / "truenas" / "bootstrap-autokuma-token.sh"
+AUTOKUMA_COMPOSE = ROOT / "apps" / "autokuma" / "compose.yml"
 DOCLING = ROOT / "scripts" / "truenas" / "deploy-docling.sh"
 JOPLIN = ROOT / "scripts" / "truenas" / "deploy-joplin.sh"
 
@@ -82,12 +83,14 @@ def test_scanopy_deploy_reconciles_runtime_and_custom_app() -> None:
 def test_autokuma_deploy_reconciles_runtime_and_custom_app() -> None:
     script = assert_canonical_custom_app_deploy(AUTOKUMA, "autokuma")
     token_script = AUTOKUMA_TOKEN.read_text(encoding="utf-8")
+    compose = AUTOKUMA_COMPOSE.read_text(encoding="utf-8")
 
     assert "/mnt/cpool/secrets/runtime/autokuma/.env.secrets" in script
     assert "/mnt/cpool/secrets/runtime/autokuma" in token_script
-    assert "AUTOKUMA__KUMA__URL" in script
+    assert "AUTOKUMA__KUMA__URL:" in compose
     assert "AUTOKUMA__KUMA__AUTH_TOKEN" in script
     assert "generated-monitors.json" in script
+    assert "endpoint remains non-secret Compose configuration" in token_script
 
 
 def test_docling_deploy_requires_no_service_secret_file() -> None:
