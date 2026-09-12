@@ -1,3 +1,15 @@
+# [0.37.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.36.0...0.37.0) (2026-09-12)
+
+
+### Bug Fixes
+
+* **security:** close alert 19 and harden TrueNAS bootstrap ([#197](https://github.com/AlbanAndrieu/nabla-compose/issues/197)) ([47d47fb](https://github.com/AlbanAndrieu/nabla-compose/commit/47d47fbfffbbb42412b1b7a623f809b00c1911d5))
+
+
+### Features
+
+* **infra:** prepare GitHub governance with OpenTofu ([#198](https://github.com/AlbanAndrieu/nabla-compose/issues/198)) ([3c48ee9](https://github.com/AlbanAndrieu/nabla-compose/commit/3c48ee9d6298636becde7f00d478733d34753678))
+
 # [0.36.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.35.0...0.36.0) (2026-09-12)
 
 
