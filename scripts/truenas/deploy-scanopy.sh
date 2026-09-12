@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_ID="${SCANOPY_APP_ID:-scanopy}"
 CANONICAL_ROOT="${SCANOPY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/scanopy/.env.secrets}"
+SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/secrets/runtime/scanopy/.env.secrets}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
