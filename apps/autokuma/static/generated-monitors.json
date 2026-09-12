@@ -629,7 +629,7 @@
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:4040/ready"
+    "url": "http://172.17.0.24:4040/"
   },
   {
     "type": "port",

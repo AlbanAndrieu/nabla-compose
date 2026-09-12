@@ -108,7 +108,13 @@
       "sourcePath": "docs/dns-ingress-ownership.md",
       "description": "Primary LAN recursive resolver at 172.17.0.1:53; delegates int.albandrieu.com to Pi-hole with Forwarding Mode disabled and outgoing interfaces set to All.",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.1",
+        "port": 53,
+        "target": "tcp://172.17.0.1:53"
+      }
     }
   ],
   "relations": [

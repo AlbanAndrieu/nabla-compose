@@ -16,7 +16,8 @@ services:
         containerService: pyroscope
       monitoring:
         type: http
-        target: http://172.17.0.24:4040/ready
+        target: http://172.17.0.24:4040/
+        url: http://172.17.0.24:4040/metrics
       relations:
         - target: grafana
           type: observedBy
@@ -24,6 +25,12 @@ services:
           description: Grafana queries Pyroscope as a profiling data source.
           evidence:
             - apps/pyroscope/compose.yml:TCP/4040
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes Pyroscope self-metrics from /metrics.
+          evidence:
+            - apps/pyroscope/compose.yml:pyroscope.x-nabla.monitoring.url
     restart: unless-stopped
     ports:
       - "4040:4040"

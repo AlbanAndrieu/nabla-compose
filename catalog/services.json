@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:3b829c0a3d0ede64959d789f43da46d388d15f5f25a06ce224c29b3533c6d017",
+  "catalogRevision": "sha256:c9268ace8b268282f5da6f0a8550c12c24745f286ebbce8d0edb9653cc6ea1d3",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -31,14 +31,14 @@
       "description": "MinIO AIStor-compatible object storage service.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "aistor"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 9002
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "aistor"
       }
     },
     {
@@ -54,13 +54,16 @@
         "identify",
         "detect"
       ],
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "akvorado-console"
-      },
       "monitoring": {
         "type": "http",
         "url": "http://172.17.0.24:31056/"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-console",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -76,15 +79,18 @@
         "identify",
         "detect"
       ],
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "akvorado-inlet"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:31057/api/v0/healthcheck",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-inlet",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -103,7 +109,10 @@
       ],
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "akvorado-orchestrator"
+        "containerService": "akvorado-orchestrator",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -119,15 +128,18 @@
         "identify",
         "detect"
       ],
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "akvorado-outlet"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:31058/api/v0/healthcheck",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "akvorado-outlet",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -138,16 +150,16 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "alloy",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "alloy"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:12345/-/healthy",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alloy"
       },
       "icon": "🧬"
     },
@@ -166,7 +178,10 @@
       "runtime": {
         "provider": "truenas-app",
         "appId": "autokuma",
-        "containerService": "autokuma"
+        "containerService": "autokuma",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -179,13 +194,16 @@
       "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "autoxpose"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:4949/api/settings/status"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "autoxpose",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -195,15 +213,18 @@
       "category": "productivity",
       "sourcePath": "apps/bichon/compose.yml",
       "composeService": "bichon",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "bichon"
-      },
       "monitoring": {
         "type": "port",
         "target": "tcp://172.17.0.24:15630",
         "conditions": [
           "[CONNECTED] == true"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bichon",
+        "networks": [
+          "traefik_network"
         ]
       }
     },
@@ -220,7 +241,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "clickhouse"
+        "containerService": "clickhouse",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "⚡"
     },
@@ -234,13 +258,13 @@
       "description": "Browser-based development environment for homelab repositories.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "code-server"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:8443/healthz"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "code-server"
       }
     },
     {
@@ -279,7 +303,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "docker-socket-proxy"
+        "containerService": "docker-socket-proxy",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -292,14 +319,14 @@
       "description": "Docker container management UI.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "dockhand"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 3050
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dockhand"
       }
     },
     {
@@ -312,14 +339,14 @@
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "doco-cd"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 9120
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "doco-cd"
       }
     },
     {
@@ -332,14 +359,17 @@
       "description": "Live Docker log viewer and MCP-enabled operations UI.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "dozzle"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 8888
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dozzle",
+        "networks": [
+          "traefik_network"
+        ]
       }
     },
     {
@@ -352,14 +382,14 @@
       "description": "Self-hosted diagrams.net editor.",
       "presentationRole": "service",
       "criticality": "low",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "drawio"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 9080
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "drawio"
       }
     },
     {
@@ -371,7 +401,10 @@
       "composeService": "elasticsearch",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "elasticsearch"
+        "containerService": "elasticsearch",
+        "networks": [
+          "traefik_network"
+        ]
       },
       "icon": "🔎"
     },
@@ -395,19 +428,24 @@
         {
           "name": "staging",
           "url": "https://sample.albandrieu.com/api",
-          "external": false,
-          "cloudflareTunnel": false
+          "external": true,
+          "cloudflareTunnel": true
         }
       ],
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "fastapi-sample"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:8091/health",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "fastapi-sample",
+        "networks": [
+          "intranet",
+          "sample-observer",
+          "traefik_network"
         ]
       }
     },
@@ -422,7 +460,10 @@
       "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "garage"
+        "containerService": "garage",
+        "networks": [
+          "traefik_network"
+        ]
       },
       "icon": "🪣"
     },
@@ -437,7 +478,10 @@
       "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "webui"
+        "containerService": "webui",
+        "networks": [
+          "traefik_network"
+        ]
       },
       "icon": "🖥️"
     },
@@ -452,7 +496,10 @@
       "description": "Declarative status monitoring generated from Nabla Compose services.",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "gatus"
+        "containerService": "gatus",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -462,16 +509,16 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "grafana",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "grafana"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:30037/api/health",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "grafana"
       },
       "icon": "📈"
     },
@@ -488,7 +535,11 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "graylog"
+        "containerService": "graylog",
+        "networks": [
+          "intranet",
+          "nabla-security"
+        ]
       },
       "icon": "🪵"
     },
@@ -515,14 +566,17 @@
       "description": "Small internal Nginx service used for ingress and routing experiments.",
       "presentationRole": "support",
       "criticality": "low",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "nginx"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 8099
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx",
+        "networks": [
+          "traefik_network"
+        ]
       }
     },
     {
@@ -538,7 +592,10 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "homarr"
+        "containerService": "homarr",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -551,7 +608,10 @@
       "description": "Non-destructively reconciles generated Nabla applications through the Homarr API.",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "homarr-sync"
+        "containerService": "homarr-sync",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -566,7 +626,11 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "homeassistant"
+        "containerService": "homeassistant",
+        "networks": [
+          "iot_macvlan",
+          "traefik"
+        ]
       }
     },
     {
@@ -583,7 +647,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "influxdb"
+        "containerService": "influxdb",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -597,14 +664,17 @@
         "phase": "primary-data",
         "priority": 20
       },
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "kafka"
-      },
       "monitoring": {
         "type": "port",
         "host": "kafka",
         "port": 9092
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "kafka",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -614,16 +684,19 @@
       "category": "observability",
       "sourcePath": "apps/kafka/compose.yml",
       "composeService": "kafka-exporter",
-      "runtime": {
-        "provider": "truenas-app",
-        "appId": "kafka",
-        "containerService": "kafka-exporter"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9308/metrics",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "kafka",
+        "containerService": "kafka-exporter",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -637,13 +710,16 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "keycloak"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "keycloak",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -655,7 +731,10 @@
       "composeService": "kibana",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "kibana"
+        "containerService": "kibana",
+        "networks": [
+          "traefik_network"
+        ]
       },
       "icon": "📊"
     },
@@ -668,7 +747,11 @@
       "composeService": "langflow",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "langflow"
+        "containerService": "langflow",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
       },
       "icon": "🔗"
     },
@@ -681,7 +764,10 @@
       "composeService": "langfuse-web",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "langfuse-web"
+        "containerService": "langfuse-web",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "🖥️"
     },
@@ -694,7 +780,10 @@
       "composeService": "langfuse-worker",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "langfuse-worker"
+        "containerService": "langfuse-worker",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "⚙️"
     },
@@ -708,13 +797,13 @@
       "description": "Self-hosted grammar and style checking API.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "languagetool"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "languagetool"
       }
     },
     {
@@ -737,16 +826,16 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "loki",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "loki"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:3100/ready",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "loki"
       },
       "icon": "🧾"
     },
@@ -757,16 +846,16 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "mimir",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "mimir"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9009/ready",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mimir"
       },
       "icon": "📐"
     },
@@ -779,7 +868,10 @@
       "composeService": "minio",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "minio"
+        "containerService": "minio",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "🪣"
     },
@@ -796,7 +888,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "mongo"
+        "containerService": "mongo",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "🍃"
     },
@@ -823,14 +918,17 @@
       "description": "Repository manager for development artifacts and package proxies.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "nexus"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 8081
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nexus",
+        "networks": [
+          "traefik_network"
+        ]
       }
     },
     {
@@ -843,14 +941,14 @@
       "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "app"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 30021
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "app"
       }
     },
     {
@@ -863,14 +961,14 @@
       "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
       "presentationRole": "support",
       "criticality": "high",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "npmplus"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 30360
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "npmplus"
       }
     },
     {
@@ -925,14 +1023,14 @@
       "securityFunctions": [
         "protect"
       ],
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "op-connect-api"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 8097
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "op-connect-api"
       }
     },
     {
@@ -978,14 +1076,17 @@
       "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
       "presentationRole": "service",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "openhands"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 3010
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "openhands",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -997,7 +1098,11 @@
       "composeService": "openrag-backend",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "openrag-backend"
+        "containerService": "openrag-backend",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
       },
       "icon": "📚"
     },
@@ -1010,7 +1115,11 @@
       "composeService": "openrag-frontend",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "openrag-frontend"
+        "containerService": "openrag-frontend",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
       },
       "icon": "🔍"
     },
@@ -1027,7 +1136,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "opensearch"
+        "containerService": "opensearch",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "🔎"
     },
@@ -1044,7 +1156,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "dashboards"
+        "containerService": "dashboards",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "📊"
     },
@@ -1074,7 +1189,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "opensearch-security"
+        "containerService": "opensearch-security",
+        "networks": [
+          "nabla-security"
+        ]
       },
       "icon": "🛡️"
     },
@@ -1087,7 +1205,10 @@
       "composeService": "opensearch-security-exporter",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "opensearch-security-exporter"
+        "containerService": "opensearch-security-exporter",
+        "networks": [
+          "nabla-security"
+        ]
       },
       "icon": "📡"
     },
@@ -1125,16 +1246,16 @@
       "category": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
       "composeService": "pfsense-exporter",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "pfsense-exporter"
-      },
       "monitoring": {
         "type": "port",
         "target": "tcp://172.17.0.24:9945",
         "conditions": [
           "[CONNECTED] == true"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pfsense-exporter"
       },
       "icon": "📡"
     },
@@ -1152,13 +1273,16 @@
         "phase": "foundation",
         "priority": 10
       },
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "pihole"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:20720/admin/"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1173,7 +1297,10 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "pihole-dns-sync"
+        "containerService": "pihole-dns-sync",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1186,14 +1313,17 @@
       "description": "Prometheus-compatible metrics exporter for Pi-hole.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "pihole-exporter"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 9617
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "pihole-exporter",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1206,14 +1336,14 @@
       "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "portracker"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 4999
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "portracker"
       }
     },
     {
@@ -1226,14 +1356,17 @@
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "postgres_exporter"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 9187
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "postgres_exporter",
+        "networks": [
+          "default"
+        ]
       }
     },
     {
@@ -1243,15 +1376,18 @@
       "category": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
       "composeService": "prometheus",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "prometheus"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9090/-/ready",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prometheus",
+        "networks": [
+          "intranet"
         ]
       },
       "icon": "📊"
@@ -1263,16 +1399,16 @@
       "category": "observability",
       "sourcePath": "apps/prometheus/compose.yml",
       "composeService": "alertmanager",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "alertmanager"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9093/-/ready",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "alertmanager"
       }
     },
     {
@@ -1285,13 +1421,14 @@
       "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
       "presentationRole": "support",
       "criticality": "medium",
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:4040/",
+        "url": "http://172.17.0.24:4040/metrics"
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "pyroscope"
-      },
-      "monitoring": {
-        "type": "http",
-        "target": "http://172.17.0.24:4040/ready"
       }
     },
     {
@@ -1307,7 +1444,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "redis"
+        "containerService": "redis",
+        "networks": [
+          "intranet"
+        ]
       },
       "icon": "🔴"
     },
@@ -1322,15 +1462,18 @@
       "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "scrutiny"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:31054/api/health",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scrutiny",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -1343,7 +1486,10 @@
       "composeService": "scrutiny-collector",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "scrutiny-collector"
+        "containerService": "scrutiny-collector",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1357,13 +1503,17 @@
       "description": "Self-hosted Sentry 26.8 errors-only application service.",
       "presentationRole": "service",
       "criticality": "high",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "sentry-web"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9005/_health/"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-web",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1379,14 +1529,17 @@
         "phase": "secondary-data",
         "priority": 30
       },
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "sentry-clickhouse"
-      },
       "monitoring": {
         "type": "port",
         "host": "sentry-clickhouse",
         "port": 9000
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sentry-clickhouse",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1398,13 +1551,17 @@
       "composeService": "nginx",
       "presentationRole": "support",
       "criticality": "high",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "nginx"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:9005/_health/"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "nginx",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1418,7 +1575,11 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "relay"
+        "containerService": "relay",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1433,7 +1594,11 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "snuba-api"
+        "containerService": "snuba-api",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1447,7 +1612,11 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "taskbroker"
+        "containerService": "taskbroker",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1461,7 +1630,11 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "sentry-taskworker"
+        "containerService": "sentry-taskworker",
+        "networks": [
+          "intranet",
+          "sentry"
+        ]
       }
     },
     {
@@ -1487,14 +1660,17 @@
       "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
       "presentationRole": "support",
       "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "squid"
-      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
         "port": 3128
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "squid",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -1537,16 +1713,16 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "tempo",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "tempo"
-      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:3200/ready",
         "conditions": [
           "[STATUS] == 200"
         ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "tempo"
       },
       "icon": "⏱️"
     },
@@ -1566,7 +1742,10 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "traefik"
+        "containerService": "traefik",
+        "networks": [
+          "traefik_network"
+        ]
       },
       "icon": "🚦"
     },
@@ -1590,7 +1769,12 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "vaultwarden"
+        "containerService": "vaultwarden",
+        "networks": [
+          "default",
+          "secrets-backend",
+          "traefik_network"
+        ]
       }
     },
     {
@@ -1608,7 +1792,11 @@
       ],
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "bitwarden-api"
+        "containerService": "bitwarden-api",
+        "networks": [
+          "default",
+          "secrets-backend"
+        ]
       }
     },
     {
@@ -1633,7 +1821,11 @@
       "composeService": "wazuh-forwarder",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "wazuh-forwarder"
+        "containerService": "wazuh-forwarder",
+        "networks": [
+          "default",
+          "nabla-security"
+        ]
       },
       "icon": "🔁"
     },
@@ -1678,7 +1870,10 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "wordpress"
+        "containerService": "wordpress",
+        "networks": [
+          "intranet"
+        ]
       }
     }
   ]

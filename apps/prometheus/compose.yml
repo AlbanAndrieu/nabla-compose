@@ -1,7 +1,6 @@
 ---
 services:
   prometheus:
-    network_mode: bridge
     image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
     container_name: prometheus
     restart: unless-stopped
@@ -36,16 +35,20 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090" # 30104
     volumes:
+      # Mount the config directory, not prometheus.yml as a single file. Git can
+      # replace a tracked file inode during pull/rebase; a file bind would keep
+      # the old inode inside the running container and make SIGHUP reload stale
+      # configuration. The directory bind keeps replacements visible in place.
       - type: bind
-        source: ./prometheus.yml
-        target: /etc/prometheus/prometheus.yml
-        read_only: true
-      - type: bind
-        source: ./rules
-        target: /etc/prometheus/rules
+        source: .
+        target: /etc/prometheus
         read_only: true
       - /mnt/cpool/prometheus/data:/prometheus
-    # networks: ["traefik_network"]
+    # Prometheus joins the shared private Docker network so database metrics
+    # such as InfluxDB can be scraped without publishing their full API on the
+    # LAN. Host/LAN targets remain reachable through the Docker bridge route.
+    networks:
+      - intranet
     # labels:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.prometheus-svc.rule=Host(`prometheus.int.albandrieu.com`)"
