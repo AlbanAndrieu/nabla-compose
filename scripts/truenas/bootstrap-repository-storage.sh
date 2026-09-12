@@ -34,7 +34,7 @@ mapfile -t mount_roots < <(
 missing=0
 printf 'Repository-declared TrueNAS dataset roots (%s):\n' "${POOL}"
 for mount_root in "${mount_roots[@]}"; do
-  dataset="${POOL}/${mount_root#${CANONICAL_MOUNT}/}"
+  dataset="${POOL}/${mount_root#"${CANONICAL_MOUNT}"/}"
   if zfs list -H -o name "${dataset}" >/dev/null 2>&1; then
     mountpoint="$(zfs get -H -o value mountpoint "${dataset}")"
     printf '✅ %-36s mountpoint=%s\n' "${dataset}" "${mountpoint}"
