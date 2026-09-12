@@ -312,6 +312,35 @@
       "icon": "🛡️"
     },
     {
+      "id": "cyberbro",
+      "name": "Cyberbro",
+      "kind": "threat-intelligence-analysis",
+      "category": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "url": "http://172.17.0.24:5100",
+      "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "cyberbro",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:5100/",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
       "id": "docker",
       "name": "Docker",
       "kind": "container-runtime",
@@ -964,6 +993,32 @@
         ]
       },
       "icon": "🧾"
+    },
+    {
+      "id": "mcp-cyberbro",
+      "name": "Cyberbro MCP",
+      "kind": "mcp-server",
+      "category": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-cyberbro",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8013
+      }
     },
     {
       "id": "mimir",
@@ -2463,6 +2518,16 @@
       ]
     },
     {
+      "source": "cyberbro",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/cyberbro/compose.yml:cyberbro.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "docker",
       "target": "truenas",
       "type": "hostedBy",
@@ -3199,6 +3264,16 @@
     },
     {
       "source": "litellm",
+      "target": "mcp-cyberbro",
+      "type": "routesTo",
+      "strength": "optional",
+      "description": "LiteLLM exposes Cyberbro threat-intelligence tools through its MCP gateway.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.cyberbro"
+      ]
+    },
+    {
+      "source": "litellm",
       "target": "ollama",
       "type": "routesTo",
       "strength": "required",
@@ -3235,6 +3310,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/grafana/compose.yml:loki.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "mcp-cyberbro",
+      "target": "cyberbro",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Cyberbro MCP submits observables to the Cyberbro HTTP API and retrieves analysis results.",
+      "evidence": [
+        "apps/cyberbro/compose.yml:CYBERBRO_URL"
+      ]
+    },
+    {
+      "source": "mcp-cyberbro",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/cyberbro/compose.yml:mcp-cyberbro.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "mcp-cyberbro",
+      "target": "litellm",
+      "type": "providesApi",
+      "strength": "optional",
+      "description": "LiteLLM can consume this streamable HTTP MCP endpoint as an upstream MCP server.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.cyberbro"
       ]
     },
     {
