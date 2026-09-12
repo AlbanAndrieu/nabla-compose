@@ -42,6 +42,8 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
         expected_networks = ["intranet", "sample-observer", "traefik_network"]
         self.assertEqual(node["runtime"]["networks"], expected_networks)
         self.assertEqual(service["runtime"]["networks"], expected_networks)
+        self.assertEqual(node["runtime"]["networks"], sorted(node["runtime"]["networks"]))
+        self.assertFalse(any("${" in network for network in node["runtime"]["networks"]))
 
 
 if __name__ == "__main__":
