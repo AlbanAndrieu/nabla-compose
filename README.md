@@ -47,7 +47,7 @@ docker compose -f ./docker-compose.yml up -d
 ```
 
 portainer : http://localhost:9001/#!/init/admin
-grafana : http://localhost:8085/
+grafana : http://localhost:30037/
 
 ```bash
 cd openvas
@@ -71,7 +71,7 @@ ln -s /home/albandrieu/.reactive/.env .env
 # docker compose up -d
 
 sudo systemctl restart reactive.service
-sudo journalctl -xeu reactive
+sudo journalctl -xeu  reactive
 
 # Access the app
 open http://localhost:3007

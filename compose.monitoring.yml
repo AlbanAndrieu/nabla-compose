@@ -35,7 +35,7 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/postgres/1-global-db-overview.json
       GF_INSTALL_PLUGINS: marcusolsson-treemap-panel,grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel
     ports:
-      - "${GRAFANA_PORT:-3009}:3000"
+      - "${GRAFANA_PORT:-30037}:3000"
     restart: unless-stopped
     volumes:
       - ./pgwatch/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/pgwatch_dashboards.yml
