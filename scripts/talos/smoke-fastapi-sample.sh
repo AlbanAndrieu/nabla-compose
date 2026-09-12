@@ -40,7 +40,7 @@ Modes:
   --render          render the Kubernetes manifest only (default)
   --preflight       verify kubeconfig, IngressClass and private DNS without deployment
   --server-dry-run  validate the manifest against the live API server without persisting it
-  --apply           deploy/update the smoke workload and verify rollout + public endpoints
+  --apply           deploy/update the smoke workload and verify rollout + private LAN endpoints
   --cleanup         delete the smoke namespace
 
 Environment:
