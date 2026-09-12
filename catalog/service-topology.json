@@ -1626,6 +1626,68 @@
       "icon": "🔴"
     },
     {
+      "id": "scanopy",
+      "name": "Scanopy",
+      "kind": "network-topology-management",
+      "category": "network",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "url": "http://172.17.0.24:60072",
+      "description": "Agentless network discovery and continuously updated topology documentation.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 60072
+      }
+    },
+    {
+      "id": "scanopy-daemon",
+      "name": "Scanopy Daemon",
+      "kind": "network-discovery-scanner",
+      "category": "network",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy-daemon"
+      }
+    },
+    {
+      "id": "scanopy-postgres",
+      "name": "Scanopy PostgreSQL",
+      "kind": "relational-database",
+      "category": "data",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "description": "Dedicated PostgreSQL database for Scanopy topology and discovery data.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy-postgres",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "scrutiny",
       "name": "Scrutiny",
       "kind": "storage-monitoring",
@@ -3825,6 +3887,56 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/redis/compose.yml:redis.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scanopy",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scanopy/compose.yml:scanopy.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scanopy",
+      "target": "scanopy-daemon",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Scanopy consumes discovery data from its integrated daemon.",
+      "evidence": [
+        "apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL"
+      ]
+    },
+    {
+      "source": "scanopy",
+      "target": "scanopy-postgres",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Scanopy stores its topology, inventory, and discovery history in its dedicated PostgreSQL database.",
+      "evidence": [
+        "apps/scanopy/compose.yml:SCANOPY_DATABASE_URL"
+      ]
+    },
+    {
+      "source": "scanopy-daemon",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scanopy/compose.yml:scanopy-daemon.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scanopy-postgres",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scanopy/compose.yml:scanopy-postgres.x-nabla.runtime.containerService"
       ]
     },
     {
