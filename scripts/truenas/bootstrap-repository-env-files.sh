@@ -178,7 +178,7 @@ for legacy_env in /mnt/"${POOL}"/*/.env \
   [[ -n "${source_app["${legacy_env}"]:-}" ]] && continue
   name="$(basename "${legacy_env}")"
   is_runtime_env_name "${name}" || continue
-  app="${legacy_env#/mnt/${POOL}/}"
+  app="${legacy_env#/mnt/"${POOL}"/}"
   app="${app%%/*}"
   source_app["${legacy_env}"]="${app}"
   source_kind["${legacy_env}"]="legacy-root"
