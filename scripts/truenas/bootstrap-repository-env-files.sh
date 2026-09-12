@@ -14,7 +14,7 @@ case "${MODE}" in
   *) fail "usage: $0 [--check|--apply]" ;;
 esac
 
-[[ "${EUID}" -eq 0 ]] || fail "run with sudo so runtime env files remain root-owned"
+[[ "${EUID}" -eq 0 ]] || fail "run with sudo so missing runtime env files can be created safely"
 for command in git awk sort stat install dirname; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
@@ -89,20 +89,8 @@ for env_file in "${env_files[@]}"; do
     continue
   fi
 
-  metadata="$(stat -c '%u:%g %a' "${env_file}")"
-  if [[ "${metadata}" != "0:0 600" ]]; then
-    if [[ "${MODE}" == "--apply" ]]; then
-      chown root:root "${env_file}"
-      chmod 600 "${env_file}"
-      printf '✅ %s permissions normalized to root:root mode=0600\n' "${env_file}"
-    else
-      printf '❌ %s permissions=%s; expected 0:0 600\n' "${env_file}" "${metadata}"
-      invalid=$((invalid + 1))
-    fi
-    continue
-  fi
-
-  printf '✅ %s present root:root mode=0600\n' "${env_file}"
+  metadata="$(stat -c '%U:%G %a' "${env_file}")"
+  printf '✅ %s present owner/mode=%s (left unchanged)\n' "${env_file}" "${metadata}"
 done
 
 if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
@@ -112,7 +100,7 @@ if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
 fi
 
 if ((invalid > 0)); then
-  printf '❌ %d runtime env file path/permission issue(s) remain.\n' "${invalid}" >&2
+  printf '❌ %d runtime env file path issue(s) remain.\n' "${invalid}" >&2
   exit 1
 fi
 
