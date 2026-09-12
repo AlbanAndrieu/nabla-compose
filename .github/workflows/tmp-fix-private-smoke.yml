@@ -1,0 +1,94 @@
+---
+name: Temporary private smoke cleanup
+
+on:
+  push:
+    branches: [feat/docling-joplin-codeql-101]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: feat/docling-joplin-codeql-101
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
+        with:
+          python-version: "3.13"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyYAML==6.0.3 pytest==8.4.2
+
+      - name: Fix private hostname semantics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"missing expected fragment in {path}: {old!r}")
+              file.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace(
+              "catalog/homelab-services.json",
+              "https://open-speed-test.int.albandrieu.com",
+              "https://open-speed-test.albandrieu.com",
+          )
+          replace(
+              "catalog/homelab-services.json",
+              "https://speedtest.int.albandrieu.com",
+              "https://speedtest.albandrieu.com",
+          )
+
+          smoke = Path("scripts/talos/smoke-fastapi-sample.sh")
+          text = smoke.read_text(encoding="utf-8")
+          text = text.replace("resolve_public_host()", "resolve_private_host()")
+          text = text.replace("resolve_public_host)", "resolve_private_host)")
+          text = text.replace("verify kubeconfig, IngressClass and public DNS without deployment", "verify kubeconfig, IngressClass and private DNS without deployment")
+          text = text.replace('fail "public DNS lookup failed for ${HOST}"', 'fail "private DNS lookup failed for ${HOST}"')
+          text = text.replace('fail "public DNS lookup returned no address for ${HOST}"', 'fail "private DNS lookup returned no address for ${HOST}"')
+          text = text.replace("validating external FastAPI smoke", "validating LAN/private FastAPI smoke")
+          text = text.replace("external /health returned an empty response", "private /health returned an empty response")
+          text = text.replace("validating external FastAPI API path", "validating LAN/private FastAPI API path")
+          text = text.replace("external ${API_PATH} returned an empty response", "private ${API_PATH} returned an empty response")
+          smoke.write_text(text, encoding="utf-8")
+
+          runbook = Path("docs/kubernetes-fastapi-smoke.md")
+          text = runbook.read_text(encoding="utf-8")
+          text = text.replace("resolve\npublic DNS without mutating the cluster", "resolve\nprivate LAN DNS without mutating the cluster")
+          text = text.replace("public DNS lookup failure", "private DNS lookup failure")
+          text = text.replace("DNS/edge route", "LAN DNS/ingress route")
+          text = text.replace("public `/health` or API failure", "private `/health` or API failure")
+          runbook.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Validate synchronized contracts
+        run: |
+          set -euo pipefail
+          python scripts/generate-service-topology.py --check
+          python scripts/generate-service-consumers.py --check
+          python -m pytest -q \
+            tests/test_codeql_101_contract.py \
+            tests/test_docling_joplin_contract.py \
+            tests/test_kubernetes_fastapi_smoke_contract.py \
+            tests/test_cloudflare_api_diagnostic.py
+
+      - name: Commit cleanup
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/homelab-services.json scripts/talos/smoke-fastapi-sample.sh docs/kubernetes-fastapi-smoke.md
+          git commit -m "fix(kubernetes): keep test smoke private without touching speedtest hosts"
+          git push origin HEAD:feat/docling-joplin-codeql-101
