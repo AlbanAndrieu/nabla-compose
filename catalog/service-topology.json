@@ -1492,7 +1492,10 @@
       "sourcePath": "apps/prometheus/compose.yml",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "prometheus"
+        "containerService": "prometheus",
+        "networks": [
+          "intranet"
+        ]
       },
       "monitoring": {
         "type": "http",
