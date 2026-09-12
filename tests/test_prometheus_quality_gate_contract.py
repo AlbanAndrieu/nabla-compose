@@ -11,9 +11,17 @@ def test_promtool_gate_validates_runtime_paths() -> None:
 
     assert "docker run --rm" in source
     assert "prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}" in source
-    assert "${CONFIG}:/etc/prometheus/prometheus.yml:ro" in source
-    assert "${RULES_DIR}:/etc/prometheus/rules:ro" in source
+    assert "${PROMETHEUS_DIR}:/etc/prometheus:ro" in source
     assert "check config /etc/prometheus/prometheus.yml" in source
+
+
+def test_prometheus_mounts_config_directory_to_survive_atomic_git_replacement() -> None:
+    compose = (ROOT / "apps" / "prometheus" / "compose.yml").read_text(encoding="utf-8")
+
+    assert "source: .\n        target: /etc/prometheus" in compose
+    assert "source: ./prometheus.yml" not in compose
+    assert "source: ./rules" not in compose
+    assert "old inode" in compose
 
 
 def test_runtime_target_diagnostic_detects_bind_mount_drift_read_only() -> None:
