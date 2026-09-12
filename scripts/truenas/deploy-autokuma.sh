@@ -51,7 +51,7 @@ if grep -q '^AUTOKUMA__KUMA__PASSWORD=.' "${SECRET_FILE}"; then
 	has_password=true
 fi
 
-if [[ "${has_token}" != "true" && !("${has_user}" == "true" && "${has_password}" == "true") ]]; then
+if [[ "${has_token}" != "true" && ! ( "${has_user}" == "true" && "${has_password}" == "true" ) ]]; then
 	fail "configure either AUTOKUMA__KUMA__AUTH_TOKEN or username+password"
 fi
 
