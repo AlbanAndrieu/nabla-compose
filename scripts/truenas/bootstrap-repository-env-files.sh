@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MODE="${1:---check}"
+APP_FILTER="${2:-}"
 POOL="${NABLA_ZFS_POOL:-cpool}"
 CANONICAL_ROOT="${NABLA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRETS_DATASET="${NABLA_SECRETS_DATASET:-${POOL}/secrets}"
@@ -14,10 +15,35 @@ fail() {
   exit 1
 }
 
+usage() {
+  cat <<'USAGE'
+usage: bootstrap-repository-env-files.sh [--check|--apply|--finalize] [app]
+
+  --check       read-only migration/status preview
+  --apply       stage verified root-only canonical copies; keep old paths intact
+  --finalize    replace byte-identical legacy paths with compatibility symlinks
+
+The optional app argument scopes the operation to one repository app. Finalize
+is intentionally separate from staging so operators can validate canonical
+copies and service health before old paths are replaced.
+USAGE
+}
+
 case "${MODE}" in
-  --check | --apply) ;;
-  *) fail "usage: $0 [--check|--apply]" ;;
+  --check | --apply | --finalize) ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
 esac
+
+if [[ -n "${APP_FILTER}" && ! "${APP_FILTER}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
+  fail "invalid app filter: ${APP_FILTER}"
+fi
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so runtime env materializations remain root-only"
@@ -32,16 +58,24 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
+app_selected() {
+  local app="$1"
+  [[ -z "${APP_FILTER}" || "${app}" == "${APP_FILTER}" ]]
+}
+
 is_runtime_env_name() {
   case "$1" in
-    .env | .env.secrets | .env.*.secrets) return 0 ;;
+    .env | .env.secrets | .env.*.secrets | .env.compose) return 0 ;;
     *) return 1 ;;
   esac
 }
 
 canonical_env_file() {
-  local app="$1" source="$2" name root
+  local app="$1" source="$2" kind="$3" name root
   name="$(basename "${source}")"
+  if [[ "${kind}" == "implicit-local" && "${name}" == ".env" ]]; then
+    name=".env.compose"
+  fi
   if [[ "${app}" == "vaultwarden" ]]; then
     root="${BOOTSTRAP_ROOT}/${app}"
   else
@@ -55,6 +89,7 @@ discover_declared_env_files() {
   while IFS= read -r compose; do
     app="${compose#apps/}"
     app="${app%%/*}"
+    app_selected "${app}" || continue
     awk -v app="${app}" '
       function indent(line) {
         match(line, /^[[:space:]]*/)
@@ -77,11 +112,11 @@ discover_declared_env_files() {
         line = $0
         sub(/[[:space:]]+#.*/, "", line)
         if (match(line, /\/mnt\/cpool\/[A-Za-z0-9._\/-]+\/\.env([.][A-Za-z0-9._-]+)?/)) {
-          print app "|" substr(line, RSTART, RLENGTH) "|declared"
+          print app "|" substr(line, RSTART, RLENGTH)
           next
         }
         if (match(line, /([.][\/])?[.]env([.][A-Za-z0-9._-]+)?/)) {
-          print app "|" substr(line, RSTART, RLENGTH) "|declared-relative"
+          print app "|" substr(line, RSTART, RLENGTH)
         }
       }
     ' "${compose}"
@@ -105,7 +140,7 @@ check_private_directory() {
 ensure_secrets_root() {
   local payload metadata
   if ! zfs list -H -o name "${SECRETS_DATASET}" >/dev/null 2>&1; then
-    if [[ "${MODE}" == "--check" ]]; then
+    if [[ "${MODE}" == "--check" || "${MODE}" == "--finalize" ]]; then
       printf '❌ canonical secrets dataset missing: %s\n' "${SECRETS_DATASET}"
       return 1
     fi
@@ -116,16 +151,13 @@ ensure_secrets_root() {
   fi
 
   if [[ ! -d "${SECRETS_ROOT}" ]]; then
-    if [[ "${MODE}" == "--check" ]]; then
-      printf '❌ canonical secrets mountpoint missing: %s\n' "${SECRETS_ROOT}"
-      return 1
-    fi
-    fail "missing secrets mountpoint ${SECRETS_ROOT}"
+    printf '❌ canonical secrets mountpoint missing: %s\n' "${SECRETS_ROOT}"
+    return 1
   fi
 
   metadata="$(stat -c '%U:%G %a' "${SECRETS_ROOT}")"
   if [[ "${metadata}" != "root:root 700" ]]; then
-    if [[ "${MODE}" == "--check" ]]; then
+    if [[ "${MODE}" == "--check" || "${MODE}" == "--finalize" ]]; then
       printf '❌ %s owner/mode=%s; expected root:root 700\n' \
         "${SECRETS_ROOT}" "${metadata}"
       return 1
@@ -134,7 +166,7 @@ ensure_secrets_root() {
     chmod 700 "${SECRETS_ROOT}"
   fi
 
-  if [[ "${MODE}" == "--check" ]]; then
+  if [[ "${MODE}" == "--check" || "${MODE}" == "--finalize" ]]; then
     check_private_directory "${RUNTIME_ROOT}" || return 1
     check_private_directory "${BOOTSTRAP_ROOT}" || return 1
     return 0
@@ -147,36 +179,94 @@ ensure_secrets_root() {
 
 declare -A source_app=()
 declare -A source_kind=()
+declare -A source_target=()
+declare -A target_app=()
+declare -A target_origin=()
+declare -A target_primary_source=()
+declare -A target_primary_kind=()
 
-while IFS='|' read -r app declared kind; do
+kind_priority() {
+  case "$1" in
+    declared) printf '10\n' ;;
+    legacy-root) printf '20\n' ;;
+    implicit-local) printf '30\n' ;;
+    *) printf '90\n' ;;
+  esac
+}
+
+register_target() {
+  local app="$1" target="$2" origin="$3"
+  target_app["${target}"]="${app}"
+  if [[ -z "${target_origin["${target}"]:-}" ]]; then
+    target_origin["${target}"]="${origin}"
+  fi
+}
+
+register_source() {
+  local app="$1" source="$2" kind="$3" target current current_kind new_priority current_priority
+  target="$(canonical_env_file "${app}" "${source}" "${kind}")"
+  source_app["${source}"]="${app}"
+  source_kind["${source}"]="${kind}"
+  source_target["${source}"]="${target}"
+  register_target "${app}" "${target}" "${source}"
+
+  current="${target_primary_source["${target}"]:-}"
+  current_kind="${target_primary_kind["${target}"]:-}"
+  if [[ -z "${current}" ]]; then
+    target_primary_source["${target}"]="${source}"
+    target_primary_kind["${target}"]="${kind}"
+    return
+  fi
+  new_priority="$(kind_priority "${kind}")"
+  current_priority="$(kind_priority "${current_kind}")"
+  if ((new_priority < current_priority)); then
+    target_primary_source["${target}"]="${source}"
+    target_primary_kind["${target}"]="${kind}"
+  fi
+}
+
+while IFS='|' read -r app declared; do
   [[ -n "${app}" && -n "${declared}" ]] || continue
   if [[ "${declared}" == /* ]]; then
     source="${declared}"
   else
     source="${CANONICAL_ROOT}/apps/${app}/${declared#./}"
   fi
-  source_app["${source}"]="${app}"
-  source_kind["${source}"]="${kind}"
+
+  if [[ "${source}" == "${SECRETS_ROOT}/"* ]]; then
+    target="${source}"
+  else
+    target="$(canonical_env_file "${app}" "${source}" "declared")"
+  fi
+  register_target "${app}" "${target}" "${source}"
+
+  if [[ "${source}" != "${target}" ]]; then
+    if [[ -f "${source}" || -L "${source}" ]]; then
+      register_source "${app}" "${source}" "declared"
+    fi
+  fi
 done < <(discover_declared_env_files | sort -u)
 
-# Include ignored local env files that are not explicit env_file entries. This
-# catches historical implicit Compose .env files such as Vaultwarden's while
-# keeping examples/templates out of the runtime migration.
+# Repository-local env files are Compose interpolation materializations unless
+# they are already declared through env_file. Give project .env a distinct
+# canonical name (.env.compose) so it can never collide with a service env_file
+# named .env for the same application.
 shopt -s nullglob
 for local_env in "${CANONICAL_ROOT}"/apps/*/.env \
   "${CANONICAL_ROOT}"/apps/*/.env.secrets \
   "${CANONICAL_ROOT}"/apps/*/.env.*.secrets; do
   [[ -f "${local_env}" || -L "${local_env}" ]] || continue
+  [[ -n "${source_app["${local_env}"]:-}" ]] && continue
   name="$(basename "${local_env}")"
   is_runtime_env_name "${name}" || continue
   app="${local_env#"${CANONICAL_ROOT}"/apps/}"
   app="${app%%/*}"
-  source_app["${local_env}"]="${app}"
-  source_kind["${local_env}"]="implicit-local"
+  app_selected "${app}" || continue
+  register_source "${app}" "${local_env}" "implicit-local"
 done
 
-# Existing root-level TrueNAS env files are migration inputs. A declared path
-# wins when an app folder name differs from its historical dataset name.
+# Existing top-level TrueNAS env files are migration inputs. An explicit
+# env_file declaration wins over this fallback classification.
 for legacy_env in /mnt/"${POOL}"/*/.env \
   /mnt/"${POOL}"/*/.env.secrets \
   /mnt/"${POOL}"/*/.env.*.secrets; do
@@ -187,122 +277,146 @@ for legacy_env in /mnt/"${POOL}"/*/.env \
   is_runtime_env_name "${name}" || continue
   app="${legacy_env#/mnt/"${POOL}"/}"
   app="${app%%/*}"
-  source_app["${legacy_env}"]="${app}"
-  source_kind["${legacy_env}"]="legacy-root"
+  app_selected "${app}" || continue
+  register_source "${app}" "${legacy_env}" "legacy-root"
 done
 shopt -u nullglob
 
-if ((${#source_app[@]} == 0)); then
+if ((${#target_app[@]} == 0 && ${#source_app[@]} == 0)); then
   printf 'ℹ️  no repository/runtime env materializations discovered.\n'
   exit 0
 fi
 
 root_issue=0
 if ! ensure_secrets_root; then
-  if [[ "${MODE}" == "--apply" ]]; then
+  if [[ "${MODE}" != "--check" ]]; then
     exit 1
   fi
   root_issue=1
   printf 'ℹ️  continuing read-only migration preview despite missing/noncanonical secrets root.\n'
 fi
 
-pending=0
+stage_required=0
+finalize_pending=0
 invalid=0
+missing_required=0
 printf 'Canonical TrueNAS runtime env materializations:\n'
+
+# Validate all sources that converge on the same canonical target before any
+# write. This prevents two historical .env files from being merged silently.
+while IFS= read -r target; do
+  primary="${target_primary_source["${target}"]:-}"
+  [[ -n "${primary}" ]] || continue
+  while IFS= read -r source; do
+    [[ "${source_target["${source}"]}" == "${target}" ]] || continue
+    [[ "${source}" == "${primary}" ]] && continue
+    if [[ -f "${source}" && -f "${primary}" ]] && ! cmp -s "${source}" "${primary}"; then
+      printf '❌ migration conflict: multiple sources differ for %s: %s <> %s\n' \
+        "${target}" "${primary}" "${source}"
+      invalid=$((invalid + 1))
+    fi
+  done < <(printf '%s\n' "${!source_app[@]}" | sort)
+done < <(printf '%s\n' "${!target_app[@]}" | sort)
+
+if ((invalid > 0)); then
+  printf '❌ %d migration source conflict(s) must be resolved before staging.\n' \
+    "${invalid}" >&2
+  exit 1
+fi
+
+while IFS= read -r target; do
+  app="${target_app["${target}"]}"
+  primary="${target_primary_source["${target}"]:-}"
+  target_parent="$(dirname "${target}")"
+
+  if [[ ! -f "${target}" ]]; then
+    if [[ -z "${primary}" ]]; then
+      printf '❌ %s missing app=%s; no existing source can stage it (declared from %s)\n' \
+        "${target}" "${app}" "${target_origin["${target}"]}"
+      missing_required=$((missing_required + 1))
+      continue
+    fi
+
+    stage_required=$((stage_required + 1))
+    if [[ "${MODE}" == "--check" ]]; then
+      printf '⚠️  %s app=%s source=%s -> stage-required\n' \
+        "${target}" "${app}" "${primary}"
+      continue
+    fi
+    if [[ "${MODE}" == "--finalize" ]]; then
+      printf '❌ %s is not staged; run --apply first\n' "${target}"
+      invalid=$((invalid + 1))
+      continue
+    fi
+
+    mkdir -p "${target_parent}"
+    chown root:root "${target_parent}"
+    chmod 700 "${target_parent}"
+    install -o root -g root -m 600 "${primary}" "${target}"
+    cmp -s "${primary}" "${target}" ||
+      fail "copy verification failed for ${primary} -> ${target}"
+    printf '✅ %s app=%s staged from %s; legacy path left intact\n' \
+      "${target}" "${app}" "${primary}"
+  fi
+
+  if [[ ! -f "${target}" ]]; then
+    continue
+  fi
+
+  metadata="$(stat -c '%U:%G %a' "${target}")"
+  if [[ "${metadata}" != "root:root 600" ]]; then
+    if [[ "${MODE}" == "--check" || "${MODE}" == "--finalize" ]]; then
+      printf '❌ %s owner/mode=%s expected=root:root 600\n' \
+        "${target}" "${metadata}"
+      invalid=$((invalid + 1))
+    else
+      chown root:root "${target}"
+      chmod 600 "${target}"
+      metadata="root:root 600"
+    fi
+  fi
+
+done < <(printf '%s\n' "${!target_app[@]}" | sort)
+
+# Report or finalize historical paths only after canonical copies exist.
 while IFS= read -r source; do
   app="${source_app["${source}"]}"
   kind="${source_kind["${source}"]}"
-  canonical="$(canonical_env_file "${app}" "${source}")"
-  canonical_parent="$(dirname "${canonical}")"
+  target="${source_target["${source}"]}"
 
-  if [[ "${source}" == "${canonical}" ]]; then
-    if [[ ! -f "${canonical}" ]]; then
-      pending=$((pending + 1))
-      if [[ "${MODE}" == "--check" ]]; then
-        printf '❌ %s missing app=%s\n' "${canonical}" "${app}"
-        continue
-      fi
-      mkdir -p "${canonical_parent}"
-      chown root:root "${canonical_parent}"
-      chmod 700 "${canonical_parent}"
-      install -o root -g root -m 600 /dev/null "${canonical}"
-    fi
-  elif [[ -L "${source}" ]]; then
+  if [[ -L "${source}" ]]; then
     resolved="$(readlink -f "${source}" || true)"
-    if [[ "${resolved}" != "${canonical}" ]]; then
+    if [[ "${resolved}" == "${target}" ]]; then
+      printf '✅ %s app=%s kind=%s -> %s compatibility-link\n' \
+        "${source}" "${app}" "${kind}" "${target}"
+    else
       printf '❌ %s symlink target=%s expected=%s\n' \
-        "${source}" "${resolved:-unresolved}" "${canonical}"
+        "${source}" "${resolved:-unresolved}" "${target}"
       invalid=$((invalid + 1))
-      continue
     fi
-  elif [[ -f "${source}" ]]; then
-    pending=$((pending + 1))
-    if [[ -f "${canonical}" ]] && ! cmp -s "${source}" "${canonical}"; then
-      printf '❌ migration conflict: %s and %s differ\n' \
-        "${source}" "${canonical}"
-      invalid=$((invalid + 1))
-      continue
-    fi
-    if [[ "${MODE}" == "--check" ]]; then
-      printf '⚠️  %s app=%s kind=%s -> %s migration-required\n' \
-        "${source}" "${app}" "${kind}" "${canonical}"
-      continue
-    fi
-    mkdir -p "${canonical_parent}"
-    chown root:root "${canonical_parent}"
-    chmod 700 "${canonical_parent}"
-    if [[ ! -f "${canonical}" ]]; then
-      install -o root -g root -m 600 "${source}" "${canonical}"
-      cmp -s "${source}" "${canonical}" ||
-        fail "copy verification failed for ${source}"
-    fi
-    rm -f "${source}"
-    ln -s "${canonical}" "${source}"
-  else
-    pending=$((pending + 1))
-    if [[ "${MODE}" == "--check" ]]; then
-      printf '❌ %s missing; canonical target=%s app=%s\n' \
-        "${source}" "${canonical}" "${app}"
-      continue
-    fi
-    mkdir -p "${canonical_parent}"
-    chown root:root "${canonical_parent}"
-    chmod 700 "${canonical_parent}"
-    if [[ ! -f "${canonical}" ]]; then
-      install -o root -g root -m 600 /dev/null "${canonical}"
-    fi
-    source_parent="$(dirname "${source}")"
-    [[ -d "${source_parent}" ]] ||
-      fail "legacy env parent missing: ${source_parent}"
-    ln -s "${canonical}" "${source}"
+    continue
   fi
 
-  if [[ ! -f "${canonical}" ]]; then
-    printf '❌ canonical env file missing after reconciliation: %s\n' \
-      "${canonical}"
+  [[ -f "${source}" ]] || continue
+  if [[ ! -f "${target}" ]]; then
+    continue
+  fi
+  if ! cmp -s "${source}" "${target}"; then
+    printf '❌ migration conflict: %s differs from staged target %s\n' \
+      "${source}" "${target}"
     invalid=$((invalid + 1))
     continue
   fi
 
-  metadata="$(stat -c '%U:%G %a' "${canonical}")"
-  if [[ "${metadata}" != "root:root 600" ]]; then
-    if [[ "${MODE}" == "--check" ]]; then
-      printf '❌ %s owner/mode=%s expected=root:root 600\n' \
-        "${canonical}" "${metadata}"
-      invalid=$((invalid + 1))
-      continue
-    fi
-    chown root:root "${canonical}"
-    chmod 600 "${canonical}"
-    metadata="root:root 600"
-  fi
-
-  if [[ "${source}" == "${canonical}" ]]; then
-    printf '✅ %s app=%s owner/mode=%s\n' \
-      "${canonical}" "${app}" "${metadata}"
+  if [[ "${MODE}" == "--finalize" ]]; then
+    rm -f "${source}"
+    ln -s "${target}" "${source}"
+    printf '✅ %s app=%s kind=%s -> %s finalized compatibility-link\n' \
+      "${source}" "${app}" "${kind}" "${target}"
   else
-    printf '✅ %s app=%s -> %s owner/mode=%s\n' \
-      "${source}" "${app}" "${canonical}" "${metadata}"
+    finalize_pending=$((finalize_pending + 1))
+    printf '⚠️  %s app=%s kind=%s -> %s staged; finalize pending\n' \
+      "${source}" "${app}" "${kind}" "${target}"
   fi
 done < <(printf '%s\n' "${!source_app[@]}" | sort)
 
@@ -310,20 +424,28 @@ status=0
 if ((root_issue > 0)); then
   status=1
 fi
-if [[ "${MODE}" == "--check" && ${pending} -gt 0 ]]; then
-  printf '❌ %d env materialization(s) still require canonical migration.\n' \
-    "${pending}" >&2
-  printf '   Apply only after reviewing this plan: sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply\n' >&2
+if [[ "${MODE}" == "--check" && ${stage_required} -gt 0 ]]; then
+  printf '❌ %d canonical env materialization(s) still require staging.\n' \
+    "${stage_required}" >&2
+  printf '   Stage copies without replacing old paths: sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply\n' >&2
+  status=1
+fi
+if ((missing_required > 0)); then
+  printf '❌ %d declared runtime env materialization(s) have no recoverable source.\n' \
+    "${missing_required}" >&2
   status=1
 fi
 if ((invalid > 0)); then
-  printf '❌ %d runtime env materialization issue(s) remain.\n' \
-    "${invalid}" >&2
+  printf '❌ %d runtime env migration issue(s) remain.\n' "${invalid}" >&2
   status=1
 fi
 if ((status > 0)); then
   exit 1
 fi
 
-printf '✅ runtime env materializations are centralized under %s.\n' \
-  "${SECRETS_ROOT}"
+if ((finalize_pending > 0)); then
+  printf '⚠️  %d staged legacy path(s) remain intact. Finalize one service only after its canonical Compose/runtime path is accepted.\n' \
+    "${finalize_pending}"
+  printf '   Example: sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize scanopy\n'
+fi
+printf '✅ runtime env canonical copies are consistent under %s.\n' "${SECRETS_ROOT}"

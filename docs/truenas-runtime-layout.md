@@ -1,51 +1,79 @@
 # TrueNAS application storage and runtime environment layout
 
-This repository separates **application data**, **runtime environment materializations**, and **source code/configuration**. They have different ownership, backup, ACL, and secret-management requirements and must not be collapsed into one dataset merely because a Compose file references the same service name.
+This repository separates **tracked service definition**, **application-owned persistent data**, and **runtime environment/secret materialization**. These planes have different ownership, backup, ACL and recovery requirements and must not be collapsed merely because they share a service name.
 
-## Canonical layout
+## Canonical architecture
 
 ```text
 /mnt/cpool/compose/nabla-compose/
   apps/<service>/
     compose.yml                 tracked
     config.yaml                 tracked when non-secret
-    .env.example                tracked only when useful; never contains values
+    .env.example                optional metadata/example only; no live values
 
-/mnt/cpool/<service>/           application data only, when the service owns persistent data
+/mnt/cpool/<service>/           application-owned persistent data only
 
-/mnt/cpool/secrets/
+/mnt/cpool/secrets/             TrueNAS GENERIC dataset; root:root 0700
   runtime/<service>/
-    .env                        optional runtime materialization/cache
-    .env.secrets                workload secret materialization, root:root 0600
+    .env                        canonical service env_file when that name is required
+    .env.secrets                canonical workload-secret materialization
+    .env.compose                transitional Compose-project interpolation cache
+    .env.<purpose>.secrets      purpose-specific secret materialization when needed
   bootstrap/vaultwarden/
-    .env                        Vaultwarden/Bitwarden bootstrap values, root:root 0600
+    .env                        Vaultwarden/Bitwarden bootstrap values
     .env.secrets                equivalent split form when used
 ```
 
-`/mnt/cpool/secrets` is host security material, not application-writable data. It therefore uses the TrueNAS **Generic** dataset preset and is restricted to `root:root 0700`. Per-application data datasets use the TrueNAS **Apps** preset unless an explicit workload requirement says otherwise.
+`/mnt/cpool/secrets` is host security material, not application-writable data. It uses the TrueNAS **Generic** preset and must remain root restricted. New per-application data datasets use the TrueNAS **Apps** preset unless a reviewed workload requirement explicitly says otherwise.
 
-## Why live secrets do not belong beside Compose
+## Service-authoring contract
 
-Docker Compose uses two separate concepts:
+Whenever a service is created or materially modified:
 
-- a project `.env` file supplies values used while **interpolating the Compose model**;
-- a service `env_file:` supplies environment variables to the **container**.
+1. keep tracked Compose and non-secret configuration under `apps/<service>/`;
+2. decide whether the service actually owns durable local state;
+3. create/use `/mnt/cpool/<service>/...` only when that persistent state exists;
+4. reference secrets through `/mnt/cpool/secrets/runtime/<service>/...`;
+5. keep non-secret configuration in tracked Compose defaults or tracked config files instead of hiding it in `.env.secrets`;
+6. add metadata-only Vaultwarden mappings before a new secret-bearing service is cut over;
+7. run the read-only repository runtime inventory before publication/runtime changes.
 
-Relative `env_file` paths resolve from the Compose file directory, but putting a live `.env.secrets` beside `compose.yml` is not desirable in this homelab. The canonical repository is mounted into Code Server as `/config/workspace`, so repository-local runtime secrets would unnecessarily broaden their read/exposure surface even though Git ignores `.env*` files.
+A stateless service does not receive a dataset merely because `apps/<service>` exists. A Code Server workspace mount of another service path is not evidence that the target application owns persistent data.
 
-Use tracked defaults in Compose (`${VAR:-default}`) for non-secret configuration. Use an explicit runtime secret materialization for secrets.
+The repository skill enforcing this contract is `.agents/skills/docker-compose-orchestration/SKILL.md`; secret-bearing changes additionally use `.agents/skills/homelab-secrets/SKILL.md`.
 
-## Vaultwarden direction
+## Docker Compose `.env` versus `env_file`
 
-Vaultwarden is the transitional source of truth for workload secrets. `config/secrets/manifest.json` contains metadata only. The Bitwarden CLI renderer should materialize workload secrets into:
+Docker Compose has two distinct mechanisms:
+
+- a **project `.env`** supplies values used while interpolating the Compose model;
+- a service **`env_file:`** supplies environment variables to the container.
+
+They are not interchangeable and historical files with the same basename must never be merged automatically.
+
+Long-term rules:
+
+- do not keep live project `.env` files in the Git checkout;
+- do not keep live service `.env.secrets` beside `compose.yml`;
+- prefer tracked `${VAR:-default}` values for non-secret configuration;
+- use explicit absolute `env_file:` paths under `/mnt/cpool/secrets/runtime/<service>/` for persistent runtime materialization;
+- when a historical repository-local project `.env` must temporarily survive, stage it as `.env.compose` so it cannot collide with a service `.env`.
+
+The canonical repository is mounted into Code Server as a workspace. Keeping live secret files inside the checkout would unnecessarily broaden the exposure surface even if Git ignores them.
+
+## Vaultwarden model
+
+Vaultwarden is the transitional source of truth for workload secrets. `config/secrets/manifest.json` contains metadata only.
+
+Persistent files under:
 
 ```text
-/mnt/cpool/secrets/runtime/<service>/.env.secrets
+/mnt/cpool/secrets/runtime/<service>/
 ```
 
-A persistent file is a runtime cache/materialization, not the canonical secret store. It must be reproducible from Vaultwarden and can be deleted after a successful re-render.
+are **runtime caches/materializations**, not canonical stores. They must be reproducible from Vaultwarden and may be removed after a successful re-render and consumer validation.
 
-Vaultwarden cannot retrieve the credentials required to start itself. Those bootstrap values remain under:
+Vaultwarden cannot retrieve credentials required to start itself. Those bootstrap values remain under:
 
 ```text
 /mnt/cpool/secrets/bootstrap/vaultwarden/
@@ -53,59 +81,133 @@ Vaultwarden cannot retrieve the credentials required to start itself. Those boot
 
 and require a separate break-glass/recovery path.
 
-## Compatibility migration
+## Staged migration model
 
 `scripts/truenas/bootstrap-repository-env-files.sh` discovers:
 
 1. explicit `env_file:` declarations;
-2. ignored `apps/<service>/.env*` runtime files in the canonical TrueNAS checkout;
-3. legacy `/mnt/cpool/<service>/.env*` files.
+2. ignored `apps/<service>/.env*` runtime/project files in the canonical checkout;
+3. historical `/mnt/cpool/<service>/.env*` files.
 
-`--check` is read-only and reports migration work. `--apply` copies each existing materialization into the canonical root-only location, verifies the copy without printing values, then replaces the historical path with a compatibility symlink. Existing Compose applications therefore keep working while their declarations are migrated incrementally to canonical paths.
+Migration is intentionally non-destructive by default:
 
-The compatibility symlink is transitional. New or actively edited services should reference `/mnt/cpool/secrets/runtime/<service>/...` directly.
+### 1. Preview
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+```
+
+`--check` is strictly read-only. It reports the complete storage/env plan, canonical targets, source conflicts, missing declared files, dataset preset drift and empty unowned datasets.
+
+### 2. Stage canonical copies
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply
+```
+
+For environment materialization, `--apply` means **stage**:
+
+- create `cpool/secrets` as `GENERIC` when missing;
+- create root-only runtime/bootstrap directories;
+- copy an existing source to its canonical target as `root:root 0600`;
+- verify source and target byte-for-byte;
+- leave the historical source path intact;
+- refuse differing sources that would converge on the same target;
+- refuse to invent an empty value/file for a declaration with no recoverable source.
+
+This creates a review boundary before any old path is replaced.
+
+### 3. Validate one service
+
+Validate Compose against the canonical path, then perform the service-specific controlled restart/deploy and functional health acceptance. Secret migration is not accepted merely because a copy exists.
+
+### 4. Finalize one accepted service
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize <service>
+```
+
+Finalization is per service. It only replaces a historical regular file with a compatibility symlink when the canonical file exists and is byte-identical. It must fail on mismatch, missing target, or invalid permissions.
+
+The compatibility symlink is transitional. Update Compose/deployment tooling to reference the canonical path directly, validate restart/reboot persistence, then remove the old compatibility path when no consumer uses it.
+
+## Current migration baseline · 2026-09-12
+
+The first canonical read-only inventory established the current debt boundary:
+
+- 52 repository-owned dataset roots are present;
+- 23 application datasets differ from the current TrueNAS Apps preset expectations;
+- several of those 23 are non-empty and must **not** be recreated automatically;
+- empty unowned direct-child review candidates include `cpool/2fauth`, `cpool/alertmanager`, `cpool/drawio`, `cpool/jenkins`, `cpool/jenkins-slave`, `cpool/litellm`, `cpool/rancherui`, and `cpool/sabnzbd`;
+- `cpool/secrets` is not yet present at that baseline;
+- the env inventory reports 52 historical/canonical materializations requiring migration work before full convergence.
+
+This is a migration baseline, not a deletion list. Re-run the check before every cleanup decision because runtime ownership may change.
 
 ## Dataset ownership and presets
 
-`scripts/truenas/bootstrap-repository-storage.sh` considers active bind-mount sources, not arbitrary `/mnt/cpool/...` strings. Commented examples and Code Server sibling workspace mounts must not create application datasets.
+`scripts/truenas/bootstrap-repository-storage.sh` considers active application bind-mount sources, not arbitrary `/mnt/cpool/...` strings. Commented examples and Code Server sibling workspace mounts must not create application datasets.
 
 For missing datasets:
 
 - application-owned persistent data: `share_type=APPS`;
-- repository/shared host storage such as `compose`, `logs`, `model`, and `secrets`: `share_type=GENERIC`.
+- repository/shared/security host storage such as `compose`, `logs`, `model`, and `secrets`: `share_type=GENERIC`.
 
-The script also reports whether a dataset is empty and lists empty direct child datasets that are not owned by an active application bind mount. It never deletes or recreates an existing dataset automatically.
+The script reports empty state and Apps-preset property drift but never deletes or recreates an existing dataset automatically.
 
-### Draw.io
+### Existing preset drift
 
-The current Draw.io Compose has no persistent application-data bind mount. Standard `jgraph/drawio` operation is stateless; optional persistence is only needed for explicit features such as locally managed Let's Encrypt material, mounted configuration, or custom fonts. `cpool/drawio` is therefore not required by Draw.io itself. Code Server historically mounted `/mnt/cpool/drawio` as a workspace, which is not sufficient reason to create an application dataset.
+Do not recreate a non-empty dataset merely to make its preset match. Preset drift is advisory until the workload has an explicit migration/rollback plan.
 
-### LiteLLM
+For an **empty** application-owned dataset, recreation with the Apps preset may be appropriate only after confirming:
 
-The current LiteLLM service mounts tracked `apps/litellm/config.yaml`. Proxy state that must survive restarts (virtual keys, budgets/spend data, models stored through the UI) belongs in PostgreSQL when `DATABASE_URL`/database-backed features are enabled. A local `cpool/litellm` application-data dataset is not required by the current proxy Compose. Code Server historically mounted `/mnt/cpool/litellm` as a workspace; that mount is not application persistence.
+- no running container uses it;
+- no child dataset exists;
+- no snapshot/replication policy depends on it;
+- no SMB/NFS/share depends on it;
+- the owning Compose bind mount still requires the dataset.
 
-If LiteLLM later gains actual local state, add an explicit persistent bind mount and the storage bootstrap will then treat the dataset as application-owned.
+For an empty **unowned** dataset, deletion is a separate reviewed cleanup action, never part of bootstrap.
 
-## Operator checks
+## Draw.io
 
-Read-only storage and env audit:
+The current Draw.io Compose has no persistent application-data bind mount. Standard `jgraph/drawio` operation is stateless; optional persistence is only needed for explicitly configured features such as locally managed certificate material, mounted configuration, or custom fonts.
+
+`cpool/drawio` is therefore not required by the current Draw.io service. A historical Code Server workspace mount is not application ownership.
+
+## LiteLLM
+
+The current LiteLLM proxy mounts tracked `apps/litellm/config.yaml`. Durable proxy control-plane state such as virtual keys, budgets/spend data, and database-backed model configuration belongs in PostgreSQL when those features are enabled.
+
+The current Compose does not require local application data under `cpool/litellm`; a historical Code Server workspace mount is not persistence ownership. If LiteLLM later gains actual local state, add an explicit persistent bind mount and the storage bootstrap will then classify it as application-owned.
+
+## Operator workflow
+
+Read-only audit:
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 ```
 
-After reviewing the proposed env migration:
+Stage canonical datasets/runtime materializations without replacing legacy env paths:
 
 ```bash
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 ```
 
-Inspect empty dataset candidates before deleting anything:
+Finalize only an accepted service:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize scanopy
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+```
+
+Inspect datasets before any cleanup:
 
 ```bash
 sudo zfs list -r -d 1 cpool
 ```
 
-Never delete or recreate a non-empty dataset merely to change its preset. Existing Generic datasets that should eventually use the Apps preset are reported for review; empty ones can be deliberately recreated later after confirming that no running container, child dataset, snapshot policy, or external share depends on them.
+Never bulk-delete empty datasets and never bulk-finalize env files merely because the inventory found them. Storage cleanup and secret-path migration remain separately reviewed operations.
