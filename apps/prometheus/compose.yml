@@ -36,13 +36,13 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090" # 30104
     volumes:
+      # Mount the config directory, not prometheus.yml as a single file. Git can
+      # replace a tracked file inode during pull/rebase; a file bind would keep
+      # the old inode inside the running container and make SIGHUP reload stale
+      # configuration. The directory bind keeps replacements visible in place.
       - type: bind
-        source: ./prometheus.yml
-        target: /etc/prometheus/prometheus.yml
-        read_only: true
-      - type: bind
-        source: ./rules
-        target: /etc/prometheus/rules
+        source: .
+        target: /etc/prometheus
         read_only: true
       - /mnt/cpool/prometheus/data:/prometheus
     # networks: ["traefik_network"]
