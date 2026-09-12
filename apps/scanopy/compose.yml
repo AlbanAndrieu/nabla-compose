@@ -51,8 +51,8 @@ services:
         containerService: scanopy-postgres
     restart: unless-stopped
     env_file:
-      # Must define POSTGRES_PASSWORD; never commit it to this repository.
-      - /mnt/cpool/scanopy/.env.secrets
+      # Must define POSTGRES_PASSWORD; materialized from Vaultwarden later.
+      - /mnt/cpool/secrets/runtime/scanopy/.env.secrets
     environment:
       POSTGRES_DB: scanopy
       POSTGRES_USER: scanopy
@@ -106,7 +106,7 @@ services:
     restart: unless-stopped
     env_file:
       # Must define SCANOPY_DATABASE_URL with the same password as POSTGRES_PASSWORD.
-      - /mnt/cpool/scanopy/.env.secrets
+      - /mnt/cpool/secrets/runtime/scanopy/.env.secrets
     environment:
       SCANOPY_LOG_LEVEL: ${SCANOPY_LOG_LEVEL:-info}
       SCANOPY_WEB_EXTERNAL_PATH: /app/static
