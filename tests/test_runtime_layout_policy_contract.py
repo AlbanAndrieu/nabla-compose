@@ -3,10 +3,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_BOOTSTRAP = ROOT / "scripts" / "truenas" / "bootstrap-repository-env-files.sh"
+STORAGE_BOOTSTRAP = ROOT / "scripts" / "truenas" / "bootstrap-repository-storage.sh"
+RUNTIME_BOOTSTRAP = ROOT / "scripts" / "truenas" / "bootstrap-repository-runtime.sh"
 RUNTIME_LAYOUT = ROOT / "docs" / "truenas-runtime-layout.md"
 COMPOSE_SKILL = ROOT / ".agents" / "skills" / "docker-compose-orchestration" / "SKILL.md"
 SECRETS_SKILL = ROOT / ".agents" / "skills" / "homelab-secrets" / "SKILL.md"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+DEPLOY_HELPERS = {
+    "scanopy": ROOT / "scripts" / "truenas" / "deploy-scanopy.sh",
+    "joplin": ROOT / "scripts" / "truenas" / "deploy-joplin.sh",
+    "autokuma": ROOT / "scripts" / "truenas" / "deploy-autokuma.sh",
+    "docling": ROOT / "scripts" / "truenas" / "deploy-docling.sh",
+}
 
 
 def test_runtime_env_migration_is_staged_before_finalize() -> None:
@@ -28,6 +36,23 @@ def test_project_dotenv_cannot_collide_with_service_env_file() -> None:
     assert 'name=".env.compose"' in script
     assert "multiple sources differ" in script
     assert "cmp -s" in script
+
+
+def test_app_scoped_runtime_bootstrap_stays_bounded() -> None:
+    runtime = RUNTIME_BOOTSTRAP.read_text(encoding="utf-8")
+    storage = STORAGE_BOOTSTRAP.read_text(encoding="utf-8")
+
+    assert 'APP_FILTER="${2:-}"' in runtime
+    assert 'bootstrap-repository-storage.sh "${MODE}" "${APP_FILTER}"' in runtime
+    assert 'bootstrap-repository-env-files.sh "${MODE}" "${APP_FILTER}"' in runtime
+    assert 'APP_FILTER="${2:-}"' in storage
+    assert 'app_selected "${app}" || continue' in storage
+    assert "App-scoped checks deliberately" in storage
+
+    for app, path in DEPLOY_HELPERS.items():
+        helper = path.read_text(encoding="utf-8")
+        assert 'bootstrap-repository-runtime.sh --apply "${APP_ID}"' in helper, app
+        assert 'bootstrap-repository-runtime.sh --check "${APP_ID}"' in helper, app
 
 
 def test_true_nas_runtime_layout_is_documented_and_skill_enforced() -> None:

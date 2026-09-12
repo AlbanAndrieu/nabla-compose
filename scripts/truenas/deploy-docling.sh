@@ -19,8 +19,8 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-bash scripts/truenas/bootstrap-repository-runtime.sh --apply
-bash scripts/truenas/bootstrap-repository-runtime.sh --check
+bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 compose_path="${CANONICAL_ROOT}/apps/docling/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"

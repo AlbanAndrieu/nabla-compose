@@ -20,8 +20,8 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-bash scripts/truenas/bootstrap-repository-runtime.sh --apply
-bash scripts/truenas/bootstrap-repository-runtime.sh --check
+bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 [[ -f "${SECRETS_FILE}" ]] || fail "missing Joplin secret file: ${SECRETS_FILE}"
 [[ "$(stat -c '%u:%g %a' "${SECRETS_FILE}")" == "0:0 600" ]] ||

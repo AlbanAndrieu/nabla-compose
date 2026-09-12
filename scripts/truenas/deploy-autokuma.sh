@@ -21,8 +21,8 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply
-sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 [[ -f "${SECRET_FILE}" ]] ||
   fail "missing AutoKuma runtime secret file: ${SECRET_FILE}"

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MODE="${1:---check}"
+APP_FILTER="${2:-}"
 POOL="${NABLA_ZFS_POOL:-cpool}"
 CANONICAL_MOUNT="/mnt/${POOL}"
 
@@ -12,8 +13,12 @@ fail() {
 
 case "${MODE}" in
   --check | --apply) ;;
-  *) fail "usage: $0 [--check|--apply]" ;;
+  *) fail "usage: $0 [--check|--apply] [app]" ;;
 esac
+
+if [[ -n "${APP_FILTER}" && ! "${APP_FILTER}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
+  fail "invalid app filter: ${APP_FILTER}"
+fi
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so TrueNAS datasets can be inspected/created"
@@ -27,6 +32,11 @@ cd "${ROOT}"
 zpool list -H "${POOL}" >/dev/null 2>&1 ||
   fail "ZFS pool ${POOL} does not exist"
 
+app_selected() {
+  local app="$1"
+  [[ -z "${APP_FILTER}" || "${app}" == "${APP_FILTER}" ]]
+}
+
 # Dataset creation must describe application storage, not every host path that
 # happens to be mounted somewhere. In particular code-server mounts several
 # sibling paths as operator workspaces; those references must not create an
@@ -37,6 +47,7 @@ discover_persistent_mounts() {
   while IFS= read -r compose; do
     app="${compose#apps/}"
     app="${app%%/*}"
+    app_selected "${app}" || continue
 
     while IFS= read -r line; do
       trimmed="${line#"${line%%[![:space:]]*}"}"
@@ -71,8 +82,14 @@ for record in "${mount_records[@]}"; do
   declared_roots["${root}"]=1
 done
 
-((${#declared_roots[@]} > 0)) ||
+if ((${#declared_roots[@]} == 0)); then
+  if [[ -n "${APP_FILTER}" ]]; then
+    printf 'ℹ️  app %s declares no application-owned %s/<dataset> bind mounts.\n' \
+      "${APP_FILTER}" "${CANONICAL_MOUNT}"
+    exit 0
+  fi
   fail "no active ${CANONICAL_MOUNT}/<dataset> bind mounts found"
+fi
 
 dataset_preset() {
   case "$1" in
@@ -109,7 +126,12 @@ create_dataset() {
 
 missing=0
 preset_warnings=0
-printf 'Repository-owned TrueNAS dataset roots (%s):\n' "${POOL}"
+if [[ -n "${APP_FILTER}" ]]; then
+  printf 'Repository-owned TrueNAS dataset roots (%s, app=%s):\n' \
+    "${POOL}" "${APP_FILTER}"
+else
+  printf 'Repository-owned TrueNAS dataset roots (%s):\n' "${POOL}"
+fi
 while IFS= read -r root; do
   dataset="${POOL}/${root}"
   mount_root="${CANONICAL_MOUNT}/${root}"
@@ -152,28 +174,34 @@ done < <(printf '%s\n' "${!declared_roots[@]}" | sort)
 if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
   printf '❌ %d repository-owned dataset root(s) are missing.\n' \
     "${missing}" >&2
-  printf '   Apply with: sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply\n' >&2
+  printf '   Apply with: sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply%s\n' \
+    "${APP_FILTER:+ ${APP_FILTER}}" >&2
   exit 1
 fi
 
-printf 'Empty direct child datasets not owned by an active application bind mount:\n'
-orphan_empty=0
-while IFS=$'\t' read -r dataset mountpoint; do
-  [[ "${dataset}" == "${POOL}" ]] && continue
-  root="${dataset#"${POOL}"/}"
-  [[ "${root}" == */* ]] && continue
-  [[ -n "${declared_roots[${root}]:-}" ]] && continue
-  [[ "${mountpoint}" == "${CANONICAL_MOUNT}/"* ]] || continue
+# Global inventory reports unowned empty datasets. App-scoped checks deliberately
+# omit this unrelated cleanup inventory so one service deployment stays bounded.
+if [[ -z "${APP_FILTER}" ]]; then
+  printf 'Empty direct child datasets not owned by an active application bind mount:\n'
+  orphan_empty=0
+  while IFS=$'\t' read -r dataset mountpoint; do
+    [[ "${dataset}" == "${POOL}" ]] && continue
+    root="${dataset#"${POOL}"/}"
+    [[ "${root}" == */* ]] && continue
+    [[ -n "${declared_roots[${root}]:-}" ]] && continue
+    [[ "${mountpoint}" == "${CANONICAL_MOUNT}/"* ]] || continue
 
-  if dataset_is_empty "${mountpoint}"; then
-    orphan_empty=$((orphan_empty + 1))
-    printf '⚠️  %-32s empty=yes; review before deletion\n' "${dataset}"
+    if dataset_is_empty "${mountpoint}"; then
+      orphan_empty=$((orphan_empty + 1))
+      printf '⚠️  %-32s empty=yes; review before deletion\n' "${dataset}"
+    fi
+  done < <(zfs list -H -o name,mountpoint -d 1 "${POOL}")
+
+  if ((orphan_empty == 0)); then
+    printf '✅ none\n'
   fi
-done < <(zfs list -H -o name,mountpoint -d 1 "${POOL}")
-
-if ((orphan_empty == 0)); then
-  printf '✅ none\n'
 fi
+
 if ((preset_warnings > 0)); then
   printf '⚠️  %d application dataset(s) differ from the TrueNAS Apps preset.\n' \
     "${preset_warnings}"
