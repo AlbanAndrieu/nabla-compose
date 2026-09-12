@@ -50,6 +50,9 @@ class SecretsRendererTests(TestCase):
                 "akvorado",
                 "crowdsec",
                 "keycloak",
+                "scanopy",
+                "joplin",
+                "autokuma",
             },
         )
         serialized = json.dumps(manifest)
@@ -71,7 +74,7 @@ class SecretsRendererTests(TestCase):
             "TRUENAS_INFRA_API_KEY",
         )
 
-    def test_manifest_rejects_duplicate_environment_variables(self) -> None:
+    def test_manifest_allows_same_target_env_in_different_apps(self) -> None:
         manifest = {
             "schemaVersion": 1,
             "server": "https://vaultwarden.example.test",
@@ -80,12 +83,57 @@ class SecretsRendererTests(TestCase):
                 {
                     "app": "one",
                     "item": "one",
-                    "secrets": [{"env": "API_KEY", "field": "API_KEY"}],
+                    "secrets": [
+                        {
+                            "env": "POSTGRES_PASSWORD",
+                            "importEnv": "ONE_POSTGRES_PASSWORD",
+                            "field": "POSTGRES_PASSWORD",
+                        }
+                    ],
                 },
                 {
                     "app": "two",
                     "item": "two",
-                    "secrets": [{"env": "API_KEY", "field": "API_KEY"}],
+                    "secrets": [
+                        {
+                            "env": "POSTGRES_PASSWORD",
+                            "importEnv": "TWO_POSTGRES_PASSWORD",
+                            "field": "POSTGRES_PASSWORD",
+                        }
+                    ],
+                },
+            ],
+        }
+
+        renderer.validate_manifest(manifest)
+
+    def test_manifest_rejects_duplicate_import_environment_variables(self) -> None:
+        manifest = {
+            "schemaVersion": 1,
+            "server": "https://vaultwarden.example.test",
+            "folder": {"name": "TrueNAS", "id": "folder-id"},
+            "items": [
+                {
+                    "app": "one",
+                    "item": "one",
+                    "secrets": [
+                        {
+                            "env": "ONE_TOKEN",
+                            "importEnv": "SHARED_SOURCE_TOKEN",
+                            "field": "TOKEN",
+                        }
+                    ],
+                },
+                {
+                    "app": "two",
+                    "item": "two",
+                    "secrets": [
+                        {
+                            "env": "TWO_TOKEN",
+                            "importEnv": "SHARED_SOURCE_TOKEN",
+                            "field": "TOKEN",
+                        }
+                    ],
                 },
             ],
         }
