@@ -77,6 +77,16 @@ def test_repository_env_bootstrap_rejects_empty_secret_placeholders() -> None:
     assert '[[ ! -s "${target}" ]]' in script
 
 
+def test_repository_env_finalize_allows_only_empty_placeholder_replacement() -> None:
+    script = ENV_FILES.read_text(encoding="utf-8")
+
+    assert '[[ ! -s "${source}" && -s "${target}" ]]' in script
+    assert "finalized empty-placeholder compatibility-link" in script
+    assert "empty-placeholder -> %s canonical non-empty; finalize pending" in script
+    assert "This is the only non-byte-identical finalization case allowed" in script
+    assert "migration conflict:" in script
+
+
 def test_repository_runtime_bootstrap_orders_storage_before_env_files() -> None:
     script = RUNTIME.read_text(encoding="utf-8")
 
