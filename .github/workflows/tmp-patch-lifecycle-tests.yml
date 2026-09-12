@@ -25,6 +25,8 @@ jobs:
           set -euo pipefail
           sed -i '/self.assertIn("http:\/\/172.17.0.24:4040\/ready", compose)/c\        self.assertIn("target: http://172.17.0.24:4040/", compose)\
                   self.assertIn("url: http://172.17.0.24:4040/metrics", compose)' tests/test_truenas_app_lifecycle_contract.py
+          sed -i '/self.assertIn("curl -fsS http:\/\/172.17.0.24:4040\/ready", readme)/c\        self.assertIn("curl -fsS http://172.17.0.24:4040/", readme)\
+                  self.assertIn("curl -fsS http://172.17.0.24:4040/metrics", readme)' tests/test_truenas_app_lifecycle_contract.py
           sed -i '/self.assertNotIn("${UPTIME_KUMA_URL", compose)/c\        self.assertIn("AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:-http://172.17.0.24:31050}", compose)' tests/test_truenas_app_lifecycle_contract.py
           python3 -m unittest tests.test_truenas_app_lifecycle_contract
       - name: Commit patched contracts
