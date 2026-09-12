@@ -28,6 +28,10 @@ grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} mus
 grep -Eq '^SCANOPY_DATABASE_URL=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define SCANOPY_DATABASE_URL"
 chmod 600 "${SECRETS_FILE}"
 
+if ! bash scripts/truenas/bootstrap-scanopy-postgres.sh --check; then
+  fail "shared PostgreSQL role/database scanopy is not ready; run: sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --apply"
+fi
+
 compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
 
@@ -66,6 +70,7 @@ fi
 app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
 printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null || fail "TrueNAS app ${APP_ID} is not uniquely present after reconciliation"
 printf '%s\n' "${app_json}" | jq -r '.[0] | "✅ TrueNAS app \(.id): state=\(.state // \"UNKNOWN\")"'
+printf '✅ shared PostgreSQL dependency verified: 172.17.0.24:5432 role/database=scanopy\n'
 
 printf 'Expected Custom App YAML include:\n'
 printf 'include:\n  - %s\n' "${compose_path}"
