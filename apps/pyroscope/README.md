@@ -65,11 +65,17 @@ after an explicit backup/migration decision.
 
 ## Acceptance
 
-Pyroscope is functional only when the readiness endpoint returns HTTP 200:
+Pyroscope is functional only when its HTTP service responds successfully and
+its Prometheus exposition endpoint is readable:
 
 ```bash
-curl -fsS http://172.17.0.24:4040/ready
+curl -fsS http://172.17.0.24:4040/
+curl -fsS http://172.17.0.24:4040/metrics | head
 ```
+
+Do not use `/ready` as the canonical direct probe for this pinned runtime. The
+repository monitoring contract uses `/` for direct service health and
+`/metrics` independently for Prometheus.
 
 Then run the repository lifecycle audit:
 
@@ -89,6 +95,6 @@ data path, not merely TCP/HTTP reachability:
 4. `/pyroscope/render` returns a non-empty flamegraph with recent non-zero
    timeline samples.
 
-A running container with a 503 readiness response, or a ready Pyroscope server
-that receives no usable FastAPI profiles, is still degraded and must not be
-reported as healthy.
+A running container with an unavailable HTTP service, or a ready Pyroscope
+server that receives no usable FastAPI profiles, is still degraded and must not
+be reported as healthy.
