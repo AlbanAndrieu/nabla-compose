@@ -628,6 +628,15 @@ endpoints:
   url: tcp://172.17.0.24:9121
   conditions:
   - '[CONNECTED] == true'
+- name: Scanopy
+  group: network
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: scanopy
+    nabla_service_id: scanopy
+  url: tcp://172.17.0.24:60072
+  conditions:
+  - '[CONNECTED] == true'
 - name: Scrutiny
   group: observability
   interval: 60s

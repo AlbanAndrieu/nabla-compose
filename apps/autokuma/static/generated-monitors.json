@@ -670,6 +670,16 @@
     "port": 9121
   },
   {
+    "type": "port",
+    "name": "Scanopy",
+    "description": "Agentless network discovery and continuously updated topology documentation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 60072
+  },
+  {
     "type": "http",
     "name": "Scrutiny",
     "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4067eac3220442694b98f445a291544bd1e3131dee933161022ed2f67d3f305b",
+  "catalogRevision": "sha256:123ebda5dce1d24bb55e2fe5584c06285c4113937fdce305116fd2dbb7c5f71f",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1515,6 +1515,71 @@
         ]
       },
       "icon": "🔴"
+    },
+    {
+      "id": "scanopy",
+      "name": "Scanopy",
+      "kind": "network-topology-management",
+      "category": "network",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "composeService": "scanopy",
+      "url": "http://172.17.0.24:60072",
+      "description": "Agentless network discovery and continuously updated topology documentation.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 60072
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "scanopy-daemon",
+      "name": "Scanopy Daemon",
+      "kind": "network-discovery-scanner",
+      "category": "network",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "composeService": "scanopy-daemon",
+      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy-daemon"
+      }
+    },
+    {
+      "id": "scanopy-postgres",
+      "name": "Scanopy PostgreSQL",
+      "kind": "relational-database",
+      "category": "data",
+      "sourcePath": "apps/scanopy/compose.yml",
+      "composeService": "scanopy-postgres",
+      "description": "Dedicated PostgreSQL database for Scanopy topology and discovery data.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scanopy-postgres",
+        "networks": [
+          "intranet"
+        ]
+      }
     },
     {
       "id": "scrutiny",
