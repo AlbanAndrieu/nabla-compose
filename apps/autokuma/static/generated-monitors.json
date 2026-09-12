@@ -124,6 +124,15 @@
     "port": 3050
   },
   {
+    "type": "http",
+    "name": "Docling Serve",
+    "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:5001/ready"
+  },
+  {
     "type": "port",
     "name": "Dozzle",
     "description": "Live Docker log viewer and MCP-enabled operations UI.",
@@ -249,6 +258,15 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "https://homeassistant.albanandrieu.com"
+  },
+  {
+    "type": "http",
+    "name": "Joplin Server",
+    "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:22300/api/ping"
   },
   {
     "type": "port",

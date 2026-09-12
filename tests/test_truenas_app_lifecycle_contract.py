@@ -774,10 +774,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("-metastore.raft.dir=/var/lib/pyroscope/v2/metastore/raft", compose)
         self.assertIn("-metastore.data-dir=/var/lib/pyroscope/v2/metastore/data", compose)
         self.assertIn("-storage.filesystem.dir=/var/lib/pyroscope/v2/shared", compose)
-        self.assertIn("http://172.17.0.24:4040/ready", compose)
+        self.assertIn("target: http://172.17.0.24:4040/", compose)
+        self.assertIn("url: http://172.17.0.24:4040/metrics", compose)
         self.assertIn("Metastore not ready", readme)
         self.assertIn("do not delete them", readme.lower())
-        self.assertIn("curl -fsS http://172.17.0.24:4040/ready", readme)
+        self.assertIn("curl -fsS http://172.17.0.24:4040/", readme)
+        self.assertIn("curl -fsS http://172.17.0.24:4040/metrics", readme)
 
     def test_roadmap_tracks_shared_tika_and_postgres_consolidation(self) -> None:
         roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
@@ -1153,7 +1155,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("appId: autokuma", compose)
         self.assertIn("/mnt/cpool/autokuma/.env.secrets", compose)
         self.assertIn("required: false", compose)
-        self.assertNotIn("${UPTIME_KUMA_URL", compose)
+        self.assertIn("AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:-http://172.17.0.24:31050}", compose)
         self.assertNotIn("${UPTIME_KUMA_USERNAME", compose)
         self.assertNotIn("${UPTIME_KUMA_PASSWORD", compose)
         self.assertTrue(mode & stat.S_IXUSR)

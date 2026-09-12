@@ -123,6 +123,15 @@ endpoints:
   url: tcp://172.17.0.24:3050
   conditions:
   - '[CONNECTED] == true'
+- name: Docling Serve
+  group: ai
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: docling
+    nabla_service_id: docling
+  url: http://172.17.0.24:5001/ready
+  conditions:
+  - '[STATUS] == 200'
 - name: Dozzle
   group: observability
   interval: 60s
@@ -241,6 +250,15 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: Joplin Server
+  group: productivity
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: joplin
+    nabla_service_id: joplin
+  url: http://172.17.0.24:22300/api/ping
+  conditions:
+  - '[STATUS] == 200'
 - name: Apache Kafka
   group: data
   interval: 60s

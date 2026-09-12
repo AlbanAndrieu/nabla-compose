@@ -1667,11 +1667,11 @@ onboarding remains blocked until CSI persistence and rollback are proven.
    application smoke target, using the existing sample application rather than
    an unrelated hello-world image;
 7. expose that Kubernetes smoke workload through the dedicated hostname
-   `test.albandrieu.com` with an explicit ingress/gateway route;
-8. verify `https://test.albandrieu.com/health` (and a small API endpoint) from
+   `test.int.albandrieu.com` with an explicit ingress/gateway route;
+8. verify `https://test.int.albandrieu.com/health` (and a small API endpoint) from
    outside the cluster and correlate the request with the expected Kubernetes
    Service/Pod;
-9. keep `test.albandrieu.com` isolated from the production
+9. keep `test.int.albandrieu.com` isolated from the production
    `sample.albandrieu.com` deployment so the smoke workload can be recreated,
    upgraded or removed without affecting the current TrueNAS FastAPI Sample;
 10. keep the smoke namespace restricted and disposable;
@@ -1680,7 +1680,7 @@ onboarding remains blocked until CSI persistence and rollback are proven.
 
 ### P0.1 — TrueNAS-backed Kubernetes CSI storage
 
-After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
+After the network/DNS + `test.int.albandrieu.com` FastAPI smoke gate:
 
 1. select and pin the reviewed CSI implementation and chart/manifests;
 2. create a dedicated least-privilege TrueNAS CSI identity/API credential rather
@@ -1693,7 +1693,7 @@ After the network/DNS + `test.albandrieu.com` FastAPI smoke gate:
    delete/recreate the pod and prove the marker survives;
 8. verify PV/PVC lifecycle, reclaim policy, dataset/zvol ownership and cleanup;
 9. validate snapshot/restore where supported;
-10. re-run `https://test.albandrieu.com/health` after pod recreation and storage
+10. re-run `https://test.int.albandrieu.com/health` after pod recreation and storage
     recovery to prove application + ingress + CSI together;
 11. test one rollback/uninstall path before introducing production workloads;
 12. expand the already-minimal Kubara/Argo CD bootstrap to persistent/stateful
@@ -1924,7 +1924,7 @@ shared Langflow application as `langflow:7860/health_check` on `intranet`.
 
 Sentry has converged and is now a regression gate. The active execution wave is:
 
-1. **Talos / Kubernetes P0:** prove the merged VM autostart policy in live TrueNAS, run the Talos base-cluster gate, then DNS/CNI/CoreDNS/Service/ClusterIP/cross-node smoke and finally the immutable FastAPI Sample acceptance on `test.albandrieu.com`;
+1. **Talos / Kubernetes P0:** prove the merged VM autostart policy in live TrueNAS, run the Talos base-cluster gate, then DNS/CNI/CoreDNS/Service/ClusterIP/cross-node smoke and finally the immutable FastAPI Sample acceptance on `test.int.albandrieu.com`;
 2. **Wazuh core in parallel:** bootstrap the API secret/TLS set, use the canonical deploy helper, and stabilize manager -> indexer -> dashboard. Keep the shared-OpenSearch forwarder profile disabled until this core path is green;
 3. **Scrutiny + standalone InfluxDB in parallel:** preserve/recover history, create the restricted `SCRUTINY_WEB_INFLUXDB_TOKEN`, then use the explicit cutover helper and prove a fresh SMART collection plus historical timelines;
 4. **OpenRAG:** retain the already-green core runtime; Docling remains the next ingestion dependency, and LiteLLM activation still waits for Docling plus one E2E ingestion/search path;

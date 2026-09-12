@@ -42,7 +42,12 @@ def test_hello_has_private_pihole_and_explicit_public_cloudflare_dns_owners() ->
     assert "Host(`hello.int.albandrieu.com`)" in nginx
     assert "DOMAIN_SUFFIX: int.albandrieu.com" in pihole
     assert "TARGET_IP: 172.17.0.24" in pihole
-    assert "hello.int.albandrieu.com" in exceptions
+    exception_hosts = {
+        line.strip()
+        for line in exceptions.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert exception_hosts.issuperset({"hello.int.albandrieu.com"})
     assert "s3.int.albandrieu.com,hello.int.albandrieu.com,vaultwarden.int.albandrieu.com" in traefik
     assert "PROXIED=false" in traefik
 

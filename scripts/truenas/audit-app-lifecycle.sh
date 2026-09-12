@@ -1698,7 +1698,7 @@ urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
   fi
 
   if docker exec "${backend}" sh -lc '
-    url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+    url="${DOCLING_SERVE_URL:-http://docling:5001}"
     curl --fail --silent --show-error --max-time 8 "${url%/}/health" >/dev/null
   ' >/dev/null 2>&1; then
     functional_ok "OpenRAG ingestion: Docling health reachable"

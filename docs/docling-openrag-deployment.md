@@ -2,15 +2,15 @@
 
 This runbook covers the next OpenRAG ingestion step after the accepted TrueNAS
 reboot and CSI baseline. OpenRAG backend/frontend and the shared Langflow runtime
-are already restored; document ingestion remains intentionally open until a
-repository-managed Docling Serve instance is deployed and validated.
+are already restored; the repository-managed Docling Serve definition now exists; document ingestion remains
+open until the TrueNAS runtime is deployed and validated.
 
 ## Reviewed baseline
 
 Use a pinned CPU image on TrueNAS first:
 
 ```text
-ghcr.io/docling-project/docling-serve-cpu:v1.31.0
+quay.io/docling-project/docling-serve-cpu:v1.32.0
 ```
 
 The CPU image avoids coupling document ingestion to the workstation GPU. The

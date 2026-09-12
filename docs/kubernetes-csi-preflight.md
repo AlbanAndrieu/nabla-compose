@@ -228,7 +228,7 @@ green:
 - one documented rollback/uninstall path.
 
 Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
-`test.albandrieu.com`.
+`test.int.albandrieu.com`.
 
 
 ## Runtime checkpoint · first install on TrueNAS

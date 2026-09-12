@@ -1,0 +1,84 @@
+---
+services:
+  joplin:
+    image: joplin/server:${JOPLIN_VERSION:-3.7.18}
+    container_name: joplin
+    restart: unless-stopped
+    x-nabla:
+      id: joplin
+      name: Joplin Server
+      kind: notes-sync
+      category: productivity
+      presentationRole: service
+      criticality: medium
+      description: Private Joplin synchronization server backed by the shared PostgreSQL service.
+      url: https://joplin.int.albandrieu.com
+      internalUrl: http://joplin:22300
+      runtime:
+        provider: truenas-app
+        containerService: joplin
+      lifecycle:
+        phase: applications
+        priority: 60
+      monitoring:
+        type: http
+        target: http://172.17.0.24:22300/api/ping
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Joplin persists notes, users and synchronization state in the shared PostgreSQL service.
+          evidence:
+            - apps/joplin/compose.yml:POSTGRES_HOST
+        - target: traefik
+          type: exposedBy
+          strength: required
+          description: Traefik exposes Joplin only through the private joplin.int.albandrieu.com hostname.
+          evidence:
+            - apps/joplin/compose.yml:traefik.http.routers.joplin
+    env_file:
+      - /mnt/cpool/joplin/.env.secrets
+    environment:
+      APP_PORT: "22300"
+      APP_BASE_URL: https://joplin.int.albandrieu.com
+      DB_CLIENT: pg
+      POSTGRES_HOST: 172.17.0.24
+      POSTGRES_PORT: "5432"
+      POSTGRES_DATABASE: joplin
+      POSTGRES_USER: joplin
+    ports:
+      - "172.17.0.24:22300:22300"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:22300/api/ping')
+          .then((response) => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_network"
+      - "traefik.http.routers.joplin.rule=Host(`joplin.int.albandrieu.com`)"
+      - "traefik.http.routers.joplin.entrypoints=websecure"
+      - "traefik.http.routers.joplin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.joplin.service=joplin"
+      - "traefik.http.services.joplin.loadbalancer.server.port=22300"
+    networks:
+      - intranet
+      - traefik_network
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network

@@ -33,7 +33,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] PR #191 introduced a manifest-aware, idempotent reboot resume reconciler and started operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
-- [ ] **Docling / OpenRAG ingest:** native `docling-serve` is stopped, so OpenRAG knowledge ingestion is unavailable until Docling is restored and its ingestion path is validated.
+- [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
 - [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
 - [x] **Exporter conflict preflight:** TrueNAS Netdata is active; the only configured Reporting Exporter is disabled Graphite to `172.17.0.57:2003`; host ports/listeners `8125`, `9125`, `9102`, `9308` are free and no Docker publisher conflicts were found. StatsD remains deferred; Kafka exporter remains a separate controlled Kafka App lifecycle change.
@@ -120,7 +120,7 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 - [ ] Falco after infrastructure baseline stabilizes.
 - [ ] Kubara config/bootstrap.
 - [ ] Traefik/Kubara ingress with an explicit bare-metal exposure model.
-- [ ] FastAPI Kubernetes smoke using an immutable image and `test.albandrieu.com` after storage and ingress ownership are stable.
+- [ ] FastAPI Kubernetes smoke using an immutable image and `test.int.albandrieu.com` after storage and ingress ownership are stable.
 
 ## P3 — runtime/services
 
@@ -150,6 +150,7 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy from `apps/graf
 - [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes current EVE and monitor kernel drops/rule refresh health.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics** — restore flow export path and prove fresh flow arrival end to end.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
+- [ ] **Joplin Server** — deploy `apps/joplin/compose.yml`, bootstrap the dedicated shared-PostgreSQL role/database, change the bootstrap administrator credentials and validate `/api/ping` plus client sync through `joplin.int.albandrieu.com`.
 - [ ] **Uptime Kuma + AutoKuma Compose** — add repository-owned Uptime Kuma on host port `31050`; AutoKuma remains only the declarative reconciler and stays stopped while Kuma is absent.
 - [ ] **Homarr bootstrap** — make first-run initialization idempotent and secret-backed, then apply generated topology through `homarr-sync`.
 - [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps until backup/rollback/consumer validation is designed.
@@ -246,7 +247,7 @@ Grafana native -> Compose migration (:30037 + preserved /mnt/cpool/grafana/data)
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
-  -> Kubernetes ingress + test.albandrieu.com
+  -> Kubernetes ingress + test.int.albandrieu.com
   -> Scrutiny / remaining service work
   -> Docling / OpenRAG-LiteLLM
 ```

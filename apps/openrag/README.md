@@ -348,13 +348,12 @@ readiness.
 
 ## Docling / ingestion
 
-OpenRAG document ingestion requires Docling. No repository-managed Docling
-service currently exists in `nabla-compose`.
+OpenRAG document ingestion requires Docling. The repository-managed Docling service now lives in `apps/docling/compose.yml`.
 
 OpenRAG 0.7.1 defaults to:
 
 ```text
-DOCLING_SERVE_URL=http://host.docker.internal:5001
+DOCLING_SERVE_URL=http://docling:5001
 ```
 
 The Compose file maps `host.docker.internal` to the Docker host gateway on
@@ -365,7 +364,7 @@ Check it without printing secrets:
 
 ```bash
 docker exec openrag-backend sh -lc '
-  url="${DOCLING_SERVE_URL:-http://host.docker.internal:5001}"
+  url="${DOCLING_SERVE_URL:-http://docling:5001}"
   printf "Docling target: %s\n" "$url"
   curl -fsS --max-time 8 "${url%/}/health"
 '

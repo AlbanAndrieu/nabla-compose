@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:c9268ace8b268282f5da6f0a8550c12c24745f286ebbce8d0edb9653cc6ea1d3",
+  "catalogRevision": "sha256:4067eac3220442694b98f445a291544bd1e3131dee933161022ed2f67d3f305b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -330,6 +330,39 @@
       }
     },
     {
+      "id": "docling",
+      "name": "Docling Serve",
+      "kind": "document-processing",
+      "category": "ai",
+      "sourcePath": "apps/docling/compose.yml",
+      "composeService": "docling",
+      "url": "https://docling.int.albandrieu.com",
+      "internalUrl": "http://docling:5001",
+      "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 40
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:5001/ready",
+        "url": "http://172.17.0.24:5001/metrics",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "docling",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
+      }
+    },
+    {
       "id": "doco-cd",
       "name": "Doco-CD",
       "kind": "deployment-automation",
@@ -650,6 +683,38 @@
         "containerService": "influxdb",
         "networks": [
           "intranet"
+        ]
+      }
+    },
+    {
+      "id": "joplin",
+      "name": "Joplin Server",
+      "kind": "notes-sync",
+      "category": "productivity",
+      "sourcePath": "apps/joplin/compose.yml",
+      "composeService": "joplin",
+      "url": "https://joplin.int.albandrieu.com",
+      "internalUrl": "http://joplin:22300",
+      "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 60
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:22300/api/ping",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "joplin",
+        "networks": [
+          "intranet",
+          "traefik_network"
         ]
       }
     },
