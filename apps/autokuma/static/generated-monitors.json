@@ -691,7 +691,7 @@
   {
     "type": "port",
     "name": "Scanopy",
-    "description": "Agentless network discovery and continuously updated topology documentation.",
+    "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

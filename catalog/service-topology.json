@@ -1687,7 +1687,7 @@
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
       "url": "http://172.17.0.24:60072",
-      "description": "Agentless network discovery and continuously updated topology documentation.",
+      "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
       "securityFunctions": [
@@ -1723,23 +1723,6 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "scanopy-daemon"
-      }
-    },
-    {
-      "id": "scanopy-postgres",
-      "name": "Scanopy PostgreSQL",
-      "kind": "relational-database",
-      "category": "data",
-      "sourcePath": "apps/scanopy/compose.yml",
-      "description": "Dedicated PostgreSQL database for Scanopy topology and discovery data.",
-      "presentationRole": "support",
-      "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "scanopy-postgres",
-        "networks": [
-          "intranet"
-        ]
       }
     },
     {
@@ -4006,22 +3989,22 @@
     },
     {
       "source": "scanopy",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "Scanopy stores topology, inventory, and discovery history in its dedicated scanopy database on the shared PostgreSQL service.",
+      "evidence": [
+        "apps/scanopy/compose.yml:SCANOPY_DATABASE_URL"
+      ]
+    },
+    {
+      "source": "scanopy",
       "target": "scanopy-daemon",
       "type": "consumesApi",
       "strength": "required",
       "description": "Scanopy consumes discovery data from its integrated daemon.",
       "evidence": [
         "apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL"
-      ]
-    },
-    {
-      "source": "scanopy",
-      "target": "scanopy-postgres",
-      "type": "storesIn",
-      "strength": "required",
-      "description": "Scanopy stores its topology, inventory, and discovery history in its dedicated PostgreSQL database.",
-      "evidence": [
-        "apps/scanopy/compose.yml:SCANOPY_DATABASE_URL"
       ]
     },
     {
@@ -4032,16 +4015,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/scanopy/compose.yml:scanopy-daemon.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "scanopy-postgres",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/scanopy/compose.yml:scanopy-postgres.x-nabla.runtime.containerService"
       ]
     },
     {

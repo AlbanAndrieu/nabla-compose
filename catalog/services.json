@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:86f00a620b1024dfb361722c8bea69988528a0f1179f8308ffc2f994d4982be2",
+  "catalogRevision": "sha256:8f3e390998ee556c4bb7217215c760efd161285de2b951268b5e0477c60cdf93",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1581,7 +1581,7 @@
       "sourcePath": "apps/scanopy/compose.yml",
       "composeService": "scanopy",
       "url": "http://172.17.0.24:60072",
-      "description": "Agentless network discovery and continuously updated topology documentation.",
+      "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
       "securityFunctions": [
@@ -1618,24 +1618,6 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "scanopy-daemon"
-      }
-    },
-    {
-      "id": "scanopy-postgres",
-      "name": "Scanopy PostgreSQL",
-      "kind": "relational-database",
-      "category": "data",
-      "sourcePath": "apps/scanopy/compose.yml",
-      "composeService": "scanopy-postgres",
-      "description": "Dedicated PostgreSQL database for Scanopy topology and discovery data.",
-      "presentationRole": "support",
-      "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "scanopy-postgres",
-        "networks": [
-          "intranet"
-        ]
       }
     },
     {
