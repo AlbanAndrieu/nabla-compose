@@ -50,7 +50,7 @@ def validate_manifest(data: dict[str, Any]) -> None:
         raise SecretsError("manifest items must be a non-empty list")
 
     apps: set[str] = set()
-    env_names: set[str] = set()
+    import_env_names: set[str] = set()
     forbidden_keys = {"value", "password", "token", "secretValue"}
 
     for item in items:
@@ -99,12 +99,12 @@ def validate_manifest(data: dict[str, Any]) -> None:
                 )
             if env_name in app_env_names:
                 raise SecretsError(f"{app}: duplicate environment variable: {env_name}")
-            if env_name in env_names:
+            if import_env in import_env_names:
                 raise SecretsError(
-                    f"environment variable mapped by multiple apps: {env_name}"
+                    f"source environment variable mapped by multiple apps: {import_env}"
                 )
             app_env_names.add(env_name)
-            env_names.add(env_name)
+            import_env_names.add(import_env)
 
             if source not in {"field", "login.password", "login.username"}:
                 raise SecretsError(f"{app}/{env_name}: unsupported source: {source}")
