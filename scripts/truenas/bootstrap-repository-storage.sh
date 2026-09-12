@@ -83,11 +83,9 @@ dataset_preset() {
 }
 
 declare -A declared_paths=()
-declare -A app_owned_roots=()
 
 while IFS='|' read -r app root; do
   [[ -n "${app}" && -n "${root}" ]] || continue
-  app_owned_roots["${root}"]=1
   declared_paths["${root}"]="$(dataset_preset "${root}")"
 done < <(discover_persistent_mounts | sort -u)
 
