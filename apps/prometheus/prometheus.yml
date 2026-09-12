@@ -100,6 +100,18 @@ scrape_configs:
           role: continuous-profiler
           service: pyroscope
 
+  - job_name: n8n
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 172.17.0.24:30109
+        labels:
+          platform: truenas
+          role: workflow-automation
+          service: n8n
+
   - job_name: pihole_exporter
     metrics_path: /metrics
     scrape_interval: 15s
