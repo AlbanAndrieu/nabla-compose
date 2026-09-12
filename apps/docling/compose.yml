@@ -1,0 +1,79 @@
+---
+x-nabla:
+  relations:
+    - source: openrag-backend
+      target: docling
+      type: consumesApi
+      strength: required
+      description: OpenRAG sends document conversion requests to the repository-managed Docling Serve API.
+      evidence:
+        - apps/openrag/compose.yml:DOCLING_SERVE_URL
+
+services:
+  docling:
+    image: quay.io/docling-project/docling-serve-cpu:${DOCLING_VERSION:-v1.32.0}
+    container_name: docling
+    restart: unless-stopped
+    x-nabla:
+      id: docling
+      name: Docling Serve
+      kind: document-processing
+      category: ai
+      presentationRole: service
+      criticality: medium
+      description: CPU-backed document conversion API used by OpenRAG knowledge ingestion.
+      url: https://docling.int.albandrieu.com
+      internalUrl: http://docling:5001
+      runtime:
+        provider: truenas-app
+        containerService: docling
+      lifecycle:
+        phase: applications
+        priority: 40
+      monitoring:
+        type: http
+        target: http://172.17.0.24:5001/ready
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes Docling only on the private *.int.albandrieu.com namespace.
+          evidence:
+            - apps/docling/compose.yml:traefik.http.routers.docling
+    environment:
+      DOCLING_SERVE_ENABLE_UI: "true"
+    ports:
+      - "172.17.0.24:5001:5001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:5001/ready', timeout=5).read()
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_network"
+      - "traefik.http.routers.docling.rule=Host(`docling.int.albandrieu.com`)"
+      - "traefik.http.routers.docling.entrypoints=websecure"
+      - "traefik.http.routers.docling.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.docling.service=docling"
+      - "traefik.http.services.docling.loadbalancer.server.port=5001"
+    networks:
+      - intranet
+      - traefik_network
+
+networks:
+  intranet:
+    external: true
+    name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network
