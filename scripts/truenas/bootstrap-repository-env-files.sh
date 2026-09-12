@@ -21,7 +21,8 @@ esac
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so runtime env materializations remain root-only"
-for command in git awk sort stat install dirname basename find cmp readlink ln rm mkdir midclt zfs; do
+for command in git awk sort stat install dirname basename cmp readlink ln rm \
+  mkdir chown chmod midclt zfs; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -87,6 +88,20 @@ discover_declared_env_files() {
   done < <(git ls-files 'apps/*/compose.yml')
 }
 
+check_private_directory() {
+  local path="$1" metadata
+  if [[ ! -d "${path}" ]]; then
+    printf '❌ private runtime directory missing: %s\n' "${path}"
+    return 1
+  fi
+  metadata="$(stat -c '%U:%G %a' "${path}")"
+  if [[ "${metadata}" != "root:root 700" ]]; then
+    printf '❌ %s owner/mode=%s; expected root:root 700\n' \
+      "${path}" "${metadata}"
+    return 1
+  fi
+}
+
 ensure_secrets_root() {
   local payload metadata
   if ! zfs list -H -o name "${SECRETS_DATASET}" >/dev/null 2>&1; then
@@ -110,6 +125,12 @@ ensure_secrets_root() {
     fi
     chown root:root "${SECRETS_ROOT}"
     chmod 700 "${SECRETS_ROOT}"
+  fi
+
+  if [[ "${MODE}" == "--check" ]]; then
+    check_private_directory "${RUNTIME_ROOT}" || return 1
+    check_private_directory "${BOOTSTRAP_ROOT}" || return 1
+    return 0
   fi
 
   mkdir -p "${RUNTIME_ROOT}" "${BOOTSTRAP_ROOT}"
@@ -154,7 +175,7 @@ for legacy_env in /mnt/"${POOL}"/*/.env \
   /mnt/"${POOL}"/*/.env.*.secrets; do
   [[ -f "${legacy_env}" || -L "${legacy_env}" ]] || continue
   [[ "${legacy_env}" == "${SECRETS_ROOT}/"* ]] && continue
-  [[ -n "${source_app[${legacy_env}]:-}" ]] && continue
+  [[ -n "${source_app["${legacy_env}"]:-}" ]] && continue
   name="$(basename "${legacy_env}")"
   is_runtime_env_name "${name}" || continue
   app="${legacy_env#/mnt/${POOL}/}"
@@ -177,8 +198,8 @@ pending=0
 invalid=0
 printf 'Canonical TrueNAS runtime env materializations:\n'
 while IFS= read -r source; do
-  app="${source_app[${source}]}"
-  kind="${source_kind[${source}]}"
+  app="${source_app["${source}"]}"
+  kind="${source_kind["${source}"]}"
   canonical="$(canonical_env_file "${app}" "${source}")"
   canonical_parent="$(dirname "${canonical}")"
 
@@ -190,6 +211,7 @@ while IFS= read -r source; do
         continue
       fi
       mkdir -p "${canonical_parent}"
+      chown root:root "${canonical_parent}"
       chmod 700 "${canonical_parent}"
       install -o root -g root -m 600 /dev/null "${canonical}"
     fi
@@ -215,6 +237,7 @@ while IFS= read -r source; do
       continue
     fi
     mkdir -p "${canonical_parent}"
+    chown root:root "${canonical_parent}"
     chmod 700 "${canonical_parent}"
     if [[ ! -f "${canonical}" ]]; then
       install -o root -g root -m 600 "${source}" "${canonical}"
@@ -231,6 +254,7 @@ while IFS= read -r source; do
       continue
     fi
     mkdir -p "${canonical_parent}"
+    chown root:root "${canonical_parent}"
     chmod 700 "${canonical_parent}"
     if [[ ! -f "${canonical}" ]]; then
       install -o root -g root -m 600 /dev/null "${canonical}"
