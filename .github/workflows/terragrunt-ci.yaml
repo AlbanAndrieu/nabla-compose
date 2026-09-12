@@ -49,7 +49,7 @@ jobs:
 
       - name: Check OpenTofu formatting
         shell: bash
-        run: tofu fmt -check -recursive terraform
+        run: tofu fmt -check -diff -recursive terraform
 
       - name: Check infrastructure shell syntax
         shell: bash
@@ -136,7 +136,7 @@ jobs:
             echo "PR validation intentionally runs on a GitHub-hosted runner."
             echo "It does **not** load homelab credentials, contact the internal state backend, run a real Terragrunt plan, or mutate GitHub settings."
             echo
-            echo "- OpenTofu: \`fmt -check\`"
+            echo "- OpenTofu: \`fmt -check -diff\`"
             echo "- Infrastructure scripts: Bash syntax"
             echo "- Garage state: single-writer safety contract"
             echo "- Terragrunt: \`hcl fmt --check --diff\`"
