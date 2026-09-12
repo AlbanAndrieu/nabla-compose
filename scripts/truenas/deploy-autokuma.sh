@@ -27,14 +27,11 @@ sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 [[ -f "${SECRET_FILE}" ]] ||
   fail "missing AutoKuma runtime secret file: ${SECRET_FILE}"
 [[ -s "${SECRET_FILE}" ]] ||
-  fail "AutoKuma runtime secret file is empty: ${SECRET_FILE}; run bootstrap-autokuma-token.sh"
+  fail "AutoKuma runtime secret file is empty: ${SECRET_FILE}; run bootstrap-autokuma-token.sh or render it from Vaultwarden"
 
 mode="$(stat -c '%a' "${SECRET_FILE}")"
 [[ "${mode}" == "600" ]] ||
   fail "${SECRET_FILE} must be mode 0600 (current: ${mode})"
-
-grep -q '^AUTOKUMA__KUMA__URL=.' "${SECRET_FILE}" ||
-  fail "AUTOKUMA__KUMA__URL is missing from ${SECRET_FILE}"
 
 has_token=false
 has_user=false
