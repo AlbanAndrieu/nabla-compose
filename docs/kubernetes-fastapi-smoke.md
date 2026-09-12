@@ -92,7 +92,7 @@ exists and its `.spec.controller` is non-empty.
 
 Before deploying the application, verify the selected IngressClass/controller,
 prove that no other Ingress already claims `test.int.albandrieu.com`, and resolve
-public DNS without mutating the cluster:
+private LAN DNS without mutating the cluster:
 
 ```bash
 bash scripts/talos/smoke-fastapi-sample.sh --preflight
@@ -150,11 +150,11 @@ bash scripts/talos/smoke-fastapi-sample.sh --cleanup
   the smoke workload;
 - existing Ingress claiming `test.int.albandrieu.com`: resolve hostname ownership
   before deploying the smoke; do not rely on controller-specific rule merging;
-- public DNS lookup failure: create/reconcile the dedicated
-  `test.int.albandrieu.com` DNS/edge route before application acceptance;
+- private DNS lookup failure: create/reconcile the dedicated
+  `test.int.albandrieu.com` LAN DNS/ingress route before application acceptance;
 - network regression failure: stop before changing CSI or ingress; diagnose the already-installed CoreDNS/Flannel/Service path;
 - rollout failure: inspect Pod events/logs and image compatibility;
-- public `/health` or API failure with a healthy rollout: diagnose the
+- private `/health` or API failure with a healthy rollout: diagnose the
   ingress/edge path separately from Kubernetes workload health.
 
 Do not use ingress to diagnose storage, and do not make CSI compensate for a

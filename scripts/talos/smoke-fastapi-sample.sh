@@ -38,7 +38,7 @@ Usage:
 
 Modes:
   --render          render the Kubernetes manifest only (default)
-  --preflight       verify kubeconfig, IngressClass and public DNS without deployment
+  --preflight       verify kubeconfig, IngressClass and private DNS without deployment
   --server-dry-run  validate the manifest against the live API server without persisting it
   --apply           deploy/update the smoke workload and verify rollout + public endpoints
   --cleanup         delete the smoke namespace
@@ -63,7 +63,7 @@ require_cluster() {
   export KUBECONFIG
 }
 
-resolve_public_host() {
+resolve_private_host() {
   require_command python3
   python3 - "${HOST}" <<'PY'
 import socket
@@ -106,10 +106,10 @@ check_ingress_preflight() {
     fail "Ingress host ${HOST} is already claimed by: ${host_claims}"
 
   local addresses
-  addresses="$(resolve_public_host)" ||
-    fail "public DNS lookup failed for ${HOST}"
+  addresses="$(resolve_private_host)" ||
+    fail "private DNS lookup failed for ${HOST}"
   [[ -n "${addresses}" ]] ||
-    fail "public DNS lookup returned no address for ${HOST}"
+    fail "private DNS lookup returned no address for ${HOST}"
 
   printf '✅ ingress preflight: class=%s controller=%s host=%s addresses=%s\n' \
     "${INGRESS_CLASS}" "${ingress_controller}" "${HOST}" "${addresses}"
@@ -327,23 +327,23 @@ case "${MODE}" in
     printf '🔎 correlation pod=%s node=%s pod_ip=%s service_ip=%s ingress=%s image=%s\n' \
       "${pod_name}" "${pod_node}" "${pod_ip}" "${service_ip}" "${ingress_address}" "${observed_image}"
 
-    printf '🔎 validating external FastAPI smoke: https://%s/health\n' "${HOST}"
+    printf '🔎 validating LAN/private FastAPI smoke: https://%s/health\n' "${HOST}"
     health_response="$(
       curl --fail --silent --show-error \
         --connect-timeout 5 \
         --max-time 15 \
         "https://${HOST}/health"
     )"
-    [[ -n "${health_response}" ]] || fail "external /health returned an empty response"
+    [[ -n "${health_response}" ]] || fail "private /health returned an empty response"
 
-    printf '🔎 validating external FastAPI API path: https://%s%s\n' "${HOST}" "${API_PATH}"
+    printf '🔎 validating LAN/private FastAPI API path: https://%s%s\n' "${HOST}" "${API_PATH}"
     api_response="$(
       curl --fail --silent --show-error \
         --connect-timeout 5 \
         --max-time 15 \
         "https://${HOST}${API_PATH}"
     )"
-    [[ -n "${api_response}" ]] || fail "external ${API_PATH} returned an empty response"
+    [[ -n "${api_response}" ]] || fail "private ${API_PATH} returned an empty response"
 
     printf '✅ FastAPI Kubernetes smoke healthy: rollout, Service endpoints, immutable image, /health and %s via https://%s\n' \
       "${API_PATH}" "${HOST}"
