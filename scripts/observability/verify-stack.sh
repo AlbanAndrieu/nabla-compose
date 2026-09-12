@@ -61,7 +61,12 @@ check_http_200() {
   local status
 
   status="$(
-    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${url}" || true
+    curl --silent --show-error \
+      --connect-timeout 4 \
+      --max-time 12 \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${url}" || true
   )"
 
   if [[ "${status}" == "200" ]]; then
@@ -78,7 +83,12 @@ check_grafana_health() {
   local status
 
   status="$(
-    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${GRAFANA_URL%/}/api/health" || true
+    curl --silent --show-error \
+      --connect-timeout 4 \
+      --max-time 12 \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${GRAFANA_URL%/}/api/health" || true
   )"
 
   if [[ "${status}" != "200" ]]; then
@@ -98,7 +108,13 @@ check_exporter_target() {
   local status
 
   status="$(
-    curl --silent --show-error --get       --connect-timeout 4       --max-time 30       --data-urlencode "target=${PFSENSE_TARGET}"       --output "${body}"       --write-out '%{http_code}'       "${PFSENSE_EXPORTER_URL%/}/metrics" || true
+    curl --silent --show-error --get \
+      --connect-timeout 4 \
+      --max-time 30 \
+      --data-urlencode "target=${PFSENSE_TARGET}" \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${PFSENSE_EXPORTER_URL%/}/metrics" || true
   )"
 
   if [[ "${status}" != "200" ]]; then
@@ -121,7 +137,13 @@ check_prom_query() {
   local status
 
   status="$(
-    curl --silent --show-error --get       --connect-timeout 4       --max-time 12       --data-urlencode "query=${query}"       --output "${body}"       --write-out '%{http_code}'       "${base_url}" || true
+    curl --silent --show-error --get \
+      --connect-timeout 4 \
+      --max-time 12 \
+      --data-urlencode "query=${query}" \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${base_url}" || true
   )"
 
   if [[ "${status}" != "200" ]]; then
@@ -146,7 +168,12 @@ check_prometheus_targets() {
   local job
 
   status="$(
-    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${PROMETHEUS_URL%/}/api/v1/targets?state=active" || true
+    curl --silent --show-error \
+      --connect-timeout 4 \
+      --max-time 12 \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${PROMETHEUS_URL%/}/api/v1/targets?state=active" || true
   )"
 
   if [[ "${status}" != "200" ]]; then
@@ -164,9 +191,10 @@ check_prometheus_targets() {
     alertmanager
     pihole_exporter
     postgres_exporter
+    redis_exporter
+    influxdb
     pfsense_exporter
     haproxy
-    sybase
     opensearch
     opensearch-security
     crowdsec
@@ -222,7 +250,12 @@ check_prometheus_alertmanager() {
   local status
 
   status="$(
-    curl --silent --show-error       --connect-timeout 4       --max-time 12       --output "${body}"       --write-out '%{http_code}'       "${PROMETHEUS_URL%/}/api/v1/alertmanagers" || true
+    curl --silent --show-error \
+      --connect-timeout 4 \
+      --max-time 12 \
+      --output "${body}" \
+      --write-out '%{http_code}' \
+      "${PROMETHEUS_URL%/}/api/v1/alertmanagers" || true
   )"
 
   if [[ "${status}" != "200" ]]; then
@@ -244,7 +277,13 @@ grafana_api_get() {
   local path="$1"
   local body="$2"
 
-  curl --silent --show-error     --connect-timeout 4     --max-time 12     --header "Authorization: Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}"     --output "${body}"     --write-out '%{http_code}'     "${GRAFANA_URL%/}${path}" || true
+  curl --silent --show-error \
+    --connect-timeout 4 \
+    --max-time 12 \
+    --header "Authorization: Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}" \
+    --output "${body}" \
+    --write-out '%{http_code}' \
+    "${GRAFANA_URL%/}${path}" || true
 }
 
 check_grafana_integrations() {
@@ -296,7 +335,8 @@ check_grafana_integrations() {
 }
 
 printf '🔎 Homelab observability integration preflight\n'
-printf 'Host: %s | pfSense target: %s\n\n'   "${OBSERVABILITY_HOST}" "${PFSENSE_TARGET}"
+printf 'Host: %s | pfSense target: %s\n\n' \
+  "${OBSERVABILITY_HOST}" "${PFSENSE_TARGET}"
 
 for command in curl grep jq mktemp; do
   require_command "${command}"
@@ -323,15 +363,22 @@ check_prometheus_alertmanager
 
 printf '\n🔥 pfSense metrics path\n'
 check_exporter_target
-check_prom_query   "Prometheus"   "${PROMETHEUS_URL%/}/api/v1/query"   'up{job="pfsense_exporter"}'
-check_prom_query   "Mimir"   "${MIMIR_URL%/}/prometheus/api/v1/query"   'up{job="pfsense_exporter"}'
+check_prom_query \
+  "Prometheus" \
+  "${PROMETHEUS_URL%/}/api/v1/query" \
+  'up{job="pfsense_exporter"}'
+check_prom_query \
+  "Mimir" \
+  "${MIMIR_URL%/}/prometheus/api/v1/query" \
+  'up{job="pfsense_exporter"}'
 
 printf '\n📊 Grafana integration\n'
 check_grafana_integrations
 
 printf '\n'
 if ((errors > 0)); then
-  printf '❌ Observability preflight failed: %d error(s), %d warning(s).\n'     "${errors}" "${warnings}" >&2
+  printf '❌ Observability preflight failed: %d error(s), %d warning(s).\n' \
+    "${errors}" "${warnings}" >&2
   exit 1
 fi
 
