@@ -1,3 +1,10 @@
+## [0.34.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.4...0.34.5) (2026-09-12)
+
+
+### Bug Fixes
+
+* **observability:** reconcile topology and Prometheus targets ([#193](https://github.com/AlbanAndrieu/nabla-compose/issues/193)) ([bfe110b](https://github.com/AlbanAndrieu/nabla-compose/commit/bfe110b462d6dc4f8bc4d78b185255978e2d5655))
+
 ## [0.34.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.34.3...0.34.4) (2026-09-11)
 
 
