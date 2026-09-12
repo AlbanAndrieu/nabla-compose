@@ -4,8 +4,7 @@ set -euo pipefail
 APP_ID="${AUTOKUMA_APP_ID:-autokuma}"
 CONTAINER="${AUTOKUMA_CONTAINER:-autokuma}"
 CANONICAL_ROOT="${AUTOKUMA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-RUNTIME_DIR="${AUTOKUMA_RUNTIME_DIR:-/mnt/cpool/autokuma}"
-SECRET_FILE="${AUTOKUMA_SECRET_FILE:-${RUNTIME_DIR}/.env.secrets}"
+SECRET_FILE="${AUTOKUMA_SECRET_FILE:-/mnt/cpool/secrets/runtime/autokuma/.env.secrets}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
