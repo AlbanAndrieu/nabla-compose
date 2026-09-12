@@ -227,6 +227,69 @@ def runtime_binding(
     return binding
 
 
+def compose_network_membership(
+    document: dict[str, Any],
+    service_config: dict[str, Any],
+    context: str,
+) -> list[str]:
+    """Return deterministic canonical Docker network names from Compose syntax."""
+    raw = service_config.get("networks")
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        logical_names = raw
+    elif isinstance(raw, dict):
+        logical_names = list(raw)
+    else:
+        fail(f"{context.rsplit('.x-nabla', 1)[0]}.networks must be a list or mapping")
+
+    top_level = document.get("networks", {})
+    if top_level is None:
+        top_level = {}
+    if not isinstance(top_level, dict):
+        fail("top-level Compose networks must be a mapping")
+
+    canonical: set[str] = set()
+    for index, logical in enumerate(logical_names):
+        if not isinstance(logical, str) or not logical.strip():
+            fail(
+                f"{context.rsplit('.x-nabla', 1)[0]}.networks[{index}] must identify a non-empty network name"
+            )
+        logical_name = logical.strip()
+        runtime_name = logical_name
+        definition = top_level.get(logical_name)
+        if definition is not None:
+            if not isinstance(definition, dict):
+                fail(f"top-level network {logical_name!r} must be a mapping or null")
+            configured_name = definition.get("name")
+            if configured_name is not None:
+                if not isinstance(configured_name, str) or not configured_name.strip():
+                    fail(f"top-level network {logical_name!r}.name must be a non-empty string")
+                literal_name = configured_name.strip()
+                if "${" not in literal_name:
+                    runtime_name = literal_name
+        canonical.add(runtime_name)
+    return sorted(canonical)
+
+
+def attach_compose_networks(
+    node: dict[str, Any],
+    service: dict[str, Any],
+    *,
+    document: dict[str, Any],
+    service_config: dict[str, Any],
+    context: str,
+) -> None:
+    """Attach authoritative Compose memberships to runtime metadata when present."""
+    networks = compose_network_membership(document, service_config, context)
+    if not networks:
+        return
+    for target in (node, service):
+        runtime = target.get("runtime")
+        if isinstance(runtime, dict):
+            runtime["networks"] = networks
+
+
 def topology_node(
     metadata: dict[str, Any], source_path: str, context: str
 ) -> dict[str, Any]:
@@ -250,6 +313,9 @@ def topology_node(
     runtime = runtime_binding(metadata, context)
     if runtime is not None:
         node["runtime"] = runtime
+    monitoring = monitoring_metadata(metadata, context)
+    if monitoring is not None:
+        node["monitoring"] = monitoring
     return node
 
 
@@ -314,15 +380,13 @@ def declared_service(
         "securityFunctions",
         "environments",
         "lifecycle",
+        "monitoring",
     ):
         if key in node:
             service[key] = node[key]
     runtime = runtime_binding(metadata, context)
     if runtime is not None:
         service["runtime"] = runtime
-    monitoring = monitoring_metadata(metadata, context)
-    if monitoring is not None:
-        service["monitoring"] = monitoring
     return service
 
 
@@ -442,6 +506,9 @@ def load_static_topology(
         runtime = runtime_binding(normalized_node, context)
         if runtime is not None:
             normalized_node["runtime"] = runtime
+        monitoring = monitoring_metadata(normalized_node, context)
+        if monitoring is not None:
+            normalized_node["monitoring"] = monitoring
         add_unique(
             nodes,
             node_id,
@@ -524,10 +591,17 @@ def load_compose_extensions(
                 fail(f"{source_path}:{service_name}.x-nabla must be a mapping")
             context = f"{source_path}:{service_name}.x-nabla"
             node = topology_node(extension, source_path, context)
-            add_unique(nodes, node["id"], node, context, "topology node")
             service = declared_service(
                 extension, source_path, str(service_name), context
             )
+            attach_compose_networks(
+                node,
+                service,
+                document=document,
+                service_config=service_config,
+                context=context,
+            )
+            add_unique(nodes, node["id"], node, context, "topology node")
             add_unique(
                 services, service["id"], service, context, "declared service"
             )

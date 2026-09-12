@@ -44,7 +44,13 @@
           "enum": ["truenas-app", "logical", "external", "host"]
         },
         "appId": { "type": "string", "minLength": 1 },
-        "containerService": { "type": "string", "minLength": 1 }
+        "containerService": { "type": "string", "minLength": 1 },
+        "networks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     },
     "lifecycle": {
@@ -64,6 +70,22 @@
           ]
         },
         "priority": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["http", "port"] },
+        "target": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "conditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     },
     "node": {
@@ -103,7 +125,8 @@
         "description": { "type": "string" },
         "icon": { "type": "string", "minLength": 1 },
         "runtime": { "$ref": "#/$defs/runtime" },
-        "lifecycle": { "$ref": "#/$defs/lifecycle" }
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "monitoring": { "$ref": "#/$defs/monitoring" }
       }
     },
     "relation": {

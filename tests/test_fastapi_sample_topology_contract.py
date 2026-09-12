@@ -18,8 +18,8 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
             {
                 "name": "staging",
                 "url": "https://sample.albandrieu.com/api",
-                "external": False,
-                "cloudflareTunnel": False,
+                "external": True,
+                "cloudflareTunnel": True,
             },
         ]
 
@@ -39,6 +39,9 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
         self.assertEqual(service["presentationRole"], "support")
         self.assertEqual(node["environments"], expected)
         self.assertEqual(service["environments"], expected)
+        expected_networks = ["intranet", "sample-observer", "traefik_network"]
+        self.assertEqual(node["runtime"]["networks"], expected_networks)
+        self.assertEqual(service["runtime"]["networks"], expected_networks)
 
 
 if __name__ == "__main__":

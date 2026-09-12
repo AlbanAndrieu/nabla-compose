@@ -7,6 +7,11 @@ x-nabla:
       category: network
       presentationRole: core
       description: pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.
+      monitoring:
+        type: port
+        host: 82.66.4.247
+        port: 443
+        target: tcp://82.66.4.247:443
 
 services:
   traefik:
@@ -194,12 +199,12 @@ services:
     env_file:
       - /mnt/cpool/traefik/.env.secrets
     environment:
-      # - CLOUDFLARE_API_TOKEN=cfat_XXX
-      # Your Cloudflare API token
-      - DOMAINS=toto.albandrieu.com,www.toto.albandrieu.com
+      # Public DNS owner for reviewed *.int exceptions. Pi-hole remains the
+      # independent split-DNS owner for the same names inside the trusted LAN.
+      - DOMAINS=${PUBLIC_INT_CLOUDFLARE_DNS_DOMAINS:-s3.int.albandrieu.com,hello.int.albandrieu.com,vaultwarden.int.albandrieu.com}
         # Your domains (separated by commas)
       - PROXIED=false
-        # Leaning toward using Cloudflare's proxy for these domains (optional)
+        # Keep direct pfSense/HAProxy ingress for these exception records.
         # Existing DNS records in Cloudflare keep their current proxy statuses
 
   # ddns:

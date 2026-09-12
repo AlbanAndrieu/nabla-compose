@@ -10,6 +10,11 @@ x-nabla:
         - protect
         - respond
       description: External pfSense firewall running the lightweight CrowdSec remediation component.
+      monitoring:
+        type: http
+        target: https://home.albandrieu.com:10443/api/v2/system/version
+        conditions:
+          - "[STATUS] == 200"
 
 services:
   crowdsec:

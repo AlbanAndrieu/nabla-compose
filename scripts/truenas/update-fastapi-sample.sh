@@ -15,7 +15,7 @@ fail() {
     exit 1
 }
 
-for command in git docker jq curl sudo midclt stat awk; do
+for command in git docker jq curl sudo midclt stat awk grep mktemp tee; do
     command -v "${command}" >/dev/null 2>&1 ||
         fail "${command} is required"
 done
@@ -99,6 +99,36 @@ wait_for_json_endpoint() {
     return 1
 }
 
+build_fastapi_sample() {
+    local log
+    local rc=1
+
+    log="$(mktemp)"
+    if run_docker "${build_args[@]}" 2>&1 | tee "${log}"; then
+        rm -f "${log}"
+        return 0
+    else
+        rc="${PIPESTATUS[0]}"
+    fi
+
+    if grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
+        printf 'WARN: Docker BuildKit frontend closed unexpectedly; retrying the same cache-preserving build once.\n' >&2
+        sleep 2
+        : >"${log}"
+        if run_docker "${build_args[@]}" 2>&1 | tee "${log}"; then
+            rm -f "${log}"
+            return 0
+        else
+            rc="${PIPESTATUS[0]}"
+        fi
+    fi
+
+    printf 'ERROR: FastAPI Sample image build failed; existing runtime was not replaced.\n' >&2
+    run_docker version >&2 2>/dev/null || true
+    rm -f "${log}"
+    return "${rc}"
+}
+
 run_git git submodule sync --recursive
 run_git git submodule update --init --recursive "${SUBMODULE}"
 
@@ -166,7 +196,7 @@ if [[ "${image_source}" == "local-build" ]]; then
     build_args+=(fastapi-sample)
 
     printf 'Building fastapi-sample before runtime replacement...\n'
-    run_docker "${build_args[@]}"
+    build_fastapi_sample
 fi
 
 network_contract=""

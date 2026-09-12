@@ -2,10 +2,16 @@
 # Every entry is security debt and must have a migration/removal roadmap.
 # Do not add a hostname merely to make the audit green.
 
-# Only the Garage S3 root endpoint retains a temporary direct-ingress exception.
+# Garage S3 keeps a temporary direct-ingress exception for OpenTofu state.
 # OpenTofu uses path-style S3 requests; bucket subdomain DNS is not required.
 # Garage WebUI, Admin API and *.s3 bucket subdomains are private.
 s3.int.albandrieu.com
+
+# Temporary ingress/DNS lab endpoint. The same name is deliberately published
+# privately by pihole-dns-sync -> 172.17.0.24 and publicly by cloudflare-ddns
+# for pfSense/HAProxy -> Traefik routing experiments. Remove the public copy
+# when the ingress experiment moves to a non-.int hostname.
+hello.int.albandrieu.com
 
 # Temporary workstation compatibility. Migrate the workstation to the
 # canonical vaultwarden.albandrieu.com exposure or a private VPN/WARP route.
