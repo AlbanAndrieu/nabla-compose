@@ -115,7 +115,14 @@ ensure_secrets_root() {
     midclt call pool.dataset.create "${payload}" >/dev/null
   fi
 
-  [[ -d "${SECRETS_ROOT}" ]] || fail "missing secrets mountpoint ${SECRETS_ROOT}"
+  if [[ ! -d "${SECRETS_ROOT}" ]]; then
+    if [[ "${MODE}" == "--check" ]]; then
+      printf '❌ canonical secrets mountpoint missing: %s\n' "${SECRETS_ROOT}"
+      return 1
+    fi
+    fail "missing secrets mountpoint ${SECRETS_ROOT}"
+  fi
+
   metadata="$(stat -c '%U:%G %a' "${SECRETS_ROOT}")"
   if [[ "${metadata}" != "root:root 700" ]]; then
     if [[ "${MODE}" == "--check" ]]; then
@@ -190,8 +197,13 @@ if ((${#source_app[@]} == 0)); then
   exit 0
 fi
 
+root_issue=0
 if ! ensure_secrets_root; then
-  exit 1
+  if [[ "${MODE}" == "--apply" ]]; then
+    exit 1
+  fi
+  root_issue=1
+  printf 'ℹ️  continuing read-only migration preview despite missing/noncanonical secrets root.\n'
 fi
 
 pending=0
@@ -294,16 +306,22 @@ while IFS= read -r source; do
   fi
 done < <(printf '%s\n' "${!source_app[@]}" | sort)
 
+status=0
+if ((root_issue > 0)); then
+  status=1
+fi
 if [[ "${MODE}" == "--check" && ${pending} -gt 0 ]]; then
   printf '❌ %d env materialization(s) still require canonical migration.\n' \
     "${pending}" >&2
-  printf '   Apply with: sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply\n' >&2
-  exit 1
+  printf '   Apply only after reviewing this plan: sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply\n' >&2
+  status=1
 fi
-
 if ((invalid > 0)); then
   printf '❌ %d runtime env materialization issue(s) remain.\n' \
     "${invalid}" >&2
+  status=1
+fi
+if ((status > 0)); then
   exit 1
 fi
 
