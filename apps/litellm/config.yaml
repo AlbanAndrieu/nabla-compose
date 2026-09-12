@@ -1,6 +1,6 @@
 model_list:
   # ========== Ollama ==========
-  #- model_name: llama3.2
+  # - model_name: llama3.2
   #  litellm_params:
   #    model: "ollama/llama3.2"
   #    api_base: "http://172.17.0.57:11434"
@@ -16,7 +16,7 @@ model_list:
       num_ctx: 4096
 
   # open commit model
-  #- model_name: llama3.1
+  # - model_name: llama3.1
   #  litellm_params:
   #    model: "ollama_chat/llama3.1:8b"
   #    api_base: "http://172.17.0.24:30068"
@@ -106,7 +106,7 @@ model_list:
   # reactive resume
   - model_name: rr-json
     litellm_params:
-      model: "ollama_chat/qwen2.5:3b" #:14b
+      model: "ollama_chat/qwen2.5:3b" # :14b
       api_base: "http://172.17.0.24:30068"
       temperature: 0
       num_ctx: 8192
