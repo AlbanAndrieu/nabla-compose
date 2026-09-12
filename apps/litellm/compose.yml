@@ -40,6 +40,12 @@ services:
           description: LiteLLM enables its Prometheus callback and budget metrics.
           evidence:
             - apps/litellm/config.yaml:callbacks.prometheus
+        - target: mcp-cyberbro
+          type: routesTo
+          strength: optional
+          description: LiteLLM exposes Cyberbro threat-intelligence tools through its MCP gateway.
+          evidence:
+            - apps/litellm/config.yaml:mcp_servers.cyberbro
     # user: "568:568" # TrueNAS apps user
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -67,6 +73,8 @@ services:
       # Optional upstream LiteLLM proxy on the GPU workstation. The existing
       # LITELLM_IDE_API_KEY is injected by env_file and is never committed.
       LITELLM_WORKSTATION_API_BASE: ${LITELLM_WORKSTATION_API_BASE:-http://172.17.0.57:4000/v1}
+      # Streamable HTTP endpoint exposed by apps/cyberbro/compose.yml.
+      CYBERBRO_MCP_URL: ${CYBERBRO_MCP_URL:-http://172.17.0.24:8013/mcp}
       UI_USERNAME: ${UI_USERNAME}
       UI_PASSWORD: ${UI_PASSWORD}
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
