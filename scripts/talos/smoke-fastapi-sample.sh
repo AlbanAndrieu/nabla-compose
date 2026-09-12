@@ -14,7 +14,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 nabla_resolve_talos_client_config "${ROOT}"
 NAMESPACE="${K8S_FASTAPI_SMOKE_NAMESPACE:-nabla-fastapi-smoke}"
-HOST="${K8S_FASTAPI_SMOKE_HOST:-test.albandrieu.com}"
+HOST="${K8S_FASTAPI_SMOKE_HOST:-test.int.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
 API_PATH="${K8S_FASTAPI_SMOKE_API_PATH:-/v2/version}"
 IMAGE="${FASTAPI_SAMPLE_K8S_IMAGE:-}"
@@ -46,7 +46,7 @@ Modes:
 Environment:
   KUBECONFIG                         default: .talos/generated/kubeconfig
   K8S_FASTAPI_SMOKE_NAMESPACE       default: nabla-fastapi-smoke
-  K8S_FASTAPI_SMOKE_HOST            default: test.albandrieu.com
+  K8S_FASTAPI_SMOKE_HOST            default: test.int.albandrieu.com
   K8S_FASTAPI_SMOKE_INGRESS_CLASS   default: traefik
   K8S_FASTAPI_SMOKE_API_PATH        default: /v2/version
   FASTAPI_SAMPLE_K8S_IMAGE          required for render/dry-run/apply and must end in @sha256:<digest>

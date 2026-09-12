@@ -322,11 +322,11 @@ The backend `/health` endpoint is liveness. `/search/health` additionally
 proves the OpenSearch dependency. The frontend collective endpoint proves the
 backend and shared Langflow path together.
 
-OpenRAG document ingestion also depends on Docling. The upstream 0.7.1 default
-is `DOCLING_SERVE_URL=http://host.docker.internal:5001`; Linux Docker requires
-the `host.docker.internal:host-gateway` mapping. The repository now preserves
-that routing contract, but no repository-managed Docling service is deployed
-yet. Treat a failed Docling probe as an explicit ingestion warning until the
+OpenRAG document ingestion also depends on Docling. The repository-managed
+Docling service now joins `intranet`, and OpenRAG defaults to
+`DOCLING_SERVE_URL=http://docling:5001`. Keep the host-gateway mapping only for
+explicit rollback compatibility. Treat a failed Docling probe as an explicit
+ingestion warning until the
 Docling deployment is reviewed; do not claim OpenRAG is fully operational for
 document ingestion until it passes.
 

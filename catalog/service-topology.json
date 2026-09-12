@@ -365,6 +365,38 @@
       }
     },
     {
+      "id": "docling",
+      "name": "Docling Serve",
+      "kind": "document-processing",
+      "category": "ai",
+      "sourcePath": "apps/docling/compose.yml",
+      "url": "https://docling.int.albandrieu.com",
+      "internalUrl": "http://docling:5001",
+      "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "docling",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:5001/ready",
+        "url": "http://172.17.0.24:5001/metrics",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
       "id": "doco-cd",
       "name": "Doco-CD",
       "kind": "deployment-automation",
@@ -703,6 +735,37 @@
         "containerService": "influxdb",
         "networks": [
           "intranet"
+        ]
+      }
+    },
+    {
+      "id": "joplin",
+      "name": "Joplin Server",
+      "kind": "notes-sync",
+      "category": "productivity",
+      "sourcePath": "apps/joplin/compose.yml",
+      "url": "https://joplin.int.albandrieu.com",
+      "internalUrl": "http://joplin:22300",
+      "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 60
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "joplin",
+        "networks": [
+          "intranet",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:22300/api/ping",
+        "conditions": [
+          "[STATUS] == 200"
         ]
       }
     },
@@ -2378,6 +2441,36 @@
       ]
     },
     {
+      "source": "docling",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/docling/compose.yml:docling.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "docling",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes Docling Serve OpenTelemetry metrics from /metrics.",
+      "evidence": [
+        "apps/docling/compose.yml:docling.x-nabla.monitoring.url"
+      ]
+    },
+    {
+      "source": "docling",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes Docling only on the private *.int.albandrieu.com namespace.",
+      "evidence": [
+        "apps/docling/compose.yml:traefik.http.routers.docling"
+      ]
+    },
+    {
       "source": "doco-cd",
       "target": "docker",
       "type": "hostedBy",
@@ -2728,6 +2821,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/influxdb/compose.yml:influxdb.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "joplin",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/joplin/compose.yml:joplin.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "joplin",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Joplin persists notes, users and synchronization state in the shared PostgreSQL service.",
+      "evidence": [
+        "apps/joplin/compose.yml:POSTGRES_HOST"
+      ]
+    },
+    {
+      "source": "joplin",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "required",
+      "description": "Traefik exposes Joplin only through the private joplin.int.albandrieu.com hostname.",
+      "evidence": [
+        "apps/joplin/compose.yml:traefik.http.routers.joplin"
       ]
     },
     {
@@ -3280,6 +3403,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/openrag/compose.yml:openrag-backend.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "openrag-backend",
+      "target": "docling",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "OpenRAG sends document conversion requests to the repository-managed Docling Serve API.",
+      "evidence": [
+        "apps/openrag/compose.yml:DOCLING_SERVE_URL"
       ]
     },
     {

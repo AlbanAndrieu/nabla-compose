@@ -42,8 +42,8 @@ class KubernetesFastApiSmokeContractTests(unittest.TestCase):
                 self.assertIn(marker, self.doc)
 
     def test_smoke_uses_dedicated_test_hostname(self) -> None:
-        self.assertIn("test.albandrieu.com", self.smoke)
-        self.assertIn("test.albandrieu.com", self.doc)
+        self.assertIn("test.int.albandrieu.com", self.smoke)
+        self.assertIn("test.int.albandrieu.com", self.doc)
 
     def test_smoke_requires_explicit_immutable_digest(self) -> None:
         self.assertIn("FASTAPI_SAMPLE_K8S_IMAGE is required", self.smoke)

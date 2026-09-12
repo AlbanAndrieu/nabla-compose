@@ -1,7 +1,7 @@
 # Kubernetes FastAPI Sample smoke
 
 This runbook uses the existing FastAPI Sample application as the explicit
-Kubernetes acceptance workload behind `test.albandrieu.com`.
+Kubernetes acceptance workload behind `test.int.albandrieu.com`.
 
 The smoke test is intentionally separate from the TrueNAS deployment behind
 `sample.albandrieu.com`.
@@ -20,7 +20,7 @@ The smoke test is intentionally separate from the TrueNAS deployment behind
 6. The resulting `IngressClass` for
    `K8S_FASTAPI_SMOKE_INGRESS_CLASS` (default: `traefik`) exists and has a
    non-empty `.spec.controller`.
-7. `test.albandrieu.com` resolves before deployment.
+7. `test.int.albandrieu.com` resolves before deployment.
 8. The FastAPI Sample image reference is immutable by digest. Mutable tags,
    including version tags and `:latest`, are not accepted by the smoke gate.
 
@@ -62,7 +62,7 @@ bash scripts/talos/preflight-kubara.sh --pre-bootstrap
 ```
 
 This gate fails if a Traefik IngressClass/controller/workload already exists or
-if another Ingress already owns `test.albandrieu.com`. It also verifies that the
+if another Ingress already owns `test.int.albandrieu.com`. It also verifies that the
 installed Kubara matches `config/kubara/VERSION` and exposes the expected
 `generate --helm`, `generate --dry-run`, and `bootstrap CLUSTER_NAME` commands.
 
@@ -91,7 +91,7 @@ Only continue when exactly one intended Traefik IngressClass/controller/workload
 exists and its `.spec.controller` is non-empty.
 
 Before deploying the application, verify the selected IngressClass/controller,
-prove that no other Ingress already claims `test.albandrieu.com`, and resolve
+prove that no other Ingress already claims `test.int.albandrieu.com`, and resolve
 public DNS without mutating the cluster:
 
 ```bash
@@ -115,8 +115,8 @@ bash scripts/talos/smoke-fastapi-sample.sh --server-dry-run
 ```
 
 Deploy and verify rollout, ready Service `EndpointSlice` addresses, exact image digest,
-`https://test.albandrieu.com/health`, and the API acceptance endpoint
-`https://test.albandrieu.com/v2/version`:
+`https://test.int.albandrieu.com/health`, and the API acceptance endpoint
+`https://test.int.albandrieu.com/v2/version`:
 
 ```bash
 bash scripts/talos/smoke-fastapi-sample.sh --apply
@@ -148,10 +148,10 @@ bash scripts/talos/smoke-fastapi-sample.sh --cleanup
 - missing/invalid `IngressClass` after Kubara bootstrap: inspect the generated
   Traefik values, Argo CD application and Traefik controller before exposing
   the smoke workload;
-- existing Ingress claiming `test.albandrieu.com`: resolve hostname ownership
+- existing Ingress claiming `test.int.albandrieu.com`: resolve hostname ownership
   before deploying the smoke; do not rely on controller-specific rule merging;
 - public DNS lookup failure: create/reconcile the dedicated
-  `test.albandrieu.com` DNS/edge route before application acceptance;
+  `test.int.albandrieu.com` DNS/edge route before application acceptance;
 - network regression failure: stop before changing CSI or ingress; diagnose the already-installed CoreDNS/Flannel/Service path;
 - rollout failure: inspect Pod events/logs and image compatibility;
 - public `/health` or API failure with a healthy rollout: diagnose the
@@ -176,4 +176,4 @@ The smoke workload:
 CSI persistence is deliberately an earlier gate. This ingress smoke may mount a
 disposable PVC from the already-proven TrueNAS StorageClass as an additional
 end-to-end check, but CSI provisioning/persistence must not depend on
-`test.albandrieu.com` or Traefik.
+`test.int.albandrieu.com` or Traefik.

@@ -106,7 +106,7 @@
       "internalHost": "172.17.0.24",
       "internalPort": 30117,
       "internalSecure": true,
-      "tunnelUrl": "https://open-speed-test.albandrieu.com",
+      "tunnelUrl": "https://open-speed-test.int.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/openspeedtest.png",
       "external": false
@@ -118,7 +118,7 @@
       "internalHost": "172.17.0.24",
       "internalPort": 30221,
       "internalSecure": true,
-      "tunnelUrl": "https://speedtest.albandrieu.com",
+      "tunnelUrl": "https://speedtest.int.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/speedtest.png",
       "external": false

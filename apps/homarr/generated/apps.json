@@ -165,6 +165,17 @@
       "description": "Docker container management UI."
     },
     {
+      "id": "docling",
+      "name": "Docling Serve",
+      "group": "ai",
+      "sourcePath": "apps/docling/compose.yml",
+      "composeService": "docling",
+      "dockerManaged": true,
+      "href": "https://docling.int.albandrieu.com",
+      "syncEligible": true,
+      "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion."
+    },
+    {
       "id": "dozzle",
       "name": "Dozzle",
       "group": "observability",
@@ -324,6 +335,17 @@
       "href": null,
       "syncEligible": false,
       "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+    },
+    {
+      "id": "joplin",
+      "name": "Joplin Server",
+      "group": "productivity",
+      "sourcePath": "apps/joplin/compose.yml",
+      "composeService": "joplin",
+      "dockerManaged": true,
+      "href": "https://joplin.int.albandrieu.com",
+      "syncEligible": true,
+      "description": "Private Joplin synchronization server backed by the shared PostgreSQL service."
     },
     {
       "id": "kafka",

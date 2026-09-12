@@ -14,7 +14,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 nabla_resolve_talos_client_config "${ROOT}"
 VERSION_FILE="${KUBARA_VERSION_FILE:-${ROOT}/config/kubara/VERSION}"
-HOST="${K8S_FASTAPI_SMOKE_HOST:-test.albandrieu.com}"
+HOST="${K8S_FASTAPI_SMOKE_HOST:-test.int.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
 MODE="${1:---pre-bootstrap}"
 
@@ -33,7 +33,7 @@ Modes:
   --post-bootstrap require the intended Traefik IngressClass/controller/workload
 
 This command is read-only. It validates the pinned Kubara CLI contract, Kubernetes
-API readiness, ingress-controller ownership, and test.albandrieu.com host ownership.
+API readiness, ingress-controller ownership, and test.int.albandrieu.com host ownership.
 EOF
 }
 

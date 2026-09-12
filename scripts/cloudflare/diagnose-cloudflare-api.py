@@ -182,12 +182,27 @@ def access_url_allowed(url: str) -> bool:
 
 
 def access_response_evidence(status: int, headers: Any, body: bytes) -> tuple[bool, str]:
-    location = str(headers.get("Location") or "").lower()
+    location = str(headers.get("Location") or "").strip()
     server = str(headers.get("Server") or "").lower()
     cf_ray = str(headers.get("CF-Ray") or "")
     text = body.decode("utf-8", errors="replace").lower()
+    try:
+        parsed_location = urlsplit(location)
+    except ValueError:
+        redirect_host = ""
+        redirect_path = ""
+    else:
+        redirect_host = (parsed_location.hostname or "").lower().rstrip(".")
+        redirect_path = parsed_location.path or "/"
+    first_party_access_path = redirect_path.startswith("/cdn-cgi/access/") and (
+        not redirect_host
+        or redirect_host == "albandrieu.com"
+        or redirect_host.endswith(".albandrieu.com")
+    )
     access_redirect = status in {301, 302, 303, 307, 308} and (
-        "cloudflareaccess.com" in location or "/cdn-cgi/access/" in location
+        redirect_host == "cloudflareaccess.com"
+        or redirect_host.endswith(".cloudflareaccess.com")
+        or first_party_access_path
     )
     blocked = access_redirect or _DEFAULT_DENY_FRAGMENT in text
     edge = bool(cf_ray or "cloudflare" in server or blocked)
