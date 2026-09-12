@@ -33,6 +33,7 @@ services:
       monitoring:
         type: http
         target: http://172.17.0.24:5001/ready
+        url: http://172.17.0.24:5001/metrics
         conditions:
           - "[STATUS] == 200"
       relations:
@@ -42,6 +43,12 @@ services:
           description: Traefik exposes Docling only on the private *.int.albandrieu.com namespace.
           evidence:
             - apps/docling/compose.yml:traefik.http.routers.docling
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes Docling Serve OpenTelemetry metrics from /metrics.
+          evidence:
+            - apps/docling/compose.yml:docling.x-nabla.monitoring.url
     environment:
       DOCLING_SERVE_ENABLE_UI: "true"
     ports:
