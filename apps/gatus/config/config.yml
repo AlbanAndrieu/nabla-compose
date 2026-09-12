@@ -589,7 +589,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pyroscope
     nabla_service_id: pyroscope
-  url: http://172.17.0.24:4040/ready
+  url: http://172.17.0.24:4040/
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
