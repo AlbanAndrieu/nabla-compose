@@ -41,20 +41,27 @@ sudo bash scripts/truenas/bootstrap-cyberbro-env.sh --check
 
 If `BW_SESSION` and `bw` are available, the bootstrap tries to render the existing Vaultwarden item. Otherwise it writes the explicit optional-provider baseline with empty values, which keeps the free Cyberbro engines functional without inventing credentials.
 
-To populate provider secrets, import only variables you intentionally exported, then rerun the bootstrap so the canonical `.env.secrets` is rendered from Vaultwarden:
+To populate provider secrets, export only the providers you intentionally configure and use the Cyberbro-specific wrapper:
 
 ```bash
 export BW_SESSION="$(bw unlock --raw)"
 export CYBERBRO_VIRUSTOTAL='...'
 export CYBERBRO_SHODAN='...'
 
-python scripts/secrets/import_env_to_bitwarden.py --app cyberbro
-python scripts/secrets/import_env_to_bitwarden.py --app cyberbro --apply
-
+bash scripts/truenas/import-cyberbro-secrets.sh --check
+bash scripts/truenas/import-cyberbro-secrets.sh --apply
 sudo -E bash scripts/truenas/bootstrap-cyberbro-env.sh --apply
 ```
 
-If the Vaultwarden item already exists, review the mapping first and use `--update-existing` explicitly rather than overwriting it implicitly.
+If the Vaultwarden item already exists, review the dry-run first and update only the explicitly exported providers:
+
+```bash
+CYBERBRO_UPDATE_EXISTING=1 \
+  bash scripts/truenas/import-cyberbro-secrets.sh --apply
+sudo -E bash scripts/truenas/bootstrap-cyberbro-env.sh --apply
+```
+
+Optional provider fields that are not exported are preserved during an update; explicitly exporting a provider variable as an empty string clears that provider deliberately.
 
 ## TrueNAS Custom App deployment
 
@@ -93,7 +100,7 @@ The diagnostic is read-only. It inspects:
 - bounded container logs when a container is missing/unhealthy;
 - the absence of a database dependency in the current Cyberbro contract;
 - final HTTP and MCP listener probes;
-- bounded Docker service and TrueNAS middleware evidence when acceptance fails.
+- bounded Docker service, TrueNAS middleware and filtered system-journal evidence when acceptance fails.
 
 Review those bounded logs locally before sharing them, because upstream provider errors can include sensitive request metadata.
 
