@@ -1,3 +1,10 @@
+## [0.38.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.1...0.38.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **traefik:** remove legacy Vaultwarden public int DNS owner ([#203](https://github.com/AlbanAndrieu/nabla-compose/issues/203)) ([2b74c30](https://github.com/AlbanAndrieu/nabla-compose/commit/2b74c30bb3f54d8a048757223e2f1d009dd8dc8f))
+
 ## [0.38.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.0...0.38.1) (2026-09-13)
 
 
