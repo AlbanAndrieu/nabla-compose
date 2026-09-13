@@ -213,6 +213,70 @@ class SecretsRendererTests(TestCase):
             self.assertEqual(stat.S_IMODE(output_dir.stat().st_mode), 0o755)
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
 
+    def test_git_trackable_output_is_rejected(self) -> None:
+        app_spec = {
+            "app": "example",
+            "item": "nabla/prod/example",
+            "secrets": [{"env": "EXAMPLE_TOKEN", "field": "TOKEN"}],
+        }
+        item = {
+            "name": "nabla/prod/example",
+            "fields": [{"name": "TOKEN", "value": "secret"}],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            renderer.subprocess.run(
+                ["git", "init", "-q", str(repo)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            target = repo / "cyberbro.env.secrets"
+
+            with self.assertRaisesRegex(renderer.SecretsError, "Git-trackable path"):
+                renderer.write_env_file(
+                    app_spec=app_spec,
+                    item=item,
+                    target=target,
+                )
+
+            self.assertFalse(target.exists())
+
+    def test_git_ignored_output_is_allowed(self) -> None:
+        app_spec = {
+            "app": "example",
+            "item": "nabla/prod/example",
+            "secrets": [{"env": "EXAMPLE_TOKEN", "field": "TOKEN"}],
+        }
+        item = {
+            "name": "nabla/prod/example",
+            "fields": [{"name": "TOKEN", "value": "secret"}],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            renderer.subprocess.run(
+                ["git", "init", "-q", str(repo)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            (repo / ".gitignore").write_text(".env.secrets\n", encoding="utf-8")
+            target = repo / ".env.secrets"
+
+            rendered = renderer.write_env_file(
+                app_spec=app_spec,
+                item=item,
+                target=target,
+            )
+
+            self.assertEqual(rendered, target)
+            self.assertTrue(target.exists())
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+
     def test_multiline_secret_is_rejected(self) -> None:
         item = {
             "name": "nabla/prod/app",
