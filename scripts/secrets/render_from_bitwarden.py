@@ -251,8 +251,10 @@ def write_env_file(
     item: dict[str, Any],
     target: Path,
 ) -> Path:
+    parent_existed = target.parent.exists()
     target.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(target.parent, 0o700)
+    if not parent_existed:
+        os.chmod(target.parent, 0o700)
 
     lines = [
         "# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py",
