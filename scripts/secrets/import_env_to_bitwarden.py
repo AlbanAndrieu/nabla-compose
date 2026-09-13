@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import sys
 from typing import Any
 
 from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
@@ -173,6 +174,29 @@ def edit_item(
     )
 
 
+def sync_after_write(client: BitwardenClient, written_items: list[str]) -> bool:
+    """Refresh the local CLI cache without misreporting completed remote writes.
+
+    Vaultwarden can accept a create/edit request and then become temporarily unavailable
+    before the final ``bw sync``. Treat that as a post-write cache refresh warning rather
+    than claiming the write itself failed. Operators must verify the exact item before
+    attempting another ``--apply`` so a stale CLI cache cannot cause a duplicate create.
+    """
+
+    try:
+        client._run("sync", with_session=True)
+    except SecretsError as exc:
+        item_summary = ", ".join(written_items) or "Vaultwarden item(s)"
+        print(
+            "WARNING: Vaultwarden write completed for "
+            f"{item_summary}, but the post-write bw sync failed: {exc}. "
+            "Do not rerun --apply blindly; retry `bw sync` and verify the exact item first.",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -235,6 +259,7 @@ def main() -> int:
     client.verify()
     client.verify_folder(folder["id"], folder["name"])
 
+    written_items: list[str] = []
     for app_spec in selected:
         matches = exact_items(
             client,
@@ -255,6 +280,7 @@ def main() -> int:
 
         if existing is None:
             create_item(client, payload)
+            written_items.append(app_spec["item"])
             print(f"created Vaultwarden item: {app_spec['item']}")
             continue
 
@@ -267,9 +293,10 @@ def main() -> int:
         if not isinstance(item_id, str) or not item_id:
             raise SecretsError(f"{app_spec['app']}: existing item has no id")
         edit_item(client, item_id=item_id, payload=payload)
+        written_items.append(app_spec["item"])
         print(f"updated Vaultwarden item: {app_spec['item']}")
 
-    client._run("sync", with_session=True)
+    sync_after_write(client, written_items)
     return 0
 
 
