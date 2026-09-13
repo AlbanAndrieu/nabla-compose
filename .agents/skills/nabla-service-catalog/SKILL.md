@@ -25,6 +25,24 @@ Use document-level `x-nabla.nodes` only for logical or external dependencies tha
 
 The generator derives a required `service hostedBy docker` relation automatically when a service declares `runtime.provider: truenas-app` together with `runtime.containerService`. Do not duplicate that placement edge on every service; keep `Docker hostedBy TrueNAS` as an explicit document-level infrastructure relation.
 
+## Shared-service identity and reuse
+
+Load `.agents/skills/docker-compose-orchestration/SKILL.md` when a service introduces or changes a supporting dependency. The repository follows a **reuse-first** architecture: a compatible shared platform service is preferred over an application-local duplicate.
+
+When a workload reuses shared infrastructure, point its relation to the **canonical shared node** already present in the topology, for example:
+
+- `postgresql` for the shared PostgreSQL service;
+- `redis` for shared Redis;
+- `clickhouse` for shared ClickHouse;
+- `influxdb` for shared InfluxDB;
+- `opensearch` for compatible search/index consumers.
+
+Do not invent `myapp-postgres`, `myapp-redis`, `myapp-clickhouse`, `myapp-elasticsearch`, or equivalent catalog nodes merely because an upstream sample Compose bundles them. First prove whether the canonical shared service satisfies the consumer's version, protocol/API, extension/plugin, global-setting, persistence and isolation requirements.
+
+If a dedicated instance is genuinely required, document the incompatibility in the service README/PR and make the dedicated topology node explicit. Sentry's dedicated ClickHouse is the reference exception because runtime compatibility testing established a conflicting Snuba/global-setting requirement. A duplicated node without equivalent evidence is architectural debt.
+
+Relations should also show the actual semantic dependency: use `storesIn` for durable databases/index stores, `dependsOn` for a required generic dependency, and another relation type when it more accurately describes the contract.
+
 ## Dependency model
 
 Model architecture independently from Compose lifecycle ordering. Do not use `depends_on` as a substitute for catalog relations.

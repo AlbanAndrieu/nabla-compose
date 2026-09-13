@@ -6,6 +6,8 @@ STORAGE = ROOT / "scripts" / "truenas" / "bootstrap-repository-storage.sh"
 ENV_FILES = ROOT / "scripts" / "truenas" / "bootstrap-repository-env-files.sh"
 RUNTIME = ROOT / "scripts" / "truenas" / "bootstrap-repository-runtime.sh"
 SCANOPY = ROOT / "scripts" / "truenas" / "deploy-scanopy.sh"
+SCANOPY_POSTGRES = ROOT / "scripts" / "truenas" / "bootstrap-scanopy-postgres.sh"
+SCANOPY_COMPOSE = ROOT / "apps" / "scanopy" / "compose.yml"
 AUTOKUMA = ROOT / "scripts" / "truenas" / "deploy-autokuma.sh"
 AUTOKUMA_TOKEN = ROOT / "scripts" / "truenas" / "bootstrap-autokuma-token.sh"
 AUTOKUMA_COMPOSE = ROOT / "apps" / "autokuma" / "compose.yml"
@@ -113,12 +115,36 @@ def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
     return script
 
 
-def test_scanopy_deploy_reconciles_runtime_and_custom_app() -> None:
+def test_scanopy_deploy_reconciles_runtime_shared_postgres_and_custom_app() -> None:
     script = assert_canonical_custom_app_deploy(SCANOPY, "scanopy")
+    compose = SCANOPY_COMPOSE.read_text(encoding="utf-8")
 
     assert "/mnt/cpool/secrets/runtime/scanopy/.env.secrets" in script
     assert "POSTGRES_PASSWORD" in script
     assert "SCANOPY_DATABASE_URL" in script
+    assert "bootstrap-scanopy-postgres.sh --check" in script
+    assert "shared PostgreSQL dependency verified" in script
+    assert "scanopy-postgres:" not in compose
+    assert "target: postgresql" in compose
+    assert "/mnt/cpool/scanopy/postgres" not in compose
+
+
+def test_scanopy_shared_postgres_bootstrap_is_idempotent_and_fail_closed() -> None:
+    script = SCANOPY_POSTGRES.read_text(encoding="utf-8")
+
+    assert 'EXPECTED_HOST="${SCANOPY_POSTGRES_HOST:-172.17.0.24}"' in script
+    assert 'EXPECTED_PORT="${SCANOPY_POSTGRES_PORT:-5432}"' in script
+    assert 'EXPECTED_DB="${SCANOPY_POSTGRES_DB:-scanopy}"' in script
+    assert 'EXPECTED_USER="${SCANOPY_POSTGRES_USER:-scanopy}"' in script
+    assert "com.docker.compose.project=ix-postgres" in script
+    assert "CREATE ROLE scanopy LOGIN PASSWORD" in script
+    assert "ALTER ROLE scanopy PASSWORD" in script
+    assert "CREATE DATABASE scanopy OWNER scanopy" in script
+    assert "ALTER DATABASE scanopy OWNER TO scanopy" in script
+    assert "SCANOPY_DATABASE_URL password differs from POSTGRES_PASSWORD" in script
+    assert "Scanopy role cannot authenticate to the shared PostgreSQL database" in script
+    assert "shared PostgreSQL ready for Scanopy" in script
+    assert 'printf "%s" "${scanopy_password}"' not in script
 
 
 def test_autokuma_deploy_reconciles_runtime_and_custom_app() -> None:
