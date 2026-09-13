@@ -25,31 +25,16 @@ services:
         conditions:
           - "[STATUS] == 200"
     env_file:
+      - path: /mnt/cpool/secrets/runtime/cyberbro/.env
+        required: true
       - path: /mnt/cpool/secrets/runtime/cyberbro/.env.secrets
-        required: false
+        required: true
     environment:
-      API_CACHE_TIMEOUT: ${CYBERBRO_API_CACHE_TIMEOUT:-86400}
-      API_PREFIX: ${CYBERBRO_API_PREFIX:-api}
-      CROWDSTRIKE_FALCON_BASE_URL: ${CYBERBRO_CROWDSTRIKE_FALCON_BASE_URL:-https://falcon.crowdstrike.com}
-      DFIR_IRIS_URL: ${CYBERBRO_DFIR_IRIS_URL:-}
-      DISABLE_VERSION_CHECK: ${CYBERBRO_DISABLE_VERSION_CHECK:-false}
       FLASK_DEBUG: "false"
       FLASK_ENV: production
       FLASK_HOST: 0.0.0.0
       FLASK_PORT: "5000"
-      GUI_CACHE_TIMEOUT: ${CYBERBRO_GUI_CACHE_TIMEOUT:-1800}
-      GUI_ENABLED_ENGINES: ${CYBERBRO_GUI_ENABLED_ENGINES:-}
-      GUNICORN_THREADS_COUNT: ${CYBERBRO_GUNICORN_THREADS_COUNT:-1}
-      GUNICORN_TIMEOUT: ${CYBERBRO_GUNICORN_TIMEOUT:-120}
-      GUNICORN_WORKERS_COUNT: ${CYBERBRO_GUNICORN_WORKERS_COUNT:-1}
-      HISTER_BASE_URL: ${CYBERBRO_HISTER_BASE_URL:-}
-      MAX_FORM_MEMORY_SIZE: ${CYBERBRO_MAX_FORM_MEMORY_SIZE:-1048576}
       MIGRATE_OWNERSHIP_ON_START: "true"
-      MISP_FEEDBACK_SERVER_URL: ${CYBERBRO_MISP_FEEDBACK_SERVER_URL:-}
-      MISP_URL: ${CYBERBRO_MISP_URL:-}
-      OPENCTI_URL: ${CYBERBRO_OPENCTI_URL:-}
-      RL_ANALYZE_URL: ${CYBERBRO_RL_ANALYZE_URL:-}
-      SSL_VERIFY: ${CYBERBRO_SSL_VERIFY:-true}
       TZ: ${TZ:-Europe/Paris}
     ports:
       - "172.17.0.24:${CYBERBRO_PORT:-5100}:5000"
