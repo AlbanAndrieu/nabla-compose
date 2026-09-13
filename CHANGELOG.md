@@ -1,3 +1,10 @@
+# [0.38.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.37.0...0.38.0) (2026-09-13)
+
+
+### Features
+
+* **security:** add Cyberbro with MCP integration ([#199](https://github.com/AlbanAndrieu/nabla-compose/issues/199)) ([73aa3cc](https://github.com/AlbanAndrieu/nabla-compose/commit/73aa3cccb1868582631fb0429d62a2ef731479d6))
+
 # [0.37.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.36.0...0.37.0) (2026-09-12)
 
 
