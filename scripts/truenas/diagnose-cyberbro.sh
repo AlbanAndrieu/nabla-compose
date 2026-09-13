@@ -11,7 +11,7 @@ fail() {
 }
 
 for command in midclt jq docker curl; do
-  command -v "${command}" >/dev/null 2>&1 || fail "$command is required"
+  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
 printf '==> TrueNAS application state\n'
