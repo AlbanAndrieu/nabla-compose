@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / "apps" / "cyberbro" / "compose.yml"
 BOOTSTRAP = ROOT / "scripts" / "truenas" / "bootstrap-cyberbro-env.sh"
+IMPORT = ROOT / "scripts" / "truenas" / "import-cyberbro-secrets.sh"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-cyberbro.sh"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-cyberbro.sh"
 
@@ -27,6 +28,16 @@ def test_cyberbro_env_bootstrap_materializes_config_and_optional_secrets() -> No
     assert "API_CACHE_TIMEOUT=" in script
     assert "VIRUSTOTAL=" in script
     assert "root:root 600" in script
+
+
+def test_cyberbro_has_service_specific_vaultwarden_import_helper() -> None:
+    script = IMPORT.read_text(encoding="utf-8")
+
+    assert "--app cyberbro" in script
+    assert "CYBERBRO_UPDATE_EXISTING" in script
+    assert "--update-existing" in script
+    assert "BW_SESSION" in script
+    assert "import_env_to_bitwarden.py" in script
 
 
 def test_cyberbro_deploy_uses_supported_truenas_custom_app_flow() -> None:
@@ -66,5 +77,6 @@ def test_cyberbro_diagnostic_collects_bounded_runtime_evidence() -> None:
     assert "docker logs --tail 80" in script
     assert "/var/log/middlewared.log" in script
     assert "journalctl -u docker" in script
+    assert "warning..alert" in script
     assert "no database dependency" in script
     assert "curl -fsS" in script
