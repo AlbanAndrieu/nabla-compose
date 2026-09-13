@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared read-only TrueNAS middleware/lifecycle helpers.
 #
 # This file is sourced by operator scripts. Keep diagnostics bounded and never
