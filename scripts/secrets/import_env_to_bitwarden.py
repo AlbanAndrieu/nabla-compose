@@ -25,6 +25,13 @@ def source_env_name(spec: dict[str, Any]) -> str:
 
 
 def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
+    """Collect explicitly exported values without erasing omitted optional fields.
+
+    Missing required values remain an error. A missing allowEmpty source is omitted from
+    the returned mapping so an update preserves the existing Vaultwarden field. Explicitly
+    exporting an allowEmpty source as an empty string still clears that field deliberately.
+    """
+
     values: dict[str, str] = {}
     missing_count = 0
     for spec in app_spec["secrets"]:
@@ -33,11 +40,10 @@ def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
         value = os.environ.get(env_name)
         if value is None:
             if allow_empty:
-                value = ""
-            else:
-                missing_count += 1
                 continue
-        elif not value and not allow_empty:
+            missing_count += 1
+            continue
+        if not value and not allow_empty:
             missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:
@@ -105,7 +111,22 @@ def make_item(
     }
 
     for spec in app_spec["secrets"]:
-        value = values[spec["env"]]
+        target_env = spec["env"]
+        if target_env in values:
+            value = values[target_env]
+        elif existing is None and spec.get("allowEmpty", False):
+            # A newly-created item needs the complete optional field contract so the
+            # renderer can later resolve each field exactly once.
+            value = ""
+        elif spec.get("allowEmpty", False):
+            # Preserve an existing optional field unless the operator explicitly
+            # exported its source variable, including an intentional empty string.
+            continue
+        else:
+            raise SecretsError(
+                f"{app_spec['app']}: required value {target_env} is missing"
+            )
+
         source = spec.get("source", "field")
         if source == "login.password":
             item["login"]["password"] = value
@@ -176,7 +197,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--update-existing",
         action="store_true",
-        help="allow replacing mapped values in an existing exact item",
+        help="allow replacing explicitly supplied mapped values in an existing exact item",
     )
     return parser.parse_args()
 
@@ -196,10 +217,11 @@ def main() -> int:
 
     if not args.apply:
         for item in selected:
+            supplied_count = len(collected[item["app"]])
             mapping_count = len(item["secrets"])
             print(
                 f"dry-run: {item['app']} -> {item['item']} "
-                f"({mapping_count} secret mapping(s); names and values suppressed)"
+                f"({supplied_count}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
             )
         print("dry-run complete; rerun with --apply to write Vaultwarden")
         return 0
