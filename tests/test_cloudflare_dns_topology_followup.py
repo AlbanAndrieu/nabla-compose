@@ -48,7 +48,8 @@ def test_hello_has_private_pihole_and_explicit_public_cloudflare_dns_owners() ->
         if line.strip() and not line.lstrip().startswith("#")
     }
     assert exception_hosts.issuperset({"hello.int.albandrieu.com"})
-    assert "s3.int.albandrieu.com,hello.int.albandrieu.com,vaultwarden.int.albandrieu.com" in traefik
+    assert "s3.int.albandrieu.com,hello.int.albandrieu.com" in traefik
+    assert "vaultwarden.int.albandrieu.com" not in traefik
     assert "PROXIED=false" in traefik
 
 
