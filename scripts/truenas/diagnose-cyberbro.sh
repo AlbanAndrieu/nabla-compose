@@ -55,14 +55,22 @@ if ((failed > 0)); then
   for name in cyberbro mcp-cyberbro; do
     docker logs --tail 80 "${name}" 2>&1 | tail -80 || true
   done
+
   printf '\n==> bounded middleware evidence\n'
   if [[ -r /var/log/middlewared.log ]]; then
     grep -Ei 'cyberbro|app\.(create|update|redeploy)|docker|compose' /var/log/middlewared.log | tail -80 || true
   fi
-  printf '\n==> bounded Docker service evidence\n'
+
   if command -v journalctl >/dev/null 2>&1; then
+    printf '\n==> bounded Docker service evidence\n'
     journalctl -u docker --since '-15 min' --no-pager 2>/dev/null | tail -80 || true
+
+    printf '\n==> bounded system warning evidence\n'
+    journalctl --since '-15 min' -p warning..alert --no-pager 2>/dev/null |
+      grep -Ei 'cyberbro|docker|middleware|zfs|ix-app' |
+      tail -80 || true
   fi
+
   fail "Cyberbro runtime diagnosis failed"
 fi
 
