@@ -25,12 +25,27 @@ def source_env_name(spec: dict[str, Any]) -> str:
 
 
 def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
+    """Collect exported values while allowing explicitly optional mappings.
+
+    Missing required values remain an error. Missing allowEmpty sources are represented as
+    empty values so a newly-created item receives the complete field contract. make_item()
+    separately preserves such fields during an update unless their source variable was
+    explicitly exported by the operator.
+    """
+
     values: dict[str, str] = {}
     missing_count = 0
     for spec in app_spec["secrets"]:
         env_name = source_env_name(spec)
+        allow_empty = spec.get("allowEmpty", False)
         value = os.environ.get(env_name)
-        if value is None or (not value and not spec.get("allowEmpty", False)):
+        if value is None:
+            if allow_empty:
+                value = ""
+            else:
+                missing_count += 1
+                continue
+        elif not value and not allow_empty:
             missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:
@@ -98,7 +113,17 @@ def make_item(
     }
 
     for spec in app_spec["secrets"]:
-        value = values[spec["env"]]
+        target_env = spec["env"]
+        if (
+            existing is not None
+            and spec.get("allowEmpty", False)
+            and source_env_name(spec) not in os.environ
+        ):
+            # Partial updates must not erase an existing optional provider key just
+            # because its source variable was not exported in this shell.
+            continue
+
+        value = values[target_env]
         source = spec.get("source", "field")
         if source == "login.password":
             item["login"]["password"] = value
@@ -169,7 +194,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--update-existing",
         action="store_true",
-        help="allow replacing mapped values in an existing exact item",
+        help="allow replacing explicitly supplied mapped values in an existing exact item",
     )
     return parser.parse_args()
 
@@ -189,10 +214,15 @@ def main() -> int:
 
     if not args.apply:
         for item in selected:
+            explicitly_supplied = sum(
+                1
+                for spec in item["secrets"]
+                if source_env_name(spec) in os.environ
+            )
             mapping_count = len(item["secrets"])
             print(
                 f"dry-run: {item['app']} -> {item['item']} "
-                f"({mapping_count} secret mapping(s); names and values suppressed)"
+                f"({explicitly_supplied}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
             )
         print("dry-run complete; rerun with --apply to write Vaultwarden")
         return 0

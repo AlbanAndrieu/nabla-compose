@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:123ebda5dce1d24bb55e2fe5584c06285c4113937fdce305116fd2dbb7c5f71f",
+  "catalogRevision": "sha256:86f00a620b1024dfb361722c8bea69988528a0f1179f8308ffc2f994d4982be2",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -283,6 +283,36 @@
         "containerService": "crowdsec"
       },
       "icon": "🛡️"
+    },
+    {
+      "id": "cyberbro",
+      "name": "Cyberbro",
+      "kind": "threat-intelligence-analysis",
+      "category": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "cyberbro",
+      "url": "http://172.17.0.24:5100",
+      "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:5100/",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "cyberbro",
+        "networks": [
+          "intranet"
+        ]
+      }
     },
     {
       "id": "docker-socket-proxy",
@@ -903,6 +933,33 @@
         "containerService": "loki"
       },
       "icon": "🧾"
+    },
+    {
+      "id": "mcp-cyberbro",
+      "name": "Cyberbro MCP",
+      "kind": "mcp-server",
+      "category": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "mcp-cyberbro",
+      "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8013
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-cyberbro",
+        "networks": [
+          "intranet"
+        ]
+      }
     },
     {
       "id": "mimir",

@@ -142,6 +142,17 @@
       "syncEligible": false
     },
     {
+      "id": "cyberbro",
+      "name": "Cyberbro",
+      "group": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "cyberbro",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5100",
+      "syncEligible": true,
+      "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines."
+    },
+    {
       "id": "docker",
       "name": "Docker",
       "group": "infrastructure",
@@ -448,6 +459,17 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
+    },
+    {
+      "id": "mcp-cyberbro",
+      "name": "Cyberbro MCP",
+      "group": "security",
+      "sourcePath": "apps/cyberbro/compose.yml",
+      "composeService": "mcp-cyberbro",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM."
     },
     {
       "id": "mimir",

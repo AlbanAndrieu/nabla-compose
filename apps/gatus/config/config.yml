@@ -106,6 +106,15 @@ endpoints:
   url: tcp://172.17.0.24:8084
   conditions:
   - '[CONNECTED] == true'
+- name: Cyberbro
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: cyberbro
+    nabla_service_id: cyberbro
+  url: http://172.17.0.24:5100/
+  conditions:
+  - '[STATUS] == 200'
 - name: Docker API
   group: infrastructure
   interval: 60s
@@ -342,6 +351,15 @@ endpoints:
   url: http://172.17.0.24:3100/ready
   conditions:
   - '[STATUS] == 200'
+- name: Cyberbro MCP
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: mcp-cyberbro
+    nabla_service_id: mcp-cyberbro
+  url: tcp://172.17.0.24:8013
+  conditions:
+  - '[CONNECTED] == true'
 - name: Mimir
   group: observability
   interval: 60s
