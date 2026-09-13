@@ -245,6 +245,56 @@ def dotenv_literal(value: str) -> str:
     return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
+def ensure_safe_output_target(target: Path) -> None:
+    """Refuse writing secret material into a Git-trackable path.
+
+    Rendering inside a worktree is allowed only when the exact target is ignored. This keeps
+    historical ignored ``.env.secrets`` workflows possible while preventing an ad-hoc output
+    such as ``./cyberbro.env.secrets`` from becoming an easy accidental commit candidate.
+    """
+
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(target.parent), "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return
+
+    if probe.returncode != 0:
+        return
+
+    repo_root = Path(probe.stdout.strip()).resolve()
+    resolved_target = target.resolve(strict=False)
+    try:
+        relative_target = resolved_target.relative_to(repo_root)
+    except ValueError:
+        return
+
+    ignored = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "check-ignore",
+            "-q",
+            "--no-index",
+            "--",
+            str(relative_target),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if ignored.returncode != 0:
+        raise SecretsError(
+            "refusing to render secret material to Git-trackable path "
+            f"{target}; use /tmp, /run, a canonical runtime directory, or an ignored path"
+        )
+
+
 def write_env_file(
     *,
     app_spec: dict[str, Any],
@@ -255,6 +305,7 @@ def write_env_file(
     target.parent.mkdir(parents=True, exist_ok=True)
     if not parent_existed:
         os.chmod(target.parent, 0o700)
+    ensure_safe_output_target(target)
 
     lines = [
         "# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py",
