@@ -3,9 +3,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+from pathlib import Path
 import stat
 import tempfile
-from pathlib import Path
 from unittest import TestCase, main, mock
 
 ROOT = Path(__file__).parents[1]
@@ -189,6 +189,29 @@ class SecretsRendererTests(TestCase):
             )
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(output_dir.stat().st_mode), 0o700)
+
+    def test_existing_output_directory_permissions_are_preserved(self) -> None:
+        app_spec = {
+            "app": "example",
+            "item": "nabla/prod/example",
+            "secrets": [{"env": "EXAMPLE_TOKEN", "field": "TOKEN"}],
+        }
+        item = {
+            "name": "nabla/prod/example",
+            "fields": [{"name": "TOKEN", "value": "secret"}],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "shared-output"
+            output_dir.mkdir(mode=0o755)
+            target = renderer.write_env_file(
+                app_spec=app_spec,
+                item=item,
+                target=output_dir / "example.env.secrets",
+            )
+
+            self.assertEqual(stat.S_IMODE(output_dir.stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
 
     def test_multiline_secret_is_rejected(self) -> None:
         item = {
