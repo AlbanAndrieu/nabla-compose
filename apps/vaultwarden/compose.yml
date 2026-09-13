@@ -48,7 +48,7 @@ services:
       - 30032:80
     # labels:
     #  - "traefik.enable=true"
-    #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`) || Host(`vaultwarden.int.albandrieu.com`)"
+    #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`)"
     #  - "traefik.http.routers.vaultwarden.entrypoints=websecure"
     #  - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
     #  - "traefik.http.routers.vaultwarden.service=vaultwarden"

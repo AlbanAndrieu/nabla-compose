@@ -201,7 +201,7 @@ services:
     environment:
       # Public DNS owner for reviewed *.int exceptions. Pi-hole remains the
       # independent split-DNS owner for the same names inside the trusted LAN.
-      - DOMAINS=${PUBLIC_INT_CLOUDFLARE_DNS_DOMAINS:-s3.int.albandrieu.com,hello.int.albandrieu.com,vaultwarden.int.albandrieu.com}
+      - DOMAINS=${PUBLIC_INT_CLOUDFLARE_DNS_DOMAINS:-s3.int.albandrieu.com,hello.int.albandrieu.com}
         # Your domains (separated by commas)
       - PROXIED=false
         # Keep direct pfSense/HAProxy ingress for these exception records.
