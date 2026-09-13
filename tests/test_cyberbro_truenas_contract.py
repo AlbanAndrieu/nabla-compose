@@ -7,6 +7,7 @@ BOOTSTRAP = ROOT / "scripts" / "truenas" / "bootstrap-cyberbro-env.sh"
 IMPORT = ROOT / "scripts" / "truenas" / "import-cyberbro-secrets.sh"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-cyberbro.sh"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-cyberbro.sh"
+TRUENAS_LIB = ROOT / "scripts" / "lib" / "truenas.sh"
 
 
 def test_cyberbro_uses_canonical_storage_and_runtime_env_files() -> None:
@@ -80,3 +81,24 @@ def test_cyberbro_diagnostic_collects_bounded_runtime_evidence() -> None:
     assert "warning..alert" in script
     assert "no database dependency" in script
     assert "curl -fsS" in script
+
+
+def test_cyberbro_checks_lifecycle_log_after_app_mutations() -> None:
+    deploy = DEPLOY.read_text(encoding="utf-8")
+    diagnose = DIAGNOSE.read_text(encoding="utf-8")
+    helper = TRUENAS_LIB.read_text(encoding="utf-8")
+
+    assert "truenas_lifecycle_mark" in helper
+    assert "truenas_lifecycle_errors_since" in helper
+    assert "/var/log/app_lifecycle.log" in helper
+    assert "tail -n" in helper
+    assert "grep -F" in helper
+
+    assert 'lifecycle_mark="$(truenas_lifecycle_mark)"' in deploy
+    assert 'TRUENAS_LIFECYCLE_MARK="${lifecycle_mark}"' in deploy
+    assert 'consumer_lifecycle_mark="$(truenas_lifecycle_mark)"' in deploy
+    assert 'truenas_lifecycle_errors_since "${consumer}"' in deploy
+
+    assert "TrueNAS app lifecycle errors" in diagnose
+    assert 'truenas_lifecycle_errors_since "${APP_ID}"' in diagnose
+    assert "500" in diagnose
