@@ -4,6 +4,8 @@ set -euo pipefail
 APP_ID="${CYBERBRO_APP_ID:-cyberbro}"
 CYBERBRO_URL="${CYBERBRO_URL:-http://172.17.0.24:5100/}"
 MCP_URL="${CYBERBRO_MCP_URL:-http://172.17.0.24:8013/mcp}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -14,6 +16,9 @@ for command in midclt jq docker curl; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
+# shellcheck source=../lib/truenas.sh
+source "${ROOT}/scripts/lib/truenas.sh"
+
 printf '==> TrueNAS application state\n'
 app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
 [[ "$(jq 'length' <<<"${app_json}")" -eq 1 ]] || fail "TrueNAS application ${APP_ID} not found or ambiguous"
@@ -23,6 +28,22 @@ jq '.[0] | {id,state,version,human_version,active_workloads}' <<<"${app_json}"
 printf '\n==> recent TrueNAS app jobs (arguments omitted)\n'
 midclt call core.get_jobs |
   jq --arg app "${APP_ID}" '[.[] | select((.method // "") | startswith("app.")) | select(((.arguments // []) | tostring) | contains($app)) | {id,method,state,progress:{percent:(.progress.percent // null),description:(.progress.description // null)},time_started,time_finished,error}] | sort_by(.id) | reverse | .[:8]'
+
+printf '\n==> TrueNAS app lifecycle errors\n'
+lifecycle_warning=0
+if [[ -n "${TRUENAS_LIFECYCLE_MARK:-}" ]]; then
+  lifecycle_mark="${TRUENAS_LIFECYCLE_MARK}"
+else
+  lifecycle_lines="$(truenas_lifecycle_mark)"
+  if [[ "${lifecycle_lines}" =~ ^[0-9]+$ ]] && ((lifecycle_lines > 500)); then
+    lifecycle_mark=$((lifecycle_lines - 500))
+  else
+    lifecycle_mark=0
+  fi
+fi
+if ! truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 40; then
+  lifecycle_warning=1
+fi
 
 failed=0
 printf '\n==> Docker state\n'
@@ -74,4 +95,7 @@ if ((failed > 0)); then
   fail "Cyberbro runtime diagnosis failed"
 fi
 
+if ((lifecycle_warning > 0)); then
+  printf 'WARNING: Cyberbro is healthy now, but lifecycle errors were emitted above for operator review.\n' >&2
+fi
 printf 'OK: Cyberbro runtime diagnosis passed.\n'
