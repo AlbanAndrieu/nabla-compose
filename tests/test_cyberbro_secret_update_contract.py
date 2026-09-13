@@ -102,3 +102,18 @@ def test_explicit_empty_optional_update_clears_provider() -> None:
         )
 
     assert item["fields"][0]["value"] == ""
+
+
+def test_post_write_sync_failure_is_warning_not_false_write_failure(capsys) -> None:
+    client = mock.Mock()
+    client._run.side_effect = renderer.SecretsError("temporary Cloudflare 502")
+
+    synced = importer.sync_after_write(client, ["nabla/prod/cyberbro"])
+
+    assert synced is False
+    client._run.assert_called_once_with("sync", with_session=True)
+    stderr = capsys.readouterr().err
+    assert "write completed" in stderr
+    assert "post-write bw sync failed" in stderr
+    assert "Do not rerun --apply blindly" in stderr
+    assert "nabla/prod/cyberbro" in stderr

@@ -21,6 +21,9 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
+# shellcheck source=../lib/truenas.sh
+source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+
 printf '==> Cyberbro datasets\n'
 bash scripts/truenas/bootstrap-repository-storage.sh --apply "${APP_ID}"
 bash scripts/truenas/bootstrap-repository-storage.sh --check "${APP_ID}"
@@ -43,6 +46,7 @@ python3 scripts/generate-service-topology.py --check
 python3 scripts/generate-service-consumers.py --check
 
 printf '\n==> TrueNAS Custom App reconciliation\n'
+lifecycle_mark="$(truenas_lifecycle_mark)"
 if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
   jq -e 'length > 0' >/dev/null; then
   midclt call -j app.update "${APP_ID}" "$(
@@ -78,7 +82,8 @@ while ((SECONDS < deadline)); do
   sleep 4
 done
 
-if ! bash scripts/truenas/diagnose-cyberbro.sh; then
+if ! TRUENAS_LIFECYCLE_MARK="${lifecycle_mark}" \
+  bash scripts/truenas/diagnose-cyberbro.sh; then
   fail "Cyberbro failed runtime acceptance; diagnostic evidence printed above"
 fi
 
@@ -106,9 +111,11 @@ fi
 for consumer in gatus homarr; do
   if midclt call app.query "[[\"id\",\"=\",\"${consumer}\"]]" |
     jq -e 'length > 0' >/dev/null; then
+    consumer_lifecycle_mark="$(truenas_lifecycle_mark)"
     midclt call -j app.redeploy "${consumer}"
     midclt call app.query "[[\"id\",\"=\",\"${consumer}\"]]" |
       jq -r '.[0] | "OK: \(.id) state=\(.state // \"UNKNOWN\")"'
+    truenas_lifecycle_errors_since "${consumer}" "${consumer_lifecycle_mark}" 20 || true
   else
     printf 'WARNING: %s TrueNAS app not present; generated config remains ready for next deployment.\n' "${consumer}" >&2
   fi

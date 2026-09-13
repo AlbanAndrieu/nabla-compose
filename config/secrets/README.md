@@ -123,6 +123,8 @@ bw lock
 unset BW_SESSION
 ```
 
+`BW_SESSION` belongs to the unprivileged operator shell. Do not use `sudo -E` to pass it to root and do not run the workstation renderer under `sudo`. Render as the logged-in user, transfer the resulting `0600` file, then use `sudo install` only on the destination host when root ownership is required.
+
 ## Render runtime materialization
 
 Ephemeral rendering remains useful for manual/ad-hoc flows:
@@ -131,13 +133,24 @@ Ephemeral rendering remains useful for manual/ad-hoc flows:
 python scripts/secrets/render_from_bitwarden.py --app 2fauth
 ```
 
-For persistent TrueNAS runtime materialization, write to the canonical service directory:
+An explicit workstation handoff file may use an existing shared directory such as `/tmp`:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py \
+  --app cyberbro \
+  --output-file /tmp/cyberbro.env.secrets
+```
+
+The renderer never changes permissions on a pre-existing parent directory such as `/tmp`; it sets a newly-created parent to `0700` and the rendered file to `0600`.
+
+If the output path is inside a Git worktree, the renderer refuses to write unless the exact target is ignored by Git. This prevents an ad-hoc materialization such as `./cyberbro.env.secrets` from becoming an accidental commit candidate. Prefer `/tmp`, `/run`, or the canonical runtime directory rather than rendering into a repository checkout.
+
+For persistent TrueNAS runtime materialization, create the canonical service directory first, then either render there from an operator shell that has access or transfer a workstation-rendered file and install it as root:
 
 ```bash
 sudo install -d -o root -g root -m 700 /mnt/cpool/secrets/runtime/<service>
-python scripts/secrets/render_from_bitwarden.py \
-  --app <service> \
-  --output-file /mnt/cpool/secrets/runtime/<service>/.env.secrets
+sudo install -o root -g root -m 600 /tmp/<service>.env.secrets \
+  /mnt/cpool/secrets/runtime/<service>/.env.secrets
 ```
 
 Use `.env` rather than `.env.secrets` only when the service contract intentionally calls for it. `.env.compose` is reserved for transitional project interpolation and must not be confused with a container `env_file`.
@@ -189,6 +202,8 @@ The renderer:
 - never prints secret values;
 - passes `BW_SESSION` through child environment, never argv;
 - writes atomically;
+- preserves a pre-existing output-directory mode and sets only newly-created secret directories to `0700`;
+- refuses Git-trackable output paths inside a worktree;
 - enforces `0600` files;
 - single-quotes dotenv values so Compose does not interpolate secret `$VAR`/`${VAR}` content.
 

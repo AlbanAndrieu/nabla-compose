@@ -13,6 +13,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [TrueNAS application storage and runtime env layout](./truenas-runtime-layout.md)
 - [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
 - [Secrets migration roadmap](./secrets-migration-roadmap.md)
+- [Cyberbro provider onboarding](./cyberbro-provider-onboarding.md)
 - [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
 - [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
@@ -46,6 +47,8 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
 - [x] **TrueNAS storage/runtime architecture:** repository-owned data, tracked Compose/config and runtime secret materialization are now separate contracts; `cpool/secrets` is the planned `GENERIC` root-only security dataset and application-owned datasets use the `APPS` preset when local persistence is real.
 - [ ] **TrueNAS runtime env migration:** baseline inventory found 52 env materializations requiring migration work, 23 application datasets with Apps-preset drift and eight empty unowned direct-child dataset candidates. Stage canonical copies first; do not bulk-finalize env paths or recreate non-empty datasets.
+- [x] **Cyberbro secret contract:** Vaultwarden item `nabla/prod/cyberbro` exists in the personal `TrueNAS` folder and renders 27 optional mappings as a `0600` env file. Provider credentials are intentionally empty until account/API onboarding is completed; empty optional providers do not block the free-engine baseline.
+- [ ] **Vaultwarden edge/TLS debt:** investigate recurrence of the transient Cloudflare `502 origin_bad_gateway` seen during Bitwarden token refresh despite a healthy direct origin, and correct the independent Vaultwarden icon-fetch certificate-name mismatch where raw IP `82.66.4.247` is contacted with a certificate valid only for `*.int.albandrieu.com`. Do not weaken TLS verification.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
 ## P0 — controlled TrueNAS reboot accepted
@@ -127,6 +130,7 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 14. [ ] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service.
 15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`.
 16. [ ] Add/maintain agent-skill rules so every created or materially modified Compose service follows this architecture instead of introducing new legacy paths.
+17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
 
 ## P1 — infrastructure secrets
 
@@ -154,6 +158,16 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 - [ ] **Sentry upstream/version debt** — monitor self-hosted 26.8 Taskbroker Kafka coordinator/session-timeout/rejoin behavior. Functional health must include Taskworker→Taskbroker reachability, active Kafka membership/lag and end-to-end ingestion; process/container health alone is insufficient.
 - [ ] **Sentry ↔ GitHub integration** — configure the self-hosted Sentry GitHub integration at `https://sentry.albandrieu.com/settings/sentry/integrations/github/`, authorize only the required `AlbanAndrieu` repositories with least privilege, verify repository mapping, then prove that a controlled Sentry issue can resolve the relevant GitHub source/commit/PR context before marking the integration accepted.
 - [x] **Exporter conflict preflight** — TrueNAS native reporting/Netdata and ports `8125/9125/9102/9308` were inventoried; no listener/publisher conflict exists. StatsD remains deferred and is no longer part of incident recovery. Kafka exporter remains with `apps/kafka` and must be deployed only in a controlled Kafka App update window after preserving the accepted Sentry functional baseline.
+
+### Cyberbro provider/account onboarding
+
+- [x] Create the Vaultwarden application item `nabla/prod/cyberbro` with all 27 optional secret mappings and prove a `0600` render without exposing values.
+- [ ] Deploy/accept the Cyberbro free-engine UI/API + MCP baseline before adding external provider credentials.
+- [ ] Create or validate dedicated homelab accounts/API identities for AbuseIPDB, AlienVault OTX, Criminal IP, CrowdStrike Falcon, DFIR-IRIS, Google Programmable Search, Google Safe Browsing, Hister, ipapi, IPinfo, Microsoft Defender for Endpoint, MISP/MISP feedback, OpenCTI, Ransomware.live, ReversingLabs Analyze, Rosti, Shodan, Spur, ThreatFox, VirusTotal and WebScout. `PROXY_URL` is configuration-only, not a provider account.
+- [ ] Onboard providers in bounded batches, starting with lower-risk reputation APIs, then self-hosted integrations, then enterprise tenant integrations; validate the corresponding Cyberbro engine after each batch.
+- [ ] Review provider quotas/rate limits and least-privilege scopes before increasing MCP/LiteLLM-driven automation. Detailed checklist: `docs/cyberbro-provider-onboarding.md`.
+- [ ] **Vaultwarden token-refresh debt** — if the transient Cloudflare `502 origin_bad_gateway` recurs, correlate Cloudflare/tunnel/reverse-proxy timing with Vaultwarden `/identity/connect/token` latency. A completed create/edit followed only by failed `bw sync` is warning-only and must not trigger a blind re-apply.
+- [ ] **Vaultwarden icon TLS debt** — identify the item/URI or redirect that causes icon fetching against `82.66.4.247`; replace raw-IP HTTPS with a DNS name covered by `*.int.albandrieu.com` or suppress that icon-fetch path. Keep TLS verification enabled.
 
 ### Grafana native → Compose migration
 
@@ -223,7 +237,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 ## Accepted code/debt reduction plan
 
 1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`.
-2. [ ] **`scripts/lib/truenas.sh`.** Centralize bounded middleware calls, normalized readiness, App state, lifecycle waits and persistent reboot-manifest helpers.
+2. [ ] **`scripts/lib/truenas.sh`.** Centralize bounded middleware calls, normalized readiness, App state, lifecycle waits and persistent reboot-manifest helpers. #202 starts this extraction with bounded `/var/log/app_lifecycle.log` mark/error helpers used by Cyberbro deploy/diagnostics.
 3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
@@ -260,6 +274,7 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 
 ```text
 TrueNAS storage + runtime secret normalization (preview -> stage -> per-service validate/finalize)
+  -> Cyberbro free-engine baseline + provider-account onboarding / Vaultwarden edge-TLS debt
   -> Grafana native -> Compose migration (:30037 + preserved /mnt/cpool/grafana/data)
   -> Prometheus canonical DB target reconciliation (PostgreSQL, Redis, ClickHouse, InfluxDB, OpenSearch + pfSense HAProxy exporter; no Sybase)
   -> Mimir / Loki / Tempo / Alloy reconciliation
