@@ -25,11 +25,12 @@ def source_env_name(spec: dict[str, Any]) -> str:
 
 
 def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
-    """Collect explicitly exported values without erasing omitted optional fields.
+    """Collect exported values while allowing explicitly optional mappings.
 
-    Missing required values remain an error. A missing allowEmpty source is omitted from
-    the returned mapping so an update preserves the existing Vaultwarden field. Explicitly
-    exporting an allowEmpty source as an empty string still clears that field deliberately.
+    Missing required values remain an error. Missing allowEmpty sources are represented as
+    empty values so a newly-created item receives the complete field contract. make_item()
+    separately preserves such fields during an update unless their source variable was
+    explicitly exported by the operator.
     """
 
     values: dict[str, str] = {}
@@ -40,10 +41,11 @@ def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
         value = os.environ.get(env_name)
         if value is None:
             if allow_empty:
+                value = ""
+            else:
+                missing_count += 1
                 continue
-            missing_count += 1
-            continue
-        if not value and not allow_empty:
+        elif not value and not allow_empty:
             missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:
@@ -112,21 +114,16 @@ def make_item(
 
     for spec in app_spec["secrets"]:
         target_env = spec["env"]
-        if target_env in values:
-            value = values[target_env]
-        elif existing is None and spec.get("allowEmpty", False):
-            # A newly-created item needs the complete optional field contract so the
-            # renderer can later resolve each field exactly once.
-            value = ""
-        elif spec.get("allowEmpty", False):
-            # Preserve an existing optional field unless the operator explicitly
-            # exported its source variable, including an intentional empty string.
+        if (
+            existing is not None
+            and spec.get("allowEmpty", False)
+            and source_env_name(spec) not in os.environ
+        ):
+            # Partial updates must not erase an existing optional provider key just
+            # because its source variable was not exported in this shell.
             continue
-        else:
-            raise SecretsError(
-                f"{app_spec['app']}: required value {target_env} is missing"
-            )
 
+        value = values[target_env]
         source = spec.get("source", "field")
         if source == "login.password":
             item["login"]["password"] = value
@@ -217,11 +214,15 @@ def main() -> int:
 
     if not args.apply:
         for item in selected:
-            supplied_count = len(collected[item["app"]])
+            explicitly_supplied = sum(
+                1
+                for spec in item["secrets"]
+                if source_env_name(spec) in os.environ
+            )
             mapping_count = len(item["secrets"])
             print(
                 f"dry-run: {item['app']} -> {item['item']} "
-                f"({supplied_count}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
+                f"({explicitly_supplied}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
             )
         print("dry-run complete; rerun with --apply to write Vaultwarden")
         return 0
