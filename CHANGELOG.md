@@ -1,3 +1,10 @@
+## [0.38.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.0...0.38.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **truenas:** surface lifecycle failures after app mutations ([#202](https://github.com/AlbanAndrieu/nabla-compose/issues/202)) ([5a9be57](https://github.com/AlbanAndrieu/nabla-compose/commit/5a9be576b23fae577fbb6d55078fef151449a84d))
+
 # [0.38.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.37.0...0.38.0) (2026-09-13)
 
 
