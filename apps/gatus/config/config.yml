@@ -115,6 +115,33 @@ endpoints:
   url: http://172.17.0.24:5100/
   conditions:
   - '[STATUS] == 200'
+- name: DefectDojo
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: defectdojo
+    nabla_service_id: defectdojo
+  url: tcp://172.17.0.24:31085
+  conditions:
+  - '[CONNECTED] == true'
+- name: Dependency-Track
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: dependency-track
+    nabla_service_id: dependency-track
+  url: tcp://172.17.0.24:31084
+  conditions:
+  - '[CONNECTED] == true'
+- name: Dependency-Track API
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: dependency-track-api
+    nabla_service_id: dependency-track-api
+  url: tcp://172.17.0.24:31083
+  conditions:
+  - '[CONNECTED] == true'
 - name: Docker API
   group: infrastructure
   interval: 60s
@@ -387,6 +414,24 @@ endpoints:
   url: tcp://172.17.0.24:30109
   conditions:
   - '[CONNECTED] == true'
+- name: Neo4j Security Graph
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: neo4j-security
+    nabla_service_id: neo4j-security
+  url: tcp://172.17.0.24:31086
+  conditions:
+  - '[CONNECTED] == true'
+- name: NetBox
+  group: infrastructure
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: netbox
+    nabla_service_id: netbox
+  url: tcp://172.17.0.24:31082
+  conditions:
+  - '[CONNECTED] == true'
 - name: Nexus Repository
   group: development
   interval: 60s
@@ -565,6 +610,24 @@ endpoints:
     nabla_monitor_id: pihole-exporter
     nabla_service_id: pihole-exporter
   url: tcp://172.17.0.24:9617
+  conditions:
+  - '[CONNECTED] == true'
+- name: Plumber
+  group: development
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: plumber
+    nabla_service_id: plumber
+  url: tcp://172.17.0.24:31070
+  conditions:
+  - '[CONNECTED] == true'
+- name: Plumber API
+  group: development
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: plumber-api
+    nabla_service_id: plumber-api
+  url: tcp://172.17.0.24:31071
   conditions:
   - '[CONNECTED] == true'
 - name: Portracker

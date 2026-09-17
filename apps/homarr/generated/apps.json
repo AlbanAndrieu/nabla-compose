@@ -111,6 +111,17 @@
       "syncEligible": true
     },
     {
+      "id": "cartography",
+      "name": "Cartography",
+      "group": "security",
+      "sourcePath": "apps/cartography/compose.yml",
+      "composeService": "cartography",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis."
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "group": "data",
@@ -151,6 +162,78 @@
       "href": "http://172.17.0.24:5100",
       "syncEligible": true,
       "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines."
+    },
+    {
+      "id": "defectdojo",
+      "name": "DefectDojo",
+      "group": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31085",
+      "syncEligible": true,
+      "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow."
+    },
+    {
+      "id": "defectdojo-api",
+      "name": "DefectDojo API",
+      "group": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-uwsgi",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "defectdojo-celerybeat",
+      "name": "DefectDojo Celery Beat",
+      "group": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-celerybeat",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "defectdojo-initializer",
+      "name": "DefectDojo Initializer",
+      "group": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-initializer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "defectdojo-worker",
+      "name": "DefectDojo Worker",
+      "group": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-celeryworker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "dependency-track",
+      "name": "Dependency-Track",
+      "group": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "composeService": "dependency-track",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31084",
+      "syncEligible": true,
+      "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform."
+    },
+    {
+      "id": "dependency-track-api",
+      "name": "Dependency-Track API",
+      "group": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "composeService": "dependency-track-api",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31083",
+      "syncEligible": true
     },
     {
       "id": "docker",
@@ -512,6 +595,48 @@
       "syncEligible": true
     },
     {
+      "id": "neo4j-security",
+      "name": "Neo4j Security Graph",
+      "group": "security",
+      "sourcePath": "apps/neo4j/compose.yml",
+      "composeService": "neo4j-security",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31086",
+      "syncEligible": true,
+      "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB."
+    },
+    {
+      "id": "netbox",
+      "name": "NetBox",
+      "group": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31082",
+      "syncEligible": true,
+      "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity."
+    },
+    {
+      "id": "netbox-housekeeping",
+      "name": "NetBox Housekeeping",
+      "group": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox-housekeeping",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "netbox-worker",
+      "name": "NetBox Worker",
+      "group": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox-worker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "nexus",
       "name": "Nexus Repository",
       "group": "development",
@@ -690,6 +815,17 @@
       "syncEligible": false
     },
     {
+      "id": "openssf-scorecard",
+      "name": "OpenSSF Scorecard",
+      "group": "security",
+      "sourcePath": "apps/scorecard/compose.yml",
+      "composeService": "scorecard",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score."
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "group": "ai",
@@ -763,6 +899,37 @@
       "href": null,
       "syncEligible": false,
       "description": "Prometheus-compatible metrics exporter for Pi-hole."
+    },
+    {
+      "id": "plumber",
+      "name": "Plumber",
+      "group": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31070",
+      "syncEligible": true,
+      "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model."
+    },
+    {
+      "id": "plumber-api",
+      "name": "Plumber API",
+      "group": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber-api",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31071",
+      "syncEligible": true
+    },
+    {
+      "id": "plumber-worker",
+      "name": "Plumber Worker",
+      "group": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber-worker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "portracker",

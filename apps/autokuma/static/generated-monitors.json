@@ -114,6 +114,36 @@
   },
   {
     "type": "port",
+    "name": "DefectDojo",
+    "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31085
+  },
+  {
+    "type": "port",
+    "name": "Dependency-Track",
+    "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31084
+  },
+  {
+    "type": "port",
+    "name": "Dependency-Track API",
+    "description": "Nabla generated monitor: dependency-track-api",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31083
+  },
+  {
+    "type": "port",
     "name": "Docker API",
     "description": "Read-only Docker socket proxy used by Homarr and automation.",
     "interval": 60,
@@ -404,6 +434,26 @@
   },
   {
     "type": "port",
+    "name": "Neo4j Security Graph",
+    "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31086
+  },
+  {
+    "type": "port",
+    "name": "NetBox",
+    "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31082
+  },
+  {
+    "type": "port",
     "name": "Nexus Repository",
     "description": "Repository manager for development artifacts and package proxies.",
     "interval": 60,
@@ -600,6 +650,26 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9617
+  },
+  {
+    "type": "port",
+    "name": "Plumber",
+    "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31070
+  },
+  {
+    "type": "port",
+    "name": "Plumber API",
+    "description": "Nabla generated monitor: plumber-api",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31071
   },
   {
     "type": "port",
