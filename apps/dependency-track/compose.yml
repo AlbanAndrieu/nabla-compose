@@ -1,0 +1,84 @@
+---
+services:
+  dependency-track-api:
+    image: ${DEPENDENCY_TRACK_API_IMAGE:-dependencytrack/apiserver:latest}
+    container_name: dependency-track-api
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/secrets/runtime/dependency-track/.env.secrets
+    environment:
+      ALPINE_DATABASE_MODE: external
+      ALPINE_DATABASE_URL: ${DEPENDENCY_TRACK_DATABASE_URL:-jdbc:postgresql://postgres:5432/dependencytrack}
+      ALPINE_DATABASE_DRIVER: org.postgresql.Driver
+      ALPINE_DATABASE_USERNAME: ${DEPENDENCY_TRACK_DATABASE_USERNAME:-dependencytrack}
+      ALPINE_DATABASE_POOL_ENABLED: "true"
+      REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_LOCK_BUCKETS: "1000"
+      REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_MAX_ATTEMPTS: "10"
+    ports:
+      - "172.17.0.24:31083:8080"
+    volumes:
+      - /mnt/cpool/dependency-track/data:/data
+    networks:
+      - intranet
+    x-nabla:
+      id: dependency-track-api
+      name: Dependency-Track API
+      kind: software-supply-chain-api
+      category: security
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+      runtime:
+        provider: truenas-app
+        containerService: dependency-track-api
+      relations:
+        - target: postgresql
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/dependency-track/compose.yml:ALPINE_DATABASE_URL
+
+  dependency-track:
+    image: ${DEPENDENCY_TRACK_FRONTEND_IMAGE:-dependencytrack/frontend:latest}
+    container_name: dependency-track
+    restart: unless-stopped
+    depends_on:
+      - dependency-track-api
+    environment:
+      API_BASE_URL: ${DEPENDENCY_TRACK_API_BASE_URL:-http://172.17.0.24:31083}
+    ports:
+      - "172.17.0.24:31084:8080"
+    networks:
+      - intranet
+    x-nabla:
+      id: dependency-track
+      name: Dependency-Track
+      kind: software-supply-chain-platform
+      category: security
+      presentationRole: service
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+      url: http://172.17.0.24:31084
+      description: CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.
+      runtime:
+        provider: truenas-app
+        containerService: dependency-track
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31084
+      relations:
+        - target: dependency-track-api
+          type: consumesApi
+          strength: required
+          evidence:
+            - apps/dependency-track/compose.yml:API_BASE_URL
+
+networks:
+  intranet:
+    external: true
+    name: intranet
