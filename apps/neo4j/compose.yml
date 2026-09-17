@@ -1,0 +1,56 @@
+---
+services:
+  neo4j-security:
+    image: ${NEO4J_IMAGE:-neo4j:5-community}
+    container_name: neo4j-security
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/secrets/runtime/neo4j/.env.secrets
+    environment:
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE_SIZE:-1G}
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL_SIZE:-1G}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX_SIZE:-1G}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_allowlist: apoc.*
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_server_bolt_listen__address: 0.0.0.0:7687
+    ports:
+      - "172.17.0.24:31086:7474"
+      - "172.17.0.24:31087:7687"
+    volumes:
+      - /mnt/cpool/neo4j/data:/data
+      - /mnt/cpool/neo4j/logs:/logs
+      - /mnt/cpool/neo4j/import:/import
+      - /mnt/cpool/neo4j/plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:7474/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - intranet
+    x-nabla:
+      id: neo4j-security
+      name: Neo4j Security Graph
+      kind: graph-database
+      category: security
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+      url: http://172.17.0.24:31086
+      description: Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.
+      runtime:
+        provider: truenas-app
+        containerService: neo4j-security
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31086
+
+networks:
+  intranet:
+    external: true
+    name: intranet
