@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-13.
+Last updated: 2026-09-17.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -150,6 +150,17 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 - [ ] Traefik/Kubara ingress with an explicit bare-metal exposure model.
 - [ ] FastAPI Kubernetes smoke using an immutable image and `test.int.albandrieu.com` after storage and ingress ownership are stable.
 
+### P2.1 — security inventory, supply-chain and attack-graph tooling
+
+Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
+
+- [ ] **NetBox** — evaluate and deploy [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Define explicit reconciliation boundaries with `x-nabla` so NetBox owns network/infrastructure data while `x-nabla` remains authoritative for service identity and service-to-service topology.
+- [ ] **OWASP DefectDojo** — deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
+- [ ] **OWASP Dependency-Track** — deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
+- [ ] **OpenSSF Scorecard** — integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
+- [ ] **Cartography + Neo4j attack graph PoC** — evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
+- [ ] Define an interoperability contract: `x-nabla` = service/application identity + declared dependencies; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream security posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable identifiers and preserve provenance/evidence.
+
 ## P3 — runtime/services
 
 - [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
@@ -288,6 +299,8 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
+  -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
   -> Scrutiny / remaining service work
   -> Docling / OpenRAG-LiteLLM
