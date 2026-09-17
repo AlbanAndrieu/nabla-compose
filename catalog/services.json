@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:8f3e390998ee556c4bb7217215c760efd161285de2b951268b5e0477c60cdf93",
+  "catalogRevision": "sha256:7d96204579f54ecec49cc58867f10e842a2bff206827441d0bc42246df5b22f6",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -229,6 +229,28 @@
       }
     },
     {
+      "id": "cartography",
+      "name": "Cartography",
+      "kind": "security-asset-graph-ingestor",
+      "category": "security",
+      "sourcePath": "apps/cartography/compose.yml",
+      "composeService": "cartography",
+      "description": "Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "cartography",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "clickhouse",
       "name": "ClickHouse",
       "kind": "database",
@@ -309,6 +331,157 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "cyberbro",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo",
+      "name": "DefectDojo",
+      "kind": "vulnerability-management-platform",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo",
+      "url": "http://172.17.0.24:31085",
+      "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect",
+        "respond"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31085
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-api",
+      "name": "DefectDojo API",
+      "kind": "vulnerability-management-api",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-uwsgi",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect",
+        "respond"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-uwsgi",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-celerybeat",
+      "name": "DefectDojo Celery Beat",
+      "kind": "scheduler",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-celerybeat",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-celerybeat",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-initializer",
+      "name": "DefectDojo Initializer",
+      "kind": "database-initializer",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-initializer",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-initializer",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-worker",
+      "name": "DefectDojo Worker",
+      "kind": "background-worker",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "composeService": "defectdojo-celeryworker",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-celeryworker",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "dependency-track",
+      "name": "Dependency-Track",
+      "kind": "software-supply-chain-platform",
+      "category": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "composeService": "dependency-track",
+      "url": "http://172.17.0.24:31084",
+      "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31084
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dependency-track",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "dependency-track-api",
+      "name": "Dependency-Track API",
+      "kind": "software-supply-chain-api",
+      "category": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "composeService": "dependency-track-api",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dependency-track-api",
         "networks": [
           "intranet"
         ]
@@ -1031,6 +1204,95 @@
       "icon": "⚙️"
     },
     {
+      "id": "neo4j-security",
+      "name": "Neo4j Security Graph",
+      "kind": "graph-database",
+      "category": "security",
+      "sourcePath": "apps/neo4j/compose.yml",
+      "composeService": "neo4j-security",
+      "url": "http://172.17.0.24:31086",
+      "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31086
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "neo4j-security",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "netbox",
+      "name": "NetBox",
+      "kind": "infrastructure-source-of-truth",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox",
+      "url": "http://172.17.0.24:31082",
+      "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31082
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "netbox-housekeeping",
+      "name": "NetBox Housekeeping",
+      "kind": "maintenance-worker",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox-housekeeping",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox-housekeeping",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "netbox-worker",
+      "name": "NetBox Worker",
+      "kind": "background-worker",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "composeService": "netbox-worker",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox-worker",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "nexus",
       "name": "Nexus Repository",
       "kind": "artifact-repository",
@@ -1335,6 +1597,25 @@
       "icon": "📡"
     },
     {
+      "id": "openssf-scorecard",
+      "name": "OpenSSF Scorecard",
+      "kind": "repository-security-posture-scanner",
+      "category": "security",
+      "sourcePath": "apps/scorecard/compose.yml",
+      "composeService": "scorecard",
+      "description": "One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scorecard"
+      }
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "kind": "application",
@@ -1443,6 +1724,72 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "pihole-exporter",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "plumber",
+      "name": "Plumber",
+      "kind": "developer-platform",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber",
+      "url": "http://172.17.0.24:31070",
+      "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "protect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31070
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "plumber-api",
+      "name": "Plumber API",
+      "kind": "developer-platform-api",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber-api",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber-api",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "plumber-worker",
+      "name": "Plumber Worker",
+      "kind": "background-worker",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "composeService": "plumber-worker",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber-worker",
         "networks": [
           "intranet"
         ]
