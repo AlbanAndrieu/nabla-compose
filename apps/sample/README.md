@@ -43,6 +43,25 @@ REDIS_URL=redis://:REPLACE_WITH_REDIS_PASSWORD@redis:6379/0
 
 There is deliberately no Compose `depends_on` from FastAPI Sample to Redis because they are separate Compose projects. Service discovery is provided by the shared external `intranet` network.
 
+
+### PostgreSQL policy for TrueNAS staging
+
+The TrueNAS/homelab runtime should use the always-on shared PostgreSQL service on
+`172.17.0.24:5432`. The `x-nabla` dependency is declarative because PostgreSQL
+and FastAPI Sample are separate TrueNAS/Compose applications; it is used for
+lifecycle ordering and readiness planning, not Docker Compose `depends_on`.
+
+Do not keep two meanings under the same `POSTGRES_USER` key. The historical
+`.env` currently mixed a local PostgreSQL identity with a Supabase pooler
+identity. Keep local runtime settings under `POSTGRES_*` and move Supabase
+database/pooler identity to explicit `SUPABASE_*` names in FastAPI Sample before
+the final secret-contract migration.
+
+The target end state is a dedicated least-privilege Sample database/role on the
+shared PostgreSQL service rather than the `postgres` superuser. Until that role
+is bootstrapped and accepted, preserve the current working local values and do
+not silently substitute the Supabase user.
+
 ## Homelab runtime probes
 
 The TrueNAS Compose deployment intentionally enables the internal observer path:
