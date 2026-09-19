@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -161,7 +162,15 @@ def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
     }
     observed_legacy: set[str] = set()
 
-    for compose_path in sorted((ROOT / "apps").glob("*/compose.yml")):
+    tracked = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "apps/*/compose.yml"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+
+    for relative in sorted(tracked):
+        compose_path = ROOT / relative
         app = compose_path.parent.name
         compose = yaml.safe_load(compose_path.read_text(encoding="utf-8")) or {}
         for service in (compose.get("services") or {}).values():
