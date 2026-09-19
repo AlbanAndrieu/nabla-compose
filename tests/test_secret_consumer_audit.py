@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+import tempfile
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MODULE = ROOT / "scripts" / "secrets" / "audit_consumers.py"
+SPEC = importlib.util.spec_from_file_location("audit_consumers", MODULE)
+assert SPEC and SPEC.loader
+audit = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(audit)
+
+
+class SecretConsumerAuditTests(unittest.TestCase):
+    def test_secret_variable_classifier_is_segment_aware(self) -> None:
+        self.assertTrue(audit.is_secret_variable("REDIS_AUTH"))
+        self.assertTrue(audit.is_secret_variable("LITELLM_MASTER_KEY"))
+        self.assertTrue(audit.is_secret_variable("WEBUI_SECRET_KEY"))
+        self.assertFalse(audit.is_secret_variable("TWOFAUTH_UID"))
+        self.assertFalse(audit.is_secret_variable("ENABLE_API_KEY_AUTH"))
+
+    def test_static_scan_never_reads_runtime_secret_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "demo").mkdir(parents=True)
+            compose = root / "apps" / "demo" / "compose.yml"
+            compose.write_text(
+                """services:
+  demo:
+    env_file:
+      - /mnt/cpool/demo/.env.secrets
+    environment:
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-changeme}
+""",
+                encoding="utf-8",
+            )
+
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(
+                    root,
+                    {
+                        "items": [],
+                    },
+                )
+            finally:
+                audit.git_tracked_compose_files = original
+
+        self.assertEqual(len(report["legacyEnvFiles"]), 1)
+        self.assertEqual(len(report["unmanagedSecretVariables"]), 1)
+        self.assertEqual(len(report["insecureDefaults"]), 1)
+
+    def test_baseline_comparison_is_a_two_way_ratchet(self) -> None:
+        current = {
+            "legacyEnvFiles": ["demo|/mnt/cpool/demo/.env.secrets|apps/demo/compose.yml:3"],
+        }
+        baseline = {
+            "schemaVersion": 1,
+            "legacyEnvFiles": ["old|/mnt/cpool/old/.env|apps/old/compose.yml:3"],
+        }
+        errors = audit.compare_baseline(current, baseline)
+        self.assertEqual(len(errors), 2)
+        self.assertIn("new debt", errors[0] + errors[1])
+        self.assertIn("baseline is stale", errors[0] + errors[1])
+
+
+if __name__ == "__main__":
+    unittest.main()
