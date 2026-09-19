@@ -12,6 +12,7 @@ APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 POLL_SECONDS="${NABLA_APP_POLL_SECONDS:-5}"
 LOG_TAIL="${NABLA_APP_DIAGNOSTIC_LOG_TAIL:-80}"
+HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
 
 usage() {
   cat <<'EOF'
@@ -43,6 +44,7 @@ esac
 
 require_root "run as root on TrueNAS"
 require_commands midclt jq docker timeout sed tr
+[[ -x "${HEALTH_GATE}" || -f "${HEALTH_GATE}" ]] || fail "app health gate not found: ${HEALTH_GATE}"
 
 for value in CALL_TIMEOUT APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL; do
   current="${!value}"
@@ -137,8 +139,7 @@ start_or_wait_app() {
   state="$(app_state "${app}")"
   case "${state}" in
     RUNNING)
-      printf 'SKIP %s already RUNNING\n' "${app}"
-      return 0
+      printf 'VERIFY %s already RUNNING\n' "${app}"
       ;;
     STOPPED)
       printf 'START %s\n' "${app}"
@@ -161,12 +162,19 @@ start_or_wait_app() {
       ;;
   esac
 
-  if wait_running "${app}"; then
-    printf 'READY %s\n' "${app}"
-    return 0
+  if ! wait_running "${app}"; then
+    diagnose_app "${app}"
+    return 1
   fi
-  diagnose_app "${app}"
-  return 1
+
+  if ! NABLA_APP_HEALTH_TIMEOUT_SECONDS="$(app_timeout "${app}")"     bash "${HEALTH_GATE}" "${app}"; then
+    warn "${app}: middleware RUNNING but container health did not converge"
+    diagnose_app "${app}"
+    return 1
+  fi
+
+  printf 'READY %s\n' "${app}"
+  return 0
 }
 
 state_dir="$(latest_state_dir)"
@@ -190,7 +198,8 @@ for ((i=0; i<wave_count; i++)); do
     state="$(app_state "${app}")"
     if [[ "${MODE}" == "--check" ]]; then
       printf '%-28s %s\n' "${app}" "${state}"
-      if [[ "${state}" != "RUNNING" ]]; then
+      if [[ "${state}" != "RUNNING" ]] ||
+        ! NABLA_APP_HEALTH_TIMEOUT_SECONDS=1           NABLA_APP_HEALTH_POLL_SECONDS=1           bash "${HEALTH_GATE}" "${app}" >/dev/null 2>&1; then
         wave_failures=$((wave_failures + 1))
         total_failures=$((total_failures + 1))
       fi
@@ -218,4 +227,4 @@ fi
 if [[ "${MODE}" == "--apply" ]]; then
   printf 'RESUMED\n' >"${state_dir}/phase"
 fi
-ok "all Apps from the frozen reboot resume manifest are RUNNING"
+ok "all Apps from the frozen reboot resume manifest are RUNNING and container-stable"
