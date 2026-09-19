@@ -111,11 +111,23 @@ def manifest_envs(manifest: dict[str, Any]) -> dict[str, set[str]]:
         app = item.get("app")
         if not isinstance(app, str):
             continue
-        result[app] = {
-            str(secret.get("env"))
-            for secret in item.get("secrets", [])
-            if isinstance(secret, dict) and isinstance(secret.get("env"), str)
-        }
+        covered: set[str] = set()
+        for secret in item.get("secrets", []):
+            if not isinstance(secret, dict):
+                continue
+            for key in ("env", "importEnv"):
+                value = secret.get(key)
+                if isinstance(value, str):
+                    covered.add(value)
+        result[app] = covered
+
+    for entry in manifest.get("bootstrap", []):
+        if not isinstance(entry, dict):
+            continue
+        app = entry.get("app")
+        env = entry.get("env")
+        if isinstance(app, str) and isinstance(env, str):
+            result.setdefault(app, set()).add(env)
     return result
 
 
