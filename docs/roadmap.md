@@ -81,7 +81,7 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity.
 - [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precedes Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
 - [x] Add an explicit operator-acceptance/deferred annotation for historical manifests: `--accept-deferred` writes one immutable `operator-acceptance.json`, only for Apps in frozen `resume-apps.txt`, fingerprints the frozen manifest and leaves strict `--verify` semantics unchanged.
-- [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
+- [x] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped: it proves a fresh runtime snapshot would shrink resume membership while `--continue-prepare` neither re-queries Apps nor regenerates frozen plans.
 - [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
 - [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
@@ -269,7 +269,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 6. [x] **`scripts/lib/secrets.sh`.** Initial shared owner/mode/presence, targeted dotenv extraction and Vaultwarden rendering helpers exist without printing secret values. Continue migrating legacy service-specific checks opportunistically.
 7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image.
-9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures.
+9. [ ] **Incident fixtures.** Interrupted prepare/continue membership regression is covered; Docker ghost-shim recovery/refusal fixture remains.
 10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
 11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
 12. [ ] **Runtime-layout non-regression gate.** New/modified services must not introduce repository-local live env files, legacy service-root secret paths, or application datasets without active persistence ownership.
