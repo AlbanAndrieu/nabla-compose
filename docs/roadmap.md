@@ -37,7 +37,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
 - [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
-- [ ] **Security tooling runtime bootstrap:** follow-up automation prepares Vaultwarden-backed runtime files, shared PostgreSQL roles/databases, TrueNAS Custom App reconciliation, container stability and HTTP readiness. Operator execution on TrueNAS is still required before the services are considered deployed.
+- [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
 - [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
@@ -80,9 +80,9 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
 - [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity.
 - [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precedes Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
-- [ ] Add an explicit operator-acceptance/deferred annotation for historical manifests so an incident can record non-blocking exceptions without weakening strict verification or changing frozen membership.
-- [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
-- [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
+- [x] Add an explicit operator-acceptance/deferred annotation for historical manifests: `--accept-deferred` writes one immutable `operator-acceptance.json`, only for Apps in frozen `resume-apps.txt`, fingerprints the frozen manifest and leaves strict `--verify` semantics unchanged.
+- [x] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped: it proves a fresh runtime snapshot would shrink resume membership while `--continue-prepare` neither re-queries Apps nor regenerates frozen plans.
+- [x] Add a Docker ghost-shim fixture and shared fail-closed guard: recovery is eligible only for `Running=true`/`Restarting=true`, `Pid=0` and exactly one matching shim; live `Pid>0`, ambiguous shim counts and non-ghost states are refused.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
 - [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
 - [ ] Move service-specific readiness policy into declarative lifecycle metadata so selected backends can additionally require HTTP/TCP/application-level probes rather than only generic container stability.
@@ -124,16 +124,16 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 4. [x] Add read-only reporting for empty datasets, Apps-preset property drift and empty unowned direct-child candidates; never auto-delete/recreate an existing dataset.
 5. [x] Add canonical runtime env discovery across explicit `env_file`, repository-local ignored `.env*` and legacy `/mnt/cpool/<service>/.env*` files.
 6. [x] Split migration into read-only preview, non-destructive canonical staging, per-service validation and explicit per-service finalization.
-7. [ ] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; preserve all legacy paths during the staging pass.
-8. [ ] Resolve any source collisions before staging. Project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
-9. [ ] Fix declarations with no recoverable source instead of creating empty files; current inventory includes a missing Home Assistant project/service env declaration that requires explicit review.
-10. [ ] Validate and finalize first wave one service at a time: Scanopy, Joplin and AutoKuma already reference canonical paths and are the preferred acceptance wave.
+7. [x] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; the bootstrap is non-destructive and preserves legacy paths during staging.
+8. [x] Resolve source collisions before staging. Differing sources fail closed, and project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
+9. [x] Fix declarations with no recoverable source instead of creating empty files. Home Assistant's unused `env_file: .env` declaration was removed rather than inventing an empty runtime file.
+10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces `check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Joplin now has an idempotent shared-PostgreSQL bootstrap. Do not mark a service accepted until this flow runs successfully on TrueNAS; AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
 11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
-14. [ ] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service.
+14. [x] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service, and storage discovery does not create datasets from workspace-only references.
 15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`. Security-tooling entries for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and Scorecard are now inventoried; remaining services still need migration.
-16. [ ] Add/maintain agent-skill rules so every created or materially modified Compose service follows this architecture instead of introducing new legacy paths.
+16. [x] Maintain agent-skill rules and a CI non-regression contract so new services cannot introduce unreviewed legacy `env_file` ownership outside `/mnt/cpool/secrets/runtime/<service>/`; existing legacy services remain explicit migration debt.
 17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
 
 ## P1 — infrastructure secrets
@@ -263,16 +263,16 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`.
 2. [ ] **`scripts/lib/truenas.sh`.** Continue centralizing bounded middleware calls, normalized readiness and reboot-manifest helpers. Shared Custom App state/reconcile/wait primitives are now used by the security-tooling deployment path; remaining legacy deploy scripts still duplicate lifecycle logic.
-3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
+3. [ ] **`scripts/lib/docker.sh`.** Initial side-effect-free orphan-shim recovery guard is centralized and fixture-covered. Continue with shared container state/health/PID/restarts/exit snapshots, Compose-project selection and correlation helpers.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
 6. [x] **`scripts/lib/secrets.sh`.** Initial shared owner/mode/presence, targeted dotenv extraction and Vaultwarden rendering helpers exist without printing secret values. Continue migrating legacy service-specific checks opportunistically.
 7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image.
-9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures.
+9. [x] **Incident fixtures.** Interrupted prepare/continue membership drift and Docker ghost-shim eligibility/refusal are both covered by deterministic fixtures.
 10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
 11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
-12. [ ] **Runtime-layout non-regression gate.** New/modified services must not introduce repository-local live env files, legacy service-root secret paths, or application datasets without active persistence ownership.
+12. [x] **Runtime-layout non-regression gate.** CI rejects new unreviewed legacy `env_file` service ownership, verifies Home Assistant has no phantom dotenv dependency, and keeps canonical first-wave paths under `/mnt/cpool/secrets/runtime/<service>/`. Existing legacy services remain an explicit allowlisted migration set until staged/cut over.
 
 ## Target operator-script architecture
 

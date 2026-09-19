@@ -9,6 +9,8 @@ RUNTIME_LAYOUT = ROOT / "docs" / "truenas-runtime-layout.md"
 COMPOSE_SKILL = ROOT / ".agents" / "skills" / "docker-compose-orchestration" / "SKILL.md"
 SECRETS_SKILL = ROOT / ".agents" / "skills" / "homelab-secrets" / "SKILL.md"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+FIRST_WAVE = ROOT / "scripts" / "truenas" / "accept-runtime-env-first-wave.sh"
+HOMEASSISTANT = ROOT / "apps" / "homeassistant" / "compose.yml"
 DEPLOY_HELPERS = {
     "scanopy": ROOT / "scripts" / "truenas" / "deploy-scanopy.sh",
     "joplin": ROOT / "scripts" / "truenas" / "deploy-joplin.sh",
@@ -75,3 +77,85 @@ def test_true_nas_runtime_layout_is_documented_and_skill_enforced() -> None:
     assert "Existing legacy" in compose_skill
     assert "--finalize <service>" in secrets_skill
     assert "TrueNAS storage + runtime secret normalization" in roadmap
+
+
+def test_homeassistant_does_not_require_missing_dotenv() -> None:
+    compose = HOMEASSISTANT.read_text(encoding="utf-8")
+
+    assert "env_file:" not in compose
+    assert "      - .env" not in compose
+
+
+def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -> None:
+    script = FIRST_WAVE.read_text(encoding="utf-8")
+
+    for app in ("scanopy", "joplin", "autokuma"):
+        assert app in script
+    assert "--check | --stage | --accept" in script
+    assert "--accept is deliberately one service at a time" in script
+    assert 'bootstrap-repository-runtime.sh --apply "${app}"' in script
+    assert 'bootstrap-repository-runtime.sh --check "${app}"' in script
+    assert 'verify-app-runtime-health.sh' in script
+    assert 'bootstrap-repository-env-files.sh --finalize "${app}"' in script
+    assert script.index('deploy_service "${app}"') < script.index(
+        'bootstrap-repository-env-files.sh --finalize "${app}"'
+    )
+    assert "Uptime Kuma must exist and be RUNNING before acceptance" in script
+
+
+def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
+    import yaml
+
+    legacy_allowlist = {
+        "code",
+        "mongo",
+        "sentry",
+        "nexus",
+        "homarr",
+        "ollama",
+        "dozzle",
+        "sample",
+        "garage",
+        "pihole",
+        "bichon",
+        "wazuh",
+        "graylog",
+        "openrag",
+        "traefik",
+        "scrutiny",
+        "keycloak",
+        "akvorado",
+        "langfuse",
+        "postgres",
+        "langflow",
+        "crowdsec",
+        "opensearch",
+        "clickhouse",
+        "litellm",
+        "sentry-clickhouse",
+    }
+    observed_legacy: set[str] = set()
+
+    for compose_path in sorted((ROOT / "apps").glob("*/compose.yml")):
+        app = compose_path.parent.name
+        compose = yaml.safe_load(compose_path.read_text(encoding="utf-8")) or {}
+        for service in (compose.get("services") or {}).values():
+            env_files = service.get("env_file") or []
+            if isinstance(env_files, str):
+                env_files = [env_files]
+            for entry in env_files:
+                path = entry.get("path", "") if isinstance(entry, dict) else entry
+                if not path:
+                    continue
+                canonical_runtime = f"/mnt/cpool/secrets/runtime/{app}/"
+                canonical_bootstrap = "/mnt/cpool/secrets/bootstrap/vaultwarden/"
+                if path.startswith(canonical_runtime) or path.startswith(
+                    canonical_bootstrap
+                ):
+                    continue
+                observed_legacy.add(app)
+
+    assert observed_legacy <= legacy_allowlist, (
+        "new legacy env_file app(s) must use /mnt/cpool/secrets/runtime/<service>/: "
+        f"{sorted(observed_legacy - legacy_allowlist)}"
+    )

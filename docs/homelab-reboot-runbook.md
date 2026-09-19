@@ -228,6 +228,7 @@ The transaction contains at least:
 - `resume-apps.txt`;
 - `orchestrator-identity.txt` for newly created transactions;
 - `prepare-history.log` for newly created/continued transactions;
+- optional `operator-acceptance.json` for one reviewed accepted-with-deferred decision;
 - `phase`.
 
 Prepare phases are:
@@ -541,11 +542,45 @@ sudo bash scripts/truenas/diagnose-docker-orphan-shims.sh --check
 The transaction is accepted only when lifecycle, cluster/network, fresh CSI and
 Docker/runtime gates are green.
 
+## Reviewed operator acceptance with deferred debt
+
+Strict `--verify` remains the technical acceptance gate. If a reboot transaction
+has reviewed, non-blocking service debt that must be recorded separately from
+the strict verifier, write one immutable operator annotation:
+
+```bash
+BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
+
+sudo env \
+  NABLA_REPO_ROOT="${BUNDLE}" \
+  NABLA_REBOOT_ACCEPTANCE_NOTE="Reviewed non-blocking service debt; tracked separately" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" \
+    --accept-deferred nginx-proxy-manager,openarchiver,paperless-ngx
+```
+
+The command is intentionally narrow:
+
+- the reboot must already have happened (`boot-id-before` must differ from the
+  current boot ID);
+- every deferred App must already belong to the frozen `resume-apps.txt`
+  membership captured before shutdown;
+- the script refuses to overwrite an existing `operator-acceptance.json`;
+- the annotation records the current App states plus SHA-256 fingerprints of
+  `apps-before.json`, `resume-plan.json` and `resume-apps.txt`;
+- the annotation does not change lifecycle ordering, membership or any saved
+  manifest file;
+- it does not make `--verify` pass. A later strict verification still checks
+  every saved App and reports unresolved runtime debt.
+
+Use this only to preserve the operator decision and incident context. Fix the
+deferred services independently, then rerun strict `--verify` when they are
+expected to satisfy the original lifecycle contract.
+
 ## Phase 5 — bounded cleanup
 
 Only after final acceptance:
 
-- archive the reboot manifest, boot IDs, source commit and prepare history;
+- archive the reboot manifest, boot IDs, source commit, prepare history and any\n  `operator-acceptance.json` annotation;
 - retain current and previous known-good reboot bundles;
 - confirm disposable CSI smoke resources are gone;
 - classify legacy Docker networks owner-by-owner;

@@ -10,7 +10,8 @@ fail() {
   exit 1
 }
 
-[[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
+[[ "${EUID}" -eq 0 ]] ||
+  fail "run with sudo so TrueNAS middleware and ZFS can be managed"
 for command in docker git grep jq midclt stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
@@ -28,6 +29,10 @@ bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
   fail "${SECRETS_FILE} must be root:root mode 0600"
 grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" ||
   fail "${SECRETS_FILE} must define POSTGRES_PASSWORD"
+
+if ! bash scripts/truenas/bootstrap-joplin-postgres.sh --check; then
+  fail "shared PostgreSQL role/database joplin is not ready; run: sudo bash scripts/truenas/bootstrap-joplin-postgres.sh --apply"
+fi
 
 compose_path="${CANONICAL_ROOT}/apps/joplin/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
@@ -70,6 +75,6 @@ printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null ||
 printf '%s\n' "${app_json}" |
   jq -r '.[0] | "✅ TrueNAS app \(.id): state=\(.state // \"UNKNOWN\")"'
 
-printf 'NOTE: the shared PostgreSQL role/database joplin must already exist.\n'
+printf '✅ shared PostgreSQL dependency verified: 172.17.0.24:5432 role/database=joplin\n'
 printf 'Expected Custom App YAML include:\n'
 printf 'include:\n  - %s\n' "${compose_path}"

@@ -377,6 +377,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertIn("sourcePath", script)
         self.assertIn("build_effective_resume_plan", script)
         self.assertIn("reconcile-reboot-resume.sh", script)
+        self.assertIn("scripts/lib/docker.sh", script)
 
     @staticmethod
     def service(

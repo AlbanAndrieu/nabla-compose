@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
+# shellcheck source=../lib/docker.sh
+source "${SCRIPT_DIR}/../lib/docker.sh"
 
 MODE="${1:---check}"
 TARGET="${2:-}"
@@ -96,14 +98,14 @@ printf '  id=%s\n' "${cid}"
 printf '  status=%s running=%s restarting=%s pid=%s restart_count=%s\n' \
   "${status}" "${running}" "${restarting}" "${pid}" "${restarts}"
 
-[[ "${pid}" == "0" ]] ||
-  fail "${name}: live init PID ${pid} exists; refusing orphan-shim recovery"
-[[ "${running}" == "true" || "${restarting}" == "true" ]] ||
-  fail "${name}: container is not in a running/restarting ghost state"
-
 mapfile -t shim_pids < <(find_shim_pids "${cid}")
-((${#shim_pids[@]} == 1)) ||
-  fail "${name}: expected exactly one containerd shim for ${cid}, found ${#shim_pids[@]}"
+guard_error=""
+if ! guard_error="$(
+  docker_orphan_shim_recovery_guard \
+    "${running}" "${restarting}" "${pid}" "${#shim_pids[@]}" "${cid}" 2>&1
+)"; then
+  fail "${name}: ${guard_error}"
+fi
 
 shim_pid="${shim_pids[0]}"
 shim_cmd="$(ps -o args= -p "${shim_pid}" 2>/dev/null || true)"

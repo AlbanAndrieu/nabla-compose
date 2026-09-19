@@ -60,6 +60,7 @@ FILES=(
   catalog/services.json
   catalog/service-topology.json
   scripts/lib/common.sh
+  scripts/lib/docker.sh
   scripts/truenas/plan-app-lifecycle-order.py
   scripts/truenas/reconcile-talos-vm-policy.sh
   scripts/truenas/migrate-docker-address-pool.sh

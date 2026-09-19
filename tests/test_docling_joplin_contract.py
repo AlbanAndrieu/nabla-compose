@@ -45,7 +45,7 @@ def test_joplin_uses_shared_postgres_and_private_ingress() -> None:
     assert service["environment"]["POSTGRES_PORT"] == "5432"
     assert service["environment"]["POSTGRES_DATABASE"] == "joplin"
     assert service["environment"]["POSTGRES_USER"] == "joplin"
-    assert "/mnt/cpool/joplin/.env.secrets" in service["env_file"]
+    assert "/mnt/cpool/secrets/runtime/joplin/.env.secrets" in service["env_file"]
     assert "POSTGRES_PASSWORD" not in service["environment"]
     assert metadata["url"] == "https://joplin.int.albandrieu.com"
     assert metadata["monitoring"]["target"].endswith(":22300/api/ping")

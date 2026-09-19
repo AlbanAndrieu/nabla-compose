@@ -13,6 +13,8 @@ CALL_TIMEOUT="${NABLA_MIDCLT_TIMEOUT_SECONDS:-180}"
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 EXTRA_RESUME_APPS="${NABLA_REBOOT_RESUME_STOPPED_APPS:-}"
+ACCEPTANCE_DEFERRED_APPS="${NABLA_REBOOT_DEFERRED_APPS:-${2:-}}"
+ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
@@ -29,11 +31,16 @@ ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orph
 [[ -f "${ORPHAN_SHIMS}" ]] || ORPHAN_SHIMS="${REPO_ROOT}/scripts/truenas/diagnose-docker-orphan-shims.sh"
 
 usage() {
-  echo "usage: sudo bash scripts/truenas/reboot-homelab.sh [--check|--prepare|--continue-prepare|--post-reboot-check|--resume|--verify]"
+  cat <<'EOF'
+usage:
+  sudo bash scripts/truenas/reboot-homelab.sh [--check|--prepare|--continue-prepare|--post-reboot-check|--resume|--verify]
+  sudo env NABLA_REBOOT_ACCEPTANCE_NOTE="<reason>" \
+    bash scripts/truenas/reboot-homelab.sh --accept-deferred <app[,app...]>
+EOF
 }
 
 case "${MODE}" in
-  --check | --prepare | --continue-prepare | --post-reboot-check | --resume | --verify) ;;
+  --check | --prepare | --continue-prepare | --post-reboot-check | --resume | --verify | --accept-deferred) ;;
   -h | --help)
     usage
     exit 0
@@ -239,6 +246,103 @@ record_prepare_history() {
   printf '%s action=%s bundle=%s identity=%s\n' \
     "$(date -Iseconds)" "$2" "${BUNDLE_ROOT}" "$(bundle_identity)" \
     >>"$1/prepare-history.log"
+}
+
+print_operator_acceptance() {
+  local dir="$1" annotation
+  annotation="${dir}/operator-acceptance.json"
+
+  [[ -f "${annotation}" ]] || return 0
+  jq -e '
+    .schemaVersion == 1
+    and .decision == "accepted-with-deferred"
+    and .strictVerification == "unchanged"
+    and (.deferredApps | type == "array")
+  ' "${annotation}" >/dev/null ||
+    fail "invalid operator acceptance annotation: ${annotation}"
+
+  warn "operator acceptance annotation exists; strict --verify still evaluates every saved App"
+  jq -r '
+    "  recordedAt=\(.recordedAt) operator=\(.operator) deferred=\([.deferredApps[].id] | join(",")) note=\(.note)"
+  ' "${annotation}"
+}
+
+record_operator_acceptance() {
+  local dir="$1" raw="${ACCEPTANCE_DEFERRED_APPS}" note="${ACCEPTANCE_NOTE}"
+  local app state before current operator recorded_at tmp deferred_json
+  local -a apps=()
+
+  [[ -n "${raw//[[:space:],]/}" ]] ||
+    fail "--accept-deferred requires one or more frozen resume App IDs"
+  [[ -n "${note//[[:space:]]/}" ]] ||
+    fail "--accept-deferred requires NABLA_REBOOT_ACCEPTANCE_NOTE"
+
+  mapfile -t apps < <(
+    printf '%s\n' "${raw}" |
+      awk 'BEGIN{RS="[,[:space:]]+"} NF{print}' |
+      sort -u
+  )
+  ((${#apps[@]} > 0)) || fail "no deferred Apps parsed"
+
+  [[ ! -e "${dir}/operator-acceptance.json" ]] ||
+    fail "operator acceptance already recorded; annotations are immutable"
+
+  before="$(cat "${dir}/boot-id-before")"
+  current="$(midclt_bounded system.boot_id | tr -d '"')"
+  [[ "${current}" != "${before}" ]] ||
+    fail "refusing operator acceptance before an actual reboot"
+
+  for app in "${apps[@]}"; do
+    grep -Fxq -- "${app}" "${dir}/resume-apps.txt" ||
+      fail "${app}: not part of frozen resume membership"
+  done
+
+  deferred_json="$(
+    for app in "${apps[@]}"; do
+      state="$(app_state "${app}")"
+      jq -n --arg id "${app}" --arg state "${state}" '{id: $id, state: $state}'
+    done | jq -s '.'
+  )"
+
+  operator="${SUDO_USER:-${USER:-unknown}}"
+  recorded_at="$(date -Iseconds)"
+  tmp="$(mktemp "${dir}/.operator-acceptance.XXXXXX")"
+
+  jq -n \
+    --arg recordedAt "${recorded_at}" \
+    --arg operator "${operator}" \
+    --arg note "${note}" \
+    --arg bootIdBefore "${before}" \
+    --arg bootIdCurrent "${current}" \
+    --arg appsBeforeSha256 "$(sha256sum "${dir}/apps-before.json" | awk '{print $1}')" \
+    --arg resumePlanSha256 "$(sha256sum "${dir}/resume-plan.json" | awk '{print $1}')" \
+    --arg resumeAppsSha256 "$(sha256sum "${dir}/resume-apps.txt" | awk '{print $1}')" \
+    --argjson deferredApps "${deferred_json}" \
+    '{
+      schemaVersion: 1,
+      recordedAt: $recordedAt,
+      operator: $operator,
+      decision: "accepted-with-deferred",
+      note: $note,
+      transaction: {
+        bootIdBefore: $bootIdBefore,
+        bootIdCurrent: $bootIdCurrent
+      },
+      frozenManifest: {
+        appsBeforeSha256: $appsBeforeSha256,
+        resumePlanSha256: $resumePlanSha256,
+        resumeAppsSha256: $resumeAppsSha256
+      },
+      deferredApps: $deferredApps,
+      strictVerification: "unchanged"
+    }' >"${tmp}"
+  chmod 600 "${tmp}"
+  mv "${tmp}" "${dir}/operator-acceptance.json"
+  record_prepare_history "${dir}" accept-deferred
+
+  ok "recorded immutable operator acceptance annotation: ${dir}/operator-acceptance.json"
+  warn "strict --verify semantics are unchanged; deferred Apps remain visible as verification debt"
+  print_operator_acceptance "${dir}"
 }
 
 guard_no_incomplete_prepare() {
@@ -471,6 +575,11 @@ validate_prepare_manifest "${state_dir}"
 before_boot_id="$(cat "${state_dir}/boot-id-before")"
 current_boot_id="$(midclt_bounded system.boot_id | tr -d '"')"
 
+if [[ "${MODE}" == --accept-deferred ]]; then
+  record_operator_acceptance "${state_dir}"
+  exit 0
+fi
+
 if [[ "${MODE}" == --post-reboot-check ]]; then
   [[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "boot_id did not change"
   truenas_ready || fail "TrueNAS has not completed boot"
@@ -512,6 +621,7 @@ fi
 # --verify
 [[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "reboot not observed"
 truenas_ready || fail "TrueNAS is not ready"
+print_operator_acceptance "${state_dir}"
 [[ -f "${RESUME_RECONCILER}" ]] || fail "resume reconciler not found: ${RESUME_RECONCILER}"
 NABLA_REBOOT_STATE_ROOT="${STATE_ROOT}" bash "${RESUME_RECONCILER}" --check ||
   fail "saved Apps failed final RUNNING acceptance"

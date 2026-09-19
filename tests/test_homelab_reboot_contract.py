@@ -15,11 +15,12 @@ VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
+DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS):
+        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, DOCKER_LIB):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -96,6 +97,90 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("mapfile -t saved_explicit_resume", text)
         self.assertIn('explicit_resume="${saved_explicit_resume[*]}"', text)
 
+    def test_interrupted_prepare_fixture_keeps_frozen_resume_membership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            services = {
+                "services": [
+                    {
+                        "id": "postgres",
+                        "runtime": {"provider": "truenas-app", "appId": "postgres"},
+                    },
+                    {
+                        "id": "n8n",
+                        "runtime": {"provider": "truenas-app", "appId": "n8n"},
+                    },
+                ]
+            }
+            topology = {
+                "relations": [
+                    {
+                        "source": "n8n",
+                        "target": "postgres",
+                        "type": "dependsOn",
+                        "strength": "required",
+                    }
+                ]
+            }
+            frozen_apps = [
+                {"id": "postgres", "state": "RUNNING"},
+                {"id": "n8n", "state": "RUNNING"},
+            ]
+            partially_stopped_apps = [
+                {"id": "postgres", "state": "STOPPED"},
+                {"id": "n8n", "state": "RUNNING"},
+            ]
+
+            (root / "services.json").write_text(
+                json.dumps(services), encoding="utf-8"
+            )
+            (root / "topology.json").write_text(
+                json.dumps(topology), encoding="utf-8"
+            )
+
+            def selected_apps(name: str, apps: list[dict[str, str]]) -> list[str]:
+                path = root / name
+                path.write_text(json.dumps(apps), encoding="utf-8")
+                result = subprocess.run(
+                    [
+                        "python3",
+                        str(PLANNER),
+                        "--apps",
+                        str(path),
+                        "--states",
+                        "RUNNING,DEPLOYING",
+                        "--services",
+                        str(root / "services.json"),
+                        "--topology",
+                        str(root / "topology.json"),
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return json.loads(result.stdout)["selected_apps"]
+
+            self.assertEqual(
+                selected_apps("apps-before.json", frozen_apps),
+                ["n8n", "postgres"],
+            )
+            self.assertEqual(
+                selected_apps(
+                    "runtime-after-partial-stop.json", partially_stopped_apps
+                ),
+                ["n8n"],
+            )
+
+        text = REBOOT.read_text(encoding="utf-8")
+        start = text.index('if [[ "${MODE}" == --continue-prepare ]]')
+        end = text.index('state_dir="$(latest_state_dir)"', start)
+        continuation = text[start:end]
+        self.assertIn('validate_prepare_manifest "${state_dir}"', continuation)
+        self.assertIn('continue_prepare "${state_dir}"', continuation)
+        self.assertNotIn("midclt_bounded app.query >", continuation)
+        self.assertNotIn("make_plans ", continuation)
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
@@ -103,11 +188,42 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Running/Restarting but pid=0", text)
         self.assertIn("diagnose-docker-orphan-shims.sh", text)
 
+    def test_operator_acceptance_is_a_strict_sidecar(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+
+        self.assertIn("--accept-deferred", text)
+        self.assertIn("NABLA_REBOOT_ACCEPTANCE_NOTE", text)
+        self.assertIn("operator-acceptance.json", text)
+        self.assertIn("not part of frozen resume membership", text)
+        self.assertIn("annotations are immutable", text)
+        self.assertIn("appsBeforeSha256", text)
+        self.assertIn("resumePlanSha256", text)
+        self.assertIn("resumeAppsSha256", text)
+        self.assertIn('strictVerification: "unchanged"', text)
+        self.assertIn(
+            "strict --verify still evaluates every saved App",
+            text,
+        )
+        self.assertIn(
+            'NABLA_REBOOT_STATE_ROOT="${STATE_ROOT}" bash "${RESUME_RECONCILER}" --check',
+            text,
+        )
+
+    def test_runbook_documents_deferred_operator_acceptance(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+
+        self.assertIn("--accept-deferred", text)
+        self.assertIn("operator-acceptance.json", text)
+        self.assertIn("does not make `--verify` pass", text)
+        self.assertIn("frozen `resume-apps.txt`", text)
+
     def test_orphan_shim_recovery_is_narrow(self) -> None:
         text = ORPHAN_SHIMS.read_text(encoding="utf-8")
+        guard = DOCKER_LIB.read_text(encoding="utf-8")
         self.assertIn("--recover", text)
-        self.assertIn('[[ "${pid}" == "0" ]]', text)
-        self.assertIn("expected exactly one containerd shim", text)
+        self.assertIn("docker_orphan_shim_recovery_guard", text)
+        self.assertIn('[[ "${pid}" == "0" ]]', guard)
+        self.assertIn("expected exactly one containerd shim", guard)
         self.assertIn("docker update --restart=no", text)
         self.assertIn('kill -TERM "${shim_pid}"', text)
         self.assertIn('kill -KILL "${shim_pid}"', text)
@@ -116,6 +232,50 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertNotIn("killall", text)
         self.assertNotIn("systemctl restart docker", text)
         self.assertNotIn("systemctl restart containerd", text)
+
+    def test_orphan_shim_guard_fixture_fails_closed(self) -> None:
+        def run_guard(
+            running: str,
+            restarting: str,
+            pid: str,
+            shim_count: str,
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        'source "$1"; '
+                        'docker_orphan_shim_recovery_guard '
+                        '"$2" "$3" "$4" "$5" test-container'
+                    ),
+                    "_",
+                    str(DOCKER_LIB),
+                    running,
+                    restarting,
+                    pid,
+                    shim_count,
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        safe = run_guard("true", "false", "0", "1")
+        self.assertEqual(safe.returncode, 0, safe.stderr)
+
+        live_pid = run_guard("true", "false", "42", "1")
+        self.assertNotEqual(live_pid.returncode, 0)
+        self.assertIn("live init PID 42 exists", live_pid.stderr)
+
+        for shim_count in ("0", "2"):
+            ambiguous_shim = run_guard("true", "false", "0", shim_count)
+            self.assertNotEqual(ambiguous_shim.returncode, 0)
+            self.assertIn("expected exactly one containerd shim", ambiguous_shim.stderr)
+
+        not_ghost = run_guard("false", "false", "0", "1")
+        self.assertNotEqual(not_ghost.returncode, 0)
+        self.assertIn("not in a running/restarting ghost state", not_ghost.stderr)
 
     def test_runbook_does_not_promote_preexisting_crashed_apps(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
