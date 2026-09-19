@@ -46,7 +46,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("pre-commit run bashate", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
-        self.assertIn("python -m unittest discover -s tests -p 'test_*.py' -q", text)
+        self.assertIn("PYTHON_CMD=(python3)", text)
+        self.assertIn(
+            "\"${PYTHON_CMD[@]}\" -m unittest discover -s tests -p 'test_*.py' -q",
+            text,
+        )
         self.assertIn("CI fast mode", text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)
