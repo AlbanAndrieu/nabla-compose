@@ -25,40 +25,84 @@ def source_env_name(spec: dict[str, Any]) -> str:
     return value
 
 
-def collect_values(app_spec: dict[str, Any]) -> dict[str, str]:
-    """Collect exported values while allowing explicitly optional mappings.
+def decode_dotenv_value(raw: str) -> str:
+    value = raw.strip()
+    if len(value) >= 2 and value[0] == value[-1] == "'":
+        body = value[1:-1]
+        return body.replace("\\'", "'").replace("\\\\", "\\")
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        return value[1:-1]
+    return value
 
-    Missing required values remain an error. Missing allowEmpty sources are represented as
-    empty values so a newly-created item receives the complete field contract. make_item()
-    separately preserves such fields during an update unless their source variable was
-    explicitly exported by the operator.
-    """
+
+def parse_dotenv(text: str) -> dict[str, str]:
+    """Parse a narrow dotenv subset without executing shell syntax."""
 
     values: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            raise SecretsError("dotenv input contains a non-assignment line")
+        key, raw_value = line.split("=", 1)
+        key = key.strip()
+        if not key or not key.replace("_", "").isalnum() or not key[0].isalpha():
+            raise SecretsError(f"invalid dotenv variable name: {key!r}")
+        value = decode_dotenv_value(raw_value)
+        if "\x00" in value or "\n" in value or "\r" in value:
+            raise SecretsError(f"{key}: multiline/NUL dotenv values are unsupported")
+        values[key] = value
+    return values
+
+
+def collect_values(
+    app_spec: dict[str, Any],
+    *,
+    source_values: dict[str, str] | None = None,
+) -> tuple[dict[str, str], set[str]]:
+    """Collect values without sourcing shell code or printing secret material."""
+
+    source_values = source_values if source_values is not None else dict(os.environ)
+    values: dict[str, str] = {}
+    supplied: set[str] = set()
     missing_count = 0
+
     for spec in app_spec["secrets"]:
-        env_name = source_env_name(spec)
+        import_name = source_env_name(spec)
+        target_name = spec["env"]
         allow_empty = spec.get("allowEmpty", False)
-        value = os.environ.get(env_name)
-        if value is None:
-            if allow_empty:
-                value = ""
-            else:
-                missing_count += 1
-                continue
-        elif not value and not allow_empty:
+
+        if import_name in source_values:
+            value = source_values[import_name]
+            supplied.add(import_name)
+        elif target_name in source_values:
+            # Historical .env.secrets files normally contain the target runtime
+            # name rather than the migration-friendly importEnv alias.
+            value = source_values[target_name]
+            supplied.add(target_name)
+        elif allow_empty:
+            value = ""
+        else:
+            missing_count += 1
+            continue
+
+        if not value and not allow_empty:
             missing_count += 1
             continue
         if "\x00" in value or "\n" in value or "\r" in value:
             raise SecretsError(
-                f"{app_spec['app']}: an exported secret contains unsupported multiline/NUL data"
+                f"{app_spec['app']}: a supplied secret contains unsupported multiline/NUL data"
             )
-        values[spec["env"]] = value
+        values[target_name] = value
+
     if missing_count:
         raise SecretsError(
-            f"{app_spec['app']}: {missing_count} required exported environment variable(s) are missing"
+            f"{app_spec['app']}: {missing_count} required source value(s) are missing"
         )
-    return values
+    return values, supplied
 
 
 def exact_items(
@@ -91,6 +135,7 @@ def make_item(
     folder_id: str,
     values: dict[str, str],
     existing: dict[str, Any] | None = None,
+    supplied_sources: set[str] | None = None,
 ) -> dict[str, Any]:
     item = dict(existing or {})
     item["type"] = 1
@@ -113,12 +158,14 @@ def make_item(
         if isinstance(field.get("name"), str)
     }
 
+    supplied_sources = supplied_sources or set()
     for spec in app_spec["secrets"]:
         target_env = spec["env"]
+        source_names = {source_env_name(spec), target_env}
         if (
             existing is not None
             and spec.get("allowEmpty", False)
-            and source_env_name(spec) not in os.environ
+            and not (source_names & supplied_sources)
         ):
             # Partial updates must not erase an existing optional provider key just
             # because its source variable was not exported in this shell.
@@ -220,6 +267,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="allow replacing explicitly supplied mapped values in an existing exact item",
     )
+    parser.add_argument(
+        "--dotenv-file",
+        help=(
+            "read source values from a dotenv file instead of the process environment; "
+            "use '-' for stdin. The file is parsed as data and is never sourced."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -234,19 +288,28 @@ def main() -> int:
         raise SecretsError(f"unknown app(s): {', '.join(unknown)}")
 
     selected = [item for item in manifest["items"] if item["app"] in requested]
-    collected = {item["app"]: collect_values(item) for item in selected}
+
+    source_values: dict[str, str] | None = None
+    if args.dotenv_file:
+        if args.dotenv_file == "-":
+            source_values = parse_dotenv(sys.stdin.read())
+        else:
+            source_values = parse_dotenv(
+                Path(args.dotenv_file).read_text(encoding="utf-8")
+            )
+
+    collected: dict[str, tuple[dict[str, str], set[str]]] = {
+        item["app"]: collect_values(item, source_values=source_values)
+        for item in selected
+    }
 
     if not args.apply:
         for item in selected:
-            explicitly_supplied = sum(
-                1
-                for spec in item["secrets"]
-                if source_env_name(spec) in os.environ
-            )
+            _, supplied = collected[item["app"]]
             mapping_count = len(item["secrets"])
             print(
                 f"dry-run: {item['app']} -> {item['item']} "
-                f"({explicitly_supplied}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
+                f"({len(supplied)}/{mapping_count} mapped source value(s) explicitly supplied; names and values suppressed)"
             )
         print("dry-run complete; rerun with --apply to write Vaultwarden")
         return 0
@@ -271,11 +334,13 @@ def main() -> int:
                 f"{app_spec['app']}: duplicate exact Vaultwarden items in TrueNAS folder"
             )
         existing = matches[0] if matches else None
+        values, supplied = collected[app_spec["app"]]
         payload = make_item(
             app_spec=app_spec,
             folder_id=folder["id"],
-            values=collected[app_spec["app"]],
+            values=values,
             existing=existing,
+            supplied_sources=supplied,
         )
 
         if existing is None:
