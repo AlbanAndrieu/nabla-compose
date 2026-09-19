@@ -86,6 +86,14 @@ resolve_base_ref() {
 }
 
 BASE_REF="$(resolve_base_ref)"
+
+if command -v python >/dev/null 2>&1; then
+  PYTHON_CMD=(python)
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_CMD=(python3)
+else
+  PYTHON_CMD=()
+fi
 CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
 if [[ "${CURRENT_BRANCH}" == "master" ]]; then
   printf '❌ QG_PROTECTED_BRANCH: agent workflow must not run/publish directly on master; use a dedicated branch and pull request\n' >&2
@@ -312,8 +320,8 @@ run_autofix_hook() {
 }
 
 if [[ "${MODE}" == "fix" ]]; then
-  command -v python >/dev/null 2>&1 || {
-    echo "❌ python is required" >&2
+  (("${#PYTHON_CMD[@]}" > 0)) || {
+    echo "❌ python or python3 is required" >&2
     exit 1
   }
   command -v pre-commit >/dev/null 2>&1 || {
@@ -335,9 +343,9 @@ if [[ "${MODE}" == "fix" ]]; then
   for ((pass = 1; pass <= FIX_MAX_PASSES; pass++)); do
     printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
     run_compact "regenerate declared service topology" \
-      python scripts/generate-service-topology.py
+      "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
     run_compact "regenerate service consumers" \
-      python scripts/generate-service-consumers.py
+      "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
 
     mapfile -t CHANGED_FILES < <(collect_changed_files)
     if (("${#CHANGED_FILES[@]}" == 0)); then
@@ -374,15 +382,15 @@ if [[ "${MODE}" == "fix" ]]; then
 fi
 
 run_compact "declared service topology is synchronized" \
-  python scripts/generate-service-topology.py --check
+  "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
 run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
-  python scripts/generate-service-consumers.py --check
+  "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
 
 if [[ "${CI_FAST}" == true ]]; then
   printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
 else
   run_compact "repository unit/contract tests" \
-    python -m unittest discover -s tests -p 'test_*.py' -q
+    "${PYTHON_CMD[@]}" -m unittest discover -s tests -p 'test_*.py' -q
 fi
 
 CANONICAL_SKIP="service-topology-sync,service-consumer-contract"
