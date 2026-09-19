@@ -144,6 +144,54 @@ class SecretConsumerAuditTests(unittest.TestCase):
             ],
         )
 
+    def test_absolute_evidence_path_is_not_secret_file_debt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "sentry").mkdir(parents=True)
+            compose = root / "apps" / "sentry" / "compose.yml"
+            compose.write_text(
+                """services:
+  sentry:
+    x-nabla:
+      relations:
+        - target: redis
+          evidence:
+            - /mnt/cpool/sentry/.env.secrets:RELAY_REDIS_URL
+    env_file:
+      - /mnt/cpool/sentry/.env.secrets
+""",
+                encoding="utf-8",
+            )
+
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(root, {"items": []})
+            finally:
+                audit.git_tracked_compose_files = original
+
+        self.assertEqual(
+            report["legacyEnvFiles"],
+            ["sentry|/mnt/cpool/sentry/.env.secrets|apps/sentry/compose.yml:9"],
+        )
+        self.assertEqual(report["specialHostSecretFiles"], [])
+
+    def test_baseline_ratchet_ignores_harmless_line_moves(self) -> None:
+        current = {
+            "legacyEnvFiles": [
+                "demo|/mnt/cpool/demo/.env.secrets|apps/demo/compose.yml:42"
+            ]
+        }
+        baseline = {
+            "schemaVersion": 1,
+            "legacyEnvFiles": [
+                "demo|/mnt/cpool/demo/.env.secrets|apps/demo/compose.yml:7"
+            ],
+        }
+
+        self.assertEqual(audit.compare_baseline(current, baseline), [])
+
+
     def test_baseline_comparison_is_a_two_way_ratchet(self) -> None:
         current = {
             "legacyEnvFiles": ["demo|/mnt/cpool/demo/.env.secrets|apps/demo/compose.yml:3"],
