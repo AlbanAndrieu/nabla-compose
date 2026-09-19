@@ -226,6 +226,31 @@ sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize scanopy
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
 ```
 
+For the P0.3 first acceptance wave, use the bounded wrapper instead of manually
+interleaving staging, dependency setup, deployment and finalization:
+
+```bash
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
+
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage scanopy
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept scanopy
+
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage joplin
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept joplin
+```
+
+`--accept` is deliberately limited to one service. It stages canonical material,
+reconciles the shared dependency where applicable, deploys the service, requires
+stable containers plus its functional probe, and only then runs per-service
+`--finalize`. AutoKuma has an additional fail-closed dependency gate: Uptime
+Kuma must exist, report `RUNNING`, and answer on `:31050` before AutoKuma can
+be accepted. This is currently expected to block while Uptime Kuma remains
+absent.
+
+Home Assistant no longer declares an unused repository-local `.env`: no runtime
+file is synthesized for a service that does not actually consume environment
+material.
+
 Inspect datasets before any cleanup:
 
 ```bash
