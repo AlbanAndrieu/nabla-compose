@@ -15,7 +15,7 @@ HEALTH_SCRIPT="${SCRIPT_DIR}/verify-app-runtime-health.sh"
 
 SERVICES=(scanopy joplin autokuma)
 
-usage() {
+function usage {
   cat <<'EOF'
 usage:
   sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check [scanopy|joplin|autokuma|all]
@@ -59,7 +59,7 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-selected_services() {
+function selected_services {
   local app
   if [[ "${APP_FILTER}" == "all" ]]; then
     printf '%s\n' "${SERVICES[@]}"
@@ -70,11 +70,11 @@ selected_services() {
   done
 }
 
-secret_file() {
+function secret_file {
   printf '%s/%s/.env.secrets\n' "${RUNTIME_ROOT}" "$1"
 }
 
-check_secret_contract() {
+function check_secret_contract {
   local app="$1" file
   file="$(secret_file "${app}")"
   case "${app}" in
@@ -90,7 +90,7 @@ check_secret_contract() {
   esac
 }
 
-check_compose_contract() {
+function check_compose_contract {
   local app="$1" compose="${CANONICAL_ROOT}/apps/$1/compose.yml"
   local expected="${RUNTIME_ROOT}/$1/.env.secrets"
   [[ -f "${compose}" ]] || fail "missing Compose file: ${compose}"
@@ -98,7 +98,7 @@ check_compose_contract() {
     fail "${app}: Compose does not reference canonical runtime secret file ${expected}"
 }
 
-check_service() {
+function check_service {
   local app="$1"
   printf '\n== P0.3 check: %s ==\n' "${app}"
   bash scripts/truenas/bootstrap-repository-runtime.sh --check "${app}"
@@ -107,14 +107,14 @@ check_service() {
   ok "${app}: canonical runtime/env contract is ready"
 }
 
-stage_service() {
+function stage_service {
   local app="$1"
   printf '\n== P0.3 stage: %s ==\n' "${app}"
   bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${app}"
   check_service "${app}"
 }
 
-accept_dependency() {
+function accept_dependency {
   local app="$1"
   case "${app}" in
     scanopy)
@@ -135,7 +135,7 @@ accept_dependency() {
   esac
 }
 
-deploy_service() {
+function deploy_service {
   local app="$1"
   case "${app}" in
     scanopy) bash scripts/truenas/deploy-scanopy.sh ;;
@@ -145,7 +145,7 @@ deploy_service() {
   bash "${HEALTH_SCRIPT}" "${app}"
 }
 
-functional_probe() {
+function functional_probe {
   local app="$1"
   case "${app}" in
     scanopy)
@@ -164,7 +164,7 @@ functional_probe() {
   esac
 }
 
-accept_service() {
+function accept_service {
   local app="$1"
   stage_service "${app}"
   accept_dependency "${app}"
