@@ -13,6 +13,9 @@ Read `AGENTS.md` first. Inspect the target Compose file and directly referenced 
 
 Every created or modified TrueNAS Compose service must follow `docs/truenas-runtime-layout.md`.
 
+Whenever a service is created or materially modified, apply the runtime-layout,
+shared-service reuse, secret ownership and validation gates below before publishing.
+
 Keep the three planes separate:
 
 ```text
