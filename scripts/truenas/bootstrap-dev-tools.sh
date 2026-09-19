@@ -6,6 +6,7 @@ cd "${ROOT}"
 
 MISE_BIN="${MISE_BIN:-${HOME}/.local/bin/mise}"
 DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
+PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
 
 fail() {
@@ -31,29 +32,32 @@ fi
 
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
-"${MISE_BIN}" install pre-commit@latest
 "${MISE_BIN}" install uv@latest
 
-printf 'Installing repository Git hooks with mise-managed pre-commit...\n'
-"${MISE_BIN}" exec pre-commit@latest -- \
-  pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg
-"${MISE_BIN}" exec pre-commit@latest -- \
-  pre-commit install --config .pre-commit-pre-push.yaml --install-hooks --hook-type pre-push
-
-printf 'Preparing a minimal user-space pytest environment: %s\n' "${DEV_VENV}"
+printf 'Preparing a minimal user-space development environment: %s\n' "${DEV_VENV}"
 mkdir -p "$(dirname "${DEV_VENV}")"
 "${MISE_BIN}" exec uv@latest -- \
   uv venv --python "${PYTHON_BIN}" "${DEV_VENV}"
 "${MISE_BIN}" exec uv@latest -- \
-  uv pip install --python "${DEV_VENV}/bin/python" pytest PyYAML
+  uv pip install --python "${DEV_VENV}/bin/python" \
+  "pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML
+
+printf 'Installing repository Git hooks with venv-managed pre-commit...\n'
+"${DEV_VENV}/bin/pre-commit" install \
+  --install-hooks --hook-type pre-commit --hook-type commit-msg
+"${DEV_VENV}/bin/pre-commit" install \
+  --config .pre-commit-pre-push.yaml --install-hooks --hook-type pre-push
 
 cat <<EOF
 
 ✅ TrueNAS development tooling is ready without modifying the appliance OS.
 
-Use:
-  ${MISE_BIN} exec pre-commit@latest -- bash scripts/agent-quality-gate.sh --fix
-  ${MISE_BIN} exec pre-commit@latest -- bash scripts/agent-quality-gate.sh
+Use without loading the repository-wide mise tool graph:
+  PATH="${DEV_VENV}/bin:\$PATH" bash scripts/agent-quality-gate.sh --fix
+  PATH="${DEV_VENV}/bin:\$PATH" bash scripts/agent-quality-gate.sh
+
+Existing Kubernetes/Talos operator tools stay separate and root-managed:
+  bash scripts/truenas/install-operator-tools.sh --check
 
 Focused pytest:
   ${DEV_VENV}/bin/python -m pytest -q \
