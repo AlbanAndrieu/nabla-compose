@@ -57,6 +57,10 @@ and currently has direct Docker socket access. The normal repository
 these two models only as a separate reviewed migration so bootstrap recovery is
 not broken accidentally.
 
+Both Compose definitions currently declare `container_name: doco-cd`. Do not assume they can or should run concurrently. Before changing ownership, inspect the live container’s Compose labels and mounted poll configuration to identify which definition actually owns it. The repository intentionally leaves this as an explicit migration debt rather than silently replacing a recovery path.
+
+Doco-CD documents a dedicated self-updater pattern using a separate updater instance and recommends disabling the scheduler on that updater. That is a viable later replacement for the host cron, but only after the current cron/bootstrap recovery path is observed and rollback-tested.
+
 ## FastAPI Sample ownership
 
 The TrueNAS `sample` Custom App is **not** currently a Doco-CD-owned deployment.
