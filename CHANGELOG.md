@@ -1,3 +1,10 @@
+# [0.41.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.40.0...0.41.0) (2026-09-19)
+
+
+### Features
+
+* **runtime:** harden reboot lifecycle and P0.3 secret normalization ([#209](https://github.com/AlbanAndrieu/nabla-compose/issues/209)) ([f98c815](https://github.com/AlbanAndrieu/nabla-compose/commit/f98c815fcb7048639ebef273c81bc3a25a18113c))
+
 # [0.40.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.39.0...0.40.0) (2026-09-19)
 
 
