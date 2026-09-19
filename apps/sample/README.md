@@ -67,10 +67,31 @@ identity. Keep local runtime settings under `POSTGRES_*` and move Supabase
 database/pooler identity to explicit `SUPABASE_*` names in FastAPI Sample before
 the final secret-contract migration.
 
-The target end state is a dedicated least-privilege Sample database/role on the
-shared PostgreSQL service rather than the `postgres` superuser. Until that role
-is bootstrapped and accepted, preserve the current working local values and do
-not silently substitute the Supabase user.
+The target end state is a dedicated least-privilege Sample database and role on
+the shared PostgreSQL service rather than the `postgres` superuser:
+
+```dotenv
+POSTGRES_HOST=172.17.0.24
+POSTGRES_PORT=5432
+POSTGRES_DB=sample
+POSTGRES_USER=sample
+```
+
+The dedicated `sample` role must be LOGIN-only, must not be SUPERUSER,
+CREATEDB, CREATEROLE or REPLICATION, and should own only the `sample` database
+(and its application schema/objects). Its password belongs in
+`/mnt/cpool/secrets/runtime/sample/.env.secrets`; never put it in tracked
+Compose or documentation.
+
+Before switching these values, add an idempotent
+`scripts/truenas/bootstrap-sample-postgres.sh --check|--apply` following the
+existing Scanopy/Joplin shared-PostgreSQL pattern, then prove authentication as
+the `sample` role. Until that bootstrap and application migration are accepted,
+the currently staged Supabase-backed values are compatibility state only and
+must not be mistaken for the local PostgreSQL target.
+
+Supabase database/pooler settings must use explicit `SUPABASE_*` variables;
+do not overload local `POSTGRES_*` with the Supabase pooler identity.
 
 ## Homelab runtime probes
 
