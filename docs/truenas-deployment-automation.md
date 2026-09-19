@@ -1,69 +1,100 @@
 # TrueNAS deployment automation: cron + Doco-CD
 
-Two independent layers currently participate in deployment automation. Keep
-their ownership separate so a TrueNAS checkout can also be used for reviewed
-development work.
+TrueNAS currently has two independent automation mechanisms. They must not both
+own the same container lifecycle.
 
-## Layer 0 — TrueNAS cron self-updates the Doco-CD bootstrap
+## Layer 0 — TrueNAS cron synchronizes the local master checkout
 
-The scheduled command invokes:
+Observed TrueNAS cron job:
 
 ```text
-scripts/cron.sh <nabla-compose checkout>
+id: 6
+enabled: true
+user: albandrieu
+schedule: minute=0 hour=* dom=* month=* dow=*
+command: bash /mnt/cpool/compose/nabla-compose/scripts/cron.sh /mnt/cpool/compose/nabla-compose
 ```
 
-The cron helper does **not** own application deployment. Its job is to keep the
-small `bootstrap/` Doco-CD stack current.
+The cron helper owns **Git synchronization only**. It does not deploy
+applications and does not start/replace Doco-CD.
 
 Contract:
 
-1. acquire a host-local `flock` so cron/manual reconciliation cannot overlap;
+1. acquire a host-local `flock` so two Git reconciliations cannot overlap;
 2. operate only while the checkout is on `master` (or the explicitly configured
    `NABLA_CRON_BRANCH`);
-3. ignore dirty submodule working trees but refuse tracked superproject edits;
+3. ignore dirty submodule worktrees but refuse tracked superproject edits;
 4. fetch `origin/master`;
 5. accept fast-forward updates only — never `git reset --hard`;
-6. if the new commit did not change `bootstrap/`, stop;
-7. validate `bootstrap/compose.yaml`, run one `docker compose up -d`, then
-   wait for health.
+6. update the local checkout;
+7. report Doco-CD configuration changes but leave runtime reconciliation to the
+   already-running Doco-CD instance.
 
 When the operator checks out a feature branch such as
-`refactor/sample-nabla-service-foundation`, the cron intentionally becomes a
-no-op for the local checkout. This protects active work. The already-running
-Doco-CD container continues its own remote Git polling independently.
+`refactor/sample-nabla-service-foundation`, cron intentionally becomes a no-op.
+Commits pushed to that branch are **not** automatically present in the TrueNAS
+checkout; use an explicit `git fetch` / `git pull --ff-only --recurse-submodules=no`.
 
-## Layer 1 — Doco-CD polls reviewed Git state
+Doco-CD remote polling is separate and does not update this local feature-branch
+checkout.
 
-`bootstrap/compose.yaml` runs the Doco-CD process. Its poll configuration uses:
+## Layer 1 — live TrueNAS Doco-CD polls reviewed remote master
 
-```yaml
-url: https://github.com/albandrieu/nabla-compose.git
-reference: master
-interval: 3600
+Runtime inspection established that the TrueNAS `doco-cd` container is owned by:
+
+```text
+project: nabla-compose
+working_dir: /mnt/cpool/compose/nabla-compose
+config_files: /mnt/cpool/compose/nabla-compose/docker-compose-truenas.yml
 ```
 
-Doco-CD therefore checks remote `master` once per hour. When no inline
-`deployments` are configured, repository deployment configuration is discovered
-from `.doco-cd.yaml`.
+This is different from the workstation, where Doco-CD belongs to
+`docker-compose.yml,docker-compose.override.yml`. The root
+`docker-compose.yml` is therefore workstation-only and is not a TrueNAS
+deployment source.
 
-The current repository deployment config is named `nabla` and declares external
-secret mappings for N8N and generic PostgreSQL credentials. Treat those generic
-`POSTGRES_USER` / `POSTGRES_PASSWORD` mappings as legacy deployment scope:
-they must not be reused to represent both local Sample PostgreSQL and Supabase.
+The TrueNAS poll configuration is intentionally bounded to remote `master`:
 
-The bootstrap Doco-CD stack deliberately remains a recovery/bootstrap boundary
-and currently has direct Docker socket access. The normal repository
-`docker-compose.yml` defines Doco-CD behind `docker-socket-proxy`; converge
-these two models only as a separate reviewed migration so bootstrap recovery is
-not broken accidentally.
+```yaml
+- url: https://github.com/albanandrieu/nabla-compose.git
+  reference: master
+  interval: 3600
+  deployments:
+    - name: vaultwarden
+      compose_file: apps/vaultwarden/compose.yml
+    - name: garage
+      compose_file: apps/garage/compose.yml
+```
 
-Both Compose definitions currently declare `container_name: doco-cd`. Do not assume they can or should run concurrently. Before changing ownership, inspect the live container’s Compose labels and mounted poll configuration to identify which definition actually owns it. The repository intentionally leaves this as an explicit migration debt rather than silently replacing a recovery path.
+The historical paths `vaultwarden/compose.yml` and `garage/compose.yml` do
+not exist on current `master`; the canonical repository paths are under
+`apps/`.
 
-Doco-CD documents a dedicated self-updater pattern using a separate updater instance and recommends disabling the scheduler on that updater. That is a viable later replacement for the host cron, but only after the current cron/bootstrap recovery path is observed and rollback-tested.
+The TrueNAS Doco-CD image is pinned to `ghcr.io/kimdre/doco-cd:0.85.1`.
+Its steady-state secret provider remains the webhook adapter and its Docker
+boundary remains `docker-socket-proxy`. The unused 1Password token mount is
+removed from this active definition.
+
+Changing `docker-compose-truenas.yml` in Git does not retroactively rewrite the
+already-running container's embedded `/poll-config.yml`. After #211 is
+accepted, reconcile the live Doco-CD definition deliberately, then copy
+`/poll-config.yml` back from the container and verify the canonical paths.
+
+## Legacy bootstrap definition
+
+`bootstrap/compose.yaml` remains historical/recovery code. It still represents
+the former direct-socket + 1Password bootstrap path, but 1Password is declared
+disabled and this stack is **not** started by cron.
+
+Do not run `bootstrap/compose.yaml` alongside the live TrueNAS Doco-CD:
+both definitions claim `container_name: doco-cd`.
+
+Retire or convert the bootstrap definition only after the webhook/Vaultwarden
+recovery path has equivalent break-glass coverage.
 
 ## FastAPI Sample ownership
 
-The TrueNAS `sample` Custom App is **not** currently a Doco-CD-owned deployment.
+The TrueNAS `sample` Custom App is **not** currently a Doco-CD deployment.
 
 Its reviewed lifecycle remains:
 
@@ -82,20 +113,33 @@ legacy env finalization
 ```
 
 Doco-CD must not gain an implicit Sample deployment target during the current
-canonical-path pilot. If Sample is moved under Doco-CD later, add a dedicated
-deployment target with explicit canonical env ownership and preserve the same
-acceptance/rollback gates.
+canonical-path pilot.
 
-## Development tooling on TrueNAS
+## Development tooling versus Talos/Kubernetes operator tooling
 
 TrueNAS package management remains immutable. Do not use `apt` to turn the
 appliance into a workstation.
 
-Use:
+Development/quality tools are user-space only:
 
 ```bash
 bash scripts/truenas/bootstrap-dev-tools.sh
 ```
 
-The helper installs `mise`, `pre-commit`, `uv`, pytest and PyYAML under the
-operator home only. It does not modify the TrueNAS OS package database.
+This installs `mise`/uv plus an isolated venv containing pre-commit, pytest and
+PyYAML under the operator home.
+
+Kubernetes/Talos operator binaries are a separate existing contract:
+
+```text
+/mnt/cpool/tools/bin/kubectl
+/mnt/cpool/tools/bin/talosctl
+```
+
+They are root-managed, checksum-verified and installed by
+`scripts/truenas/install-operator-tools.sh`. The dev bootstrap must not install
+or replace them.
+
+The native `shfmt` pre-commit hook is used instead of `shfmt-docker` so a
+non-root TrueNAS operator does not need Docker-socket access merely to format
+shell scripts.
