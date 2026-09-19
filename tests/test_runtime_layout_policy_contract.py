@@ -22,12 +22,14 @@ DEPLOY_HELPERS = {
 def test_runtime_env_migration_is_staged_before_finalize() -> None:
     script = ENV_BOOTSTRAP.read_text(encoding="utf-8")
 
-    assert "--check | --apply | --finalize" in script
+    assert "--check | --apply | --restage | --finalize" in script
     assert "stage verified root-only canonical copies; keep old paths intact" in script
     assert "staged from %s; legacy path left intact" in script
     assert 'if [[ "${MODE}" == "--finalize" ]]' in script
     assert 'ln -s "${target}" "${source}"' in script
     assert "run --apply first" in script
+    assert "--restage requires an explicit app filter" in script
+    assert "restaged from %s; legacy path left intact" in script
     assert "no existing source can stage it" in script
 
 
