@@ -130,8 +130,12 @@ class HomelabRebootContractTests(unittest.TestCase):
                 {"id": "n8n", "state": "RUNNING"},
             ]
 
-            (root / "services.json").write_text(json.dumps(services), encoding="utf-8")
-            (root / "topology.json").write_text(json.dumps(topology), encoding="utf-8")
+            (root / "services.json").write_text(
+                json.dumps(services), encoding="utf-8"
+            )
+            (root / "topology.json").write_text(
+                json.dumps(topology), encoding="utf-8"
+            )
 
             def selected_apps(name: str, apps: list[dict[str, str]]) -> list[str]:
                 path = root / name
@@ -158,10 +162,12 @@ class HomelabRebootContractTests(unittest.TestCase):
 
             self.assertEqual(
                 selected_apps("apps-before.json", frozen_apps),
-                ["postgres", "n8n"],
+                ["n8n", "postgres"],
             )
             self.assertEqual(
-                selected_apps("runtime-after-partial-stop.json", partially_stopped_apps),
+                selected_apps(
+                    "runtime-after-partial-stop.json", partially_stopped_apps
+                ),
                 ["n8n"],
             )
 
