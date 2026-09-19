@@ -7,6 +7,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 CRON = ROOT / "scripts" / "cron.sh"
 BOOTSTRAP = ROOT / "bootstrap" / "compose.yaml"
+TRUENAS_DOCO = ROOT / "docker-compose-truenas.yml"
+WORKSTATION_COMPOSE = ROOT / "docker-compose.yml"
 DEV_TOOLS = ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
 DOC = ROOT / "docs" / "truenas-deployment-automation.md"
 
@@ -21,8 +23,8 @@ def test_cron_is_branch_bounded_and_non_destructive() -> None:
     assert 'git merge --ff-only "origin/${DEPLOY_BRANCH}"' in script
     assert "git reset --hard" not in script
     assert "--ignore-submodules=all" in script
-    assert "docker compose config --quiet" in script
-    assert script.count("docker compose up -d") == 1
+    assert "Runtime deployment remains owned by the already-running Doco-CD instance" in script
+    assert "docker compose" not in script
 
     syntax = subprocess.run(
         ["bash", "-n", str(CRON)],
@@ -31,6 +33,29 @@ def test_cron_is_branch_bounded_and_non_destructive() -> None:
         check=False,
     )
     assert syntax.returncode == 0, syntax.stderr
+
+
+def test_live_truenas_doco_cd_uses_canonical_master_deployments() -> None:
+    compose = TRUENAS_DOCO.read_text(encoding="utf-8")
+
+    assert "reference: master" in compose
+    assert "apps/vaultwarden/compose.yml" in compose
+    assert "apps/garage/compose.yml" in compose
+    assert "vaultwarden/compose.yml" in compose
+    assert "garage/compose.yml" in compose
+    assert "apps/sample/compose.yml" not in compose
+    assert "ghcr.io/kimdre/doco-cd:0.85.1" in compose
+    assert "ghcr.io/kimdre/doco-cd:latest" not in compose
+    assert "SECRET_PROVIDER: webhook" in compose
+    assert "DOCKER_HOST: tcp://docker-socket-proxy:2375" in compose
+    assert ".doco-cd/1pw_token" not in compose
+
+
+def test_workstation_compose_is_not_the_truenas_doco_cd_owner() -> None:
+    compose = WORKSTATION_COMPOSE.read_text(encoding="utf-8")
+    assert compose.startswith(
+        "# Workstation-only Compose root. TrueNAS Doco-CD uses docker-compose-truenas.yml."
+    )
 
 
 def test_bootstrap_doco_cd_polls_real_master_with_pinned_image() -> None:
@@ -48,9 +73,11 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
 
     assert "https://mise.run" in script
     assert '${HOME}/.local/bin/mise' in script
-    assert "pre-commit@latest" in script
+    assert 'PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"' in script
     assert "uv@latest" in script
-    assert "pytest PyYAML" in script
+    assert '"pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML' in script
+    assert 'PATH="${DEV_VENV}/bin:\\$PATH" bash scripts/agent-quality-gate.sh --fix' in script
+    assert "install-operator-tools.sh --check" in script
     assert "apt install" not in script
     assert "apt-get" not in script
     assert "sudo " not in script
