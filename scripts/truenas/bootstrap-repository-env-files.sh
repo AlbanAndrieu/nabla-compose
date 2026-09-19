@@ -459,8 +459,8 @@ while IFS= read -r source; do
   fi
 
   # Historical bootstrap used to create empty placeholders. Once a real secret
-  # has been rendered canonically, there is no legacy payload to preserve. This
-  # is the only non-byte-identical finalization case allowed.
+  # has been rendered canonically, there is no legacy payload to preserve.
+  # This is the only non-byte-identical finalization case allowed.
   if requires_nonempty_materialization "${target}" && [[ ! -s "${source}" && -s "${target}" ]]; then
     if [[ "${MODE}" == "--finalize" ]]; then
       rm -f "${source}"
