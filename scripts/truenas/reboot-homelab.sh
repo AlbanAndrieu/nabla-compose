@@ -249,7 +249,8 @@ record_prepare_history() {
 }
 
 print_operator_acceptance() {
-  local dir="$1" annotation="${1}/operator-acceptance.json"
+  local dir="$1" annotation
+  annotation="${dir}/operator-acceptance.json"
 
   [[ -f "${annotation}" ]] || return 0
   jq -e '
@@ -281,7 +282,7 @@ record_operator_acceptance() {
       awk 'BEGIN{RS="[,[:space:]]+"} NF{print}' |
       sort -u
   )
-  (("${#apps[@]}" > 0)) || fail "no deferred Apps parsed"
+  ((${#apps[@]} > 0)) || fail "no deferred Apps parsed"
 
   [[ ! -e "${dir}/operator-acceptance.json" ]] ||
     fail "operator acceptance already recorded; annotations are immutable"
