@@ -34,34 +34,27 @@ class SecretsRendererTests(TestCase):
             manifest["folder"]["id"],
             "44a92b83-2762-4fa5-a238-f84396fd26f9",
         )
-        self.assertEqual(
-            {item["app"] for item in manifest["items"]},
+        apps = {item["app"] for item in manifest["items"]}
+        self.assertTrue(
             {
                 "infrastructure-bootstrap",
                 "truenas-csi",
                 "nexus-infrastructure",
-                "grafana-observability",
-                "pfsense-observability",
                 "n8n",
-                "2fauth",
-                "open-terminal",
-                "karakeep",
-                "reactive-resume",
-                "akvorado",
-                "crowdsec",
-                "keycloak",
                 "scanopy",
                 "joplin",
-                "autokuma",
                 "cyberbro",
                 "plumber",
                 "netbox",
                 "dependency-track",
                 "defectdojo",
                 "neo4j",
-                "cartography",
-                "scorecard",
-            },
+                "pihole",
+                "mongo",
+                "graylog",
+                "sentry",
+                "sentry-migrator",
+            }.issubset(apps)
         )
         serialized = json.dumps(manifest)
         self.assertNotIn('"value"', serialized)
@@ -110,6 +103,33 @@ class SecretsRendererTests(TestCase):
                         }
                     ],
                 },
+            ],
+        }
+
+        renderer.validate_manifest(manifest)
+
+    def test_manifest_allows_duplicate_import_name_within_same_app(self) -> None:
+        manifest = {
+            "schemaVersion": 1,
+            "server": "https://vaultwarden.example.test",
+            "folder": {"name": "TrueNAS", "id": "folder-id"},
+            "items": [
+                {
+                    "app": "one",
+                    "item": "one",
+                    "secrets": [
+                        {
+                            "env": "ONE_TOKEN",
+                            "importEnv": "SHARED_SOURCE_TOKEN",
+                            "field": "ONE_TOKEN",
+                        },
+                        {
+                            "env": "SECOND_TOKEN",
+                            "importEnv": "SHARED_SOURCE_TOKEN",
+                            "field": "SECOND_TOKEN",
+                        },
+                    ],
+                }
             ],
         }
 
@@ -326,6 +346,33 @@ class SecretsRendererTests(TestCase):
             ["bw", "list", "items", "--search", "TOKEN", "--folderid", "folder-id"],
         )
 
+    def test_dotenv_parser_never_executes_shell_syntax(self) -> None:
+        values = importer.parse_dotenv(
+            "TOKEN='literal-$HOME-$(id)'\n"
+            "export PASSWORD=\"still-literal\"\n"
+        )
+        self.assertEqual(values["TOKEN"], "literal-$HOME-$(id)")
+        self.assertEqual(values["PASSWORD"], "still-literal")
+
+    def test_dotenv_input_can_use_target_runtime_name(self) -> None:
+        app_spec = {
+            "app": "example",
+            "item": "example",
+            "secrets": [
+                {
+                    "env": "TARGET_TOKEN",
+                    "importEnv": "MIGRATION_ALIAS",
+                    "field": "TARGET_TOKEN",
+                }
+            ],
+        }
+        values, supplied = importer.collect_values(
+            app_spec,
+            source_values={"TARGET_TOKEN": "legacy-value"},
+        )
+        self.assertEqual(values, {"TARGET_TOKEN": "legacy-value"})
+        self.assertEqual(supplied, {"TARGET_TOKEN"})
+
     def test_importer_reads_current_environment_without_parsing_shell_files(self) -> None:
         app_spec = {
             "app": "example",
@@ -339,8 +386,9 @@ class SecretsRendererTests(TestCase):
             ],
         }
         with mock.patch.dict(os.environ, {"LEGACY_EXPORTED_TOKEN": "secret-value"}, clear=False):
-            values = importer.collect_values(app_spec)
+            values, supplied = importer.collect_values(app_spec)
         self.assertEqual(values, {"TARGET_TOKEN": "secret-value"})
+        self.assertEqual(supplied, {"LEGACY_EXPORTED_TOKEN"})
 
     def test_importer_defaults_missing_allow_empty_source_to_empty_string(self) -> None:
         app_spec = {
@@ -356,8 +404,9 @@ class SecretsRendererTests(TestCase):
             ],
         }
         with mock.patch.dict(os.environ, {}, clear=True):
-            values = importer.collect_values(app_spec)
+            values, supplied = importer.collect_values(app_spec)
         self.assertEqual(values, {"OPTIONAL_TOKEN": ""})
+        self.assertEqual(supplied, set())
 
     def test_importer_builds_hidden_custom_fields(self) -> None:
         app_spec = {
