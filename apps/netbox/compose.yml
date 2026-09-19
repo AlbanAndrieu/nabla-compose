@@ -1,0 +1,143 @@
+---
+services:
+  netbox:
+    image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
+    container_name: netbox
+    restart: unless-stopped
+    user: "netbox:root"
+    env_file:
+      - /mnt/cpool/secrets/runtime/netbox/.env.secrets
+    environment: &netbox-env
+      DB_HOST: ${NETBOX_DB_HOST:-postgres}
+      DB_PORT: ${NETBOX_DB_PORT:-5432}
+      DB_NAME: ${NETBOX_DB_NAME:-netbox}
+      DB_USER: ${NETBOX_DB_USER:-netbox}
+      REDIS_HOST: ${NETBOX_REDIS_HOST:-redis}
+      REDIS_PORT: ${NETBOX_REDIS_PORT:-6379}
+      REDIS_DATABASE: ${NETBOX_REDIS_DATABASE:-5}
+      REDIS_CACHE_HOST: ${NETBOX_REDIS_CACHE_HOST:-redis}
+      REDIS_CACHE_PORT: ${NETBOX_REDIS_CACHE_PORT:-6379}
+      REDIS_CACHE_DATABASE: ${NETBOX_REDIS_CACHE_DATABASE:-6}
+      SKIP_SUPERUSER: ${NETBOX_SKIP_SUPERUSER:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/netbox/health.sh || exit 1"]
+      start_period: 90s
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "172.17.0.24:31082:8080"
+    volumes:
+      - /mnt/cpool/netbox/media:/opt/netbox/netbox/media
+      - /mnt/cpool/netbox/reports:/opt/netbox/netbox/reports
+      - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
+    networks:
+      - intranet
+    x-nabla:
+      id: netbox
+      name: NetBox
+      kind: infrastructure-source-of-truth
+      category: infrastructure
+      presentationRole: service
+      criticality: medium
+      securityFunctions:
+        - identify
+      url: http://172.17.0.24:31082
+      description: Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.
+      runtime:
+        provider: truenas-app
+        containerService: netbox
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31082
+      relations:
+        - target: postgresql
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/netbox/compose.yml:DB_HOST
+        - target: redis
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/netbox/compose.yml:REDIS_HOST
+
+  netbox-worker:
+    image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
+    container_name: netbox-worker
+    restart: unless-stopped
+    user: "netbox:root"
+    env_file:
+      - /mnt/cpool/secrets/runtime/netbox/.env.secrets
+    environment: *netbox-env
+    command:
+      - /opt/netbox/venv/bin/python
+      - /opt/netbox/netbox/manage.py
+      - rqworker
+    healthcheck:
+      test: ["CMD-SHELL", "ps -aux | grep -v grep | grep -q rqworker || exit 1"]
+      start_period: 40s
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - /mnt/cpool/netbox/media:/opt/netbox/netbox/media
+      - /mnt/cpool/netbox/reports:/opt/netbox/netbox/reports
+      - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
+    networks:
+      - intranet
+    x-nabla:
+      id: netbox-worker
+      name: NetBox Worker
+      kind: background-worker
+      category: infrastructure
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: netbox-worker
+      relations:
+        - target: netbox
+          type: partOf
+          strength: required
+          evidence:
+            - apps/netbox/compose.yml:netbox-worker
+
+  netbox-housekeeping:
+    image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
+    container_name: netbox-housekeeping
+    restart: unless-stopped
+    user: "netbox:root"
+    env_file:
+      - /mnt/cpool/secrets/runtime/netbox/.env.secrets
+    environment: *netbox-env
+    command:
+      - /opt/netbox/housekeeping.sh
+    volumes:
+      - /mnt/cpool/netbox/media:/opt/netbox/netbox/media
+      - /mnt/cpool/netbox/reports:/opt/netbox/netbox/reports
+      - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
+    networks:
+      - intranet
+    x-nabla:
+      id: netbox-housekeeping
+      name: NetBox Housekeeping
+      kind: maintenance-worker
+      category: infrastructure
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: netbox-housekeeping
+      relations:
+        - target: netbox
+          type: partOf
+          strength: required
+          evidence:
+            - apps/netbox/compose.yml:netbox-housekeeping
+
+networks:
+  intranet:
+    external: true
+    name: intranet

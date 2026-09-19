@@ -233,6 +233,27 @@
       }
     },
     {
+      "id": "cartography",
+      "name": "Cartography",
+      "kind": "security-asset-graph-ingestor",
+      "category": "security",
+      "sourcePath": "apps/cartography/compose.yml",
+      "description": "Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "cartography",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "clamav",
       "name": "ClamAV",
       "kind": "antivirus-engine",
@@ -337,6 +358,150 @@
         "target": "http://172.17.0.24:5100/",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo",
+      "name": "DefectDojo",
+      "kind": "vulnerability-management-platform",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "url": "http://172.17.0.24:31085",
+      "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect",
+        "respond"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31085
+      }
+    },
+    {
+      "id": "defectdojo-api",
+      "name": "DefectDojo API",
+      "kind": "vulnerability-management-api",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect",
+        "respond"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-uwsgi",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-celerybeat",
+      "name": "DefectDojo Celery Beat",
+      "kind": "scheduler",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-celerybeat",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-initializer",
+      "name": "DefectDojo Initializer",
+      "kind": "database-initializer",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-initializer",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "defectdojo-worker",
+      "name": "DefectDojo Worker",
+      "kind": "background-worker",
+      "category": "security",
+      "sourcePath": "apps/defectdojo/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "defectdojo-celeryworker",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "dependency-track",
+      "name": "Dependency-Track",
+      "kind": "software-supply-chain-platform",
+      "category": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "url": "http://172.17.0.24:31084",
+      "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dependency-track",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31084
+      }
+    },
+    {
+      "id": "dependency-track-api",
+      "name": "Dependency-Track API",
+      "kind": "software-supply-chain-api",
+      "category": "security",
+      "sourcePath": "apps/dependency-track/compose.yml",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dependency-track-api",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -1086,6 +1251,91 @@
       "icon": "⚙️"
     },
     {
+      "id": "neo4j-security",
+      "name": "Neo4j Security Graph",
+      "kind": "graph-database",
+      "category": "security",
+      "sourcePath": "apps/neo4j/compose.yml",
+      "url": "http://172.17.0.24:31086",
+      "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "neo4j-security",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31086
+      }
+    },
+    {
+      "id": "netbox",
+      "name": "NetBox",
+      "kind": "infrastructure-source-of-truth",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "url": "http://172.17.0.24:31082",
+      "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31082
+      }
+    },
+    {
+      "id": "netbox-housekeeping",
+      "name": "NetBox Housekeeping",
+      "kind": "maintenance-worker",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox-housekeeping",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "netbox-worker",
+      "name": "NetBox Worker",
+      "kind": "background-worker",
+      "category": "infrastructure",
+      "sourcePath": "apps/netbox/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "netbox-worker",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "nexus",
       "name": "Nexus Repository",
       "kind": "artifact-repository",
@@ -1382,6 +1632,24 @@
       "icon": "📡"
     },
     {
+      "id": "openssf-scorecard",
+      "name": "OpenSSF Scorecard",
+      "kind": "repository-security-posture-scanner",
+      "category": "security",
+      "sourcePath": "apps/scorecard/compose.yml",
+      "description": "One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "identify",
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "scorecard"
+      }
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "kind": "application",
@@ -1542,6 +1810,69 @@
         "type": "port",
         "host": "172.17.0.24",
         "port": 9617
+      }
+    },
+    {
+      "id": "plumber",
+      "name": "Plumber",
+      "kind": "developer-platform",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "url": "http://172.17.0.24:31070",
+      "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
+      "presentationRole": "service",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31070
+      }
+    },
+    {
+      "id": "plumber-api",
+      "name": "Plumber API",
+      "kind": "developer-platform-api",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "securityFunctions": [
+        "identify",
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber-api",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "plumber-worker",
+      "name": "Plumber Worker",
+      "kind": "background-worker",
+      "category": "development",
+      "sourcePath": "apps/plumber/compose.yml",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "plumber-worker",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -2427,6 +2758,25 @@
       ]
     },
     {
+      "source": "cartography",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/cartography/compose.yml:cartography.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "cartography",
+      "target": "neo4j-security",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/cartography/compose.yml:NEO4J_URL"
+      ]
+    },
+    {
       "source": "clickhouse",
       "target": "docker",
       "type": "hostedBy",
@@ -2508,6 +2858,148 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/cyberbro/compose.yml:cyberbro.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "defectdojo",
+      "target": "defectdojo-api",
+      "type": "consumesApi",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:DD_UWSGI_HOST"
+      ]
+    },
+    {
+      "source": "defectdojo",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "defectdojo-api",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-uwsgi.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "defectdojo-api",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:DD_DATABASE_URL"
+      ]
+    },
+    {
+      "source": "defectdojo-api",
+      "target": "redis",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:DD_CELERY_BROKER_URL"
+      ]
+    },
+    {
+      "source": "defectdojo-celerybeat",
+      "target": "defectdojo-api",
+      "type": "partOf",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-celerybeat"
+      ]
+    },
+    {
+      "source": "defectdojo-celerybeat",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-celerybeat.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "defectdojo-initializer",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-initializer.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "defectdojo-initializer",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:DD_DATABASE_URL"
+      ]
+    },
+    {
+      "source": "defectdojo-worker",
+      "target": "defectdojo-api",
+      "type": "partOf",
+      "strength": "required",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-celeryworker"
+      ]
+    },
+    {
+      "source": "defectdojo-worker",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/defectdojo/compose.yml:defectdojo-celeryworker.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dependency-track",
+      "target": "dependency-track-api",
+      "type": "consumesApi",
+      "strength": "required",
+      "evidence": [
+        "apps/dependency-track/compose.yml:API_BASE_URL"
+      ]
+    },
+    {
+      "source": "dependency-track",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/dependency-track/compose.yml:dependency-track.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dependency-track-api",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/dependency-track/compose.yml:dependency-track-api.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dependency-track-api",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/dependency-track/compose.yml:ALPINE_DATABASE_URL"
       ]
     },
     {
@@ -3406,6 +3898,82 @@
       ]
     },
     {
+      "source": "neo4j-security",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/neo4j/compose.yml:neo4j-security.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:DB_HOST"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "redis",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:REDIS_HOST"
+      ]
+    },
+    {
+      "source": "netbox-housekeeping",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox-housekeeping.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "netbox-housekeeping",
+      "target": "netbox",
+      "type": "partOf",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox-housekeeping"
+      ]
+    },
+    {
+      "source": "netbox-worker",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox-worker.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "netbox-worker",
+      "target": "netbox",
+      "type": "partOf",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox-worker"
+      ]
+    },
+    {
       "source": "nexus",
       "target": "docker",
       "type": "hostedBy",
@@ -3716,6 +4284,16 @@
       ]
     },
     {
+      "source": "openssf-scorecard",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scorecard/compose.yml:scorecard.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "openwebui",
       "target": "cloudflared",
       "type": "exposedBy",
@@ -3875,6 +4453,72 @@
       "description": "The exporter reads Pi-hole runtime statistics.",
       "evidence": [
         "apps/pihole/compose.yml:PIHOLE_HOSTNAME=pihole"
+      ]
+    },
+    {
+      "source": "plumber",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/plumber/compose.yml:plumber.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "plumber",
+      "target": "plumber-api",
+      "type": "consumesApi",
+      "strength": "required",
+      "evidence": [
+        "apps/plumber/compose.yml:API_DOMAIN"
+      ]
+    },
+    {
+      "source": "plumber-api",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/plumber/compose.yml:plumber-api.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "plumber-api",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/plumber/compose.yml:JOBS_DB_HOST"
+      ]
+    },
+    {
+      "source": "plumber-api",
+      "target": "redis",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/plumber/compose.yml:JOBS_REDIS_HOST"
+      ]
+    },
+    {
+      "source": "plumber-worker",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/plumber/compose.yml:plumber-worker.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "plumber-worker",
+      "target": "plumber-api",
+      "type": "partOf",
+      "strength": "required",
+      "evidence": [
+        "apps/plumber/compose.yml:plumber-worker"
       ]
     },
     {

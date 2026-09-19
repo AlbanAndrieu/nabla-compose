@@ -1,0 +1,27 @@
+---
+services:
+  scorecard:
+    image: ${SCORECARD_IMAGE:-ghcr.io/ossf/scorecard:latest}
+    container_name: openssf-scorecard
+    restart: "no"
+    profiles:
+      - manual
+    env_file:
+      - /mnt/cpool/secrets/runtime/scorecard/.env.secrets
+    command:
+      - --repo=${SCORECARD_REPO:-github.com/AlbanAndrieu/nabla-compose}
+      - --format=json
+    x-nabla:
+      id: openssf-scorecard
+      name: OpenSSF Scorecard
+      kind: repository-security-posture-scanner
+      category: security
+      presentationRole: support
+      criticality: low
+      securityFunctions:
+        - identify
+        - detect
+      description: One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score.
+      runtime:
+        provider: truenas-app
+        containerService: scorecard

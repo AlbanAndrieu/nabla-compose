@@ -2,6 +2,8 @@
 
 This document expands the concise `docs/roadmap.md` P2.1 workstream. The canonical application/service identity and declared dependency model remain `x-nabla` plus the generated `catalog/services.json` and `catalog/service-topology.json`. Specialized tools must enrich that model without becoming competing sources of truth.
 
+The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilities, NIST CSF/SAMM mapping, priorities and lifecycle decisions are maintained in [`docs/security-tooling-control-architecture.md`](./security-tooling-control-architecture.md).
+
 ## Target capability split
 
 - **NetBox** — network/infrastructure intent: IPAM, prefixes, VLANs, devices/VMs, interfaces and infrastructure ownership.

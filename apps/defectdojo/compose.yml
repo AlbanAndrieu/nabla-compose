@@ -1,0 +1,202 @@
+---
+x-defectdojo-django: &defectdojo-django
+  image: ${DEFECTDOJO_DJANGO_IMAGE:-defectdojo/defectdojo-django:latest}
+  restart: unless-stopped
+  env_file:
+    # Must define DD_DATABASE_URL, DD_CELERY_BROKER_URL, DD_CACHE_URL,
+    # DD_SECRET_KEY and DD_CREDENTIAL_AES_256_KEY. Keep credentials outside Git.
+    - /mnt/cpool/secrets/runtime/defectdojo/.env.secrets
+  environment: &defectdojo-env
+    DD_DEBUG: "False"
+    DD_ALLOWED_HOSTS: ${DD_ALLOWED_HOSTS:-*}
+    DD_DATABASE_HOST: ${DD_DATABASE_HOST:-postgres}
+    DD_DATABASE_PORT: ${DD_DATABASE_PORT:-5432}
+    DD_DATABASE_READINESS_TIMEOUT: ${DD_DATABASE_READINESS_TIMEOUT:-60}
+  networks:
+    - intranet
+
+services:
+  defectdojo-initializer:
+    <<: *defectdojo-django
+    container_name: defectdojo-initializer
+    restart: "no"
+    entrypoint:
+      - /wait-for-it.sh
+      - ${DD_DATABASE_HOST:-postgres}:${DD_DATABASE_PORT:-5432}
+      - -t
+      - "60"
+      - --
+      - /entrypoint-initializer.sh
+    environment:
+      <<: *defectdojo-env
+      DD_INITIALIZE: ${DD_INITIALIZE:-true}
+      DD_ADMIN_USER: ${DD_ADMIN_USER:-admin}
+      DD_ADMIN_MAIL: ${DD_ADMIN_MAIL:-admin@defectdojo.local}
+    x-nabla:
+      id: defectdojo-initializer
+      name: DefectDojo Initializer
+      kind: database-initializer
+      category: security
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: defectdojo-initializer
+      relations:
+        - target: postgresql
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:DD_DATABASE_URL
+
+  defectdojo-uwsgi:
+    <<: *defectdojo-django
+    container_name: defectdojo-uwsgi
+    depends_on:
+      defectdojo-initializer:
+        condition: service_completed_successfully
+    entrypoint:
+      - /wait-for-it.sh
+      - ${DD_DATABASE_HOST:-postgres}:${DD_DATABASE_PORT:-5432}
+      - -t
+      - "60"
+      - --
+      - /entrypoint-uwsgi.sh
+    volumes:
+      - /mnt/cpool/defectdojo/media:/app/media
+    x-nabla:
+      id: defectdojo-api
+      name: DefectDojo API
+      kind: vulnerability-management-api
+      category: security
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+        - respond
+      runtime:
+        provider: truenas-app
+        containerService: defectdojo-uwsgi
+      relations:
+        - target: postgresql
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:DD_DATABASE_URL
+        - target: redis
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:DD_CELERY_BROKER_URL
+
+  defectdojo-celerybeat:
+    <<: *defectdojo-django
+    container_name: defectdojo-celerybeat
+    depends_on:
+      defectdojo-initializer:
+        condition: service_completed_successfully
+    entrypoint:
+      - /wait-for-it.sh
+      - ${DD_DATABASE_HOST:-postgres}:${DD_DATABASE_PORT:-5432}
+      - -t
+      - "60"
+      - --
+      - /entrypoint-celery-beat.sh
+    x-nabla:
+      id: defectdojo-celerybeat
+      name: DefectDojo Celery Beat
+      kind: scheduler
+      category: security
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: defectdojo-celerybeat
+      relations:
+        - target: defectdojo-api
+          type: partOf
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:defectdojo-celerybeat
+
+  defectdojo-celeryworker:
+    <<: *defectdojo-django
+    container_name: defectdojo-celeryworker
+    depends_on:
+      defectdojo-initializer:
+        condition: service_completed_successfully
+    entrypoint:
+      - /wait-for-it.sh
+      - ${DD_DATABASE_HOST:-postgres}:${DD_DATABASE_PORT:-5432}
+      - -t
+      - "60"
+      - --
+      - /entrypoint-celery-worker.sh
+    volumes:
+      - /mnt/cpool/defectdojo/media:/app/media
+    x-nabla:
+      id: defectdojo-worker
+      name: DefectDojo Worker
+      kind: background-worker
+      category: security
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: defectdojo-celeryworker
+      relations:
+        - target: defectdojo-api
+          type: partOf
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:defectdojo-celeryworker
+
+  defectdojo:
+    image: ${DEFECTDOJO_NGINX_IMAGE:-defectdojo/defectdojo-nginx:latest}
+    container_name: defectdojo
+    restart: unless-stopped
+    depends_on:
+      defectdojo-uwsgi:
+        condition: service_started
+    environment:
+      DD_UWSGI_HOST: defectdojo-uwsgi
+      DD_UWSGI_PORT: "3031"
+      NGINX_METRICS_ENABLED: ${NGINX_METRICS_ENABLED:-false}
+    ports:
+      - "172.17.0.24:31085:8080"
+    volumes:
+      - /mnt/cpool/defectdojo/media:/usr/share/nginx/html/media
+    networks:
+      - intranet
+    x-nabla:
+      id: defectdojo
+      name: DefectDojo
+      kind: vulnerability-management-platform
+      category: security
+      presentationRole: service
+      criticality: medium
+      securityFunctions:
+        - identify
+        - detect
+        - respond
+      url: http://172.17.0.24:31085
+      description: Central normalized security-finding aggregation, deduplication, triage and remediation workflow.
+      runtime:
+        provider: truenas-app
+        containerService: defectdojo
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31085
+      relations:
+        - target: defectdojo-api
+          type: consumesApi
+          strength: required
+          evidence:
+            - apps/defectdojo/compose.yml:DD_UWSGI_HOST
+
+networks:
+  intranet:
+    external: true
+    name: intranet

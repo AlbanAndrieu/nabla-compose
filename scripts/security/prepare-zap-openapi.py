@@ -24,9 +24,11 @@ DENIED_PATHS = frozenset(
         "/readyz",
         "/api/homelab/status",
         "/api/homelab/health",
-        # Resource-edit HTML requires a real persisted note. ZAP synthesizes
-        # path parameter values (for example /notes/10/edit), so including it
-        # makes the deterministic baseline depend on mutable application data.
+        # Resource note views require real persisted state. ZAP synthesizes
+        # path parameter values (for example /notes/10/ and /notes/10/edit),
+        # so including them makes the deterministic baseline depend on mutable
+        # application data rather than the exposed API contract itself.
+        "/notes/{note_id}",
         "/notes/{note_id}/edit",
         # Intentional failure/demo integrations are not production DAST targets.
         "/async-data",

@@ -1,0 +1,43 @@
+---
+services:
+  cartography:
+    image: ${CARTOGRAPHY_IMAGE:-ghcr.io/cartography-cncf/cartography:latest}
+    container_name: cartography
+    init: true
+    restart: "no"
+    profiles:
+      - manual
+    env_file:
+      - /mnt/cpool/secrets/runtime/cartography/.env.secrets
+    environment:
+      NEO4J_URL: ${CARTOGRAPHY_NEO4J_URL:-bolt://neo4j-security:7687}
+    networks:
+      - intranet
+    x-nabla:
+      id: cartography
+      name: Cartography
+      kind: security-asset-graph-ingestor
+      category: security
+      presentationRole: support
+      criticality: low
+      securityFunctions:
+        - identify
+        - detect
+      description: Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis.
+      runtime:
+        provider: truenas-app
+        containerService: cartography
+      relations:
+        - target: neo4j-security
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/cartography/compose.yml:NEO4J_URL
+    # Intentionally no default sync arguments. Run a bounded provider-specific job, e.g.:
+    # docker compose -f apps/cartography/compose.yml --profile manual run --rm cartography \
+    #   --neo4j-uri=bolt://neo4j-security:7687 <provider sync flags>
+
+networks:
+  intranet:
+    external: true
+    name: intranet

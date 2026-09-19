@@ -1,0 +1,132 @@
+---
+services:
+  plumber:
+    image: ${PLUMBER_FRONTEND_IMAGE:-docker.io/getplumber/frontend:latest}
+    container_name: plumber
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/secrets/runtime/plumber/.env.secrets
+    environment:
+      FRONTEND_DOMAIN: ${PLUMBER_FRONTEND_DOMAIN:-plumber-albandrieu.albandrieu.com}
+      API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
+      API_PATH: /api
+    ports:
+      - "172.17.0.24:31070:3000"
+    networks:
+      - intranet
+    x-nabla:
+      id: plumber
+      name: Plumber
+      kind: developer-platform
+      category: development
+      presentationRole: service
+      criticality: medium
+      securityFunctions:
+        - identify
+        - protect
+      url: http://172.17.0.24:31070
+      description: Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.
+      runtime:
+        provider: truenas-app
+        containerService: plumber
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31070
+      relations:
+        - target: plumber-api
+          type: consumesApi
+          strength: required
+          evidence:
+            - apps/plumber/compose.yml:API_DOMAIN
+
+  plumber-api:
+    image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
+    container_name: plumber-api
+    restart: unless-stopped
+    env_file:
+      - /mnt/cpool/secrets/runtime/plumber/.env.secrets
+    environment: &plumber-backend-env
+      JOBS_LISTEN_ADDR: 0.0.0.0
+      JOBS_LISTEN_PORT: 3000
+      JOBS_CORS_ORIGIN: ${PLUMBER_CORS_ORIGIN:-https://plumber-albandrieu.albandrieu.com}
+      JOBS_FRONTEND_URL: ${PLUMBER_FRONTEND_URL:-https://plumber-albandrieu.albandrieu.com}
+      JOBS_SESSION_TTL: 168h
+      JOBS_DB_HOST: ${JOBS_DB_HOST:-postgres}
+      JOBS_DB_PORT: ${JOBS_DB_PORT:-5432}
+      JOBS_DB_USER: ${JOBS_DB_USER:-jobs}
+      JOBS_DB_NAME: ${JOBS_DB_NAME:-jobs}
+      JOBS_DB_SSLMODE: ${JOBS_DB_SSLMODE:-disable}
+      JOBS_DB_TIMEZONE: ${JOBS_DB_TIMEZONE:-Europe/Paris}
+      JOBS_API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071/api}
+      LOG_LEVEL: ${PLUMBER_LOG_LEVEL:-info}
+      LOG_FORMATTER: text
+      JOBS_REDIS_HOST: ${JOBS_REDIS_HOST:-redis}
+      JOBS_REDIS_PORT: ${JOBS_REDIS_PORT:-6379}
+      JOBS_REDIS_DB: ${JOBS_REDIS_DB:-0}
+      JOBS_REDIS_USER: ${JOBS_REDIS_USER:-default}
+      JOBS_REDIS_SET_NAMESPACES_TTL: 30s
+      GITLEAKS_PATH: /opt/gitleaks
+      FRONTEND_DOMAIN: ${PLUMBER_FRONTEND_DOMAIN:-plumber-albandrieu.albandrieu.com}
+      API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
+      API_PATH: /api
+    ports:
+      - "172.17.0.24:31071:3000"
+    networks:
+      - intranet
+    x-nabla:
+      id: plumber-api
+      name: Plumber API
+      kind: developer-platform-api
+      category: development
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - identify
+        - protect
+      runtime:
+        provider: truenas-app
+        containerService: plumber-api
+      relations:
+        - target: postgresql
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/plumber/compose.yml:JOBS_DB_HOST
+        - target: redis
+          type: storesIn
+          strength: required
+          evidence:
+            - apps/plumber/compose.yml:JOBS_REDIS_HOST
+
+  plumber-worker:
+    image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
+    container_name: plumber-worker
+    restart: unless-stopped
+    command: ["--worker"]
+    env_file:
+      - /mnt/cpool/secrets/runtime/plumber/.env.secrets
+    environment: *plumber-backend-env
+    networks:
+      - intranet
+    x-nabla:
+      id: plumber-worker
+      name: Plumber Worker
+      kind: background-worker
+      category: development
+      presentationRole: support
+      criticality: low
+      runtime:
+        provider: truenas-app
+        containerService: plumber-worker
+      relations:
+        - target: plumber-api
+          type: partOf
+          strength: required
+          evidence:
+            - apps/plumber/compose.yml:plumber-worker
+
+networks:
+  intranet:
+    external: true
+    name: intranet
