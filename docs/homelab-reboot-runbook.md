@@ -1,6 +1,6 @@
 # Homelab ordered reboot runbook
 
-Last updated: 2026-09-11.
+Last updated: 2026-09-19.
 
 This runbook defines the controlled TrueNAS reboot lifecycle for the homelab.
 The transaction is deliberately fail-closed and preserves one immutable
@@ -509,9 +509,19 @@ sudo env \
   bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --resume
 ```
 
-Only Apps captured by the original saved resume plan are started. Apps that
-were already RUNNING may be skipped. Historically stopped or failed Apps are
-not blanket-started.
+Only Apps captured by the original saved resume plan are eligible for resume.
+Apps that are already `RUNNING` are **verified rather than skipped**: the
+reconciler requires stable containers, waits for explicit Docker healthchecks
+to become `healthy`, accepts successful one-shot initializers as
+`Exited(0)`, and blocks the next dependency wave on unhealthy/restarting or
+non-zero exited containers. Historically stopped or failed Apps are not
+blanket-started.
+
+The immutable reboot bundle includes
+`verify-app-runtime-health.sh`; therefore post-reboot acceptance does not
+depend on the mutable repository checkout. Application-specific HTTP/TCP
+functional probes remain an explicit post-resume validation step because the
+generic lifecycle reconciler cannot safely infer every protocol contract.
 
 ## Phase 4 — final acceptance
 
