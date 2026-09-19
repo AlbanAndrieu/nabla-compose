@@ -12,7 +12,7 @@ EXPECTED_PORT="${JOPLIN_POSTGRES_PORT:-5432}"
 EXPECTED_DB="${JOPLIN_POSTGRES_DB:-joplin}"
 EXPECTED_USER="${JOPLIN_POSTGRES_USER:-joplin}"
 
-fail() {
+function fail {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
