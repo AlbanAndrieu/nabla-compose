@@ -99,6 +99,12 @@ def app_id_for_path(root: Path, path: Path) -> str:
 
 
 def is_secret_variable(name: str) -> bool:
+    # Feature/configuration switches can contain AUTH/API_KEY words without
+    # carrying credential material themselves.
+    if name.startswith(("ENABLE_", "DISABLE_", "REQUIRE_")):
+        return False
+    if "_USE_AUTH" in name or name.endswith(("_AUTH_ENABLED", "_AUTH_TYPE")):
+        return False
     if name.endswith(SECRET_NAME_SUFFIXES):
         return True
     tokens = set(name.split("_"))
