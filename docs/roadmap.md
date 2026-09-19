@@ -124,16 +124,16 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 4. [x] Add read-only reporting for empty datasets, Apps-preset property drift and empty unowned direct-child candidates; never auto-delete/recreate an existing dataset.
 5. [x] Add canonical runtime env discovery across explicit `env_file`, repository-local ignored `.env*` and legacy `/mnt/cpool/<service>/.env*` files.
 6. [x] Split migration into read-only preview, non-destructive canonical staging, per-service validation and explicit per-service finalization.
-7. [ ] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; preserve all legacy paths during the staging pass.
-8. [ ] Resolve any source collisions before staging. Project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
-9. [ ] Fix declarations with no recoverable source instead of creating empty files; current inventory includes a missing Home Assistant project/service env declaration that requires explicit review.
-10. [ ] Validate and finalize first wave one service at a time: Scanopy, Joplin and AutoKuma already reference canonical paths and are the preferred acceptance wave.
+7. [x] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; the bootstrap is non-destructive and preserves legacy paths during staging.
+8. [x] Resolve source collisions before staging. Differing sources fail closed, and project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
+9. [x] Fix declarations with no recoverable source instead of creating empty files. Home Assistant's unused `env_file: .env` declaration was removed rather than inventing an empty runtime file.
+10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces `check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Joplin now has an idempotent shared-PostgreSQL bootstrap. Do not mark a service accepted until this flow runs successfully on TrueNAS; AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
 11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
-14. [ ] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service.
+14. [x] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service, and storage discovery does not create datasets from workspace-only references.
 15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`. Security-tooling entries for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and Scorecard are now inventoried; remaining services still need migration.
-16. [ ] Add/maintain agent-skill rules so every created or materially modified Compose service follows this architecture instead of introducing new legacy paths.
+16. [x] Maintain agent-skill rules and a CI non-regression contract so new services cannot introduce unreviewed legacy `env_file` ownership outside `/mnt/cpool/secrets/runtime/<service>/`; existing legacy services remain explicit migration debt.
 17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
 
 ## P1 — infrastructure secrets
@@ -272,7 +272,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 9. [x] **Incident fixtures.** Interrupted prepare/continue membership drift and Docker ghost-shim eligibility/refusal are both covered by deterministic fixtures.
 10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
 11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
-12. [ ] **Runtime-layout non-regression gate.** New/modified services must not introduce repository-local live env files, legacy service-root secret paths, or application datasets without active persistence ownership.
+12. [x] **Runtime-layout non-regression gate.** CI rejects new unreviewed legacy `env_file` service ownership, verifies Home Assistant has no phantom dotenv dependency, and keeps canonical first-wave paths under `/mnt/cpool/secrets/runtime/<service>/`. Existing legacy services remain an explicit allowlisted migration set until staged/cut over.
 
 ## Target operator-script architecture
 
