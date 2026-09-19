@@ -7,7 +7,6 @@ import argparse
 import os
 from pathlib import Path
 
-import audit_consumers
 import import_dotenv_to_bitwarden as legacy
 from render_from_bitwarden import SecretsError, load_manifest
 
