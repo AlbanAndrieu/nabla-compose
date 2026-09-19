@@ -39,7 +39,7 @@ services:
           strength: optional
           description: FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.
           evidence:
-            - apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL
+            - apps/sample/compose.yml:/mnt/cpool/secrets/runtime/sample/.env.secrets:REDIS_URL
         - target: traefik
           type: exposedBy
           strength: optional
@@ -64,8 +64,8 @@ services:
     # PostgreSQL/Supabase, pfSense, TrueNAS and other optional provider settings
     # can be supplied through the same files without duplicating secrets here.
     env_file:
-      - /mnt/cpool/sample/.env
-      - /mnt/cpool/sample/.env.secrets
+      - /mnt/cpool/secrets/runtime/sample/.env
+      - /mnt/cpool/secrets/runtime/sample/.env.secrets
 
     environment:
       FASTAPI_ENV: production
@@ -75,6 +75,8 @@ services:
       EXPOSE_PORT: "8080"
       SICKZ_INTERNAL_NETWORK: "true"
       HOMELAB_INTERNAL_PROBES_ENABLED: "true"
+      # Becomes fail-closed with fastapi-sample#274; no privileged Nabla routes exist yet.
+      MCP_OPS_REQUIRE_KEY: "true"
       # home.albandrieu.com is pinned below to pfSense LAN 172.17.0.1.
       # This control path is independent from the public WAN listener.
       PFSENSE_SECURITY_PATH_MODE: out_of_band

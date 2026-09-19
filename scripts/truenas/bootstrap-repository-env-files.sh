@@ -330,7 +330,10 @@ done < <(printf '%s\n' "${!target_app[@]}" | sort)
 if ((invalid > 0)); then
   printf '❌ %d migration source conflict(s) must be resolved before staging.\n' \
     "${invalid}" >&2
-  exit 1
+  if [[ "${MODE}" != "--check" ]]; then
+    exit 1
+  fi
+  printf 'ℹ️  continuing read-only preview so unrelated migration debt remains visible.\n'
 fi
 
 while IFS= read -r target; do

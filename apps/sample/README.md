@@ -922,3 +922,53 @@ LOCAL_HEALTH_URL=http://127.0.0.1:8080/health \
 ## Persistence policy
 
 Do not mount the FastAPI source tree or an application-data directory into the production container unless a future feature introduces real local state. If that happens, create a dedicated TrueNAS dataset for that state and document its ownership, backup and restore policy separately.
+
+
+## Nabla Service role and runtime-env migration
+
+The TrueNAS-hosted FastAPI Sample is the preferred future **Nabla Service**
+API/UI/MCP facade. Reuse this existing App; do not create a second always-on
+controller daemon.
+
+This does not make FastAPI part of the minimum boot path. TrueNAS reboot/resume
+must remain able to restore the homelab when FastAPI, Redis or Vaultwarden is
+down. The current FastAPI TrueNAS credential remains the read-only
+`fastapi_observer` identity.
+
+The canonical Compose in this PR now consumes:
+
+```text
+/mnt/cpool/secrets/runtime/sample/.env
+/mnt/cpool/secrets/runtime/sample/.env.secrets
+```
+
+Before changing Compose, inventory and plan the migration without printing
+values:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+
+sudo bash scripts/truenas/inventory-runtime-env-files.sh sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+The 2026-09-19 operator staging completed successfully and did not contact
+Vaultwarden. To repeat/verify the non-destructive staging:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --apply sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+Do **not** run `--finalize sample` yet. The Compose path change is now part of
+this PR. Fetch/check out the branch, rerun the staging check, then use
+`scripts/truenas/update-fastapi-sample.sh`. The updater fails closed if either
+canonical file is missing, empty, not `root:root 0600`, or has diverged from
+the still-present legacy source. Prove `/health`, the dedicated observer
+network, TrueNAS read-only inventory and one controlled reboot before
+finalization. Vaultwarden import/rotation is a later transaction; the canonical
+runtime files persist independently and are what normal boot consumes.
+
+Do not add privileged Nabla Service routes while the same local container is
+reachable through `sample.albandrieu.com`. Route non-registration/public-path
+denial and fail-closed authentication are prerequisites.

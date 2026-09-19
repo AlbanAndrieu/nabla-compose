@@ -67,6 +67,7 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert 'ln -s "${target}" "${source}"' in script
     assert "check_private_directory" in script
     assert 'if [[ "${MODE}" == "--check" ]]' in script
+    assert "continuing read-only preview so unrelated migration debt remains visible" in script
     assert "--check | --apply | --finalize" in script
 
 
@@ -99,6 +100,8 @@ def test_repository_runtime_bootstrap_orders_storage_before_env_files() -> None:
     assert storage in script
     assert env_files in script
     assert script.index(storage) < script.index(env_files)
+    assert 'if [[ "${MODE}" == "--check" ]]' in script
+    assert '|| status=1' in script
 
 
 def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:

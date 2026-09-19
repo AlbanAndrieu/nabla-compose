@@ -54,6 +54,96 @@ class SecretConsumerAuditTests(unittest.TestCase):
         self.assertEqual(len(report["unmanagedSecretVariables"]), 1)
         self.assertEqual(len(report["insecureDefaults"]), 1)
 
+    def test_catalog_evidence_is_not_counted_as_runtime_env_debt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "sample").mkdir(parents=True)
+            compose = root / "apps" / "sample" / "compose.yml"
+            compose.write_text(
+                """services:
+  sample:
+    x-nabla:
+      relations:
+        - target: redis
+          evidence:
+            - apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL
+    env_file:
+      - /mnt/cpool/sample/.env.secrets
+""",
+                encoding="utf-8",
+            )
+
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(root, {"items": []})
+            finally:
+                audit.git_tracked_compose_files = original
+
+        self.assertEqual(
+            report["legacyEnvFiles"],
+            [
+                "sample|/mnt/cpool/sample/.env.secrets|apps/sample/compose.yml:9"
+            ],
+        )
+
+    def test_absolute_repository_env_path_is_not_double_counted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "opensearch").mkdir(parents=True)
+            compose = root / "apps" / "opensearch" / "compose.yml"
+            compose.write_text(
+                """services:
+  opensearch:
+    env_file:
+      - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
+""",
+                encoding="utf-8",
+            )
+
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(root, {"items": []})
+            finally:
+                audit.git_tracked_compose_files = original
+
+        self.assertEqual(
+            report["legacyEnvFiles"],
+            [
+                "opensearch|/mnt/cpool/compose/nabla-compose/apps/opensearch/.env|apps/opensearch/compose.yml:4"
+            ],
+        )
+
+    def test_nonsecret_canonical_dotenv_does_not_require_vault_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "sample").mkdir(parents=True)
+            compose = root / "apps" / "sample" / "compose.yml"
+            compose.write_text(
+                """services:
+  sample:
+    env_file:
+      - /mnt/cpool/secrets/runtime/sample/.env
+      - /mnt/cpool/secrets/runtime/sample/.env.secrets
+""",
+                encoding="utf-8",
+            )
+
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(root, {"items": []})
+            finally:
+                audit.git_tracked_compose_files = original
+
+        self.assertEqual(
+            report["canonicalRuntimeWithoutManifest"],
+            [
+                "sample|/mnt/cpool/secrets/runtime/sample/.env.secrets|apps/sample/compose.yml:5"
+            ],
+        )
+
     def test_baseline_comparison_is_a_two_way_ratchet(self) -> None:
         current = {
             "legacyEnvFiles": ["demo|/mnt/cpool/demo/.env.secrets|apps/demo/compose.yml:3"],

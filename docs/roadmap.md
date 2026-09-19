@@ -147,16 +147,25 @@ script.
 3. [x] Make the TrueNAS initialization audit distinguish planned/disabled services from missing active services and suppress normal deployment recommendations for them.
 4. [x] Make reboot lifecycle planning suppress planned/disabled Apps by default; explicit operator inclusion remains the bounded override.
 5. [x] Add the repository-wide static secret-consumer/debt ratchet and the unprivileged Vaultwarden render -> bounded root install boundary from #210. Root must never receive `BW_SESSION`.
-6. [ ] Consolidate generic Python operations into an importable repository library with a thin local CLI entrypoint. The earlier “nabla-service” idea is a CLI/library, **not another daemon**; retire per-service shell duplication opportunistically behind compatibility wrappers.
-7. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories.
-8. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries.
-9. [ ] Keep FastAPI Sample as the existing API/UI observer of catalog, plans and acceptance state. Do not grant cloud/staging observer identities TrueNAS admin or Vaultwarden credentials. Evaluate a **local/workstation-only** FastAPI/MCP Ops adapter only after route/auth/exposure profiles are fail-closed.
-10. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
+6. [ ] Consolidate generic Python operations into an importable repository library with a thin host-local CLI entrypoint. Keep boot/recovery executable without FastAPI, Redis or Vaultwarden; retire per-service shell duplication opportunistically behind compatibility wrappers.
+7. [x] Reuse the existing TrueNAS `apps/sample` / `fastapi-sample` runtime as the future **Nabla Service** API/UI/MCP facade instead of creating another always-on daemon or repository. Keep its stable catalog id and image identity; “Nabla Service” is a capability/profile, not a rename.
+8. [ ] Add a local-controller profile to FastAPI Sample only after MCP/ops authentication and route exposure fail closed. The current `sample.albandrieu.com` Cloudflare Access ingress means privileged mutation routes must not be added until public-path denial/route non-registration is proven. FastAPI Cloud stays read-only.
+9. [ ] Keep the existing `fastapi_observer` TrueNAS credential read-only. Any future bounded mutation adapter must use a separate least-privilege execution identity and must never expose generic shell/`midclt` passthrough.
+10. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories.
+11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries.
+12. [x] Add a root-readable, value-blind filesystem inventory for `.env` / `.env.secrets` migration candidates; it reports paths/metadata only and complements the canonical migration planner.
+13. [x] Stage `sample` as the first path-normalization pilot without Vaultwarden. Operator evidence on 2026-09-19 confirms `/mnt/cpool/secrets/runtime/sample/.env` and `.env.secrets` are root:root `0600`, non-empty and byte-consistent with the legacy sources; legacy files remain intact.
+14. [ ] Redeploy `sample` from the canonical paths, require `/health`, version, dedicated observer-network and TrueNAS read-only observer acceptance, then perform controlled reboot acceptance before any `--finalize sample`.
+15. [ ] Resolve the Scrutiny source conflict value-blind: repository-local `apps/scrutiny/.env.secrets` and `/mnt/cpool/scrutiny/.env.secrets` differ and must not be auto-merged. Compare key sets/value equality by key name only, select the runtime-authoritative source with evidence, then restage.
+16. [ ] Initialize the currently missing declared datasets only with their service rollout: `cyberbro`, `defectdojo`, `dependency-track`, `neo4j`, `netbox`. Their absence remains expected preparation debt until deployment; do not create them merely to make the global check green.
+17. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
 
-Exit gate: broad Vaultwarden migration starts only when the generic control path
-can audit/plan one service, preserve status intent, render/install secrets without
-crossing the privilege boundary, execute idempotently and report acceptance
-without exposing values.
+Exit gate: broad Vaultwarden migration starts only when the generic host-local
+control path can audit/plan one service, preserve status intent, execute
+idempotently and report acceptance without exposing values. Normal reboot must
+consume already-materialized root-only runtime files and remain independent from
+Vaultwarden availability. FastAPI Sample may expose plans/state and later bounded
+local operations, but it is not part of the minimum boot dependency chain.
 
 ## P0.5 — Vaultwarden migration waves
 

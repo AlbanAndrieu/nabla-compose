@@ -23,8 +23,12 @@ DEFAULT_MANIFEST = ROOT / "config" / "secrets" / "manifest.json"
 DEFAULT_BASELINE = ROOT / "config" / "secrets" / "debt-baseline.json"
 
 VAR_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)(?:(:-|:\?|[-?])([^}]*))?\}")
-MNT_ENV_RE = re.compile(r"(/mnt/cpool/[^\s'\"#,]+/\.env(?:\.[^\s'\"#,]+)?)")
-REPO_ENV_RE = re.compile(r"((?:\./)?apps/[^\s'\"#,]+/\.env(?:\.[^\s'\"#,]+)?)")
+MNT_ENV_RE = re.compile(
+    r"(/mnt/cpool/[A-Za-z0-9._/-]+/\.env(?:\.[A-Za-z0-9._-]+)?)"
+)
+REPO_ENV_RE = re.compile(
+    r"(?<![A-Za-z0-9._/-])((?:\./)?apps/[A-Za-z0-9._-]+/\.env(?:\.[A-Za-z0-9._-]+)?)"
+)
 MNT_PATH_RE = re.compile(r"(/mnt/cpool/[^\s'\"#,]+)")
 SECRET_NAME_TOKENS = {
     "PASSWORD",
@@ -143,6 +147,23 @@ def fingerprint(app: str, value: str, source: str) -> str:
     return f"{app}|{value}|{source}"
 
 
+def is_catalog_evidence_line(line: str) -> bool:
+    """Return whether a YAML list item is x-nabla source evidence, not config."""
+    return bool(
+        re.match(
+            r"^\s*-\s+(?:\./)?apps/[A-Za-z0-9._-]+/compose\.ya?ml:",
+            line,
+        )
+    )
+
+
+def is_secret_runtime_env_path(path: str) -> bool:
+    name = Path(path).name
+    return name == ".env.secrets" or (
+        name.startswith(".env.") and name.endswith(".secrets")
+    )
+
+
 def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
     managed_envs = manifest_envs(manifest)
     managed_apps = item_apps(manifest)
@@ -166,7 +187,11 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                 continue
             source = f"{relative}:{line_number}"
 
-            env_paths = set(MNT_ENV_RE.findall(line)) | set(REPO_ENV_RE.findall(line))
+            env_paths: set[str] = set()
+            if not is_catalog_evidence_line(line):
+                env_paths = set(MNT_ENV_RE.findall(line)) | set(
+                    REPO_ENV_RE.findall(line)
+                )
             for env_path in env_paths:
                 canonical_prefix = f"/mnt/cpool/secrets/runtime/{app}/"
                 if env_path.startswith("/mnt/cpool/secrets/runtime/"):
@@ -174,7 +199,7 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                         canonical_runtime_without_manifest.add(
                             fingerprint(app, env_path, source)
                         )
-                    elif app not in managed_apps:
+                    elif app not in managed_apps and is_secret_runtime_env_path(env_path):
                         canonical_runtime_without_manifest.add(
                             fingerprint(app, env_path, source)
                         )

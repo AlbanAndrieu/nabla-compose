@@ -40,3 +40,13 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
     assert script.index("build_fastapi_sample") < script.index(
         "Removing the previous FastAPI Sample container after successful build",
     )
+    assert "/mnt/cpool/secrets/runtime/sample" in script
+    assert "verify_runtime_env_pair" in script
+    assert "root:root 600" in script
+    assert "changed after staging" in script
+    assert 'sudo cmp -s "${legacy}" "${canonical}"' in script
+    assert script.index("verify_runtime_env_pair \".env.secrets\"") < script.index(
+        "build_fastapi_sample"
+    )
+    assert "bootstrap-repository-env-files.sh --check sample" in script
+    assert "do not finalize them until controlled reboot acceptance" in script

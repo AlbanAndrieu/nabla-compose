@@ -3169,7 +3169,7 @@
       "strength": "optional",
       "description": "FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.",
       "evidence": [
-        "apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL"
+        "apps/sample/compose.yml:/mnt/cpool/secrets/runtime/sample/.env.secrets:REDIS_URL"
       ]
     },
     {
