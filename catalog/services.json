@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:7d96204579f54ecec49cc58867f10e842a2bff206827441d0bc42246df5b22f6",
+  "catalogRevision": "sha256:1c549791b4ae9113c8c61ef236b7d1a63eda6a7aa6c7e059f2effc4d7b2a35d3",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -50,6 +50,7 @@
       "composeService": "akvorado-console",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -75,6 +76,7 @@
       "composeService": "akvorado-inlet",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -103,6 +105,7 @@
       "composeService": "akvorado-orchestrator",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -124,6 +127,7 @@
       "composeService": "akvorado-outlet",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -296,6 +300,7 @@
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
       "composeService": "crowdsec",
+      "status": "planned",
       "securityFunctions": [
         "detect",
         "respond"
@@ -978,6 +983,7 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
+      "status": "planned",
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
@@ -1197,6 +1203,7 @@
       "category": "automation",
       "sourcePath": "apps/n8n/compose.yml",
       "composeService": "n8n",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "n8n"
@@ -1404,6 +1411,7 @@
       "description": "1Password Connect API for machine-readable secret access.",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "disabled",
       "securityFunctions": [
         "protect"
       ],
@@ -1427,6 +1435,7 @@
       "description": "Synchronizes 1Password vault state for the Connect API.",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "disabled",
       "securityFunctions": [
         "protect"
       ],

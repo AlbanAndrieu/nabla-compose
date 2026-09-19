@@ -155,3 +155,17 @@ The declared catalog describes intended architecture. It should eventually be co
 - observed: *what actually talked to what?*
 
 A future UI can highlight `declared-only`, `observed-only` and `declared+observed` edges to detect topology drift without changing deployment order.
+
+
+## Declared service intent status
+
+Compose `x-nabla.status` is optional and exported into generated services/nodes
+when explicitly set. Supported values are:
+
+- `active` — normal operational intent;
+- `planned` — retained for future activation; absence is not runtime failure;
+- `disabled` — deliberately unused while code is retained.
+
+Consumers must fall back to `active` when the field is absent. This declared
+intent is independent from observed runtime health and must not be overwritten
+by runtime reconciliation.

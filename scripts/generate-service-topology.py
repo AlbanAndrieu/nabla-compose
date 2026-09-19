@@ -24,6 +24,7 @@ COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?m
 RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
+SERVICE_STATUSES = {"active", "planned", "disabled"}
 SECURITY_FUNCTIONS = {"govern", "identify", "protect", "detect", "respond", "recover"}
 LIFECYCLE_PHASES = {
     "bootstrap-runtime",
@@ -114,6 +115,22 @@ def presentation_metadata(
     if criticality is not None:
         result["criticality"] = criticality
     return result
+
+
+def service_status_metadata(
+    metadata: dict[str, Any], context: str
+) -> dict[str, str]:
+    """Validate optional declared service intent.
+
+    Missing status falls back to active in consumers for backward compatibility.
+    """
+    status = optional_text(metadata, "status")
+    if status is None:
+        return {}
+    if status not in SERVICE_STATUSES:
+        supported = ", ".join(sorted(SERVICE_STATUSES))
+        fail(f"{context}.status must be one of: {supported}")
+    return {"status": status}
 
 
 def security_metadata(
@@ -307,6 +324,7 @@ def topology_node(
         if value is not None:
             node[key] = value
     node.update(presentation_metadata(metadata, context))
+    node.update(service_status_metadata(metadata, context))
     node.update(security_metadata(metadata, context))
     node.update(environment_metadata(metadata, context))
     node.update(lifecycle_metadata(metadata, context))
@@ -377,6 +395,7 @@ def declared_service(
         "description",
         "presentationRole",
         "criticality",
+        "status",
         "securityFunctions",
         "environments",
         "lifecycle",
@@ -502,6 +521,7 @@ def load_static_topology(
         node_id = require_identifier(node.get("id"), f"{context}.id")
         normalized_node = dict(node)
         normalized_node.update(presentation_metadata(normalized_node, context))
+        normalized_node.update(service_status_metadata(normalized_node, context))
         normalized_node.update(lifecycle_metadata(normalized_node, context))
         runtime = runtime_binding(normalized_node, context)
         if runtime is not None:

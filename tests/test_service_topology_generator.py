@@ -206,6 +206,43 @@ services:
         self.assertEqual(service["presentationRole"], "service")
         self.assertEqual(service["criticality"], "medium")
 
+    def test_service_status_propagates_and_missing_status_is_backward_compatible(self) -> None:
+        base = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "application",
+            "category": "test",
+            "runtime": {
+                "provider": "truenas-app",
+                "containerService": "fixture",
+            },
+        }
+
+        planned = {**base, "status": "planned"}
+        node = MODULE.topology_node(
+            planned, "apps/fixture/compose.yml", "fixture.x-nabla"
+        )
+        service = MODULE.declared_service(
+            planned,
+            "apps/fixture/compose.yml",
+            "fixture",
+            "fixture.x-nabla",
+        )
+        legacy = MODULE.topology_node(
+            base, "apps/fixture/compose.yml", "fixture.x-nabla"
+        )
+
+        self.assertEqual(node["status"], "planned")
+        self.assertEqual(service["status"], "planned")
+        self.assertNotIn("status", legacy)
+
+        with self.assertRaisesRegex(ValueError, "status must be one of"):
+            MODULE.topology_node(
+                {**base, "status": "retired"},
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
+
     def test_lifecycle_metadata_propagates_to_node_and_service(self) -> None:
         metadata = {
             "id": "docker-socket-proxy",

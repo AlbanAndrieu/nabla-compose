@@ -132,9 +132,40 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
 14. [x] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service, and storage discovery does not create datasets from workspace-only references.
-15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`. Security-tooling entries for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and Scorecard are now inventoried; remaining services still need migration.
+15. [ ] Continue metadata-only inventory in `config/secrets/manifest.json`, but defer broad Vaultwarden import/materialization until the P0.4 initialization-control-plane refactor below is accepted. Planned services may keep future metadata without becoming migration targets; disabled services must not be migrated merely because their code remains in Git.
 16. [x] Maintain agent-skill rules and a CI non-regression contract so new services cannot introduce unreviewed legacy `env_file` ownership outside `/mnt/cpool/secrets/runtime/<service>/`; existing legacy services remain explicit migration debt.
 17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
+
+## P0.4 — service intent + initialization control plane
+
+Complete this refactor **before broad secret migration**. The objective is one
+declarative/idempotent initialization model rather than another per-service shell
+script.
+
+1. [x] Add optional `x-nabla.status = active|planned|disabled` with fallback `active`; keep observed runtime health separate from declared intent.
+2. [x] Mark Akvorado, CrowdSec, Keycloak and n8n `planned`; mark 1Password Connect `disabled` while retaining its code. Vaultwarden is the secrets target.
+3. [x] Make the TrueNAS initialization audit distinguish planned/disabled services from missing active services and suppress normal deployment recommendations for them.
+4. [x] Make reboot lifecycle planning suppress planned/disabled Apps by default; explicit operator inclusion remains the bounded override.
+5. [x] Add the repository-wide static secret-consumer/debt ratchet and the unprivileged Vaultwarden render -> bounded root install boundary from #210. Root must never receive `BW_SESSION`.
+6. [ ] Consolidate generic Python operations into an importable repository library with a thin local CLI entrypoint. The earlier “nabla-service” idea is a CLI/library, **not another daemon**; retire per-service shell duplication opportunistically behind compatibility wrappers.
+7. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories.
+8. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries.
+9. [ ] Keep FastAPI Sample as the existing API/UI observer of catalog, plans and acceptance state. Do not grant cloud/staging observer identities TrueNAS admin or Vaultwarden credentials. Evaluate a **local/workstation-only** FastAPI/MCP Ops adapter only after route/auth/exposure profiles are fail-closed.
+10. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
+
+Exit gate: broad Vaultwarden migration starts only when the generic control path
+can audit/plan one service, preserve status intent, render/install secrets without
+crossing the privilege boundary, execute idempotently and report acceptance
+without exposing values.
+
+## P0.5 — Vaultwarden migration waves
+
+- Migrate only `active` services by default. `planned` services are migrated when activated; `disabled` services are excluded.
+- Wave A: active shared state/foundations (PostgreSQL, Redis, Mongo, OpenSearch, MinIO/Garage/ClickHouse as applicable) with fail-closed secret absence and no known default passwords.
+- Wave B: active network/platform/observability consumers (Pi-hole, Traefik, Graylog, Wazuh, Sentry, Nexus, ntopng, Scrutiny) after dependency contracts are explicit.
+- Wave C: active AI/RAG consumers (LiteLLM, Langfuse, Langflow, OpenRAG, OpenWebUI) after shared credentials are modeled once rather than duplicated into multiple Vaultwarden items.
+- Preserve migration-critical values first; rotate only after runtime + reboot acceptance.
+- Keep Vaultwarden bootstrap independently recoverable and keep git-crypt as encrypted secondary recovery until a reviewed retirement decision.
 
 ## P1 — infrastructure secrets
 
@@ -175,9 +206,39 @@ Runtime preparation contract for this wave:
 - [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
 - [ ] Define an interoperability contract: `x-nabla` = service/application identity + declared dependencies; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream security posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable identifiers and preserve provenance/evidence.
 
+## P2.2 — multi-cluster GPU foundation with Karmada
+
+Goal: keep the current TrueNAS-hosted Talos cluster as the stable always-on home platform while making compute capacity extensible to an intermittent Ubuntu workstation GPU cluster and, later, a GPU-capable cloud Kubernetes cluster from a provider that is intentionally not selected yet.
+
+Target control-plane placement:
+
+- **Karmada management plane must be always on.** Do not host it on the workstation and do not make it depend on a future cloud provider.
+- Preferred target: a **small dedicated Kubernetes management cluster/VM hosted on TrueNAS**, separate from member workloads and failure domains. A single small management node is acceptable for the first homelab PoC; move to a more redundant management plane only if Karmada becomes operationally critical.
+- The existing `nabla-talos` cluster remains a member cluster and continues to own the always-on baseline services.
+- The Ubuntu workstation becomes a separate Kubernetes member cluster with GPU capability. It is explicitly **intermittent/opportunistic capacity** because the workstation is normally powered off.
+- A future cloud member cluster provides elastic/remote GPU capacity. Provider choice remains open until GPU type, cost, networking, managed-Kubernetes constraints and scale-to-zero behavior are compared.
+
+Implementation stages:
+
+1. [ ] Keep Karmada out of the current bootstrap critical path until CSI, ingress, baseline policy/security and the single-cluster smoke path are stable.
+2. [ ] Define stable cluster identity/labels before federation, including location, provider, GPU capability/type, power profile, cost class and workload class.
+3. [ ] Create the dedicated always-on management Kubernetes VM/cluster on TrueNAS and deploy a pinned/tested Karmada release there.
+4. [ ] Register `nabla-talos` as the first member without moving existing workloads under Karmada control; prove inventory/readiness, then one bounded stateless propagation smoke.
+5. [ ] Build the Ubuntu workstation Kubernetes cluster separately, validate NVIDIA runtime/device exposure, then register it as `workstation-gpu`. Offline state must be expected and must not make the home platform unhealthy.
+6. [ ] Add placement policy so workstation GPU capacity is used only for suitable stateless/batch/AI workloads; never place mandatory state or quorum exclusively there.
+7. [ ] Select a cloud GPU provider only after comparing GPU SKUs, Kubernetes offering, networking/egress, storage, startup latency, scale-to-zero and cost controls.
+8. [ ] Define workstation/cloud fallback for GPU jobs while keeping ordinary services pinned to the always-on home cluster unless they have a reviewed multi-cluster SLO.
+9. [ ] Keep storage portable across clusters; do not assume TrueNAS NFS is appropriate/reachable for workstation/cloud members.
+10. [ ] Keep networking explicit; Karmada placement does not imply transparent cross-cluster pod networking.
+11. [ ] Keep secrets out of propagation policy source; use dedicated least-privilege member credentials and keep the Karmada API private.
+12. [ ] Acceptance smoke: one stateless workload on `nabla-talos`, one GPU workload on the workstation when online, workstation shutdown without degrading mandatory home services, then repeat with cloud GPU capacity.
+
+Karmada remains a federation/control plane above independent Kubernetes clusters, not a mechanism to stretch the current Talos cluster across intermittent/WAN nodes.
+
 ## P3 — runtime/services
 
-- [x] Prometheus, Grafana, Graylog baseline, CrowdSec resume intent, Langflow, Wazuh core and OpenRAG core exist.
+- [x] Prometheus, Grafana, Graylog baseline, Langflow, Wazuh core and OpenRAG core exist.
+- [ ] CrowdSec is tracked with `status: planned`; it is not yet used/runtime-accepted and must not be treated as an expected running service until explicitly activated.
 - [x] Langfuse post-reboot runtime acceptance: web/database and worker checks are green.
 - [x] **Sentry Taskbroker/Kafka/Relay recovery accepted** — Taskbroker bootability restored, Taskworker→Taskbroker gRPC reachable, Kafka `taskworker` consumer rejoined and drained to lag `1`, Relay project-config path recovered, and the full synthetic event is persisted in ClickHouse. Recovery required no offset reset, topic deletion, SQLite deletion, Kafka restart or whole-App redeploy.
 - [ ] **Sentry upstream/version debt** — monitor self-hosted 26.8 Taskbroker Kafka coordinator/session-timeout/rejoin behavior. Functional health must include Taskworker→Taskbroker reachability, active Kafka membership/lag and end-to-end ingestion; process/container health alone is insufficient.
@@ -299,6 +360,8 @@ Quality gates must cover shebang/executable mode, `bash -n`, ShellCheck, contrac
 
 ```text
 TrueNAS storage + runtime secret normalization (preview -> stage -> per-service validate/finalize)
+  -> service intent/status + initialization-control-plane refactor (P0.4)
+  -> Vaultwarden migration waves for active services only (P0.5)
   -> Cyberbro free-engine baseline + provider-account onboarding / Vaultwarden edge-TLS debt
   -> Grafana native -> Compose migration (:30037 + preserved /mnt/cpool/grafana/data)
   -> Prometheus canonical DB target reconciliation (PostgreSQL, Redis, ClickHouse, InfluxDB, OpenSearch + pfSense HAProxy exporter; no Sybase)
@@ -319,6 +382,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
+  -> Karmada multi-cluster foundation (always-on TrueNAS management plane -> nabla-talos -> intermittent workstation GPU -> future cloud GPU)
   -> Scrutiny / remaining service work
-  -> Docling / OpenRAG-LiteLLM
+  -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```
