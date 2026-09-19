@@ -163,6 +163,7 @@ script.
 18. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
 19. [x] Bound TrueNAS deployment automation: cron self-updates only the Doco-CD bootstrap on `master`, refuses destructive resets/non-fast-forwards and becomes a no-op on feature branches; Doco-CD independently polls reviewed remote `master`; `sample` remains explicitly owned by its TrueNAS Custom App update helper during the canonical-path pilot.
 20. [x] Provide user-space TrueNAS development tooling bootstrap with mise/pre-commit/uv/pytest without enabling appliance `apt` package management.
+21. [ ] Reconcile the Doco-CD bootstrap/main ownership model only after runtime evidence identifies the active container/project/config: `bootstrap/compose.yaml` and root `docker-compose.yml` both declare `container_name: doco-cd` but currently differ on Docker socket boundary and secret provider. Prefer the restricted `docker-socket-proxy` + reviewed secret provider for the steady-state instance; evaluate Doco-CD’s dedicated self-updater pattern as a later replacement for the host cron, with rollback proven before removing cron.
 
 Exit gate: broad Vaultwarden migration starts only when the generic host-local
 control path can audit/plan one service, preserve status intent, execute
