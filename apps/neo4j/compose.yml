@@ -23,7 +23,11 @@ services:
       - /mnt/cpool/neo4j/import:/import
       - /mnt/cpool/neo4j/plugins:/plugins
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:7474/ || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:7474/ || exit 1",
+        ]
       interval: 15s
       timeout: 10s
       retries: 10
