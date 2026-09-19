@@ -5,6 +5,7 @@ MODE="${1:---check}"
 APP="${2:-}"
 SOURCE="${3:-}"
 RUNTIME_ROOT="${NABLA_RUNTIME_ENV_ROOT:-/mnt/cpool/secrets/runtime}"
+RUNTIME_FILE="${NABLA_RUNTIME_SECRET_FILE:-.env.secrets}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -23,9 +24,12 @@ esac
 [[ "${EUID}" -eq 0 ]] || fail "run as root"
 [[ -z "${BW_SESSION:-}" ]] || fail "refusing privileged execution with BW_SESSION in environment"
 [[ "${APP}" =~ ^[a-z0-9][a-z0-9-]*$ ]] || fail "invalid app identifier: ${APP:-<missing>}"
+[[ "${RUNTIME_FILE}" =~ ^[.]env([.][a-z0-9-]+)?([.]secrets)?$ ]] ||
+  fail "invalid runtime secret filename: ${RUNTIME_FILE}"
+[[ "${RUNTIME_FILE}" != *"/"* ]] || fail "runtime secret filename must be a basename"
 
 TARGET_DIR="${RUNTIME_ROOT}/${APP}"
-TARGET="${TARGET_DIR}/.env.secrets"
+TARGET="${TARGET_DIR}/${RUNTIME_FILE}"
 
 check_target() {
   [[ -f "${TARGET}" && ! -L "${TARGET}" ]] || fail "missing/non-regular runtime secret file: ${TARGET}"
