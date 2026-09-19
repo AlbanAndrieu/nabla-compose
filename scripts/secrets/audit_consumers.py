@@ -147,14 +147,16 @@ def fingerprint(app: str, value: str, source: str) -> str:
     return f"{app}|{value}|{source}"
 
 
-def is_catalog_evidence_line(line: str) -> bool:
-    """Return whether a YAML list item is x-nabla source evidence, not config."""
-    return bool(
-        re.match(
-            r"^\s*-\s+(?:\./)?apps/[A-Za-z0-9._-]+/compose\.ya?ml:",
-            line,
-        )
-    )
+def source_without_line_number(source: str) -> str:
+    """Return a stable source identity so harmless line moves do not break debt ratchets."""
+    return re.sub(r":\\d+$", "", source)
+
+
+def normalized_fingerprint(value: str) -> str:
+    parts = value.rsplit("|", 1)
+    if len(parts) != 2:
+        return value
+    return f"{parts[0]}|{source_without_line_number(parts[1])}"
 
 
 def is_secret_runtime_env_path(path: str) -> bool:
@@ -180,15 +182,25 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
         app = app_id_for_path(root, path)
         compose_apps.add(app)
         text = path.read_text(encoding="utf-8")
+        evidence_indent: int | None = None
 
         for line_number, raw_line in enumerate(text.splitlines(), start=1):
+            stripped = raw_line.lstrip()
+            indent = len(raw_line) - len(stripped)
+            if evidence_indent is not None and stripped and indent <= evidence_indent:
+                evidence_indent = None
+            if stripped.startswith("evidence:"):
+                evidence_indent = indent
+                continue
+
+            in_evidence = evidence_indent is not None and indent > evidence_indent
             line = strip_full_line_comment(raw_line)
             if not line:
                 continue
             source = f"{relative}:{line_number}"
 
             env_paths: set[str] = set()
-            if not is_catalog_evidence_line(line):
+            if not in_evidence:
                 env_paths = set(MNT_ENV_RE.findall(line)) | set(
                     REPO_ENV_RE.findall(line)
                 )
@@ -221,13 +233,14 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                         fingerprint(app, f"{variable}={default.strip()}", source)
                     )
 
-            for candidate in MNT_PATH_RE.findall(line):
-                if candidate in env_paths:
-                    continue
-                if SPECIAL_PATH_RE.search(candidate):
-                    special_host_secret_files.add(
-                        fingerprint(app, candidate, source)
-                    )
+            if not in_evidence:
+                for candidate in MNT_PATH_RE.findall(line):
+                    if candidate in env_paths:
+                        continue
+                    if SPECIAL_PATH_RE.search(candidate):
+                        special_host_secret_files.add(
+                            fingerprint(app, candidate, source)
+                        )
 
     manifest_only_apps = sorted(
         app for app in managed_apps if app not in compose_apps
@@ -282,10 +295,12 @@ def compare_baseline(
             isinstance(item, str) for item in expected_raw
         ):
             fail(f"baseline {key} must be a string list")
-        expected = set(expected_raw)
-        actual = set(values)
-        new = sorted(actual - expected)
-        resolved = sorted(expected - actual)
+        expected_by_key = {normalized_fingerprint(item): item for item in expected_raw}
+        actual_by_key = {normalized_fingerprint(item): item for item in values}
+        expected = set(expected_by_key)
+        actual = set(actual_by_key)
+        new = sorted(actual_by_key[key] for key in actual - expected)
+        resolved = sorted(expected_by_key[key] for key in expected - actual)
         if new:
             errors.append(f"{key}: new debt: {', '.join(new)}")
         if resolved:
