@@ -54,6 +54,13 @@ class SecretsRendererTests(TestCase):
                 "joplin",
                 "autokuma",
                 "cyberbro",
+                "plumber",
+                "netbox",
+                "dependency-track",
+                "defectdojo",
+                "neo4j",
+                "cartography",
+                "scorecard",
             },
         )
         serialized = json.dumps(manifest)
