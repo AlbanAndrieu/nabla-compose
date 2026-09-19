@@ -68,7 +68,9 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert "check_private_directory" in script
     assert 'if [[ "${MODE}" == "--check" ]]' in script
     assert "continuing read-only preview so unrelated migration debt remains visible" in script
-    assert "--check | --apply | --finalize" in script
+    assert "--check | --apply | --restage | --finalize" in script
+    assert "--restage requires an explicit app filter" in script
+    assert "restage verification failed" in script
 
 
 def test_repository_env_bootstrap_rejects_empty_secret_placeholders() -> None:
