@@ -26,16 +26,26 @@
 
 FastAPI Sample is currently treated as stateless. It does **not** need a dedicated application-data volume. Redis already persists its own data in `/mnt/cpool/redis`.
 
-Use `/mnt/cpool/sample` only as a small configuration/secrets dataset or directory:
+The canonical runtime materialization is now root-owned outside the repository:
 
-```bash
-mkdir -p /mnt/cpool/sample
-chmod 700 /mnt/cpool/sample
+```text
+/mnt/cpool/secrets/runtime/sample/.env
+/mnt/cpool/secrets/runtime/sample/.env.secrets
 ```
 
-Create `/mnt/cpool/sample/.env` for non-secret runtime settings and `/mnt/cpool/sample/.env.secrets` for credentials. Do not commit either file.
+During the migration pilot, `/mnt/cpool/sample/.env` and
+`/mnt/cpool/sample/.env.secrets` remain rollback/staging sources only. Do not
+delete or replace them until runtime and reboot acceptance are complete. When a
+legacy source changes deliberately, refresh only Sample's canonical copy with:
 
-Example Redis configuration in `.env.secrets`:
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+Do not commit either legacy or canonical materialization.
+
+Example Redis configuration in the canonical `.env.secrets`:
 
 ```dotenv
 REDIS_URL=redis://:REPLACE_WITH_REDIS_PASSWORD@redis:6379/0
@@ -93,14 +103,14 @@ docker exec fastapi-sample env | \
   grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PFSENSE_SECURITY_PATH_MODE|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
 ```
 
-For self-hosted Sentry, keep the project DSN in `/mnt/cpool/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
+For self-hosted Sentry, keep the project DSN in `/mnt/cpool/secrets/runtime/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
 
 ## Prometheus / core health metrics
 
 FastAPI Sample can optionally enrich the service-first health board from the
 existing Prometheus recording-rule contract without exposing arbitrary PromQL.
 
-Put the non-secret Prometheus endpoint in `/mnt/cpool/sample/.env`:
+Put the non-secret Prometheus endpoint in `/mnt/cpool/secrets/runtime/sample/.env`:
 
 ```dotenv
 HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
@@ -122,7 +132,7 @@ the FastAPI Cloud health board richer.
 
 ## Supabase
 
-If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the same `.env.secrets` file, for example:
+If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the canonical `/mnt/cpool/secrets/runtime/sample/.env.secrets` file, for example:
 
 ```dotenv
 SUPABASE_URL=https://PROJECT_REF.supabase.co
