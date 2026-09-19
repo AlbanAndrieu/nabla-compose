@@ -41,8 +41,10 @@ def test_live_truenas_doco_cd_uses_canonical_master_deployments() -> None:
     assert "reference: master" in compose
     assert "apps/vaultwarden/compose.yml" in compose
     assert "apps/garage/compose.yml" in compose
-    assert "vaultwarden/compose.yml" in compose
-    assert "garage/compose.yml" in compose
+    assert "compose_file: apps/vaultwarden/compose.yml" in compose
+    assert "compose_file: apps/garage/compose.yml" in compose
+    assert "compose_file: vaultwarden/compose.yml" not in compose
+    assert "compose_file: garage/compose.yml" not in compose
     assert "apps/sample/compose.yml" not in compose
     assert "ghcr.io/kimdre/doco-cd:0.85.1" in compose
     assert "ghcr.io/kimdre/doco-cd:latest" not in compose
@@ -95,7 +97,10 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     doc = DOC.read_text(encoding="utf-8")
 
     assert "Layer 0" in doc
+    assert "Git synchronization only" in doc
     assert "Layer 1" in doc
+    assert "docker-compose-truenas.yml" in doc
+    assert "docker-compose.yml,docker-compose.override.yml" in doc
     assert "Doco-CD must not gain an implicit Sample deployment target" in doc
     assert "update-fastapi-sample.sh" in doc
     assert "bootstrap-dev-tools.sh" in doc
