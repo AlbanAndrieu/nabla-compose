@@ -82,7 +82,7 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precedes Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
 - [x] Add an explicit operator-acceptance/deferred annotation for historical manifests: `--accept-deferred` writes one immutable `operator-acceptance.json`, only for Apps in frozen `resume-apps.txt`, fingerprints the frozen manifest and leaves strict `--verify` semantics unchanged.
 - [x] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped: it proves a fresh runtime snapshot would shrink resume membership while `--continue-prepare` neither re-queries Apps nor regenerates frozen plans.
-- [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
+- [x] Add a Docker ghost-shim fixture and shared fail-closed guard: recovery is eligible only for `Running=true`/`Restarting=true`, `Pid=0` and exactly one matching shim; live `Pid>0`, ambiguous shim counts and non-ghost states are refused.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
 - [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
 - [ ] Move service-specific readiness policy into declarative lifecycle metadata so selected backends can additionally require HTTP/TCP/application-level probes rather than only generic container stability.
@@ -263,13 +263,13 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`.
 2. [ ] **`scripts/lib/truenas.sh`.** Continue centralizing bounded middleware calls, normalized readiness and reboot-manifest helpers. Shared Custom App state/reconcile/wait primitives are now used by the security-tooling deployment path; remaining legacy deploy scripts still duplicate lifecycle logic.
-3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
+3. [ ] **`scripts/lib/docker.sh`.** Initial side-effect-free orphan-shim recovery guard is centralized and fixture-covered. Continue with shared container state/health/PID/restarts/exit snapshots, Compose-project selection and correlation helpers.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
 6. [x] **`scripts/lib/secrets.sh`.** Initial shared owner/mode/presence, targeted dotenv extraction and Vaultwarden rendering helpers exist without printing secret values. Continue migrating legacy service-specific checks opportunistically.
 7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image.
-9. [ ] **Incident fixtures.** Interrupted prepare/continue membership regression is covered; Docker ghost-shim recovery/refusal fixture remains.
+9. [x] **Incident fixtures.** Interrupted prepare/continue membership drift and Docker ghost-shim eligibility/refusal are both covered by deterministic fixtures.
 10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
 11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
 12. [ ] **Runtime-layout non-regression gate.** New/modified services must not introduce repository-local live env files, legacy service-root secret paths, or application datasets without active persistence ownership.
