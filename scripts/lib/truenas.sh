@@ -58,3 +58,58 @@ truenas_lifecycle_errors_since() {
   printf '%s\n' "${evidence}" >&2
   return 1
 }
+
+
+truenas_app_state() {
+  local app_id="${1:?TrueNAS app id is required}"
+  midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+    jq -r 'if length == 1 then .[0].state else "MISSING" end'
+}
+
+truenas_reconcile_custom_app() {
+  local app_id="${1:?TrueNAS app id is required}"
+  local compose_path="${2:?compose path is required}"
+  local payload wrapper
+
+  [[ -f "${compose_path}" ]] || {
+    printf 'ERROR: missing Compose file: %s\n' "${compose_path}" >&2
+    return 1
+  }
+
+  if midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+    jq -e 'length == 1' >/dev/null; then
+    payload="$(jq -cn --arg include "${compose_path}" '{
+      custom_compose_config: {include: [$include]}
+    }')"
+    midclt call -j app.update "${app_id}" "${payload}"
+  else
+    wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
+    payload="$(jq -cn --arg app_name "${app_id}" --arg compose "${wrapper}" '{
+      app_name: $app_name,
+      custom_app: true,
+      custom_compose_config_string: $compose
+    }')"
+    midclt call -j app.create "${payload}"
+  fi
+}
+
+truenas_wait_app_running() {
+  local app_id="${1:?TrueNAS app id is required}"
+  local timeout_seconds="${2:-600}"
+  local poll_seconds="${3:-4}"
+  local deadline state
+  deadline=$((SECONDS + timeout_seconds))
+  while ((SECONDS < deadline)); do
+    state="$(truenas_app_state "${app_id}")"
+    case "${state}" in
+      RUNNING) return 0 ;;
+      CRASHED | ERROR | MISSING)
+        printf 'ERROR: %s converged to %s\n' "${app_id}" "${state}" >&2
+        return 1
+        ;;
+    esac
+    sleep "${poll_seconds}"
+  done
+  printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n'     "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
+  return 1
+}
