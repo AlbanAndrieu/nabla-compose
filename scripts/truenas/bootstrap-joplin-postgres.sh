@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/secrets.sh
+source "${SCRIPT_DIR}/../lib/secrets.sh"
+
 MODE="${1:---check}"
 SECRETS_FILE="${JOPLIN_SECRETS_FILE:-/mnt/cpool/secrets/runtime/joplin/.env.secrets}"
 EXPECTED_HOST="${JOPLIN_POSTGRES_HOST:-172.17.0.24}"
@@ -24,36 +28,10 @@ for command in docker grep head python3 stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
-[[ -f "${SECRETS_FILE}" ]] || fail "missing Joplin secret file: ${SECRETS_FILE}"
-metadata="$(stat -c '%U:%G %a' "${SECRETS_FILE}")"
-[[ "${metadata}" == "root:root 600" ]] ||
-  fail "${SECRETS_FILE} owner/mode=${metadata}; expected root:root 600"
-[[ -s "${SECRETS_FILE}" ]] || fail "${SECRETS_FILE} is empty"
-
-joplin_password="$(
-  python3 - "${SECRETS_FILE}" <<'PY'
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-value = ""
-for raw_line in path.read_text(encoding="utf-8").splitlines():
-    line = raw_line.strip()
-    if not line or line.startswith("#") or "=" not in line:
-        continue
-    key, raw_value = line.split("=", 1)
-    if key != "POSTGRES_PASSWORD":
-        continue
-    raw_value = raw_value.strip()
-    if len(raw_value) >= 2 and raw_value[0] == raw_value[-1] and raw_value[0] in {"'", '"'}:
-        raw_value = raw_value[1:-1]
-    value = raw_value
-    break
-sys.stdout.write(value)
-PY
-)"
+secrets_assert_file "${SECRETS_FILE}" POSTGRES_PASSWORD ||
+  fail "Joplin secret contract is not satisfied"
+joplin_password="$(secrets_get_value "${SECRETS_FILE}" POSTGRES_PASSWORD)" ||
+  fail "unable to read POSTGRES_PASSWORD from ${SECRETS_FILE}"
 [[ -n "${joplin_password}" ]] ||
   fail "${SECRETS_FILE} must define non-empty POSTGRES_PASSWORD"
 
