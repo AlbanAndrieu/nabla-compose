@@ -49,29 +49,18 @@ fi
 verify_one() {
   local app="$1"
   local target="/mnt/cpool/secrets/runtime/${app}/.env.secrets"
-  local tmp
+  local metadata
 
   case "${MODE}" in
     --apply)
-      [[ "${EUID}" -eq 0 ]] || fail "--apply requires sudo -E"
-      [[ -n "${BW_SESSION:-}" ]] || fail "BW_SESSION required for --apply"
-      command -v bw >/dev/null 2>&1 || fail "bw CLI required for --apply"
-      install -d -o root -g root -m 700 "$(dirname "${target}")"
-      python3 scripts/secrets/render_from_bitwarden.py         --app "${app}"         --output-file "${target}"
-      chown root:root "${target}"
-      chmod 600 "${target}"
+      [[ "${EUID}" -ne 0 ]] ||
+        fail "--apply must run as the unlocked operator, not root; sudo is used only for the final install"
+      python3 scripts/secrets/materialize_runtime.py --app "${app}" --install
       ;;
     --verify-vaultwarden)
-      [[ -n "${BW_SESSION:-}" ]] || fail "BW_SESSION required for --verify-vaultwarden"
-      command -v bw >/dev/null 2>&1 || fail "bw CLI required for --verify-vaultwarden"
-      [[ -f "${target}" ]] || fail "missing runtime materialization: ${target}"
-      tmp="$(mktemp)"
-      trap 'rm -f "${tmp}"' RETURN
-      python3 scripts/secrets/render_from_bitwarden.py         --app "${app}"         --output-file "${tmp}" >/dev/null
-      cmp -s "${tmp}" "${target}" ||
-        fail "${app}: Vaultwarden render differs from runtime materialization"
-      rm -f "${tmp}"
-      trap - RETURN
+      [[ "${EUID}" -ne 0 ]] ||
+        fail "--verify-vaultwarden must run as the unlocked operator, not root"
+      python3 scripts/secrets/materialize_runtime.py --app "${app}" --verify
       ;;
     --check)
       [[ -f "${target}" ]] || fail "missing runtime materialization: ${target}"
