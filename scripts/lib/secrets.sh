@@ -50,19 +50,3 @@ for raw in path.read_text(encoding="utf-8").splitlines():
 raise SystemExit(1)
 PY
 }
-
-secrets_render_vaultwarden_app() {
-  local repo_root="${1:?repo root required}"
-  local app="${2:?app required}"
-  local target="${3:?target required}"
-
-  [[ -n "${BW_SESSION:-}" ]] ||
-    secrets_fail "BW_SESSION is required to render ${app} from Vaultwarden" || return 1
-  command -v bw >/dev/null 2>&1 ||
-    secrets_fail "Bitwarden CLI bw is required to render ${app}" || return 1
-
-  install -d -o root -g root -m 700 "$(dirname "${target}")"
-  python3 "${repo_root}/scripts/secrets/render_from_bitwarden.py"     --app "${app}"     --output-file "${target}"
-  chown root:root "${target}"
-  chmod 600 "${target}"
-}
