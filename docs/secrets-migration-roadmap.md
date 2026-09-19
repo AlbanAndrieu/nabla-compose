@@ -35,10 +35,10 @@ The first canonical TrueNAS read-only inventory established:
 - 52 repository-owned dataset roots present;
 - 23 application datasets whose current properties differ from the intended Apps preset;
 - eight empty direct-child datasets not currently owned by an active application bind mount: `2fauth`, `alertmanager`, `drawio`, `jenkins`, `jenkins-slave`, `litellm`, `rancherui`, `sabnzbd`;
-- `cpool/secrets` not yet created at the baseline;
+- `cpool/secrets` was absent at the initial baseline and has since been created/reconciled as the root-only `GENERIC` security dataset;
 - 52 runtime env materializations reported as requiring migration work;
 - historical files exist both under `/mnt/cpool/<service>/.env*` and ignored `apps/<service>/.env*` paths;
-- Scanopy, Joplin and AutoKuma Compose definitions already reference canonical `/mnt/cpool/secrets/runtime/<service>/.env.secrets` targets, while their historical source files still need staging.
+- Scanopy, Joplin and AutoKuma Compose definitions reference canonical `/mnt/cpool/secrets/runtime/<service>/.env.secrets` targets; repository tooling now stages and accepts them one service at a time, while actual TrueNAS acceptance remains operator evidence.
 
 This baseline is an inventory, not an automatic cleanup/deletion plan.
 
@@ -171,6 +171,20 @@ Preferred first services because their Compose definitions already use canonical
 1. Scanopy;
 2. Joplin;
 3. AutoKuma.
+
+Use the bounded first-wave transaction:
+
+```bash
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage <service>
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept <service>
+```
+
+`--accept` is one-service-at-a-time and finalizes the legacy path only after
+dependency bootstrap, deployment, stable-container validation and the
+service-specific functional gate succeed. Scanopy and Joplin reconcile their
+dedicated roles/databases on the shared PostgreSQL service. AutoKuma remains
+fail-closed while Uptime Kuma is absent or not RUNNING.
 
 Exit criteria for each:
 
