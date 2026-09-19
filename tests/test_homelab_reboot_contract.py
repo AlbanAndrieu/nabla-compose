@@ -15,11 +15,12 @@ VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
+DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS):
+        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, DOCKER_LIB):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -218,9 +219,11 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_orphan_shim_recovery_is_narrow(self) -> None:
         text = ORPHAN_SHIMS.read_text(encoding="utf-8")
+        guard = DOCKER_LIB.read_text(encoding="utf-8")
         self.assertIn("--recover", text)
-        self.assertIn('[[ "${pid}" == "0" ]]', text)
-        self.assertIn("expected exactly one containerd shim", text)
+        self.assertIn("docker_orphan_shim_recovery_guard", text)
+        self.assertIn('[[ "${pid}" == "0" ]]', guard)
+        self.assertIn("expected exactly one containerd shim", guard)
         self.assertIn("docker update --restart=no", text)
         self.assertIn('kill -TERM "${shim_pid}"', text)
         self.assertIn('kill -KILL "${shim_pid}"', text)
@@ -229,6 +232,50 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertNotIn("killall", text)
         self.assertNotIn("systemctl restart docker", text)
         self.assertNotIn("systemctl restart containerd", text)
+
+    def test_orphan_shim_guard_fixture_fails_closed(self) -> None:
+        def run_guard(
+            running: str,
+            restarting: str,
+            pid: str,
+            shim_count: str,
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        'source "$1"; '
+                        'docker_orphan_shim_recovery_guard '
+                        '"$2" "$3" "$4" "$5" test-container'
+                    ),
+                    "_",
+                    str(DOCKER_LIB),
+                    running,
+                    restarting,
+                    pid,
+                    shim_count,
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        safe = run_guard("true", "false", "0", "1")
+        self.assertEqual(safe.returncode, 0, safe.stderr)
+
+        live_pid = run_guard("true", "false", "42", "1")
+        self.assertNotEqual(live_pid.returncode, 0)
+        self.assertIn("live init PID 42 exists", live_pid.stderr)
+
+        for shim_count in ("0", "2"):
+            ambiguous_shim = run_guard("true", "false", "0", shim_count)
+            self.assertNotEqual(ambiguous_shim.returncode, 0)
+            self.assertIn("expected exactly one containerd shim", ambiguous_shim.stderr)
+
+        not_ghost = run_guard("false", "false", "0", "1")
+        self.assertNotEqual(not_ghost.returncode, 0)
+        self.assertIn("not in a running/restarting ghost state", not_ghost.stderr)
 
     def test_runbook_does_not_promote_preexisting_crashed_apps(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
