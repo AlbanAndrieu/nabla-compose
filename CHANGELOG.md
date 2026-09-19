@@ -1,3 +1,10 @@
+# [0.39.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.2...0.39.0) (2026-09-19)
+
+
+### Features
+
+* **security:** migrate Plumber and add security tooling Compose stacks ([#207](https://github.com/AlbanAndrieu/nabla-compose/issues/207)) ([533a382](https://github.com/AlbanAndrieu/nabla-compose/commit/533a382db1865f137aa065ecee231a25bbcdbb45))
+
 ## [0.38.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.1...0.38.2) (2026-09-13)
 
 
