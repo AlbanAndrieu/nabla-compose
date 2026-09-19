@@ -103,6 +103,35 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Running/Restarting but pid=0", text)
         self.assertIn("diagnose-docker-orphan-shims.sh", text)
 
+    def test_operator_acceptance_is_a_strict_sidecar(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+
+        self.assertIn("--accept-deferred", text)
+        self.assertIn("NABLA_REBOOT_ACCEPTANCE_NOTE", text)
+        self.assertIn("operator-acceptance.json", text)
+        self.assertIn("not part of frozen resume membership", text)
+        self.assertIn("annotations are immutable", text)
+        self.assertIn("appsBeforeSha256", text)
+        self.assertIn("resumePlanSha256", text)
+        self.assertIn("resumeAppsSha256", text)
+        self.assertIn('strictVerification: "unchanged"', text)
+        self.assertIn(
+            "strict --verify still evaluates every saved App",
+            text,
+        )
+        self.assertIn(
+            'NABLA_REBOOT_STATE_ROOT="${STATE_ROOT}" bash "${RESUME_RECONCILER}" --check',
+            text,
+        )
+
+    def test_runbook_documents_deferred_operator_acceptance(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+
+        self.assertIn("--accept-deferred", text)
+        self.assertIn("operator-acceptance.json", text)
+        self.assertIn("does not make `--verify` pass", text)
+        self.assertIn("frozen `resume-apps.txt`", text)
+
     def test_orphan_shim_recovery_is_narrow(self) -> None:
         text = ORPHAN_SHIMS.read_text(encoding="utf-8")
         self.assertIn("--recover", text)
