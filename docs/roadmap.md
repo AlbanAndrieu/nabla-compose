@@ -21,6 +21,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
+- [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
 
@@ -160,6 +161,8 @@ script.
 16. [ ] Resolve the Scrutiny source conflict value-blind: repository-local `apps/scrutiny/.env.secrets` and `/mnt/cpool/scrutiny/.env.secrets` differ and must not be auto-merged. Compare key sets/value equality by key name only, select the runtime-authoritative source with evidence, then restage.
 17. [ ] Initialize the currently missing declared datasets only with their service rollout: `cyberbro`, `defectdojo`, `dependency-track`, `neo4j`, `netbox`. Their absence remains expected preparation debt until deployment; do not create them merely to make the global check green.
 18. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
+19. [x] Bound TrueNAS deployment automation: cron self-updates only the Doco-CD bootstrap on `master`, refuses destructive resets/non-fast-forwards and becomes a no-op on feature branches; Doco-CD independently polls reviewed remote `master`; `sample` remains explicitly owned by its TrueNAS Custom App update helper during the canonical-path pilot.
+20. [x] Provide user-space TrueNAS development tooling bootstrap with mise/pre-commit/uv/pytest without enabling appliance `apt` package management.
 
 Exit gate: broad Vaultwarden migration starts only when the generic host-local
 control path can audit/plan one service, preserve status intent, execute
