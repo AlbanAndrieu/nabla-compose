@@ -257,6 +257,14 @@ repos:
         files: >-
           ^(apps/.*/(?:compose|docker-compose)\.ya?ml|(?:docker-)?compose[^/]*\.ya?ml|bootstrap/compose\.ya?ml|config/secrets/(?:manifest|debt-baseline)\.json|scripts/secrets/audit_consumers\.py|tests/test_secret_consumer_audit\.py)$
 
+      - id: secret-materialization-contract
+        name: "🔐 secrets · Enforce unprivileged Vaultwarden materialization"
+        language: system
+        entry: python -m unittest tests.test_secret_materialization_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:lib/secrets[.]sh|secrets/materialize_runtime[.]py|truenas/(?:install-runtime-secret|prepare-security-tooling-secrets)[.]sh)|tests/test_secret_materialization_contract[.]py|docs/(?:security-tooling-runtime-bootstrap|secrets-runtime-initialization)[.]md|config/secrets/README[.]md)$
+
       - id: observability-contract
         name: "📊 observability · Validate lightweight logging contract"
         language: system
