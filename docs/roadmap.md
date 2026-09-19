@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-17.
+Last updated: 2026-09-19.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -35,6 +35,8 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] PR #191 introduced a manifest-aware, idempotent reboot resume reconciler and started operator-script consolidation.
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
+- [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
+- [ ] **Security tooling runtime bootstrap:** follow-up automation prepares Vaultwarden-backed runtime files, shared PostgreSQL roles/databases, TrueNAS Custom App reconciliation, container stability and HTTP readiness. Operator execution on TrueNAS is still required before the services are considered deployed.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
 - [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
@@ -81,7 +83,8 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [ ] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped and proves continuation never regenerates the frozen manifest/plans.
 - [ ] Add a Docker fixture for `Running=true`, `Pid=0`, exactly-one-shim recovery and refusal when `Pid>0`.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
-- [ ] Add health-aware dependency acceptance metadata so a backend wave can require container/service readiness, not only TrueNAS App `RUNNING`, where a consumer cannot self-wait safely.
+- [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
+- [ ] Move service-specific readiness policy into declarative lifecycle metadata so selected backends can additionally require HTTP/TCP/application-level probes rather than only generic container stability.
 - [ ] Keep current + previous known-good reboot bundles until another normal reboot cycle passes.
 
 ### TrueNAS lifecycle phase contract
@@ -128,7 +131,7 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
 14. [ ] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service.
-15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`.
+15. [ ] Expand `config/secrets/manifest.json` service-by-service until every migration-critical runtime secret can be rendered from Vaultwarden; keep Vaultwarden bootstrap under `/mnt/cpool/secrets/bootstrap/vaultwarden`. Security-tooling entries for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and Scorecard are now inventoried; remaining services still need migration.
 16. [ ] Add/maintain agent-skill rules so every created or materially modified Compose service follows this architecture instead of introducing new legacy paths.
 17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
 
@@ -154,11 +157,21 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 
 Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
 
-- [ ] **NetBox** — evaluate and deploy [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Define explicit reconciliation boundaries with `x-nabla` so NetBox owns network/infrastructure data while `x-nabla` remains authoritative for service identity and service-to-service topology.
-- [ ] **OWASP DefectDojo** — deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
-- [ ] **OWASP Dependency-Track** — deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
-- [ ] **OpenSSF Scorecard** — integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
-- [ ] **Cartography + Neo4j attack graph PoC** — evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
+Runtime preparation contract for this wave:
+
+1. `scripts/truenas/prepare-security-tooling-secrets.sh --apply <app|all>` renders the exact Vaultwarden item into `/mnt/cpool/secrets/runtime/<service>/.env.secrets` as `root:root 0600`.
+2. `--verify-vaultwarden` proves byte-for-byte parity between the unlocked Vaultwarden item and the runtime materialization without printing values.
+3. `scripts/truenas/bootstrap-security-tooling-postgres.sh --apply <app>` idempotently creates/rotates dedicated shared-PostgreSQL roles and databases for Plumber, NetBox, Dependency-Track and DefectDojo, then proves authentication.
+4. `scripts/truenas/deploy-security-tooling.sh --apply <app|all>` validates Compose/catalog contracts, storage, database prerequisites, reconciles the TrueNAS Custom App, waits for middleware `RUNNING`, validates container stability and probes the service HTTP endpoint.
+5. Cartography and Scorecard remain `profile: manual` jobs: validate their Compose/secrets but do not register them as always-on TrueNAS Apps or reboot obligations.
+6. After runtime acceptance, execute one controlled reboot and require the topology-derived resume waves plus the generic container health barrier to pass before marking this wave stable.
+
+
+- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Define explicit reconciliation boundaries with `x-nabla` so NetBox owns network/infrastructure data while `x-nabla` remains authoritative for service identity and service-to-service topology.
+- [ ] **OWASP DefectDojo** — Compose/catalog and runtime bootstrap are prepared; deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
+- [ ] **OWASP Dependency-Track** — Compose/catalog and runtime bootstrap are prepared; deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
+- [ ] **OpenSSF Scorecard** — manual-job Compose and Vaultwarden contract are prepared; integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
+- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
 - [ ] Define an interoperability contract: `x-nabla` = service/application identity + declared dependencies; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream security posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable identifiers and preserve provenance/evidence.
 
 ## P3 — runtime/services
@@ -248,11 +261,11 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 ## Accepted code/debt reduction plan
 
 1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`.
-2. [ ] **`scripts/lib/truenas.sh`.** Centralize bounded middleware calls, normalized readiness, App state, lifecycle waits and persistent reboot-manifest helpers. #202 starts this extraction with bounded `/var/log/app_lifecycle.log` mark/error helpers used by Cyberbro deploy/diagnostics.
+2. [ ] **`scripts/lib/truenas.sh`.** Continue centralizing bounded middleware calls, normalized readiness and reboot-manifest helpers. Shared Custom App state/reconcile/wait primitives are now used by the security-tooling deployment path; remaining legacy deploy scripts still duplicate lifecycle logic.
 3. [ ] **`scripts/lib/docker.sh`.** Centralize container state/health/PID/restarts/exit, Compose-project selection and orphan-shim correlation.
 4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, counters and stable exit codes.
 5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
-6. [ ] **`scripts/lib/secrets.sh`.** Centralize owner/mode/presence checks without secret disclosure.
+6. [x] **`scripts/lib/secrets.sh`.** Initial shared owner/mode/presence, targeted dotenv extraction and Vaultwarden rendering helpers exist without printing secret values. Continue migrating legacy service-specific checks opportunistically.
 7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata.
 8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image.
 9. [ ] **Incident fixtures.** Complete interrupted prepare/continue and Docker ghost-shim fixtures.
@@ -299,6 +312,9 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
+  -> security tooling secret materialization + shared PostgreSQL bootstrap
+  -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
+  -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
