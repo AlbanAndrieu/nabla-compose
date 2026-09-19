@@ -203,9 +203,9 @@ if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
   exit 1
 fi
 
-# Global inventory reports unowned empty direct-child datasets. App-scoped
-# checks deliberately omit this unrelated cleanup inventory so one service
-# deployment stays bounded.
+# Global inventory reports unowned empty direct-child datasets.
+# App-scoped checks deliberately omit this unrelated cleanup inventory so one
+# service deployment stays bounded.
 if [[ -z "${APP_FILTER}" ]]; then
   declare -A owned_top_level=()
   while IFS= read -r relative; do
