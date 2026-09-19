@@ -1,3 +1,10 @@
+# [0.40.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.39.0...0.40.0) (2026-09-19)
+
+
+### Features
+
+* **runtime:** bootstrap security tooling and harden reboot health ([#208](https://github.com/AlbanAndrieu/nabla-compose/issues/208)) ([74813a4](https://github.com/AlbanAndrieu/nabla-compose/commit/74813a4b5dd0b30130ade5db49bad72152d3d35e))
+
 # [0.39.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.38.2...0.39.0) (2026-09-19)
 
 
