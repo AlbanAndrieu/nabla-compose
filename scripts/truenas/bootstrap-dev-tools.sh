@@ -34,13 +34,17 @@ fi
 "${MISE_BIN}" install pre-commit@latest
 
 printf 'Installing repository Git hooks with mise-managed pre-commit...\n'
-"${MISE_BIN}" exec pre-commit@latest --   pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg
-"${MISE_BIN}" exec pre-commit@latest --   pre-commit install --config .pre-commit-pre-push.yaml --install-hooks --hook-type pre-push
+"${MISE_BIN}" exec pre-commit@latest -- \
+  pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg
+"${MISE_BIN}" exec pre-commit@latest -- \
+  pre-commit install --config .pre-commit-pre-push.yaml --install-hooks --hook-type pre-push
 
 printf 'Preparing a minimal user-space pytest environment: %s\n' "${DEV_VENV}"
 mkdir -p "$(dirname "${DEV_VENV}")"
-"${MISE_BIN}" exec uv@latest --   uv venv --python "${PYTHON_BIN}" "${DEV_VENV}"
-"${MISE_BIN}" exec uv@latest --   uv pip install --python "${DEV_VENV}/bin/python" pytest PyYAML
+"${MISE_BIN}" exec uv@latest -- \
+  uv venv --python "${PYTHON_BIN}" "${DEV_VENV}"
+"${MISE_BIN}" exec uv@latest -- \
+  uv pip install --python "${DEV_VENV}/bin/python" pytest PyYAML
 
 cat <<EOF
 
