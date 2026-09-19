@@ -51,7 +51,7 @@ if [[ "${MODE}" == "--accept" && "${APP_FILTER}" == "all" ]]; then
 fi
 
 require_root "run as root on TrueNAS"
-require_commands bash curl git grep midclt stat
+require_commands bash curl git grep jq midclt stat
 [[ -x "${HEALTH_SCRIPT}" ]] || fail "missing runtime health helper: ${HEALTH_SCRIPT}"
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -125,10 +125,11 @@ accept_dependency() {
       ;;
     autokuma)
       if ! midclt call app.query '[["id","=","uptime-kuma"]]' |
-        grep -q '"state": "RUNNING"'; then
+        jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
         fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
       fi
-      curl --fail --silent --show-error --max-time 10         http://172.17.0.24:31050/ >/dev/null ||
+      curl --fail --silent --show-error --max-time 10 \
+        http://172.17.0.24:31050/ >/dev/null ||
         fail "autokuma: Uptime Kuma API/UI is not reachable on 172.17.0.24:31050"
       ;;
   esac
@@ -148,10 +149,12 @@ functional_probe() {
   local app="$1"
   case "${app}" in
     scanopy)
-      curl --fail --silent --show-error --max-time 10         http://172.17.0.24:60072/ >/dev/null
+      curl --fail --silent --show-error --max-time 10 \
+        http://172.17.0.24:60072/ >/dev/null
       ;;
     joplin)
-      curl --fail --silent --show-error --max-time 10         http://172.17.0.24:22300/api/ping >/dev/null
+      curl --fail --silent --show-error --max-time 10 \
+        http://172.17.0.24:22300/api/ping >/dev/null
       ;;
     autokuma)
       # AutoKuma is a controller without an HTTP surface of its own. Runtime
