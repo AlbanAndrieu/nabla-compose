@@ -20,6 +20,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
 - [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
+- [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
 
 ## Current platform state
 
