@@ -44,8 +44,10 @@ def test_secret_preparation_supports_vaultwarden_parity() -> None:
     script = PREPARE.read_text(encoding="utf-8")
     helpers = SECRETS_LIB.read_text(encoding="utf-8")
 
-    assert "--check | --apply | --verify-vaultwarden" in script
+    assert "--check | --apply | --verify-vaultwarden | --import-env | --import-env-apply" in script
     assert "render_from_bitwarden.py" in script
+    assert "import_env_to_bitwarden.py" in script
+    assert "--import-env-apply" in script
     assert "cmp -s" in script
     assert "/mnt/cpool/secrets/runtime/${app}/.env.secrets" in script
     assert "root:root 600" in script
