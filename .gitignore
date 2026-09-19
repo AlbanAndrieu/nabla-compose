@@ -52,6 +52,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Runtime data
 
+# TrueNAS bind-mounted application state must never become source input.
+/apps/langflow/langflow-data/
+/apps/openrag/data/
+/apps/openrag/keys/
+
 pids
 _.pid
 _.seed
