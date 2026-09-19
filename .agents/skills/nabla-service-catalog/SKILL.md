@@ -17,6 +17,7 @@ Every newly tracked runtime service must normally define a service-local `x-nabl
 - `category`: catalog grouping;
 - `presentationRole`: optional UI intent, one of `service`, `core`, or `support`; prefer `service` for user-facing/lab capabilities, `core` for shared platform foundations, and `support` for auxiliary tooling;
 - `criticality`: optional operator-urgency tier aligned with OpenTelemetry `service.criticality`: `critical`, `high`, `medium`, or `low`; this does **not** replace dependency `strength` and must not be used to invent outage propagation. Explicit `presentationRole: core` is intentionally narrow and is normalized to `critical`; use topology/kind or another role for shared components that are important but not foundational;
+- `status`: optional declared operational intent: `active`, `planned`, or `disabled`. Missing metadata falls back to `active`. `planned` retains code/topology for future activation without making absence a runtime incident. `disabled` keeps code while excluding the service from normal initialization/reboot expectations unless an operator explicitly overrides it for a bounded test;
 - `securityFunctions`: optional non-empty list of NIST CSF 2.0 functions: `govern`, `identify`, `protect`, `detect`, `respond`, `recover`. Use it only when repository/runtime evidence shows that the component is intentionally used to experiment with that cybersecurity function; component presence does not prove control effectiveness, maturity, health, or dependency impact;
 - `runtime.provider`: normally `truenas-app` for services deployed from this repository;
 - `runtime.containerService`: exact Compose service key.
@@ -67,6 +68,7 @@ Presentation role, criticality, security function and dependency strength answer
 
 - `presentationRole` decides where an entity belongs in operator-facing views;
 - `criticality` expresses how urgently operators should care about its own failure;
+- `status` expresses declared operational intent and is independent from observed runtime health; consumers must use `active` as the fallback when the field is absent;
 - `securityFunctions` describes which NIST CSF 2.0 functions the component is deliberately used to experiment with; it is navigation/coverage metadata, not an effectiveness or maturity score;
 - relation `strength` expresses whether a dependent actually requires the target to function.
 
@@ -89,7 +91,7 @@ Homarr, Heimdall, Gatus, Uptime Kuma/AutoKuma and future portals or status pages
 
 When implementing or updating one of these integrations:
 
-- derive identity, name, category, URL, description and icon from `x-nabla` / `catalog/services.json`;
+- derive identity, name, category, URL, description, icon and declared `status` from `x-nabla` / `catalog/services.json`; treat missing status as `active`;
 - use stable `x-nabla.id` values as reconciliation identifiers;
 - do not make a Homarr board, Heimdall database/export, Gatus YAML file, Uptime Kuma database, AutoKuma file or Docker label the authoritative service definition;
 - do not infer a health endpoint merely from a dashboard `url`;

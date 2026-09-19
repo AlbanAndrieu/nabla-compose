@@ -64,6 +64,8 @@ SECONDARY_DATA_KINDS = {
 NETWORK_CATEGORIES = {"network", "infrastructure"}
 PLATFORM_CATEGORIES = {"observability", "security", "operations", "automation"}
 DEFAULT_PRIORITY = 50
+ACTIVE_SERVICE_STATUS = "active"
+SERVICE_STATUSES = {"active", "planned", "disabled"}
 
 
 def load_json(path: Path):
@@ -155,6 +157,39 @@ def catalog_to_app(
                 f"catalog id {key} maps to conflicting TrueNAS Apps: {previous}, {app_id}"
             )
         result[key] = app_id
+    return result
+
+
+def service_statuses(
+    services: dict,
+    topology: dict,
+    mapping: dict[str, str],
+) -> dict[str, str]:
+    """Return one declared intent status per mapped TrueNAS App.
+
+    Missing metadata falls back to active. Mixed status declarations for
+    services belonging to one TrueNAS App fail closed.
+    """
+    values_by_app: dict[str, set[str]] = defaultdict(set)
+    for entry in catalog_entries(services, topology):
+        app = mapping.get(str(entry.get("id", "")))
+        if not app:
+            continue
+        status = str(entry.get("status") or ACTIVE_SERVICE_STATUS)
+        if status not in SERVICE_STATUSES:
+            raise ValueError(
+                f"unsupported service status {status!r} for TrueNAS App {app}"
+            )
+        values_by_app[app].add(status)
+
+    result: dict[str, str] = {}
+    for app, values in values_by_app.items():
+        if len(values) > 1:
+            raise ValueError(
+                f"conflicting declared service status for TrueNAS App {app}: "
+                + ", ".join(sorted(values))
+            )
+        result[app] = next(iter(values), ACTIVE_SERVICE_STATUS)
     return result
 
 
@@ -332,6 +367,15 @@ def main() -> int:
     selected |= forced
 
     mapping = catalog_to_app(services, topology, known_app_ids)
+    statuses = service_statuses(services, topology, mapping)
+    suppressed_by_status = {
+        app: statuses.get(app, ACTIVE_SERVICE_STATUS)
+        for app in sorted(selected)
+        if app not in forced
+        and statuses.get(app, ACTIVE_SERVICE_STATUS) != ACTIVE_SERVICE_STATUS
+    }
+    selected -= set(suppressed_by_status)
+
     mapped_apps = set(mapping.values()) & selected
     unmapped_apps = sorted(selected - mapped_apps)
     policies = lifecycle_policies(services, topology, mapping, selected)
@@ -376,6 +420,11 @@ def main() -> int:
     result = {
         "states": sorted(states),
         "explicitly_included_apps": sorted(forced),
+        "service_status_by_app": {
+            app: statuses.get(app, ACTIVE_SERVICE_STATUS)
+            for app in sorted(selected | set(suppressed_by_status))
+        },
+        "suppressed_apps_by_status": suppressed_by_status,
         "selected_apps": sorted(selected),
         "mapped_apps": sorted(mapped_apps),
         "unmapped_apps": unmapped_apps,

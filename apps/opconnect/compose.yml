@@ -9,6 +9,7 @@ services:
       category: security
       presentationRole: support
       criticality: high
+      status: disabled
       securityFunctions:
         - protect
       description: 1Password Connect API for machine-readable secret access.
@@ -38,6 +39,7 @@ services:
       category: security
       presentationRole: support
       criticality: high
+      status: disabled
       securityFunctions:
         - protect
       description: Synchronizes 1Password vault state for the Connect API.

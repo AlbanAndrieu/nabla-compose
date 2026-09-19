@@ -91,6 +91,7 @@ def make_item(
     folder_id: str,
     values: dict[str, str],
     existing: dict[str, Any] | None = None,
+    supplied_source_names: set[str] | None = None,
 ) -> dict[str, Any]:
     item = dict(existing or {})
     item["type"] = 1
@@ -113,12 +114,14 @@ def make_item(
         if isinstance(field.get("name"), str)
     }
 
+    supplied = supplied_source_names if supplied_source_names is not None else set(os.environ)
+
     for spec in app_spec["secrets"]:
         target_env = spec["env"]
         if (
             existing is not None
             and spec.get("allowEmpty", False)
-            and source_env_name(spec) not in os.environ
+            and source_env_name(spec) not in supplied
         ):
             # Partial updates must not erase an existing optional provider key just
             # because its source variable was not exported in this shell.

@@ -18,9 +18,9 @@ note() {
 
 case "${MODE}" in
   --check | --apply) ;;
-  *) fail "usage: sudo -E bash $0 [--check|--apply] [app|all]" ;;
+  *) fail "usage: sudo bash $0 [--check|--apply] [app|all]" ;;
 esac
-[[ "${EUID}" -eq 0 ]] || fail "run with sudo -E"
+[[ "${EUID}" -eq 0 ]] || fail "run with sudo"
 [[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
   fail "run from canonical checkout ${CANONICAL_ROOT}; current=${ROOT}"
 for command in curl docker jq midclt python3; do
@@ -91,7 +91,7 @@ for app in "${all_apps[@]}"; do
   note "${app}: secret materialization"
   bash scripts/truenas/prepare-security-tooling-secrets.sh --check "${app}"
   if [[ "${NABLA_VERIFY_VAULTWARDEN:-0}" == "1" ]]; then
-    bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden "${app}"
+    fail "Vaultwarden parity must run before sudo: python scripts/secrets/materialize_runtime.py --app ${app} --verify"
   fi
 
   compose_path="${ROOT}/apps/${app}/compose.yml"

@@ -148,6 +148,9 @@
         "criticality": {
           "enum": ["critical", "high", "medium", "low"]
         },
+        "status": {
+          "enum": ["active", "planned", "disabled"]
+        },
         "securityFunctions": {
           "type": "array",
           "minItems": 1,

@@ -360,6 +360,44 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
             {"name": "primary-data", "order": 20, "source": "catalog"},
         )
 
+    def test_planned_and_disabled_apps_are_not_resumed_by_default(self) -> None:
+        apps = [
+            {"id": "active-app", "state": "RUNNING"},
+            {"id": "planned-app", "state": "RUNNING"},
+            {"id": "disabled-app", "state": "RUNNING"},
+        ]
+        services = [
+            self.service(
+                "active-app",
+                "application",
+                "test",
+                "apps/active-app/compose.yml",
+            ),
+            self.service(
+                "planned-app",
+                "application",
+                "test",
+                "apps/planned-app/compose.yml",
+                status="planned",
+            ),
+            self.service(
+                "disabled-app",
+                "application",
+                "test",
+                "apps/disabled-app/compose.yml",
+                status="disabled",
+            ),
+        ]
+
+        plan = self.run_planner(apps, services, [])
+
+        self.assertEqual(plan["selected_apps"], ["active-app"])
+        self.assertEqual(
+            plan["suppressed_apps_by_status"],
+            {"disabled-app": "disabled", "planned-app": "planned"},
+        )
+        self.assertEqual(plan["service_status_by_app"]["active-app"], "active")
+
     def test_reboot_resume_repairs_order_without_replacing_manifest(self) -> None:
         script = REBOOT.read_text(encoding="utf-8")
 
@@ -387,6 +425,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         source_path: str,
         *,
         lifecycle: tuple[str, int] | None = None,
+        status: str | None = None,
     ) -> dict:
         service = {
             "id": service_id,
@@ -401,6 +440,8 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         if lifecycle is not None:
             phase, priority = lifecycle
             service["lifecycle"] = {"phase": phase, "priority": priority}
+        if status is not None:
+            service["status"] = status
         return service
 
     @staticmethod
