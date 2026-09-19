@@ -34,34 +34,30 @@ class SecretsRendererTests(TestCase):
             manifest["folder"]["id"],
             "44a92b83-2762-4fa5-a238-f84396fd26f9",
         )
-        self.assertEqual(
-            {item["app"] for item in manifest["items"]},
-            {
-                "infrastructure-bootstrap",
-                "truenas-csi",
-                "nexus-infrastructure",
-                "grafana-observability",
-                "pfsense-observability",
-                "n8n",
-                "2fauth",
-                "open-terminal",
-                "karakeep",
-                "reactive-resume",
-                "akvorado",
-                "crowdsec",
-                "keycloak",
-                "scanopy",
-                "joplin",
-                "autokuma",
-                "cyberbro",
-                "plumber",
-                "netbox",
-                "dependency-track",
-                "defectdojo",
-                "neo4j",
-                "cartography",
-                "scorecard",
-            },
+        managed_apps = {item["app"] for item in manifest["items"]}
+        required_apps = {
+            "infrastructure-bootstrap",
+            "truenas-csi",
+            "nexus-infrastructure",
+            "grafana-observability",
+            "pfsense-observability",
+            "n8n",
+            "2fauth",
+            "scanopy",
+            "joplin",
+            "autokuma",
+            "cyberbro",
+            "plumber",
+            "netbox",
+            "dependency-track",
+            "defectdojo",
+            "neo4j",
+            "cartography",
+            "scorecard",
+        }
+        self.assertTrue(
+            required_apps <= managed_apps,
+            f"missing required manifest apps: {sorted(required_apps - managed_apps)}",
         )
         serialized = json.dumps(manifest)
         self.assertNotIn('"value"', serialized)

@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from pathlib import Path
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MATERIALIZE = ROOT / "scripts" / "secrets" / "materialize_runtime.py"
+INSTALLER = ROOT / "scripts" / "truenas" / "install-runtime-secret.sh"
+SECURITY_WRAPPER = ROOT / "scripts" / "truenas" / "prepare-security-tooling-secrets.sh"
+SECRETS_LIB = ROOT / "scripts" / "lib" / "secrets.sh"
+
+
+class SecretMaterializationContractTests(unittest.TestCase):
+    def test_vaultwarden_session_never_crosses_root_boundary(self) -> None:
+        materialize = MATERIALIZE.read_text(encoding="utf-8")
+        installer = INSTALLER.read_text(encoding="utf-8")
+        wrapper = SECURITY_WRAPPER.read_text(encoding="utf-8")
+
+        self.assertIn("if os.geteuid() == 0", materialize)
+        self.assertIn('child_env.pop("BW_SESSION", None)', materialize)
+        self.assertIn('["sudo", str(INSTALLER)', materialize)
+        self.assertNotIn("BW_SESSION", installer)
+        self.assertNotIn("bw ", installer)
+        self.assertNotIn("sudo -E", wrapper)
+        self.assertIn("materialize_runtime.py", wrapper)
+
+    def test_root_installer_is_bounded_to_canonical_runtime_path(self) -> None:
+        installer = INSTALLER.read_text(encoding="utf-8")
+        self.assertIn('DEST_DIR="/mnt/cpool/secrets/runtime/${APP}"', installer)
+        self.assertIn('DEST="${DEST_DIR}/.env.secrets"', installer)
+        self.assertIn('[[ -f "${SOURCE}" && ! -L "${SOURCE}" ]]', installer)
+        self.assertIn('[[ "${source_mode}" == "600" ]]', installer)
+        self.assertIn("cmp -s", installer)
+        self.assertIn("root:root 600", installer)
+
+    def test_shared_shell_library_no_longer_renders_vaultwarden_as_root(self) -> None:
+        library = SECRETS_LIB.read_text(encoding="utf-8")
+        self.assertNotIn("secrets_render_vaultwarden_app", library)
+        self.assertNotIn("BW_SESSION", library)
+
+
+if __name__ == "__main__":
+    unittest.main()

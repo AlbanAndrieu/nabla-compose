@@ -141,7 +141,145 @@ repos:
         language: system
         entry: python -m unittest discover -s tests -p test_secrets_renderer.py -v
         pass_filenames: false
-        files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
+        files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)
+      - id: observability-contract
+        name: "📊 observability · Validate lightweight logging contract"
+        language: system
+        entry: python -m unittest tests.test_observability_contract -v
+        pass_filenames: false
+        files: >-
+          ^(apps/(grafana|prometheus|gatus|autokuma)/|scripts/observability/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
+
+      - id: truenas-app-lifecycle-contract
+        name: "🧰 truenas · Validate app lifecycle recovery contract"
+        language: system
+        entry: python -m unittest tests.test_truenas_app_lifecycle_contract -v
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/(?:truenas-app-lifecycle|homelab-platform-migration-roadmap)[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
+
+      - id: agent-quality-gate-contract
+        name: "✅ quality · Validate agent-first gate contract"
+        language: python
+        entry: python -m unittest tests.test_agent_quality_gate_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(scripts/agent-(?:quality-gate|pre-push)[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
+
+      - id: security-ci-contract
+        name: "🛡️ security · Validate SAST/DAST production gate contract"
+        language: system
+        entry: python -m unittest tests.test_security_ci_contract -v
+        pass_filenames: false
+        files: >-
+          ^([.]github/workflows/(?:codeql|production-security|runtime-baseline)[.]ya?ml|[.]zap/(?:rules|truenas-rules)[.]tsv|config/security/production-http-baseline[.]json|scripts/security/prepare-zap-openapi[.]py|tests/(?:test_security_ci_contract|test_prepare_zap_openapi)[.]py|docs/runtime-baseline-tests[.]md)$
+
+      - id: truenas-operator-tools-contract
+        name: "🧰 truenas · Validate operator tools installer"
+        language: system
+        entry: python -m unittest tests.test_truenas_operator_tools -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/truenas/install-operator-tools[.]sh|docs/truenas-operator-tools[.]md|tests/test_truenas_operator_tools[.]py)$
+
+      - id: talos-operator-client-contract
+        name: "🔐 talos · Validate non-root operator client contract"
+        language: system
+        entry: python -m unittest tests.test_talos_operator_client_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/talos/(?:configure-operator-client[.]sh|lib/client-config[.]sh|validate-cluster[.]sh|smoke-kubernetes-network[.]sh|validate-csi-prereqs[.]sh|install-truenas-csi-nfs[.]sh|smoke-truenas-csi-nfs[.]sh|preflight-kubara[.]sh|smoke-fastapi-sample[.]sh)|scripts/truenas/install-operator-tools[.]sh|docs/(?:truenas-operator-tools|kubernetes-csi-preflight)[.]md|tests/(?:test_talos_operator_client_contract|test_truenas_operator_tools)[.]py)$
+
+      - id: truenas-csi-nfs-contract
+        name: "💾 kubernetes · Validate TrueNAS NFS CSI contract"
+        language: python
+        entry: python -m unittest tests.test_truenas_csi_nfs_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(kubernetes/truenas-csi/|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|homelab-platform-migration-roadmap|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
+
+      - id: pfsense-posture-audit-contract
+        name: "🛡️ pfSense · Parse posture regression audit"
+        language: system
+        entry: bash scripts/pfsense/audit-posture.sh --help
+        pass_filenames: false
+        files: >-
+          ^(scripts/pfsense/audit-posture[.]sh|[.]agents/skills/pfsense-api-debugging/SKILL[.]md|docs/pfsense-flow-observability-memory[.]md)$
+
+      - id: pfsense-recovery-contract
+        name: "🛡️ pfSense · Validate diagnosis/recovery ownership contract"
+        language: system
+        entry: python -m unittest tests.test_pfsense_diagnose_recover_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/pfsense/diagnose-recover[.]sh|docs/pfsense-diagnose-recover[.]md|tests/test_pfsense_diagnose_recover_contract[.]py)$
+
+      - id: service-topology-sync
+        name: "🕸️ catalog · Generate declared services and topology"
+        language: python
+        entry: python scripts/generate-service-topology.py --check
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
+
+      - id: service-consumer-contract
+        name: "🧩 catalog · Validate service consumers and unit tests"
+        language: python
+        entry: bash scripts/quality/check-service-consumers.sh
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|apps/[^/]+/(?:compose|docker-compose)(?:[.][^.]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_topology_generator)[.]py)$
+
+      - id: prometheus-config
+        name: "📈 prometheus · Validate runtime config with promtool"
+        language: system
+        entry: bash scripts/prometheus/check-config.sh
+        pass_filenames: false
+        files: >-
+          ^(apps/prometheus/(?:prometheus[.]yml|compose[.]yml|rules/.*[.]ya?ml)|scripts/prometheus/check-config[.]sh|tests/test_prometheus_quality_gate_contract[.]py)$
+
+      - id: compose-config
+        name: "🐳 compose · Validate Compose configuration"
+        language: system
+        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
+        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
+        stages: [pre-commit]
+
+
+      - id: secret-consumer-audit
+        name: "🔐 secrets · Prevent new unmanaged secret debt"
+        language: system
+        entry: python scripts/secrets/audit_consumers.py --check-baseline
+        pass_filenames: false
+        files: >-
+          ^(apps/.*/(?:compose|docker-compose)\.ya?ml|(?:docker-)?compose[^/]*\.ya?ml|bootstrap/compose\.ya?ml|config/secrets/(?:manifest|debt-baseline)\.json|scripts/secrets/audit_consumers\.py|tests/test_secret_consumer_audit\.py)$
+
+      - id: secret-materialization-contract
+        name: "🔐 secrets · Enforce unprivileged Vaultwarden materialization"
+        language: system
+        entry: python -m unittest tests.test_secret_materialization_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:lib/secrets[.]sh|secrets/materialize_runtime[.]py|truenas/(?:install-runtime-secret|prepare-security-tooling-secrets)[.]sh)|tests/test_secret_materialization_contract[.]py|docs/(?:security-tooling-runtime-bootstrap|secrets-runtime-initialization)[.]md|config/secrets/README[.]md)$
+
+      - id: legacy-secret-import-contract
+        name: "🔐 secrets · Validate bounded legacy dotenv migration"
+        language: system
+        entry: python -m unittest tests.test_legacy_secret_import -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
+
+      - id: service-initialization-audit-contract
+        name: "🧰 truenas · Validate initialization audit classifier"
+        language: system
+        entry: python -m unittest tests.test_service_initialization_audit -v
+        pass_filenames: false
+        files: >-
+          ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:secrets/audit_consumers|truenas/audit-service-initialization)[.]py|tests/test_service_initialization_audit[.]py)$
 
       - id: observability-contract
         name: "📊 observability · Validate lightweight logging contract"
