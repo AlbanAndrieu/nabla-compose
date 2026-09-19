@@ -262,6 +262,7 @@ done
 if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
   command -v pre-commit >/dev/null 2>&1 || {
     echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
     exit 1
   }
   run_compact "agent gate shell formatting" \
@@ -317,6 +318,7 @@ if [[ "${MODE}" == "fix" ]]; then
   }
   command -v pre-commit >/dev/null 2>&1 || {
     echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
     exit 1
   }
 
