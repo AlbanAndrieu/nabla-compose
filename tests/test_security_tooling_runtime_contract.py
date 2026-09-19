@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +15,9 @@ HEALTH = ROOT / "scripts" / "truenas" / "verify-app-runtime-health.sh"
 RECONCILE = ROOT / "scripts" / "truenas" / "reconcile-reboot-resume.sh"
 TRUENAS_LIB = ROOT / "scripts" / "lib" / "truenas.sh"
 SECRETS_LIB = ROOT / "scripts" / "lib" / "secrets.sh"
+PLANNER = ROOT / "scripts" / "truenas" / "plan-app-lifecycle-order.py"
+SERVICES = ROOT / "catalog" / "services.json"
+TOPOLOGY = ROOT / "catalog" / "service-topology.json"
 
 PERSISTENT = {"plumber", "netbox", "dependency-track", "defectdojo", "neo4j"}
 MANUAL = {"cartography", "scorecard"}
@@ -88,3 +93,45 @@ def test_truenas_shared_helpers_cover_reconcile_and_wait() -> None:
     assert "truenas_wait_app_running()" in script
     assert "custom_compose_config_string" in script
     assert "custom_compose_config" in script
+
+
+def test_lifecycle_planner_orders_shared_data_before_new_persistent_apps() -> None:
+    apps = [
+        {"id": "postgres", "state": "RUNNING"},
+        {"id": "redis", "state": "RUNNING"},
+        {"id": "plumber", "state": "RUNNING"},
+        {"id": "netbox", "state": "RUNNING"},
+        {"id": "dependency-track", "state": "RUNNING"},
+        {"id": "defectdojo", "state": "RUNNING"},
+        {"id": "neo4j", "state": "RUNNING"},
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        apps_file = Path(tmp) / "apps.json"
+        apps_file.write_text(json.dumps(apps), encoding="utf-8")
+        result = subprocess.run(
+            [
+                "python3",
+                str(PLANNER),
+                "--apps",
+                str(apps_file),
+                "--services",
+                str(SERVICES),
+                "--topology",
+                str(TOPOLOGY),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 0, result.stderr
+    plan = json.loads(result.stdout)
+    start = plan["start_order"]
+    stop = plan["stop_order"]
+
+    for consumer in ("plumber", "netbox", "defectdojo"):
+        assert start.index("postgres") < start.index(consumer)
+        assert start.index("redis") < start.index(consumer)
+    assert start.index("postgres") < start.index("dependency-track")
+
+    assert stop == list(reversed(start))
