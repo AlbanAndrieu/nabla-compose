@@ -7,7 +7,6 @@ if [[ -z "${1:-}" ]]; then
 fi
 
 REPO_DIR="$1"
-COMPOSE_DIR="${REPO_DIR}/bootstrap"
 DEPLOY_BRANCH="${NABLA_CRON_BRANCH:-master}"
 LOCK_FILE="${NABLA_CRON_LOCK_FILE:-/tmp/nabla-compose-doco-cd-update.lock}"
 LOG_TAG="doco-cd-update"
@@ -22,7 +21,7 @@ log_error() {
   logger -s -t "${LOG_TAG}" "ERROR: $*"
 }
 
-for command in git docker jq logger timeout flock; do
+for command in git logger flock; do
   command -v "${command}" >/dev/null 2>&1 || {
     log_error "${command} is required"
     exit 1
@@ -70,37 +69,10 @@ fi
 
 git merge --ff-only "origin/${DEPLOY_BRANCH}"
 
-if git diff --quiet "${LOCAL}" HEAD -- bootstrap/; then
-  log_info "Changes pulled but none in bootstrap/, skipping Doco-CD bootstrap compose."
-  exit 0
-fi
-
-log_info "Changes detected in bootstrap/, validating and reconciling Doco-CD bootstrap stack..."
-cd "${COMPOSE_DIR}"
-docker compose config --quiet
-
-if ! docker compose up -d; then
-  log_error "Failed to reconcile Doco-CD bootstrap containers."
-  exit 1
-fi
-log_info "Doco-CD bootstrap containers reconciled successfully."
-
-log_info "Waiting for bootstrap containers to be healthy..."
-TIMEOUT=120
-if timeout "${TIMEOUT}" bash -c '
-    while true; do
-        if docker compose ps --format json | jq -e "select(.Health != \"\" and .Health != \"healthy\")" >/dev/null 2>&1; then
-            sleep 5
-        else
-            break
-        fi
-    done
-'; then
-  log_info "All bootstrap containers healthy."
+if git diff --quiet "${LOCAL}" HEAD -- bootstrap/ docker-compose-truenas.yml .doco-cd.yaml; then
+  log_info "Checkout synchronized; no Doco-CD configuration changed."
 else
-  log_error "Bootstrap containers not healthy after ${TIMEOUT}s"
-  docker compose ps >&2
-  exit 1
+  log_info "Doco-CD configuration changed in the synchronized checkout."
 fi
 
-docker compose ps
+log_info "Git synchronization complete. Runtime deployment remains owned by the already-running Doco-CD instance; cron never starts/replaces doco-cd."
