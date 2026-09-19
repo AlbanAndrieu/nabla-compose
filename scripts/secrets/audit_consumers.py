@@ -149,7 +149,7 @@ def fingerprint(app: str, value: str, source: str) -> str:
 
 def source_without_line_number(source: str) -> str:
     """Return a stable source identity so harmless line moves do not break debt ratchets."""
-    return re.sub(r":\\d+$", "", source)
+    return re.sub(r":\d+$", "", source)
 
 
 def normalized_fingerprint(value: str) -> str:
