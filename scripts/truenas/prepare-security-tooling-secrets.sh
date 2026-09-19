@@ -15,8 +15,8 @@ warn() {
 }
 
 case "${MODE}" in
-  --check | --apply | --verify-vaultwarden) ;;
-  *) fail "usage: $0 [--check|--apply|--verify-vaultwarden] [app|all]" ;;
+  --check | --apply | --verify-vaultwarden | --import-env | --import-env-apply) ;;
+  *) fail "usage: $0 [--check|--apply|--verify-vaultwarden|--import-env|--import-env-apply] [app|all]" ;;
 esac
 [[ -n "${ROOT}" ]] || fail "run from repository checkout"
 
@@ -30,6 +30,21 @@ if [[ "${TARGET}" != "all" ]]; then
 fi
 
 python3 scripts/secrets/render_from_bitwarden.py --check
+
+if [[ "${MODE}" == "--import-env" || "${MODE}" == "--import-env-apply" ]]; then
+  args=()
+  for app in "${APPS[@]}"; do
+    args+=(--app "${app}")
+  done
+  if [[ "${MODE}" == "--import-env-apply" ]]; then
+    [[ -n "${BW_SESSION:-}" ]] || fail "BW_SESSION required for --import-env-apply"
+    command -v bw >/dev/null 2>&1 || fail "bw CLI required for --import-env-apply"
+    python3 scripts/secrets/import_env_to_bitwarden.py "${args[@]}" --apply
+  else
+    python3 scripts/secrets/import_env_to_bitwarden.py "${args[@]}"
+  fi
+  exit 0
+fi
 
 verify_one() {
   local app="$1"
