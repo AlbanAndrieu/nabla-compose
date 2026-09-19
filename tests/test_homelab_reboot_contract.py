@@ -96,6 +96,84 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("mapfile -t saved_explicit_resume", text)
         self.assertIn('explicit_resume="${saved_explicit_resume[*]}"', text)
 
+    def test_interrupted_prepare_fixture_keeps_frozen_resume_membership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            services = {
+                "services": [
+                    {
+                        "id": "postgres",
+                        "runtime": {"provider": "truenas-app", "appId": "postgres"},
+                    },
+                    {
+                        "id": "n8n",
+                        "runtime": {"provider": "truenas-app", "appId": "n8n"},
+                    },
+                ]
+            }
+            topology = {
+                "relations": [
+                    {
+                        "source": "n8n",
+                        "target": "postgres",
+                        "type": "dependsOn",
+                        "strength": "required",
+                    }
+                ]
+            }
+            frozen_apps = [
+                {"id": "postgres", "state": "RUNNING"},
+                {"id": "n8n", "state": "RUNNING"},
+            ]
+            partially_stopped_apps = [
+                {"id": "postgres", "state": "STOPPED"},
+                {"id": "n8n", "state": "RUNNING"},
+            ]
+
+            (root / "services.json").write_text(json.dumps(services), encoding="utf-8")
+            (root / "topology.json").write_text(json.dumps(topology), encoding="utf-8")
+
+            def selected_apps(name: str, apps: list[dict[str, str]]) -> list[str]:
+                path = root / name
+                path.write_text(json.dumps(apps), encoding="utf-8")
+                result = subprocess.run(
+                    [
+                        "python3",
+                        str(PLANNER),
+                        "--apps",
+                        str(path),
+                        "--states",
+                        "RUNNING,DEPLOYING",
+                        "--services",
+                        str(root / "services.json"),
+                        "--topology",
+                        str(root / "topology.json"),
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return json.loads(result.stdout)["selected_apps"]
+
+            self.assertEqual(
+                selected_apps("apps-before.json", frozen_apps),
+                ["postgres", "n8n"],
+            )
+            self.assertEqual(
+                selected_apps("runtime-after-partial-stop.json", partially_stopped_apps),
+                ["n8n"],
+            )
+
+        text = REBOOT.read_text(encoding="utf-8")
+        start = text.index('if [[ "${MODE}" == --continue-prepare ]]')
+        end = text.index('state_dir="$(latest_state_dir)"', start)
+        continuation = text[start:end]
+        self.assertIn('validate_prepare_manifest "${state_dir}"', continuation)
+        self.assertIn('continue_prepare "${state_dir}"', continuation)
+        self.assertNotIn("midclt_bounded app.query >", continuation)
+        self.assertNotIn("make_plans ", continuation)
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
