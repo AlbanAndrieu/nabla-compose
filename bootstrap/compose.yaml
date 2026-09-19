@@ -3,7 +3,7 @@ configs:
   poll-config.yml:
     content: |
       - url: https://github.com/albandrieu/nabla-compose.git
-        # cron.sh self-updates this bootstrap stack; Doco-CD deploys only reviewed master.
+        # Legacy recovery definition only; cron.sh never starts/replaces this stack.
         reference: master
         interval: 3600
 
