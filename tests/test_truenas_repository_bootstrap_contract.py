@@ -13,6 +13,8 @@ AUTOKUMA_TOKEN = ROOT / "scripts" / "truenas" / "bootstrap-autokuma-token.sh"
 AUTOKUMA_COMPOSE = ROOT / "apps" / "autokuma" / "compose.yml"
 DOCLING = ROOT / "scripts" / "truenas" / "deploy-docling.sh"
 JOPLIN = ROOT / "scripts" / "truenas" / "deploy-joplin.sh"
+JOPLIN_POSTGRES = ROOT / "scripts" / "truenas" / "bootstrap-joplin-postgres.sh"
+FIRST_WAVE = ROOT / "scripts" / "truenas" / "accept-runtime-env-first-wave.sh"
 
 
 def test_repository_storage_bootstrap_uses_active_owned_bind_mounts() -> None:
@@ -172,4 +174,34 @@ def test_joplin_deploy_requires_postgres_secret_and_custom_app() -> None:
     assert "/mnt/cpool/secrets/runtime/joplin/.env.secrets" in script
     assert "POSTGRES_PASSWORD" in script
     assert "root:root mode 0600" in script
-    assert "shared PostgreSQL role/database joplin must already exist" in script
+    assert "bootstrap-joplin-postgres.sh --check" in script
+    assert "shared PostgreSQL dependency verified" in script
+
+
+def test_joplin_shared_postgres_bootstrap_is_idempotent_and_fail_closed() -> None:
+    script = JOPLIN_POSTGRES.read_text(encoding="utf-8")
+
+    assert 'EXPECTED_HOST="${JOPLIN_POSTGRES_HOST:-172.17.0.24}"' in script
+    assert 'EXPECTED_PORT="${JOPLIN_POSTGRES_PORT:-5432}"' in script
+    assert 'EXPECTED_DB="${JOPLIN_POSTGRES_DB:-joplin}"' in script
+    assert 'EXPECTED_USER="${JOPLIN_POSTGRES_USER:-joplin}"' in script
+    assert "secrets_assert_file" in script
+    assert "secrets_get_value" in script
+    assert "CREATE ROLE joplin LOGIN PASSWORD" in script
+    assert "ALTER ROLE joplin PASSWORD" in script
+    assert "CREATE DATABASE joplin OWNER joplin" in script
+    assert "ALTER DATABASE joplin OWNER TO joplin" in script
+    assert "Joplin role cannot authenticate to the shared PostgreSQL database" in script
+
+
+def test_first_wave_acceptance_stages_before_finalize() -> None:
+    script = FIRST_WAVE.read_text(encoding="utf-8")
+
+    assert "--check | --stage | --accept" in script
+    assert 'stage_service "${app}"' in script
+    assert 'deploy_service "${app}"' in script
+    assert 'functional_probe "${app}"' in script
+    assert 'bootstrap-repository-env-files.sh --finalize "${app}"' in script
+    assert script.index('functional_probe "${app}"') < script.index(
+        'bootstrap-repository-env-files.sh --finalize "${app}"'
+    )
