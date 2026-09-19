@@ -50,7 +50,7 @@ def validate_manifest(data: dict[str, Any]) -> None:
         raise SecretsError("manifest items must be a non-empty list")
 
     apps: set[str] = set()
-    import_env_names: set[str] = set()
+    import_env_owners: dict[str, str] = {}
     forbidden_keys = {"value", "password", "token", "secretValue"}
 
     for item in items:
@@ -71,6 +71,20 @@ def validate_manifest(data: dict[str, Any]) -> None:
 
         if not isinstance(item_name, str) or not item_name.strip():
             raise SecretsError(f"{app}: item must be a non-empty Vaultwarden item name")
+
+        service = item.get("service", app)
+        if not isinstance(service, str) or not re.fullmatch(
+            r"[a-z0-9][a-z0-9-]*", service
+        ):
+            raise SecretsError(f"{app}: invalid service identifier: {service!r}")
+        runtime_file = item.get("runtimeFile", ".env.secrets")
+        if not isinstance(runtime_file, str) or not re.fullmatch(
+            r"[.]env(?:[.][a-z0-9-]+)?(?:[.]secrets)?", runtime_file
+        ):
+            raise SecretsError(
+                f"{app}: invalid runtimeFile basename: {runtime_file!r}"
+            )
+
         if not isinstance(secrets, list) or not secrets:
             raise SecretsError(f"{app}: secrets must be a non-empty list")
 
@@ -99,12 +113,14 @@ def validate_manifest(data: dict[str, Any]) -> None:
                 )
             if env_name in app_env_names:
                 raise SecretsError(f"{app}: duplicate environment variable: {env_name}")
-            if import_env in import_env_names:
+            previous_owner = import_env_owners.get(import_env)
+            if previous_owner is not None and previous_owner != app:
                 raise SecretsError(
-                    f"source environment variable mapped by multiple apps: {import_env}"
+                    "source environment variable mapped by multiple apps: "
+                    f"{import_env} ({previous_owner}, {app})"
                 )
             app_env_names.add(env_name)
-            import_env_names.add(import_env)
+            import_env_owners[import_env] = app
 
             if source not in {"field", "login.password", "login.username"}:
                 raise SecretsError(f"{app}/{env_name}: unsupported source: {source}")
