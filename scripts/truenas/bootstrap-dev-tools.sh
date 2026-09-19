@@ -32,6 +32,7 @@ fi
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
 "${MISE_BIN}" install pre-commit@latest
+"${MISE_BIN}" install uv@latest
 
 printf 'Installing repository Git hooks with mise-managed pre-commit...\n'
 "${MISE_BIN}" exec pre-commit@latest -- \
