@@ -274,7 +274,7 @@ if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
     exit 1
   }
   run_compact "agent gate shell formatting" \
-    pre-commit run shfmt-docker --files scripts/agent-quality-gate.sh
+    pre-commit run shfmt --files scripts/agent-quality-gate.sh
   run_compact "agent gate shell lint" \
     pre-commit run shell-lint --files scripts/agent-quality-gate.sh
   run_compact "agent gate shell style" \
@@ -335,7 +335,7 @@ if [[ "${MODE}" == "fix" ]]; then
     fix-byte-order-marker
     mixed-line-ending
     end-of-file-fixer
-    shfmt-docker
+    shfmt
     biome-check
     prettier
   )
