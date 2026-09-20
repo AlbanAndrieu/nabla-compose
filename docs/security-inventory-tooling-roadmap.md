@@ -1,6 +1,6 @@
 # Security inventory, supply-chain and attack-graph roadmap
 
-This document expands the concise `docs/roadmap.md` P2.1 workstream. The canonical application/service identity and declared dependency model remain `x-nabla` plus the generated `catalog/services.json` and `catalog/service-topology.json`. Specialized tools must enrich that model without becoming competing sources of truth.
+This document expands the concise `docs/roadmap.md` P2.1 workstream. The canonical application/service identity and declared dependency model remain `x-nabla`. The generated v1 contracts stay compatibility surfaces while `catalog/service-catalog-v2.json` becomes the interoperable declared-state projection feeding Backstage, CycloneDX and future graph/control adapters. Specialized tools must enrich that model without becoming competing sources of truth.
 
 The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilities, NIST CSF/SAMM mapping, priorities and lifecycle decisions are maintained in [`docs/security-tooling-control-architecture.md`](./security-tooling-control-architecture.md).
 
@@ -11,6 +11,17 @@ The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilit
 - **OWASP DefectDojo** — normalized security findings, deduplication, triage and remediation workflow across SAST/SCA/secrets/IaC/container/DAST/infrastructure scanners.
 - **OpenSSF Scorecard** — repository and upstream dependency security-posture evidence.
 - **Cartography + Neo4j** — relationship graph for attack-path, privilege-chain, internet-exposure and blast-radius analysis after stable asset identities and provenance exist.
+
+## Interoperability layer
+
+- [x] Generate `catalog/service-catalog-v2.json` with deterministic `nabla:component:<id>` / `nabla:resource:<id>` references, original typed relations, relation strength and evidence.
+- [x] Generate `catalog/backstage/catalog-info.yaml` as the software-catalog projection.
+- [x] Generate `catalog/cyclonedx/homelab.cdx.json` as a CycloneDX 1.7 service BOM suitable for Dependency-Track ingestion.
+- [ ] Add FastAPI v2 distribution and `catalogRevision` drift enforcement across repositories.
+- [ ] Add Cartography/Neo4j join keys from observed assets to stable Nabla refs.
+- [ ] Add OSCAL component definitions/control evidence only from explicit implementations and assessment evidence.
+
+See [service-catalog-v2.md](./service-catalog-v2.md) for the contract boundary and migration rules.
 
 ## Cartography + Neo4j
 
