@@ -21,7 +21,7 @@ Target authority:
    catalog lifecycle and standard relations.
 2. **Docker Compose** — runtime service/project/image/ports/networks/healthcheck/
    profiles/dependencies.
-3. **Minimal `x-nabla`** — exceptional order-only boot constraints, rare relation enrichment and structured risk acceptances only; normal operational state is a qualified Backstage label and normal exposure is derived from controller/provider resources.
+3. **Minimal `x-nabla`** — exceptional order-only boot constraints, rare relation enrichment, structured risk acceptances, and temporary desired exposure/security intent for providers that are not yet Git/IaC-managed. Provider state never replaces declared intent.
 4. **CycloneDX** — generated service/SBOM/supply-chain representation.
 5. **Cartography + Neo4j** — observed graph correlation and attack-path analysis.
 6. **DefectDojo / Dependency-Track** — findings and SBOM/component risk,
@@ -161,7 +161,7 @@ Key normalization:
 | boot `lifecycle.phase/priority` | delete; derive required ordering from Backstage/Compose and readiness |
 | exceptional boot ordering | minimal x-nabla `after/before/wants` only |
 | runtime identity | derived from Compose + one entity-ref runtime label |
-| public/LAN endpoints | derive from Compose/Traefik/Kubernetes/Cloudflare/pfSense providers; project to CycloneDX |
+| public/LAN endpoints | split desired/observed: derive runtime facts; preserve desired hostname/visibility/access intent in Git until provider-native IaC owns it; project reconciled view to CycloneDX |
 
 Do not force richer edges such as `routesTo`, `exposedBy`, `observedBy`,
 `storesIn` or their evidence into generic Backstage dependencies. Backstage owns
@@ -306,7 +306,7 @@ Authority boundaries:
 
 - **Backstage descriptors / Git:** catalog identity and standard relations.
 - **Compose:** desired runtime definition.
-- **minimal `x-nabla`:** exceptional systemd-style order-only constraints, rare relation enrichment and structured risk acceptances; no flat service/exposure inventory.
+- **minimal `x-nabla`:** exceptional systemd-style order-only constraints, rare relation enrichment, structured risk acceptances and temporary Gateway-like desired exposure intent for non-IaC providers; no flat merged service/exposure inventory.
 - **OpenTelemetry:** runtime telemetry identity semantics.
 - **CycloneDX/Trivy:** service/package supply-chain inventory.
 - **NetBox:** network/infrastructure intent where deployed.
@@ -314,7 +314,7 @@ Authority boundaries:
 - **Dependency-Track:** component/SBOM risk.
 - **DefectDojo:** findings and deduplication.
 - **Cartography/Neo4j:** graph correlation and attack-path analysis.
-- **FastAPI Sample:** Kubernetes-style reconciled read model with provider-derived network/runtime views and `status.conditions`; not a second catalog.
+- **FastAPI Sample:** Kubernetes-style reconciled read model: Git/provider-native declarations are `spec`-like desired state, provider/runtime evidence is `status`-like observation with conditions; not a second catalog.
 - **Site Alban:** presentation only.
 
 ## One-shot cutover plan
@@ -338,8 +338,8 @@ The detailed field-level plan is in
      rather than repeating them.
 3. Replace static topology JSON with native Backstage static entities; do not recreate a static endpoint inventory.
 4. Replace the generator with a standards-first join/validation pipeline.
-5. Generate Backstage/CycloneDX projections only; runtime/network views come from Compose, Traefik, Cloudflare, pfSense and Kubernetes resources.
-6. Remove old generated v1 service/topology/exposure contracts after the coordinated consumer PRs are ready.
+5. Generate Backstage/CycloneDX projections; preserve desired exposure intent in provider-native Git/IaC or temporary minimal route-intent records, while runtime/network status comes from Compose, Traefik, Cloudflare, pfSense and Kubernetes observations.
+6. Remove old generated v1 service/topology/exposure contracts only after every legacy public hostname/visibility/access requirement has a declared v2 home and the coordinated consumer PRs are ready.
 
 ### FastAPI Sample
 
@@ -347,7 +347,7 @@ Perform a breaking model replacement, not a compatibility layer:
 
 - replace old flat service/topology DTOs with Backstage entity refs plus resource-oriented runtime/network observations;
 - delete `homelab-services.json` and `homelab-exposure-overrides.json` without a canonical flat replacement;
-- derive routes/backends from Traefik, Cloudflare, pfSense HAProxy and Kubernetes Service/EndpointSlice/Gateway resources;
+- consume desired routes from Git (Traefik/Gateway/provider IaC or temporary route intent) and observed routes/backends from Cloudflare, pfSense HAProxy, TrueNAS/Docker and Kubernetes Service/EndpointSlice/Gateway status;
 - normalize observation state to Kubernetes-style conditions (`True|False|Unknown`, reason/message/transition time);
 - join runtime/provider evidence only by full entity ref;
 - allow only an optional generated cold-start cache, never a hand-maintained catalog.
@@ -381,7 +381,7 @@ Before the coordinated cutover, require:
 - generated operations/relations/CycloneDX share one revision;
 - no relation target is unresolved;
 - no duplicate runtime identity exists unexpectedly;
-- legacy flat exposure files are absent and provider-derived routes/backends reconcile by entity ref;
+- before legacy flat exposure files are removed, every intended hostname/visibility/access requirement is present in a new declared desired-state source; provider-derived routes/backends then reconcile by entity ref;
 - FastAPI parses only the new contract and passes its local gate;
 - Site Alban parses only the new contract and passes its local gate;
 - any optional generated FastAPI cold-start cache is derived-only and revision-consistent with Backstage inputs;
