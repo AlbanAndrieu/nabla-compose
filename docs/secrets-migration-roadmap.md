@@ -176,12 +176,16 @@ Use the bounded first-wave transaction. Vaultwarden access stays in the
 unprivileged operator shell; the root acceptance wrapper never receives
 `BW_SESSION`.
 
-First inspect/stage legacy materialization metadata without changing Vaultwarden:
+First inspect the current runtime/legacy state without changing Vaultwarden:
 
 ```bash
 sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
-sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage <service>
 ```
+
+When an existing legacy source is present, `--stage <service>` remains useful
+as a rollback-safe copy before Vaultwarden import. A fresh service with no
+legacy source may skip this optional staging step and proceed directly to
+Vaultwarden import/materialization.
 
 Import the current value into the exact manifest item. Prefer the approved
 legacy dotenv importer when a real existing service file is authoritative:

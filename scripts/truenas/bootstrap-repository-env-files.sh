@@ -29,9 +29,9 @@ The optional app argument scopes the operation to one repository app. Restage
 requires an explicit app so a changed legacy source can refresh only that
 service's canonical rollback-safe copy. Finalize is intentionally separate from
 staging so operators can validate canonical copies and service health before old
-paths are replaced. Non-empty legacy data
-must remain byte-identical; a zero-byte placeholder may be retired in favor of
-a non-empty accepted canonical secret materialization.
+paths are replaced. Non-empty legacy dotenv data must remain byte-identical or
+dotenv-semantically identical; a zero-byte placeholder may be retired in favor
+of a non-empty accepted canonical secret materialization.
 USAGE
 }
 

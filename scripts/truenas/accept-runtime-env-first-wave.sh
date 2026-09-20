@@ -93,8 +93,11 @@ function check_secret_contract {
 function check_vaultwarden_materialization {
   local app="$1" file
   file="$(secret_file "${app}")"
-  grep -Fq --     '# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py'     "${file}" ||
+  if ! grep -Fq -- \
+    '# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py' \
+    "${file}"; then
     fail "${app}: canonical runtime secret is not a Vaultwarden materialization; run as the unlocked operator: python scripts/secrets/materialize_runtime.py --app ${app} --install"
+  fi
 }
 
 function check_compose_contract {
