@@ -39,7 +39,6 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertNotIn("secrets_render_vaultwarden_app", library)
         self.assertNotIn("BW_SESSION", library)
 
-
     def test_bitwarden_cli_bootstrap_is_user_space_pinned_and_checksummed(self) -> None:
         bootstrap = (
             ROOT / "scripts" / "truenas" / "bootstrap-bitwarden-cli.sh"
@@ -50,7 +49,6 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("${HOME}/.local/bin", bootstrap)
         self.assertIn("run as the unprivileged operator", bootstrap)
         self.assertNotIn("sudo ", bootstrap)
-
 
     def test_true_nas_bitwarden_client_uses_local_native_api_without_root(self) -> None:
         helper = (
