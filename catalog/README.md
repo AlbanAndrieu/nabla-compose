@@ -1,61 +1,36 @@
 # Nabla service topology
 
-`service-topology.json` is the generated, design-time graph for relationships between homelab services.
+`service-topology.json` is the **legacy v1** generated design-time graph. It remains operational until the coordinated v2 cutover.
 
-It intentionally **does not use Docker Compose `depends_on` as the general dependency model**. A service may consume another service, route traffic through it, export telemetry to it, or store data in it while still remaining independently deployable. `depends_on` should only be used in a Compose file when startup/lifecycle ordering is genuinely required by that Compose project.
+The v2 target is Backstage-native: `catalog-info.yaml` owns entity identity and standard relations, Docker Compose owns runtime facts, provider resources own routing/exposure, and FastAPI derives observed state. See `docs/service-catalog-v2-normalization.md`.
+
+Compose `depends_on` remains authoritative for same-project startup dependencies. Backstage `spec.dependsOn` becomes authoritative for cross-entity functional dependencies. Do not repeat either relation in x-nabla.
 
 ## Ownership
 
-`nabla-compose` owns deployment configuration and therefore has the best evidence for service-to-service relationships: environment variables, endpoints, proxy labels, metrics labels and explicit Compose dependencies. Presentation repositories consume the generated topology instead of inventing it.
+### Current v1
 
-For migrated services, topology metadata lives beside the service under the Compose extension key `x-nabla`. Docker Compose ignores `x-*` extension fields, so these architecture relationships do not alter startup behavior by themselves; Nabla lifecycle tooling consumes the generated contract explicitly.
+Current generation still reads service-local `x-nabla` plus transitional static
+topology and emits `services.json` / `service-topology.json`.
 
-Example:
+### Target v2
 
-```yaml
-services:
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:latest
-    x-nabla:
-      id: openwebui
-      name: Open WebUI
-      kind: application
-      category: ai
-      relations:
-        - target: litellm
-          type: consumesApi
-          strength: required
-```
+Use one authority per concern:
 
-Logical integration nodes that are relevant to the architecture but are not currently represented by their own tracked Compose service can be declared at document level:
+- Backstage `catalog-info.yaml`: entity identity, title/description, type,
+  lifecycle, ownership, System/Domain membership and standard relations;
+- Compose: project/service/image/ports/networks/healthcheck/profiles/depends_on;
+- Traefik / Cloudflare / pfSense HAProxy / Kubernetes Gateway API: routing and
+  exposure;
+- TrueNAS/Docker/Kubernetes EndpointSlice: observed runtime backends;
+- minimal x-nabla: exceptional `after/before/wants`, rare edge enrichment and
+  structured risk acceptance only.
 
-```yaml
-x-nabla:
-  nodes:
-    - id: searxng
-      name: SearXNG
-      kind: search
-      category: ai
-```
+The preferred v2 service has **no x-nabla block**.
 
-Runtime-only or partially migrated TrueNAS Apps may also use a logical topology node with an explicit runtime binding instead of inventing a fake Compose service. This is the transitional ownership model used for shared PostgreSQL and AdGuard Home:
-
-```yaml
-x-nabla:
-  nodes:
-    - id: postgresql
-      name: PostgreSQL
-      kind: database
-      category: data
-      runtime:
-        provider: truenas-app
-        appId: postgres
-      lifecycle:
-        phase: primary-data
-        priority: 20
-```
-
-The target remains to co-locate metadata with the real deployment owner whenever one exists.
+The migration mapping from legacy x-nabla fields to Backstage/Compose/provider
+sources is intentionally retained in
+`docs/service-catalog-v2-normalization.md` as documentation after cutover.
 
 ## Service environments
 
@@ -80,30 +55,34 @@ default:
 python scripts/audit-homelab-environments.py
 ```
 
-## Lifecycle policy
+## Boot / reconciliation policy
 
-`x-nabla.lifecycle` is the canonical declarative policy for ordering TrueNAS Apps during controlled shutdown/resume. It is exported to both generated catalogs and consumed by `scripts/truenas/plan-app-lifecycle-order.py`.
+### Current v1
 
-```yaml
-x-nabla:
-  lifecycle:
-    phase: foundation
-    priority: 10
-```
+`x-nabla.lifecycle.phase/priority/blocksLaterWaves` remains consumed by the
+existing TrueNAS reboot planner until v2 is implemented and runtime-accepted.
 
-Supported phases are:
+### Target v2
 
-1. `bootstrap-runtime` — runtime primitives such as `docker-socket-proxy`;
-2. `foundation` — DNS, ingress and bootstrap secret services such as Pi-hole, AdGuard Home, Traefik and Vaultwarden;
-3. `network-edge` — remaining edge/network support;
-4. `primary-data` — PostgreSQL, MongoDB, InfluxDB, Redis and Kafka-class stateful foundations;
-5. `secondary-data` — ClickHouse, OpenSearch, Elasticsearch and object/search/analytics stores;
-6. `platform-services` — observability, security and automation platforms such as Graylog;
-7. `applications` — normal application workloads.
+Delete the global phase/priority/wave model.
 
-Lower numeric `priority` starts first and therefore stops last. Required topology relations remain stronger than phase/priority ordering: if Graylog `dependsOn` MongoDB or `storesIn` OpenSearch, those backends must be accepted before Graylog regardless of their otherwise inferred category. Shutdown is the exact reverse flattened start order.
+The resume planner becomes a dependency DAG reconciler:
 
-Lifecycle policy belongs in service-local `x-nabla` whenever the TrueNAS App is repository-owned. Logical topology nodes may carry the same `runtime + lifecycle` contract for a real runtime App whose deployment owner has not yet migrated into a tracked Compose service. Planner fallbacks remain only a final compatibility layer and must stay visible as migration debt rather than becoming a second source of truth.
+1. Compose `depends_on` gives same-project dependencies and health/completion
+   conditions.
+2. Backstage `spec.dependsOn` gives required cross-entity dependencies.
+3. Dependents wait for readiness evidence.
+4. Independent branches reconcile concurrently.
+5. x-nabla `after/before` is reserved for rare systemd-style order-only
+   constraints.
+6. x-nabla `wants` is reserved for rare weak/optional dependencies.
+
+There is no v2 replacement `target`, `phase`, `priority` or
+`blocksLaterWaves` field.
+
+Kubernetes provides the complementary operational model: initialization and
+readiness gate traffic rather than imposing one global application startup
+sequence.
 
 ## Generation
 
@@ -125,27 +104,24 @@ During the incremental migration, `service-topology.static.json` retains nodes a
 
 ## Relation semantics
 
-The model borrows the common `dependsOn`, `consumesApi`, `providesApi` and `partOf` vocabulary from software catalogs such as Backstage, then adds operational relations useful for this homelab:
+Backstage well-known relations become the canonical declared graph:
 
-- `dependsOn`: functional data/runtime dependency.
-- `consumesApi`: source calls an API exposed by the target.
-- `providesApi`: source provides an API used by the target.
-- `partOf`: source belongs to a larger system/component.
-- `routesTo`: source selects or forwards work to the target.
-- `observedBy`: source exports telemetry or metrics to the target.
-- `storesIn`: source writes data/object payloads to the target.
-- `authenticatesVia`: source delegates authentication/identity to the target.
-- `exposedBy`: target proxies or exposes the source.
-- `automates`: source orchestrates work in the target.
+- `dependsOn`;
+- `providesApi`;
+- `consumesApi`;
+- System/Domain membership / `partOf`;
+- ownership.
 
-`strength` is deliberately separate from relation type:
+Do not create a second x-nabla edge such as `storesIn` when a Backstage
+`dependsOn` to a typed database Resource already expresses the relationship.
 
-- `required`: the feature described by the relation cannot operate correctly without the target.
-- `optional`: integration can be disabled or the source has a degraded/alternative path.
+Runtime/provider-derived relationships such as hosting, routing, public exposure
+and observation belong to the observed graph. They may be enriched in
+Cartography/Neo4j with provenance.
 
-Neither value means Docker Compose must wait for the target at startup. The Nabla TrueNAS lifecycle planner may, however, use required cross-App relations as ordering barriers during a controlled appliance reboot.
-
-Each relation also contains an `evidence` array. Prefer a concrete configuration reference when one exists. When a relation is architectural metadata rather than a directly parseable runtime setting, the generator records the corresponding `x-nabla.relations[...]` declaration as evidence.
+Custom relation metadata is retained only when the distinction cannot be
+represented by Backstage, cannot be derived from provider/runtime evidence, and
+is used by a concrete security/operational query.
 
 ## Declared vs observed graph
 
@@ -157,28 +133,21 @@ The declared catalog describes intended architecture. It should eventually be co
 A future UI can highlight `declared-only`, `observed-only` and `declared+observed` edges to detect topology drift without changing deployment order.
 
 
-## Declared service intent status
+## Operational intent
 
-Compose `x-nabla.status` is optional and exported into generated services/nodes
-when explicitly set. Supported values are:
+The v2 operational state is a qualified Backstage label, separate from
+`spec.lifecycle`:
 
-- `active` — normal operational intent;
-- `planned` — retained for future activation; absence is not runtime failure;
-- `disabled` — deliberately unused while code is retained.
+```yaml
+metadata:
+  labels:
+    albandrieu.com/operational-state: active
+```
 
-Consumers must fall back to `active` when the field is absent. This declared
-intent is independent from observed runtime health and must not be overwritten
-by runtime reconciliation.
+Allowed values remain `active | planned | disabled`.
 
-## Lifecycle resume barriers
+Backstage `spec.lifecycle` continues to describe catalog/software lifecycle
+(`experimental | production | deprecated`) and must not be used as a boot-state
+substitute.
 
-`x-nabla.lifecycle.blocksLaterWaves` is optional and defaults to `true`.
-Setting it to `false` means that a failed App is still reported and keeps strict
-reboot acceptance red, but its failure does not prevent unrelated later lifecycle
-waves from starting. Required topology edges remain authoritative: this flag must
-never be used to bypass an actual required dependency.
-
-Vaultwarden uses `blocksLaterWaves: false` because normal boot consumes already
-materialized root-only runtime files. The password manager remains an early
-recovery/rotation service, not a prerequisite for PostgreSQL, Redis, application
-startup, or the post-boot Nabla Service facade.
+Runtime health never overwrites declared operational state.
