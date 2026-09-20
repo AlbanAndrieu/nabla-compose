@@ -1165,6 +1165,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("app.update", script)
         self.assertIn("app.redeploy", script)
         self.assertIn("AUTOKUMA__KUMA__URL", script)
+        self.assertIn("endpoint is non-secret Compose configuration", script)
         self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
         self.assertIn("generated-monitors.json", script)
 
