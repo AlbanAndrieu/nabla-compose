@@ -121,14 +121,34 @@ bw --version
 The bootstrap verifies the upstream SHA-256 before installing
 `~/.local/bin/bw`. The repository currently pins CLI `2026.9.0`.
 
-Then configure and unlock the Vaultwarden-compatible Password Manager CLI:
+On the TrueNAS host, prefer the bounded local-client configuration. It keeps
+the canonical public base URL for item identity/documentation while routing the
+Bitwarden API/identity client calls over the loopback-published Vaultwarden
+port. This avoids making secret administration depend on Cloudflare ingress:
 
 ```bash
-bw config server https://vaultwarden.albandrieu.com
+bash scripts/truenas/configure-bitwarden-cli-local.sh --check
+bash scripts/truenas/configure-bitwarden-cli-local.sh --apply
+bw config server
 bw login
 export BW_SESSION="$(bw unlock --raw)"
 bw sync --session "$BW_SESSION"
 ```
+
+The helper requires the direct local `/api/config` endpoint to be healthy
+before it changes CLI configuration. It also probes the public
+`https://vaultwarden.albandrieu.com/api/config` route and reports ingress debt
+without weakening TLS or sending credentials through the public path.
+
+For a remote workstation, the normal single-server form remains valid only
+when the public client API is healthy:
+
+```bash
+bw config server https://vaultwarden.albandrieu.com
+```
+
+A public `404` on `/api/config` is a reverse-proxy/tunnel routing defect,
+not a reason to use the legacy `bitwarden-api` adapter for new work.
 
 Never commit/log `BW_SESSION`. Finish with:
 
