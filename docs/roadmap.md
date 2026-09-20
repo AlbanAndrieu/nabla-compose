@@ -226,11 +226,11 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
 - [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
 - [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
 - [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; delete boot phase/priority/target/wave metadata, derive required ordering from Backstage `spec.dependsOn` + Compose `depends_on` + readiness, and retain only exceptional systemd-inspired `after/before/wants` plus non-duplicative relation/risk metadata.
-- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities; derive endpoint/route/runtime state from providers instead of recreating static operational endpoint inventory.
+- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities; preserve desired exposure/security intent in Git until each provider has native IaC, and derive only observed endpoint/route/runtime status from providers.
 - [ ] **One-shot generated contracts:** emit Backstage entity/relationship projections and CycloneDX 1.7 with one `catalogRevision`; do not generate a replacement flat exposure catalog.
-- [ ] **FastAPI one-shot cutover:** delete `homelab-services.json` and `homelab-exposure-overrides.json` without a canonical flat replacement; consume Backstage + Compose/TrueNAS/Kubernetes/Traefik/Cloudflare/pfSense resources directly, normalize runtime/network state to Kubernetes-style conditions, and key all joins by full entity ref.
+- [ ] **FastAPI one-shot cutover:** delete `homelab-services.json` and `homelab-exposure-overrides.json` only after desired-intent parity is proven; consume Backstage + provider-native/temporary Git route intent as spec-like desired state and Compose/TrueNAS/Kubernetes/Traefik/Cloudflare/pfSense observations as status-like evidence, normalize conditions, and key all joins by full entity ref.
 - [ ] **Site Alban one-shot cutover:** replace its old service/topology DTOs and bundled flat fallback, use full entity refs as React Flow IDs, consume FastAPI resource-oriented runtime/network views, and keep icons/layout presentation-only.
-- [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions and clean local gates.
+- [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions, and a parity report proving every current public hostname / visibility / Access requirement / accepted exposure exception has a v2 declared home before deleting the legacy JSON.
 - [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
 - [ ] Normalize NIST CSF 2.0 classifications to `Govern | Identify | Protect | Detect | Respond | Recover` and project service criticality to the OpenTelemetry `service.criticality` vocabulary.
 
@@ -418,7 +418,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
-  -> direct catalog standardization (v1 -> Backstage + CycloneDX; delete flat service/exposure inventory)
+  -> direct catalog standardization (v1 -> Backstage + CycloneDX; migrate desired exposure intent, then delete flat service/exposure inventory)
   -> FastAPI provider-derived resource views + Kubernetes-style conditions + Site Alban entity-ref reader
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
