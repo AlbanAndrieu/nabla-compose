@@ -74,16 +74,16 @@ app_from_path() {
   local category="$1" path="$2" relative
   case "${category}" in
     canonical-runtime)
-      relative="${path#${SECRETS_ROOT}/runtime/}"
+      relative="${path#"${SECRETS_ROOT}"/runtime/}"
       ;;
     canonical-bootstrap)
-      relative="${path#${SECRETS_ROOT}/bootstrap/}"
+      relative="${path#"${SECRETS_ROOT}"/bootstrap/}"
       ;;
     repository-local)
-      relative="${path#${CANONICAL_ROOT}/apps/}"
+      relative="${path#"${CANONICAL_ROOT}"/apps/}"
       ;;
     legacy-root | nested-candidate)
-      relative="${path#${POOL_ROOT}/}"
+      relative="${path#"${POOL_ROOT}"/}"
       ;;
     *)
       relative="${path}"
@@ -196,7 +196,7 @@ if ((DEEP)); then
         continue
         ;;
     esac
-    relative="${path#${POOL_ROOT}/}"
+    relative="${path#"${POOL_ROOT}"/}"
     if [[ "${relative}" != */*/* ]]; then
       # Direct /mnt/<pool>/<app>/.env* candidates were already reported.
       continue
