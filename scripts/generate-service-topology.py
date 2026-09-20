@@ -196,7 +196,7 @@ def environment_metadata(
 def lifecycle_metadata(
     metadata: dict[str, Any], context: str
 ) -> dict[str, dict[str, Any]]:
-    """Validate declarative lifecycle phase/priority exported by ``x-nabla``."""
+    """Validate declarative lifecycle ordering/resume policy from ``x-nabla``."""
 
     raw = metadata.get("lifecycle")
     if raw is None:
@@ -215,7 +215,14 @@ def lifecycle_metadata(
     if not 0 <= priority <= 1000:
         fail(f"{context}.lifecycle.priority must be between 0 and 1000")
 
-    return {"lifecycle": {"phase": phase, "priority": priority}}
+    blocks_later_waves = raw.get("blocksLaterWaves", True)
+    if not isinstance(blocks_later_waves, bool):
+        fail(f"{context}.lifecycle.blocksLaterWaves must be a boolean")
+
+    lifecycle: dict[str, Any] = {"phase": phase, "priority": priority}
+    if not blocks_later_waves:
+        lifecycle["blocksLaterWaves"] = False
+    return {"lifecycle": lifecycle}
 
 
 def runtime_binding(
