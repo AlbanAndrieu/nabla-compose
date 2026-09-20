@@ -2420,7 +2420,8 @@
       ],
       "lifecycle": {
         "phase": "foundation",
-        "priority": 10
+        "priority": 10,
+        "blocksLaterWaves": false
       },
       "runtime": {
         "provider": "truenas-app",
