@@ -1036,7 +1036,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/usr/local/bin/kuma", script)
         self.assertIn("login", script)
         self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
-        self.assertIn("/mnt/cpool/autokuma/.env.secrets", script)
+        self.assertIn("/mnt/cpool/secrets/runtime/autokuma/.env.secrets", script)
         self.assertIn("without printing credentials", script)
         self.assertNotIn("printf '%s\\n' \"${token}\"", script)
 
@@ -1153,7 +1153,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertIn("appId: autokuma", compose)
-        self.assertIn("/mnt/cpool/autokuma/.env.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/autokuma/.env.secrets", compose)
         self.assertIn("required: false", compose)
         self.assertIn("AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:-http://172.17.0.24:31050}", compose)
         self.assertNotIn("${UPTIME_KUMA_USERNAME", compose)

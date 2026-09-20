@@ -28,15 +28,15 @@ The TrueNAS runtime is a dedicated Custom App named `autokuma`.
 Store the Uptime Kuma connection only in:
 
 ```text
-/mnt/cpool/autokuma/.env.secrets
+/mnt/cpool/secrets/runtime/autokuma/.env.secrets
 ```
 
 Create the runtime directory and secret file:
 
 ```bash
 sudo install -d -o root -g root -m 700 /mnt/cpool/autokuma
-sudo install -o root -g root -m 600 /dev/null /mnt/cpool/autokuma/.env.secrets
-sudoedit /mnt/cpool/autokuma/.env.secrets
+sudo install -o root -g root -m 600 /dev/null /mnt/cpool/secrets/runtime/autokuma/.env.secrets
+sudoedit /mnt/cpool/secrets/runtime/autokuma/.env.secrets
 ```
 
 The file must contain `AUTOKUMA__KUMA__URL` plus one authentication method.
@@ -81,7 +81,7 @@ sudo bash scripts/truenas/bootstrap-autokuma-token.sh \
 
 The password is requested interactively without echo. The helper runs the
 bundled `/usr/local/bin/kuma login`, extracts the returned JWT and atomically
-writes the selected URL plus generated token to `/mnt/cpool/autokuma/.env.secrets`
+writes the selected URL plus generated token to `/mnt/cpool/secrets/runtime/autokuma/.env.secrets`
 with mode `0600`.
 
 Prefer the direct internal Uptime Kuma URL. Do not route this controller through
