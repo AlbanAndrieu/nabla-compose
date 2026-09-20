@@ -44,23 +44,60 @@ Kubernetes resources for non-Kubernetes workloads.
 | Kubernetes stable endpoint | Kubernetes Service |
 | Kubernetes concrete backends | EndpointSlice |
 | Kubernetes external route | Gateway API |
-| public Cloudflare route | Cloudflare Tunnel Public Hostname API/config |
-| public Cloudflare authorization | Access Application + attached policy + Service Token evidence |
-| direct WAN route | pfSense HAProxy frontend/backend |
+| public Cloudflare route desired state | temporary Git route intent until Cloudflare IaC exists |
+| public Cloudflare route observed state | Cloudflare Tunnel Public Hostname API |
+| public Cloudflare authorization desired state | route intent `access.required` until Access policy is IaC-managed |
+| public Cloudflare authorization observed state | Access Application + attached policy + Service Token/live-edge evidence |
+| direct WAN desired state | temporary Git route intent until pfSense/HAProxy has a reviewed declarative source |
+| direct WAN observed state | pfSense HAProxy frontend/backend |
 | actual Docker/TrueNAS backend | TrueNAS/Docker observation |
 | runtime/route state | FastAPI Kubernetes-style conditions |
 | exceptional accepted risk | structured risk-acceptance metadata only |
 
-There is no v2 `external=true/false` inventory field. Public exposure is derived
-from an actual route/listener.
+The v2 model must preserve **desired exposure/security intent even when the
+provider is unreachable**.
 
-There is no v2 `tunnelSecure` field. TLS/transport security is derived from the
-actual listener/route/provider configuration.
+Kubernetes calls this the object `spec`: desired state persists independently
+from `status`. Nabla follows the same rule.
 
-There is no v2 `cloudflareAccessRequired` copy. Cloudflare Access is read from
-the Cloudflare control plane. If/when Cloudflare configuration becomes
-OpenTofu/Terraform-managed, that provider configuration becomes desired-state
-source and the API remains observed state.
+For providers that are already declarative in Git, the provider-native
+configuration is the desired state. For providers that are still dashboard/API
+managed, a temporary minimal Git route-intent declaration preserves:
+
+- intended hostname;
+- intended visibility/security boundary;
+- desired protocol;
+- desired gateway/provider;
+- desired access-protection requirement.
+
+Example:
+
+```yaml
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - sample.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backendPort: web
+      access:
+        required: true
+```
+
+`backendPort` references a named Compose/Kubernetes service port and therefore
+does not copy an IP address or numeric port.
+
+The provider observer supplies status such as `Accepted`, `ResolvedRefs`,
+`Programmed`, `AccessProtected` and `Ready`. If Cloudflare is down, the
+desired hostname and access requirement remain declared while the relevant
+status becomes `Unknown`.
+
+Do not infer `external=false` from missing provider evidence.
+
+The temporary route-intent record is removed once the corresponding provider has
+a real Git/IaC desired-state source such as Gateway API or OpenTofu/Terraform.
 
 ## FastAPI model
 
@@ -87,5 +124,10 @@ still** merge `homelab-exposure-overrides.json` after
 `homelab-services.json`. Removing that precedence before the one-shot cutover
 would change current security behavior.
 
-Do not add new long-lived fields to either legacy JSON. New v2 work should go to
-Backstage/Compose/provider-derived models instead.
+Do not add new long-lived fields to either legacy JSON. Before deleting them,
+run a desired-intent parity check proving that every relevant public hostname,
+visibility rule, Access requirement and accepted security exception has a v2
+declarative home.
+
+New v2 work should go to Backstage, Compose, provider-native desired state or the
+temporary minimal route-intent model.
