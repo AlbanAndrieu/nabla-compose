@@ -77,10 +77,16 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert "https://mise.run" in script
     assert '${HOME}/.local/bin/mise' in script
     assert 'PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"' in script
+    assert 'SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"' in script
     assert "uv@latest" in script
+    assert '"shellcheck@${SHELLCHECK_VERSION}"' in script
     assert "--no-config" in script
     assert 'trust "${ROOT}/mise.toml"' not in script
     assert '"pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML' in script
+    assert 'if [[ -x "${DEV_VENV}/bin/python" ]]' in script
+    assert "Reusing existing virtual environment" in script
+    assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
+    assert 'ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"' in script
     assert 'PATH="${DEV_VENV}/bin:\\$PATH" bash scripts/agent-quality-gate.sh --fix' in script
     assert "install-operator-tools.sh --check" in script
     assert "apt install" not in script

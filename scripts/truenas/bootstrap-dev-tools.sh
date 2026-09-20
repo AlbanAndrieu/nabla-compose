@@ -7,6 +7,7 @@ cd "${ROOT}"
 MISE_BIN="${MISE_BIN:-${HOME}/.local/bin/mise}"
 DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
 PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"
+SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
 
 fail() {
@@ -31,14 +32,27 @@ fi
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
 "${MISE_BIN}" --no-config install uv@latest
+"${MISE_BIN}" --no-config install "shellcheck@${SHELLCHECK_VERSION}"
 
 printf 'Preparing a minimal user-space development environment: %s\n' "${DEV_VENV}"
 mkdir -p "$(dirname "${DEV_VENV}")"
-"${MISE_BIN}" --no-config exec uv@latest -- \
-  uv venv --python "${PYTHON_BIN}" "${DEV_VENV}"
+if [[ -x "${DEV_VENV}/bin/python" ]]; then
+  printf 'Reusing existing virtual environment: %s\n' "${DEV_VENV}"
+else
+  "${MISE_BIN}" --no-config exec uv@latest -- \
+    uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"
+fi
 "${MISE_BIN}" --no-config exec uv@latest -- \
   uv pip install --python "${DEV_VENV}/bin/python" \
   "pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML
+
+SHELLCHECK_BIN="$(
+  "${MISE_BIN}" --no-config which \
+    --tool "shellcheck@${SHELLCHECK_VERSION}" shellcheck
+)"
+[[ -x "${SHELLCHECK_BIN}" ]] || fail "mise-installed shellcheck is not executable: ${SHELLCHECK_BIN}"
+ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"
+"${DEV_VENV}/bin/shellcheck" --version
 
 printf 'Installing repository Git hooks with venv-managed pre-commit...\n'
 "${DEV_VENV}/bin/pre-commit" install \
