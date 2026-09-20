@@ -30,7 +30,8 @@ class ServiceInitializationAuditTests(unittest.TestCase):
                             },
                         }
                     ]
-                }
+                },
+                root=ROOT,
             )
         finally:
             audit.ROOT = original_root
