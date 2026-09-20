@@ -216,8 +216,7 @@ Target contract:
 - native Backstage descriptors own entity identity, owner/system/lifecycle and
   standard relations;
 - Compose owns runtime facts;
-- minimal `x-nabla.operations` owns only operational intent, startup ordering,
-  exposure policy, custom relation semantics/evidence and risk acceptances;
+- Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment and structured risk acceptances;
 - OpenTelemetry semantics align runtime service identity;
 - CycloneDX/Trivy owns service/package supply-chain projection;
 - Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
@@ -226,11 +225,11 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
 
 - [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
 - [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
-- [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; replace boot `lifecycle.phase/priority` with systemd-inspired `operations.boot.target/after/before/wants`, derive required dependencies from Backstage `spec.dependsOn` and Compose `depends_on`, and keep x-nabla relation metadata only when it does not duplicate a standard Backstage edge.
-- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities plus small static operational metadata.
-- [ ] **One-shot generated contracts:** emit Backstage entity JSON, normalized operations, normalized relations and CycloneDX 1.7 with one `catalogRevision`; no permanent v1/v2 compatibility files.
-- [ ] **FastAPI one-shot cutover:** replace old catalog/topology models and both `homelab-services.json` / `homelab-exposure-overrides.json` with one generated normalized snapshot; key all joins by full entity ref.
-- [ ] **Site Alban one-shot cutover:** replace its old service DTO/fallback, use full entity refs as React Flow IDs, and keep icons/layout presentation-only.
+- [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; delete boot phase/priority/target/wave metadata, derive required ordering from Backstage `spec.dependsOn` + Compose `depends_on` + readiness, and retain only exceptional systemd-inspired `after/before/wants` plus non-duplicative relation/risk metadata.
+- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities; derive endpoint/route/runtime state from providers instead of recreating static operational endpoint inventory.
+- [ ] **One-shot generated contracts:** emit Backstage entity/relationship projections and CycloneDX 1.7 with one `catalogRevision`; do not generate a replacement flat exposure catalog.
+- [ ] **FastAPI one-shot cutover:** delete `homelab-services.json` and `homelab-exposure-overrides.json` without a canonical flat replacement; consume Backstage + Compose/TrueNAS/Kubernetes/Traefik/Cloudflare/pfSense resources directly, normalize runtime/network state to Kubernetes-style conditions, and key all joins by full entity ref.
+- [ ] **Site Alban one-shot cutover:** replace its old service/topology DTOs and bundled flat fallback, use full entity refs as React Flow IDs, consume FastAPI resource-oriented runtime/network views, and keep icons/layout presentation-only.
 - [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions and clean local gates.
 - [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
 - [ ] Normalize NIST CSF 2.0 classifications to `Govern | Identify | Protect | Detect | Respond | Recover` and project service criticality to the OpenTelemetry `service.criticality` vocabulary.
@@ -242,7 +241,7 @@ Runtime preparation contract for this wave:
 3. `scripts/truenas/bootstrap-security-tooling-postgres.sh --apply <app>` idempotently creates/rotates dedicated shared-PostgreSQL roles and databases for Plumber, NetBox, Dependency-Track and DefectDojo, then proves authentication.
 4. `scripts/truenas/deploy-security-tooling.sh --apply <app|all>` validates Compose/catalog contracts, storage, database prerequisites, reconciles the TrueNAS Custom App, waits for middleware `RUNNING`, validates container stability and probes the service HTTP endpoint.
 5. Cartography and Scorecard remain `profile: manual` jobs: validate their Compose/secrets but do not register them as always-on TrueNAS Apps or reboot obligations.
-6. After runtime acceptance, execute one controlled reboot and require the topology-derived resume waves plus the generic container health barrier to pass before marking this wave stable.
+6. Until catalog v2 is implemented, keep the current topology-derived resume waves as the accepted runtime contract. During v2 cutover, replace them with dependency-DAG + readiness reconciliation and prove equivalent reboot acceptance before removing the legacy wave planner.
 
 
 - [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Backstage owns service/catalog identity; NetBox owns network/infrastructure intent; reconciliation uses stable entity/infrastructure IDs.
@@ -419,8 +418,8 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
-  -> direct catalog standardization (v1 -> Backstage + CycloneDX projections, same catalogRevision)
-  -> FastAPI v2 catalog facade + Site Alban v2 reader with v1 fallback
+  -> direct catalog standardization (v1 -> Backstage + CycloneDX; delete flat service/exposure inventory)
+  -> FastAPI provider-derived resource views + Kubernetes-style conditions + Site Alban entity-ref reader
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
