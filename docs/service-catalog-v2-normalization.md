@@ -31,11 +31,17 @@ Retain `x-nabla` only for information with no sufficiently good standard
 representation, principally:
 
 1. declared operational intent (`active | planned | disabled`);
-2. TrueNAS/reboot startup ordering;
+2. TrueNAS/reboot startup ordering **only where it cannot be derived from
+   Backstage/Compose**;
 3. endpoint exposure policy that is more detailed than Compose or Backstage;
-4. custom relation semantics/provenance such as `storesIn`, `routesTo`,
-   `observedBy`, `authenticatesVia`, `exposedBy` and `automates`;
+4. rare custom relation semantics/provenance only when they add information that
+   cannot be represented by a Backstage relation or derived from runtime data;
 5. structured risk/security exceptions.
+
+A standard relation is authored exactly once. For example,
+`spec.dependsOn: [resource:default/neo4j-security]` is the canonical Cartography
+→ Neo4j dependency; it must not be repeated as an `x-nabla` `storesIn` edge
+merely to rename the same relation.
 
 This is a deliberate breaking v2 cutover. Do not maintain a long-lived v1/v2
 compatibility layer.
@@ -74,6 +80,41 @@ The repository stays GitOps-native, while the two files have distinct concerns:
 - `catalog-info.yaml` = what the entity **is**;
 - `compose.yml` = how it **runs**;
 - minimal `x-nabla` = Nabla-specific operational policy.
+
+## Migration mapping: legacy x-nabla -> Backstage / Compose / minimal x-nabla
+
+Keep this mapping as migration documentation even after the cutover. It explains
+where every legacy field moved and prevents reintroducing a parallel catalog.
+
+| Legacy x-nabla | Target authority | Target |
+| --- | --- | --- |
+| `id` | Backstage | `metadata.name` |
+| `name` | Backstage | `metadata.title` |
+| `description` | Backstage | `metadata.description` |
+| `kind` | Backstage | entity `kind` + controlled `spec.type` |
+| `category` | Backstage | `metadata.tags` |
+| `presentationRole` | Site/UI | presentation configuration only |
+| `criticality` | Backstage/OTel | catalog label; projected to `service.criticality` |
+| `securityFunctions` | Backstage/NIST | `nist-*` tags |
+| `status` | minimal x-nabla | `operations.intent` |
+| `lifecycle.phase` | minimal x-nabla | `operations.boot.target` |
+| `lifecycle.priority` | delete where possible | replace with dependency/order graph; exceptional tie-break only if proven necessary |
+| `lifecycle.blocksLaterWaves` | minimal x-nabla | `operations.boot.blocksDependents` |
+| `runtime.containerService` | Compose | service key |
+| `runtime.networks` | Compose | `networks` |
+| `runtime.appId` | Compose/exception | top-level project `name`; retain override only on real mismatch |
+| `sourcePath` | Backstage/Git | source-location annotation + discovery path |
+| `url/internalUrl` | minimal x-nabla/CycloneDX | normalized endpoints -> generated CycloneDX service endpoints |
+| `monitoring` | Compose/minimal x-nabla | native `healthcheck` or cross-plane endpoint probe |
+| `partOf` | Backstage | System/Domain membership |
+| `dependsOn` | Backstage / Compose | `spec.dependsOn`; native `depends_on` intra-project |
+| `providesApi/consumesApi` | Backstage | API entity refs |
+| `storesIn` | normally delete | use Backstage `dependsOn` + target Resource type; enrich only if a real query requires more |
+| `hostedBy` | derive | Compose/TrueNAS/Kubernetes runtime observation |
+| `routesTo/exposedBy` | derive/policy | endpoint ingress + provider observation |
+| `observedBy` | derive | observability configuration/runtime |
+| `authenticatesVia` | Backstage dependency or rare enrichment | identity Resource/API dependency; enrich only when needed |
+| `automates` | derive or rare enrichment | automation/API relationship when standard relations are insufficient |
 
 ## Target repository layout
 
@@ -247,9 +288,38 @@ deprecated
 The current `active | planned | disabled` field is **not** the same concept and
 must therefore stay as Nabla operational intent.
 
-## Normalize the current x-nabla lifecycle collision
+## Separate Backstage lifecycle from boot semantics
 
-Current:
+Backstage `spec.lifecycle` remains exclusively the catalog/software lifecycle:
+
+```text
+experimental | production | deprecated
+```
+
+For boot/startup semantics, use the established **systemd dependency model** as
+the vocabulary: requirement dependencies and ordering dependencies are separate.
+In systemd terms, `Requires=/Wants=` answer *whether another unit is needed*,
+while `After=/Before=` answer *in which order units are started*. These are
+orthogonal concepts.
+
+Do not copy systemd unit-file syntax literally. Reuse its semantics in the small
+Nabla operations extension.
+
+### Derivation before declaration
+
+The generator should derive as much boot behavior as possible:
+
+1. Compose `depends_on` is authoritative inside one Compose project, including
+   `service_started`, `service_healthy` and
+   `service_completed_successfully`.
+2. Backstage `spec.dependsOn` is the canonical cross-entity functional
+   dependency.
+3. By default, a required Backstage dependency that is managed by the homelab
+   implies the equivalent of **Requires + After** for the global resume planner.
+4. `x-nabla.operations.boot` is used only for ordering/availability exceptions
+   that cannot be inferred from those standards.
+
+Current custom phase model:
 
 ```yaml
 x-nabla:
@@ -259,24 +329,71 @@ x-nabla:
     blocksLaterWaves: true
 ```
 
-Target:
+Target systemd-inspired model:
 
 ```yaml
 x-nabla:
   operations:
     intent: active
-    startup:
-      phase: primary-data
-      priority: 20
-      blocksLaterWaves: true
+    boot:
+      target: primary-data
+      after:
+        - target:nabla-foundation
+      before:
+        - target:nabla-platform-services
+      blocksDependents: true
 ```
 
-This reserves the term `lifecycle` for Backstage's catalog lifecycle and makes
-the operational meaning explicit.
+Optional boot-only dependencies use `wants`:
+
+```yaml
+x-nabla:
+  operations:
+    boot:
+      wants:
+        - component:default/optional-observer
+      after:
+        - component:default/optional-observer
+```
+
+Rules:
+
+- `after` / `before` express **ordering only**;
+- `wants` expresses a weak/optional boot requirement;
+- required functional dependencies remain Backstage `spec.dependsOn` and are
+  not restated as `requires` in x-nabla;
+- Compose-local dependencies stay in native `depends_on`;
+- `target` replaces the current phase grouping and maps to generated Nabla
+  target groups, conceptually similar to systemd targets;
+- `blocksDependents` is a Nabla planner policy and remains custom because
+  systemd does not encode the homelab's historical resume acceptance semantics.
+
+This removes the overloaded word `lifecycle` from x-nabla and, more
+importantly, prevents the same dependency from being declared in Backstage,
+Compose and x-nabla at the same time.
 
 ## Minimal x-nabla v2
 
-A normal Compose service should need little metadata.
+A normal Compose service should need almost no Nabla metadata.
+
+For Cartography, the Neo4j relation exists only in Backstage:
+
+```yaml
+# apps/cartography/catalog-info.yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cartography
+spec:
+  type: job
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/neo4j-security
+```
+
+The Compose file therefore does **not** repeat that edge:
 
 ```yaml
 name: cartography
@@ -294,21 +411,13 @@ services:
     x-nabla:
       operations:
         intent: active
-        startup:
-          phase: platform-services
-          priority: 80
-          blocksLaterWaves: false
-
-      relations:
-        - targetRef: resource:default/neo4j-security
-          semantic: storesIn
-          strength: required
-          evidence:
-            - apps/cartography/compose.yml:NEO4J_URL
+        boot:
+          target: platform-services
+          blocksDependents: false
 ```
 
-The service name, Compose project, image, networks and manual profile are already
-available from Compose and must not be copied into `x-nabla`.
+Even the `boot` block can be omitted for services whose ordering can be fully
+derived from Compose/Backstage and whose default target is acceptable.
 
 ### x-nabla operations schema
 
@@ -319,12 +428,23 @@ x-nabla:
   operations:
     intent: active | planned | disabled
 
-    startup:
-      phase: bootstrap-runtime | foundation | network-edge |
-             primary-data | secondary-data |
-             platform-services | applications
-      priority: 0..1000
-      blocksLaterWaves: true | false
+    boot:
+      target: bootstrap-runtime | foundation | network-edge |
+              primary-data | secondary-data |
+              platform-services | applications
+
+      # systemd-inspired ordering-only relationships.
+      after:
+        - resource:default/postgresql
+      before:
+        - component:default/example
+
+      # weak/optional boot requirements only.
+      wants:
+        - component:default/optional-observer
+
+      # Nabla resume-policy extension.
+      blocksDependents: true | false
 
     runtime:
       appId: optional-exception-only
@@ -358,16 +478,16 @@ x-nabla:
         control: tls-and-api-auth
         reviewAfter: null
 
-  relations:
-    - targetRef: resource:default/postgresql
-      semantic: storesIn
-      strength: required
+  # Rare extension only. Never duplicate a Backstage dependsOn/partOf/API edge.
+  relationMetadata:
+    - relation: component:default/example->resource:default/special-resource
+      semantic: custom-semantic-not-representable-by-backstage
       evidence:
-        - apps/example/compose.yml:DATABASE_URL
+        - apps/example/compose.yml:SOME_CONFIG
 ```
 
-All relation targets use full Backstage entity references rather than bare
-Nabla IDs.
+`relationMetadata` is intentionally exceptional. If removing it does not lose
+a security/operational query that we actually need, remove it.
 
 ## Normalize Compose itself
 
@@ -541,9 +661,9 @@ CycloneDX properties.
 Package/image SBOMs generated by Trivy remain separate artifacts linked through
 image digest / pURL and the Backstage entity reference.
 
-## Custom relation normalization
+## Relation normalization: one edge, one authority
 
-Backstage has well-known relations such as:
+Backstage well-known relations are the canonical declared graph:
 
 ```text
 ownedBy
@@ -553,32 +673,60 @@ providesApi
 consumesApi
 ```
 
-Use those natively in `catalog-info.yaml`.
+Use them natively in `catalog-info.yaml`.
 
-Retain only richer Nabla semantic refinements where they add security/operational
-meaning:
+### No duplicated semantic aliases
 
-```text
-storesIn
-hostedBy
-routesTo
-observedBy
-authenticatesVia
-exposedBy
-automates
+Do **not** author both:
+
+```yaml
+spec:
+  dependsOn:
+    - resource:default/neo4j-security
 ```
 
-Normalize their targets to Backstage entity references.
+and:
 
-Generator rule:
+```yaml
+x-nabla:
+  relations:
+    - targetRef: resource:default/neo4j-security
+      semantic: storesIn
+```
 
-- `storesIn` implies a Backstage `dependsOn` Resource;
-- `authenticatesVia` normally implies `dependsOn`;
-- `hostedBy` should usually be derived from runtime placement;
-- `providesApi`, `consumesApi` and `partOf` should no longer be duplicated in
-  x-nabla because Backstage already owns them.
+for the same logical edge.
 
-Keep evidence/provenance on custom relations for Neo4j/Cartography.
+For the Cartography → Neo4j case, `dependsOn` is sufficient: Neo4j is already
+typed as a `Resource` / `graph-database`, so consumers can understand the
+dependency without a second edge.
+
+### When enrichment is justified
+
+Keep relation metadata only when all three are true:
+
+1. Backstage cannot express the distinction;
+2. runtime/configuration cannot derive it reliably;
+3. the distinction is used by an operational/security query.
+
+Examples that may qualify are an explicit authentication path, proxy route or
+security observation path. Even then, enrich the existing edge rather than
+creating a second independently-owned topology relation whenever possible.
+
+### Derivation policy
+
+Prefer:
+
+- Compose `depends_on` for same-project runtime dependency;
+- Backstage `spec.dependsOn` for cross-entity functional dependency;
+- Backstage `providesApis` / `consumesApis` for API relationships;
+- Backstage System/Domain fields for `partOf`;
+- runtime/provider observations for hosting, routing and exposure;
+- Neo4j relationship enrichment for observed attack-path semantics.
+
+This deliberately removes `storesIn`, `hostedBy`, `routesTo`,
+`observedBy`, `authenticatesVia`, `exposedBy` and `automates` from the
+mandatory authoring vocabulary. They may still exist as generated/observed graph
+semantics when evidence proves them.
 
 ## Cartography ontology alignment
 
@@ -903,10 +1051,9 @@ services:
     x-nabla:
       operations:
         intent: active
-        startup:
-          phase: secondary-data
-          priority: 50
-          blocksLaterWaves: true
+        boot:
+          target: secondary-data
+          blocksDependents: true
         endpoints:
           - name: lan-ui
             url: http://172.17.0.24:31086
@@ -971,21 +1118,12 @@ services:
     x-nabla:
       operations:
         intent: active
-        startup:
-          phase: platform-services
-          priority: 80
-          blocksLaterWaves: false
-
-      relations:
-        - targetRef: resource:default/neo4j-security
-          semantic: storesIn
-          strength: required
-          evidence:
-            - apps/cartography/compose.yml:NEO4J_URL
+        boot:
+          target: platform-services
+          blocksDependents: false
 ```
 
-The standard Backstage `dependsOn` expresses the generic dependency. The
-Nabla relation adds the richer security meaning `storesIn`.
+The standard Backstage `dependsOn` is the **only declared Cartography → Neo4j edge**. No x-nabla relation duplicates it.
 
 ## One-shot implementation scope
 
