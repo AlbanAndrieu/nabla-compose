@@ -11,7 +11,6 @@ import argparse
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 from typing import Any
@@ -20,71 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "catalog" / "services.json"
 MANIFEST = ROOT / "config" / "secrets" / "manifest.json"
 
+sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts" / "secrets"))
+from nabla_ops import declared_apps, load_catalog  # noqa: E402
 import audit_consumers  # noqa: E402
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def app_directory(source_path: str) -> str | None:
-    match = re.match(r"^apps/([^/]+)/", source_path)
-    return match.group(1) if match else None
-
-
-def declared_apps(catalog: dict[str, Any]) -> list[dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
-    for service in catalog.get("services", []):
-        if not isinstance(service, dict):
-            continue
-        source_path = str(service.get("sourcePath") or "")
-        app = app_directory(source_path)
-        runtime = service.get("runtime") or {}
-        if not app or runtime.get("provider") != "truenas-app":
-            continue
-
-        row = grouped.setdefault(
-            app,
-            {
-                "app": app,
-                "sourcePath": source_path,
-                "serviceIds": [],
-                "explicitAppIds": set(),
-                "statuses": set(),
-                "monitoring": [],
-            },
-        )
-        row["serviceIds"].append(str(service.get("id") or ""))
-        row["statuses"].add(str(service.get("status") or "active"))
-        if runtime.get("appId"):
-            row["explicitAppIds"].add(str(runtime["appId"]))
-        if service.get("monitoring"):
-            row["monitoring"].append(service["monitoring"])
-
-    result: list[dict[str, Any]] = []
-    for app, row in sorted(grouped.items()):
-        statuses = sorted(row.pop("statuses"))
-        row["status"] = statuses[0] if len(statuses) == 1 else None
-        row["statusError"] = (
-            None if len(statuses) == 1 else f"conflicting service statuses: {statuses}"
-        )
-        explicit = sorted(row.pop("explicitAppIds"))
-        if len(explicit) > 1:
-            row["runtimeId"] = None
-            row["mappingError"] = f"conflicting runtime.appId values: {explicit}"
-        else:
-            row["runtimeId"] = explicit[0] if explicit else app
-            row["mappingError"] = None
-
-        compose = ROOT / row["sourcePath"]
-        text = compose.read_text(encoding="utf-8") if compose.exists() else ""
-        row["manual"] = bool(
-            re.search(r"(?m)^\s*profiles:\s*$", text)
-            and re.search(r"(?m)^\s*-\s*manual\s*$", text)
-        )
-        result.append(row)
-    return result
 
 
 def live_apps() -> dict[str, dict[str, Any]]:
@@ -164,8 +102,8 @@ def recommend(row: dict[str, Any]) -> str:
 
 
 def build_report() -> list[dict[str, Any]]:
-    catalog = load_json(CATALOG)
-    manifest = load_json(MANIFEST)
+    catalog = load_catalog(CATALOG)
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     static = audit_consumers.scan(ROOT, manifest)
     live = live_apps()
     managed_apps = {
@@ -181,7 +119,7 @@ def build_report() -> list[dict[str, Any]]:
     canonical_missing = by_app(static["canonicalRuntimeWithoutManifest"])
 
     rows: list[dict[str, Any]] = []
-    for declared in declared_apps(catalog):
+    for declared in declared_apps(catalog, root=ROOT):
         app = declared["app"]
         runtime_id = declared["runtimeId"]
         live_row = live.get(runtime_id or "", {})
