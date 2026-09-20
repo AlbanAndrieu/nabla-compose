@@ -1123,8 +1123,8 @@ prometheus
 Consume:
 
 - Backstage entity metadata for title/description/type/owner/system/tags;
-- normalized operations for endpoint/exposure;
-- normalized relations for graph edges/evidence;
+- desired exposure/security intent from provider-native Git/IaC or temporary route-intent declarations;
+- Backstage relations for declared graph edges/evidence;
 - FastAPI runtime observations separately;
 - security enrichment separately.
 
@@ -1310,6 +1310,30 @@ The standard Backstage `dependsOn` is the **only declared Cartography → Neo4j 
 
 This should be implemented as one coordinated schema cutover, not as a long
 compatibility migration.
+
+The execution is deliberately **prepared in stages but switched over once**.
+`docs/roadmap.md` is the canonical execution tracker and defines:
+
+1. **P2.1.a — preparation:** freeze/inventory v1, generate the v1→v2 parity
+   report, define schemas and anti-duplication gates; no runtime behavior change.
+2. **P2.1.b — representative pilot:** migrate Neo4j, Cartography, PostgreSQL,
+   FastAPI Sample and Traefik; prove desired intent survives provider outages.
+3. **P2.1.c — bulk nabla-compose migration:** materialize all Backstage
+   descriptors, normalize Compose, migrate exposure intent/risk acceptances and
+   prove 100% semantic parity.
+4. **P2.1.d — consumer preparation:** make FastAPI and Site Alban understand only
+   the v2 model while legacy runtime contracts still exist for rollback.
+5. **P2.1.e — coordinated cutover:** deploy the three prepared repositories and
+   run desired-vs-observed/network/topology smokes.
+6. **P2.1.f — destructive cleanup:** delete legacy JSON and wave metadata only
+   after parity, consumer and reboot gates pass.
+7. **P2.1.g — provider-native IaC cleanup:** later move temporary
+   `x-nabla.exposure` records into Cloudflare/pfSense IaC or Kubernetes Gateway
+   API and delete each temporary record when its native desired-state source
+   exists.
+
+Thus "one-shot" describes the externally visible schema switch, **not** an
+unreviewed big-bang edit.
 
 ### nabla-compose
 
