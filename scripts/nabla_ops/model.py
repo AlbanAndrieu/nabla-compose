@@ -1,1 +1,35 @@
-"""Shared intent and initialization state models."""\n\nfrom __future__ import annotations\n\nfrom enum import StrEnum\n\n\nclass ServiceIntent(StrEnum):\n    ACTIVE = "active"\n    PLANNED = "planned"\n    DISABLED = "disabled"\n\n\ndef normalize_service_intent(value: object) -> ServiceIntent:\n    """Normalize x-nabla status with the repository compatibility fallback."""\n\n    if value is None or value == "":\n        return ServiceIntent.ACTIVE\n    try:\n        return ServiceIntent(str(value))\n    except ValueError as exc:\n        allowed = ", ".join(item.value for item in ServiceIntent)\n        raise ValueError(\n            f"invalid service intent {value!r}; expected one of: {allowed}"\n        ) from exc\n\n\nclass InitializationStage(StrEnum):\n    DECLARED = "DECLARED"\n    SECRETS_DECLARED = "SECRETS_DECLARED"\n    SECRETS_MATERIALIZED = "SECRETS_MATERIALIZED"\n    DEPENDENCIES_READY = "DEPENDENCIES_READY"\n    DEPLOYED = "DEPLOYED"\n    RUNTIME_ACCEPTED = "RUNTIME_ACCEPTED"\n    REBOOT_ACCEPTED = "REBOOT_ACCEPTED"\n
+"""Shared intent and initialization state models."""
+
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class ServiceIntent(StrEnum):
+    ACTIVE = "active"
+    PLANNED = "planned"
+    DISABLED = "disabled"
+
+
+def normalize_service_intent(value: object) -> ServiceIntent:
+    """Normalize x-nabla status with the repository compatibility fallback."""
+
+    if value is None or value == "":
+        return ServiceIntent.ACTIVE
+    try:
+        return ServiceIntent(str(value))
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in ServiceIntent)
+        raise ValueError(
+            f"invalid service intent {value!r}; expected one of: {allowed}"
+        ) from exc
+
+
+class InitializationStage(StrEnum):
+    DECLARED = "DECLARED"
+    SECRETS_DECLARED = "SECRETS_DECLARED"
+    SECRETS_MATERIALIZED = "SECRETS_MATERIALIZED"
+    DEPENDENCIES_READY = "DEPENDENCIES_READY"
+    DEPLOYED = "DEPLOYED"
+    RUNTIME_ACCEPTED = "RUNTIME_ACCEPTED"
+    REBOOT_ACCEPTED = "REBOOT_ACCEPTED"
