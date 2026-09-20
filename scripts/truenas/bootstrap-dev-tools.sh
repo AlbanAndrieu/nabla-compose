@@ -28,17 +28,15 @@ if [[ ! -x "${MISE_BIN}" ]]; then
 fi
 
 "${MISE_BIN}" --version
-"${MISE_BIN}" trust "${ROOT}/mise.toml"
-
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
-"${MISE_BIN}" install uv@latest
+"${MISE_BIN}" --no-config install uv@latest
 
 printf 'Preparing a minimal user-space development environment: %s\n' "${DEV_VENV}"
 mkdir -p "$(dirname "${DEV_VENV}")"
-"${MISE_BIN}" exec uv@latest -- \
+"${MISE_BIN}" --no-config exec uv@latest -- \
   uv venv --python "${PYTHON_BIN}" "${DEV_VENV}"
-"${MISE_BIN}" exec uv@latest -- \
+"${MISE_BIN}" --no-config exec uv@latest -- \
   uv pip install --python "${DEV_VENV}/bin/python" \
   "pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML
 
