@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-19.
+Last updated: 2026-09-20.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -205,6 +205,20 @@ local operations, but it is not part of the minimum boot dependency chain.
 ### P2.1 — security inventory, supply-chain and attack-graph tooling
 
 Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
+
+
+Interoperability migration:
+
+1. [x] Add `catalog/service-catalog-v2.json` as a deterministic declared-state projection with stable Nabla references while keeping `x-nabla` authoritative.
+2. [x] Generate a Backstage-compatible catalog projection for software catalog interoperability without making Backstage a second source of truth.
+3. [x] Generate a CycloneDX 1.7 service BOM with stable `bom-ref` identities and required dependency edges for Dependency-Track/SBOM workflows.
+4. [ ] Expose the v2 contract through `fastapi-sample`, then migrate `nabla-site-alban` from compatibility adapters to the native v2 API after cross-repository revision checks are accepted.
+5. [ ] Add a bounded Cartography Nabla ingestion/enrichment path that joins declared Nabla IDs to observed GitHub/Kubernetes/Cloudflare/Trivy assets in Neo4j; preserve provenance and never write observed inference back into `x-nabla`.
+6. [ ] Add OSCAL component/control/evidence mapping only after explicit control implementations exist; NIST CSF `securityFunctions` remain classification metadata and never imply compliance.
+7. [ ] Reconcile NetBox infrastructure identities and Dependency-Track projects/components through the same stable Nabla IDs.
+8. [ ] Add cross-format contract tests and consumer drift checks before retiring v1 compatibility files.
+
+Detailed contract: [Nabla Service Catalog v2 and open-standard projections](./service-catalog-v2.md).
 
 Runtime preparation contract for this wave:
 
