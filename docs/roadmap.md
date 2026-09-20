@@ -21,6 +21,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
+- [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
@@ -38,6 +39,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
 - [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
+- [x] **Catalog/security-graph target architecture:** Backstage is the generated interoperable service-catalog projection, CycloneDX is the SBOM/supply-chain projection, and Cartography/Neo4j is the analytical graph layer. `x-nabla` remains the Git authority; the existing v1 catalog remains a compatibility contract during direct migration. See `docs/service-catalog-security-graph.md`.
 - [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
@@ -206,6 +208,17 @@ local operations, but it is not part of the minimum boot dependency chain.
 ### P2.1 — security inventory, supply-chain and attack-graph tooling
 
 Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
+
+Standardization/migration contract: see `docs/service-catalog-security-graph.md`.
+
+- [ ] **Direct v1 -> Backstage projection:** generate Backstage Component/Resource/API/System/Domain entities from the existing generated catalog. Do not hand-rewrite services and do not deploy Backstage as a prerequisite.
+- [ ] **CycloneDX projection:** generate an aggregate service/component BOM from the same IDs and attach Trivy per-image/per-source SBOMs by stable service ID, image digest and pURL.
+- [ ] **Cross-projection quality gate:** require one `catalogRevision`, resolvable IDs/relations, no secret export, and deterministic parity between legacy JSON, Backstage and CycloneDX artifacts.
+- [ ] **FastAPI Sample migration:** add a v2 read-only Backstage-shaped catalog/topology adapter keyed by stable service ID; keep current v1 inventory/exposure files only as compatibility and policy-exception overlays during the transition.
+- [ ] **Site Alban migration:** prefer the FastAPI v2 entities/topology and keep the current bundled v1 catalog only as a last-known-good fallback until revision-parity tests are green.
+- [ ] **Cartography correlation:** load Nabla identities/typed relations into Neo4j with provenance/freshness, then correlate provider/runtime observations. Inferred graph edges remain analytical and must never silently alter lifecycle ordering.
+- [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo, and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
+- [ ] Normalize `securityFunctions` to NIST CSF 2.0 `Govern | Identify | Protect | Detect | Respond | Recover` as classification metadata, not as a risk score.
 
 Runtime preparation contract for this wave:
 
@@ -391,6 +404,8 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
+  -> direct catalog standardization (v1 -> Backstage + CycloneDX projections, same catalogRevision)
+  -> FastAPI v2 catalog facade + Site Alban v2 reader with v1 fallback
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
