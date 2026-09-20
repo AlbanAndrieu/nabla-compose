@@ -77,6 +77,8 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert '${HOME}/.local/bin/mise' in script
     assert 'PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"' in script
     assert "uv@latest" in script
+    assert "--no-config" in script
+    assert 'trust "${ROOT}/mise.toml"' not in script
     assert '"pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML' in script
     assert 'PATH="${DEV_VENV}/bin:\\$PATH" bash scripts/agent-quality-gate.sh --fix' in script
     assert "install-operator-tools.sh --check" in script
