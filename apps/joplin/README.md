@@ -18,17 +18,21 @@ The service is deliberately private and must not gain a public Cloudflare `*.int
 
 Joplin Server does not create an external PostgreSQL role/database. Before first deploy, create a dedicated `joplin` role and database in the shared PostgreSQL instance using the existing PostgreSQL administrative workflow.
 
-Use a unique password and store only the runtime password in:
+Use a unique password. Vaultwarden item `nabla/prod/joplin` in the
+`TrueNAS` folder is the source of truth; the canonical root-only runtime
+materialization is:
 
 ```text
-/mnt/cpool/joplin/.env.secrets
+/mnt/cpool/secrets/runtime/joplin/.env.secrets
 ```
 
-with root ownership and mode `0600`:
+It contains only:
 
 ```dotenv
 POSTGRES_PASSWORD=<dedicated Joplin database password>
 ```
+
+The runtime file is a reproducible cache and must remain `root:root 0600`.
 
 The resulting SQL state must be equivalent to:
 
@@ -39,20 +43,38 @@ CREATE DATABASE joplin OWNER joplin;
 
 Do not reuse the PostgreSQL superuser password or another application's role.
 
-## Deploy
+## Vaultwarden migration and deploy
+
+Keep `BW_SESSION` in the unprivileged operator shell. If an existing Joplin
+dotenv is the value source, preview and import it without printing values:
 
 ```bash
-cd /mnt/cpool/compose/nabla-compose
-
-sudo install -d -m 0700 /mnt/cpool/joplin
-sudo chmod 0600 /mnt/cpool/joplin/.env.secrets
-
-sudo midclt call -j app.update joplin \
-  "$(jq -cn --arg include '/mnt/cpool/compose/nabla-compose/apps/joplin/compose.yml' \
-    '{custom_compose_config:{include:[$include]}}')"
-
-sudo midclt call -j app.redeploy joplin
+python scripts/secrets/import_dotenv_to_bitwarden.py --app joplin
+python scripts/secrets/import_dotenv_to_bitwarden.py --app joplin --apply
 ```
+
+If the exact item already exists, review the mapping before deliberately adding
+`--update-existing`. For a fresh install with an already-exported
+`JOPLIN_POSTGRES_PASSWORD`, use `import_env_to_bitwarden.py --app joplin`
+instead.
+
+Materialize the exact Vaultwarden item directly into the canonical root-owned
+runtime path without passing `BW_SESSION` through sudo:
+
+```bash
+python scripts/secrets/materialize_runtime.py --app joplin --install
+python scripts/secrets/materialize_runtime.py --app joplin --verify
+```
+
+Then perform the bounded TrueNAS acceptance transaction:
+
+```bash
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept joplin
+```
+
+The transaction reconciles the dedicated shared-PostgreSQL role/database,
+creates or updates the TrueNAS Custom App, requires stable containers and
+`/api/ping`, then finalizes only Joplin's compatible legacy dotenv path.
 
 ## Acceptance
 

@@ -90,6 +90,16 @@ function check_secret_contract {
   esac
 }
 
+function check_vaultwarden_materialization {
+  local app="$1" file
+  file="$(secret_file "${app}")"
+  if ! grep -Fq -- \
+    '# Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py' \
+    "${file}"; then
+    fail "${app}: canonical runtime secret is not a Vaultwarden materialization; run as the unlocked operator: python scripts/secrets/materialize_runtime.py --app ${app} --install"
+  fi
+}
+
 function check_compose_contract {
   local app="$1" compose="${CANONICAL_ROOT}/apps/$1/compose.yml"
   local expected="${RUNTIME_ROOT}/$1/.env.secrets"
@@ -167,6 +177,7 @@ function functional_probe {
 function accept_service {
   local app="$1"
   stage_service "${app}"
+  check_vaultwarden_materialization "${app}"
   accept_dependency "${app}"
   deploy_service "${app}"
   functional_probe "${app}" ||
