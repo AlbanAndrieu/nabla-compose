@@ -21,8 +21,7 @@ Target authority:
    catalog lifecycle and standard relations.
 2. **Docker Compose** — runtime service/project/image/ports/networks/healthcheck/
    profiles/dependencies.
-3. **Minimal `x-nabla`** — operational intent, reboot/startup ordering,
-   exposure policy, custom relation semantics/evidence and risk acceptances.
+3. **Minimal `x-nabla`** — exceptional order-only boot constraints, rare relation enrichment and structured risk acceptances only; normal operational state is a qualified Backstage label and normal exposure is derived from controller/provider resources.
 4. **CycloneDX** — generated service/SBOM/supply-chain representation.
 5. **Cartography + Neo4j** — observed graph correlation and attack-path analysis.
 6. **DefectDojo / Dependency-Track** — findings and SBOM/component risk,
@@ -81,12 +80,12 @@ That differs from Nabla in an important way:
 | Relations | Typed + strength + evidence | Typed Neo4j relationships |
 | Freshness | Git/catalog revision | Sync `update_tag` / `lastupdated` |
 | Security queries | Limited/custom | Cartography Rules / Cypher |
-| Lifecycle ordering | Authoritative | Must remain non-authoritative |
+| Boot/reconciliation | custom phase/priority waves today | observed graph is non-authoritative; v2 derives boot DAG from Backstage/Compose dependencies + readiness |
 
 Therefore Cartography should **enrich and query** the Nabla catalog, not replace
 it. A Cartography-discovered edge must never silently change reboot/deployment
-ordering. Declared `x-nabla` relations remain authoritative for operations;
-Cartography relations are observed/analytical evidence.
+ordering. Standard declared relations live in Backstage/Compose; Cartography
+relations are observed/analytical evidence.
 
 ### Cartography integration model
 
@@ -158,10 +157,11 @@ Key normalization:
 | `dependsOn` | Backstage `spec.dependsOn` |
 | `providesApi/consumesApi` | Backstage API refs |
 | source repository/path | Backstage source/GitHub annotations |
-| `active/planned/disabled` | Nabla operational intent; not Backstage lifecycle |
-| boot `lifecycle` | renamed to `x-nabla.operations.startup` |
+| `active/planned/disabled` | qualified Backstage operational-state label; not `spec.lifecycle` |
+| boot `lifecycle.phase/priority` | delete; derive required ordering from Backstage/Compose and readiness |
+| exceptional boot ordering | minimal x-nabla `after/before/wants` only |
 | runtime identity | derived from Compose + one entity-ref runtime label |
-| public/LAN endpoints | minimal Nabla operations + CycloneDX projection |
+| public/LAN endpoints | derive from Compose/Traefik/Kubernetes/Cloudflare/pfSense providers; project to CycloneDX |
 
 Do not force richer edges such as `routesTo`, `exposedBy`, `observedBy`,
 `storesIn` or their evidence into generic Backstage dependencies. Backstage owns
@@ -285,8 +285,8 @@ apps/*/catalog-info.yaml                 apps/*/compose.yml
                    deterministic generator
                  ┌──────────┼──────────┐
                  ▼          ▼          ▼
-          Backstage JSON  operations  CycloneDX
-                 │          + relations    │
+          Backstage JSON   provider views  CycloneDX
+                 │          + conditions   │
                  │              │          ├──> Dependency-Track
                  │              │          └──> Trivy/DefectDojo joins
                  └──────────────┼──────────────┐
@@ -306,15 +306,15 @@ Authority boundaries:
 
 - **Backstage descriptors / Git:** catalog identity and standard relations.
 - **Compose:** desired runtime definition.
-- **minimal `x-nabla`:** only Nabla-specific operational/security policy; boot ordering follows systemd-style requirement/order semantics and never redefines Backstage relations.
+- **minimal `x-nabla`:** exceptional systemd-style order-only constraints, rare relation enrichment and structured risk acceptances; no flat service/exposure inventory.
 - **OpenTelemetry:** runtime telemetry identity semantics.
 - **CycloneDX/Trivy:** service/package supply-chain inventory.
 - **NetBox:** network/infrastructure intent where deployed.
-- **TrueNAS/Kubernetes:** observed runtime state.
+- **TrueNAS/Docker/Kubernetes:** observed runtime/backends; Kubernetes Service/EndpointSlice/Gateway API is consumed natively where present.
 - **Dependency-Track:** component/SBOM risk.
 - **DefectDojo:** findings and deduplication.
 - **Cartography/Neo4j:** graph correlation and attack-path analysis.
-- **FastAPI Sample:** reconciliation/read-only API facade.
+- **FastAPI Sample:** Kubernetes-style reconciled read model with provider-derived network/runtime views and `status.conditions`; not a second catalog.
 - **Site Alban:** presentation only.
 
 ## One-shot cutover plan
@@ -329,36 +329,34 @@ The detailed field-level plan is in
    - add top-level project `name`;
    - bind runtime services to Backstage entity refs using one reverse-DNS label;
    - remove redundant catalog fields and standard relations from `x-nabla`;
-   - replace boot `lifecycle.phase/priority` with minimal
-     `operations.boot.target/after/before/wants` semantics inspired by systemd;
+   - delete phase/priority/wave metadata;
    - derive required cross-entity boot dependencies from Backstage
-     `spec.dependsOn` and same-project ordering from Compose `depends_on`;
+     `spec.dependsOn`, same-project ordering from Compose `depends_on`, and gate
+     dependents on readiness;
+   - use x-nabla `after/before/wants` only for exceptional systemd-style order-only/weak constraints;
    - derive project/service/image/network/port/profile/health facts from Compose
      rather than repeating them.
-3. Replace static topology JSON with native Backstage static entities plus small
-   static operational metadata.
+3. Replace static topology JSON with native Backstage static entities; do not recreate a static endpoint inventory.
 4. Replace the generator with a standards-first join/validation pipeline.
-5. Generate Backstage JSON, operations, custom relations and CycloneDX.
-6. Remove old generated v1 contracts after the coordinated consumer PRs are ready.
+5. Generate Backstage/CycloneDX projections only; runtime/network views come from Compose, Traefik, Cloudflare, pfSense and Kubernetes resources.
+6. Remove old generated v1 service/topology/exposure contracts after the coordinated consumer PRs are ready.
 
 ### FastAPI Sample
 
 Perform a breaking model replacement, not a compatibility layer:
 
-- replace old flat service/topology DTOs with Backstage entity refs +
-  normalized operations/relations;
-- replace `homelab-services.json` and
-  `homelab-exposure-overrides.json` with one generated
-  `homelab-catalog.json` snapshot;
-- fold exposure overrides into canonical endpoint policy/risk-acceptance data;
+- replace old flat service/topology DTOs with Backstage entity refs plus resource-oriented runtime/network observations;
+- delete `homelab-services.json` and `homelab-exposure-overrides.json` without a canonical flat replacement;
+- derive routes/backends from Traefik, Cloudflare, pfSense HAProxy and Kubernetes Service/EndpointSlice/Gateway resources;
+- normalize observation state to Kubernetes-style conditions (`True|False|Unknown`, reason/message/transition time);
 - join runtime/provider evidence only by full entity ref;
-- expose the normalized declared catalog without inventing a second schema.
+- allow only an optional generated cold-start cache, never a hand-maintained catalog.
 
 ### nabla-site-alban
 
 - replace current service DTO in one pass;
 - use full entity refs as graph node IDs;
-- consume Backstage metadata + operations + relations;
+- consume Backstage metadata/relations plus FastAPI runtime/network resource views;
 - keep icons/graph positioning as presentation-only data;
 - remove the old bundled flat service shape.
 
@@ -383,11 +381,10 @@ Before the coordinated cutover, require:
 - generated operations/relations/CycloneDX share one revision;
 - no relation target is unresolved;
 - no duplicate runtime identity exists unexpectedly;
-- exposure policy is structured rather than hidden in prose overrides;
+- legacy flat exposure files are absent and provider-derived routes/backends reconcile by entity ref;
 - FastAPI parses only the new contract and passes its local gate;
 - Site Alban parses only the new contract and passes its local gate;
-- the generated offline FastAPI snapshot is byte/revision consistent with
-  nabla-compose;
+- any optional generated FastAPI cold-start cache is derived-only and revision-consistent with Backstage inputs;
 - one representative Trivy -> CycloneDX -> Dependency-Track flow works;
 - one findings import into DefectDojo works;
 - one Nabla entity/relation is queryable in Neo4j.
