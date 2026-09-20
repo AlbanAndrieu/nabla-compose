@@ -127,7 +127,9 @@ bash scripts/truenas/bootstrap-dev-tools.sh
 ```
 
 This installs `mise`/uv plus an isolated venv containing pre-commit, pytest and
-PyYAML under the operator home.
+PyYAML under the operator home. Bootstrap calls use `mise --no-config`, so the
+TrueNAS dev setup does not resolve the repository-wide kubectl/Helm/Talos tool
+graph or automatically trust project `mise.toml`.
 
 Kubernetes/Talos operator binaries are a separate existing contract:
 
