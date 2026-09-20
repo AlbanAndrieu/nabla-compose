@@ -1019,6 +1019,37 @@ network, TrueNAS read-only inventory and one controlled reboot before
 finalization. Vaultwarden import/rotation is a later transaction; the canonical
 runtime files persist independently and are what normal boot consumes.
 
+After that controlled reboot acceptance, finish the duplicate-payload cleanup:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+
+readlink -f /mnt/cpool/sample/.env
+readlink -f /mnt/cpool/sample/.env.secrets
+```
+
+Both legacy paths should then resolve into
+`/mnt/cpool/secrets/runtime/sample/`; the old secret bytes no longer exist as
+independently editable files. Keep these compatibility symlinks through one
+additional clean restart/reboot observation. Only after repository and runtime
+consumer audits show no legacy-path references should the symlinks themselves
+be removed.
+
+Before defining Sample's Vaultwarden manifest, inventory **key names only** from
+both preserved legacy files so the metadata reflects the real runtime contract:
+
+```bash
+python scripts/secrets/list_dotenv_keys.py \
+  --app sample --input /mnt/cpool/sample/.env
+python scripts/secrets/list_dotenv_keys.py \
+  --app sample --input /mnt/cpool/sample/.env.secrets
+```
+
+Do not invent Sample fields from documentation; add manifest mappings from this
+value-blind inventory, then import the existing values after path normalization
+is accepted.
+
 Do not add privileged Nabla Service routes while the same local container is
 reachable through `sample.albandrieu.com`. Route non-registration/public-path
 denial and fail-closed authentication are prerequisites.

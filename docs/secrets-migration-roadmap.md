@@ -156,13 +156,53 @@ For the selected service:
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize <service>
 ```
 
-Finalization may replace a historical regular file with a compatibility symlink only when source and canonical target are byte-identical. It fails closed on mismatch/missing target.
+Finalization may replace a historical regular file with a compatibility symlink when source and canonical target are byte-identical **or dotenv-semantically identical**. Semantic comparison parses assignments without executing shell syntax and never prints values; this permits Vaultwarden's normalized quoting/header while still failing closed on a changed key or value. It fails closed on a real mismatch or missing target.
 
 Then update Compose/deployment tooling to reference the canonical path directly and eventually remove the compatibility path after restart/reboot acceptance.
 
 Never bulk-finalize all 52 materializations.
 
 ## P0.6 — migration waves
+
+### Wave 0 — normalize runtime paths before Vaultwarden
+
+For **existing active services with non-empty historical `.env*` files**, move
+the runtime delivery path first, without changing any secret value and without
+contacting Vaultwarden:
+
+```text
+/mnt/cpool/<service>/.env*
+        |
+        | app-scoped check + byte-preserving stage
+        v
+/mnt/cpool/secrets/runtime/<service>/.env*
+```
+
+Use one service at a time. A global `--apply` remains inappropriate while any
+known source conflict exists.
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --apply <service>
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>
+```
+
+`sample` is the pilot for this wave. Its canonical `.env` and
+`.env.secrets` are already staged and non-empty. Complete the canonical-path
+redeploy and one controlled reboot acceptance before `--finalize sample`.
+Finalization removes the duplicate legacy payload by replacing it with a
+compatibility symlink; retire that symlink only after another clean
+restart/reboot observation and proof that no runtime consumer uses the legacy
+path.
+
+An **empty placeholder is not secret material**. Do not import a zero-byte
+Scanopy/Joplin placeholder to Vaultwarden and do not mark it migrated. For a
+new service with no recoverable secret, create the credential once under the
+reviewed service bootstrap, write it to Vaultwarden as the first authority,
+then materialize the canonical runtime cache.
+
+After path normalization, import the exact preserved values of existing
+services into Vaultwarden and verify a render before rotating anything.
 
 ### Wave A — prove canonical staging
 
@@ -172,15 +212,50 @@ Preferred first services because their Compose definitions already use canonical
 2. Joplin;
 3. AutoKuma.
 
-Use the bounded first-wave transaction:
+Use the bounded first-wave transaction. Vaultwarden access stays in the
+unprivileged operator shell; the root acceptance wrapper never receives
+`BW_SESSION`.
+
+First inspect the current runtime/legacy state without changing Vaultwarden:
 
 ```bash
 sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
-sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage <service>
+```
+
+When an existing legacy source is present, `--stage <service>` remains useful
+as a rollback-safe copy before Vaultwarden import. A fresh service with no
+legacy source may skip this optional staging step and proceed directly to
+Vaultwarden import/materialization.
+
+Import the current value into the exact manifest item. Prefer the approved
+legacy dotenv importer when a real existing service file is authoritative:
+
+```bash
+python scripts/secrets/import_dotenv_to_bitwarden.py --app <service>
+python scripts/secrets/import_dotenv_to_bitwarden.py --app <service> --apply
+```
+
+For a fresh service whose manifest `importEnv` variables are already exported,
+use `import_env_to_bitwarden.py` instead. Existing exact Vaultwarden items
+require an explicit reviewed `--update-existing`; never retry a write blindly
+after a post-write sync warning.
+
+Then render from Vaultwarden and atomically install/verify the canonical
+root-owned runtime file:
+
+```bash
+python scripts/secrets/materialize_runtime.py --app <service> --install
+python scripts/secrets/materialize_runtime.py --app <service> --verify
+```
+
+Only then start the one-service acceptance transaction:
+
+```bash
 sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept <service>
 ```
 
-`--accept` is one-service-at-a-time and finalizes the legacy path only after
+`--accept` requires the canonical file to carry renderer provenance from
+Vaultwarden, is one-service-at-a-time, and finalizes the legacy path only after
 dependency bootstrap, deployment, stable-container validation and the
 service-specific functional gate succeed. Scanopy and Joplin reconcile their
 dedicated roles/databases on the shared PostgreSQL service. AutoKuma remains

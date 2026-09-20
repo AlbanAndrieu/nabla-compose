@@ -17,6 +17,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertTrue(mode & stat.S_IXUSR)
         text = gate.read_text(encoding="utf-8")
         self.assertIn("--preflight", text)
+        self.assertIn("NABLA_TRUENAS_DEV_VENV", text)
+        self.assertIn(".cache/nabla-compose/dev-venv", text)
+        self.assertIn('export PATH="${DEV_VENV}/bin:${PATH}"', text)
         self.assertIn("--ci", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
@@ -94,6 +97,14 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("[tasks.agent-pre-push]", config)
         self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
         self.assertIn("bash scripts/agent-pre-push.sh", config)
+
+        bootstrap = (ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("--persist-shell-path", bootstrap)
+        self.assertIn("nabla-compose operator path", bootstrap)
+        self.assertIn("$HOME/.local/bin", bootstrap)
+        self.assertIn("$NABLA_TRUENAS_DEV_VENV/bin", bootstrap)
 
     def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")

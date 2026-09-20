@@ -109,6 +109,20 @@ python scripts/secrets/render_from_bitwarden.py --check
 
 ## Configure and unlock Bitwarden CLI
 
+On TrueNAS, install the pinned official native CLI in the operator account.
+This does not modify the appliance OS and does not require Node/npm:
+
+```bash
+bash scripts/truenas/bootstrap-bitwarden-cli.sh --apply
+export PATH="$HOME/.local/bin:$PATH"
+bw --version
+```
+
+The bootstrap verifies the upstream SHA-256 before installing
+`~/.local/bin/bw`. The repository currently pins CLI `2026.9.0`.
+
+Then configure and unlock the Vaultwarden-compatible Password Manager CLI:
+
 ```bash
 bw config server https://vaultwarden.albandrieu.com
 bw login
