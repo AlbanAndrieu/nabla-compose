@@ -83,7 +83,8 @@
         "system",
         "sourcePath",
         "deploymentStatus",
-        "standards"
+        "standards",
+        "integrations"
       ],
       "properties": {
         "id": {
