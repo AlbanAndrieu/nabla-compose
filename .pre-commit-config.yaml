@@ -257,6 +257,14 @@ repos:
         pass_filenames: false
         files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml)$'
 
+      - id: service-catalog-v2-sync
+        name: "🧭 catalog · Validate v2, Backstage and CycloneDX projections"
+        language: system
+        entry: python scripts/generate-service-catalog-v2.py --check
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:services|service-topology|service-catalog-v2)(?:[.]schema)?[.]json|catalog/backstage/catalog-info[.]yaml|catalog/cyclonedx/homelab[.]cdx[.]json|scripts/generate-service-catalog-v2[.]py|tests/test_service_catalog_v2[.]py|docs/service-catalog-v2[.]md)$
+
       - id: service-consumer-contract
         name: "🧩 catalog · Validate service consumers and unit tests"
         language: python
