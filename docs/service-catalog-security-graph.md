@@ -306,7 +306,7 @@ Authority boundaries:
 
 - **Backstage descriptors / Git:** catalog identity and standard relations.
 - **Compose:** desired runtime definition.
-- **minimal `x-nabla`:** only Nabla-specific operational/security policy.
+- **minimal `x-nabla`:** only Nabla-specific operational/security policy; boot ordering follows systemd-style requirement/order semantics and never redefines Backstage relations.
 - **OpenTelemetry:** runtime telemetry identity semantics.
 - **CycloneDX/Trivy:** service/package supply-chain inventory.
 - **NetBox:** network/infrastructure intent where deployed.
@@ -328,10 +328,13 @@ The detailed field-level plan is in
 2. Bulk-rewrite Compose files:
    - add top-level project `name`;
    - bind runtime services to Backstage entity refs using one reverse-DNS label;
-   - remove redundant catalog fields from `x-nabla`;
-   - rename boot `lifecycle` to `operations.startup`;
-   - derive project/service/image/network/port/profile/health/dependency facts from
-     Compose rather than repeating them.
+   - remove redundant catalog fields and standard relations from `x-nabla`;
+   - replace boot `lifecycle.phase/priority` with minimal
+     `operations.boot.target/after/before/wants` semantics inspired by systemd;
+   - derive required cross-entity boot dependencies from Backstage
+     `spec.dependsOn` and same-project ordering from Compose `depends_on`;
+   - derive project/service/image/network/port/profile/health facts from Compose
+     rather than repeating them.
 3. Replace static topology JSON with native Backstage static entities plus small
    static operational metadata.
 4. Replace the generator with a standards-first join/validation pipeline.
@@ -361,7 +364,7 @@ Perform a breaking model replacement, not a compatibility layer:
 
 ### Cartography / security evidence
 
-- map Backstage entity refs to explicit Neo4j identities;
+- map Backstage entity refs to explicit Neo4j identities; keep one canonical declared edge and enrich it only when a security query genuinely needs extra semantics;
 - project CycloneDX service/component identities and image digests;
 - correlate DefectDojo/Dependency-Track evidence without changing declared
   lifecycle/order;
