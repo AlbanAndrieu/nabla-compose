@@ -51,7 +51,7 @@ if ! git diff --quiet --ignore-submodules=all ||
   exit 1
 fi
 
-git fetch origin "${DEPLOY_BRANCH}" 2>/dev/null
+git -c fetch.recurseSubmodules=false fetch origin "${DEPLOY_BRANCH}" 2>/dev/null
 LOCAL="$(git rev-parse HEAD)"
 REMOTE="$(git rev-parse "origin/${DEPLOY_BRANCH}")"
 log_info "Current local commit: ${LOCAL}"
@@ -67,7 +67,7 @@ if ! git merge-base --is-ancestor "${LOCAL}" "${REMOTE}"; then
   exit 1
 fi
 
-git merge --ff-only "origin/${DEPLOY_BRANCH}"
+git -c submodule.recurse=false merge --ff-only "origin/${DEPLOY_BRANCH}"
 
 if git diff --quiet "${LOCAL}" HEAD -- bootstrap/ docker-compose-truenas.yml .doco-cd.yaml; then
   log_info "Checkout synchronized; no Doco-CD configuration changed."
