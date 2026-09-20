@@ -38,12 +38,13 @@ The target is smaller than the first v2 draft:
 2. boot metadata exists only for exceptional cross-application ordering that
    cannot be derived from Backstage `dependsOn`, Compose `depends_on` and
    readiness;
-3. endpoint/exposure inventory is derived from Compose/Traefik, Kubernetes
-   Service/Gateway resources, Cloudflare Tunnel+Access and pfSense HAProxy rather
-   than copied into x-nabla;
-4. custom relation metadata is exceptional and only enriches a standard edge;
-5. structured risk acceptance remains the principal legitimate custom policy
-   payload.
+3. **desired exposure/security intent remains declared in Git** until the real
+   provider configuration is itself Git/IaC-managed; provider APIs are observed
+   state, never the sole memory of what should exist;
+4. endpoint/backend facts that are derivable from Compose/Kubernetes/providers
+   are not copied into the intent model;
+5. custom relation metadata is exceptional and only enriches a standard edge;
+6. structured risk acceptance remains a legitimate custom policy payload.
 
 A standard relation is authored exactly once. For example,
 `spec.dependsOn: [resource:default/neo4j-security]` is the canonical Cartography
@@ -111,14 +112,14 @@ where every legacy field moved and prevents reintroducing a parallel catalog.
 | `runtime.networks` | Compose | `networks` |
 | `runtime.appId` | Compose/exception | top-level project `name`; retain override only on real mismatch |
 | `sourcePath` | Backstage/Git | source-location annotation + discovery path |
-| `url/internalUrl` | derive | Compose ports/`app_protocol`, Traefik routes, Kubernetes Service/Gateway, Cloudflare/pfSense provider observations; project to CycloneDX |
+| `url/internalUrl` | split desired/observed | internal backend facts derive from Compose/Kubernetes; desired public hostname/exposure is temporarily retained as Git route intent until provider-native IaC owns it; provider APIs supply observed state |
 | `monitoring` | Compose/Kubernetes/observer | native Compose `healthcheck`; Kubernetes startup/readiness/liveness semantics; FastAPI cross-plane observations |
 | `partOf` | Backstage | System/Domain membership |
 | `dependsOn` | Backstage / Compose | `spec.dependsOn`; native `depends_on` intra-project |
 | `providesApi/consumesApi` | Backstage | API entity refs |
 | `storesIn` | normally delete | use Backstage `dependsOn` + target Resource type; enrich only if a real query requires more |
 | `hostedBy` | derive | Compose/TrueNAS/Kubernetes runtime observation |
-| `routesTo/exposedBy` | derive/policy | endpoint ingress + provider observation |
+| `routesTo/exposedBy` | split desired/observed | desired route/exposure intent stays in Git; actual route/backend is derived from Traefik/Cloudflare/pfSense/Kubernetes observations |
 | `observedBy` | derive | observability configuration/runtime |
 | `authenticatesVia` | Backstage dependency or rare enrichment | identity Resource/API dependency; enrich only when needed |
 | `automates` | derive or rare enrichment | automation/API relationship when standard relations are insufficient |
@@ -316,13 +317,18 @@ It splits concerns into resources and reconciles them:
 Important consequences:
 
 1. **desired state and observed state stay separate**;
-2. an endpoint is not copied into catalog identity metadata merely because it is
+2. desired public exposure must survive a Cloudflare/Docker/TrueNAS outage;
+3. an endpoint is not copied into catalog identity metadata merely because it is
    useful to a UI;
-3. route/exposure state belongs to the routing/control-plane source;
-4. runtime backend addresses are observations, like EndpointSlices, not catalog
+4. when a provider is not yet Git/IaC-managed, Nabla must temporarily retain the
+   intended route/security policy in Git;
+5. provider APIs report whether that intent is actually realized;
+6. runtime backend addresses are observations, like EndpointSlices, not catalog
    fields;
-5. consumers build a view by joining resources through stable references.
+7. consumers build a view by joining resources through stable references.
 
+This mirrors Kubernetes `spec` versus `status`: losing the controller does not
+erase the desired `spec`.
 ### Kubernetes-style metadata conventions
 
 Where Kubernetes resources are generated later, use the recommended labels:
@@ -405,6 +411,98 @@ that project the existing source into the same concepts:
 
 When the workload is actually deployed on Kubernetes, consume the native
 Service/EndpointSlice/Gateway API objects directly.
+
+### Desired exposure intent while providers are not fully IaC-managed
+
+The previous draft went too far by proposing that all exposure be inferred from
+provider state. That would lose security intent during an outage or API
+authorization failure.
+
+Until Cloudflare/pfSense exposure configuration is managed declaratively in Git,
+retain a **small route-intent spec** beside the service.
+
+Use Gateway API concepts and references, but do not fabricate Kubernetes objects
+for Docker workloads:
+
+```yaml
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - sample.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backendPort: web
+      access:
+        required: true
+```
+
+The Compose port is named once:
+
+```yaml
+ports:
+  - name: web
+    target: 8080
+    published: "8091"
+    host_ip: 172.17.0.24
+    protocol: tcp
+    app_protocol: http
+```
+
+The exposure spec therefore does **not** repeat IP address, numeric backend port,
+container name or runtime health.
+
+Semantics:
+
+- `hostnames` = desired names that should exist even when the provider is down;
+- `protocol` = desired listener/application transport;
+- `visibility` = intended security boundary (`public | lan | cluster | host`);
+- `gatewayRef` = Backstage entity ref for the desired edge/gateway provider;
+- `backendPort` = named Compose/Kubernetes service port, not a duplicate number;
+- `access.required` = desired protection intent, independent of whether the
+  Cloudflare Access API can currently prove it.
+
+FastAPI then exposes a reconciled view:
+
+```text
+spec:
+  desired route intent from Git
+
+status:
+  Accepted
+  ResolvedRefs
+  Programmed
+  AccessProtected
+  Ready
+```
+
+If Cloudflare is unreachable:
+
+```text
+desired public hostname = still present
+access.required = still true
+Programmed = Unknown
+AccessProtected = Unknown
+```
+
+Never convert the provider outage into `external=false`.
+
+### Future migration of route intent
+
+The route-intent extension is explicitly transitional:
+
+- Traefik desired routing should remain native Traefik configuration/labels in
+  Git and can be projected into the normalized route view.
+- Kubernetes workloads should move to native Gateway API resources.
+- Cloudflare Tunnel/Access desired state should move to an OpenTofu/Terraform
+  Cloudflare provider when that management path is introduced.
+- pfSense HAProxy desired state should move to its reviewed API/IaC source when
+  safe automation exists.
+
+Once a provider has a real declarative Git source, delete the duplicate
+`x-nabla.exposure` record for that route. The provider-native configuration
+becomes `spec`; FastAPI/provider observation remains `status`.
 
 ## Separate Backstage lifecycle from boot semantics
 
@@ -532,10 +630,22 @@ No x-nabla metadata is required here.
 
 ### Legitimate remaining x-nabla
 
-Use the extension only when a source cannot be represented or derived elsewhere:
+Use the extension only when a source cannot yet be represented by a provider-
+native Git/IaC object or derived elsewhere:
 
 ```yaml
 x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - example.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backendPort: web
+      access:
+        required: true
+
   boot:
     after:
       - resource:default/special-host-service
@@ -819,11 +929,16 @@ schema the Git authoring format.
 The Kubernetes comparison changes the previous recommendation: **do not replace
 these files with another canonical flat endpoint document**.
 
-Both files exist because identity, endpoint discovery, exposure intent, observed
-routing and presentation were collapsed into one UI-oriented schema and then
-patched with precedence overrides.
+However, do not discard the desired exposure/security intent they currently
+contain. First migrate that intent into Backstage/Compose/provider-native Git
+sources or the temporary minimal `x-nabla.exposure` spec. Only then delete the
+legacy files in the coordinated cutover.
 
-Delete that model.
+Both files exist because identity, endpoint discovery, desired exposure,
+observed routing and presentation were collapsed into one UI-oriented schema and
+then patched with precedence overrides.
+
+Delete the flat model, not the intent.
 
 ### homelab-services.json field disposition
 
@@ -835,10 +950,10 @@ Delete that model.
 | `internalHost/internalPort` | Compose long-syntax ports or native Kubernetes Service |
 | application protocol / TLS hint | Compose `ports[].app_protocol`, Traefik/Gateway route, or API entity |
 | `internalPath` | actual route/probe source, not catalog identity |
-| `tunnelUrl` | Cloudflare Tunnel Public Hostname / provider route |
-| `external` | derived from attached public route/listener |
-| `tunnelSecure` | route/listener protocol/TLS configuration |
-| `endpointEnabled` | route/backend/runtime status |
+| `tunnelUrl` | desired hostname -> route intent/provider IaC; actual route -> provider status |
+| `external` | desired visibility -> route intent; actual exposure -> observed route/listener |
+| `tunnelSecure` | desired protocol -> route intent; actual TLS -> listener/provider observation |
+| `endpointEnabled` | desired route presence if meaningful -> spec; actual route/backend availability -> status |
 | `healthNote` | condition `reason/message` or documentation |
 | `internalTitle/tunnelTitle` | delete; presentation only |
 | `icons/iconSrc` | Site presentation mapping |
@@ -847,11 +962,11 @@ Delete that model.
 
 | Old field | Source after cutover |
 | --- | --- |
-| `external` | derived public route |
-| `tunnelUrl` | Cloudflare/Traefik/Gateway/HAProxy route |
-| `tunnelSecure` | listener/route TLS |
-| `cloudflareAccessRequired` | actual Cloudflare Access Application/Policy |
-| `endpointEnabled` | route/runtime status |
+| `external` | desired visibility in route intent; observed exposure in status |
+| `tunnelUrl` | desired hostname in route intent; observed Cloudflare/Traefik/Gateway/HAProxy route in status |
+| `tunnelSecure` | desired protocol in route intent; observed listener/route TLS in status |
+| `cloudflareAccessRequired` | desired `access.required`; observed Access Application/Policy separately |
+| `endpointEnabled` | desired presence only when intentional; observed route/runtime condition separately |
 | `healthNote` | observation condition/documentation |
 | `securityException` | structured risk acceptance only |
 
@@ -859,15 +974,21 @@ Delete that model.
 
 For the current homelab:
 
-- **internal Docker endpoint:** Compose;
-- **internal HTTP ingress:** Traefik labels/config;
-- **public Cloudflare route:** Cloudflare Tunnel Public Hostname API because the
-  current Tunnel is dashboard-managed;
-- **public authorization:** Cloudflare Access Application + attached policies +
-  Service Token evidence;
-- **direct WAN edge:** pfSense HAProxy frontend/backend API/config;
+- **internal Docker endpoint desired state:** Compose;
+- **internal HTTP ingress desired state:** Traefik labels/config;
+- **public Cloudflare route desired state:** temporary Git route intent until
+  Cloudflare configuration is IaC-managed;
+- **public Cloudflare route observed state:** Tunnel Public Hostname API;
+- **public authorization desired state:** route intent `access.required` until
+  Cloudflare Access policy is IaC-managed;
+- **public authorization observed state:** Access Application + attached policies
+  + Service Token/live-edge evidence;
+- **direct WAN desired state:** temporary route intent until pfSense HAProxy
+  configuration has a reviewed declarative owner;
+- **direct WAN observed state:** pfSense HAProxy frontend/backend;
 - **runtime backend:** TrueNAS/Docker observation;
-- **Kubernetes workload:** native Service + EndpointSlice + Gateway API.
+- **Kubernetes workload:** native Service + EndpointSlice + Gateway API, whose
+  spec/status separation already solves this natively.
 
 FastAPI already observes several of these providers. The migration should make
 those adapters the source of the network view instead of copying their result
@@ -886,12 +1007,15 @@ declarative source:
   is migrated to OpenTofu/Terraform;
 - pfSense/HAProxy configuration source when safely automatable.
 
-Until a provider is Git-managed, FastAPI reports its control-plane state as
-**observed**. A direct exposure that needs an explicit policy exception is the
-rare place where a structured `riskAcceptance` remains useful.
+Until a provider is Git-managed, the minimal Git route-intent spec is the
+**desired state**, and FastAPI/provider APIs supply the **observed status**.
 
-Do not add `external: true/false` to Backstage merely to recreate the deleted
-override file.
+A direct exposure that needs an explicit policy exception additionally keeps a
+structured `riskAcceptance`.
+
+Do not add a generic `external: true/false` Backstage field merely to recreate
+the old override file; keep exposure intent as a route/policy object with a
+hostname/gateway/access context.
 
 ## FastAPI Sample one-shot changes
 
@@ -914,6 +1038,7 @@ Consume directly:
 
 ```text
 Backstage entities/relations
+temporary Git route/security intent for providers not yet IaC-managed
 Compose-derived desired runtime facts
 TrueNAS/Docker observations
 Kubernetes Service/EndpointSlice/Gateway objects when applicable
@@ -1058,6 +1183,7 @@ Fail if:
 - entity refs are unresolved;
 - `metadata.name` is not stable lowercase kebab-case;
 - duplicate display names are used as joins;
+- every legacy public/external hostname or security-protection intent is accounted for in a new desired-state source before the legacy files can be deleted;
 - an observed public route has unresolved backend references or an explicitly required authorization policy that is not proven;
 - an accepted risk has no reason/control;
 - a critical image uses `:latest`;
@@ -1198,9 +1324,11 @@ compatibility migration.
 - generate Backstage projections and CycloneDX;
 - derive provider/runtime network views instead of generating another static
   service/exposure inventory;
+- migrate every legacy desired hostname/visibility/access requirement into
+  provider-native Git/IaC or temporary `x-nabla.exposure`;
 - remove old `services.json`, `service-topology.json`,
-  `homelab-services.json` and `homelab-exposure-overrides.json` when the
-  coordinated consumer PRs are ready.
+  `homelab-services.json` and `homelab-exposure-overrides.json` only after
+  that desired-intent parity gate and the coordinated consumer PRs are ready.
 
 ### fastapi-sample
 
