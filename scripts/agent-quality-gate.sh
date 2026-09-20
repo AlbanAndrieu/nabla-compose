@@ -389,6 +389,8 @@ if [[ "${MODE}" == "fix" ]]; then
     printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
     run_compact "regenerate declared service topology" \
       "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
+    run_compact "regenerate interoperable service catalog" \
+      "${PYTHON_CMD[@]}" scripts/generate-service-catalog-v2.py
     run_compact "regenerate service consumers" \
       "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
 
@@ -428,6 +430,8 @@ fi
 
 run_compact "declared service topology is synchronized" \
   "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
+run_compact "interoperable service catalog is synchronized" \
+  "${PYTHON_CMD[@]}" scripts/generate-service-catalog-v2.py --check
 run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
   "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
 
@@ -438,7 +442,7 @@ else
     "${PYTHON_CMD[@]}" -m unittest discover -s tests -p 'test_*.py' -q
 fi
 
-CANONICAL_SKIP="service-topology-sync,service-consumer-contract"
+CANONICAL_SKIP="service-topology-sync,service-catalog-v2-sync,service-consumer-contract"
 if [[ -n "${SKIP:-}" ]]; then
   CANONICAL_SKIP="${SKIP},${CANONICAL_SKIP}"
 fi
