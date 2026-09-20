@@ -20,7 +20,8 @@ def test_cron_is_branch_bounded_and_non_destructive() -> None:
     assert "flock -n 9" in script
     assert 'CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD' in script
     assert 'if [[ "${CURRENT_BRANCH}" != "${DEPLOY_BRANCH}" ]]' in script
-    assert 'git merge --ff-only "origin/${DEPLOY_BRANCH}"' in script
+    assert 'git -c fetch.recurseSubmodules=false fetch origin "${DEPLOY_BRANCH}"' in script
+    assert 'git -c submodule.recurse=false merge --ff-only "origin/${DEPLOY_BRANCH}"' in script
     assert "git reset --hard" not in script
     assert "--ignore-submodules=all" in script
     assert "Runtime deployment remains owned by the already-running Doco-CD instance" in script
