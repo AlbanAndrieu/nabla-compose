@@ -169,3 +169,16 @@ when explicitly set. Supported values are:
 Consumers must fall back to `active` when the field is absent. This declared
 intent is independent from observed runtime health and must not be overwritten
 by runtime reconciliation.
+
+## Lifecycle resume barriers
+
+`x-nabla.lifecycle.blocksLaterWaves` is optional and defaults to `true`.
+Setting it to `false` means that a failed App is still reported and keeps strict
+reboot acceptance red, but its failure does not prevent unrelated later lifecycle
+waves from starting. Required topology edges remain authoritative: this flag must
+never be used to bypass an actual required dependency.
+
+Vaultwarden uses `blocksLaterWaves: false` because normal boot consumes already
+materialized root-only runtime files. The password manager remains an early
+recovery/rotation service, not a prerequisite for PostgreSQL, Redis, application
+startup, or the post-boot Nabla Service facade.

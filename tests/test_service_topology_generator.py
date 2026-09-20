@@ -272,6 +272,28 @@ services:
         self.assertEqual(node["lifecycle"], expected)
         self.assertEqual(service["lifecycle"], expected)
 
+        non_blocking = {
+            **metadata,
+            "lifecycle": {
+                "phase": "foundation",
+                "priority": 10,
+                "blocksLaterWaves": False,
+            },
+        }
+        non_blocking_node = MODULE.topology_node(
+            non_blocking,
+            "apps/vaultwarden/compose.yml",
+            "fixture.x-nabla",
+        )
+        self.assertEqual(
+            non_blocking_node["lifecycle"],
+            {
+                "phase": "foundation",
+                "priority": 10,
+                "blocksLaterWaves": False,
+            },
+        )
+
     def test_invalid_lifecycle_metadata_is_rejected(self) -> None:
         base = {
             "id": "fixture",
@@ -304,6 +326,22 @@ services:
                         "apps/fixture/compose.yml",
                         "fixture.x-nabla",
                     )
+
+        with self.assertRaisesRegex(
+            ValueError, "lifecycle.blocksLaterWaves must be a boolean"
+        ):
+            MODULE.topology_node(
+                {
+                    **base,
+                    "lifecycle": {
+                        "phase": "applications",
+                        "priority": 50,
+                        "blocksLaterWaves": "false",
+                    },
+                },
+                "apps/fixture/compose.yml",
+                "fixture.x-nabla",
+            )
 
     def test_core_role_is_normalized_to_critical(self) -> None:
         metadata = {
