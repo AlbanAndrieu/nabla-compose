@@ -4,30 +4,65 @@
   "title": "Nabla interoperable service catalog v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "entities", "relations"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "entities",
+    "relations"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "apiVersion": { "const": "nabla.dev/v2" },
-    "kind": { "const": "ServiceCatalog" },
+    "$schema": {
+      "type": "string"
+    },
+    "apiVersion": {
+      "const": "nabla.dev/v2"
+    },
+    "kind": {
+      "const": "ServiceCatalog"
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "catalogRevision", "topologyVersion", "authoritativeSource", "state"],
+      "required": [
+        "name",
+        "catalogRevision",
+        "topologyVersion",
+        "authoritativeSource",
+        "state"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "catalogRevision": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-        "topologyVersion": { "type": "integer", "minimum": 1 },
-        "authoritativeSource": { "const": "x-nabla" },
-        "state": { "const": "declared" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "catalogRevision": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "topologyVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "authoritativeSource": {
+          "const": "x-nabla"
+        },
+        "state": {
+          "const": "declared"
+        }
       }
     },
     "entities": {
       "type": "array",
-      "items": { "$ref": "#/$defs/entity" }
+      "items": {
+        "$ref": "#/$defs/entity"
+      }
     },
     "relations": {
       "type": "array",
-      "items": { "$ref": "#/$defs/relation" }
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
     }
   },
   "$defs": {
@@ -39,30 +74,83 @@
       "type": "object",
       "additionalProperties": true,
       "required": [
-        "id", "ref", "name", "entityType", "subtype", "domain", "system",
-        "sourcePath", "deploymentStatus", "standards"
+        "id",
+        "ref",
+        "name",
+        "entityType",
+        "subtype",
+        "domain",
+        "system",
+        "sourcePath",
+        "deploymentStatus",
+        "standards"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/identifier" },
-        "ref": { "type": "string", "pattern": "^nabla:(?:component|resource):" },
-        "name": { "type": "string", "minLength": 1 },
-        "entityType": { "enum": ["component", "resource"] },
-        "subtype": { "type": "string", "minLength": 1 },
-        "domain": { "type": "string", "minLength": 1 },
-        "system": { "const": "nabla-homelab" },
-        "sourcePath": { "type": "string", "minLength": 1 },
-        "deploymentStatus": { "enum": ["active", "planned", "disabled"] },
-        "description": { "type": "string" },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^nabla:(?:component|resource):"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entityType": {
+          "enum": [
+            "component",
+            "resource"
+          ]
+        },
+        "subtype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system": {
+          "const": "nabla-homelab"
+        },
+        "sourcePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deploymentStatus": {
+          "enum": [
+            "active",
+            "planned",
+            "disabled"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
         "endpoints": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["type", "url"],
+            "required": [
+              "type",
+              "url"
+            ],
             "properties": {
-              "type": { "type": "string", "minLength": 1 },
-              "url": { "type": "string", "minLength": 1 },
-              "external": { "type": "boolean" },
-              "cloudflareTunnel": { "type": "boolean" }
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "external": {
+                "type": "boolean"
+              },
+              "cloudflareTunnel": {
+                "type": "boolean"
+              }
             },
             "additionalProperties": false
           }
@@ -70,19 +158,62 @@
         "standards": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["backstage", "cyclonedx"],
+          "required": [
+            "backstage",
+            "cyclonedx"
+          ],
           "properties": {
             "backstage": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["entityRef"],
-              "properties": { "entityRef": { "type": "string", "minLength": 1 } }
+              "required": [
+                "entityRef"
+              ],
+              "properties": {
+                "entityRef": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
             },
             "cyclonedx": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["bomRef"],
-              "properties": { "bomRef": { "type": "string", "minLength": 1 } }
+              "required": [
+                "bomRef"
+              ],
+              "properties": {
+                "bomRef": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "integrations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cartography"
+          ],
+          "properties": {
+            "cartography": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "joinProperty",
+                "joinValue"
+              ],
+              "properties": {
+                "joinProperty": {
+                  "const": "nabla_ref"
+                },
+                "joinValue": {
+                  "type": "string",
+                  "pattern": "^nabla:(?:component|resource):"
+                }
+              }
             }
           }
         }
@@ -91,19 +222,50 @@
     "relation": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["source", "target", "sourceRef", "targetRef", "type", "strength", "evidence"],
+      "required": [
+        "source",
+        "target",
+        "sourceRef",
+        "targetRef",
+        "type",
+        "strength",
+        "evidence"
+      ],
       "properties": {
-        "source": { "$ref": "#/$defs/identifier" },
-        "target": { "$ref": "#/$defs/identifier" },
-        "sourceRef": { "type": "string", "minLength": 1 },
-        "targetRef": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "minLength": 1 },
-        "strength": { "enum": ["required", "optional"] },
-        "description": { "type": "string" },
+        "source": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sourceRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strength": {
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
         "evidence": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }
