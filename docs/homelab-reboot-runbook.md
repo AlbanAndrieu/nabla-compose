@@ -513,10 +513,17 @@ sudo env \
 Only Apps captured by the original saved resume plan are eligible for resume.
 Apps that are already `RUNNING` are **verified rather than skipped**: the
 reconciler requires stable containers, waits for explicit Docker healthchecks
-to become `healthy`, accepts successful one-shot initializers as
-`Exited(0)`, and blocks the next dependency wave on unhealthy/restarting or
-non-zero exited containers. Historically stopped or failed Apps are not
-blanket-started.
+to become `healthy`, and accepts successful one-shot initializers as
+`Exited(0)`. Failures block later waves by default.
+
+A reviewed App may declare `x-nabla.lifecycle.blocksLaterWaves: false` when its
+failure must remain visible but is not a prerequisite for unrelated services.
+Vaultwarden uses this policy: it is attempted in the foundation phase, but its
+failure does not stop PostgreSQL/Redis/application waves because normal boot
+consumes persistent `/mnt/cpool/secrets/runtime/*` materializations. The final
+resume result and strict `--verify` remain red until Vaultwarden itself is
+healthy. Required topology dependencies are never bypassed by this policy.
+Historically stopped or failed Apps are not blanket-started.
 
 The immutable reboot bundle includes
 `verify-app-runtime-health.sh`; therefore post-reboot acceptance does not

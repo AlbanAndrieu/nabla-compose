@@ -86,6 +86,7 @@ The 2026-09-11 transaction is operationally accepted. Strict historical-manifest
 - [x] Add a Docker ghost-shim fixture and shared fail-closed guard: recovery is eligible only for `Running=true`/`Restarting=true`, `Pid=0` and exactly one matching shim; live `Pid>0`, ambiguous shim counts and non-ghost states are refused.
 - [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
 - [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
+- [x] Separate lifecycle ordering from boot criticality with optional `x-nabla.lifecycle.blocksLaterWaves` (default `true`). Vaultwarden declares `false`: its recovery failure remains strict acceptance debt but cannot prevent unrelated PostgreSQL/Redis/application waves from resuming from persistent runtime materializations.
 - [ ] Move service-specific readiness policy into declarative lifecycle metadata so selected backends can additionally require HTTP/TCP/application-level probes rather than only generic container stability.
 - [ ] Keep current + previous known-good reboot bundles until another normal reboot cycle passes.
 

@@ -485,8 +485,11 @@ and already-materialized root-only runtime files while FastAPI, Redis,
 Vaultwarden and external providers are unavailable.
 
 FastAPI Sample is therefore a **post-boot management plane**, not a boot
-dependency. Phase 1 is read-only: catalog, topology, migration plans, runtime
-state and acceptance evidence. Privileged mutation is deferred until all of the
+dependency. Vaultwarden is likewise a recovery/rotation authority rather than a
+barrier for unrelated service waves: its lifecycle policy may report a failed
+resume while allowing consumers of already-materialized runtime files to start.
+Required service dependencies remain blocking. Phase 1 is read-only: catalog,
+topology, migration plans, runtime state and acceptance evidence. Privileged mutation is deferred until all of the
 following are true:
 
 - the local controller profile is registered only for
