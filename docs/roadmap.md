@@ -22,6 +22,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
 - [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
+- [Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
@@ -39,7 +40,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
 - [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
-- [x] **Catalog/security-graph target architecture:** Backstage is the generated interoperable service-catalog projection, CycloneDX is the SBOM/supply-chain projection, and Cartography/Neo4j is the analytical graph layer. `x-nabla` remains the Git authority; the existing v1 catalog remains a compatibility contract during direct migration. See `docs/service-catalog-security-graph.md`.
+- [x] **Catalog/security-graph target architecture:** the refined v2 target uses native Backstage `catalog-info.yaml` descriptors for catalog identity/standard relations, Compose for runtime facts, a minimal `x-nabla` only for Nabla-specific operational/security policy, CycloneDX for supply-chain projection and Cartography/Neo4j for analytical graph correlation. The consumer cutover is intentionally one-shot rather than a long-lived v1/v2 compatibility migration. See `docs/service-catalog-security-graph.md` and `docs/service-catalog-v2-normalization.md`.
 - [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
@@ -207,18 +208,32 @@ local operations, but it is not part of the minimum boot dependency chain.
 
 ### P2.1 — security inventory, supply-chain and attack-graph tooling
 
-Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
+The v2 normalization decision supersedes the earlier plan to keep the complete
+catalog schema inside `x-nabla`.
 
-Standardization/migration contract: see `docs/service-catalog-security-graph.md`.
+Target contract:
 
-- [ ] **Direct v1 -> Backstage projection:** generate Backstage Component/Resource/API/System/Domain entities from the existing generated catalog. Do not hand-rewrite services and do not deploy Backstage as a prerequisite.
-- [ ] **CycloneDX projection:** generate an aggregate service/component BOM from the same IDs and attach Trivy per-image/per-source SBOMs by stable service ID, image digest and pURL.
-- [ ] **Cross-projection quality gate:** require one `catalogRevision`, resolvable IDs/relations, no secret export, and deterministic parity between legacy JSON, Backstage and CycloneDX artifacts.
-- [ ] **FastAPI Sample migration:** add a v2 read-only Backstage-shaped catalog/topology adapter keyed by stable service ID; keep current v1 inventory/exposure files only as compatibility and policy-exception overlays during the transition.
-- [ ] **Site Alban migration:** prefer the FastAPI v2 entities/topology and keep the current bundled v1 catalog only as a last-known-good fallback until revision-parity tests are green.
-- [ ] **Cartography correlation:** load Nabla identities/typed relations into Neo4j with provenance/freshness, then correlate provider/runtime observations. Inferred graph edges remain analytical and must never silently alter lifecycle ordering.
-- [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo, and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
-- [ ] Normalize `securityFunctions` to NIST CSF 2.0 `Govern | Identify | Protect | Detect | Respond | Recover` as classification metadata, not as a risk score.
+- native Backstage descriptors own entity identity, owner/system/lifecycle and
+  standard relations;
+- Compose owns runtime facts;
+- minimal `x-nabla.operations` owns only operational intent, startup ordering,
+  exposure policy, custom relation semantics/evidence and risk acceptances;
+- OpenTelemetry semantics align runtime service identity;
+- CycloneDX/Trivy owns service/package supply-chain projection;
+- Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
+
+Detailed cutover: `docs/service-catalog-v2-normalization.md`.
+
+- [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
+- [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
+- [ ] **x-nabla v2 reduction:** rename boot `lifecycle` to `operations.startup`; keep only operational intent, startup policy, endpoints/exposure, custom relation evidence and structured risk acceptances.
+- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities plus small static operational metadata.
+- [ ] **One-shot generated contracts:** emit Backstage entity JSON, normalized operations, normalized relations and CycloneDX 1.7 with one `catalogRevision`; no permanent v1/v2 compatibility files.
+- [ ] **FastAPI one-shot cutover:** replace old catalog/topology models and both `homelab-services.json` / `homelab-exposure-overrides.json` with one generated normalized snapshot; key all joins by full entity ref.
+- [ ] **Site Alban one-shot cutover:** replace its old service DTO/fallback, use full entity refs as React Flow IDs, and keep icons/layout presentation-only.
+- [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions and clean local gates.
+- [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
+- [ ] Normalize NIST CSF 2.0 classifications to `Govern | Identify | Protect | Detect | Respond | Recover` and project service criticality to the OpenTelemetry `service.criticality` vocabulary.
 
 Runtime preparation contract for this wave:
 
@@ -230,12 +245,12 @@ Runtime preparation contract for this wave:
 6. After runtime acceptance, execute one controlled reboot and require the topology-derived resume waves plus the generic container health barrier to pass before marking this wave stable.
 
 
-- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Define explicit reconciliation boundaries with `x-nabla` so NetBox owns network/infrastructure data while `x-nabla` remains authoritative for service identity and service-to-service topology.
+- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Backstage owns service/catalog identity; NetBox owns network/infrastructure intent; reconciliation uses stable entity/infrastructure IDs.
 - [ ] **OWASP DefectDojo** — Compose/catalog and runtime bootstrap are prepared; deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
 - [ ] **OWASP Dependency-Track** — Compose/catalog and runtime bootstrap are prepared; deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
 - [ ] **OpenSSF Scorecard** — manual-job Compose and Vaultwarden contract are prepared; integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
-- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
-- [ ] Define an interoperability contract: `x-nabla` = service/application identity + declared dependencies; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream security posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable identifiers and preserve provenance/evidence.
+- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the normalized Backstage/Compose identity model is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources, correlate through explicit entity refs/image digests/infrastructure IDs, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
+- [ ] Define the final interoperability contract: Backstage = catalog identity/standard relations; Compose = desired runtime; minimal `x-nabla` = Nabla-only operational/security policy; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable entity refs/digests/infrastructure IDs and preserve provenance/evidence.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
