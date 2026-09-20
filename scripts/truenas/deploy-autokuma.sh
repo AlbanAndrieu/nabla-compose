@@ -29,6 +29,10 @@ sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 [[ -s "${SECRET_FILE}" ]] ||
   fail "AutoKuma runtime secret file is empty: ${SECRET_FILE}; run bootstrap-autokuma-token.sh or render it from Vaultwarden"
 
+if grep -q '^AUTOKUMA__KUMA__URL=' "${SECRET_FILE}"; then
+  fail "remove AUTOKUMA__KUMA__URL from ${SECRET_FILE}; the endpoint is non-secret Compose configuration"
+fi
+
 mode="$(stat -c '%a' "${SECRET_FILE}")"
 [[ "${mode}" == "600" ]] ||
   fail "${SECRET_FILE} must be mode 0600 (current: ${mode})"

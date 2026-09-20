@@ -21,15 +21,16 @@ class TrueNASAppReconcileContractTests(unittest.TestCase):
         self.assertNotIn("MAXX_APPLY_APPS", self.script)
 
     def test_each_mutation_decision_uses_live_state(self) -> None:
-        self.assertIn("resolve_live", self.script)
-        self.assertIn("Deliberately refresh app.query here", self.script)
+        self.assertIn("resolve_live()", self.script)
+        self.assertIn("bounded_midclt app.query |", self.script)
+        self.assertIn('resolved="$(resolve_live "${requested}")"', self.script)
         self.assertNotIn('resolve_app "${requested}" "${before}"', self.script)
 
     def test_redeploy_guards_image_updates_and_manual_actions(self) -> None:
         self.assertIn("TRUENAS_APP_RECONCILE_ALLOW_IMAGE_UPDATES", self.script)
         self.assertIn("app.redeploy pulls images", self.script)
         self.assertIn("action_required=true; manual review required", self.script)
-        self.assertIn("midclt call -j app.redeploy", self.script)
+        self.assertIn('bounded_midclt -j app.redeploy "${app_id}"', self.script)
 
     def test_stopped_error_and_network_cleanup_are_safe(self) -> None:
         self.assertIn("STOPPED is never auto-started", self.script)

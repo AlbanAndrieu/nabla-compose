@@ -174,7 +174,7 @@ class HomelabRebootContractTests(unittest.TestCase):
 
         text = REBOOT.read_text(encoding="utf-8")
         start = text.index('if [[ "${MODE}" == --continue-prepare ]]')
-        end = text.index('state_dir="$(latest_state_dir)"', start)
+        end = text.index('\nfi\n\nstate_dir="$(latest_state_dir)"', start)
         continuation = text[start:end]
         self.assertIn('validate_prepare_manifest "${state_dir}"', continuation)
         self.assertIn('continue_prepare "${state_dir}"', continuation)
@@ -279,9 +279,11 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_runbook_does_not_promote_preexisting_crashed_apps(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("Safe default behavior preserves Apps that were already `STOPPED`", text)
-        self.assertIn("CRASHED -> STOPPED", text)
-        self.assertIn("must not be promoted into the healthy resume set", text)
+        self.assertIn("Normal pre-existing `STOPPED` Apps remain stopped.", text)
+        self.assertIn(
+            "Pre-existing `CRASHED`/`ERROR` Apps must not be promoted into the healthy",
+            text,
+        )
         self.assertIn("resume-plan.json", text)
 
     def test_runbook_documents_partial_prepare_recovery(self) -> None:
@@ -290,7 +292,7 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Running=true", text)
         self.assertIn("Pid=0", text)
         self.assertIn("containerd-shim-runc-v2", text)
-        self.assertIn("do not rerun `--prepare`", text)
+        self.assertIn("do not run a fresh `--prepare`", text)
 
     def test_app_reconcile_network_detail_is_best_effort(self) -> None:
         text = APP_RECONCILE.read_text(encoding="utf-8")

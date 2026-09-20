@@ -253,13 +253,23 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("TEMPORARY-EXCEPTION", script)
         self.assertIn("UNEXPECTED", script)
         self.assertIn("exit 3", script)
-        self.assertIn("s3.int.albandrieu.com", allowlist)
-        self.assertIn("vaultwarden.int.albandrieu.com", allowlist)
+        exceptions = {
+            line.strip()
+            for line in allowlist.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        self.assertEqual(
+            exceptions,
+            {
+                "s3.int.albandrieu.com",
+                "hello.int.albandrieu.com",
+                "vaultwarden.int.albandrieu.com",
+            },
+        )
         self.assertNotIn("*.s3.int.albandrieu.com", allowlist)
         self.assertNotIn("garage.int.albandrieu.com", allowlist)
         self.assertNotIn("garage-admin.int.albandrieu.com", allowlist)
         self.assertNotIn("ollama.int.albandrieu.com", allowlist)
-        self.assertNotIn("hello.int.albandrieu.com", allowlist)
 
     def test_garage_host_ports_are_lan_bound(self) -> None:
         compose = (ROOT / "apps" / "garage" / "compose.yml").read_text(

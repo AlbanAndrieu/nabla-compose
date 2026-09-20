@@ -131,7 +131,10 @@ Before every `git push` or other normal remote publication from a checkout:
 4. Run `mise run agent-pre-push`; the same script is also enforced by the pre-push hook.
 5. If `QG_AUTOFIX_APPLIED` is reported, amend/commit only those deterministic changes and rerun the same local command; do not push yet.
 6. Fix every non-autofixable formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
-7. Verify `git status --short` is empty.
+7. Verify the superproject has no uncommitted changes. Local unstaged submodule
+   checkout/HEAD drift may be ignored because it cannot alter the published
+   superproject commit; any staged submodule gitlink change must still block
+   publication until committed or unstaged.
 8. Push the complete validated batch once.
 
 Keep iterative agent pull requests as **drafts** until the strict local agent gate is green. Expensive PR jobs may skip drafts; the cheap deterministic preflight still runs on every PR and runs again when the PR becomes ready.

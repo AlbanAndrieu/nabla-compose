@@ -40,6 +40,29 @@ resolve_base_ref() {
 
 BASE_REF="$(resolve_base_ref)"
 
+publication_status() {
+  local status
+  local staged_gitlinks
+
+  # Local submodule checkouts may legitimately be on another commit while work
+  # continues in those repositories. They cannot change the superproject
+  # commit unless a gitlink is staged, so ignore checkout drift here.
+  status="$(git status --porcelain=v1 --ignore-submodules=all)"
+  staged_gitlinks="$(
+    git diff --cached --raw --diff-filter=ACDMR |
+      awk '$1 == ":160000" || $2 == "160000" {print}'
+  )"
+
+  if [[ -n "${staged_gitlinks}" ]]; then
+    if [[ -n "${status}" ]]; then
+      printf '%s\n%s' "${status}" "${staged_gitlinks}"
+    else
+      printf '%s' "${staged_gitlinks}"
+    fi
+  else
+    printf '%s' "${status}"
+  fi
+}
 mapfile -t CHANGED_FILES < <(
   {
     if [[ "${BASE_REF}" != "HEAD" ]]; then
@@ -73,14 +96,15 @@ git diff --check
 git diff --cached --check
 
 if [[ "${PUBLISH}" == true ]]; then
-  STATUS="$(git status --short)"
+  STATUS="$(publication_status)"
   if [[ -n "${STATUS}" ]]; then
     echo "❌ Working tree is not clean enough to publish."
     echo "   Review and commit generated/fixed files, then run scripts/quality-gate.sh --publish again."
     printf '%s\n' "${STATUS}"
     exit 1
   fi
-  echo "✅ Publication quality gate passed; repository is clean and ready to publish."
+  echo "✅ Publication quality gate passed; superproject is clean and ready to publish."
+  echo "ℹ️  Local unstaged submodule checkout drift is ignored; staged gitlink changes still block publication."
 else
   echo "✅ Quality gate passed. Review and commit the validated changes before publishing."
 fi

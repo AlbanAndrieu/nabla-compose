@@ -28,35 +28,35 @@ The TrueNAS runtime is a dedicated Custom App named `autokuma`.
 Store the Uptime Kuma connection only in:
 
 ```text
-/mnt/cpool/autokuma/.env.secrets
+/mnt/cpool/secrets/runtime/autokuma/.env.secrets
 ```
 
 Create the runtime directory and secret file:
 
 ```bash
-sudo install -d -o root -g root -m 700 /mnt/cpool/autokuma
-sudo install -o root -g root -m 600 /dev/null /mnt/cpool/autokuma/.env.secrets
-sudoedit /mnt/cpool/autokuma/.env.secrets
+sudo install -d -o root -g root -m 700 /mnt/cpool/secrets/runtime/autokuma
+sudo install -o root -g root -m 600 /dev/null /mnt/cpool/secrets/runtime/autokuma/.env.secrets
+sudoedit /mnt/cpool/secrets/runtime/autokuma/.env.secrets
 ```
 
-The file must contain `AUTOKUMA__KUMA__URL` plus one authentication method.
-For the planned local Compose endpoint, use `http://172.17.0.24:31050` unless
-the final Uptime Kuma deployment deliberately exposes a different reviewed
-internal URL.
+The file contains authentication material only. The Uptime Kuma endpoint is
+non-secret configuration owned by `apps/autokuma/compose.yml`, which defaults
+to `http://172.17.0.24:31050`. Do not duplicate
+`AUTOKUMA__KUMA__URL` in the runtime secret file.
 
 Preferred token form:
 
 ```dotenv
-AUTOKUMA__KUMA__URL=http://172.17.0.24:31050
 AUTOKUMA__KUMA__AUTH_TOKEN=<jwt-or-auth-token>
+AUTOKUMA__KUMA__TLS__VERIFY=true
 ```
 
 Or username/password:
 
 ```dotenv
-AUTOKUMA__KUMA__URL=http://172.17.0.24:31050
 AUTOKUMA__KUMA__USERNAME=<username>
 AUTOKUMA__KUMA__PASSWORD=<password>
+AUTOKUMA__KUMA__TLS__VERIFY=true
 ```
 
 Do not commit credentials. If a future HTTPS internal endpoint is selected,
@@ -81,8 +81,9 @@ sudo bash scripts/truenas/bootstrap-autokuma-token.sh \
 
 The password is requested interactively without echo. The helper runs the
 bundled `/usr/local/bin/kuma login`, extracts the returned JWT and atomically
-writes the selected URL plus generated token to `/mnt/cpool/autokuma/.env.secrets`
-with mode `0600`.
+writes the generated token plus TLS policy to
+`/mnt/cpool/secrets/runtime/autokuma/.env.secrets` with mode `0600`. The URL
+is used for login but is deliberately not persisted in the secret file.
 
 Prefer the direct internal Uptime Kuma URL. Do not route this controller through
 Cloudflare Access merely to reach a service on the same homelab.
@@ -99,7 +100,8 @@ sudo bash scripts/truenas/deploy-autokuma.sh
 The helper:
 
 - validates that the secret file exists, is non-empty and mode `0600`;
-- requires `AUTOKUMA__KUMA__URL`;
+- rejects a legacy `AUTOKUMA__KUMA__URL` entry in the secret file because the
+  endpoint is Compose-owned configuration;
 - requires either `AUTOKUMA__KUMA__AUTH_TOKEN` or username/password;
 - validates the repository Compose without expanding secrets;
 - refuses an empty generated monitor inventory;

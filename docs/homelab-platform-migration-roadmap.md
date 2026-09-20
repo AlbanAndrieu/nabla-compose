@@ -1836,7 +1836,7 @@ Current repository/runtime evidence also identifies these actionable states:
   to be completed for Scrutiny;
 - **AutoKuma:** repository monitor generation exists but the TrueNAS Custom App
   is not registered yet; migration is now prepared with
-  `/mnt/cpool/autokuma/.env.secrets` and the idempotent
+  `/mnt/cpool/secrets/runtime/autokuma/.env.secrets` and the idempotent
   `scripts/truenas/deploy-autokuma.sh` create-or-update helper;
 - **Tailscale:** intentionally stopped/deferred, not a Kubernetes prerequisite.
 

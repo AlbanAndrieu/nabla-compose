@@ -56,9 +56,8 @@ class TrueNasCsiOrphanDiagnosticTests(unittest.TestCase):
     def test_platform_diagnostic_includes_csi_orphan_inventory(self) -> None:
         text = PLATFORM.read_text(encoding="utf-8")
 
-        self.assertIn("phase 3/3", text)
+        self.assertIn("phase 5/5: TrueNAS CSI dynamic dataset/orphan inventory", text)
         self.assertIn("diagnose-csi-orphans.sh", text)
-        self.assertIn("CSI dynamic dataset/orphan inventory", text)
 
     def test_runbook_documents_ui_and_truenas_26_false_success_bug(self) -> None:
         text = DOC.read_text(encoding="utf-8")
