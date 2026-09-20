@@ -24,7 +24,7 @@ Contract:
 2. operate only while the checkout is on `master` (or the explicitly configured
    `NABLA_CRON_BRANCH`);
 3. ignore dirty submodule worktrees but refuse tracked superproject edits;
-4. fetch `origin/master`;
+4. fetch `origin/master` with submodule recursion explicitly disabled;
 5. accept fast-forward updates only — never `git reset --hard`;
 6. update the local checkout;
 7. report Doco-CD configuration changes but leave runtime reconciliation to the
