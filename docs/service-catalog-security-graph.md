@@ -4,24 +4,33 @@ Last reviewed: 2026-09-20.
 
 ## Decision
 
-Keep **repository-local `x-nabla` metadata as the declared source of truth** for
-service identity, runtime intent and declared service-to-service relationships.
-Do not replace it with another hand-maintained catalog.
+The deeper normalization review supersedes the earlier idea of keeping the full
+catalog model inside `x-nabla`.
 
-Standardize the generated views instead:
+Use **native Backstage `catalog-info.yaml` descriptors as the catalog authoring
+format**, stored beside each Compose application. Keep Compose as the runtime
+source and reduce `x-nabla` to Nabla-only operational semantics that have no
+good standard representation.
 
-1. **Backstage catalog entities** are the primary interoperable service-catalog
-   projection.
-2. **CycloneDX** is the primary software-supply-chain/SBOM interchange format.
-3. **Cartography + Neo4j** is the analytical relationship/attack-path layer, not
-   the source of lifecycle truth and not a second CMDB.
-4. **DefectDojo** aggregates findings; **Dependency-Track** consumes CycloneDX
-   for component/supply-chain risk; neither owns Nabla service identity.
-5. Existing `catalog/services.json` and `catalog/service-topology.json` remain
-   a compatibility contract while FastAPI Sample and Site Alban migrate.
+The detailed breaking-v2 design and one-shot consumer cutover are defined in
+[Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md).
 
-This gives the homelab a standards-oriented catalog without introducing a second
-manual inventory.
+Target authority:
+
+1. **Backstage descriptors** — entity identity, kind/type, owner, system,
+   catalog lifecycle and standard relations.
+2. **Docker Compose** — runtime service/project/image/ports/networks/healthcheck/
+   profiles/dependencies.
+3. **Minimal `x-nabla`** — operational intent, reboot/startup ordering,
+   exposure policy, custom relation semantics/evidence and risk acceptances.
+4. **CycloneDX** — generated service/SBOM/supply-chain representation.
+5. **Cartography + Neo4j** — observed graph correlation and attack-path analysis.
+6. **DefectDojo / Dependency-Track** — findings and SBOM/component risk,
+   respectively.
+
+This is a **one-shot v2 schema cutover**, not a long-lived v1/v2 migration.
+The old flat service/exposure schemas are removed once the coordinated
+`nabla-compose`, `fastapi-sample` and `nabla-site-alban` PRs are ready.
 
 ## Current Nabla model
 
@@ -113,59 +122,66 @@ module using the project's NodeSchema/relationship patterns. Keep the first
 migration independent of an upstream Cartography fork so the homelab can adopt
 the model immediately.
 
-## Backstage as the service-catalog interchange schema
+## Backstage as the native catalog schema
 
-Backstage catalog entities provide a mature open-source entity envelope:
-`apiVersion`, `kind`, `metadata`, `spec`, entity references and standard
-relations. Backstage supports Component, Resource, API, System and Domain entities
-and serializes the same shape as YAML descriptors or JSON API entities.
+Backstage catalog entities provide the standard entity envelope used by the
+target design: `apiVersion`, `kind`, `metadata`, `spec` and entity
+references.
 
-Use it as the **generated interoperability contract**, not the authoring source.
+Use **real `catalog-info.yaml` files as the authoring source**, not a Backstage-
+shaped structure nested inside `x-nabla`.
 
-### Direct mapping from the existing catalog
+Example layout:
 
-No manual rewrite of all services is required. Generate Backstage entities
-directly from the current `services.json` + `service-topology.json` on the
-first iteration.
+```text
+apps/cartography/
+├── catalog-info.yaml
+└── compose.yml
+```
 
-| Nabla | Backstage projection |
+The migration from the current catalog can still be automatic: generate the first
+set of descriptors from existing `services.json` / `service-topology.json`,
+review them, then make those descriptors canonical in the same breaking cutover.
+
+Key normalization:
+
+| Current Nabla | Target |
 | --- | --- |
-| service `id` | `metadata.name` and stable entity reference |
-| `name` | `metadata.title` |
+| `id` | Backstage `metadata.name` |
+| display `name` | `metadata.title` |
 | `description` | `metadata.description` |
-| `category` | `metadata.tags` and/or System mapping |
-| deployable/service | `kind: Component` |
-| database/storage/cluster | `kind: Resource` |
-| explicit API definition | `kind: API` |
-| homelab security/network/data grouping | `kind: System` |
-| overall homelab | `kind: Domain` |
-| `dependsOn` / storage / hosting dependency | `spec.dependsOn` where lossless |
-| API provider/consumer | `providesApis` / `consumesApis` when an API entity exists |
-| source repository/path | Backstage annotations |
-| `active/planned/disabled` | generated lifecycle + lossless `nabla.dev/status` annotation |
-| runtime binding | `nabla.dev/*` annotations/properties |
-| criticality/security functions | tags + `nabla.dev/*` annotations |
+| free-form `kind` | Backstage `kind` + controlled `spec.type` |
+| `category` | tags initially |
+| `criticality` | queryable catalog label + OpenTelemetry `service.criticality` projection |
+| `securityFunctions` | `nist-*` tags + NIST CSF projection |
+| `partOf` | Backstage System/Domain membership |
+| `dependsOn` | Backstage `spec.dependsOn` |
+| `providesApi/consumesApi` | Backstage API refs |
+| source repository/path | Backstage source/GitHub annotations |
+| `active/planned/disabled` | Nabla operational intent; not Backstage lifecycle |
+| boot `lifecycle` | renamed to `x-nabla.operations.startup` |
+| runtime identity | derived from Compose + one entity-ref runtime label |
+| public/LAN endpoints | minimal Nabla operations + CycloneDX projection |
 
-Do not force every Nabla edge into a Backstage native relation. Backstage does not
-natively preserve all of `routesTo`, `exposedBy`, `observedBy`, strength and
-evidence semantics. Keep those losslessly in the generated topology sidecar and
-in the Neo4j graph.
+Do not force richer edges such as `routesTo`, `exposedBy`, `observedBy`,
+`storesIn` or their evidence into generic Backstage dependencies. Backstage owns
+the generic catalog relation; Nabla keeps only the security/operational semantic
+refinement.
 
-Suggested generated artifacts:
+Generated artifacts after the cutover:
 
 ```text
 catalog/
-├── services.json                      # compatibility v1
-├── service-topology.json              # compatibility/lossless topology v1
-├── backstage/
-│   ├── catalog-info.yaml              # multi-document descriptors
-│   └── entities.json                  # same entities for API consumers
-└── cyclonedx/
-    └── homelab.cdx.json               # aggregate service/component BOM
+├── catalog-info.yaml
+├── generated/
+│   ├── entities.json
+│   ├── operations.json
+│   ├── relations.json
+│   └── homelab.cdx.json
+└── service-icons.json
 ```
 
-The existing `catalogRevision` remains the revision anchor across all generated
-artifacts. A generation run must fail if the projections disagree.
+All generated artifacts share one `catalogRevision`.
 
 ## CycloneDX and Trivy
 
@@ -257,147 +273,131 @@ The combined model can then answer questions such as:
 ## Target architecture
 
 ```text
-Compose / x-nabla                         runtime observations
-       │                                  TrueNAS / k8s / NetBox
-       │                                           │
-       ▼                                           ▼
-services.json + service-topology.json      observed assets/state
-       │
-       ├──────────────┐
-       ▼              ▼
-Backstage          CycloneDX <── Trivy SBOM / image digest
-entities              │
-       │               ├──> Dependency-Track
-       │               └──> DefectDojo findings correlation
-       │
-       └──────────────┬─────────────────────────────┐
-                      ▼                             │
-                Cartography/Neo4j <─────────────────┘
-                      │
-               Cartography Rules /
-               bounded Cypher queries
-                      │
-                      ▼
-          FastAPI Sample read-only facade
-                      │
-                      ▼
-             nabla-site-alban UI
+apps/*/catalog-info.yaml                 apps/*/compose.yml
+      Backstage-native                        Compose-native
+             │                                      │
+             └──────────────┬───────────────────────┘
+                            │
+                 minimal x-nabla operations
+                 + custom relation evidence
+                            │
+                            ▼
+                   deterministic generator
+                 ┌──────────┼──────────┐
+                 ▼          ▼          ▼
+          Backstage JSON  operations  CycloneDX
+                 │          + relations    │
+                 │              │          ├──> Dependency-Track
+                 │              │          └──> Trivy/DefectDojo joins
+                 └──────────────┼──────────────┐
+                                ▼              │
+                         Cartography/Neo4j <────┘
+                                │
+                         rules / Cypher
+                                │
+                                ▼
+                         FastAPI Sample
+                                │
+                                ▼
+                        nabla-site-alban
 ```
 
-Authority boundaries remain explicit:
+Authority boundaries:
 
-- **`x-nabla` / Git:** declared service identity, intent, operational dependency.
-- **Backstage projection:** interoperable catalog representation.
-- **CycloneDX/Trivy:** package/service supply-chain inventory.
-- **NetBox:** network/infrastructure intent.
-- **TrueNAS/Kubernetes:** runtime observation.
+- **Backstage descriptors / Git:** catalog identity and standard relations.
+- **Compose:** desired runtime definition.
+- **minimal `x-nabla`:** only Nabla-specific operational/security policy.
+- **OpenTelemetry:** runtime telemetry identity semantics.
+- **CycloneDX/Trivy:** service/package supply-chain inventory.
+- **NetBox:** network/infrastructure intent where deployed.
+- **TrueNAS/Kubernetes:** observed runtime state.
 - **Dependency-Track:** component/SBOM risk.
 - **DefectDojo:** findings and deduplication.
 - **Cartography/Neo4j:** graph correlation and attack-path analysis.
 - **FastAPI Sample:** reconciliation/read-only API facade.
 - **Site Alban:** presentation only.
 
-## Direct migration plan
+## One-shot cutover plan
 
-The migration must reuse the existing generated catalog to reduce risk and
-delivery time.
+The detailed field-level plan is in
+`docs/service-catalog-v2-normalization.md`.
 
-### Phase A — generator projections in `nabla-compose`
+### nabla-compose
 
-1. Add a deterministic exporter that reads the existing generated
-   `services.json` + `service-topology.json`.
-2. Generate Backstage `catalog-info.yaml` + `entities.json`.
-3. Generate aggregate CycloneDX `homelab.cdx.json`.
-4. Add schemas/validation and `--check` integration to the existing
-   topology/quality gate.
-5. Preserve current v1 files unchanged for consumers.
-6. Add cross-projection invariants:
-   - every service ID has one Backstage entity;
-   - every relation endpoint resolves;
-   - every generated identity carries the same `catalogRevision`;
-   - no secret field is exported;
-   - planned/disabled status remains explicit.
+1. Generate initial native Backstage descriptors from the current v1 catalog.
+2. Bulk-rewrite Compose files:
+   - add top-level project `name`;
+   - bind runtime services to Backstage entity refs using one reverse-DNS label;
+   - remove redundant catalog fields from `x-nabla`;
+   - rename boot `lifecycle` to `operations.startup`;
+   - derive project/service/image/network/port/profile/health/dependency facts from
+     Compose rather than repeating them.
+3. Replace static topology JSON with native Backstage static entities plus small
+   static operational metadata.
+4. Replace the generator with a standards-first join/validation pipeline.
+5. Generate Backstage JSON, operations, custom relations and CycloneDX.
+6. Remove old generated v1 contracts after the coordinated consumer PRs are ready.
 
-Do not require Backstage itself to be deployed before these artifacts are useful.
+### FastAPI Sample
 
-### Phase B — FastAPI Sample
+Perform a breaking model replacement, not a compatibility layer:
 
-Replace the independent hand-maintained service inventory incrementally.
+- replace old flat service/topology DTOs with Backstage entity refs +
+  normalized operations/relations;
+- replace `homelab-services.json` and
+  `homelab-exposure-overrides.json` with one generated
+  `homelab-catalog.json` snapshot;
+- fold exposure overrides into canonical endpoint policy/risk-acceptance data;
+- join runtime/provider evidence only by full entity ref;
+- expose the normalized declared catalog without inventing a second schema.
 
-1. Add a v2 loader for generated Backstage entities plus the lossless Nabla
-   topology.
-2. Reconcile runtime/health/exposure evidence by **stable service ID**, never by
-   display name.
-3. Keep `homelab-services.json` and exposure overrides as temporary
-   compatibility/exception overlays only.
-4. Move fields that already exist canonically in `nabla-compose` out of the
-   FastAPI copy; retain only observer/runtime evidence and explicit policy
-   exceptions.
-5. Expose a versioned read-only API whose catalog objects use the Backstage entity
-   shape and carry `catalogRevision`.
-6. Keep v1 endpoints during one compatibility window and contract-test v1/v2
-   identity parity.
-7. Add security-enrichment endpoints/fields only as joins to DefectDojo,
-   Dependency-Track and Neo4j; do not make FastAPI their database of record.
+### nabla-site-alban
 
-### Phase C — `nabla-site-alban`
+- replace current service DTO in one pass;
+- use full entity refs as graph node IDs;
+- consume Backstage metadata + operations + relations;
+- keep icons/graph positioning as presentation-only data;
+- remove the old bundled flat service shape.
 
-1. Prefer FastAPI v2/Backstage-shaped entities.
-2. Keep the current bundled `public/homelab-services.json` only as a
-   last-known-good v1 fallback until v2 is proven.
-3. Key React Flow nodes/edges by stable catalog IDs/entity refs, not labels.
-4. Render relation type, strength and evidence without collapsing the current
-   topology into generic `dependsOn`.
-5. Add optional security overlays for:
-   - internet exposure;
-   - runtime drift;
-   - vulnerability/finding counts;
-   - NIST CSF function;
-   - attack-path/rule findings.
-6. Display provenance/freshness separately from health so missing security data
-   cannot incorrectly mark an application DOWN.
-7. Remove the v1 fallback only after revision-parity and stale-artifact tests pass.
+### Cartography / security evidence
 
-### Phase D — Cartography/Neo4j
+- map Backstage entity refs to explicit Neo4j identities;
+- project CycloneDX service/component identities and image digests;
+- correlate DefectDojo/Dependency-Track evidence without changing declared
+  lifecycle/order;
+- add bounded rules for public exposure, vulnerable exposed components, missing
+  ownership/runtime binding and shared high-blast-radius dependencies.
 
-1. Load the stable Nabla/Backstage identity map into Neo4j.
-2. Import runtime/provider observations with Cartography.
-3. Correlate on explicit stable IDs, pURLs, image digests, repository URLs and
-   infrastructure IDs; never fuzzy-match on display names.
-4. Implement a small initial ruleset:
-   - public exposure to critical service;
-   - vulnerable component on exposed service;
-   - missing/unknown owner or runtime binding;
-   - required dependency absent from runtime;
-   - security finding on shared high-blast-radius dependency.
-5. Only after the model is stable, package the Nabla loader as a Cartography-style
-   custom module.
+## One-shot acceptance gates
 
-## Compatibility and deletion gates
+There is no permanent v1/v2 compatibility contract.
 
-Do not delete the current catalog or consumer files at the start.
+Before the coordinated cutover, require:
 
-Retirement requires all of the following:
+- every managed Compose service has a resolvable Backstage entity ref or explicit
+  ignore reason;
+- Backstage descriptors validate;
+- generated operations/relations/CycloneDX share one revision;
+- no relation target is unresolved;
+- no duplicate runtime identity exists unexpectedly;
+- exposure policy is structured rather than hidden in prose overrides;
+- FastAPI parses only the new contract and passes its local gate;
+- Site Alban parses only the new contract and passes its local gate;
+- the generated offline FastAPI snapshot is byte/revision consistent with
+  nabla-compose;
+- one representative Trivy -> CycloneDX -> Dependency-Track flow works;
+- one findings import into DefectDojo works;
+- one Nabla entity/relation is queryable in Neo4j.
 
-- deterministic Backstage/CycloneDX generation;
-- stable ID parity across v1/v2;
-- FastAPI v2 contract accepted with v1 fallback;
-- Site Alban v2 accepted with v1 fallback;
-- at least one representative Trivy -> CycloneDX -> Dependency-Track flow;
-- at least one findings flow into DefectDojo;
-- at least one Nabla entity/edge visible in Neo4j plus one bounded rule/query;
-- no unresolved service/relation IDs;
-- rollback to the previous v1 consumer path documented and tested.
+Prepare all three repository PRs before merging because GitHub cannot provide an
+atomic cross-repository transaction.
 
-## Initial implementation order
+Cutover order:
 
-1. Generator/exporters and contract tests in `nabla-compose`.
-2. FastAPI v2 read-only adapter with v1 fallback.
-3. Site Alban v2 reader with v1 fallback.
-4. Trivy CycloneDX on a representative service/image.
-5. Dependency-Track + DefectDojo correlation.
-6. Neo4j import and bounded Cartography rules.
-7. Remove duplicated FastAPI/Site inventory only after parity is proven.
+1. `nabla-compose`;
+2. `fastapi-sample`;
+3. `nabla-site-alban`;
+4. cross-repository revision/health/topology smoke.
 
 ## References
 
