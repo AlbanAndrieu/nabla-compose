@@ -44,6 +44,7 @@ Modes:
 Environment:
   QUALITY_BASE_REF                 override comparison base
   QUALITY_LOG_TAIL                 failure log lines to print (default: 80)
+  QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 600)
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
 EOF
@@ -63,7 +64,16 @@ if (($# > 0)); then
 fi
 
 LOG_TAIL="${QUALITY_LOG_TAIL:-80}"
+LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-600}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
+if ! [[ "${LOG_TAIL}" =~ ^[1-9][0-9]*$ ]]; then
+  printf '❌ QUALITY_LOG_TAIL must be a positive integer\n' >&2
+  exit 2
+fi
+if ! [[ "${LOG_LINE_MAX}" =~ ^[1-9][0-9]*$ ]] || ((LOG_LINE_MAX < 120)); then
+  printf '❌ QUALITY_LOG_LINE_MAX must be an integer >= 120\n' >&2
+  exit 2
+fi
 if ! [[ "${FIX_MAX_PASSES}" =~ ^[1-9][0-9]*$ ]] || ((FIX_MAX_PASSES > 10)); then
   printf '❌ QUALITY_FIX_MAX_PASSES must be an integer between 1 and 10\n' >&2
   exit 2
@@ -100,6 +110,31 @@ if [[ "${CURRENT_BRANCH}" == "master" ]]; then
   exit 1
 fi
 
+print_bounded_log_lines() {
+  awk -v max="${LOG_LINE_MAX}" '
+    {
+      if (length($0) > max) {
+        printf "%s … [line truncated, %d chars omitted]\\n", substr($0, 1, max), length($0) - max
+      } else {
+        print
+      }
+    }
+  '
+}
+
+print_compact_log() {
+  local log="$1"
+  local summary=""
+
+  summary="$(grep -E '^(FAIL|ERROR): |^Ran [0-9]+ tests|^FAILED \(' "${log}" || true)"
+  if [[ -n "${summary}" ]]; then
+    printf '%s\n' '--- failure summary ---' >&2
+    printf '%s\n' "${summary}" | print_bounded_log_lines >&2
+  fi
+  printf '%s\n' "--- last ${LOG_TAIL} log lines ---" >&2
+  tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+}
+
 run_compact() {
   local label="$1"
   shift
@@ -114,7 +149,7 @@ run_compact() {
     rc=$?
   fi
   printf '❌ %s\n' "${label}" >&2
-  tail -n "${LOG_TAIL}" "${log}" >&2 || true
+  print_compact_log "${log}"
   rm -f "${log}"
   return "${rc}"
 }
@@ -322,7 +357,7 @@ run_autofix_hook() {
   fi
   if ((rc != 0)); then
     printf '❌ autofix hook %s failed without changing files\n' "${hook}" >&2
-    tail -n "${LOG_TAIL}" "${log}" >&2 || true
+    print_compact_log "${log}"
     rm -f "${log}"
     return "${rc}"
   fi
