@@ -17,22 +17,25 @@ fail() {
 
 usage() {
   cat <<'USAGE'
-usage: bootstrap-repository-env-files.sh [--check|--apply|--finalize] [app]
+usage: bootstrap-repository-env-files.sh [--check|--apply|--restage|--finalize] [app]
 
   --check       read-only migration/status preview
   --apply       stage verified root-only canonical copies; keep old paths intact
+  --restage     explicitly refresh one app's staged canonical copies from current legacy sources
   --finalize    replace accepted legacy paths with compatibility symlinks
 
-The optional app argument scopes the operation to one repository app. Finalize
-is intentionally separate from staging so operators can validate canonical
-copies and service health before old paths are replaced. Non-empty legacy data
+The optional app argument scopes the operation to one repository app. Restage
+requires an explicit app so a changed legacy source can refresh only that
+service's canonical rollback-safe copy. Finalize is intentionally separate from
+staging so operators can validate canonical copies and service health before old
+paths are replaced. Non-empty legacy data
 must remain byte-identical; a zero-byte placeholder may be retired in favor of
 a non-empty accepted canonical secret materialization.
 USAGE
 }
 
 case "${MODE}" in
-  --check | --apply | --finalize) ;;
+  --check | --apply | --restage | --finalize) ;;
   -h | --help)
     usage
     exit 0
@@ -45,6 +48,10 @@ esac
 
 if [[ -n "${APP_FILTER}" && ! "${APP_FILTER}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
   fail "invalid app filter: ${APP_FILTER}"
+fi
+
+if [[ "${MODE}" == "--restage" && -z "${APP_FILTER}" ]]; then
+  fail "--restage requires an explicit app filter"
 fi
 
 [[ "${EUID}" -eq 0 ]] ||
@@ -330,13 +337,38 @@ done < <(printf '%s\n' "${!target_app[@]}" | sort)
 if ((invalid > 0)); then
   printf '❌ %d migration source conflict(s) must be resolved before staging.\n' \
     "${invalid}" >&2
-  exit 1
+  if [[ "${MODE}" != "--check" ]]; then
+    exit 1
+  fi
+  printf 'ℹ️  continuing read-only preview so unrelated migration debt remains visible.\n'
 fi
 
 while IFS= read -r target; do
   app="${target_app["${target}"]}"
   primary="${target_primary_source["${target}"]:-}"
   target_parent="$(dirname "${target}")"
+
+  if [[ "${MODE}" == "--restage" && -f "${target}" && -n "${primary}" && -f "${primary}" ]]; then
+    if requires_nonempty_materialization "${target}" && [[ ! -s "${primary}" ]]; then
+      printf '❌ %s app=%s source=%s is an empty secret placeholder; refusing restage\n' \
+        "${target}" "${app}" "${primary}"
+      invalid=$((invalid + 1))
+      continue
+    fi
+    if ! cmp -s "${primary}" "${target}"; then
+      mkdir -p "${target_parent}"
+      chown root:root "${target_parent}"
+      chmod 700 "${target_parent}"
+      install -o root -g root -m 600 "${primary}" "${target}"
+      cmp -s "${primary}" "${target}" ||
+        fail "restage verification failed for ${primary} -> ${target}"
+      printf '✅ %s app=%s restaged from %s; legacy path left intact\n' \
+        "${target}" "${app}" "${primary}"
+    else
+      printf '✅ %s app=%s already matches %s; restage not needed\n' \
+        "${target}" "${app}" "${primary}"
+    fi
+  fi
 
   if [[ ! -f "${target}" ]]; then
     if [[ -z "${primary}" ]]; then
@@ -427,8 +459,8 @@ while IFS= read -r source; do
   fi
 
   # Historical bootstrap used to create empty placeholders. Once a real secret
-  # has been rendered canonically, there is no legacy payload to preserve. This
-  # is the only non-byte-identical finalization case allowed.
+  # has been rendered canonically, there is no legacy payload to preserve.
+  # This is the only non-byte-identical finalization case allowed.
   if requires_nonempty_materialization "${target}" && [[ ! -s "${source}" && -s "${target}" ]]; then
     if [[ "${MODE}" == "--finalize" ]]; then
       rm -f "${source}"

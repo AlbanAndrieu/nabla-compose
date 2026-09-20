@@ -51,7 +51,7 @@ repos:
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.13.1-1
     hooks:
-      - id: shfmt-docker
+      - id: shfmt
         name: "🐚 shell · Format shell scripts"
         exclude: '^build\.sh$'
         args: ['-ln=bash', '-i=2']

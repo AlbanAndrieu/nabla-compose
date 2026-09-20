@@ -26,22 +26,72 @@
 
 FastAPI Sample is currently treated as stateless. It does **not** need a dedicated application-data volume. Redis already persists its own data in `/mnt/cpool/redis`.
 
-Use `/mnt/cpool/sample` only as a small configuration/secrets dataset or directory:
+The canonical runtime materialization is now root-owned outside the repository:
 
-```bash
-mkdir -p /mnt/cpool/sample
-chmod 700 /mnt/cpool/sample
+```text
+/mnt/cpool/secrets/runtime/sample/.env
+/mnt/cpool/secrets/runtime/sample/.env.secrets
 ```
 
-Create `/mnt/cpool/sample/.env` for non-secret runtime settings and `/mnt/cpool/sample/.env.secrets` for credentials. Do not commit either file.
+During the migration pilot, `/mnt/cpool/sample/.env` and
+`/mnt/cpool/sample/.env.secrets` remain rollback/staging sources only. Do not
+delete or replace them until runtime and reboot acceptance are complete. When a
+legacy source changes deliberately, refresh only Sample's canonical copy with:
 
-Example Redis configuration in `.env.secrets`:
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+Do not commit either legacy or canonical materialization.
+
+Example Redis configuration in the canonical `.env.secrets`:
 
 ```dotenv
 REDIS_URL=redis://:REPLACE_WITH_REDIS_PASSWORD@redis:6379/0
 ```
 
 There is deliberately no Compose `depends_on` from FastAPI Sample to Redis because they are separate Compose projects. Service discovery is provided by the shared external `intranet` network.
+
+
+### PostgreSQL policy for TrueNAS staging
+
+The TrueNAS/homelab runtime should use the always-on shared PostgreSQL service on
+`172.17.0.24:5432`. The `x-nabla` dependency is declarative because PostgreSQL
+and FastAPI Sample are separate TrueNAS/Compose applications; it is used for
+lifecycle ordering and readiness planning, not Docker Compose `depends_on`.
+
+Do not keep two meanings under the same `POSTGRES_USER` key. The historical
+`.env` currently mixed a local PostgreSQL identity with a Supabase pooler
+identity. Keep local runtime settings under `POSTGRES_*` and move Supabase
+database/pooler identity to explicit `SUPABASE_*` names in FastAPI Sample before
+the final secret-contract migration.
+
+The target end state is a dedicated least-privilege Sample database and role on
+the shared PostgreSQL service rather than the `postgres` superuser:
+
+```dotenv
+POSTGRES_HOST=172.17.0.24
+POSTGRES_PORT=5432
+POSTGRES_DB=sample
+POSTGRES_USER=sample
+```
+
+The dedicated `sample` role must be LOGIN-only, must not be SUPERUSER,
+CREATEDB, CREATEROLE or REPLICATION, and should own only the `sample` database
+(and its application schema/objects). Its password belongs in
+`/mnt/cpool/secrets/runtime/sample/.env.secrets`; never put it in tracked
+Compose or documentation.
+
+Before switching these values, add an idempotent
+`scripts/truenas/bootstrap-sample-postgres.sh --check|--apply` following the
+existing Scanopy/Joplin shared-PostgreSQL pattern, then prove authentication as
+the `sample` role. Until that bootstrap and application migration are accepted,
+the currently staged Supabase-backed values are compatibility state only and
+must not be mistaken for the local PostgreSQL target.
+
+Supabase database/pooler settings must use explicit `SUPABASE_*` variables;
+do not overload local `POSTGRES_*` with the Supabase pooler identity.
 
 ## Homelab runtime probes
 
@@ -74,14 +124,14 @@ docker exec fastapi-sample env | \
   grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PFSENSE_SECURITY_PATH_MODE|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
 ```
 
-For self-hosted Sentry, keep the project DSN in `/mnt/cpool/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
+For self-hosted Sentry, keep the project DSN in `/mnt/cpool/secrets/runtime/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
 
 ## Prometheus / core health metrics
 
 FastAPI Sample can optionally enrich the service-first health board from the
 existing Prometheus recording-rule contract without exposing arbitrary PromQL.
 
-Put the non-secret Prometheus endpoint in `/mnt/cpool/sample/.env`:
+Put the non-secret Prometheus endpoint in `/mnt/cpool/secrets/runtime/sample/.env`:
 
 ```dotenv
 HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
@@ -103,7 +153,7 @@ the FastAPI Cloud health board richer.
 
 ## Supabase
 
-If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the same `.env.secrets` file, for example:
+If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the canonical `/mnt/cpool/secrets/runtime/sample/.env.secrets` file, for example:
 
 ```dotenv
 SUPABASE_URL=https://PROJECT_REF.supabase.co
@@ -922,3 +972,53 @@ LOCAL_HEALTH_URL=http://127.0.0.1:8080/health \
 ## Persistence policy
 
 Do not mount the FastAPI source tree or an application-data directory into the production container unless a future feature introduces real local state. If that happens, create a dedicated TrueNAS dataset for that state and document its ownership, backup and restore policy separately.
+
+
+## Nabla Service role and runtime-env migration
+
+The TrueNAS-hosted FastAPI Sample is the preferred future **Nabla Service**
+API/UI/MCP facade. Reuse this existing App; do not create a second always-on
+controller daemon.
+
+This does not make FastAPI part of the minimum boot path. TrueNAS reboot/resume
+must remain able to restore the homelab when FastAPI, Redis or Vaultwarden is
+down. The current FastAPI TrueNAS credential remains the read-only
+`fastapi_observer` identity.
+
+The canonical Compose in this PR now consumes:
+
+```text
+/mnt/cpool/secrets/runtime/sample/.env
+/mnt/cpool/secrets/runtime/sample/.env.secrets
+```
+
+Before changing Compose, inventory and plan the migration without printing
+values:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+
+sudo bash scripts/truenas/inventory-runtime-env-files.sh sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+The 2026-09-19 operator staging completed successfully and did not contact
+Vaultwarden. To repeat/verify the non-destructive staging:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --apply sample
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+Do **not** run `--finalize sample` yet. The Compose path change is now part of
+this PR. Fetch/check out the branch, rerun the staging check, then use
+`scripts/truenas/update-fastapi-sample.sh`. The updater fails closed if either
+canonical file is missing, empty, not `root:root 0600`, or has diverged from
+the still-present legacy source. Prove `/health`, the dedicated observer
+network, TrueNAS read-only inventory and one controlled reboot before
+finalization. Vaultwarden import/rotation is a later transaction; the canonical
+runtime files persist independently and are what normal boot consumes.
+
+Do not add privileged Nabla Service routes while the same local container is
+reachable through `sample.albandrieu.com`. Route non-registration/public-path
+denial and fail-closed authentication are prerequisites.

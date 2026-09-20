@@ -2420,7 +2420,8 @@
       ],
       "lifecycle": {
         "phase": "foundation",
-        "priority": 10
+        "priority": 10,
+        "blocksLaterWaves": false
       },
       "runtime": {
         "provider": "truenas-app",
@@ -3164,12 +3165,22 @@
     },
     {
       "source": "fastapi-sample",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "TrueNAS staging uses the always-on shared PostgreSQL service; Supabase remains a separate cloud integration and must not overload the local POSTGRES_* identity.",
+      "evidence": [
+        "apps/sample/README.md:Local PostgreSQL staging policy"
+      ]
+    },
+    {
+      "source": "fastapi-sample",
       "target": "redis",
       "type": "dependsOn",
       "strength": "optional",
       "description": "FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.",
       "evidence": [
-        "apps/sample/compose.yml:/mnt/cpool/sample/.env.secrets:REDIS_URL"
+        "apps/sample/compose.yml:/mnt/cpool/secrets/runtime/sample/.env.secrets:REDIS_URL"
       ]
     },
     {

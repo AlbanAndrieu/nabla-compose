@@ -112,6 +112,9 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 1000
+        },
+        "blocksLaterWaves": {
+          "type": "boolean"
         }
       }
     },

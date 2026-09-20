@@ -194,23 +194,29 @@ def service_statuses(
 
 
 def declared_lifecycle(app: str, app_entries: list[dict]) -> dict | None:
-    declared: set[tuple[str, int]] = set()
+    declared: set[tuple[str, int, bool]] = set()
     for entry in app_entries:
         lifecycle = entry.get("lifecycle")
         if not isinstance(lifecycle, dict):
             continue
         phase = lifecycle.get("phase")
         priority = lifecycle.get("priority")
+        blocks_later_waves = lifecycle.get("blocksLaterWaves", True)
+        if not isinstance(blocks_later_waves, bool):
+            raise ValueError(
+                f"lifecycle.blocksLaterWaves must be boolean for TrueNAS App {app}"
+            )
         if (
             isinstance(phase, str)
             and isinstance(priority, int)
             and not isinstance(priority, bool)
         ):
-            declared.add((phase, priority))
+            declared.add((phase, priority, blocks_later_waves))
 
     if len(declared) > 1:
         values = ", ".join(
-            f"{phase}:{priority}" for phase, priority in sorted(declared)
+            f"{phase}:{priority}:blocksLaterWaves={str(blocks).lower()}"
+            for phase, priority, blocks in sorted(declared)
         )
         raise ValueError(
             f"conflicting declared lifecycle policy for TrueNAS App {app}: {values}"
@@ -218,24 +224,29 @@ def declared_lifecycle(app: str, app_entries: list[dict]) -> dict | None:
     if not declared:
         return None
 
-    phase, priority = next(iter(declared))
-    return {"phase": phase, "priority": priority, "source": "catalog"}
+    phase, priority, blocks_later_waves = next(iter(declared))
+    return {
+        "phase": phase,
+        "priority": priority,
+        "blocksLaterWaves": blocks_later_waves,
+        "source": "catalog",
+    }
 
 
 def fallback_lifecycle(app: str, app_entries: list[dict]) -> dict:
     if app in FALLBACK_APP_POLICIES:
         phase, priority = FALLBACK_APP_POLICIES[app]
-        return {"phase": phase, "priority": priority, "source": "fallback-app"}
+        return {"phase": phase, "priority": priority, "blocksLaterWaves": True, "source": "fallback-app"}
 
     kinds = {str(entry.get("kind") or "") for entry in app_entries}
     categories = {str(entry.get("category") or "") for entry in app_entries}
 
     if kinds & DATABASE_KINDS:
-        return {"phase": "primary-data", "priority": 20, "source": "fallback-kind"}
+        return {"phase": "primary-data", "priority": 20, "blocksLaterWaves": True, "source": "fallback-kind"}
     if kinds & SECONDARY_DATA_KINDS or "data" in categories:
-        return {"phase": "secondary-data", "priority": 30, "source": "fallback-kind"}
+        return {"phase": "secondary-data", "priority": 30, "blocksLaterWaves": True, "source": "fallback-kind"}
     if categories & NETWORK_CATEGORIES:
-        return {"phase": "network-edge", "priority": 15, "source": "fallback-category"}
+        return {"phase": "network-edge", "priority": 15, "blocksLaterWaves": True, "source": "fallback-category"}
     if categories & PLATFORM_CATEGORIES:
         return {
             "phase": "platform-services",
@@ -414,6 +425,19 @@ def main() -> int:
                 }
             )
 
+    for app in sorted(selected):
+        if policies.get(app, {}).get("blocksLaterWaves", True) is not False:
+            continue
+        required_dependents = sorted(
+            after for before, after in edges if before == app
+        )
+        if required_dependents:
+            raise ValueError(
+                f"TrueNAS App {app} cannot set lifecycle.blocksLaterWaves=false "
+                "while required lifecycle dependencies exist: "
+                + ", ".join(required_dependents)
+            )
+
     start_waves = topo_waves(selected, edges, priorities) if selected else []
     stop_waves = [list(reversed(wave)) for wave in reversed(start_waves)]
 
@@ -430,9 +454,16 @@ def main() -> int:
         "unmapped_apps": unmapped_apps,
         "lifecycle_phase_by_app": {
             app: {
-                "order": priorities.get(app, DEFAULT_PRIORITY),
-                "name": policies.get(app, {}).get("phase", "applications"),
-                "source": policies.get(app, {}).get("source", "fallback-default"),
+                **{
+                    "order": priorities.get(app, DEFAULT_PRIORITY),
+                    "name": policies.get(app, {}).get("phase", "applications"),
+                    "source": policies.get(app, {}).get("source", "fallback-default"),
+                },
+                **(
+                    {"blocksLaterWaves": False}
+                    if policies.get(app, {}).get("blocksLaterWaves", True) is False
+                    else {}
+                ),
             }
             for app in sorted(selected)
         },

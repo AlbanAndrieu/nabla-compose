@@ -389,18 +389,24 @@ is introduced.
 - retain Vaultwarden bootstrap separation;
 - keep all tooling value-blind in logs.
 
-### Wave 1 — already-managed easy cutovers
+### Wave 1 — path normalization before Vaultwarden authority
 
-Prioritize:
+Prioritize active services whose current runtime files can be staged
+byte-for-byte without changing values. Start with **Sample** because it is
+already an active TrueNAS App and currently consumes
+`/mnt/cpool/sample/.env` plus `/mnt/cpool/sample/.env.secrets`.
 
-1. Akvorado;
-2. Keycloak;
-3. n8n PostgreSQL credential;
-4. any existing managed App whose current file is already byte-equivalent to a
-   Vaultwarden render.
+This first step is path normalization only:
 
-For every service, update only after byte-for-byte validation and one-service
-runtime acceptance.
+1. inventory the legacy and canonical files without printing contents;
+2. stage exact copies under `/mnt/cpool/secrets/runtime/sample/`;
+3. prove byte equality, ownership/mode and FastAPI runtime health;
+4. update Compose to the canonical paths only after acceptance;
+5. keep the old path until restart/reboot acceptance.
+
+Akvorado, Keycloak and n8n are `planned`, so they are **not** migration
+targets until explicitly activated. No Vaultwarden availability is required for
+this path-only cutover.
 
 ### Wave 2 — explicit single-owner secrets
 
@@ -413,7 +419,7 @@ Remove insecure default fallbacks only after canonical values exist.
 ### Wave 3 — legacy multi-key applications
 
 Discover and migrate Graylog, Homarr, Langflow, Langfuse, Mongo, Nexus,
-OpenRAG, PostgreSQL, Sample, Scrutiny and Traefik one at a time.
+OpenRAG, PostgreSQL, Scrutiny and Traefik one at a time.
 
 Sentry remains separate until multi-file materialization is implemented.
 
@@ -466,15 +472,98 @@ Secret metadata may be inventoried for a planned service, but actual Vaultwarden
 import/materialization is deferred until activation. Disabled services are not a
 secret-migration target.
 
-## FastAPI Sample boundary
+## FastAPI Sample / Nabla Service boundary
 
-Do not create a second network daemon named `nabla-service`. The generic
-initialization logic remains repository-owned, importable/local operator code.
-FastAPI Sample is the existing API/UI observer and may consume the generated
-catalog, initialization state and read-only plans.
+Reuse the existing TrueNAS `apps/sample` FastAPI Sample runtime as the future
+**Nabla Service** API/UI/MCP facade. Do not create a second always-on daemon or
+rename the stable `fastapi-sample` catalog/runtime identity merely to add that
+capability.
 
-Privileged mutation remains local to the trusted operator/TrueNAS execution
-boundary. Do not grant the FastAPI Cloud or staging observer identity broad
-TrueNAS administration or Vaultwarden credentials. A future local/workstation
-FastAPI/MCP Ops adapter may invoke reviewed idempotent operations only after its
-route exposure, authentication and environment profile are proven fail-closed.
+The boot/recovery engine remains host-local and repository-owned. A normal
+TrueNAS reboot must be able to restore services from the immutable reboot bundle
+and already-materialized root-only runtime files while FastAPI, Redis,
+Vaultwarden and external providers are unavailable.
+
+FastAPI Sample is therefore a **post-boot management plane**, not a boot
+dependency. Vaultwarden is likewise a recovery/rotation authority rather than a
+barrier for unrelated service waves: its lifecycle policy may report a failed
+resume while allowing consumers of already-materialized runtime files to start.
+Required service dependencies remain blocking. Phase 1 is read-only: catalog,
+topology, migration plans, runtime state and acceptance evidence. Privileged mutation is deferred until all of the
+following are true:
+
+- the local controller profile is registered only for
+  `FASTAPI_RUNTIME_MODE=homelab`;
+- MCP/ops authentication fails closed when required credentials are absent;
+- the public `sample.albandrieu.com` Cloudflare Access path cannot reach
+  privileged Nabla routes;
+- the existing `fastapi_observer` TrueNAS credential stays read-only;
+- a separate least-privilege execution identity is used for bounded mutations;
+- no generic shell, unrestricted `midclt`, arbitrary path read or secret-value
+  endpoint exists.
+
+Vaultwarden remains an operator-managed source of truth/rotation system, not a
+startup dependency. Normal boot consumes persistent
+`/mnt/cpool/secrets/runtime/<service>/` materializations. Vaultwarden bootstrap
+stays separate under `/mnt/cpool/secrets/bootstrap/vaultwarden/`.
+
+
+## Value-blind filesystem inventory
+
+Before importing anything into Vaultwarden, locate runtime materializations
+without reading values:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/inventory-runtime-env-files.sh
+```
+
+Use `--deep` to surface nested candidates outside the normal migration roots:
+
+```bash
+sudo bash scripts/truenas/inventory-runtime-env-files.sh --deep
+```
+
+Scope to one application:
+
+```bash
+sudo bash scripts/truenas/inventory-runtime-env-files.sh sample
+```
+
+The inventory prints only classification, inferred app, owner/group, mode, byte
+size, path and symlink target. It never prints file contents.
+
+Then use the existing canonical planner to decide what is actually a migration
+source/target:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
+A deep filesystem candidate is not automatically a secret source. Only
+repository/Compose ownership plus operator review promotes it into the migration
+plan.
+
+
+## Resolve conflicting dotenv sources without exposing values
+
+When the migration planner reports two different sources for the same canonical
+target, do not pick the larger/newer file and do not concatenate them.
+
+Compare the parsed key sets and equality by key name only:
+
+```bash
+python3 scripts/secrets/compare_dotenv_sources.py \
+  --app scrutiny \
+  --left /mnt/cpool/scrutiny/.env.secrets \
+  --right /mnt/cpool/compose/nabla-compose/apps/scrutiny/.env.secrets
+```
+
+The command may use bounded `sudo cat` for the root-owned source. It reports
+only `onlyLeft`, `onlyRight`, `differentValue` and `sameValue` key names;
+values are never printed. A non-zero exit means the sources still differ.
+
+For Scrutiny, determine which source the accepted runtime actually consumes
+before restaging. Preserve the other file until functional and reboot acceptance
+prove the selected canonical materialization.

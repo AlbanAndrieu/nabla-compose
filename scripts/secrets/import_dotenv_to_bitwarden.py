@@ -43,6 +43,27 @@ def app_spec(manifest: dict[str, Any], app: str) -> dict[str, Any]:
     return matches[0]
 
 
+def valid_runtime_env_name(name: str) -> bool:
+    return name in {".env", ".env.secrets", ".env.compose"} or (
+        name.startswith(".env.") and name.endswith(".secrets")
+    )
+
+
+def approved_app_env_path(app: str, path: Path) -> bool:
+    allowed_chars = "abcdefghijklmnopqrstuvwxyz0123456789._-"
+    if not app or any(char not in allowed_chars for char in app):
+        return False
+    if not valid_runtime_env_name(path.name):
+        return False
+
+    candidates = (
+        Path(f"/mnt/cpool/{app}") / path.name,
+        Path(f"/mnt/cpool/secrets/runtime/{app}") / path.name,
+        ROOT / "apps" / app / path.name,
+    )
+    return str(path) in {str(candidate) for candidate in candidates}
+
+
 def allowed_legacy_paths(manifest: dict[str, Any], app: str) -> list[Path]:
     report = audit_consumers.scan(ROOT, manifest)
     paths: set[Path] = set()
@@ -51,7 +72,13 @@ def allowed_legacy_paths(manifest: dict[str, Any], app: str) -> list[Path]:
         if entry_app == app:
             paths.add(Path(raw_path))
     canonical = Path(f"/mnt/cpool/secrets/runtime/{app}/.env.secrets")
-    if canonical.exists():
+    try:
+        canonical_exists = canonical.exists()
+    except OSError:
+        # The canonical secrets tree is deliberately root-only. An unprivileged
+        # operator must still be able to select a discovered legacy source.
+        canonical_exists = False
+    if canonical_exists:
         paths.add(canonical)
     return sorted(paths)
 
@@ -63,12 +90,14 @@ def choose_input(
 ) -> Path:
     allowed = allowed_legacy_paths(manifest, app)
     if requested is not None:
+        if approved_app_env_path(app, requested):
+            return requested
         requested_text = str(requested)
         for candidate in allowed:
             if str(candidate) == requested_text:
                 return candidate
         raise SecretsError(
-            f"{requested} is not an approved discovered legacy/canonical path for {app}; "
+            f"{requested} is not an approved app-bounded or discovered path for {app}; "
             f"allowed={','.join(str(path) for path in allowed) or '<none>'}"
         )
     if len(allowed) != 1:
@@ -80,7 +109,11 @@ def choose_input(
 
 
 def read_root_bounded(path: Path) -> str:
-    if path.is_file() and os.access(path, os.R_OK):
+    try:
+        directly_readable = path.is_file() and os.access(path, os.R_OK)
+    except OSError:
+        directly_readable = False
+    if directly_readable:
         return path.read_text(encoding="utf-8")
 
     child_env = os.environ.copy()

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:1c549791b4ae9113c8c61ef236b7d1a63eda6a7aa6c7e059f2effc4d7b2a35d3",
+  "catalogRevision": "sha256:927cebe9caa64b9a591583e316a2aec17221af8b28e1aecbefb7585ecdf09068",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2290,7 +2290,8 @@
       ],
       "lifecycle": {
         "phase": "foundation",
-        "priority": 10
+        "priority": 10,
+        "blocksLaterWaves": false
       },
       "runtime": {
         "provider": "truenas-app",

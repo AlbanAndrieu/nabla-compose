@@ -23,8 +23,12 @@ DEFAULT_MANIFEST = ROOT / "config" / "secrets" / "manifest.json"
 DEFAULT_BASELINE = ROOT / "config" / "secrets" / "debt-baseline.json"
 
 VAR_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)(?:(:-|:\?|[-?])([^}]*))?\}")
-MNT_ENV_RE = re.compile(r"(/mnt/cpool/[^\s'\"#,]+/\.env(?:\.[^\s'\"#,]+)?)")
-REPO_ENV_RE = re.compile(r"((?:\./)?apps/[^\s'\"#,]+/\.env(?:\.[^\s'\"#,]+)?)")
+MNT_ENV_RE = re.compile(
+    r"(/mnt/cpool/[A-Za-z0-9._/-]+/\.env(?:\.[A-Za-z0-9._-]+)?)"
+)
+REPO_ENV_RE = re.compile(
+    r"(?<![A-Za-z0-9._/-])((?:\./)?apps/[A-Za-z0-9._-]+/\.env(?:\.[A-Za-z0-9._-]+)?)"
+)
 MNT_PATH_RE = re.compile(r"(/mnt/cpool/[^\s'\"#,]+)")
 SECRET_NAME_TOKENS = {
     "PASSWORD",
@@ -95,6 +99,12 @@ def app_id_for_path(root: Path, path: Path) -> str:
 
 
 def is_secret_variable(name: str) -> bool:
+    # Feature/configuration switches can contain AUTH/API_KEY words without
+    # carrying credential material themselves.
+    if name.startswith(("ENABLE_", "DISABLE_", "REQUIRE_")):
+        return False
+    if "_USE_AUTH" in name or name.endswith(("_AUTH_ENABLED", "_AUTH_TYPE")):
+        return False
     if name.endswith(SECRET_NAME_SUFFIXES):
         return True
     tokens = set(name.split("_"))
@@ -143,6 +153,25 @@ def fingerprint(app: str, value: str, source: str) -> str:
     return f"{app}|{value}|{source}"
 
 
+def source_without_line_number(source: str) -> str:
+    """Return a stable source identity so harmless line moves do not break debt ratchets."""
+    return re.sub(r":\d+$", "", source)
+
+
+def normalized_fingerprint(value: str) -> str:
+    parts = value.rsplit("|", 1)
+    if len(parts) != 2:
+        return value
+    return f"{parts[0]}|{source_without_line_number(parts[1])}"
+
+
+def is_secret_runtime_env_path(path: str) -> bool:
+    name = Path(path).name
+    return name == ".env.secrets" or (
+        name.startswith(".env.") and name.endswith(".secrets")
+    )
+
+
 def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
     managed_envs = manifest_envs(manifest)
     managed_apps = item_apps(manifest)
@@ -159,14 +188,28 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
         app = app_id_for_path(root, path)
         compose_apps.add(app)
         text = path.read_text(encoding="utf-8")
+        evidence_indent: int | None = None
 
         for line_number, raw_line in enumerate(text.splitlines(), start=1):
+            stripped = raw_line.lstrip()
+            indent = len(raw_line) - len(stripped)
+            if evidence_indent is not None and stripped and indent <= evidence_indent:
+                evidence_indent = None
+            if stripped.startswith("evidence:"):
+                evidence_indent = indent
+                continue
+
+            in_evidence = evidence_indent is not None and indent > evidence_indent
             line = strip_full_line_comment(raw_line)
             if not line:
                 continue
             source = f"{relative}:{line_number}"
 
-            env_paths = set(MNT_ENV_RE.findall(line)) | set(REPO_ENV_RE.findall(line))
+            env_paths: set[str] = set()
+            if not in_evidence:
+                env_paths = set(MNT_ENV_RE.findall(line)) | set(
+                    REPO_ENV_RE.findall(line)
+                )
             for env_path in env_paths:
                 canonical_prefix = f"/mnt/cpool/secrets/runtime/{app}/"
                 if env_path.startswith("/mnt/cpool/secrets/runtime/"):
@@ -174,7 +217,7 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                         canonical_runtime_without_manifest.add(
                             fingerprint(app, env_path, source)
                         )
-                    elif app not in managed_apps:
+                    elif app not in managed_apps and is_secret_runtime_env_path(env_path):
                         canonical_runtime_without_manifest.add(
                             fingerprint(app, env_path, source)
                         )
@@ -196,13 +239,14 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                         fingerprint(app, f"{variable}={default.strip()}", source)
                     )
 
-            for candidate in MNT_PATH_RE.findall(line):
-                if candidate in env_paths:
-                    continue
-                if SPECIAL_PATH_RE.search(candidate):
-                    special_host_secret_files.add(
-                        fingerprint(app, candidate, source)
-                    )
+            if not in_evidence:
+                for candidate in MNT_PATH_RE.findall(line):
+                    if candidate in env_paths:
+                        continue
+                    if SPECIAL_PATH_RE.search(candidate):
+                        special_host_secret_files.add(
+                            fingerprint(app, candidate, source)
+                        )
 
     manifest_only_apps = sorted(
         app for app in managed_apps if app not in compose_apps
@@ -257,10 +301,12 @@ def compare_baseline(
             isinstance(item, str) for item in expected_raw
         ):
             fail(f"baseline {key} must be a string list")
-        expected = set(expected_raw)
-        actual = set(values)
-        new = sorted(actual - expected)
-        resolved = sorted(expected - actual)
+        expected_by_key = {normalized_fingerprint(item): item for item in expected_raw}
+        actual_by_key = {normalized_fingerprint(item): item for item in values}
+        expected = set(expected_by_key)
+        actual = set(actual_by_key)
+        new = sorted(actual_by_key[key] for key in actual - expected)
+        resolved = sorted(expected_by_key[key] for key in expected - actual)
         if new:
             errors.append(f"{key}: new debt: {', '.join(new)}")
         if resolved:

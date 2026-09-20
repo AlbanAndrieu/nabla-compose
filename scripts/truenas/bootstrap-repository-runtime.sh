@@ -17,5 +17,12 @@ if [[ -n "${APP_FILTER}" && ! "${APP_FILTER}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
   exit 1
 fi
 
+if [[ "${MODE}" == "--check" ]]; then
+  status=0
+  bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_FILTER}" || status=1
+  bash scripts/truenas/bootstrap-repository-env-files.sh "${MODE}" "${APP_FILTER}" || status=1
+  exit "${status}"
+fi
+
 bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_FILTER}"
 bash scripts/truenas/bootstrap-repository-env-files.sh "${MODE}" "${APP_FILTER}"

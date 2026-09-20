@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLANNER = ROOT / "scripts/truenas/plan-app-lifecycle-order.py"
 REBOOT = ROOT / "scripts/truenas/reboot-homelab.sh"
 MATERIALIZE = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
+RECONCILER = ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
 
 
 class TrueNASLifecycleOrderingTests(unittest.TestCase):
@@ -205,6 +206,98 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                 plan["lifecycle_phase_by_app"][app],
                 {"name": phase, "order": priority, "source": "catalog"},
             )
+
+    def test_non_blocking_resume_policy_is_explicit_and_defaults_fail_closed(self) -> None:
+        apps = [
+            {"id": "vaultwarden", "state": "RUNNING"},
+            {"id": "postgres", "state": "RUNNING"},
+        ]
+        services = [
+            self.service(
+                "vaultwarden",
+                "password-manager",
+                "security",
+                "apps/vaultwarden/compose.yml",
+                lifecycle=("foundation", 10),
+            ),
+            self.service(
+                "postgres",
+                "database",
+                "data",
+                "apps/postgres/compose.yml",
+                lifecycle=("primary-data", 20),
+            ),
+        ]
+        services[0]["lifecycle"]["blocksLaterWaves"] = False
+
+        plan = self.run_planner(apps, services, [])
+
+        self.assertFalse(
+            plan["lifecycle_phase_by_app"]["vaultwarden"]["blocksLaterWaves"]
+        )
+        self.assertNotIn(
+            "blocksLaterWaves",
+            plan["lifecycle_phase_by_app"]["postgres"],
+        )
+        reconciler = RECONCILER.read_text(encoding="utf-8")
+        self.assertIn("lifecycle.blocksLaterWaves=false", reconciler)
+        self.assertIn("blocking_failures", reconciler)
+
+    def test_non_blocking_resume_policy_cannot_bypass_required_dependency(self) -> None:
+        apps = [
+            {"id": "vaultwarden", "state": "RUNNING"},
+            {"id": "consumer", "state": "RUNNING"},
+        ]
+        services = [
+            self.service(
+                "vaultwarden",
+                "password-manager",
+                "security",
+                "apps/vaultwarden/compose.yml",
+                lifecycle=("foundation", 10),
+            ),
+            self.service(
+                "consumer",
+                "application",
+                "test",
+                "apps/consumer/compose.yml",
+                lifecycle=("applications", 50),
+            ),
+        ]
+        services[0]["lifecycle"]["blocksLaterWaves"] = False
+        relations = [self.relation("consumer", "vaultwarden", "dependsOn")]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps.json").write_text(json.dumps(apps), encoding="utf-8")
+            (root / "services.json").write_text(
+                json.dumps({"services": services}), encoding="utf-8"
+            )
+            (root / "topology.json").write_text(
+                json.dumps({"nodes": [], "relations": relations}),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(PLANNER),
+                    "--apps",
+                    str(root / "apps.json"),
+                    "--services",
+                    str(root / "services.json"),
+                    "--topology",
+                    str(root / "topology.json"),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "cannot set lifecycle.blocksLaterWaves=false",
+            result.stderr,
+        )
 
     def test_declared_lifecycle_overrides_kind_and_category_fallback(self) -> None:
         apps = [

@@ -9,13 +9,15 @@ OBSERVER_NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
 DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"
 IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"
 REFRESH_BASE_IMAGES="${FASTAPI_SAMPLE_REFRESH_BASE_IMAGES:-false}"
+CANONICAL_ENV_ROOT="${FASTAPI_SAMPLE_ENV_ROOT:-/mnt/cpool/secrets/runtime/sample}"
+LEGACY_ENV_ROOT="${FASTAPI_SAMPLE_LEGACY_ENV_ROOT:-/mnt/cpool/sample}"
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
     exit 1
 }
 
-for command in git docker jq curl sudo midclt stat awk grep mktemp tee; do
+for command in git docker jq curl sudo midclt stat awk grep mktemp tee cmp; do
     command -v "${command}" >/dev/null 2>&1 ||
         fail "${command} is required"
 done
@@ -52,6 +54,39 @@ case "${REFRESH_BASE_IMAGES}" in
     true | false) ;;
     *) fail "FASTAPI_SAMPLE_REFRESH_BASE_IMAGES must be true or false" ;;
 esac
+
+verify_runtime_env_file() {
+    local path="$1"
+    local label="$2"
+    local metadata
+
+    sudo test -f "${path}" ||
+        fail "${label} is missing: ${path}; stage it before redeploying Sample"
+    sudo test -s "${path}" ||
+        fail "${label} is empty: ${path}; refusing to deploy with an empty runtime file"
+
+    metadata="$(sudo stat -c '%U:%G %a' "${path}")"
+    [[ "${metadata}" == "root:root 600" ]] ||
+        fail "${label} owner/mode=${metadata}; expected root:root 600"
+}
+
+verify_runtime_env_pair() {
+    local name="$1"
+    local canonical="${CANONICAL_ENV_ROOT}/${name}"
+    local legacy="${LEGACY_ENV_ROOT}/${name}"
+
+    verify_runtime_env_file "${canonical}" "Sample canonical ${name}"
+
+    if sudo test -f "${legacy}"; then
+        sudo cmp -s "${legacy}" "${canonical}" ||
+            fail "Sample ${name} changed after staging: ${legacy} differs from ${canonical}; restage before redeploy"
+        printf 'Verified staged Sample %s matches legacy source byte-for-byte.\n' "${name}"
+    fi
+}
+
+printf 'Validating canonical Sample runtime materialization...\n'
+verify_runtime_env_pair ".env"
+verify_runtime_env_pair ".env.secrets"
 
 wait_for_json_endpoint() {
     local label="$1"
@@ -255,6 +290,11 @@ version_payload="$(
 jq . <<<"${version_payload}"
 
 sudo bash scripts/security/verify-truenas-observer-access.sh
+
+printf 'Rechecking canonical Sample runtime env after deployment...\n'
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+
+printf 'NOTE: legacy Sample env files remain rollback material; do not finalize them until controlled reboot acceptance.\n'
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 printf 'OK: FastAPI Sample %s deployed from %s via %s\n' "${REF}" "${runtime_sha}" "${image_source}"

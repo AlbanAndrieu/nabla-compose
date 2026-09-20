@@ -1,3 +1,4 @@
+# Workstation-only Compose root. TrueNAS Doco-CD uses docker-compose-truenas.yml.
 configs:
   poll-config.yml:
     content: |

@@ -34,19 +34,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "fix-byte-order-marker",
             "mixed-line-ending",
             "end-of-file-fixer",
-            "shfmt-docker",
+            "shfmt",
             "biome-check",
             "prettier",
         ):
             self.assertIn(hook, text)
         self.assertIn("run_autofix_hook", text)
         self.assertIn("strict pre-commit check after deterministic autofix batch", text)
-        self.assertIn("pre-commit run shfmt-docker", text)
+        self.assertIn("pre-commit run shfmt", text)
         self.assertIn("pre-commit run shell-lint", text)
         self.assertIn("pre-commit run bashate", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
-        self.assertIn("python -m unittest discover -s tests -p 'test_*.py' -q", text)
+        self.assertIn("PYTHON_CMD=(python3)", text)
+        self.assertIn(
+            "\"${PYTHON_CMD[@]}\" -m unittest discover -s tests -p 'test_*.py' -q",
+            text,
+        )
         self.assertIn("CI fast mode", text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)

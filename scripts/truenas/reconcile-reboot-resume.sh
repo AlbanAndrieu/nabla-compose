@@ -177,6 +177,13 @@ start_or_wait_app() {
   return 0
 }
 
+blocks_later_waves() {
+  local app="$1"
+  jq -e --arg app "${app}" \
+    '(.lifecycle_phase_by_app[$app].blocksLaterWaves // true) == true' \
+    "${state_dir}/resume-plan.json" >/dev/null
+}
+
 state_dir="$(latest_state_dir)"
 before_boot_id="$(cat "${state_dir}/boot-id-before")"
 current_boot_id="$(midclt_bounded system.boot_id | tr -d '"')"
@@ -192,30 +199,43 @@ total_failures=0
 for ((i=0; i<wave_count; i++)); do
   mapfile -t wave < <(jq -r --argjson i "${i}" '.start_waves[$i][]' "${state_dir}/resume-plan.json")
   wave_failures=0
+  blocking_failures=0
+  non_blocking_failures=0
   printf '\nRESUME WAVE %s/%s (%s Apps)\n' "$((i + 1))" "${wave_count}" "${#wave[@]}"
 
   for app in "${wave[@]}"; do
+    app_failed=0
     state="$(app_state "${app}")"
     if [[ "${MODE}" == "--check" ]]; then
       printf '%-28s %s\n' "${app}" "${state}"
       if [[ "${state}" != "RUNNING" ]] ||
-        ! NABLA_APP_HEALTH_TIMEOUT_SECONDS=1           NABLA_APP_HEALTH_POLL_SECONDS=1           bash "${HEALTH_GATE}" "${app}" >/dev/null 2>&1; then
-        wave_failures=$((wave_failures + 1))
-        total_failures=$((total_failures + 1))
+        ! NABLA_APP_HEALTH_TIMEOUT_SECONDS=1 \
+          NABLA_APP_HEALTH_POLL_SECONDS=1 \
+          bash "${HEALTH_GATE}" "${app}" >/dev/null 2>&1; then
+        app_failed=1
       fi
+    elif ! start_or_wait_app "${app}"; then
+      app_failed=1
+    fi
+
+    if ((app_failed == 0)); then
       continue
     fi
 
-    if ! start_or_wait_app "${app}"; then
-      wave_failures=$((wave_failures + 1))
-      total_failures=$((total_failures + 1))
+    wave_failures=$((wave_failures + 1))
+    total_failures=$((total_failures + 1))
+    if blocks_later_waves "${app}"; then
+      blocking_failures=$((blocking_failures + 1))
+    else
+      non_blocking_failures=$((non_blocking_failures + 1))
+      warn "${app}: lifecycle.blocksLaterWaves=false; recording failure but allowing unrelated later waves"
     fi
   done
 
   if ((wave_failures > 0)); then
-    warn "wave $((i + 1)) has ${wave_failures} App failure(s)"
-    if ((i + 1 < wave_count)); then
-      fail "dependency barrier: refusing to start later waves until the current wave converges"
+    warn "wave $((i + 1)) has ${wave_failures} App failure(s): blocking=${blocking_failures} non_blocking=${non_blocking_failures}"
+    if ((blocking_failures > 0 && i + 1 < wave_count)); then
+      fail "dependency barrier: refusing to start later waves until blocking Apps in the current wave converge"
     fi
   fi
 done
