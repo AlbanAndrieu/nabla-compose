@@ -216,12 +216,126 @@ Target contract:
 - native Backstage descriptors own entity identity, owner/system/lifecycle and
   standard relations;
 - Compose owns runtime facts;
-- Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment and structured risk acceptances;
+- Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment, structured risk acceptances, and temporary desired exposure/security intent when a provider is not yet Git/IaC-managed;
 - OpenTelemetry semantics align runtime service identity;
 - CycloneDX/Trivy owns service/package supply-chain projection;
 - Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
 
 Detailed cutover: `docs/service-catalog-v2-normalization.md`.
+
+#### P2.1.a — prepare the migration without changing runtime behavior
+
+- [ ] Freeze the legacy v1 contract as migration input: inventory every service,
+  entity ID, dependency, public/LAN hostname, desired visibility,
+  `cloudflareAccessRequired`, accepted security exception, runtime binding,
+  lifecycle wave and consumer.
+- [ ] Generate a machine-readable **v1 -> v2 parity report** keyed by full
+  Backstage entity ref; no display-name joins.
+- [ ] Define/validate the v2 schemas and conventions:
+  Backstage descriptors, entity-ref labels, named Compose ports,
+  temporary Gateway-like `x-nabla.exposure`, exceptional
+  `boot.after/before/wants`, risk acceptances and Kubernetes-style conditions.
+- [ ] Add anti-duplication validation: reject a fact/relation declared in more
+  than one authority (for example Backstage `dependsOn` plus x-nabla alias,
+  or Traefik hostname plus duplicate x-nabla exposure).
+- [ ] Keep the current reboot wave planner and both legacy exposure JSON files
+  operational during preparation; no runtime behavior changes in this phase.
+
+**Gate P2.1.a:** the parity inventory is complete and the migration tooling can
+explain where every legacy field will move without deleting anything.
+
+#### P2.1.b — prove the model on representative services
+
+- [ ] Migrate a bounded pilot set covering the main patterns:
+  `neo4j` (stateful Resource), `cartography` (manual job + dependency),
+  `postgresql` (shared data Resource), `sample` (internal + Cloudflare
+  desired exposure), and `traefik` (Git-native route provider).
+- [ ] Add/review `catalog-info.yaml`, Compose project names, entity-ref labels
+  and named long-syntax ports for the pilot.
+- [ ] Demonstrate that provider outages preserve desired intent:
+  Cloudflare/Docker/TrueNAS unavailable => hostname/visibility/Access intent
+  remains present while observed conditions become `Unknown`.
+- [ ] Prove the first dependency-DAG/readiness plan against the pilot without
+  removing the legacy wave planner.
+
+**Gate P2.1.b:** pilot v2 projection and v1 behavior are semantically equivalent
+for identity, dependencies, exposure intent and reboot safety.
+
+#### P2.1.c — bulk migrate nabla-compose
+
+- [ ] Generate/review all `apps/**/catalog-info.yaml`.
+- [ ] Normalize Compose project/service identity, named ports, healthchecks and
+  native `depends_on`; remove redundant `container_name` only where safe.
+- [ ] Migrate every legacy desired hostname/visibility/Access requirement to
+  Traefik/Gateway/provider IaC or temporary `x-nabla.exposure`.
+- [ ] Migrate every accepted exposure/security exception to structured
+  `riskAcceptances`.
+- [ ] Remove duplicated catalog/runtime/relation fields from `x-nabla`.
+- [ ] Replace phase/priority/wave authoring with dependency DAG + readiness;
+  keep only exceptional systemd-style ordering metadata.
+- [ ] Generate Backstage/CycloneDX projections and the parity report; do not
+  generate a new canonical flat exposure catalog.
+
+**Gate P2.1.c:** 100% desired-intent parity, zero unresolved entity refs, zero
+duplicate authorities and no legacy fact without an explicit v2 disposition.
+
+#### P2.1.d — prepare consumers before destructive cutover
+
+- [ ] Prepare FastAPI to consume Backstage desired state plus provider/runtime
+  observations separately and expose Kubernetes-style conditions.
+- [ ] Prepare Site Alban to consume entity refs and the new resource-oriented
+  FastAPI views; keep icons/layout presentation-only.
+- [ ] Keep any FastAPI/Site cold-start snapshot generated/cache-only and prove
+  that provider unavailability does not erase desired exposure intent.
+- [ ] Run local-first quality gates in all three repositories; do not depend on
+  GitHub Actions credits for deterministic formatting/lint/test feedback.
+
+**Gate P2.1.d:** all three PRs are ready together; legacy readers are no longer
+required for normal execution.
+
+#### P2.1.e — coordinated one-shot cutover
+
+- [ ] Merge/deploy the prepared `nabla-compose` v2 contract.
+- [ ] Immediately deploy the prepared FastAPI consumer.
+- [ ] Immediately deploy the prepared Site Alban consumer.
+- [ ] Run cross-repository smoke for entity refs, desired-vs-observed exposure,
+  health/status conditions, topology rendering and reboot planning.
+- [ ] Verify representative internal route, Cloudflare Tunnel + Access route,
+  direct pfSense/HAProxy route and Kubernetes route if present.
+
+**Gate P2.1.e:** all consumers operate exclusively on v2 semantics and the
+desired exposure intent remains visible with providers both healthy and
+unavailable.
+
+#### P2.1.f — remove legacy contracts and prove reboot acceptance
+
+- [ ] Delete `homelab-services.json`,
+  `homelab-exposure-overrides.json`, legacy generated
+  `services.json/service-topology.json` and obsolete compatibility code only
+  after the parity/smoke gates are green.
+- [ ] Replace the legacy resume-wave implementation with dependency-DAG +
+  readiness reconciliation.
+- [ ] Run one controlled TrueNAS reboot and require equivalent-or-better
+  acceptance before deleting the old planner.
+- [ ] Keep rollback evidence/artifacts until post-cutover acceptance is complete.
+
+**Gate P2.1.f:** no runtime or UI path depends on the legacy flat schemas or wave
+metadata.
+
+#### P2.1.g — later provider-native IaC cleanup
+
+- [ ] Move Cloudflare Tunnel/Access desired state from temporary
+  `x-nabla.exposure` into OpenTofu/Terraform when that control plane is
+  introduced.
+- [ ] Move pfSense/HAProxy desired routes into a reviewed declarative/API-managed
+  source when safe automation exists.
+- [ ] Use native Gateway API for Kubernetes-hosted routes.
+- [ ] Delete each temporary `x-nabla.exposure` entry as soon as the provider has
+  a real Git/IaC desired-state source; FastAPI continues to expose provider
+  observation as status.
+
+**Gate P2.1.g:** `x-nabla.exposure` remains only for providers that genuinely
+lack a native/declarative desired-state source.
 
 - [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
 - [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
