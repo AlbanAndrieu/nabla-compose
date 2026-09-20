@@ -8,6 +8,14 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 
+DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
+if [[ -d "${DEV_VENV}/bin" ]]; then
+  case ":${PATH}:" in
+    *":${DEV_VENV}/bin:"*) ;;
+    *) export PATH="${DEV_VENV}/bin:${PATH}" ;;
+  esac
+fi
+
 MODE="check"
 PUBLISH=false
 CI_FAST=false
@@ -46,6 +54,7 @@ Environment:
   QUALITY_LOG_TAIL                 failure log lines to print (default: 80)
   QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 600)
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
+  NABLA_TRUENAS_DEV_VENV           preferred local dev venv (default: ~/.cache/nabla-compose/dev-venv)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
 EOF
     exit 0

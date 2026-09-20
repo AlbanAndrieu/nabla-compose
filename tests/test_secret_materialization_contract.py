@@ -40,5 +40,17 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertNotIn("BW_SESSION", library)
 
 
+    def test_bitwarden_cli_bootstrap_is_user_space_pinned_and_checksummed(self) -> None:
+        bootstrap = (
+            ROOT / "scripts" / "truenas" / "bootstrap-bitwarden-cli.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("2026.9.0", bootstrap)
+        self.assertIn("sha256sum", bootstrap)
+        self.assertIn("bw-linux-", bootstrap)
+        self.assertIn("${HOME}/.local/bin", bootstrap)
+        self.assertIn("run as the unprivileged operator", bootstrap)
+        self.assertNotIn("sudo ", bootstrap)
+
+
 if __name__ == "__main__":
     unittest.main()
