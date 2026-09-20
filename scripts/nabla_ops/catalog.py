@@ -1,1 +1,80 @@
-"""Repository catalog helpers shared by local operator tools."""\n\nfrom __future__ import annotations\n\nimport json\nfrom pathlib import Path\nimport re\nfrom typing import Any\n\nfrom .model import ServiceIntent, normalize_service_intent\n\n\ndef load_catalog(path: Path) -> dict[str, Any]:\n    return json.loads(path.read_text(encoding="utf-8"))\n\n\ndef app_directory(source_path: str) -> str | None:\n    match = re.match(r"^apps/([^/]+)/", source_path)\n    return match.group(1) if match else None\n\n\ndef declared_apps(catalog: dict[str, Any], *, root: Path) -> list[dict[str, Any]]:\n    """Collapse logical services into repository application/runtime rows."""\n\n    grouped: dict[str, dict[str, Any]] = {}\n    for service in catalog.get("services", []):\n        if not isinstance(service, dict):\n            continue\n        source_path = str(service.get("sourcePath") or "")\n        app = app_directory(source_path)\n        runtime = service.get("runtime") or {}\n        if not app or runtime.get("provider") != "truenas-app":\n            continue\n\n        row = grouped.setdefault(\n            app,\n            {\n                "app": app,\n                "sourcePath": source_path,\n                "serviceIds": [],\n                "explicitAppIds": set(),\n                "statuses": set(),\n                "monitoring": [],\n            },\n        )\n        row["serviceIds"].append(str(service.get("id") or ""))\n        row["statuses"].add(normalize_service_intent(service.get("status")).value)\n        if runtime.get("appId"):\n            row["explicitAppIds"].add(str(runtime["appId"]))\n        if service.get("monitoring"):\n            row["monitoring"].append(service["monitoring"])\n\n    result: list[dict[str, Any]] = []\n    for app, row in sorted(grouped.items()):\n        statuses = sorted(row.pop("statuses"))\n        row["status"] = statuses[0] if len(statuses) == 1 else None\n        row["statusError"] = (\n            None if len(statuses) == 1 else f"conflicting service statuses: {statuses}"\n        )\n\n        explicit = sorted(row.pop("explicitAppIds"))\n        if len(explicit) > 1:\n            row["runtimeId"] = None\n            row["mappingError"] = f"conflicting runtime.appId values: {explicit}"\n        else:\n            row["runtimeId"] = explicit[0] if explicit else app\n            row["mappingError"] = None\n\n        compose = root / row["sourcePath"]\n        text = compose.read_text(encoding="utf-8") if compose.exists() else ""\n        row["manual"] = bool(\n            re.search(r"(?m)^\\s*profiles:\\s*$", text)\n            and re.search(r"(?m)^\\s*-\\s*manual\\s*$", text)\n        )\n        row["initializationEligible"] = (\n            row["status"] == ServiceIntent.ACTIVE.value and not row["manual"]\n        )\n        result.append(row)\n\n    return result\n
+"""Repository catalog helpers shared by local operator tools."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import re
+from typing import Any
+
+from .model import ServiceIntent, normalize_service_intent
+
+
+def load_catalog(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def app_directory(source_path: str) -> str | None:
+    match = re.match(r"^apps/([^/]+)/", source_path)
+    return match.group(1) if match else None
+
+
+def declared_apps(catalog: dict[str, Any], *, root: Path) -> list[dict[str, Any]]:
+    """Collapse logical services into repository application/runtime rows."""
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for service in catalog.get("services", []):
+        if not isinstance(service, dict):
+            continue
+        source_path = str(service.get("sourcePath") or "")
+        app = app_directory(source_path)
+        runtime = service.get("runtime") or {}
+        if not app or runtime.get("provider") != "truenas-app":
+            continue
+
+        row = grouped.setdefault(
+            app,
+            {
+                "app": app,
+                "sourcePath": source_path,
+                "serviceIds": [],
+                "explicitAppIds": set(),
+                "statuses": set(),
+                "monitoring": [],
+            },
+        )
+        row["serviceIds"].append(str(service.get("id") or ""))
+        row["statuses"].add(normalize_service_intent(service.get("status")).value)
+        if runtime.get("appId"):
+            row["explicitAppIds"].add(str(runtime["appId"]))
+        if service.get("monitoring"):
+            row["monitoring"].append(service["monitoring"])
+
+    result: list[dict[str, Any]] = []
+    for app, row in sorted(grouped.items()):
+        statuses = sorted(row.pop("statuses"))
+        row["status"] = statuses[0] if len(statuses) == 1 else None
+        row["statusError"] = (
+            None if len(statuses) == 1 else f"conflicting service statuses: {statuses}"
+        )
+
+        explicit = sorted(row.pop("explicitAppIds"))
+        if len(explicit) > 1:
+            row["runtimeId"] = None
+            row["mappingError"] = f"conflicting runtime.appId values: {explicit}"
+        else:
+            row["runtimeId"] = explicit[0] if explicit else app
+            row["mappingError"] = None
+
+        compose = root / row["sourcePath"]
+        text = compose.read_text(encoding="utf-8") if compose.exists() else ""
+        row["manual"] = bool(
+            re.search(r"(?m)^\\s*profiles:\\s*$", text)
+            and re.search(r"(?m)^\\s*-\\s*manual\\s*$", text)
+        )
+        row["initializationEligible"] = (
+            row["status"] == ServiceIntent.ACTIVE.value and not row["manual"]
+        )
+        result.append(row)
+
+    return result
