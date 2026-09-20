@@ -49,6 +49,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("pre-commit run shell-lint", text)
         self.assertIn("pre-commit run bashate", text)
         self.assertIn("generate-service-topology.py --check", text)
+        self.assertIn("generate-service-catalog-v2.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("PYTHON_CMD=(python3)", text)
         self.assertIn(
@@ -57,7 +58,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         self.assertIn("CI fast mode", text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
-        self.assertIn("service-topology-sync,service-consumer-contract", text)
+        self.assertIn(
+            "service-topology-sync,service-catalog-v2-sync,service-consumer-contract",
+            text,
+        )
         self.assertIn('env SKIP="${CANONICAL_SKIP}"', text)
         canonical = (ROOT / "scripts" / "quality-gate.sh").read_text(encoding="utf-8")
         self.assertIn("publication_status", canonical)
@@ -128,6 +132,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
+            config,
+        )
+        self.assertIn(
+            "entry: python scripts/generate-service-catalog-v2.py --check",
             config,
         )
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
