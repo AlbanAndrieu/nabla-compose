@@ -9,6 +9,7 @@ DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
 PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"
 SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
+export MISE_LOCKFILE=false
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
