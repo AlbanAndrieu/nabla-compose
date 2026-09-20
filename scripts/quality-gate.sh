@@ -40,6 +40,69 @@ resolve_base_ref() {
 
 BASE_REF="$(resolve_base_ref)"
 
+publication_status() {
+  local status
+  local staged_gitlinks
+
+  # Local submodule checkouts may legitimately be on another commit while work
+  # continues in those repositories. They cannot change the superproject
+  # commit unless a gitlink is staged, so ignore checkout drift here.
+  status="$(git status --porcelain=v1 --ignore-submodules=all)"
+  staged_gitlinks="$(
+    git diff --cached --raw --diff-filter=ACDMR |
+      awk '$1 == ":160000" || $2 == "160000" {print}'
+  )"
+  if [[ -n "${staged_gitlinks}" ]]; then
+    status+="${status:+mapfile -t CHANGED_FILES < <(
+  {
+    if [[ "${BASE_REF}" != "HEAD" ]]; then
+      git diff --name-only --diff-filter=ACMR "${BASE_REF}...HEAD"
+    fi
+    git diff --name-only --diff-filter=ACMR
+    git diff --cached --name-only --diff-filter=ACMR
+    git ls-files --others --exclude-standard
+  } | awk 'NF' | sort -u | while IFS= read -r file; do
+    [[ -f "${file}" ]] && printf '%s\n' "${file}"
+  done
+)
+
+if ((${#CHANGED_FILES[@]} > 0)); then
+  echo "🔧 Validating ${#CHANGED_FILES[@]} changed file(s)..."
+  if ! pre-commit run \
+    --hook-stage pre-commit \
+    --files "${CHANGED_FILES[@]}" \
+    --show-diff-on-failure; then
+    echo "❌ Pre-commit changed files or found validation errors."
+    echo "   Review/fix the first failing hook, then run scripts/quality-gate.sh again."
+    git status --short
+    exit 1
+  fi
+else
+  echo "✅ No changed files require formatter/linter validation."
+fi
+
+echo "🔍 Checking whitespace errors..."
+git diff --check
+git diff --cached --check
+
+if [[ "${PUBLISH}" == true ]]; then
+  STATUS="$(publication_status)"
+  if [[ -n "${STATUS}" ]]; then
+    echo "❌ Working tree is not clean enough to publish."
+    echo "   Review and commit generated/fixed files, then run scripts/quality-gate.sh --publish again."
+    printf '%s\n' "${STATUS}"
+    exit 1
+  fi
+  echo "✅ Publication quality gate passed; superproject is clean and ready to publish."
+  echo "ℹ️  Local unstaged submodule checkout drift is ignored; staged gitlink changes still block publication."
+else
+  echo "✅ Quality gate passed. Review and commit the validated changes before publishing."
+fi
+\n'}${staged_gitlinks}"
+  fi
+  printf '%s' "${status}"
+}
+
 mapfile -t CHANGED_FILES < <(
   {
     if [[ "${BASE_REF}" != "HEAD" ]]; then

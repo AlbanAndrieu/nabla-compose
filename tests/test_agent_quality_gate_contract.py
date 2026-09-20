@@ -59,6 +59,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)
         self.assertIn('env SKIP="${CANONICAL_SKIP}"', text)
+        canonical = (ROOT / "scripts" / "quality-gate.sh").read_text(encoding="utf-8")
+        self.assertIn("publication_status", canonical)
+        self.assertIn("--ignore-submodules=all", canonical)
+        self.assertIn('awk \'$1 == ":160000" || $2 == "160000" {print}\'', canonical)
 
     def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
         scripts = sorted((ROOT / "scripts").rglob("*.sh"))
@@ -110,6 +114,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         text = gate.read_text(encoding="utf-8")
         self.assertIn("QG_PRE_PUSH_DIRTY", text)
         self.assertIn("QG_AUTOFIX_APPLIED", text)
+        self.assertIn("publication_status", text)
+        self.assertIn("--ignore-submodules=all", text)
+        self.assertIn('awk \'$1 == ":160000" || $2 == "160000" {print}\'', text)
         self.assertIn("agent-quality-gate.sh --fix", text)
         self.assertIn("agent-quality-gate.sh --publish", text)
         self.assertLess(
