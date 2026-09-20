@@ -213,10 +213,11 @@ Interoperability migration:
 2. [x] Generate a Backstage-compatible catalog projection for software catalog interoperability without making Backstage a second source of truth.
 3. [x] Generate a CycloneDX 1.7 service BOM with stable `bom-ref` identities and required dependency edges for Dependency-Track/SBOM workflows.
 4. [ ] Expose the v2 contract through `fastapi-sample`, then migrate `nabla-site-alban` from compatibility adapters to the native v2 API after cross-repository revision checks are accepted.
-5. [ ] Add a bounded Cartography Nabla ingestion/enrichment path that joins declared Nabla IDs to observed GitHub/Kubernetes/Cloudflare/Trivy assets in Neo4j; preserve provenance and never write observed inference back into `x-nabla`.
-6. [ ] Add OSCAL component/control/evidence mapping only after explicit control implementations exist; NIST CSF `securityFunctions` remain classification metadata and never imply compliance.
-7. [ ] Reconcile NetBox infrastructure identities and Dependency-Track projects/components through the same stable Nabla IDs.
-8. [ ] Add cross-format contract tests and consumer drift checks before retiring v1 compatibility files.
+5. [x] Define the Cartography correlation contract on every v2 entity as `nabla_ref=<stable Nabla ref>`, with schema/tests in both producer and site consumer.
+6. [ ] Add the bounded Cartography ingestion/enrichment job that joins those declared Nabla refs to observed GitHub/Kubernetes/Cloudflare/Trivy assets in Neo4j; preserve provenance and never write observed inference back into `x-nabla`.
+7. [ ] Add OSCAL component/control/evidence mapping only after explicit control implementations exist; NIST CSF `securityFunctions` remain classification metadata and never imply compliance.
+8. [ ] Reconcile NetBox infrastructure identities and Dependency-Track projects/components through the same stable Nabla IDs.
+9. [ ] Add cross-format contract tests and consumer drift checks before retiring v1 compatibility files.
 
 Detailed contract: [Nabla Service Catalog v2 and open-standard projections](./service-catalog-v2.md).
 
