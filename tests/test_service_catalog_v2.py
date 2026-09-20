@@ -48,6 +48,12 @@ class ServiceCatalogV2ContractTest(unittest.TestCase):
                     ("component:default/", "resource:default/")
                 )
             )
+            self.assertEqual(
+                entity["integrations"]["cartography"]["joinProperty"], "nabla_ref"
+            )
+            self.assertEqual(
+                entity["integrations"]["cartography"]["joinValue"], entity["ref"]
+            )
 
     def test_v2_relations_preserve_evidence_and_resolve_refs(self) -> None:
         refs = {entity["ref"] for entity in self.catalog["entities"]}
