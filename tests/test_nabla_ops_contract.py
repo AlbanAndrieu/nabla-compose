@@ -9,13 +9,19 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from nabla_ops import InitializationStage, ServiceIntent, declared_apps, normalize_service_intent
+from nabla_ops import (  # noqa: E402
+    InitializationStage,
+    ServiceIntent,
+    declared_apps,
+    normalize_service_intent,
+)
 
 
 def _catalog(status: str | None = None) -> dict:
     service = {
         "id": "example",
         "sourcePath": "apps/example/compose.yml",
+        "composeService": "example",
         "runtime": {"provider": "truenas-app", "appId": "example"},
     }
     if status is not None:
@@ -65,6 +71,26 @@ def test_manual_profile_is_not_initialization_eligible() -> None:
         assert row["initializationEligible"] is False
 
 
+def test_manual_helper_does_not_disable_primary_runtime_service() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        compose = root / "apps" / "example" / "compose.yml"
+        compose.parent.mkdir(parents=True)
+        compose.write_text(
+            "services:\n"
+            "  example:\n"
+            "    image: example\n"
+            "  maintenance:\n"
+            "    image: example-maintenance\n"
+            "    profiles:\n"
+            "      - manual\n",
+            encoding="utf-8",
+        )
+        row = declared_apps(_catalog(), root=root)[0]
+        assert row["manual"] is False
+        assert row["initializationEligible"] is True
+
+
 def test_initialization_stage_order_is_stable() -> None:
     assert [stage.value for stage in InitializationStage] == [
         "DECLARED",
@@ -79,8 +105,16 @@ def test_initialization_stage_order_is_stable() -> None:
 
 def test_cli_is_read_only_and_emits_catalog_json() -> None:
     result = subprocess.run(
-        ["python3", str(ROOT / "scripts" / "nabla-service.py"), "catalog", "--json", "--include-non-active"],
-        check=False, capture_output=True, text=True,
+        [
+            "python3",
+            str(ROOT / "scripts" / "nabla-service.py"),
+            "catalog",
+            "--json",
+            "--include-non-active",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
