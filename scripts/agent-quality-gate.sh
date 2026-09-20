@@ -235,13 +235,23 @@ check_exec_bits() {
     if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
       mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
       if [[ "${mode}" != "100755" ]]; then
-        printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
-          "${file}" "${mode:-unknown}" "${file}" >&2
-        exec_bit_failed=1
+        if [[ "${MODE}" == "fix" ]]; then
+          git add --chmod=+x -- "${file}"
+          printf '🛠️  executable bit restored for %s\n' "${file}"
+        else
+          printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
+            "${file}" "${mode:-unknown}" "${file}" >&2
+          exec_bit_failed=1
+        fi
       fi
     elif [[ ! -x "${file}" ]]; then
-      printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
-      exec_bit_failed=1
+      if [[ "${MODE}" == "fix" ]]; then
+        chmod +x -- "${file}"
+        printf '🛠️  executable bit restored for untracked %s\n' "${file}"
+      else
+        printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
+        exec_bit_failed=1
+      fi
     fi
   done
   if ((exec_bit_failed != 0)); then
