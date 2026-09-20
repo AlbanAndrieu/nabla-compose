@@ -243,6 +243,62 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         self.assertIn("lifecycle.blocksLaterWaves=false", reconciler)
         self.assertIn("blocking_failures", reconciler)
 
+    def test_non_blocking_resume_policy_cannot_bypass_required_dependency(self) -> None:
+        apps = [
+            {"id": "vaultwarden", "state": "RUNNING"},
+            {"id": "consumer", "state": "RUNNING"},
+        ]
+        services = [
+            self.service(
+                "vaultwarden",
+                "password-manager",
+                "security",
+                "apps/vaultwarden/compose.yml",
+                lifecycle=("foundation", 10),
+            ),
+            self.service(
+                "consumer",
+                "application",
+                "test",
+                "apps/consumer/compose.yml",
+                lifecycle=("applications", 50),
+            ),
+        ]
+        services[0]["lifecycle"]["blocksLaterWaves"] = False
+        relations = [self.relation("consumer", "vaultwarden", "dependsOn")]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps.json").write_text(json.dumps(apps), encoding="utf-8")
+            (root / "services.json").write_text(
+                json.dumps({"services": services}), encoding="utf-8"
+            )
+            (root / "topology.json").write_text(
+                json.dumps({"nodes": [], "relations": relations}),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(PLANNER),
+                    "--apps",
+                    str(root / "apps.json"),
+                    "--services",
+                    str(root / "services.json"),
+                    "--topology",
+                    str(root / "topology.json"),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "cannot set lifecycle.blocksLaterWaves=false",
+            result.stderr,
+        )
+
     def test_declared_lifecycle_overrides_kind_and_category_fallback(self) -> None:
         apps = [
             {"id": "sentry", "state": "RUNNING"},

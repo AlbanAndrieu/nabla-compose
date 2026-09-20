@@ -425,6 +425,19 @@ def main() -> int:
                 }
             )
 
+    for app in sorted(selected):
+        if policies.get(app, {}).get("blocksLaterWaves", True) is not False:
+            continue
+        required_dependents = sorted(
+            after for before, after in edges if before == app
+        )
+        if required_dependents:
+            raise ValueError(
+                f"TrueNAS App {app} cannot set lifecycle.blocksLaterWaves=false "
+                "while required lifecycle dependencies exist: "
+                + ", ".join(required_dependents)
+            )
+
     start_waves = topo_waves(selected, edges, priorities) if selected else []
     stop_waves = [list(reversed(wave)) for wave in reversed(start_waves)]
 
