@@ -21,6 +21,8 @@ class SecretConsumerAuditTests(unittest.TestCase):
         self.assertTrue(audit.is_secret_variable("WEBUI_SECRET_KEY"))
         self.assertFalse(audit.is_secret_variable("TWOFAUTH_UID"))
         self.assertFalse(audit.is_secret_variable("ENABLE_API_KEY_AUTH"))
+        self.assertFalse(audit.is_secret_variable("LANGFUSE_OCI_AUTH_TYPE"))
+        self.assertFalse(audit.is_secret_variable("GRAYLOG_TRANSPORT_EMAIL_USE_AUTH"))
 
     def test_static_scan_never_reads_runtime_secret_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
