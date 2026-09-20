@@ -132,6 +132,12 @@ def build_v2(
                 "backstage": {"entityRef": backstage_ref(node)},
                 "cyclonedx": {"bomRef": nabla_ref(node)},
             },
+            "integrations": {
+                "cartography": {
+                    "joinProperty": "nabla_ref",
+                    "joinValue": nabla_ref(node),
+                }
+            },
         }
         endpoints = endpoint_list(node)
         if endpoints:
