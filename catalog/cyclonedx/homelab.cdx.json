@@ -1,0 +1,5844 @@
+{
+  "$schema": "https://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "nabla:system:nabla-homelab",
+      "type": "platform",
+      "name": "Nabla Homelab",
+      "properties": [
+        {
+          "name": "nabla:catalogRevision",
+          "value": "sha256:927cebe9caa64b9a591583e316a2aec17221af8b28e1aecbefb7585ecdf09068"
+        }
+      ]
+    }
+  },
+  "services": [
+    {
+      "bom-ref": "nabla:component:2fauth",
+      "group": "nabla.homelab",
+      "name": "2FAuth",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "2fauth"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-app"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/2fauth/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:adguard-home",
+      "group": "nabla.homelab",
+      "name": "AdGuard Home",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "adguard-home"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "native-truenas-dns-filter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "catalog/homelab-services.json"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Native TrueNAS App for network DNS filtering. It remains runtime-owned by TrueNAS until migration to repository-owned Compose."
+    },
+    {
+      "bom-ref": "nabla:resource:aistor",
+      "group": "nabla.homelab",
+      "name": "AIStor",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "aistor"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "object-storage"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/aistor/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "MinIO AIStor-compatible object storage service."
+    },
+    {
+      "bom-ref": "nabla:component:akvorado-console",
+      "group": "nabla.homelab",
+      "name": "Akvorado",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "akvorado-console"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-observability"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/akvorado/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:akvorado-inlet",
+      "group": "nabla.homelab",
+      "name": "Akvorado Inlet",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "akvorado-inlet"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-flow-collector"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/akvorado/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:akvorado-orchestrator",
+      "group": "nabla.homelab",
+      "name": "Akvorado Orchestrator",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "akvorado-orchestrator"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-flow-controller"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/akvorado/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:akvorado-outlet",
+      "group": "nabla.homelab",
+      "name": "Akvorado Outlet",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "akvorado-outlet"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-flow-processor"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/akvorado/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:alloy",
+      "group": "nabla.homelab",
+      "name": "Grafana Alloy",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "alloy"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "telemetry-collector"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/grafana/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:autokuma",
+      "group": "nabla.homelab",
+      "name": "AutoKuma",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "autokuma"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "monitoring-controller"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/autokuma/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Declarative monitor reconciler for the existing Uptime Kuma instance."
+    },
+    {
+      "bom-ref": "nabla:component:autoxpose",
+      "group": "nabla.homelab",
+      "name": "AutoXpose",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "autoxpose"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "exposure-automation"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/autoxpose/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Reconciles Docker service exposure and DNS/proxy provider state."
+    },
+    {
+      "bom-ref": "nabla:component:bichon",
+      "group": "nabla.homelab",
+      "name": "Bichon",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "bichon"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "productivity"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/bichon/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:cartography",
+      "group": "nabla.homelab",
+      "name": "Cartography",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "cartography"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-asset-graph-ingestor"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/cartography/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis."
+    },
+    {
+      "bom-ref": "nabla:component:clamav",
+      "group": "nabla.homelab",
+      "name": "ClamAV",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "clamav"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "antivirus-engine"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "catalog/homelab-services.json"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
+      "endpoints": [
+        "https://clamav.albandrieu.com",
+        "https://clamav.int.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:clickhouse",
+      "group": "nabla.homelab",
+      "name": "ClickHouse",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "clickhouse"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/clickhouse/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:cloudflared",
+      "group": "nabla.homelab",
+      "name": "Cloudflare Tunnel Connector",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "cloudflared"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "tunnel-connector"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docs/dns-ingress-ownership.md"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "TrueNAS-hosted cloudflared connector for outbound-established Cloudflare Tunnel ingress that bypasses Traefik."
+    },
+    {
+      "bom-ref": "nabla:component:code-server",
+      "group": "nabla.homelab",
+      "name": "Code Server",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "code-server"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "development-environment"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/code/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Browser-based development environment for homelab repositories."
+    },
+    {
+      "bom-ref": "nabla:component:crowdsec",
+      "group": "nabla.homelab",
+      "name": "CrowdSec",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "crowdsec"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-agent"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/crowdsec/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "respond"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:cyberbro",
+      "group": "nabla.homelab",
+      "name": "Cyberbro",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "cyberbro"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "threat-intelligence-analysis"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/cyberbro/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines.",
+      "endpoints": [
+        "http://172.17.0.24:5100"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:defectdojo",
+      "group": "nabla.homelab",
+      "name": "DefectDojo",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "defectdojo"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "vulnerability-management-platform"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/defectdojo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "respond"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow.",
+      "endpoints": [
+        "http://172.17.0.24:31085"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:defectdojo-api",
+      "group": "nabla.homelab",
+      "name": "DefectDojo API",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "defectdojo-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "vulnerability-management-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/defectdojo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "respond"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:defectdojo-celerybeat",
+      "group": "nabla.homelab",
+      "name": "DefectDojo Celery Beat",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "defectdojo-celerybeat"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "scheduler"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/defectdojo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:defectdojo-initializer",
+      "group": "nabla.homelab",
+      "name": "DefectDojo Initializer",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "defectdojo-initializer"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "database-initializer"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/defectdojo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:defectdojo-worker",
+      "group": "nabla.homelab",
+      "name": "DefectDojo Worker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "defectdojo-worker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "background-worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/defectdojo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:dependency-track",
+      "group": "nabla.homelab",
+      "name": "Dependency-Track",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "dependency-track"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "software-supply-chain-platform"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/dependency-track/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
+      "endpoints": [
+        "http://172.17.0.24:31084"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:dependency-track-api",
+      "group": "nabla.homelab",
+      "name": "Dependency-Track API",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "dependency-track-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "software-supply-chain-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/dependency-track/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:docker",
+      "group": "nabla.homelab",
+      "name": "Docker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "docker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "container-runtime"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/homarr/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Docker engine hosting the TrueNAS Compose workloads."
+    },
+    {
+      "bom-ref": "nabla:component:docker-socket-proxy",
+      "group": "nabla.homelab",
+      "name": "Docker Socket Proxy",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "docker-socket-proxy"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docker-compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Restricted read-only Docker Engine API boundary for repository automation."
+    },
+    {
+      "bom-ref": "nabla:component:dockhand",
+      "group": "nabla.homelab",
+      "name": "Dockhand",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "dockhand"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "container-management"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/dockhand/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Docker container management UI."
+    },
+    {
+      "bom-ref": "nabla:component:docling",
+      "group": "nabla.homelab",
+      "name": "Docling Serve",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "docling"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "document-processing"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/docling/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+      "endpoints": [
+        "https://docling.int.albandrieu.com",
+        "http://docling:5001"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:doco-cd",
+      "group": "nabla.homelab",
+      "name": "Doco-CD",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "doco-cd"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "deployment-automation"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docker-compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime."
+    },
+    {
+      "bom-ref": "nabla:component:dozzle",
+      "group": "nabla.homelab",
+      "name": "Dozzle",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "dozzle"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "log-viewer"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/dozzle/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Live Docker log viewer and MCP-enabled operations UI."
+    },
+    {
+      "bom-ref": "nabla:component:drawio",
+      "group": "nabla.homelab",
+      "name": "Draw.io",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "drawio"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "diagramming"
+        },
+        {
+          "name": "nabla:category",
+          "value": "productivity"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/drawio/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Self-hosted diagrams.net editor."
+    },
+    {
+      "bom-ref": "nabla:resource:elasticsearch",
+      "group": "nabla.homelab",
+      "name": "Elasticsearch",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "elasticsearch"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "search"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/elasticsearch/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:etcd",
+      "group": "nabla.homelab",
+      "name": "etcd",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "etcd"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "control-plane-store"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docs/homelab-health-observability.md"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Critical Kubernetes control-plane state store managed by Talos on control-plane nodes."
+    },
+    {
+      "bom-ref": "nabla:component:fastapi-sample",
+      "group": "nabla.homelab",
+      "name": "FastAPI Sample",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "fastapi-sample"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sample/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
+      "endpoints": [
+        "https://fastapi-sample.fastapicloud.dev/api",
+        "https://sample.albandrieu.com/api"
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:garage",
+      "group": "nabla.homelab",
+      "name": "Garage S3",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "garage"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "object-storage"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/garage/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
+      "endpoints": [
+        "https://s3.int.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:garage-admin",
+      "group": "nabla.homelab",
+      "name": "Garage Admin",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "garage-admin"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/garage/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Garage Admin API exposed through Cloudflare Tunnel to the LAN-bound :3903 origin without Traefik.",
+      "endpoints": [
+        "https://garage-admin.albandrieu.com",
+        "http://172.17.0.24:3903"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:garage-webui",
+      "group": "nabla.homelab",
+      "name": "Garage",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "garage-webui"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/garage/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
+      "endpoints": [
+        "https://garage.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:gatus",
+      "group": "nabla.homelab",
+      "name": "Gatus",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "gatus"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "status-monitor"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/gatus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Declarative status monitoring generated from Nabla Compose services.",
+      "endpoints": [
+        "http://172.17.0.24:8085"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:grafana",
+      "group": "nabla.homelab",
+      "name": "Grafana",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "grafana"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "observability-ui"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/grafana/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:graylog",
+      "group": "nabla.homelab",
+      "name": "Graylog",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "graylog"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "log-management"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/graylog/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:haproxy-exporter",
+      "group": "nabla.homelab",
+      "name": "pfSense HAProxy Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "haproxy-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/haproxy-exporter/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:heimdall",
+      "group": "nabla.homelab",
+      "name": "Heimdall",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "heimdall"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "dashboard"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "catalog/homelab-services.json"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Application dashboard retained from the legacy homelab inventory and classified canonically for topology consumers.",
+      "endpoints": [
+        "https://heimdall.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:hello-nginx",
+      "group": "nabla.homelab",
+      "name": "Hello Nginx",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "hello-nginx"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "web-server"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/nginx/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Small internal Nginx service used for ingress and routing experiments."
+    },
+    {
+      "bom-ref": "nabla:component:homarr",
+      "group": "nabla.homelab",
+      "name": "Homarr",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "homarr"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "dashboard"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/homarr/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Homelab application dashboard generated from the Nabla service inventory.",
+      "endpoints": [
+        "http://172.17.0.24:30100"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:homarr-sync",
+      "group": "nabla.homelab",
+      "name": "Homarr Reconciler",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "homarr-sync"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "configuration-reconciler"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/homarr/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Non-destructively reconciles generated Nabla applications through the Homarr API."
+    },
+    {
+      "bom-ref": "nabla:component:homeassistant",
+      "group": "nabla.homelab",
+      "name": "Home Assistant",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "homeassistant"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "home-automation"
+        },
+        {
+          "name": "nabla:category",
+          "value": "automation"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/homeassistant/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Home automation control plane exposed through the dedicated IoT network."
+    },
+    {
+      "bom-ref": "nabla:resource:influxdb",
+      "group": "nabla.homelab",
+      "name": "InfluxDB",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "influxdb"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "time-series-database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/influxdb/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
+    },
+    {
+      "bom-ref": "nabla:component:joplin",
+      "group": "nabla.homelab",
+      "name": "Joplin Server",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "joplin"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "notes-sync"
+        },
+        {
+          "name": "nabla:category",
+          "value": "productivity"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/joplin/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
+      "endpoints": [
+        "https://joplin.int.albandrieu.com",
+        "http://joplin:22300"
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:kafka",
+      "group": "nabla.homelab",
+      "name": "Apache Kafka",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "kafka"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "message-broker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/kafka/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:kafka-exporter",
+      "group": "nabla.homelab",
+      "name": "Kafka Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "kafka-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/kafka/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:keycloak",
+      "group": "nabla.homelab",
+      "name": "Keycloak",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "keycloak"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "identity-provider"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/keycloak/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service."
+    },
+    {
+      "bom-ref": "nabla:component:kibana",
+      "group": "nabla.homelab",
+      "name": "Kibana",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "kibana"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "dashboard"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/elasticsearch/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:kubernetes",
+      "group": "nabla.homelab",
+      "name": "Kubernetes (Talos)",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "kubernetes"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "orchestrator"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docs/truenas-talos-bootstrap.md"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Target Kubernetes cluster bootstrapped on Talos Linux VMs hosted by TrueNAS."
+    },
+    {
+      "bom-ref": "nabla:component:langflow",
+      "group": "nabla.homelab",
+      "name": "Langflow",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "langflow"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "workflow"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/langflow/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:langfuse",
+      "group": "nabla.homelab",
+      "name": "Langfuse",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "langfuse"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/langfuse/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Logical Langfuse v4 observability platform composed of web and worker workloads."
+    },
+    {
+      "bom-ref": "nabla:component:langfuse-web",
+      "group": "nabla.homelab",
+      "name": "Langfuse Web",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "langfuse-web"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/langfuse/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:langfuse-worker",
+      "group": "nabla.homelab",
+      "name": "Langfuse Worker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "langfuse-worker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/langfuse/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:languagetool",
+      "group": "nabla.homelab",
+      "name": "LanguageTool",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "languagetool"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "language-service"
+        },
+        {
+          "name": "nabla:category",
+          "value": "productivity"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/languagetool/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Self-hosted grammar and style checking API."
+    },
+    {
+      "bom-ref": "nabla:component:litellm",
+      "group": "nabla.homelab",
+      "name": "LiteLLM",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "litellm"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "gateway"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/litellm/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:loki",
+      "group": "nabla.homelab",
+      "name": "Loki",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "loki"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "log-store"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/grafana/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:mcp-cyberbro",
+      "group": "nabla.homelab",
+      "name": "Cyberbro MCP",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "mcp-cyberbro"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "mcp-server"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/cyberbro/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM."
+    },
+    {
+      "bom-ref": "nabla:resource:mimir",
+      "group": "nabla.homelab",
+      "name": "Mimir",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "mimir"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-store"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/grafana/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:minio",
+      "group": "nabla.homelab",
+      "name": "MinIO",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "minio"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "object-storage"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/minio/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:mongo",
+      "group": "nabla.homelab",
+      "name": "MongoDB",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "mongo"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/mongo/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:n8n",
+      "group": "nabla.homelab",
+      "name": "n8n",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "n8n"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "workflow"
+        },
+        {
+          "name": "nabla:category",
+          "value": "automation"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/n8n/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "planned"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:neo4j-security",
+      "group": "nabla.homelab",
+      "name": "Neo4j Security Graph",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "neo4j-security"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "graph-database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/neo4j/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
+      "endpoints": [
+        "http://172.17.0.24:31086"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:netbox",
+      "group": "nabla.homelab",
+      "name": "NetBox",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "netbox"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "infrastructure-source-of-truth"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/netbox/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
+      "endpoints": [
+        "http://172.17.0.24:31082"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:netbox-housekeeping",
+      "group": "nabla.homelab",
+      "name": "NetBox Housekeeping",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "netbox-housekeeping"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "maintenance-worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/netbox/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:netbox-worker",
+      "group": "nabla.homelab",
+      "name": "NetBox Worker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "netbox-worker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "background-worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/netbox/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:nexus",
+      "group": "nabla.homelab",
+      "name": "Nexus Repository",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "nexus"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "artifact-repository"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/nexus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Repository manager for development artifacts and package proxies."
+    },
+    {
+      "bom-ref": "nabla:component:nginx-proxy-manager",
+      "group": "nabla.homelab",
+      "name": "Nginx Proxy Manager",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "nginx-proxy-manager"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "reverse-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/nginx-proxy-manager/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Legacy reverse-proxy administration service retained during NPMplus migration."
+    },
+    {
+      "bom-ref": "nabla:component:npmplus",
+      "group": "nabla.homelab",
+      "name": "NPMplus",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "npmplus"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "reverse-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/npmplus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target."
+    },
+    {
+      "bom-ref": "nabla:component:ntopng",
+      "group": "nabla.homelab",
+      "name": "ntopng",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "ntopng"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-observability"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/ntopng/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:obsidian",
+      "group": "nabla.homelab",
+      "name": "Obsidian",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "obsidian"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "productivity"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/obsidian/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:ollama",
+      "group": "nabla.homelab",
+      "name": "Ollama",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "ollama"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "model-runtime"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/ollama/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:op-connect-api",
+      "group": "nabla.homelab",
+      "name": "1Password Connect API",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "op-connect-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "secrets-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opconnect/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "disabled"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "1Password Connect API for machine-readable secret access."
+    },
+    {
+      "bom-ref": "nabla:component:op-connect-sync",
+      "group": "nabla.homelab",
+      "name": "1Password Connect Sync",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "op-connect-sync"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "secrets-sync"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opconnect/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "disabled"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Synchronizes 1Password vault state for the Connect API."
+    },
+    {
+      "bom-ref": "nabla:component:open-terminal",
+      "group": "nabla.homelab",
+      "name": "Open Terminal",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "open-terminal"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "tool-service"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openwebui/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Optional agent terminal API consumed by Open WebUI tools."
+    },
+    {
+      "bom-ref": "nabla:component:openclaw-sandbox",
+      "group": "nabla.homelab",
+      "name": "OpenClaw Sandbox",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openclaw-sandbox"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "automation-sandbox"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openclaw/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling."
+    },
+    {
+      "bom-ref": "nabla:component:openhands",
+      "group": "nabla.homelab",
+      "name": "OpenHands",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openhands"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "ai-coding-agent"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openhands/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Self-hosted coding-agent environment with Docker-backed sandboxes."
+    },
+    {
+      "bom-ref": "nabla:component:openrag-backend",
+      "group": "nabla.homelab",
+      "name": "OpenRAG Backend",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openrag-backend"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "service"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openrag/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:openrag-frontend",
+      "group": "nabla.homelab",
+      "name": "OpenRAG Frontend",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openrag-frontend"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openrag/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:opensearch",
+      "group": "nabla.homelab",
+      "name": "OpenSearch",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "opensearch"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "search"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opensearch/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:opensearch-dashboards",
+      "group": "nabla.homelab",
+      "name": "OpenSearch Dashboards",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "opensearch-dashboards"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opensearch/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:opensearch-exporter",
+      "group": "nabla.homelab",
+      "name": "OpenSearch Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "opensearch-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opensearch-exporter/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:opensearch-security",
+      "group": "nabla.homelab",
+      "name": "OpenSearch Security",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "opensearch-security"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "search"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opensearch/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:opensearch-security-exporter",
+      "group": "nabla.homelab",
+      "name": "OpenSearch Security Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "opensearch-security-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/opensearch-exporter/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:openssf-scorecard",
+      "group": "nabla.homelab",
+      "name": "OpenSSF Scorecard",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openssf-scorecard"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "repository-security-posture-scanner"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/scorecard/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score."
+    },
+    {
+      "bom-ref": "nabla:component:openwebui",
+      "group": "nabla.homelab",
+      "name": "Open WebUI",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openwebui"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openwebui/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:openwebui-pipelines",
+      "group": "nabla.homelab",
+      "name": "Open WebUI Pipelines",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "openwebui-pipelines"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "service"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openwebui/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:pfsense",
+      "group": "nabla.homelab",
+      "name": "pfSense",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pfsense"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "firewall"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/crowdsec/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "respond"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "External pfSense firewall running the lightweight CrowdSec remediation component."
+    },
+    {
+      "bom-ref": "nabla:component:pfsense-exporter",
+      "group": "nabla.homelab",
+      "name": "pfSense Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pfsense-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/prometheus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:pfsense-haproxy",
+      "group": "nabla.homelab",
+      "name": "pfSense HAProxy",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pfsense-haproxy"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "reverse-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/traefik/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS."
+    },
+    {
+      "bom-ref": "nabla:resource:pfsense-unbound",
+      "group": "nabla.homelab",
+      "name": "pfSense Unbound",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pfsense-unbound"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "dns-resolver"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docs/dns-ingress-ownership.md"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Primary LAN recursive resolver at 172.17.0.1:53; delegates int.albandrieu.com to Pi-hole with Forwarding Mode disabled and outgoing interfaces set to All."
+    },
+    {
+      "bom-ref": "nabla:resource:pihole",
+      "group": "nabla.homelab",
+      "name": "Pi-hole",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pihole"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "dns"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/pihole/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer."
+    },
+    {
+      "bom-ref": "nabla:component:pihole-dns-sync",
+      "group": "nabla.homelab",
+      "name": "Pi-hole DNS Sync",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pihole-dns-sync"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "configuration-reconciler"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/pihole/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Synchronizes repository-managed Docker/Traefik service names into Pi-hole private DNS."
+    },
+    {
+      "bom-ref": "nabla:component:pihole-exporter",
+      "group": "nabla.homelab",
+      "name": "Pi-hole Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pihole-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/pihole/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Prometheus-compatible metrics exporter for Pi-hole."
+    },
+    {
+      "bom-ref": "nabla:component:plumber",
+      "group": "nabla.homelab",
+      "name": "Plumber",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "plumber"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "developer-platform"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/plumber/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
+      "endpoints": [
+        "http://172.17.0.24:31070"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:plumber-api",
+      "group": "nabla.homelab",
+      "name": "Plumber API",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "plumber-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "developer-platform-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/plumber/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:plumber-worker",
+      "group": "nabla.homelab",
+      "name": "Plumber Worker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "plumber-worker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "background-worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/plumber/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:portracker",
+      "group": "nabla.homelab",
+      "name": "Portracker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "portracker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "port-inventory"
+        },
+        {
+          "name": "nabla:category",
+          "value": "operations"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/portracker/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Host and Docker port inventory used to detect exposure and allocation drift."
+    },
+    {
+      "bom-ref": "nabla:component:postgres-exporter",
+      "group": "nabla.homelab",
+      "name": "PostgreSQL Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "postgres-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/postgres/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Prometheus exporter for the shared PostgreSQL service."
+    },
+    {
+      "bom-ref": "nabla:resource:postgresql",
+      "group": "nabla.homelab",
+      "name": "PostgreSQL",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "postgresql"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "native-truenas-database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "catalog/homelab-services.json"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Shared native TrueNAS PostgreSQL App used by repository-managed consumers. Keep it as a runtime-owned native service until migration to repository-owned Compose."
+    },
+    {
+      "bom-ref": "nabla:component:prometheus",
+      "group": "nabla.homelab",
+      "name": "Prometheus",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "prometheus"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/prometheus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:prometheus-alertmanager",
+      "group": "nabla.homelab",
+      "name": "Alertmanager",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "prometheus-alertmanager"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "alerting"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/prometheus/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:pyroscope",
+      "group": "nabla.homelab",
+      "name": "Grafana Pyroscope",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "pyroscope"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "continuous-profiler"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/pyroscope/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state."
+    },
+    {
+      "bom-ref": "nabla:resource:redis",
+      "group": "nabla.homelab",
+      "name": "Redis",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "redis"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "cache"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/redis/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:scanopy",
+      "group": "nabla.homelab",
+      "name": "Scanopy",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "scanopy"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-topology-management"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/scanopy/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
+      "endpoints": [
+        "http://172.17.0.24:60072"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:scanopy-daemon",
+      "group": "nabla.homelab",
+      "name": "Scanopy Daemon",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "scanopy-daemon"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "network-discovery-scanner"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/scanopy/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "identify"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology."
+    },
+    {
+      "bom-ref": "nabla:component:scrutiny",
+      "group": "nabla.homelab",
+      "name": "Scrutiny",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "scrutiny"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "storage-monitoring"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/scrutiny/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+      "endpoints": [
+        "https://scrutiny.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:scrutiny-collector",
+      "group": "nabla.homelab",
+      "name": "Scrutiny Collector",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "scrutiny-collector"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-collector"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/scrutiny/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:searxng",
+      "group": "nabla.homelab",
+      "name": "SearXNG",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "searxng"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "search"
+        },
+        {
+          "name": "nabla:category",
+          "value": "ai"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/openwebui/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Optional metasearch backend consumed by Open WebUI web-search tooling."
+    },
+    {
+      "bom-ref": "nabla:component:sentry",
+      "group": "nabla.homelab",
+      "name": "Sentry",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "error-tracking"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Self-hosted Sentry 26.8 errors-only application service.",
+      "endpoints": [
+        "https://sentry.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:sentry-clickhouse",
+      "group": "nabla.homelab",
+      "name": "Sentry ClickHouse",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-clickhouse"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry-clickhouse/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:sentry-edge",
+      "group": "nabla.homelab",
+      "name": "Sentry Edge",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-edge"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "reverse-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:sentry-relay",
+      "group": "nabla.homelab",
+      "name": "Sentry Relay",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-relay"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "ingestion-relay"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:sentry-snuba-api",
+      "group": "nabla.homelab",
+      "name": "Sentry Snuba API",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-snuba-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "analytics-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Sentry query API backed by the dedicated temporary Sentry ClickHouse."
+    },
+    {
+      "bom-ref": "nabla:component:sentry-taskbroker",
+      "group": "nabla.homelab",
+      "name": "Sentry Taskbroker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-taskbroker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "task-broker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:sentry-taskworker",
+      "group": "nabla.homelab",
+      "name": "Sentry Taskworker",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sentry-taskworker"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sentry/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:sonarqube",
+      "group": "nabla.homelab",
+      "name": "SonarQube",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sonarqube"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "code-quality"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sonarqube/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:squid",
+      "group": "nabla.homelab",
+      "name": "Squid Proxy",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "squid"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "forward-proxy"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/squid/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Internal forward proxy for controlled HTTP(S) egress experiments."
+    },
+    {
+      "bom-ref": "nabla:component:suricata",
+      "group": "nabla.homelab",
+      "name": "Suricata",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "suricata"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "ids"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/suricata/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:sybase",
+      "group": "nabla.homelab",
+      "name": "SAP Sybase ASE",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sybase"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "database"
+        },
+        {
+          "name": "nabla:category",
+          "value": "data"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sybase-exporter/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "External Sybase ASE database monitored through FreeTDS."
+    },
+    {
+      "bom-ref": "nabla:component:sybase-exporter",
+      "group": "nabla.homelab",
+      "name": "Sybase Exporter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "sybase-exporter"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/sybase-exporter/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:talos",
+      "group": "nabla.homelab",
+      "name": "Talos Linux",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "talos"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "kubernetes-os"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "docs/truenas-talos-bootstrap.md"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS."
+    },
+    {
+      "bom-ref": "nabla:resource:tempo",
+      "group": "nabla.homelab",
+      "name": "Tempo",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "tempo"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "trace-store"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/grafana/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:traefik",
+      "group": "nabla.homelab",
+      "name": "Traefik",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "traefik"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "edge"
+        },
+        {
+          "name": "nabla:category",
+          "value": "network"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/traefik/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services."
+    },
+    {
+      "bom-ref": "nabla:resource:truenas",
+      "group": "nabla.homelab",
+      "name": "TrueNAS",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "truenas"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "storage-platform"
+        },
+        {
+          "name": "nabla:category",
+          "value": "infrastructure"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/homarr/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "critical"
+        }
+      ],
+      "description": "TrueNAS SCALE storage and application host.",
+      "endpoints": [
+        "https://truenas.albandrieu.com:7000"
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:uptime-kuma",
+      "group": "nabla.homelab",
+      "name": "Uptime Kuma",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "uptime-kuma"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "native-truenas-uptime-monitor"
+        },
+        {
+          "name": "nabla:category",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/autokuma/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.",
+      "endpoints": [
+        "http://172.17.0.24:31050"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:vaultwarden",
+      "group": "nabla.homelab",
+      "name": "Vaultwarden",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "vaultwarden"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "password-manager"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/vaultwarden/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "high"
+        }
+      ],
+      "description": "Self-hosted Bitwarden-compatible password and secret vault.",
+      "endpoints": [
+        "https://vaultwarden.albandrieu.com"
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:vaultwarden-rest-api",
+      "group": "nabla.homelab",
+      "name": "Vaultwarden REST API Adapter",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "vaultwarden-rest-api"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "compatibility-api"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/vaultwarden/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "protect"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "medium"
+        }
+      ],
+      "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval."
+    },
+    {
+      "bom-ref": "nabla:component:wazuh",
+      "group": "nabla.homelab",
+      "name": "Wazuh",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wazuh"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-platform"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wazuh/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ],
+      "description": "Logical Wazuh security platform composed of manager, indexer, dashboard and forwarding workloads."
+    },
+    {
+      "bom-ref": "nabla:component:wazuh-dashboard",
+      "group": "nabla.homelab",
+      "name": "Wazuh Dashboard",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wazuh-dashboard"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "application"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wazuh/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:wazuh-forwarder",
+      "group": "nabla.homelab",
+      "name": "Wazuh OpenSearch Forwarder",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wazuh-forwarder"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "telemetry-forwarder"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wazuh/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:resource:wazuh-indexer",
+      "group": "nabla.homelab",
+      "name": "Wazuh Indexer",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wazuh-indexer"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "resource"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "search"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wazuh/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:wazuh-manager",
+      "group": "nabla.homelab",
+      "name": "Wazuh Manager",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wazuh-manager"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "security-manager"
+        },
+        {
+          "name": "nabla:category",
+          "value": "security"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wazuh/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:nistCsfFunction",
+          "value": "detect"
+        }
+      ]
+    },
+    {
+      "bom-ref": "nabla:component:wordpress",
+      "group": "nabla.homelab",
+      "name": "WordPress",
+      "properties": [
+        {
+          "name": "nabla:id",
+          "value": "wordpress"
+        },
+        {
+          "name": "nabla:entityType",
+          "value": "component"
+        },
+        {
+          "name": "nabla:kind",
+          "value": "cms"
+        },
+        {
+          "name": "nabla:category",
+          "value": "development"
+        },
+        {
+          "name": "nabla:sourcePath",
+          "value": "apps/wordpress/compose.yml"
+        },
+        {
+          "name": "nabla:deploymentStatus",
+          "value": "active"
+        },
+        {
+          "name": "nabla:criticality",
+          "value": "low"
+        }
+      ],
+      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP."
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "nabla:component:2fauth",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:akvorado-console",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:akvorado-inlet",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:akvorado-orchestrator",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker",
+        "nabla:resource:kafka"
+      ]
+    },
+    {
+      "ref": "nabla:component:akvorado-outlet",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker",
+        "nabla:resource:kafka"
+      ]
+    },
+    {
+      "ref": "nabla:component:alloy",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:loki",
+        "nabla:resource:mimir",
+        "nabla:resource:tempo"
+      ]
+    },
+    {
+      "ref": "nabla:component:autokuma",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:uptime-kuma"
+      ]
+    },
+    {
+      "ref": "nabla:component:autoxpose",
+      "dependsOn": [
+        "nabla:component:docker-socket-proxy",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:bichon",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:cartography",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:neo4j-security"
+      ]
+    },
+    {
+      "ref": "nabla:component:clamav",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:cloudflared",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:code-server",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:crowdsec",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:cyberbro",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:defectdojo",
+      "dependsOn": [
+        "nabla:component:defectdojo-api",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:defectdojo-api",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:defectdojo-celerybeat",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:defectdojo-initializer",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:defectdojo-worker",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:dependency-track",
+      "dependsOn": [
+        "nabla:component:dependency-track-api",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:dependency-track-api",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:docker-socket-proxy",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:dockhand",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:docling",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:doco-cd",
+      "dependsOn": [
+        "nabla:component:docker-socket-proxy",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:dozzle",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:drawio",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:fastapi-sample",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:garage-admin",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:garage-webui",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:garage"
+      ]
+    },
+    {
+      "ref": "nabla:component:gatus",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:grafana",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:graylog",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:mongo",
+        "nabla:resource:opensearch-security"
+      ]
+    },
+    {
+      "ref": "nabla:component:haproxy-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:pfsense"
+      ]
+    },
+    {
+      "ref": "nabla:component:heimdall",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:hello-nginx",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:homarr",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:homarr-sync",
+      "dependsOn": [
+        "nabla:component:homarr",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:homeassistant",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:joplin",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:kafka-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:kafka"
+      ]
+    },
+    {
+      "ref": "nabla:component:keycloak",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:kibana",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:elasticsearch"
+      ]
+    },
+    {
+      "ref": "nabla:component:langflow",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:opensearch"
+      ]
+    },
+    {
+      "ref": "nabla:component:langfuse",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:langfuse-web",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker",
+        "nabla:resource:minio",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:langfuse-worker",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker",
+        "nabla:resource:minio",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:languagetool",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:litellm",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:mcp-cyberbro",
+      "dependsOn": [
+        "nabla:component:cyberbro",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:n8n",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:netbox",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:netbox-housekeeping",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:netbox-worker",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:nexus",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:nginx-proxy-manager",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:npmplus",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:ntopng",
+      "dependsOn": [
+        "nabla:resource:clickhouse",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:obsidian",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:ollama",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:op-connect-api",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:op-connect-sync",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:open-terminal",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:openclaw-sandbox",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:openhands",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:openrag-backend",
+      "dependsOn": [
+        "nabla:component:docling",
+        "nabla:component:langflow",
+        "nabla:resource:docker",
+        "nabla:resource:opensearch"
+      ]
+    },
+    {
+      "ref": "nabla:component:openrag-frontend",
+      "dependsOn": [
+        "nabla:component:langflow",
+        "nabla:component:openrag-backend",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:opensearch-dashboards",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:opensearch"
+      ]
+    },
+    {
+      "ref": "nabla:component:opensearch-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:opensearch"
+      ]
+    },
+    {
+      "ref": "nabla:component:opensearch-security-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:opensearch-security"
+      ]
+    },
+    {
+      "ref": "nabla:component:openssf-scorecard",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:openwebui",
+      "dependsOn": [
+        "nabla:component:litellm",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:openwebui-pipelines",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:pfsense-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:pfsense"
+      ]
+    },
+    {
+      "ref": "nabla:component:pfsense-haproxy",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:pihole-dns-sync",
+      "dependsOn": [
+        "nabla:component:docker-socket-proxy",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:pihole-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:pihole"
+      ]
+    },
+    {
+      "ref": "nabla:component:plumber",
+      "dependsOn": [
+        "nabla:component:plumber-api",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:plumber-api",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:plumber-worker",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:portracker",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:postgres-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:prometheus",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:mimir"
+      ]
+    },
+    {
+      "ref": "nabla:component:prometheus-alertmanager",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:pyroscope",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:scanopy",
+      "dependsOn": [
+        "nabla:component:scanopy-daemon",
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:scanopy-daemon",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:scrutiny",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:influxdb"
+      ]
+    },
+    {
+      "ref": "nabla:component:scrutiny-collector",
+      "dependsOn": [
+        "nabla:component:scrutiny",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry",
+      "dependsOn": [
+        "nabla:component:sentry-snuba-api",
+        "nabla:resource:docker",
+        "nabla:resource:kafka",
+        "nabla:resource:postgresql",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry-edge",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry-relay",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:kafka",
+        "nabla:resource:redis"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry-snuba-api",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:kafka",
+        "nabla:resource:redis",
+        "nabla:resource:sentry-clickhouse"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry-taskbroker",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:kafka"
+      ]
+    },
+    {
+      "ref": "nabla:component:sentry-taskworker",
+      "dependsOn": [
+        "nabla:component:sentry-taskbroker",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:sonarqube",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:component:squid",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:suricata",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:sybase-exporter",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:sybase"
+      ]
+    },
+    {
+      "ref": "nabla:component:traefik",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:vaultwarden",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:vaultwarden-rest-api",
+      "dependsOn": [
+        "nabla:component:vaultwarden",
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:component:wazuh",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:component:wazuh-dashboard",
+      "dependsOn": [
+        "nabla:component:wazuh-manager",
+        "nabla:resource:docker",
+        "nabla:resource:wazuh-indexer"
+      ]
+    },
+    {
+      "ref": "nabla:component:wazuh-forwarder",
+      "dependsOn": [
+        "nabla:component:wazuh-manager",
+        "nabla:resource:docker",
+        "nabla:resource:opensearch-security"
+      ]
+    },
+    {
+      "ref": "nabla:component:wazuh-manager",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:wazuh-indexer"
+      ]
+    },
+    {
+      "ref": "nabla:component:wordpress",
+      "dependsOn": [
+        "nabla:resource:docker",
+        "nabla:resource:postgresql"
+      ]
+    },
+    {
+      "ref": "nabla:resource:adguard-home",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:aistor",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:clickhouse",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:docker",
+      "dependsOn": [
+        "nabla:resource:truenas"
+      ]
+    },
+    {
+      "ref": "nabla:resource:elasticsearch",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:etcd",
+      "dependsOn": [
+        "nabla:resource:talos"
+      ]
+    },
+    {
+      "ref": "nabla:resource:garage",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:influxdb",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:kafka",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:kubernetes",
+      "dependsOn": [
+        "nabla:resource:etcd",
+        "nabla:resource:talos"
+      ]
+    },
+    {
+      "ref": "nabla:resource:loki",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:mimir",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:minio",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:mongo",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:neo4j-security",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:opensearch",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:opensearch-security",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:pfsense",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:pfsense-unbound",
+      "dependsOn": [
+        "nabla:resource:pihole"
+      ]
+    },
+    {
+      "ref": "nabla:resource:pihole",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:postgresql",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:redis",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:searxng",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:sentry-clickhouse",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:sybase",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:talos",
+      "dependsOn": [
+        "nabla:resource:truenas"
+      ]
+    },
+    {
+      "ref": "nabla:resource:tempo",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    },
+    {
+      "ref": "nabla:resource:truenas",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:uptime-kuma",
+      "dependsOn": []
+    },
+    {
+      "ref": "nabla:resource:wazuh-indexer",
+      "dependsOn": [
+        "nabla:resource:docker"
+      ]
+    }
+  ]
+}
