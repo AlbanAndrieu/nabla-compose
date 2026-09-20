@@ -41,6 +41,9 @@ def test_project_dotenv_cannot_collide_with_service_env_file() -> None:
     assert 'name=".env.compose"' in script
     assert "multiple sources differ" in script
     assert "cmp -s" in script
+    assert "env_files_equivalent" in script
+    assert "compare_dotenv_sources.py" in script
+    assert "differs semantically from staged target" in script
 
 
 def test_app_scoped_runtime_bootstrap_stays_bounded() -> None:
@@ -123,6 +126,9 @@ def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -
     assert 'bootstrap-repository-runtime.sh --apply "${app}"' in script
     assert 'bootstrap-repository-runtime.sh --check "${app}"' in script
     assert 'verify-app-runtime-health.sh' in script
+    assert "check_vaultwarden_materialization" in script
+    assert "Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py" in script
+    assert "materialize_runtime.py --app" in script
     assert 'bootstrap-repository-env-files.sh --finalize "${app}"' in script
     assert script.index('deploy_service "${app}"') < script.index(
         'bootstrap-repository-env-files.sh --finalize "${app}"'

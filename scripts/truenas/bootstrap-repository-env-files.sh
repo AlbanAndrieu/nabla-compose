@@ -9,6 +9,7 @@ SECRETS_DATASET="${NABLA_SECRETS_DATASET:-${POOL}/secrets}"
 SECRETS_ROOT="${NABLA_SECRETS_ROOT:-/mnt/${POOL}/secrets}"
 RUNTIME_ROOT="${NABLA_RUNTIME_ENV_ROOT:-${SECRETS_ROOT}/runtime}"
 BOOTSTRAP_ROOT="${NABLA_BOOTSTRAP_ENV_ROOT:-${SECRETS_ROOT}/bootstrap}"
+DOTENV_COMPARE="${CANONICAL_ROOT}/scripts/secrets/compare_dotenv_sources.py"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -57,7 +58,7 @@ fi
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so runtime env materializations remain root-only"
 for command in git awk sort stat install dirname basename cmp readlink ln rm \
-  mkdir chown chmod midclt zfs; do
+  mkdir chown chmod midclt zfs python3; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -84,6 +85,17 @@ requires_nonempty_materialization() {
     .env.secrets | .env.*.secrets) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+env_files_equivalent() {
+  local app="$1" left="$2" right="$3"
+  cmp -s "${left}" "${right}" && return 0
+  [[ -f "${DOTENV_COMPARE}" ]] || return 1
+  python3 "${DOTENV_COMPARE}" \
+    --app "${app}" \
+    --left "${left}" \
+    --right "${right}" \
+    >/dev/null 2>&1
 }
 
 canonical_env_file() {
@@ -326,7 +338,9 @@ while IFS= read -r target; do
   while IFS= read -r source; do
     [[ "${source_target["${source}"]}" == "${target}" ]] || continue
     [[ "${source}" == "${primary}" ]] && continue
-    if [[ -f "${source}" && -f "${primary}" ]] && ! cmp -s "${source}" "${primary}"; then
+    app="${target_app["${target}"]}"
+    if [[ -f "${source}" && -f "${primary}" ]] &&
+      ! env_files_equivalent "${app}" "${source}" "${primary}"; then
       printf '❌ migration conflict: multiple sources differ for %s: %s <> %s\n' \
         "${target}" "${primary}" "${source}"
       invalid=$((invalid + 1))
