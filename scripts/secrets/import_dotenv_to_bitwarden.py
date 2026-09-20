@@ -103,7 +103,9 @@ def choose_input(
     if len(allowed) != 1:
         raise SecretsError(
             f"{app}: expected exactly one discovered source path when --input is omitted; "
-            f"found {len(allowed)}: {', '.join(str(path) for path in allowed) or '<none>'}"
+            f"found {len(allowed)}: {', '.join(str(path) for path in allowed) or '<none>'}. "
+            "Pass --input with the reviewed app-bounded legacy or canonical dotenv path "
+            "when Compose already points at the canonical location."
         )
     return allowed[0]
 

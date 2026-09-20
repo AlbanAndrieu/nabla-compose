@@ -164,6 +164,46 @@ Never bulk-finalize all 52 materializations.
 
 ## P0.6 — migration waves
 
+### Wave 0 — normalize runtime paths before Vaultwarden
+
+For **existing active services with non-empty historical `.env*` files**, move
+the runtime delivery path first, without changing any secret value and without
+contacting Vaultwarden:
+
+```text
+/mnt/cpool/<service>/.env*
+        |
+        | app-scoped check + byte-preserving stage
+        v
+/mnt/cpool/secrets/runtime/<service>/.env*
+```
+
+Use one service at a time. A global `--apply` remains inappropriate while any
+known source conflict exists.
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --apply <service>
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>
+```
+
+`sample` is the pilot for this wave. Its canonical `.env` and
+`.env.secrets` are already staged and non-empty. Complete the canonical-path
+redeploy and one controlled reboot acceptance before `--finalize sample`.
+Finalization removes the duplicate legacy payload by replacing it with a
+compatibility symlink; retire that symlink only after another clean
+restart/reboot observation and proof that no runtime consumer uses the legacy
+path.
+
+An **empty placeholder is not secret material**. Do not import a zero-byte
+Scanopy/Joplin placeholder to Vaultwarden and do not mark it migrated. For a
+new service with no recoverable secret, create the credential once under the
+reviewed service bootstrap, write it to Vaultwarden as the first authority,
+then materialize the canonical runtime cache.
+
+After path normalization, import the exact preserved values of existing
+services into Vaultwarden and verify a render before rotating anything.
+
 ### Wave A — prove canonical staging
 
 Preferred first services because their Compose definitions already use canonical paths:
