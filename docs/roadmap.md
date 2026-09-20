@@ -226,7 +226,7 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
 
 - [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
 - [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
-- [ ] **x-nabla v2 reduction:** rename boot `lifecycle` to `operations.startup`; keep only operational intent, startup policy, endpoints/exposure, custom relation evidence and structured risk acceptances.
+- [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; replace boot `lifecycle.phase/priority` with systemd-inspired `operations.boot.target/after/before/wants`, derive required dependencies from Backstage `spec.dependsOn` and Compose `depends_on`, and keep x-nabla relation metadata only when it does not duplicate a standard Backstage edge.
 - [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities plus small static operational metadata.
 - [ ] **One-shot generated contracts:** emit Backstage entity JSON, normalized operations, normalized relations and CycloneDX 1.7 with one `catalogRevision`; no permanent v1/v2 compatibility files.
 - [ ] **FastAPI one-shot cutover:** replace old catalog/topology models and both `homelab-services.json` / `homelab-exposure-overrides.json` with one generated normalized snapshot; key all joins by full entity ref.
