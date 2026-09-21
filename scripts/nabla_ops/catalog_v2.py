@@ -514,6 +514,9 @@ def build_parity_report(
     entries.sort(key=lambda item: (item["legacyKey"], item["name"]))
     summary = {
         "legacyServices": len(legacy_services),
+        "legacyExplicitIds": sum(
+            bool(str(service.get("id") or "").strip()) for service in legacy_services
+        ),
         "exposureOverrides": len(overrides),
         "explicitIdMatches": match_counts["explicit-id"],
         "legacySlugMatches": match_counts["legacy-slug"],
