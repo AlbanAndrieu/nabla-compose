@@ -39,7 +39,6 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "metadata": {"name": "database"},
                     "spec": {
                         "type": "database",
-                        "owner": "group:default/nabla-platform",
                     },
                 }
             )
