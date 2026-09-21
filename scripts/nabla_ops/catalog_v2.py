@@ -183,6 +183,84 @@ def _legacy_identity_errors(services: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
+def _backstage_entity_ref(entity: Mapping[str, Any]) -> str | None:
+    kind = str(entity.get("kind") or "").strip().lower()
+    metadata = entity.get("metadata")
+    if not kind or not isinstance(metadata, Mapping):
+        return None
+    name = str(metadata.get("name") or "").strip()
+    if not name:
+        return None
+    namespace = str(metadata.get("namespace") or "default").strip() or "default"
+    return f"{kind}:{namespace}/{name}"
+
+
+def _backstage_indexes(
+    entities: list[Mapping[str, Any]],
+) -> tuple[
+    dict[str, list[Mapping[str, Any]]],
+    dict[str, list[Mapping[str, Any]]],
+    dict[str, Mapping[str, Any]],
+    list[str],
+]:
+    by_name: dict[str, list[Mapping[str, Any]]] = {}
+    by_title: dict[str, list[Mapping[str, Any]]] = {}
+    by_ref: dict[str, Mapping[str, Any]] = {}
+    errors: list[str] = []
+
+    for index, entity in enumerate(entities):
+        entity_ref = _backstage_entity_ref(entity)
+        if entity_ref is None:
+            errors.append(f"backstage entity[{index}] has no valid kind/name")
+            continue
+        if entity_ref in by_ref:
+            errors.append(f"duplicate Backstage entity ref: {entity_ref}")
+            continue
+        by_ref[entity_ref] = entity
+
+        metadata = entity["metadata"]
+        name = str(metadata.get("name") or "").strip()
+        title = str(metadata.get("title") or "").strip()
+        by_name.setdefault(name, []).append(entity)
+        if title:
+            by_title.setdefault(title, []).append(entity)
+
+    return by_name, by_title, by_ref, errors
+
+
+def _resolve_backstage_ref(
+    *,
+    legacy: Mapping[str, Any],
+    catalog_id: str | None,
+    candidate_ref: str | None,
+    by_name: Mapping[str, list[Mapping[str, Any]]],
+    by_title: Mapping[str, list[Mapping[str, Any]]],
+    by_ref: Mapping[str, Mapping[str, Any]],
+) -> tuple[str | None, str | None]:
+    if candidate_ref and candidate_ref in by_ref:
+        return candidate_ref, "backstage-exact-ref"
+
+    for candidate_name in (
+        catalog_id,
+        str(legacy.get("id") or "").strip() or None,
+    ):
+        if not candidate_name:
+            continue
+        matches = by_name.get(candidate_name, [])
+        if len(matches) == 1:
+            return _backstage_entity_ref(matches[0]), "backstage-name"
+
+    title = str(legacy.get("name") or "").strip()
+    if title:
+        matches = by_title.get(title, [])
+        if len(matches) == 1:
+            return _backstage_entity_ref(matches[0]), "backstage-title"
+
+    if candidate_ref:
+        return candidate_ref, "generated-candidate"
+    return None, None
+
+
 def _match_catalog_service(
     legacy: Mapping[str, Any],
     by_id: Mapping[str, dict[str, Any]],
@@ -226,6 +304,8 @@ def build_parity_report(
     legacy_catalog: Mapping[str, Any],
     exposure_overrides: Mapping[str, Any],
     generated_catalog: Mapping[str, Any],
+    *,
+    backstage_entities: list[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic migration inventory from the current v1 sources."""
 
@@ -237,6 +317,14 @@ def build_parity_report(
     overrides_by_name, errors = _override_index(overrides)
     errors.extend(catalog_index_errors)
     errors.extend(_legacy_identity_errors(legacy_services))
+
+    (
+        backstage_by_name,
+        backstage_by_title,
+        backstage_by_ref,
+        backstage_errors,
+    ) = _backstage_indexes(list(backstage_entities or []))
+    errors.extend(backstage_errors)
     legacy_names = {
         str(service.get("name") or "").strip()
         for service in legacy_services
@@ -288,10 +376,18 @@ def build_parity_report(
             if catalog_service is not None
             else None
         )
-        entity_ref = (
+        candidate_ref = (
             _candidate_entity_ref(catalog_service)
             if catalog_service is not None
             else None
+        )
+        entity_ref, entity_ref_source = _resolve_backstage_ref(
+            legacy=legacy,
+            catalog_id=catalog_id,
+            candidate_ref=candidate_ref,
+            by_name=backstage_by_name,
+            by_title=backstage_by_title,
+            by_ref=backstage_by_ref,
         )
         entry = {
             "legacyKey": str(legacy.get("id") or "").strip() or slug(name),
@@ -299,7 +395,8 @@ def build_parity_report(
             "name": name,
             "catalogServiceId": catalog_id,
             "entityRef": entity_ref,
-            "candidateEntityRef": entity_ref,
+            "entityRefSource": entity_ref_source,
+            "candidateEntityRef": candidate_ref,
             "matchStrategy": match_strategy,
             "identityDebt": match_strategy != "explicit-id",
             "overridePresent": override is not None,
@@ -332,6 +429,10 @@ def build_parity_report(
         "ambiguousNameMatches": match_counts["ambiguous-name"],
         "unmappedServices": match_counts["unmapped"],
         "resolvedEntityRefs": len(by_entity_ref),
+        "backstageResolvedEntityRefs": sum(
+            str(item.get("entityRefSource") or "").startswith("backstage-")
+            for item in entries
+        ),
         "identityDebt": sum(bool(item["identityDebt"]) for item in entries),
         "desiredExposureEntries": desired_count,
         "accessRequiredEntries": access_required_count,
