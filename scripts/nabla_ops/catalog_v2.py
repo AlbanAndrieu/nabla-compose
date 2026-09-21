@@ -98,9 +98,55 @@ def _candidate_entity_ref(service: Mapping[str, Any]) -> str | None:
     return f"{backstage_kind}:default/{service_id}"
 
 
+def _validate_backstage_entity(entity: Mapping[str, Any]) -> None:
+    if entity.get("apiVersion") != "backstage.io/v1alpha1":
+        raise ValueError("Backstage entity apiVersion must be backstage.io/v1alpha1")
+
+    kind = str(entity.get("kind") or "").strip()
+    supported = {"API", "Component", "Domain", "Group", "Resource", "System"}
+    if kind not in supported:
+        raise ValueError(f"unsupported Backstage entity kind: {kind or '<empty>'}")
+
+    metadata = entity.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ValueError("Backstage entity requires metadata")
+
+    spec = entity.get("spec")
+    if not isinstance(spec, Mapping):
+        raise ValueError(f"Backstage {kind} entity requires spec")
+
+    required: dict[str, tuple[str, ...]] = {
+        "API": ("type", "lifecycle", "owner", "definition"),
+        "Component": ("type", "lifecycle", "owner"),
+        "Domain": ("owner",),
+        "Group": ("type", "children"),
+        "Resource": ("type", "owner"),
+        "System": ("owner",),
+    }
+    for key in required[kind]:
+        if key not in spec:
+            raise ValueError(f"Backstage {kind} spec.{key} is required")
+
+    if kind == "Group" and not isinstance(spec.get("children"), list):
+        raise ValueError("Backstage Group spec.children must be a list")
+
+    for key in ("owner", "system", "domain"):
+        value = spec.get(key)
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise ValueError(f"Backstage {kind} spec.{key} must be an entity ref")
+
+    depends_on = spec.get("dependsOn")
+    if depends_on is not None and (
+        not isinstance(depends_on, list)
+        or not all(isinstance(value, str) and value.strip() for value in depends_on)
+    ):
+        raise ValueError(f"Backstage {kind} spec.dependsOn must be a list of entity refs")
+
+
 def backstage_entity_ref(entity: Mapping[str, Any]) -> str:
     """Return a normalized full Backstage entity ref from one descriptor."""
 
+    _validate_backstage_entity(entity)
     kind = str(entity.get("kind") or "").strip().lower()
     metadata = entity.get("metadata")
     if not kind or not isinstance(metadata, Mapping):
