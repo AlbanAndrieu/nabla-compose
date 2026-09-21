@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: fastapi-sample
+  title: FastAPI Sample
+  description: FastAPI service with cloud production and TrueNAS homelab staging deployments.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: medium
+  tags:
+    - development
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sample/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/postgresql
