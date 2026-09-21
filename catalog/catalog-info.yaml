@@ -33,9 +33,25 @@ metadata:
   description: Shared native TrueNAS PostgreSQL service used by homelab consumers.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: critical
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
   tags:
     - data
+  annotations:
+    albandrieu.com/bia-mtpd: PT4H
+    albandrieu.com/bia-rto: PT1H
+    albandrieu.com/bia-rpo: PT1H
+    albandrieu.com/bia-mbco: read-write-database-for-priority-consumers
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: critical
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: medium
 spec:
   type: database
   owner: group:default/nabla-platform
