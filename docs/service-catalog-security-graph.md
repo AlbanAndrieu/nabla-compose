@@ -270,6 +270,29 @@ The combined model can then answer questions such as:
 - which runtime service exists but has no declared catalog identity?
 - which declared service is absent from runtime or has an untracked public edge?
 
+## Business criticality is BIA evidence, not a vulnerability score
+
+The v2 graph carries two distinct criticality concepts:
+
+- `operational-criticality` — technical importance, projected to OpenTelemetry
+  `service.criticality`;
+- `business-criticality` — calculated from reviewed Business Impact Analysis
+  inputs (MTPD/DMTP, RTO, applicable RPO and business impact dimensions).
+
+Business criticality must not be derived from CVSS, scanner severity, internet
+exposure, container health or Cartography centrality. Those are risk/exposure
+signals that can be combined with business criticality later when prioritizing
+remediation, but they do not redefine the underlying BIA.
+
+Likewise, dependency propagation is a separate derived graph signal: a Resource
+supporting a critical service may have high **effective dependency criticality**
+without silently changing its own BIA. This preserves source provenance and
+prevents recursive score inflation.
+
+The calculation policy lives in
+`catalog/business-criticality-policy.yaml`; detailed conventions and ISO/NIST
+mapping are in `docs/service-catalog-v2-normalization.md`.
+
 ## Target architecture
 
 ```text
