@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Audit catalog-v2 migration coverage without changing runtime state."""
 
 from __future__ import annotations
