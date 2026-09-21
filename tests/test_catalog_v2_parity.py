@@ -79,6 +79,28 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(entry["candidateEntityRef"], "component:default/fastapi-sample")
         self.assertEqual(preparation_errors(report), [])
 
+    def test_static_legacy_id_can_be_ready_without_generated_service(self) -> None:
+        report = build_parity_report(
+            {"services": [{"id": "postgresql", "name": "PostgreSQL"}]},
+            {"services": []},
+            {"services": []},
+            [
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {"name": "postgresql"},
+                    "spec": {"type": "database"},
+                }
+            ],
+        )
+
+        entry = report["entries"][0]
+        self.assertEqual(entry["matchStrategy"], "unmapped")
+        self.assertEqual(entry["backstageMatchStrategy"], "explicit-id")
+        self.assertTrue(entry["identityReady"])
+        self.assertFalse(entry["identityDebt"])
+        self.assertEqual(entry["backstageEntityRef"], "resource:default/postgresql")
+
     def test_materialized_backstage_ref_wins_over_legacy_kind_inference(self) -> None:
         report = build_parity_report(
             {
