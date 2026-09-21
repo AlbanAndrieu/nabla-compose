@@ -181,7 +181,10 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "apiVersion": "backstage.io/v1alpha1",
                     "kind": "Resource",
                     "metadata": {"name": "postgresql"},
-                    "spec": {"type": "database"},
+                    "spec": {
+                        "type": "database",
+                        "owner": "group:default/nabla-platform",
+                    },
                 }
             ],
         )
@@ -227,7 +230,10 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "apiVersion": "backstage.io/v1alpha1",
                     "kind": "Resource",
                     "metadata": {"name": "postgresql"},
-                    "spec": {"type": "database"},
+                    "spec": {
+                        "type": "database",
+                        "owner": "group:default/nabla-platform",
+                    },
                 }
             ],
         )
@@ -264,7 +270,10 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "apiVersion": "backstage.io/v1alpha1",
                     "kind": "Resource",
                     "metadata": {"name": "postgresql"},
-                    "spec": {"type": "database"},
+                    "spec": {
+                        "type": "database",
+                        "owner": "group:default/nabla-platform",
+                    },
                 }
             ],
         )
