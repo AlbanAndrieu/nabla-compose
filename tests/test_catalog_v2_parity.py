@@ -248,6 +248,22 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertGreater(report["summary"]["backstageMaterializedEntries"], 0)
         self.assertGreater(report["summary"]["identityReadyEntries"], 0)
         self.assertGreater(report["summary"]["desiredExposureEntries"], 0)
+
+        entries_by_name = {entry["name"]: entry for entry in report["entries"]}
+        for name, entity_ref in {
+            "TrueNAS": "resource:default/truenas",
+            "pfSense": "resource:default/pfsense",
+            "PostgreSQL": "resource:default/postgresql",
+        }.items():
+            with self.subTest(name=name):
+                entry = entries_by_name[name]
+                self.assertTrue(entry["identityReady"])
+                self.assertFalse(entry["identityDebt"])
+                self.assertEqual(entry["backstageEntityRef"], entity_ref)
+
+        home = entries_by_name["Home"]
+        self.assertTrue(home["identityDebt"])
+        self.assertIsNone(home["backstageEntityRef"])
         self.assertFalse(report["cutoverReady"])
 
 
