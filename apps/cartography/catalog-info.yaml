@@ -7,12 +7,27 @@ metadata:
   description: Scheduled or manual security asset and relationship ingestion into Neo4j.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: low
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
   tags:
     - security
     - nist-identify
     - nist-detect
   annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: manual-security-inventory-remains-available-from-source-systems
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cartography/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
