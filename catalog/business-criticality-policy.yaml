@@ -1,0 +1,50 @@
+---
+version: 1
+method: max-of-drivers
+
+# Nabla policy thresholds. ISO 22300/22317 and NIST define the BIA concepts,
+# but they do not prescribe these tier boundaries. Keep the thresholds explicit
+# and reviewable instead of burying them in code.
+levels:
+  critical:
+    mtpdMax: PT4H
+    rtoMax: PT1H
+    rpoMax: PT15M
+  high:
+    mtpdMax: P1D
+    rtoMax: PT4H
+    rpoMax: PT1H
+  medium:
+    mtpdMax: P3D
+    rtoMax: P1D
+    rpoMax: P1D
+  low: {}
+
+impactLevels:
+  - low
+  - medium
+  - high
+  - critical
+
+impactDimensions:
+  - operational
+  - customer
+  - financial
+  - legal-regulatory
+  - reputation
+  - confidentiality
+  - integrity
+  - privacy
+
+annotations:
+  mtpd: albandrieu.com/bia-mtpd
+  rto: albandrieu.com/bia-rto
+  rpo: albandrieu.com/bia-rpo
+  mbco: albandrieu.com/bia-mbco
+  status: albandrieu.com/bia-status
+  reviewedAt: albandrieu.com/bia-reviewed-at
+  impactPrefix: albandrieu.com/bia-impact-
+
+labels:
+  businessCriticality: albandrieu.com/business-criticality
+  operationalCriticality: albandrieu.com/operational-criticality
