@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import sys
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -15,6 +17,26 @@ from nabla_ops.catalog_v2 import build_parity_report, preparation_errors  # noqa
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
+
+
+def _backstage_entities() -> list[dict]:
+    paths = [ROOT / "catalog" / "catalog-info.yaml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    result: list[dict] = []
+    for path in paths:
+        if not path.exists():
+            continue
+        for index, payload in enumerate(
+            yaml.safe_load_all(path.read_text(encoding="utf-8"))
+        ):
+            if payload is None:
+                continue
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    f"{path.relative_to(ROOT)} document {index} must be a mapping"
+                )
+            result.append(payload)
+    return result
 
 
 def _load(path: Path) -> dict:
@@ -51,6 +73,7 @@ def main() -> int:
             _load(LEGACY_CATALOG),
             _load(EXPOSURE_OVERRIDES),
             _load(GENERATED_CATALOG),
+            _backstage_entities(),
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: catalog-v2 parity audit failed: {exc}", file=sys.stderr)
@@ -74,6 +97,9 @@ def main() -> int:
             f" slug-debt={summary['legacySlugMatches']}"
             f" name-debt={summary['legacyNameMatches']}"
             f" unmapped={summary['unmappedServices']}"
+            f" backstage={summary['backstageEntities']}"
+            f" materialized={summary['backstageMaterializedEntries']}"
+            f" identity-ready={summary['identityReadyEntries']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
