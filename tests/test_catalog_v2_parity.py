@@ -15,6 +15,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_entity_ref,
     backstage_graph_errors,
     build_parity_report,
+    compatibility_relation_debt,
     preparation_errors,
 )
 
@@ -93,6 +94,65 @@ class CatalogV2ParityTests(unittest.TestCase):
             "component:default/service: spec.owner must use a full Backstage entity ref:"
             " team",
             backstage_graph_errors(entities),
+        )
+
+    def test_relation_duplication_is_reported_as_transition_debt(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Group",
+                "metadata": {"name": "team"},
+                "spec": {"type": "team", "children": []},
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Resource",
+                "metadata": {"name": "database"},
+                "spec": {
+                    "type": "database",
+                    "owner": "group:default/team",
+                },
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "worker"},
+                "spec": {
+                    "type": "worker",
+                    "lifecycle": "production",
+                    "owner": "group:default/team",
+                    "dependsOn": ["resource:default/database"],
+                },
+            },
+        ]
+        debt = compatibility_relation_debt(
+            entities,
+            [
+                {
+                    "sourcePath": "apps/worker/compose.yml",
+                    "composeService": "worker",
+                    "entityRef": "component:default/worker",
+                    "relations": [
+                        {
+                            "target": "database",
+                            "type": "storesIn",
+                        }
+                    ],
+                }
+            ],
+        )
+        self.assertEqual(
+            debt,
+            [
+                {
+                    "source": "component:default/worker",
+                    "target": "resource:default/database",
+                    "backstageType": "dependsOn",
+                    "legacyType": "storesIn",
+                    "sourcePath": "apps/worker/compose.yml",
+                    "composeService": "worker",
+                }
+            ],
         )
 
     def test_explicit_id_maps_to_stable_resource_ref(self) -> None:
