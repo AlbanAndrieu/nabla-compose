@@ -229,8 +229,9 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
   entity ID, dependency, public/LAN hostname, desired visibility,
   `cloudflareAccessRequired`, accepted security exception, runtime binding,
   lifecycle wave and consumer.
-- [ ] Generate a machine-readable **v1 -> v2 parity report** keyed by full
-  Backstage entity ref; no display-name joins.
+- [x] Generate a machine-readable **v1 -> v2 parity report** with a verified
+  `byEntityRef` index for materialized Backstage identities; unresolved legacy
+  identities remain explicit debt and are never silently joined by display name.
 - [ ] Define/validate the v2 schemas and conventions:
   Backstage descriptors, entity-ref labels, named Compose ports,
   temporary Gateway-like `x-nabla.exposure`, exceptional
@@ -240,7 +241,7 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
   fact/relation declared in more than one authority (for example Backstage
   `dependsOn` plus x-nabla alias, or Traefik hostname plus duplicate x-nabla
   exposure).
-- [ ] Keep the current reboot wave planner and both legacy exposure JSON files
+- [x] Keep the current reboot wave planner and both legacy exposure JSON files
   operational during preparation; no runtime behavior changes in this phase.
 
 **Gate P2.1.a:** the parity inventory is complete and the migration tooling can
@@ -248,12 +249,14 @@ explain where every legacy field will move without deleting anything.
 
 #### P2.1.b — prove the model on representative services
 
-- [ ] Migrate a bounded pilot set covering the main patterns:
+- [x] Migrate a bounded pilot set covering the main patterns:
   `neo4j` (stateful Resource), `cartography` (manual job + dependency),
   `postgresql` (shared data Resource), `sample` (internal + Cloudflare
   desired exposure), and `traefik` (Git-native route provider).
-- [ ] Add/review `catalog-info.yaml`, Compose project names, entity-ref labels
-  and named long-syntax ports for the pilot.
+- [x] Add/review `catalog-info.yaml`, Compose project names, entity-ref labels
+  and named long-syntax ports for the pilot. The local contract validates
+  Backstage graph refs, identity collisions, named backend ports and temporary
+  desired-exposure security intent.
 - [ ] Demonstrate that provider outages preserve desired intent:
   Cloudflare/Docker/TrueNAS unavailable => hostname/visibility/Access intent
   remains present while observed conditions become `Unknown`.
