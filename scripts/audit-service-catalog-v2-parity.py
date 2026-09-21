@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
     build_parity_report,
+    compatibility_relation_debt,
     preparation_errors,
 )
 
@@ -40,6 +41,52 @@ def _backstage_entities() -> list[dict]:
                     f"{path.relative_to(ROOT)} document {index} must be a mapping"
                 )
             result.append(payload)
+    return result
+
+
+def _label_map(service: dict) -> dict[str, str]:
+    raw = service.get("labels") or {}
+    if isinstance(raw, dict):
+        return {str(key): str(value) for key, value in raw.items()}
+    result: dict[str, str] = {}
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, str) and "=" in item:
+                key, value = item.split("=", 1)
+                result[key] = value
+    return result
+
+
+def _compose_relation_bindings() -> list[dict]:
+    result: list[dict] = []
+    paths = sorted((ROOT / "apps").glob("*/compose*.yml"))
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    for path in paths:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        services = payload.get("services")
+        if not isinstance(services, dict):
+            continue
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            entity_ref = _label_map(service).get(
+                "com.albandrieu.nabla.entity-ref",
+                "",
+            )
+            metadata = service.get("x-nabla")
+            relations = metadata.get("relations") if isinstance(metadata, dict) else None
+            if not entity_ref or not isinstance(relations, list):
+                continue
+            result.append(
+                {
+                    "sourcePath": path.relative_to(ROOT).as_posix(),
+                    "composeService": str(service_name),
+                    "entityRef": entity_ref,
+                    "relations": relations,
+                }
+            )
     return result
 
 
@@ -83,6 +130,16 @@ def main() -> int:
         report["errors"] = sorted(
             set(report["errors"]) | set(backstage_graph_errors(backstage_entities))
         )
+        relation_debt = compatibility_relation_debt(
+            backstage_entities,
+            _compose_relation_bindings(),
+        )
+        report["compatibilityRelationDebt"] = relation_debt
+        report["summary"]["compatibilityRelationDebt"] = len(relation_debt)
+        if relation_debt:
+            report["cutoverBlockers"].append(
+                "legacy x-nabla relations still duplicate canonical Backstage dependencies"
+            )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: catalog-v2 parity audit failed: {exc}", file=sys.stderr)
         return 2
@@ -108,6 +165,7 @@ def main() -> int:
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
             f" identity-ready={summary['identityReadyEntries']}"
+            f" relation-debt={summary['compatibilityRelationDebt']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
@@ -115,6 +173,13 @@ def main() -> int:
                 "warning:"
                 f" {summary['identityDebt']} legacy entries still require stable"
                 " v2 identity review before destructive cutover",
+                file=sys.stderr,
+            )
+        if summary["compatibilityRelationDebt"]:
+            print(
+                "warning:"
+                f" {summary['compatibilityRelationDebt']} legacy relation copies remain"
+                " temporarily for v1 compatibility",
                 file=sys.stderr,
             )
 
