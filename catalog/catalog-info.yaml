@@ -1,0 +1,124 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: nabla-platform
+  title: Nabla Platform
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: nabla
+  title: Nabla
+spec:
+  owner: group:default/nabla-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: nabla-homelab
+  title: Nabla Homelab
+spec:
+  owner: group:default/nabla-platform
+  domain: domain:default/nabla
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgresql
+  title: PostgreSQL
+  description: Shared native TrueNAS PostgreSQL service used by homelab consumers.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - data
+spec:
+  type: database
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cloudflare-tunnel
+  title: Cloudflare Tunnel
+  description: Public edge tunnel provider for reviewed homelab routes.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: high
+  tags:
+    - network
+    - security
+spec:
+  type: network-edge
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: pfsense-haproxy
+  title: pfSense HAProxy
+  description: pfSense HAProxy public TLS ingress and reverse-proxy edge.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - network
+    - security
+spec:
+  type: reverse-proxy
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: truenas
+  title: TrueNAS
+  description: Always-on storage, virtualization and Docker application platform.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - infrastructure
+spec:
+  type: virtualization-platform
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kubernetes
+  title: Kubernetes
+  description: Talos-backed Kubernetes cluster hosted on TrueNAS.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - infrastructure
+spec:
+  type: kubernetes-cluster
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: talos
+  title: Talos Linux
+  description: Immutable operating system for the homelab Kubernetes nodes.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - infrastructure
+spec:
+  type: host-platform
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
