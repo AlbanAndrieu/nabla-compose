@@ -235,9 +235,11 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
   Backstage descriptors, entity-ref labels, named Compose ports,
   temporary Gateway-like `x-nabla.exposure`, exceptional
   `boot.after/before/wants`, risk acceptances and Kubernetes-style conditions.
-- [ ] Add anti-duplication validation: reject a fact/relation declared in more
-  than one authority (for example Backstage `dependsOn` plus x-nabla alias,
-  or Traefik hostname plus duplicate x-nabla exposure).
+- [ ] Add anti-duplication validation: detect and report compatibility debt
+  during preparation while v1 must coexist; the strict cutover gate rejects a
+  fact/relation declared in more than one authority (for example Backstage
+  `dependsOn` plus x-nabla alias, or Traefik hostname plus duplicate x-nabla
+  exposure).
 - [ ] Keep the current reboot wave planner and both legacy exposure JSON files
   operational during preparation; no runtime behavior changes in this phase.
 
