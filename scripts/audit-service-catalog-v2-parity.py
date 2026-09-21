@@ -12,7 +12,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from nabla_ops.catalog_v2 import build_parity_report, preparation_errors  # noqa: E402
+from nabla_ops.catalog_v2 import (  # noqa: E402
+    backstage_graph_errors,
+    build_parity_report,
+    preparation_errors,
+)
 
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
@@ -69,11 +73,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
+        backstage_entities = _backstage_entities()
         report = build_parity_report(
             _load(LEGACY_CATALOG),
             _load(EXPOSURE_OVERRIDES),
             _load(GENERATED_CATALOG),
-            _backstage_entities(),
+            backstage_entities,
+        )
+        report["errors"] = sorted(
+            set(report["errors"]) | set(backstage_graph_errors(backstage_entities))
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: catalog-v2 parity audit failed: {exc}", file=sys.stderr)
