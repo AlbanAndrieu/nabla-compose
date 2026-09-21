@@ -16,6 +16,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
     build_parity_report,
     compatibility_relation_debt,
+    desired_exposure_errors,
     preparation_errors,
 )
 
@@ -93,6 +94,90 @@ class CatalogV2ParityTests(unittest.TestCase):
             "component:default/service: spec.owner must use a full Backstage entity ref:"
             " team",
             backstage_graph_errors(entities),
+        )
+
+    def test_desired_public_exposure_requires_resolved_gateway_named_port_and_access(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Group",
+                "metadata": {"name": "team"},
+                "spec": {"type": "team", "children": []},
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Resource",
+                "metadata": {"name": "edge"},
+                "spec": {
+                    "type": "network-edge",
+                    "owner": "group:default/team",
+                },
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "service"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/team",
+                },
+            },
+        ]
+        binding = {
+            "sourcePath": "apps/service/compose.yml",
+            "composeService": "service",
+            "entityRef": "component:default/service",
+            "namedPorts": ["web"],
+            "exposure": [
+                {
+                    "name": "public",
+                    "hostnames": ["service.example.test"],
+                    "protocol": "HTTPS",
+                    "visibility": "public",
+                    "gatewayRef": "resource:default/edge",
+                    "backendPort": "web",
+                    "access": {"required": True},
+                }
+            ],
+        }
+
+        self.assertEqual(desired_exposure_errors(entities, [binding]), [])
+
+        invalid = {
+            **binding,
+            "exposure": [
+                {
+                    "name": "public",
+                    "hostnames": [],
+                    "protocol": "HTTPS",
+                    "visibility": "public",
+                    "gatewayRef": "resource:default/missing",
+                    "backendPort": "missing",
+                    "access": {},
+                }
+            ],
+        }
+        errors = desired_exposure_errors(entities, [invalid])
+        self.assertIn(
+            "apps/service/compose.yml:service:exposure[0]: public exposure "
+            "requires explicit hostnames",
+            errors,
+        )
+        self.assertIn(
+            "apps/service/compose.yml:service:exposure[0]: gatewayRef references "
+            "unknown entity: resource:default/missing",
+            errors,
+        )
+        self.assertIn(
+            "apps/service/compose.yml:service:exposure[0]: backendPort must "
+            "reference a named Compose port: missing",
+            errors,
+        )
+        self.assertIn(
+            "apps/service/compose.yml:service:exposure[0]: public exposure "
+            "requires explicit access.required boolean",
+            errors,
         )
 
     def test_relation_duplication_is_reported_as_transition_debt(self) -> None:
