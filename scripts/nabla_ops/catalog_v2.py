@@ -258,6 +258,107 @@ def _match_backstage_entity(
     return None, "unmapped"
 
 
+def desired_exposure_errors(
+    entities: list[Mapping[str, Any]],
+    bindings: list[Mapping[str, Any]],
+) -> list[str]:
+    """Validate temporary desired exposure specs without observing providers."""
+
+    by_ref, _ = _backstage_index(entities)
+    errors: list[str] = []
+    allowed_visibility = {"public", "lan", "cluster", "host"}
+
+    for binding in bindings:
+        source_path = str(binding.get("sourcePath") or "<unknown>")
+        compose_service = str(binding.get("composeService") or "<unknown>")
+        prefix = f"{source_path}:{compose_service}"
+        entity_ref = str(binding.get("entityRef") or "").strip().lower()
+        if not entity_ref:
+            errors.append(f"{prefix}: exposure requires an entity-ref label")
+        elif entity_ref not in by_ref:
+            errors.append(f"{prefix}: exposure entity ref is unresolved: {entity_ref}")
+
+        named_ports = {
+            str(value).strip()
+            for value in binding.get("namedPorts", [])
+            if str(value).strip()
+        }
+        exposures = binding.get("exposure")
+        if not isinstance(exposures, list) or not exposures:
+            errors.append(f"{prefix}: exposure must be a non-empty list")
+            continue
+
+        route_names: set[str] = set()
+        for index, route in enumerate(exposures):
+            route_prefix = f"{prefix}:exposure[{index}]"
+            if not isinstance(route, Mapping):
+                errors.append(f"{route_prefix}: route must be an object")
+                continue
+
+            name = str(route.get("name") or "").strip()
+            if not name:
+                errors.append(f"{route_prefix}: name is required")
+            elif name in route_names:
+                errors.append(f"{prefix}: duplicate exposure name: {name}")
+            else:
+                route_names.add(name)
+
+            visibility = str(route.get("visibility") or "").strip().lower()
+            if visibility not in allowed_visibility:
+                errors.append(
+                    f"{route_prefix}: visibility must be one of "
+                    + ", ".join(sorted(allowed_visibility))
+                )
+
+            hostnames = route.get("hostnames")
+            valid_hostnames = (
+                isinstance(hostnames, list)
+                and bool(hostnames)
+                and all(
+                    isinstance(hostname, str)
+                    and bool(hostname.strip())
+                    and " " not in hostname
+                    for hostname in hostnames
+                )
+            )
+            if visibility == "public" and not valid_hostnames:
+                errors.append(
+                    f"{route_prefix}: public exposure requires explicit hostnames"
+                )
+
+            gateway_ref = str(route.get("gatewayRef") or "").strip().lower()
+            if not gateway_ref:
+                errors.append(f"{route_prefix}: gatewayRef is required")
+            elif gateway_ref not in by_ref:
+                errors.append(
+                    f"{route_prefix}: gatewayRef references unknown entity: "
+                    f"{gateway_ref}"
+                )
+
+            backend_port = str(route.get("backendPort") or "").strip()
+            if not backend_port:
+                errors.append(f"{route_prefix}: backendPort is required")
+            elif backend_port not in named_ports:
+                errors.append(
+                    f"{route_prefix}: backendPort must reference a named Compose "
+                    f"port: {backend_port}"
+                )
+
+            protocol = str(route.get("protocol") or "").strip()
+            if not protocol:
+                errors.append(f"{route_prefix}: protocol is required")
+
+            access = route.get("access")
+            required = access.get("required") if isinstance(access, Mapping) else None
+            if visibility == "public" and not isinstance(required, bool):
+                errors.append(
+                    f"{route_prefix}: public exposure requires explicit "
+                    "access.required boolean"
+                )
+
+    return sorted(errors)
+
+
 def compatibility_relation_debt(
     entities: list[Mapping[str, Any]],
     bindings: list[Mapping[str, Any]],
