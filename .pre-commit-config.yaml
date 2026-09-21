@@ -181,7 +181,7 @@ repos:
         entry: python scripts/audit-service-catalog-v2-parity.py --check
         pass_filenames: false
         files: >-
-          ^(catalog/(?:homelab-services|homelab-exposure-overrides|services)[.]json|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/catalog_v2[.]py)|tests/test_catalog_v2_parity[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/catalog-info[.]yaml|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/catalog_v2[.]py)|tests/test_catalog_v2_parity[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
