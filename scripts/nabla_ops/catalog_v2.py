@@ -177,6 +177,55 @@ def _backstage_index(
     return by_ref, by_name
 
 
+def backstage_graph_errors(entities: list[Mapping[str, Any]]) -> list[str]:
+    """Validate full entity refs used by the discovered Backstage graph."""
+
+    by_ref, _ = _backstage_index(entities)
+    errors: list[str] = []
+
+    for source_ref, entity in sorted(by_ref.items()):
+        spec = entity.get("spec")
+        if not isinstance(spec, Mapping):
+            continue
+
+        refs: list[tuple[str, str]] = []
+        for key in ("owner", "system", "domain", "subdomainOf", "subcomponentOf"):
+            value = spec.get(key)
+            if isinstance(value, str) and value.strip():
+                refs.append((key, value.strip().lower()))
+
+        for key in (
+            "dependsOn",
+            "dependencyOf",
+            "providesApis",
+            "consumesApis",
+            "children",
+            "members",
+        ):
+            raw = spec.get(key)
+            if not isinstance(raw, list):
+                continue
+            refs.extend(
+                (key, value.strip().lower())
+                for value in raw
+                if isinstance(value, str) and value.strip()
+            )
+
+        for field, target_ref in refs:
+            if ":" not in target_ref or "/" not in target_ref:
+                errors.append(
+                    f"{source_ref}: spec.{field} must use a full Backstage entity ref:"
+                    f" {target_ref}"
+                )
+                continue
+            if target_ref not in by_ref:
+                errors.append(
+                    f"{source_ref}: spec.{field} references unknown entity: {target_ref}"
+                )
+
+    return sorted(errors)
+
+
 def _match_backstage_entity(
     legacy: Mapping[str, Any],
     catalog_service: Mapping[str, Any] | None,
