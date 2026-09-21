@@ -258,6 +258,69 @@ def _match_backstage_entity(
     return None, "unmapped"
 
 
+def compatibility_relation_debt(
+    entities: list[Mapping[str, Any]],
+    bindings: list[Mapping[str, Any]],
+) -> list[dict[str, str]]:
+    """Return v1 relation copies shadowed by canonical Backstage dependencies."""
+
+    by_ref, by_name = _backstage_index(entities)
+    declared: dict[str, set[str]] = {}
+    for source_ref, entity in by_ref.items():
+        spec = entity.get("spec")
+        if not isinstance(spec, Mapping):
+            continue
+        targets = spec.get("dependsOn")
+        if isinstance(targets, list):
+            declared[source_ref] = {
+                str(target).strip().lower()
+                for target in targets
+                if isinstance(target, str) and str(target).strip()
+            }
+
+    debt: list[dict[str, str]] = []
+    for binding in bindings:
+        source_ref = str(binding.get("entityRef") or "").strip().lower()
+        if source_ref not in declared:
+            continue
+        relations = binding.get("relations")
+        if not isinstance(relations, list):
+            continue
+
+        for relation in relations:
+            if not isinstance(relation, Mapping):
+                continue
+            legacy_target = str(relation.get("target") or "").strip()
+            if not legacy_target:
+                continue
+            refs = by_name.get(legacy_target, [])
+            if len(refs) != 1:
+                continue
+            target_ref = refs[0]
+            if target_ref not in declared[source_ref]:
+                continue
+            debt.append(
+                {
+                    "source": source_ref,
+                    "target": target_ref,
+                    "backstageType": "dependsOn",
+                    "legacyType": str(relation.get("type") or "unknown"),
+                    "sourcePath": str(binding.get("sourcePath") or ""),
+                    "composeService": str(binding.get("composeService") or ""),
+                }
+            )
+
+    return sorted(
+        debt,
+        key=lambda item: (
+            item["source"],
+            item["target"],
+            item["legacyType"],
+            item["sourcePath"],
+        ),
+    )
+
+
 def _desired_exposure(service: Mapping[str, Any]) -> dict[str, Any] | None:
     if not any(field in service for field in DESIRED_EXPOSURE_FIELDS):
         return None
