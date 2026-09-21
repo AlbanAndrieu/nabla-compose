@@ -155,7 +155,6 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertTrue(entry["identityDebt"])
         self.assertEqual(entry["candidateEntityRef"], "component:default/fastapi-sample")
         self.assertEqual(preparation_errors(report), [])
-        self.assertEqual(backstage_graph_errors(backstage_entities), [])
 
     def test_static_legacy_id_can_be_ready_without_generated_service(self) -> None:
         report = build_parity_report(
@@ -317,6 +316,7 @@ class CatalogV2ParityTests(unittest.TestCase):
         )
 
         self.assertEqual(preparation_errors(report), [])
+        self.assertEqual(backstage_graph_errors(backstage_entities), [])
         self.assertEqual(
             report["summary"]["legacyServices"],
             len(report["entries"]),
