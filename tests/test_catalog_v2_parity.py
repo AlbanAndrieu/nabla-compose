@@ -5,6 +5,8 @@ from pathlib import Path
 import sys
 import unittest
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -103,6 +105,62 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(report["summary"]["accessRequiredEntries"], 1)
         self.assertEqual(report["summary"]["securityExceptionEntries"], 1)
 
+    def test_backstage_descriptor_overrides_generated_kind_guess(self) -> None:
+        report = build_parity_report(
+            {"services": [{"id": "postgresql", "name": "PostgreSQL"}]},
+            {"services": []},
+            {
+                "services": [
+                    {
+                        "id": "postgresql",
+                        "name": "PostgreSQL",
+                        "kind": "service",
+                    }
+                ]
+            },
+            backstage_entities=[
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {
+                        "name": "postgresql",
+                        "title": "PostgreSQL",
+                    },
+                    "spec": {"type": "database"},
+                }
+            ],
+        )
+
+        entry = report["entries"][0]
+        self.assertEqual(entry["candidateEntityRef"], "component:default/postgresql")
+        self.assertEqual(entry["entityRef"], "resource:default/postgresql")
+        self.assertEqual(entry["entityRefSource"], "backstage-name")
+        self.assertEqual(report["summary"]["backstageResolvedEntityRefs"], 1)
+
+    def test_backstage_title_can_resolve_static_legacy_identity(self) -> None:
+        report = build_parity_report(
+            {"services": [{"name": "TrueNAS"}]},
+            {"services": []},
+            {"services": []},
+            backstage_entities=[
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {
+                        "name": "truenas",
+                        "title": "TrueNAS",
+                    },
+                    "spec": {"type": "virtualization-platform"},
+                }
+            ],
+        )
+
+        entry = report["entries"][0]
+        self.assertEqual(entry["matchStrategy"], "unmapped")
+        self.assertEqual(entry["entityRef"], "resource:default/truenas")
+        self.assertEqual(entry["entityRefSource"], "backstage-title")
+        self.assertIn("resource:default/truenas", report["byEntityRef"])
+
     def test_duplicate_generated_catalog_id_is_a_hard_preparation_error(self) -> None:
         report = build_parity_report(
             {"services": [{"id": "example", "name": "Example"}]},
@@ -192,6 +250,16 @@ class CatalogV2ParityTests(unittest.TestCase):
             json.loads(
                 (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
             ),
+            backstage_entities=[
+                document
+                for path in (
+                    [ROOT / "catalog" / "catalog-info.yaml"]
+                    + sorted((ROOT / "apps").glob("*/catalog-info.yaml"))
+                )
+                if path.exists()
+                for document in yaml.safe_load_all(path.read_text(encoding="utf-8"))
+                if isinstance(document, dict)
+            ],
         )
 
         self.assertEqual(preparation_errors(report), [])
@@ -205,6 +273,7 @@ class CatalogV2ParityTests(unittest.TestCase):
             report["summary"]["resolvedEntityRefs"],
             len(report["byEntityRef"]),
         )
+        self.assertGreater(report["summary"]["backstageResolvedEntityRefs"], 0)
         self.assertFalse(report["cutoverReady"])
 
 
