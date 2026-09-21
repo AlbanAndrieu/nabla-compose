@@ -16,6 +16,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
     build_parity_report,
     compatibility_relation_debt,
+    desired_exposure_errors,
     preparation_errors,
 )
 
@@ -90,6 +91,49 @@ def _compose_relation_bindings() -> list[dict]:
     return result
 
 
+def _compose_exposure_bindings() -> list[dict]:
+    result: list[dict] = []
+    paths = sorted((ROOT / "apps").glob("*/compose*.yml"))
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    for path in paths:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        services = payload.get("services")
+        if not isinstance(services, dict):
+            continue
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            metadata = service.get("x-nabla")
+            exposure = metadata.get("exposure") if isinstance(metadata, dict) else None
+            if exposure is None:
+                continue
+
+            named_ports: list[str] = []
+            raw_ports = service.get("ports")
+            if isinstance(raw_ports, list):
+                for port in raw_ports:
+                    if isinstance(port, dict):
+                        name = str(port.get("name") or "").strip()
+                        if name:
+                            named_ports.append(name)
+
+            result.append(
+                {
+                    "sourcePath": path.relative_to(ROOT).as_posix(),
+                    "composeService": str(service_name),
+                    "entityRef": _label_map(service).get(
+                        "com.albandrieu.nabla.entity-ref",
+                        "",
+                    ),
+                    "namedPorts": sorted(set(named_ports)),
+                    "exposure": exposure,
+                }
+            )
+    return result
+
+
 def _load(path: Path) -> dict:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -130,6 +174,13 @@ def main() -> int:
         report["errors"] = sorted(
             set(report["errors"]) | set(backstage_graph_errors(backstage_entities))
         )
+        exposure_errors = desired_exposure_errors(
+            backstage_entities,
+            _compose_exposure_bindings(),
+        )
+        report["errors"] = sorted(set(report["errors"]) | set(exposure_errors))
+        report["summary"]["desiredExposureSpecErrors"] = len(exposure_errors)
+
         relation_debt = compatibility_relation_debt(
             backstage_entities,
             _compose_relation_bindings(),
@@ -166,6 +217,7 @@ def main() -> int:
             f" materialized={summary['backstageMaterializedEntries']}"
             f" identity-ready={summary['identityReadyEntries']}"
             f" relation-debt={summary['compatibilityRelationDebt']}"
+            f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
