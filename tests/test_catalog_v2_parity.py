@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
     backstage_entity_ref,
+    backstage_graph_errors,
     build_parity_report,
     preparation_errors,
 )
@@ -51,6 +52,48 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "spec": {"type": "team", "children": "none"},
                 }
             )
+
+    def test_backstage_graph_requires_full_resolved_refs(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Group",
+                "metadata": {"name": "team"},
+                "spec": {"type": "team", "children": []},
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "System",
+                "metadata": {"name": "system"},
+                "spec": {"owner": "group:default/team"},
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "service"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/team",
+                    "system": "system:default/system",
+                    "dependsOn": ["resource:default/missing"],
+                },
+            },
+        ]
+        self.assertEqual(
+            backstage_graph_errors(entities),
+            [
+                "component:default/service: spec.dependsOn references unknown entity:"
+                " resource:default/missing"
+            ],
+        )
+
+        entities[2]["spec"]["owner"] = "team"
+        self.assertIn(
+            "component:default/service: spec.owner must use a full Backstage entity ref:"
+            " team",
+            backstage_graph_errors(entities),
+        )
 
     def test_explicit_id_maps_to_stable_resource_ref(self) -> None:
         report = build_parity_report(
@@ -112,6 +155,7 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertTrue(entry["identityDebt"])
         self.assertEqual(entry["candidateEntityRef"], "component:default/fastapi-sample")
         self.assertEqual(preparation_errors(report), [])
+        self.assertEqual(backstage_graph_errors(backstage_entities), [])
 
     def test_static_legacy_id_can_be_ready_without_generated_service(self) -> None:
         report = build_parity_report(
