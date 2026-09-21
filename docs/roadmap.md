@@ -288,6 +288,10 @@ for identity, dependencies, exposure intent and reboot safety.
   an infrastructure Resource supporting a critical business service) without
   rewriting the Resource's own business BIA; expose both own and effective
   dependency criticality in read models.
+- [ ] For every `high` / `critical` business entity, link the BIA to a concrete
+  PCA/PRA/DRP recovery test plan and evidence: restore/bascule scenario, expected
+  RTO/RPO, minimum continuity objective and last successful exercise. A valid
+  catalog calculation is not continuity acceptance by itself.
 - [ ] Normalize Compose project/service identity, named ports, healthchecks and
   native `depends_on`; remove redundant `container_name` only where safe.
 - [ ] Migrate every legacy desired hostname/visibility/Access requirement to
