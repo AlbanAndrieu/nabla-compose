@@ -12,6 +12,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from nabla_ops.business_criticality import (  # noqa: E402
+    business_continuity_errors,
+    business_criticality_inventory,
+)
 from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
     build_parity_report,
@@ -23,6 +27,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
+BUSINESS_CRITICALITY_POLICY = ROOT / "catalog" / "business-criticality-policy.yaml"
 
 
 def _backstage_entities() -> list[dict]:
@@ -134,6 +139,13 @@ def _compose_exposure_bindings() -> list[dict]:
     return result
 
 
+def _load_yaml_mapping(path: Path) -> dict:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path.relative_to(ROOT)} must contain a YAML object")
+    return payload
+
+
 def _load(path: Path) -> dict:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -181,6 +193,27 @@ def main() -> int:
         report["errors"] = sorted(set(report["errors"]) | set(exposure_errors))
         report["summary"]["desiredExposureSpecErrors"] = len(exposure_errors)
 
+        business_policy = _load_yaml_mapping(BUSINESS_CRITICALITY_POLICY)
+        business_inventory = business_criticality_inventory(
+            backstage_entities,
+            business_policy,
+        )
+        business_errors = business_continuity_errors(
+            backstage_entities,
+            business_policy,
+        )
+        report["errors"] = sorted(set(report["errors"]) | set(business_errors))
+        report["businessCriticality"] = business_inventory
+        report["summary"]["businessCriticalityProfiles"] = len(business_inventory)
+        report["summary"]["businessCriticalityErrors"] = len(business_errors)
+        report["summary"]["businessCriticalityByLevel"] = {
+            level: sum(
+                item["calculated"] == level
+                for item in business_inventory
+            )
+            for level in ("critical", "high", "medium", "low")
+        }
+
         relation_debt = compatibility_relation_debt(
             backstage_entities,
             _compose_relation_bindings(),
@@ -218,6 +251,8 @@ def main() -> int:
             f" identity-ready={summary['identityReadyEntries']}"
             f" relation-debt={summary['compatibilityRelationDebt']}"
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
+            f" business-bia={summary['businessCriticalityProfiles']}"
+            f" business-bia-errors={summary['businessCriticalityErrors']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
