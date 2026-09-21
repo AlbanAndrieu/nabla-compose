@@ -128,6 +128,30 @@ class BusinessCriticalityTests(unittest.TestCase):
             ],
         )
 
+    def test_policy_method_is_fail_closed(self) -> None:
+        policy = _policy()
+        policy["method"] = "weighted-average"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "policy method must be max-of-drivers",
+        ):
+            business_criticality(_entity(), policy)
+
+    def test_policy_thresholds_must_increase_by_tier(self) -> None:
+        policy = _policy()
+        policy["levels"]["high"]["rtoMax"] = "PT30M"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "rto thresholds must increase",
+        ):
+            business_criticality(_entity(), policy)
+
+    def test_invalid_iso_duration_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unsupported ISO-8601 duration"):
+            parse_iso8601_duration("P1DT")
+
     def test_repository_bia_profiles_are_consistent(self) -> None:
         entities = _repository_entities()
         policy = _policy()
