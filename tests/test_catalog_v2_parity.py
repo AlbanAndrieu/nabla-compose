@@ -5,6 +5,8 @@ from pathlib import Path
 import sys
 import unittest
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -38,11 +40,22 @@ class CatalogV2ParityTests(unittest.TestCase):
                     }
                 ]
             },
+            [
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {"name": "postgresql"},
+                    "spec": {"type": "database"},
+                }
+            ],
         )
 
         entry = report["entries"][0]
         self.assertEqual(entry["matchStrategy"], "explicit-id")
         self.assertFalse(entry["identityDebt"])
+        self.assertTrue(entry["identityReady"])
+        self.assertTrue(entry["backstageMaterialized"])
+        self.assertEqual(entry["backstageEntityRef"], "resource:default/postgresql")
         self.assertEqual(entry["candidateEntityRef"], "resource:default/postgresql")
 
     def test_legacy_slug_match_is_visible_identity_debt(self) -> None:
@@ -65,6 +78,40 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertTrue(entry["identityDebt"])
         self.assertEqual(entry["candidateEntityRef"], "component:default/fastapi-sample")
         self.assertEqual(preparation_errors(report), [])
+
+    def test_materialized_backstage_ref_wins_over_legacy_kind_inference(self) -> None:
+        report = build_parity_report(
+            {
+                "services": [
+                    {
+                        "id": "postgresql",
+                        "name": "PostgreSQL",
+                    }
+                ]
+            },
+            {"services": []},
+            {
+                "services": [
+                    {
+                        "id": "postgresql",
+                        "name": "PostgreSQL",
+                        "kind": "native-truenas-database",
+                    }
+                ]
+            },
+            [
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {"name": "postgresql"},
+                    "spec": {"type": "database"},
+                }
+            ],
+        )
+
+        entry = report["entries"][0]
+        self.assertEqual(entry["backstageEntityRef"], "resource:default/postgresql")
+        self.assertEqual(entry["candidateEntityRef"], "resource:default/postgresql")
 
     def test_override_preserves_desired_access_intent_independently_of_status(self) -> None:
         report = build_parity_report(
@@ -139,6 +186,19 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(actual_fields - FIELD_DISPOSITIONS.keys(), set())
 
     def test_repository_preparation_inventory_has_no_hidden_field_or_override(self) -> None:
+        backstage_entities: list[dict] = []
+        for path in [
+            ROOT / "catalog" / "catalog-info.yaml",
+            *sorted((ROOT / "apps").glob("*/catalog-info.yaml")),
+        ]:
+            if not path.exists():
+                continue
+            backstage_entities.extend(
+                item
+                for item in yaml.safe_load_all(path.read_text(encoding="utf-8"))
+                if isinstance(item, dict)
+            )
+
         report = build_parity_report(
             json.loads(
                 (ROOT / "catalog" / "homelab-services.json").read_text(
@@ -153,6 +213,7 @@ class CatalogV2ParityTests(unittest.TestCase):
             json.loads(
                 (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
             ),
+            backstage_entities,
         )
 
         self.assertEqual(preparation_errors(report), [])
@@ -161,6 +222,9 @@ class CatalogV2ParityTests(unittest.TestCase):
             len(report["entries"]),
         )
         self.assertGreater(report["summary"]["identityDebt"], 0)
+        self.assertGreater(report["summary"]["backstageEntities"], 0)
+        self.assertGreater(report["summary"]["backstageMaterializedEntries"], 0)
+        self.assertGreater(report["summary"]["identityReadyEntries"], 0)
         self.assertGreater(report["summary"]["desiredExposureEntries"], 0)
         self.assertFalse(report["cutoverReady"])
 
