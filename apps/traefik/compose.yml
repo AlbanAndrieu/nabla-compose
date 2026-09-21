@@ -1,4 +1,6 @@
 ---
+name: traefik
+
 x-nabla:
   nodes:
     - id: pfsense-haproxy
@@ -103,10 +105,26 @@ services:
       - "--metrics.prometheus.addserviceslabels=true"
 
     ports:
-      - "80:80" # Traefik
-      - "443:443" # Traefik
-      - "8080:8080"
-      - "8082:8082" # Prometheus metrics
+      - name: web
+        target: 80
+        published: "80"
+        protocol: tcp
+        app_protocol: http
+      - name: websecure
+        target: 443
+        published: "443"
+        protocol: tcp
+        app_protocol: https
+      - name: dashboard
+        target: 8080
+        published: "8080"
+        protocol: tcp
+        app_protocol: http
+      - name: metrics
+        target: 8082
+        published: "8082"
+        protocol: tcp
+        app_protocol: http
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -116,6 +134,7 @@ services:
 
     networks: ["traefik_network"]
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/traefik"
       # - "traefik.enable=true"
       # - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
       # - "traefik.http.routers.traefik.entrypoints=websecure"
