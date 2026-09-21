@@ -61,6 +61,23 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
+  name: pfsense
+  title: pfSense
+  description: Homelab firewall, router and network-edge appliance.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - network
+    - security
+spec:
+  type: firewall-router
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
   name: pfsense-haproxy
   title: pfSense HAProxy
   description: pfSense HAProxy public TLS ingress and reverse-proxy edge.
@@ -74,6 +91,8 @@ spec:
   type: reverse-proxy
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/pfsense
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
