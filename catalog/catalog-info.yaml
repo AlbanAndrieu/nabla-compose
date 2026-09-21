@@ -215,7 +215,7 @@ metadata:
     albandrieu.com/bia-impact-legal-regulatory: low
     albandrieu.com/bia-impact-reputation: low
     albandrieu.com/bia-impact-confidentiality: medium
-    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-integrity: medium
     albandrieu.com/bia-impact-privacy: low
 spec:
   type: kubernetes-cluster
@@ -247,7 +247,7 @@ metadata:
     albandrieu.com/bia-impact-legal-regulatory: low
     albandrieu.com/bia-impact-reputation: low
     albandrieu.com/bia-impact-confidentiality: medium
-    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-integrity: medium
     albandrieu.com/bia-impact-privacy: low
 spec:
   type: host-platform
