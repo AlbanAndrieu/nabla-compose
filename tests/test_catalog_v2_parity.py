@@ -44,6 +44,11 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(entry["matchStrategy"], "explicit-id")
         self.assertFalse(entry["identityDebt"])
         self.assertEqual(entry["candidateEntityRef"], "resource:default/postgresql")
+        self.assertEqual(entry["entityRef"], "resource:default/postgresql")
+        self.assertIn(
+            "resource:default/postgresql",
+            report["byEntityRef"],
+        )
 
     def test_legacy_slug_match_is_visible_identity_debt(self) -> None:
         report = build_parity_report(
@@ -97,6 +102,40 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(exposure["securityException"], "reviewed exception")
         self.assertEqual(report["summary"]["accessRequiredEntries"], 1)
         self.assertEqual(report["summary"]["securityExceptionEntries"], 1)
+
+    def test_duplicate_generated_catalog_id_is_a_hard_preparation_error(self) -> None:
+        report = build_parity_report(
+            {"services": [{"id": "example", "name": "Example"}]},
+            {"services": []},
+            {
+                "services": [
+                    {"id": "example", "name": "Example A", "kind": "service"},
+                    {"id": "example", "name": "Example B", "kind": "service"},
+                ]
+            },
+        )
+
+        self.assertIn(
+            "duplicate generated catalog id: example",
+            preparation_errors(report),
+        )
+
+    def test_duplicate_legacy_name_is_a_hard_preparation_error(self) -> None:
+        report = build_parity_report(
+            {
+                "services": [
+                    {"name": "Example"},
+                    {"name": "Example"},
+                ]
+            },
+            {"services": []},
+            {"services": []},
+        )
+
+        self.assertIn(
+            "duplicate legacy service name: Example",
+            preparation_errors(report),
+        )
 
     def test_unknown_legacy_field_is_a_hard_preparation_error(self) -> None:
         report = build_parity_report(
@@ -162,6 +201,10 @@ class CatalogV2ParityTests(unittest.TestCase):
         )
         self.assertGreater(report["summary"]["identityDebt"], 0)
         self.assertGreater(report["summary"]["desiredExposureEntries"], 0)
+        self.assertEqual(
+            report["summary"]["resolvedEntityRefs"],
+            len(report["byEntityRef"]),
+        )
         self.assertFalse(report["cutoverReady"])
 
 
