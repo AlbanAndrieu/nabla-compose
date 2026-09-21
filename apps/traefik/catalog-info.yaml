@@ -1,0 +1,20 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: traefik
+  title: Traefik
+  description: Internal reverse proxy for repository-managed homelab services.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: critical
+  tags:
+    - network
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/traefik/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: proxy
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

@@ -175,6 +175,22 @@ repos:
         files: >-
           ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:secrets/audit_consumers|truenas/audit-service-initialization)[.]py|tests/test_service_initialization_audit[.]py)$
 
+      - id: catalog-v2-preparation-contract
+        name: "🕸️ catalog · Validate v2 migration inventory coverage"
+        language: system
+        entry: python scripts/audit-service-catalog-v2-parity.py --check
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:homelab-services|homelab-exposure-overrides|services)[.]json|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/catalog_v2[.]py)|tests/test_catalog_v2_parity[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+
+      - id: catalog-v2-pilot-contract
+        name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
+        language: system
+        entry: python -m unittest tests.test_catalog_v2_parity tests.test_catalog_v2_pilot -v
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/(?:neo4j|cartography|sample|traefik|postgres)/(?:catalog-info[.]yaml|compose[.]yml)|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/catalog_v2[.]py)|tests/test_catalog_v2_(?:parity|pilot)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+
       - id: observability-contract
         name: "📊 observability · Validate lightweight logging contract"
         language: system

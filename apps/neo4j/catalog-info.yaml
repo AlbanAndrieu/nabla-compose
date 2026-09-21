@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: neo4j-security
+  title: Neo4j Security Graph
+  description: Analytical graph store for attack-path and blast-radius analysis.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: medium
+  tags:
+    - security
+    - graph
+    - nist-identify
+    - nist-detect
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/neo4j/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: graph-database
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
