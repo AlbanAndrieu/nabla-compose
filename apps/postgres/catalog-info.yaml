@@ -7,10 +7,24 @@ metadata:
   description: Prometheus exporter for the shared PostgreSQL Resource.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: medium
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: low
   tags:
     - observability
   annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: database-observability-can-be-temporarily-degraded
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
