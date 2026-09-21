@@ -1,8 +1,12 @@
 ---
+name: postgres
+
 services:
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/postgres-exporter
     x-nabla:
       id: postgres-exporter
       name: PostgreSQL Exporter
@@ -31,6 +35,10 @@ services:
     environment:
       DATA_SOURCE_NAME: "${POSTGRES_EXPORTER_DSN}"
     ports:
-      - 9187:9187
+      - name: metrics
+        target: 9187
+        published: "9187"
+        protocol: tcp
+        app_protocol: http
     networks:
       - default
