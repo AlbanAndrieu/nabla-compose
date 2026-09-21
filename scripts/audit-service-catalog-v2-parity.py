@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import sys
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -22,6 +24,27 @@ def _load(path: Path) -> dict:
     if not isinstance(payload, dict):
         raise ValueError(f"{path.relative_to(ROOT)} must contain a JSON object")
     return payload
+
+
+def _load_backstage_entities() -> list[dict]:
+    paths = [ROOT / "catalog" / "catalog-info.yaml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+
+    entities: list[dict] = []
+    for path in paths:
+        if not path.exists():
+            continue
+        for index, document in enumerate(
+            yaml.safe_load_all(path.read_text(encoding="utf-8"))
+        ):
+            if document is None:
+                continue
+            if not isinstance(document, dict):
+                raise ValueError(
+                    f"{path.relative_to(ROOT)} document {index} must be an object"
+                )
+            entities.append(document)
+    return entities
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,6 +74,7 @@ def main() -> int:
             _load(LEGACY_CATALOG),
             _load(EXPOSURE_OVERRIDES),
             _load(GENERATED_CATALOG),
+            backstage_entities=_load_backstage_entities(),
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: catalog-v2 parity audit failed: {exc}", file=sys.stderr)
@@ -74,6 +98,8 @@ def main() -> int:
             f" slug-debt={summary['legacySlugMatches']}"
             f" name-debt={summary['legacyNameMatches']}"
             f" unmapped={summary['unmappedServices']}"
+            f" entity-ref={summary['resolvedEntityRefs']}"
+            f" backstage={summary['backstageResolvedEntityRefs']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
