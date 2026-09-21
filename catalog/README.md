@@ -23,14 +23,43 @@ Use one authority per concern:
 - Traefik / Cloudflare / pfSense HAProxy / Kubernetes Gateway API: routing and
   exposure;
 - TrueNAS/Docker/Kubernetes EndpointSlice: observed runtime backends;
-- minimal x-nabla: exceptional `after/before/wants`, rare edge enrichment and
-  structured risk acceptance only.
+- minimal x-nabla: exceptional `after/before/wants`, rare edge enrichment,
+  structured risk acceptance, and temporary desired exposure intent only when a
+  provider still lacks a native Git/IaC desired-state source.
 
 The preferred v2 service has **no x-nabla block**.
 
 The migration mapping from legacy x-nabla fields to Backstage/Compose/provider
 sources is intentionally retained in
 `docs/service-catalog-v2-normalization.md` as documentation after cutover.
+
+## Criticality and business continuity
+
+Do not collapse all forms of importance into one field.
+
+- `metadata.labels['albandrieu.com/operational-criticality']` is the technical
+  service criticality and projects to OpenTelemetry `service.criticality`.
+- `metadata.labels['albandrieu.com/business-criticality']` is calculated from
+  Business Impact Analysis inputs and remains independent from runtime health,
+  vulnerability severity and graph centrality.
+- BIA inputs are scalar Backstage annotations using MTPD/DMTP (DIMA/DMIA
+  business concept), RTO, applicable RPO, MBCO/OMCA, impact dimensions,
+  assessment status and review date.
+- `catalog/business-criticality-policy.yaml` is the single source for the
+  Nabla tier thresholds; the standards define the BIA concepts, not those local
+  numeric/time boundaries.
+- Current pilot BIA values are `provisional`; only reviewed assessments may
+  become `validated`.
+
+Validate the BIA/criticality contract as part of the catalog gate:
+
+```bash
+python scripts/audit-service-catalog-v2-parity.py --check
+python -m unittest tests.test_business_criticality -v
+```
+
+High/critical business entities must ultimately link to tested PCA/PRA/DRP
+recovery evidence proving the expected RTO/RPO and minimum continuity objective.
 
 ## Service environments
 
