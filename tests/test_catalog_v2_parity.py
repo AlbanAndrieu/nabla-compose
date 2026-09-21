@@ -12,12 +12,46 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
+    backstage_entity_ref,
     build_parity_report,
     preparation_errors,
 )
 
 
 class CatalogV2ParityTests(unittest.TestCase):
+    def test_backstage_descriptor_validation_is_fail_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "apiVersion"):
+            backstage_entity_ref(
+                {
+                    "kind": "Resource",
+                    "metadata": {"name": "database"},
+                    "spec": {"type": "database", "owner": "group:default/team"},
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "spec.owner is required"):
+            backstage_entity_ref(
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Resource",
+                    "metadata": {"name": "database"},
+                    "spec": {
+                        "type": "database",
+                        "owner": "group:default/nabla-platform",
+                    },
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "spec.children must be a list"):
+            backstage_entity_ref(
+                {
+                    "apiVersion": "backstage.io/v1alpha1",
+                    "kind": "Group",
+                    "metadata": {"name": "team"},
+                    "spec": {"type": "team", "children": "none"},
+                }
+            )
+
     def test_explicit_id_maps_to_stable_resource_ref(self) -> None:
         report = build_parity_report(
             {
