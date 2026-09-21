@@ -1,10 +1,14 @@
 ---
+name: cartography
+
 services:
   cartography:
     image: ${CARTOGRAPHY_IMAGE:-ghcr.io/cartography-cncf/cartography:latest}
     container_name: cartography
     init: true
     restart: "no"
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/cartography
     profiles:
       - manual
     env_file:
