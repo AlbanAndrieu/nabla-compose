@@ -23,8 +23,13 @@ _DURATION_RE = re.compile(
 def parse_iso8601_duration(value: str) -> int:
     """Parse the bounded ISO-8601 duration subset used by the BIA policy."""
 
-    match = _DURATION_RE.fullmatch(value.strip())
+    text = value.strip()
+    match = _DURATION_RE.fullmatch(text)
     if not match or not any(match.groupdict().values()):
+        raise ValueError(f"unsupported ISO-8601 duration: {value!r}")
+    if "T" in text and not any(
+        match.group(key) for key in ("hours", "minutes", "seconds")
+    ):
         raise ValueError(f"unsupported ISO-8601 duration: {value!r}")
     parts = {key: int(raw or 0) for key, raw in match.groupdict().items()}
     seconds = (
@@ -58,6 +63,16 @@ def _metadata(entity: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping[str
 
 
 def _policy_keys(policy: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    if policy.get("method") != "max-of-drivers":
+        raise ValueError("business criticality policy method must be max-of-drivers")
+
+    allowed_levels = tuple(str(item) for item in policy.get("impactLevels", []))
+    if set(allowed_levels) != set(_LEVELS):
+        raise ValueError(
+            "business criticality policy impactLevels must contain "
+            + ", ".join(_LEVELS)
+        )
+
     annotations = policy.get("annotations")
     labels = policy.get("labels")
     if not isinstance(annotations, Mapping) or not isinstance(labels, Mapping):
@@ -66,9 +81,39 @@ def _policy_keys(policy: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, s
     required_labels = ("businessCriticality", "operationalCriticality")
     annotation_keys = {key: str(annotations.get(key) or "") for key in required_annotations}
     label_keys = {key: str(labels.get(key) or "") for key in required_labels}
-    missing = [key for key, value in {**annotation_keys, **label_keys}.items() if not value]
+    missing = [
+        key
+        for key, value in {**annotation_keys, **label_keys}.items()
+        if not value
+    ]
     if missing:
-        raise ValueError(f"business criticality policy has empty key(s): {sorted(missing)}")
+        raise ValueError(
+            f"business criticality policy has empty key(s): {sorted(missing)}"
+        )
+
+    levels = policy.get("levels")
+    if not isinstance(levels, Mapping):
+        raise ValueError("business criticality policy requires levels")
+    for metric in ("mtpd", "rto", "rpo"):
+        previous = 0
+        for level in ("critical", "high", "medium"):
+            values = levels.get(level)
+            if not isinstance(values, Mapping):
+                raise ValueError(
+                    f"business criticality policy level {level} must be an object"
+                )
+            threshold = values.get(f"{metric}Max")
+            if threshold is None:
+                raise ValueError(
+                    f"business criticality policy {level}.{metric}Max is required"
+                )
+            seconds = parse_iso8601_duration(str(threshold))
+            if seconds <= previous:
+                raise ValueError(
+                    f"business criticality policy {metric} thresholds must increase "
+                    "from critical to medium"
+                )
+            previous = seconds
     return annotation_keys, label_keys
 
 
@@ -241,7 +286,10 @@ def business_criticality_inventory(
 
     rows: list[dict[str, Any]] = []
     for entity in entities:
-        result = business_criticality(entity, policy)
+        try:
+            result = business_criticality(entity, policy)
+        except ValueError:
+            continue
         if result is not None:
             rows.append(result)
     return sorted(rows, key=lambda item: item["entityRef"])
