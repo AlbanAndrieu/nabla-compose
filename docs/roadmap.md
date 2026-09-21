@@ -217,7 +217,8 @@ Target contract:
   standard relations;
 - Compose owns runtime facts;
 - Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment, structured risk acceptances, and temporary desired exposure/security intent when a provider is not yet Git/IaC-managed;
-- OpenTelemetry semantics align runtime service identity;
+- OpenTelemetry semantics align runtime service identity and operational criticality;
+- Backstage BIA annotations + a calculated `albandrieu.com/business-criticality` label own business criticality separately from operational criticality;
 - CycloneDX/Trivy owns service/package supply-chain projection;
 - Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
 
@@ -235,12 +236,18 @@ Detailed cutover: `docs/service-catalog-v2-normalization.md`.
 - [ ] Define/validate the v2 schemas and conventions:
   Backstage descriptors, entity-ref labels, named Compose ports,
   temporary Gateway-like `x-nabla.exposure`, exceptional
-  `boot.after/before/wants`, risk acceptances and Kubernetes-style conditions.
+  `boot.after/before/wants`, risk acceptances, Kubernetes-style conditions,
+  and the BIA/business-criticality policy (`DMTP/MTPD`, RTO, RPO, OMCA/MBCO,
+  impact dimensions and provisional/validated assessment status).
 - [ ] Add anti-duplication validation: detect and report compatibility debt
   during preparation while v1 must coexist; the strict cutover gate rejects a
   fact/relation declared in more than one authority (for example Backstage
   `dependsOn` plus x-nabla alias, or Traefik hostname plus duplicate x-nabla
   exposure).
+- [x] Add `catalog/business-criticality-policy.yaml` plus local validation that
+  derives `low | medium | high | critical` from the strictest BIA driver; the
+  numeric/time thresholds are explicit Nabla policy, not claimed as ISO/NIST
+  thresholds.
 - [x] Keep the current reboot wave planner and both legacy exposure JSON files
   operational during preparation; no runtime behavior changes in this phase.
 
@@ -257,6 +264,10 @@ explain where every legacy field will move without deleting anything.
   and named long-syntax ports for the pilot. The local contract validates
   Backstage graph refs, identity collisions, named backend ports and temporary
   desired-exposure security intent.
+- [x] Add provisional BIA profiles to the representative Backstage pilot and
+  keep business criticality distinct from `operational-criticality` / OTel
+  `service.criticality`; validate `RTO < DMTP`, ISO-8601 duration syntax and
+  declared-vs-calculated tier consistency locally.
 - [ ] Demonstrate that provider outages preserve desired intent:
   Cloudflare/Docker/TrueNAS unavailable => hostname/visibility/Access intent
   remains present while observed conditions become `Unknown`.
@@ -269,6 +280,14 @@ for identity, dependencies, exposure intent and reboot safety.
 #### P2.1.c — bulk migrate nabla-compose
 
 - [ ] Generate/review all `apps/**/catalog-info.yaml`.
+- [ ] Complete a BIA pass for every business-relevant Component/Resource:
+  replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
+  concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
+  `bia-status=provisional` until an owner has reviewed the assumptions.
+- [ ] Propagate dependency criticality as a separate derived signal (for example
+  an infrastructure Resource supporting a critical business service) without
+  rewriting the Resource's own business BIA; expose both own and effective
+  dependency criticality in read models.
 - [ ] Normalize Compose project/service identity, named ports, healthchecks and
   native `depends_on`; remove redundant `container_name` only where safe.
 - [ ] Migrate every legacy desired hostname/visibility/Access requirement to
@@ -288,6 +307,9 @@ duplicate authorities and no legacy fact without an explicit v2 disposition.
 
 - [ ] Prepare FastAPI to consume Backstage desired state plus provider/runtime
   observations separately and expose Kubernetes-style conditions.
+- [ ] Expose both `operationalCriticality` and BIA-derived
+  `businessCriticality` (plus DMTP/RTO/RPO/recovery margin and assessment
+  status) in FastAPI without collapsing them into one severity.
 - [ ] Prepare Site Alban to consume entity refs and the new resource-oriented
   FastAPI views; keep icons/layout presentation-only.
 - [ ] Keep any FastAPI/Site cold-start snapshot generated/cache-only and prove
