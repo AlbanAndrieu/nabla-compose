@@ -326,7 +326,12 @@ def build_parity_report(
             else None
         )
         candidate_ref = backstage_ref or inferred_ref
-        identity_ready = match_strategy == "explicit-id" and backstage_ref is not None
+        explicit_legacy_id = bool(str(legacy.get("id") or "").strip())
+        identity_ready = (
+            explicit_legacy_id
+            and backstage_ref is not None
+            and backstage_match_strategy in {"explicit-id", "catalog-id"}
+        )
         entry = {
             "legacyKey": str(legacy.get("id") or "").strip() or slug(name),
             "legacyId": str(legacy.get("id") or "").strip() or None,
