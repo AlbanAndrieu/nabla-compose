@@ -65,10 +65,26 @@ metadata:
   description: Public edge tunnel provider for reviewed homelab routes.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: high
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: high
   tags:
     - network
     - security
+  annotations:
+    albandrieu.com/bia-mtpd: P1D
+    albandrieu.com/bia-rto: PT4H
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: priority-public-routes-remain-reachable
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: low
 spec:
   type: network-edge
   owner: group:default/nabla-platform
@@ -82,10 +98,26 @@ metadata:
   description: Homelab firewall, router and network-edge appliance.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: critical
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
   tags:
     - network
     - security
+  annotations:
+    albandrieu.com/bia-mtpd: PT1H
+    albandrieu.com/bia-rto: PT15M
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: lan-routing-dns-and-firewalling
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: critical
+    albandrieu.com/bia-impact-customer: high
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: medium
 spec:
   type: firewall-router
   owner: group:default/nabla-platform
@@ -99,10 +131,26 @@ metadata:
   description: pfSense HAProxy public TLS ingress and reverse-proxy edge.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/criticality: critical
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
   tags:
     - network
     - security
+  annotations:
+    albandrieu.com/bia-mtpd: PT4H
+    albandrieu.com/bia-rto: PT1H
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: priority-wan-ingress-for-reviewed-services
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: high
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: low
 spec:
   type: reverse-proxy
   owner: group:default/nabla-platform
