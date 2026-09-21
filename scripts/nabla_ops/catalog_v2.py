@@ -353,18 +353,57 @@ def _desired_exposure(service: Mapping[str, Any]) -> dict[str, Any] | None:
 
 def _catalog_indexes(
     catalog_services: list[dict[str, Any]],
-) -> tuple[dict[str, dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+) -> tuple[
+    dict[str, dict[str, Any]],
+    dict[str, list[dict[str, Any]]],
+    list[str],
+]:
     by_id: dict[str, dict[str, Any]] = {}
     by_name: dict[str, list[dict[str, Any]]] = {}
+    errors: list[str] = []
 
-    for service in catalog_services:
+    for index, service in enumerate(catalog_services):
         service_id = str(service.get("id") or "").strip()
         if service_id:
-            by_id[service_id] = service
+            if service_id in by_id:
+                errors.append(f"duplicate generated catalog id: {service_id}")
+            else:
+                by_id[service_id] = service
         name = str(service.get("name") or "").strip()
         if name:
             by_name.setdefault(name, []).append(service)
-    return by_id, by_name
+        elif not service_id:
+            errors.append(
+                f"services[{index}] has neither a stable id nor a display name"
+            )
+    return by_id, by_name, errors
+
+
+def _legacy_identity_errors(services: list[dict[str, Any]]) -> list[str]:
+    """Reject ambiguous legacy keys before they can corrupt migration joins."""
+
+    errors: list[str] = []
+    ids: Counter[str] = Counter()
+    names: Counter[str] = Counter()
+    for service in services:
+        service_id = str(service.get("id") or "").strip()
+        name = str(service.get("name") or "").strip()
+        if service_id:
+            ids[service_id] += 1
+        if name:
+            names[name] += 1
+
+    errors.extend(
+        f"duplicate legacy service id: {value}"
+        for value, count in sorted(ids.items())
+        if count > 1
+    )
+    errors.extend(
+        f"duplicate legacy service name: {value}"
+        for value, count in sorted(names.items())
+        if count > 1
+    )
+    return errors
 
 
 def _match_catalog_service(
@@ -418,10 +457,12 @@ def build_parity_report(
     overrides = _services(exposure_overrides, "homelab-exposure-overrides")
     catalog_services = _services(generated_catalog, "services")
 
-    by_id, by_name = _catalog_indexes(catalog_services)
+    by_id, by_name, catalog_index_errors = _catalog_indexes(catalog_services)
     backstage_entities = backstage_entities or []
     backstage_by_ref, backstage_by_name = _backstage_index(backstage_entities)
     overrides_by_name, errors = _override_index(overrides)
+    errors.extend(catalog_index_errors)
+    errors.extend(_legacy_identity_errors(legacy_services))
     legacy_names = {
         str(service.get("name") or "").strip()
         for service in legacy_services
@@ -495,6 +536,7 @@ def build_parity_report(
             "legacyId": str(legacy.get("id") or "").strip() or None,
             "name": name,
             "catalogServiceId": catalog_id,
+            "entityRef": backstage_ref,
             "candidateEntityRef": candidate_ref,
             "backstageEntityRef": backstage_ref,
             "backstageMaterialized": backstage_ref is not None,
@@ -512,6 +554,17 @@ def build_parity_report(
         errors.append(f"legacy field has no v2 disposition: {field}")
 
     entries.sort(key=lambda item: (item["legacyKey"], item["name"]))
+
+    by_entity_ref: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        entity_ref = entry.get("entityRef")
+        if not entity_ref:
+            continue
+        if entity_ref in by_entity_ref:
+            errors.append(f"multiple legacy entries resolve to entity ref: {entity_ref}")
+            continue
+        by_entity_ref[entity_ref] = entry
+
     summary = {
         "legacyServices": len(legacy_services),
         "legacyExplicitIds": sum(
@@ -528,6 +581,7 @@ def build_parity_report(
         "backstageMaterializedEntries": sum(
             bool(item["backstageMaterialized"]) for item in entries
         ),
+        "resolvedEntityRefs": len(by_entity_ref),
         "identityReadyEntries": sum(bool(item["identityReady"]) for item in entries),
         "desiredExposureEntries": desired_count,
         "accessRequiredEntries": access_required_count,
@@ -545,6 +599,10 @@ def build_parity_report(
             "v2 desired-state sources are not materialized/verified yet",
             "legacy identity debt must be resolved before destructive cutover",
         ],
+        "byEntityRef": {
+            entity_ref: by_entity_ref[entity_ref]
+            for entity_ref in sorted(by_entity_ref)
+        },
         "entries": entries,
     }
 
