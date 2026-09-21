@@ -98,6 +98,71 @@ def _candidate_entity_ref(service: Mapping[str, Any]) -> str | None:
     return f"{backstage_kind}:default/{service_id}"
 
 
+def backstage_entity_ref(entity: Mapping[str, Any]) -> str:
+    """Return a normalized full Backstage entity ref from one descriptor."""
+
+    kind = str(entity.get("kind") or "").strip().lower()
+    metadata = entity.get("metadata")
+    if not kind or not isinstance(metadata, Mapping):
+        raise ValueError("Backstage entity requires kind and metadata")
+    name = str(metadata.get("name") or "").strip()
+    namespace = str(metadata.get("namespace") or "default").strip().lower()
+    if not name or not namespace:
+        raise ValueError("Backstage entity requires metadata.name/namespace")
+    if slug(name) != name:
+        raise ValueError(
+            f"Backstage metadata.name must be lowercase kebab-case: {name!r}"
+        )
+    return f"{kind}:{namespace}/{name}"
+
+
+def _backstage_index(
+    entities: list[Mapping[str, Any]],
+) -> tuple[dict[str, Mapping[str, Any]], dict[str, list[str]]]:
+    by_ref: dict[str, Mapping[str, Any]] = {}
+    by_name: dict[str, list[str]] = {}
+    for entity in entities:
+        ref = backstage_entity_ref(entity)
+        if ref in by_ref:
+            raise ValueError(f"duplicate Backstage entity ref: {ref}")
+        by_ref[ref] = entity
+        name = ref.rsplit("/", 1)[1]
+        by_name.setdefault(name, []).append(ref)
+    return by_ref, by_name
+
+
+def _match_backstage_entity(
+    legacy: Mapping[str, Any],
+    catalog_service: Mapping[str, Any] | None,
+    by_name: Mapping[str, list[str]],
+) -> tuple[str | None, str]:
+    candidates: list[tuple[str, str]] = []
+
+    catalog_id = (
+        str(catalog_service.get("id") or "").strip()
+        if catalog_service is not None
+        else ""
+    )
+    if catalog_id:
+        candidates.append(("catalog-id", catalog_id))
+
+    explicit_id = str(legacy.get("id") or "").strip()
+    if explicit_id and explicit_id != catalog_id:
+        candidates.append(("explicit-id", explicit_id))
+
+    candidate_slug = slug(explicit_id or legacy.get("name"))
+    if candidate_slug not in {value for _, value in candidates}:
+        candidates.append(("legacy-slug", candidate_slug))
+
+    for strategy, name in candidates:
+        refs = by_name.get(name, [])
+        if len(refs) == 1:
+            return refs[0], strategy
+        if len(refs) > 1:
+            return None, f"ambiguous-{strategy}"
+    return None, "unmapped"
+
+
 def _desired_exposure(service: Mapping[str, Any]) -> dict[str, Any] | None:
     if not any(field in service for field in DESIRED_EXPOSURE_FIELDS):
         return None
@@ -187,6 +252,7 @@ def build_parity_report(
     legacy_catalog: Mapping[str, Any],
     exposure_overrides: Mapping[str, Any],
     generated_catalog: Mapping[str, Any],
+    backstage_entities: list[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic migration inventory from the current v1 sources."""
 
@@ -195,6 +261,8 @@ def build_parity_report(
     catalog_services = _services(generated_catalog, "services")
 
     by_id, by_name = _catalog_indexes(catalog_services)
+    backstage_entities = backstage_entities or []
+    backstage_by_ref, backstage_by_name = _backstage_index(backstage_entities)
     overrides_by_name, errors = _override_index(overrides)
     legacy_names = {
         str(service.get("name") or "").strip()
@@ -247,18 +315,30 @@ def build_parity_report(
             if catalog_service is not None
             else None
         )
+        backstage_ref, backstage_match_strategy = _match_backstage_entity(
+            legacy,
+            catalog_service,
+            backstage_by_name,
+        )
+        inferred_ref = (
+            _candidate_entity_ref(catalog_service)
+            if catalog_service is not None
+            else None
+        )
+        candidate_ref = backstage_ref or inferred_ref
+        identity_ready = match_strategy == "explicit-id" and backstage_ref is not None
         entry = {
             "legacyKey": str(legacy.get("id") or "").strip() or slug(name),
             "legacyId": str(legacy.get("id") or "").strip() or None,
             "name": name,
             "catalogServiceId": catalog_id,
-            "candidateEntityRef": (
-                _candidate_entity_ref(catalog_service)
-                if catalog_service is not None
-                else None
-            ),
+            "candidateEntityRef": candidate_ref,
+            "backstageEntityRef": backstage_ref,
+            "backstageMaterialized": backstage_ref is not None,
+            "backstageMatchStrategy": backstage_match_strategy,
             "matchStrategy": match_strategy,
-            "identityDebt": match_strategy != "explicit-id",
+            "identityReady": identity_ready,
+            "identityDebt": not identity_ready,
             "overridePresent": override is not None,
             "fieldDispositions": dispositions,
             "desiredExposure": exposure,
@@ -278,6 +358,11 @@ def build_parity_report(
         "ambiguousNameMatches": match_counts["ambiguous-name"],
         "unmappedServices": match_counts["unmapped"],
         "identityDebt": sum(bool(item["identityDebt"]) for item in entries),
+        "backstageEntities": len(backstage_by_ref),
+        "backstageMaterializedEntries": sum(
+            bool(item["backstageMaterialized"]) for item in entries
+        ),
+        "identityReadyEntries": sum(bool(item["identityReady"]) for item in entries),
         "desiredExposureEntries": desired_count,
         "accessRequiredEntries": access_required_count,
         "securityExceptionEntries": security_exception_count,
