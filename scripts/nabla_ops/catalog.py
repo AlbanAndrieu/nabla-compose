@@ -104,7 +104,10 @@ def declared_apps(catalog: dict[str, Any], *, root: Path) -> list[dict[str, Any]
         compose = root / row["sourcePath"]
         row["manual"] = _manual_compose_app(compose, compose_services)
         row["initializationEligible"] = (
-            row["status"] == ServiceIntent.ACTIVE.value and not row["manual"]
+            row["status"] == ServiceIntent.ACTIVE.value
+            and row["statusError"] is None
+            and row["mappingError"] is None
+            and not row["manual"]
         )
         result.append(row)
 
