@@ -53,6 +53,8 @@ class CatalogV2PilotTests(unittest.TestCase):
         self.assertIn("resource:default/postgresql", refs)
         self.assertIn("resource:default/neo4j-security", refs)
         self.assertIn("resource:default/cloudflare-tunnel", refs)
+        self.assertIn("resource:default/pfsense", refs)
+        self.assertIn("resource:default/pfsense-haproxy", refs)
         self.assertIn("component:default/fastapi-sample", refs)
         self.assertIn("component:default/cartography", refs)
         self.assertIn("component:default/traefik", refs)
