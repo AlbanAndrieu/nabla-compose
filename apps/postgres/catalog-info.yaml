@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: postgres-exporter
+  title: PostgreSQL Exporter
+  description: Prometheus exporter for the shared PostgreSQL Resource.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/criticality: medium
+  tags:
+    - observability
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: exporter
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/postgresql
