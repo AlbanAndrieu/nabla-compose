@@ -1414,7 +1414,7 @@ metadata:
     - nist-detect
   labels:
     albandrieu.com/status: active
-    albandrieu.com/criticality: low
+    albandrieu.com/operational-criticality: low
 spec:
   type: job
   lifecycle: production
