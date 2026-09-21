@@ -91,6 +91,86 @@ def test_manual_helper_does_not_disable_primary_runtime_service() -> None:
         assert row["initializationEligible"] is True
 
 
+def test_conflicting_runtime_ids_are_not_initialization_eligible() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        compose = root / "apps" / "example" / "compose.yml"
+        compose.parent.mkdir(parents=True)
+        compose.write_text(
+            "services:\n"
+            "  api:\n"
+            "    image: example-api\n"
+            "  worker:\n"
+            "    image: example-worker\n",
+            encoding="utf-8",
+        )
+        catalog = {
+            "services": [
+                {
+                    "id": "example-api",
+                    "sourcePath": "apps/example/compose.yml",
+                    "composeService": "api",
+                    "runtime": {
+                        "provider": "truenas-app",
+                        "appId": "example-a",
+                    },
+                },
+                {
+                    "id": "example-worker",
+                    "sourcePath": "apps/example/compose.yml",
+                    "composeService": "worker",
+                    "runtime": {
+                        "provider": "truenas-app",
+                        "appId": "example-b",
+                    },
+                },
+            ]
+        }
+
+        row = declared_apps(catalog, root=root)[0]
+        assert row["mappingError"] is not None
+        assert row["runtimeId"] is None
+        assert row["initializationEligible"] is False
+
+
+def test_conflicting_service_statuses_are_not_initialization_eligible() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        compose = root / "apps" / "example" / "compose.yml"
+        compose.parent.mkdir(parents=True)
+        compose.write_text(
+            "services:\n"
+            "  api:\n"
+            "    image: example-api\n"
+            "  worker:\n"
+            "    image: example-worker\n",
+            encoding="utf-8",
+        )
+        catalog = {
+            "services": [
+                {
+                    "id": "example-api",
+                    "sourcePath": "apps/example/compose.yml",
+                    "composeService": "api",
+                    "status": "active",
+                    "runtime": {"provider": "truenas-app", "appId": "example"},
+                },
+                {
+                    "id": "example-worker",
+                    "sourcePath": "apps/example/compose.yml",
+                    "composeService": "worker",
+                    "status": "planned",
+                    "runtime": {"provider": "truenas-app", "appId": "example"},
+                },
+            ]
+        }
+
+        row = declared_apps(catalog, root=root)[0]
+        assert row["statusError"] is not None
+        assert row["status"] is None
+        assert row["initializationEligible"] is False
+
+
 def test_initialization_stage_order_is_stable() -> None:
     assert [stage.value for stage in InitializationStage] == [
         "DECLARED",
