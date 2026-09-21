@@ -58,6 +58,35 @@ class CatalogV2PilotTests(unittest.TestCase):
         self.assertIn("component:default/traefik", refs)
         self.assertIn("component:default/postgres-exporter", refs)
 
+    def test_pilot_backstage_references_resolve(self) -> None:
+        paths = [
+            ROOT / "catalog" / "catalog-info.yaml",
+            ROOT / "apps" / "neo4j" / "catalog-info.yaml",
+            ROOT / "apps" / "cartography" / "catalog-info.yaml",
+            ROOT / "apps" / "sample" / "catalog-info.yaml",
+            ROOT / "apps" / "traefik" / "catalog-info.yaml",
+            ROOT / "apps" / "postgres" / "catalog-info.yaml",
+        ]
+        entities = [entity for path in paths for entity in _documents(path)]
+        refs = {_entity_ref(entity) for entity in entities}
+
+        referenced: set[str] = set()
+        for entity in entities:
+            spec = entity.get("spec") or {}
+            for key in ("owner", "system", "domain"):
+                value = spec.get(key)
+                if isinstance(value, str) and ":" in value:
+                    referenced.add(value)
+            depends_on = spec.get("dependsOn") or []
+            if isinstance(depends_on, list):
+                referenced.update(
+                    value
+                    for value in depends_on
+                    if isinstance(value, str) and ":" in value
+                )
+
+        self.assertEqual(referenced - refs, set())
+
     def test_cartography_declares_one_future_backstage_dependency(self) -> None:
         entity = _documents(ROOT / "apps" / "cartography" / "catalog-info.yaml")[0]
         self.assertEqual(
