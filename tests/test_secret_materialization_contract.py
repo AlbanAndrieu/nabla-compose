@@ -39,7 +39,6 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertNotIn("secrets_render_vaultwarden_app", library)
         self.assertNotIn("BW_SESSION", library)
 
-
     def test_bitwarden_cli_bootstrap_is_user_space_pinned_and_checksummed(self) -> None:
         bootstrap = (
             ROOT / "scripts" / "truenas" / "bootstrap-bitwarden-cli.sh"
@@ -50,6 +49,25 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("${HOME}/.local/bin", bootstrap)
         self.assertIn("run as the unprivileged operator", bootstrap)
         self.assertNotIn("sudo ", bootstrap)
+
+    def test_true_nas_bitwarden_client_uses_local_native_api_without_root(self) -> None:
+        helper = (
+            ROOT / "scripts" / "truenas" / "configure-bitwarden-cli-local.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("http://127.0.0.1:30032", helper)
+        self.assertIn("/api/config", helper)
+        self.assertIn("--api", helper)
+        self.assertIn("--identity", helper)
+        self.assertIn("--web-vault", helper)
+        self.assertIn("bw logout", helper)
+        self.assertIn("run as the unprivileged operator", helper)
+        self.assertNotIn("sudo ", helper)
+
+        compose = (ROOT / "apps" / "vaultwarden" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("vaultwarden/server:1.37.3", compose)
+        self.assertNotIn("vaultwarden/server:latest", compose)
 
 
 if __name__ == "__main__":

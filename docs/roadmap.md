@@ -21,6 +21,8 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
 - [Runtime baseline tests](./runtime-baseline-tests.md)
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
+- [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
+- [Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
@@ -38,6 +40,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
 - [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
 - [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
+- [x] **Catalog/security-graph target architecture:** the refined v2 target uses native Backstage `catalog-info.yaml` descriptors for catalog identity/standard relations, Compose for runtime facts, a minimal `x-nabla` only for Nabla-specific operational/security policy, CycloneDX for supply-chain projection and Cartography/Neo4j for analytical graph correlation. The consumer cutover is intentionally one-shot rather than a long-lived v1/v2 compatibility migration. See `docs/service-catalog-security-graph.md` and `docs/service-catalog-v2-normalization.md`.
 - [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
@@ -52,7 +55,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] **TrueNAS storage/runtime architecture:** repository-owned data, tracked Compose/config and runtime secret materialization are now separate contracts; `cpool/secrets` is the planned `GENERIC` root-only security dataset and application-owned datasets use the `APPS` preset when local persistence is real.
 - [ ] **TrueNAS runtime env migration:** baseline inventory found 52 env materializations requiring migration work, 23 application datasets with Apps-preset drift and eight empty unowned direct-child dataset candidates. Stage canonical copies first; do not bulk-finalize env paths or recreate non-empty datasets.
 - [x] **Cyberbro secret contract:** Vaultwarden item `nabla/prod/cyberbro` exists in the personal `TrueNAS` folder and renders 27 optional mappings as a `0600` env file. Provider credentials are intentionally empty until account/API onboarding is completed; empty optional providers do not block the free-engine baseline.
-- [ ] **Vaultwarden edge/TLS debt:** investigate recurrence of the transient Cloudflare `502 origin_bad_gateway` seen during Bitwarden token refresh despite a healthy direct origin, and correct the independent Vaultwarden icon-fetch certificate-name mismatch where raw IP `82.66.4.247` is contacted with a certificate valid only for `*.int.albandrieu.com`. Do not weaken TLS verification.
+- [ ] **Vaultwarden edge/TLS debt:** operator evidence on 2026-09-20 shows the official `bw 2026.9.0` client receives HTTP 404 while discovering the public `https://vaultwarden.albandrieu.com/api` service. Keep the canonical public hostname, but use the new loopback client configuration on TrueNAS only after `http://127.0.0.1:30032/api/config` proves the native Vaultwarden API is healthy. Separately repair the Cloudflare Tunnel/reverse-proxy path so public `/api/config` reaches Vaultwarden, investigate the earlier transient `502 origin_bad_gateway`, and correct the icon-fetch certificate-name mismatch. Do not weaken TLS verification and do not route new automation through the legacy REST adapter.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
 ## P0 — controlled TrueNAS reboot accepted
@@ -129,7 +132,7 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 7. [x] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; the bootstrap is non-destructive and preserves legacy paths during staging.
 8. [x] Resolve source collisions before staging. Differing sources fail closed, and project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
 9. [x] Fix declarations with no recoverable source instead of creating empty files. Home Assistant's unused `env_file: .env` declaration was removed rather than inventing an empty runtime file.
-10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces `check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Joplin now has an idempotent shared-PostgreSQL bootstrap. Do not mark a service accepted until this flow runs successfully on TrueNAS; AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
+10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces `check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Operator evidence on 2026-09-20 confirms Scanopy's canonical `.env.secrets` and Joplin's legacy `.env.secrets` are zero-key/empty placeholders, so there is no historical value to migrate; their first real credentials must be created once in Vaultwarden and then materialized canonically. AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
 11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
@@ -149,12 +152,12 @@ script.
 3. [x] Make the TrueNAS initialization audit distinguish planned/disabled services from missing active services and suppress normal deployment recommendations for them.
 4. [x] Make reboot lifecycle planning suppress planned/disabled Apps by default; explicit operator inclusion remains the bounded override.
 5. [x] Add the repository-wide static secret-consumer/debt ratchet and the unprivileged Vaultwarden render -> bounded root install boundary from #210. Root must never receive `BW_SESSION`.
-6. [ ] Consolidate generic Python operations into an importable repository library with a thin host-local CLI entrypoint. Keep boot/recovery executable without FastAPI, Redis or Vaultwarden; retire per-service shell duplication opportunistically behind compatibility wrappers.
+6. [x] Establish the generic host-local Python operations foundation: `scripts/nabla_ops/` owns the shared service-intent/state model and catalog aggregation, while `scripts/nabla-service.py` is a thin read-only CLI. Missing status keeps the `active` fallback; planned/disabled/manual services are excluded from normal initialization. Continue moving duplicated per-service logic behind this library through compatibility wrappers before broad Vaultwarden migration.
 7. [x] Reuse the existing TrueNAS `apps/sample` / `fastapi-sample` runtime as the future **Nabla Service** API/UI/MCP facade instead of creating another always-on daemon or repository. Keep its stable catalog id and image identity; “Nabla Service” is a capability/profile, not a rename.
 8. [ ] Add a local-controller profile to FastAPI Sample only after MCP/ops authentication and route exposure fail closed. The current `sample.albandrieu.com` Cloudflare Access ingress means privileged mutation routes must not be added until public-path denial/route non-registration is proven. FastAPI Cloud stays read-only.
 9. [ ] Keep the existing `fastapi_observer` TrueNAS credential read-only. Any future bounded mutation adapter must use a separate least-privilege execution identity and must never expose generic shell/`midclt` passthrough.
-10. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories.
-11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries.
+10. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories. Implement generic handlers (TrueNAS App reconcile, PostgreSQL role/database, HTTP/TCP readiness, manual jobs) in `nabla_ops` before migrating additional secret waves.
+11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries. The stage enum now lives in `nabla_ops`; persistence/mutation remains deliberately deferred until transaction semantics are implemented.
 12. [x] Add a root-readable, value-blind filesystem inventory for `.env` / `.env.secrets` migration candidates; it reports paths/metadata only and complements the canonical migration planner.
 13. [x] Stage `sample` as the first path-normalization pilot without Vaultwarden. Operator evidence on 2026-09-19 confirms `/mnt/cpool/secrets/runtime/sample/.env` and `.env.secrets` are root:root `0600`, non-empty and byte-consistent with the legacy sources; legacy files remain intact.
 14. [ ] **Finish Sample before deleting legacy dotenvs:** restage after the local `.env` cleanup, redeploy from the canonical paths, require `/health`, version, dedicated observer-network and TrueNAS read-only observer acceptance, then perform one controlled reboot acceptance. Only then run `--finalize sample`; after an additional clean observation/reboot cycle, remove the compatibility symlinks once repository/runtime consumers no longer reference `/mnt/cpool/sample/.env*`.
@@ -205,7 +208,145 @@ local operations, but it is not part of the minimum boot dependency chain.
 
 ### P2.1 — security inventory, supply-chain and attack-graph tooling
 
-Treat `x-nabla` plus the generated `catalog/services.json` / `catalog/service-topology.json` as the authoritative application/service catalog. Add specialized tools as domain-specific consumers or enrichment sources rather than introducing competing inventories.
+The v2 normalization decision supersedes the earlier plan to keep the complete
+catalog schema inside `x-nabla`.
+
+Target contract:
+
+- native Backstage descriptors own entity identity, owner/system/lifecycle and
+  standard relations;
+- Compose owns runtime facts;
+- Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment, structured risk acceptances, and temporary desired exposure/security intent when a provider is not yet Git/IaC-managed;
+- OpenTelemetry semantics align runtime service identity;
+- CycloneDX/Trivy owns service/package supply-chain projection;
+- Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
+
+Detailed cutover: `docs/service-catalog-v2-normalization.md`.
+
+#### P2.1.a — prepare the migration without changing runtime behavior
+
+- [ ] Freeze the legacy v1 contract as migration input: inventory every service,
+  entity ID, dependency, public/LAN hostname, desired visibility,
+  `cloudflareAccessRequired`, accepted security exception, runtime binding,
+  lifecycle wave and consumer.
+- [ ] Generate a machine-readable **v1 -> v2 parity report** keyed by full
+  Backstage entity ref; no display-name joins.
+- [ ] Define/validate the v2 schemas and conventions:
+  Backstage descriptors, entity-ref labels, named Compose ports,
+  temporary Gateway-like `x-nabla.exposure`, exceptional
+  `boot.after/before/wants`, risk acceptances and Kubernetes-style conditions.
+- [ ] Add anti-duplication validation: reject a fact/relation declared in more
+  than one authority (for example Backstage `dependsOn` plus x-nabla alias,
+  or Traefik hostname plus duplicate x-nabla exposure).
+- [ ] Keep the current reboot wave planner and both legacy exposure JSON files
+  operational during preparation; no runtime behavior changes in this phase.
+
+**Gate P2.1.a:** the parity inventory is complete and the migration tooling can
+explain where every legacy field will move without deleting anything.
+
+#### P2.1.b — prove the model on representative services
+
+- [ ] Migrate a bounded pilot set covering the main patterns:
+  `neo4j` (stateful Resource), `cartography` (manual job + dependency),
+  `postgresql` (shared data Resource), `sample` (internal + Cloudflare
+  desired exposure), and `traefik` (Git-native route provider).
+- [ ] Add/review `catalog-info.yaml`, Compose project names, entity-ref labels
+  and named long-syntax ports for the pilot.
+- [ ] Demonstrate that provider outages preserve desired intent:
+  Cloudflare/Docker/TrueNAS unavailable => hostname/visibility/Access intent
+  remains present while observed conditions become `Unknown`.
+- [ ] Prove the first dependency-DAG/readiness plan against the pilot without
+  removing the legacy wave planner.
+
+**Gate P2.1.b:** pilot v2 projection and v1 behavior are semantically equivalent
+for identity, dependencies, exposure intent and reboot safety.
+
+#### P2.1.c — bulk migrate nabla-compose
+
+- [ ] Generate/review all `apps/**/catalog-info.yaml`.
+- [ ] Normalize Compose project/service identity, named ports, healthchecks and
+  native `depends_on`; remove redundant `container_name` only where safe.
+- [ ] Migrate every legacy desired hostname/visibility/Access requirement to
+  Traefik/Gateway/provider IaC or temporary `x-nabla.exposure`.
+- [ ] Migrate every accepted exposure/security exception to structured
+  `riskAcceptances`.
+- [ ] Remove duplicated catalog/runtime/relation fields from `x-nabla`.
+- [ ] Replace phase/priority/wave authoring with dependency DAG + readiness;
+  keep only exceptional systemd-style ordering metadata.
+- [ ] Generate Backstage/CycloneDX projections and the parity report; do not
+  generate a new canonical flat exposure catalog.
+
+**Gate P2.1.c:** 100% desired-intent parity, zero unresolved entity refs, zero
+duplicate authorities and no legacy fact without an explicit v2 disposition.
+
+#### P2.1.d — prepare consumers before destructive cutover
+
+- [ ] Prepare FastAPI to consume Backstage desired state plus provider/runtime
+  observations separately and expose Kubernetes-style conditions.
+- [ ] Prepare Site Alban to consume entity refs and the new resource-oriented
+  FastAPI views; keep icons/layout presentation-only.
+- [ ] Keep any FastAPI/Site cold-start snapshot generated/cache-only and prove
+  that provider unavailability does not erase desired exposure intent.
+- [ ] Run local-first quality gates in all three repositories; do not depend on
+  GitHub Actions credits for deterministic formatting/lint/test feedback.
+
+**Gate P2.1.d:** all three PRs are ready together; legacy readers are no longer
+required for normal execution.
+
+#### P2.1.e — coordinated one-shot cutover
+
+- [ ] Merge/deploy the prepared `nabla-compose` v2 contract.
+- [ ] Immediately deploy the prepared FastAPI consumer.
+- [ ] Immediately deploy the prepared Site Alban consumer.
+- [ ] Run cross-repository smoke for entity refs, desired-vs-observed exposure,
+  health/status conditions, topology rendering and reboot planning.
+- [ ] Verify representative internal route, Cloudflare Tunnel + Access route,
+  direct pfSense/HAProxy route and Kubernetes route if present.
+
+**Gate P2.1.e:** all consumers operate exclusively on v2 semantics and the
+desired exposure intent remains visible with providers both healthy and
+unavailable.
+
+#### P2.1.f — remove legacy contracts and prove reboot acceptance
+
+- [ ] Delete `homelab-services.json`,
+  `homelab-exposure-overrides.json`, legacy generated
+  `services.json/service-topology.json` and obsolete compatibility code only
+  after the parity/smoke gates are green.
+- [ ] Replace the legacy resume-wave implementation with dependency-DAG +
+  readiness reconciliation.
+- [ ] Run one controlled TrueNAS reboot and require equivalent-or-better
+  acceptance before deleting the old planner.
+- [ ] Keep rollback evidence/artifacts until post-cutover acceptance is complete.
+
+**Gate P2.1.f:** no runtime or UI path depends on the legacy flat schemas or wave
+metadata.
+
+#### P2.1.g — later provider-native IaC cleanup
+
+- [ ] Move Cloudflare Tunnel/Access desired state from temporary
+  `x-nabla.exposure` into OpenTofu/Terraform when that control plane is
+  introduced.
+- [ ] Move pfSense/HAProxy desired routes into a reviewed declarative/API-managed
+  source when safe automation exists.
+- [ ] Use native Gateway API for Kubernetes-hosted routes.
+- [ ] Delete each temporary `x-nabla.exposure` entry as soon as the provider has
+  a real Git/IaC desired-state source; FastAPI continues to expose provider
+  observation as status.
+
+**Gate P2.1.g:** `x-nabla.exposure` remains only for providers that genuinely
+lack a native/declarative desired-state source.
+
+- [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
+- [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
+- [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; delete boot phase/priority/target/wave metadata, derive required ordering from Backstage `spec.dependsOn` + Compose `depends_on` + readiness, and retain only exceptional systemd-inspired `after/before/wants` plus non-duplicative relation/risk metadata.
+- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities; preserve desired exposure/security intent in Git until each provider has native IaC, and derive only observed endpoint/route/runtime status from providers.
+- [ ] **One-shot generated contracts:** emit Backstage entity/relationship projections and CycloneDX 1.7 with one `catalogRevision`; do not generate a replacement flat exposure catalog.
+- [ ] **FastAPI one-shot cutover:** delete `homelab-services.json` and `homelab-exposure-overrides.json` only after desired-intent parity is proven; consume Backstage + provider-native/temporary Git route intent as spec-like desired state and Compose/TrueNAS/Kubernetes/Traefik/Cloudflare/pfSense observations as status-like evidence, normalize conditions, and key all joins by full entity ref.
+- [ ] **Site Alban one-shot cutover:** replace its old service/topology DTOs and bundled flat fallback, use full entity refs as React Flow IDs, consume FastAPI resource-oriented runtime/network views, and keep icons/layout presentation-only.
+- [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions, and a parity report proving every current public hostname / visibility / Access requirement / accepted exposure exception has a v2 declared home before deleting the legacy JSON.
+- [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
+- [ ] Normalize NIST CSF 2.0 classifications to `Govern | Identify | Protect | Detect | Respond | Recover` and project service criticality to the OpenTelemetry `service.criticality` vocabulary.
 
 Runtime preparation contract for this wave:
 
@@ -214,15 +355,15 @@ Runtime preparation contract for this wave:
 3. `scripts/truenas/bootstrap-security-tooling-postgres.sh --apply <app>` idempotently creates/rotates dedicated shared-PostgreSQL roles and databases for Plumber, NetBox, Dependency-Track and DefectDojo, then proves authentication.
 4. `scripts/truenas/deploy-security-tooling.sh --apply <app|all>` validates Compose/catalog contracts, storage, database prerequisites, reconciles the TrueNAS Custom App, waits for middleware `RUNNING`, validates container stability and probes the service HTTP endpoint.
 5. Cartography and Scorecard remain `profile: manual` jobs: validate their Compose/secrets but do not register them as always-on TrueNAS Apps or reboot obligations.
-6. After runtime acceptance, execute one controlled reboot and require the topology-derived resume waves plus the generic container health barrier to pass before marking this wave stable.
+6. Until catalog v2 is implemented, keep the current topology-derived resume waves as the accepted runtime contract. During v2 cutover, replace them with dependency-DAG + readiness reconciliation and prove equivalent reboot acceptance before removing the legacy wave planner.
 
 
-- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Define explicit reconciliation boundaries with `x-nabla` so NetBox owns network/infrastructure data while `x-nabla` remains authoritative for service identity and service-to-service topology.
+- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Backstage owns service/catalog identity; NetBox owns network/infrastructure intent; reconciliation uses stable entity/infrastructure IDs.
 - [ ] **OWASP DefectDojo** — Compose/catalog and runtime bootstrap are prepared; deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
 - [ ] **OWASP Dependency-Track** — Compose/catalog and runtime bootstrap are prepared; deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
 - [ ] **OpenSSF Scorecard** — manual-job Compose and Vaultwarden contract are prepared; integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
-- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the canonical asset/service inventory is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources that exist in the environment, enrich the graph with `x-nabla` service ownership/topology where useful, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
-- [ ] Define an interoperability contract: `x-nabla` = service/application identity + declared dependencies; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream security posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable identifiers and preserve provenance/evidence.
+- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the normalized Backstage/Compose identity model is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources, correlate through explicit entity refs/image digests/infrastructure IDs, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
+- [ ] Define the final interoperability contract: Backstage = catalog identity/standard relations; Compose = desired runtime; minimal `x-nabla` = Nabla-only operational/security policy; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable entity refs/digests/infrastructure IDs and preserve provenance/evidence.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
@@ -391,6 +532,8 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> deferred nginx-proxy-manager/OpenArchiver/Paperless debt
   -> bounded P5 cleanup
   -> lifecycle/topology + script-debt consolidation
+  -> direct catalog standardization (v1 -> Backstage + CycloneDX; migrate desired exposure intent, then delete flat service/exposure inventory)
+  -> FastAPI provider-derived resource views + Kubernetes-style conditions + Site Alban entity-ref reader
   -> CSI hardening postconditions/PSS
   -> infrastructure secrets
   -> Vault / Falco / Kubara
