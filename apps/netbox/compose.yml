@@ -1,4 +1,5 @@
 ---
+name: netbox
 services:
   netbox:
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
@@ -26,13 +27,20 @@ services:
       timeout: 5s
       retries: 10
     ports:
-      - "172.17.0.24:31082:8080"
+      - name: web
+        target: 8080
+        published: "31082"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/netbox/media:/opt/netbox/netbox/media
       - /mnt/cpool/netbox/reports:/opt/netbox/netbox/reports
       - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/netbox
     x-nabla:
       id: netbox
       name: NetBox
@@ -87,6 +95,8 @@ services:
       - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/netbox-worker
     x-nabla:
       id: netbox-worker
       name: NetBox Worker
@@ -120,6 +130,8 @@ services:
       - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/netbox-housekeeping
     x-nabla:
       id: netbox-housekeeping
       name: NetBox Housekeeping
