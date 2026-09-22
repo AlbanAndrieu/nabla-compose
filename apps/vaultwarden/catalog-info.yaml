@@ -1,0 +1,61 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: vaultwarden
+  title: Vaultwarden
+  description: Self-hosted Bitwarden-compatible password and secret vault.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: high
+    albandrieu.com/bia-scope: direct
+  tags:
+    - security
+    - secrets
+    - nist-protect
+  annotations:
+    albandrieu.com/bia-mtpd: P1D
+    albandrieu.com/bia-rto: PT4H
+    albandrieu.com/bia-rpo: PT1H
+    albandrieu.com/bia-mbco: access-to-current-credentials-and-secret-material
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: medium
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: high
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/vaultwarden/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: vaultwarden-rest-api
+  title: Vaultwarden REST API Adapter
+  description: Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - security
+    - compatibility
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/vaultwarden/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: deprecated
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/vaultwarden
