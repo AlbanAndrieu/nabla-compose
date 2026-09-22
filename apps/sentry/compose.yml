@@ -1,4 +1,5 @@
 ---
+name: sentry
 x-sentry-env: &sentry-env
   COMPOSE_PROFILES: errors-only
   SENTRY_CONF: /etc/sentry
@@ -101,6 +102,8 @@ services:
 
   snuba-api:
     <<: *snuba-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-api
     x-nabla:
       id: sentry-snuba-api
       name: Sentry Snuba API
@@ -308,6 +311,8 @@ services:
 
   sentry-web:
     <<: *sentry-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry
     x-nabla:
       id: sentry
       name: Sentry
@@ -431,6 +436,8 @@ services:
 
   taskbroker:
     image: ghcr.io/getsentry/taskbroker:26.8.0
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-taskbroker
     x-nabla:
       id: sentry-taskbroker
       name: Sentry Taskbroker
@@ -471,6 +478,8 @@ services:
 
   sentry-taskworker:
     <<: *sentry-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-taskworker
     x-nabla:
       id: sentry-taskworker
       name: Sentry Taskworker
@@ -504,6 +513,8 @@ services:
 
   relay:
     image: ghcr.io/getsentry/relay:26.8.0
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-relay
     x-nabla:
       id: sentry-relay
       name: Sentry Relay
@@ -552,6 +563,8 @@ services:
 
   nginx:
     image: nginx:1.31.3-alpine
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-edge
     x-nabla:
       id: sentry-edge
       name: Sentry Edge
