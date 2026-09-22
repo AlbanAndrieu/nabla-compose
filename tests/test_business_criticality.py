@@ -204,7 +204,7 @@ class BusinessCriticalityTests(unittest.TestCase):
             ],
         )
 
-    def test_inherited_bia_scope_requires_subcomponent_parent(self) -> None:
+    def test_inherited_bia_scope_requires_parent_or_dependent(self) -> None:
         entity = {
             "apiVersion": "backstage.io/v1alpha1",
             "kind": "Component",
@@ -227,7 +227,7 @@ class BusinessCriticalityTests(unittest.TestCase):
             business_continuity_coverage_errors([entity], _policy()),
             [
                 "component:default/orphan-worker: inherited BIA scope requires "
-                "spec.subcomponentOf"
+                "spec.subcomponentOf or at least one declared dependent"
             ],
         )
 
@@ -304,6 +304,35 @@ class BusinessCriticalityTests(unittest.TestCase):
                 "resource:default/database: stateful type database requires an "
                 "RPO"
             ],
+        )
+
+    def test_inherited_shared_resource_allows_declared_dependent(self) -> None:
+        dependency = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Resource",
+            "metadata": {
+                "name": "shared-cache",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "medium",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "cache",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+        consumer = _entity()
+        consumer["metadata"]["name"] = "consumer"
+        consumer["spec"]["dependsOn"] = ["resource:default/shared-cache"]
+
+        self.assertEqual(
+            business_continuity_coverage_errors(
+                [dependency, consumer],
+                _policy(),
+            ),
+            [],
         )
 
     def test_inherited_bia_scope_allows_dependency_only_criticality(self) -> None:
