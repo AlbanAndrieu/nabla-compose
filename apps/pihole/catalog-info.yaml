@@ -58,7 +58,6 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   dependsOn:
-    - resource:default/pihole
     - component:default/docker-socket-proxy
 ---
 apiVersion: backstage.io/v1alpha1
@@ -82,5 +81,3 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/pihole
