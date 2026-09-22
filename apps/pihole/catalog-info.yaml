@@ -56,6 +56,7 @@ spec:
   type: controller
   lifecycle: production
   owner: group:default/nabla-platform
+  subcomponentOf: resource:default/pihole
   system: system:default/nabla-homelab
   dependsOn:
     - component:default/docker-socket-proxy
