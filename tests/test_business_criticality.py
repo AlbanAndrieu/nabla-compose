@@ -374,6 +374,56 @@ class BusinessCriticalityTests(unittest.TestCase):
             by_ref["component:default/application"]["elevatedByDependencies"]
         )
 
+    def test_parent_business_criticality_propagates_to_subcomponent(self) -> None:
+        parent = _entity(
+            declared="high",
+            mtpd="P1D",
+            rto="PT4H",
+            rpo="PT1H",
+            impact="high",
+        )
+        parent["metadata"]["name"] = "parent"
+
+        child = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "child",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "high",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+                "subcomponentOf": "component:default/parent",
+            },
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [parent, child],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["component:default/child"]["ownBusinessCriticality"],
+            None,
+        )
+        self.assertEqual(
+            by_ref["component:default/child"][
+                "effectiveDependencyCriticality"
+            ],
+            "high",
+        )
+        self.assertEqual(
+            by_ref["component:default/child"]["inheritedFrom"],
+            ["component:default/parent"],
+        )
+
     def test_dependency_criticality_propagates_transitively(self) -> None:
         application = _entity(
             declared="critical",
