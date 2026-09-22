@@ -49,6 +49,7 @@ labels:
   businessCriticality: albandrieu.com/business-criticality
   operationalCriticality: albandrieu.com/operational-criticality
   operationalState: albandrieu.com/operational-state
+  biaScope: albandrieu.com/bia-scope
 
 coverage:
   requiredKinds:
@@ -56,6 +57,10 @@ coverage:
     - Resource
   requiredOperationalStates:
     - active
+  directScopes:
+    - direct
+  inheritedScopes:
+    - inherited
   rpoRequiredTypes:
     - database
     - graph-database
