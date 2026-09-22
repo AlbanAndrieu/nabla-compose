@@ -325,7 +325,15 @@ def effective_dependency_criticality_inventory(
     services that require it?
     """
 
-    by_ref = {_entity_ref(entity): entity for entity in entities}
+    by_ref: dict[str, Mapping[str, Any]] = {}
+    for entity in entities:
+        entity_ref = _entity_ref(entity)
+        if entity_ref in by_ref:
+            raise ValueError(
+                f"duplicate entity ref in dependency criticality graph: {entity_ref}"
+            )
+        by_ref[entity_ref] = entity
+
     own_levels: dict[str, str | None] = {}
     effective_ranks: dict[str, int] = {}
     origins: dict[str, set[str]] = {}
@@ -350,9 +358,11 @@ def effective_dependency_criticality_inventory(
                 f"{source_ref}: spec.dependsOn must be a list of entity refs"
             )
         for target in raw_dependencies:
-            target_ref = str(target or "").strip().lower()
-            if not target_ref:
-                continue
+            if not isinstance(target, str) or not target.strip():
+                raise ValueError(
+                    f"{source_ref}: spec.dependsOn entries must be entity refs"
+                )
+            target_ref = target.strip().lower()
             if target_ref not in by_ref:
                 raise ValueError(
                     f"{source_ref}: dependency criticality references unknown "
