@@ -179,6 +179,58 @@ class BusinessCriticalityTests(unittest.TestCase):
             ],
         )
 
+    def test_invalid_operational_state_cannot_bypass_bia_coverage(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "bad-state",
+                "labels": {
+                    "albandrieu.com/operational-state": "acitve",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/bad-state: operational-state must be one of: "
+                "active, disabled, planned"
+            ],
+        )
+
+    def test_inherited_bia_scope_requires_subcomponent_parent(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "orphan-worker",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "medium",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/orphan-worker: inherited BIA scope requires "
+                "spec.subcomponentOf"
+            ],
+        )
+
     def test_active_component_requires_bia_coverage(self) -> None:
         entity = {
             "apiVersion": "backstage.io/v1alpha1",
@@ -270,6 +322,7 @@ class BusinessCriticalityTests(unittest.TestCase):
                 "type": "worker",
                 "lifecycle": "production",
                 "owner": "group:default/nabla-platform",
+                "subcomponentOf": "component:default/parent",
             },
         }
 
@@ -281,6 +334,7 @@ class BusinessCriticalityTests(unittest.TestCase):
     def test_inherited_bia_scope_rejects_duplicate_own_bia(self) -> None:
         entity = _entity()
         entity["metadata"]["labels"]["albandrieu.com/bia-scope"] = "inherited"
+        entity["spec"]["subcomponentOf"] = "component:default/parent"
 
         self.assertEqual(
             business_continuity_coverage_errors([entity], _policy()),
