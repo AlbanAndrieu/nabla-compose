@@ -170,6 +170,21 @@ def business_criticality(
     if not mtpd_raw or not rto_raw:
         raise ValueError("BIA profile requires both MTPD/DMTP and RTO")
 
+    required_profile_fields = {
+        "MBCO/OMCA": annotations.get(annotation_keys["mbco"]),
+        "assessment status": annotations.get(annotation_keys["status"]),
+        "review date": annotations.get(annotation_keys["reviewedAt"]),
+    }
+    missing_profile_fields = sorted(
+        name
+        for name, value in required_profile_fields.items()
+        if not str(value or "").strip()
+    )
+    if missing_profile_fields:
+        raise ValueError(
+            "BIA profile requires " + ", ".join(missing_profile_fields)
+        )
+
     mtpd = parse_iso8601_duration(mtpd_raw)
     rto = parse_iso8601_duration(rto_raw)
     if rto >= mtpd:
@@ -193,10 +208,12 @@ def business_criticality(
 
     allowed_impacts = tuple(str(item) for item in policy.get("impactDimensions", []))
     allowed_levels = tuple(str(item) for item in policy.get("impactLevels", _LEVELS))
+    assessed_impacts = 0
     for dimension in allowed_impacts:
         key = f"{impact_prefix}{dimension}"
         if key not in annotations:
             continue
+        assessed_impacts += 1
         level = annotations[key].strip().lower()
         if level not in allowed_levels:
             raise ValueError(
@@ -209,6 +226,9 @@ def business_criticality(
                 "value": level,
             }
         )
+
+    if assessed_impacts == 0:
+        raise ValueError("BIA profile requires at least one impact dimension")
 
     calculated = max(
         (item["level"] for item in drivers),
@@ -293,3 +313,96 @@ def business_criticality_inventory(
         if result is not None:
             rows.append(result)
     return sorted(rows, key=lambda item: item["entityRef"])
+
+def effective_dependency_criticality_inventory(
+    entities: list[Mapping[str, Any]],
+    policy: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Propagate business criticality through required Backstage dependencies.
+
+    The derived value never overwrites an entity's own BIA. It answers a
+    different question: how critical is this dependency because of the business
+    services that require it?
+    """
+
+    by_ref = {_entity_ref(entity): entity for entity in entities}
+    own_levels: dict[str, str | None] = {}
+    effective_ranks: dict[str, int] = {}
+    origins: dict[str, set[str]] = {}
+
+    for entity_ref, entity in by_ref.items():
+        result = business_criticality(entity, policy)
+        own = result["calculated"] if result is not None else None
+        own_levels[entity_ref] = own
+        effective_ranks[entity_ref] = _LEVEL_RANK[own] if own is not None else -1
+        origins[entity_ref] = {entity_ref} if own is not None else set()
+
+    edges: list[tuple[str, str]] = []
+    for source_ref, entity in by_ref.items():
+        spec = entity.get("spec")
+        if not isinstance(spec, Mapping):
+            continue
+        raw_dependencies = spec.get("dependsOn")
+        if raw_dependencies is None:
+            continue
+        if not isinstance(raw_dependencies, list):
+            raise ValueError(
+                f"{source_ref}: spec.dependsOn must be a list of entity refs"
+            )
+        for target in raw_dependencies:
+            target_ref = str(target or "").strip().lower()
+            if not target_ref:
+                continue
+            if target_ref not in by_ref:
+                raise ValueError(
+                    f"{source_ref}: dependency criticality references unknown "
+                    f"entity: {target_ref}"
+                )
+            edges.append((source_ref, target_ref))
+
+    changed = True
+    while changed:
+        changed = False
+        for source_ref, target_ref in edges:
+            source_rank = effective_ranks[source_ref]
+            if source_rank < 0:
+                continue
+
+            target_rank = effective_ranks[target_ref]
+            if source_rank > target_rank:
+                effective_ranks[target_ref] = source_rank
+                origins[target_ref] = set(origins[source_ref])
+                changed = True
+            elif (
+                source_rank == target_rank
+                and source_rank > _LEVEL_RANK.get(own_levels[target_ref] or "", -1)
+            ):
+                combined = origins[target_ref] | origins[source_ref]
+                if combined != origins[target_ref]:
+                    origins[target_ref] = combined
+                    changed = True
+
+    rows: list[dict[str, Any]] = []
+    for entity_ref in sorted(by_ref):
+        own = own_levels[entity_ref]
+        effective_rank = effective_ranks[entity_ref]
+        effective = _LEVELS[effective_rank] if effective_rank >= 0 else None
+        elevated = (
+            effective_rank >= 0
+            and effective_rank > _LEVEL_RANK.get(own or "", -1)
+        )
+        rows.append(
+            {
+                "entityRef": entity_ref,
+                "ownBusinessCriticality": own,
+                "effectiveDependencyCriticality": effective,
+                "elevatedByDependencies": elevated,
+                "inheritedFrom": (
+                    sorted(origins[entity_ref] - {entity_ref})
+                    if elevated
+                    else []
+                ),
+            }
+        )
+    return rows
+
