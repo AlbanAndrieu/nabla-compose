@@ -46,6 +46,7 @@ def _entity(
             "labels": {
                 "albandrieu.com/operational-criticality": "medium",
                 "albandrieu.com/business-criticality": declared,
+                "albandrieu.com/bia-scope": "direct",
             },
             "annotations": {
                 "albandrieu.com/bia-mtpd": mtpd,
@@ -185,6 +186,7 @@ class BusinessCriticalityTests(unittest.TestCase):
                 "name": "missing-bia",
                 "labels": {
                     "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/bia-scope": "direct",
                 },
             },
             "spec": {
@@ -248,6 +250,42 @@ class BusinessCriticalityTests(unittest.TestCase):
             [
                 "resource:default/database: stateful type database requires an "
                 "RPO"
+            ],
+        )
+
+    def test_inherited_bia_scope_allows_dependency_only_criticality(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "technical-worker",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "high",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [],
+        )
+
+    def test_inherited_bia_scope_rejects_duplicate_own_bia(self) -> None:
+        entity = _entity()
+        entity["metadata"]["labels"]["albandrieu.com/bia-scope"] = "inherited"
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/example: inherited BIA scope must not "
+                "duplicate business-criticality or BIA annotations"
             ],
         )
 
