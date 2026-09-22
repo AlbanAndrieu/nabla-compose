@@ -81,4 +81,5 @@ spec:
   type: exporter
   lifecycle: production
   owner: group:default/nabla-platform
+  subcomponentOf: resource:default/pihole
   system: system:default/nabla-homelab
