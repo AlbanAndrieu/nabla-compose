@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.business_criticality import (  # noqa: E402
     business_continuity_errors,
     business_criticality_inventory,
+    effective_dependency_criticality_inventory,
 )
 from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
@@ -214,6 +215,19 @@ def main() -> int:
             for level in ("critical", "high", "medium", "low")
         }
 
+        if business_errors:
+            effective_inventory: list[dict] = []
+        else:
+            effective_inventory = effective_dependency_criticality_inventory(
+                backstage_entities,
+                business_policy,
+            )
+        report["effectiveDependencyCriticality"] = effective_inventory
+        report["summary"]["effectiveDependencyCriticalityElevated"] = sum(
+            item["elevatedByDependencies"]
+            for item in effective_inventory
+        )
+
         relation_debt = compatibility_relation_debt(
             backstage_entities,
             _compose_relation_bindings(),
@@ -253,6 +267,7 @@ def main() -> int:
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
             f" business-bia={summary['businessCriticalityProfiles']}"
             f" business-bia-errors={summary['businessCriticalityErrors']}"
+            f" dependency-elevated={summary['effectiveDependencyCriticalityElevated']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
