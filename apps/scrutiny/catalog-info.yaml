@@ -1,0 +1,60 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: scrutiny
+  title: Scrutiny
+  description: SMART disk health monitoring web/API backed by the shared InfluxDB service.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: medium
+    albandrieu.com/bia-scope: direct
+  tags:
+    - observability
+    - storage
+    - nist-detect
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: disk-health-history-and-alerting-for-priority-storage-remains-recoverable
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/scrutiny/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: observability
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/influxdb
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: scrutiny-collector
+  title: Scrutiny Collector
+  description: SMART inventory and metrics collector feeding the Scrutiny web/API service.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - observability
+    - storage
+spec:
+  type: collector
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/scrutiny
