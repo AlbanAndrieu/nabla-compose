@@ -13,6 +13,7 @@ from nabla_ops.business_criticality import (  # noqa: E402
     business_continuity_errors,
     business_criticality,
     business_criticality_inventory,
+    effective_dependency_criticality_inventory,
     parse_iso8601_duration,
 )
 
@@ -151,6 +152,149 @@ class BusinessCriticalityTests(unittest.TestCase):
     def test_invalid_iso_duration_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unsupported ISO-8601 duration"):
             parse_iso8601_duration("P1DT")
+
+    def test_bia_profile_requires_governance_metadata_and_impact(self) -> None:
+        entity = _entity()
+        annotations = entity["metadata"]["annotations"]
+        del annotations["albandrieu.com/bia-status"]
+        del annotations["albandrieu.com/bia-reviewed-at"]
+        del annotations["albandrieu.com/bia-mbco"]
+        del annotations["albandrieu.com/bia-impact-operational"]
+
+        errors = business_continuity_errors([entity], _policy())
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("MBCO/OMCA", errors[0])
+        self.assertIn("assessment status", errors[0])
+        self.assertIn("review date", errors[0])
+
+    def test_bia_profile_requires_at_least_one_impact_dimension(self) -> None:
+        entity = _entity()
+        del entity["metadata"]["annotations"][
+            "albandrieu.com/bia-impact-operational"
+        ]
+
+        self.assertEqual(
+            business_continuity_errors([entity], _policy()),
+            [
+                "component:default/example: BIA profile requires at least one "
+                "impact dimension"
+            ],
+        )
+
+    def test_dependency_criticality_is_derived_without_mutating_own_bia(self) -> None:
+        application = _entity(
+            declared="critical",
+            mtpd="PT4H",
+            rto="PT1H",
+            rpo="PT15M",
+            impact="critical",
+        )
+        application["metadata"]["name"] = "application"
+        application["spec"]["dependsOn"] = ["resource:default/database"]
+
+        database = _entity(
+            declared="low",
+            mtpd="P7D",
+            rto="P3D",
+            rpo="P7D",
+            impact="low",
+        )
+        database["kind"] = "Resource"
+        database["metadata"]["name"] = "database"
+        database["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [application, database],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["resource:default/database"]["ownBusinessCriticality"],
+            "low",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertTrue(
+            by_ref["resource:default/database"]["elevatedByDependencies"]
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"]["inheritedFrom"],
+            ["component:default/application"],
+        )
+        self.assertEqual(
+            by_ref["component:default/application"]["ownBusinessCriticality"],
+            "critical",
+        )
+        self.assertFalse(
+            by_ref["component:default/application"]["elevatedByDependencies"]
+        )
+
+    def test_dependency_criticality_propagates_transitively(self) -> None:
+        application = _entity(
+            declared="critical",
+            mtpd="PT4H",
+            rto="PT1H",
+            rpo="PT15M",
+            impact="critical",
+        )
+        application["metadata"]["name"] = "application"
+        application["spec"]["dependsOn"] = ["component:default/middleware"]
+
+        middleware = _entity(
+            declared="medium",
+            mtpd="P3D",
+            rto="P1D",
+            rpo="P1D",
+            impact="medium",
+        )
+        middleware["metadata"]["name"] = "middleware"
+        middleware["spec"]["dependsOn"] = ["resource:default/database"]
+
+        database = _entity(
+            declared="low",
+            mtpd="P7D",
+            rto="P3D",
+            rpo="P7D",
+            impact="low",
+        )
+        database["kind"] = "Resource"
+        database["metadata"]["name"] = "database"
+        database["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [application, middleware, database],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["component:default/middleware"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"]["inheritedFrom"],
+            ["component:default/application"],
+        )
 
     def test_repository_bia_profiles_are_consistent(self) -> None:
         entities = _repository_entities()
