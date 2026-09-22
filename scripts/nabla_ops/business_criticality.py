@@ -356,24 +356,40 @@ def effective_dependency_criticality_inventory(
         if not isinstance(spec, Mapping):
             continue
         raw_dependencies = spec.get("dependsOn")
-        if raw_dependencies is None:
-            continue
-        if not isinstance(raw_dependencies, list):
-            raise ValueError(
-                f"{source_ref}: spec.dependsOn must be a list of entity refs"
-            )
-        for target in raw_dependencies:
-            if not isinstance(target, str) or not target.strip():
+        if raw_dependencies is not None:
+            if not isinstance(raw_dependencies, list):
                 raise ValueError(
-                    f"{source_ref}: spec.dependsOn entries must be entity refs"
+                    f"{source_ref}: spec.dependsOn must be a list of entity refs"
                 )
-            target_ref = target.strip().lower()
-            if target_ref not in by_ref:
+            for target in raw_dependencies:
+                if not isinstance(target, str) or not target.strip():
+                    raise ValueError(
+                        f"{source_ref}: spec.dependsOn entries must be entity refs"
+                    )
+                target_ref = target.strip().lower()
+                if target_ref not in by_ref:
+                    raise ValueError(
+                        f"{source_ref}: dependency criticality references unknown "
+                        f"entity: {target_ref}"
+                    )
+                edges.append((source_ref, target_ref))
+
+        raw_parent = spec.get("subcomponentOf")
+        if raw_parent is not None:
+            if not isinstance(raw_parent, str) or not raw_parent.strip():
+                raise ValueError(
+                    f"{source_ref}: spec.subcomponentOf must be an entity ref"
+                )
+            parent_ref = raw_parent.strip().lower()
+            if parent_ref not in by_ref:
                 raise ValueError(
                     f"{source_ref}: dependency criticality references unknown "
-                    f"entity: {target_ref}"
+                    f"parent entity: {parent_ref}"
                 )
-            edges.append((source_ref, target_ref))
+            # Business importance flows from the parent capability to the
+            # technical subcomponent, while the catalog relation itself remains
+            # child -> parent.
+            edges.append((parent_ref, source_ref))
 
     changed = True
     while changed:
