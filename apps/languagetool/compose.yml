@@ -1,4 +1,5 @@
 ---
+name: languagetool
 services:
   languagetool:
     image: erikvl87/languagetool
@@ -30,6 +31,7 @@ services:
       retries: 5
       start_period: 60s
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/languagetool"
       - "traefik.enable=true"
       - "traefik.http.routers.languagetool.rule=Host(`languagetool.int.albandrieu.com`)"
       - "traefik.http.routers.languagetool.entrypoints=websecure"
@@ -40,7 +42,11 @@ services:
       - prometheus.port=8010
     restart: unless-stopped
     ports:
-      - 8010:8010 # Using default port from the image
+      - name: web
+        target: 8010
+        published: "8010"
+        protocol: tcp
+        app_protocol: http
     environment:
       - langtool_languageModel=/ngrams # OPTIONAL: Using ngrams data
       - Java_Xms=512m # OPTIONAL: Setting a minimal Java heap size of 512 mib
