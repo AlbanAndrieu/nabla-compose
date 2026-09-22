@@ -274,6 +274,7 @@ def main() -> int:
             f" unmapped={summary['unmappedServices']}"
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
+            f" backstage-debt={summary['backstageMaterializationDebt']}"
             f" identity-ready={summary['identityReadyEntries']}"
             f" relation-debt={summary['compatibilityRelationDebt']}"
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
@@ -288,6 +289,13 @@ def main() -> int:
                 "warning:"
                 f" {summary['identityDebt']} legacy entries still require stable"
                 " v2 identity review before destructive cutover",
+                file=sys.stderr,
+            )
+        if summary["backstageMaterializationDebt"]:
+            print(
+                "warning:"
+                f" {summary['backstageMaterializationDebt']} generated services"
+                " still require Backstage materialization",
                 file=sys.stderr,
             )
         if summary["compatibilityRelationDebt"]:
