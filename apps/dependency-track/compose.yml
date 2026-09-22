@@ -1,4 +1,5 @@
 ---
+name: dependency-track
 services:
   dependency-track-api:
     image: ${DEPENDENCY_TRACK_API_IMAGE:-dependencytrack/apiserver:latest}
@@ -15,11 +16,18 @@ services:
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_LOCK_BUCKETS: "1000"
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_MAX_ATTEMPTS: "10"
     ports:
-      - "172.17.0.24:31083:8080"
+      - name: api
+        target: 8080
+        published: "31083"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/dependency-track/data:/data
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/dependency-track-api
     x-nabla:
       id: dependency-track-api
       name: Dependency-Track API
@@ -49,9 +57,16 @@ services:
     environment:
       API_BASE_URL: ${DEPENDENCY_TRACK_API_BASE_URL:-http://172.17.0.24:31083}
     ports:
-      - "172.17.0.24:31084:8080"
+      - name: web
+        target: 8080
+        published: "31084"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/dependency-track
     x-nabla:
       id: dependency-track
       name: Dependency-Track
