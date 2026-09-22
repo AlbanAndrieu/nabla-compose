@@ -306,6 +306,23 @@ def business_continuity_errors(
 ) -> list[str]:
     """Validate BIA profiles and calculated business-criticality labels."""
 
+    incoming_dependents: dict[str, set[str]] = {}
+    for source in entities:
+        source_ref = _entity_ref(source)
+        source_spec = source.get("spec")
+        if not isinstance(source_spec, Mapping):
+            continue
+        dependencies = source_spec.get("dependsOn")
+        if not isinstance(dependencies, list):
+            continue
+        for target in dependencies:
+            if not isinstance(target, str) or not target.strip():
+                continue
+            incoming_dependents.setdefault(
+                target.strip().lower(),
+                set(),
+            ).add(source_ref)
+
     errors: list[str] = []
     for entity in entities:
         ref = _entity_ref(entity)
@@ -585,10 +602,15 @@ def business_continuity_coverage_errors(
                 if isinstance(spec, Mapping)
                 else None
             )
-            if not isinstance(inherited_from, str) or not inherited_from.strip():
+            has_parent = (
+                isinstance(inherited_from, str)
+                and bool(inherited_from.strip())
+            )
+            has_dependents = bool(incoming_dependents.get(entity_ref))
+            if not has_parent and not has_dependents:
                 errors.append(
                     f"{entity_ref}: inherited BIA scope requires "
-                    "spec.subcomponentOf"
+                    "spec.subcomponentOf or at least one declared dependent"
                 )
             continue
 
