@@ -177,6 +177,73 @@ def _backstage_index(
     return by_ref, by_name
 
 
+def backstage_runtime_binding_errors(
+    generated_catalog: Mapping[str, Any],
+    entities: list[Mapping[str, Any]],
+    bindings: list[Mapping[str, Any]],
+) -> list[str]:
+    """Validate Compose entity-ref labels for materialized generated services."""
+
+    services = _services(generated_catalog, "services")
+    by_ref, by_name = _backstage_index(entities)
+    errors: list[str] = []
+    binding_index: dict[tuple[str, str], str] = {}
+
+    for binding in bindings:
+        source_path = str(binding.get("sourcePath") or "").strip()
+        compose_service = str(binding.get("composeService") or "").strip()
+        entity_ref = str(binding.get("entityRef") or "").strip().lower()
+        if not source_path or not compose_service or not entity_ref:
+            errors.append("runtime entity binding requires sourcePath, composeService and entityRef")
+            continue
+        key = (source_path, compose_service)
+        existing = binding_index.get(key)
+        if existing is not None and existing != entity_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: conflicting entity-ref labels: "
+                f"{existing} vs {entity_ref}"
+            )
+            continue
+        binding_index[key] = entity_ref
+        if entity_ref not in by_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: entity-ref label references "
+                f"unknown Backstage entity: {entity_ref}"
+            )
+
+    for service in services:
+        service_id = str(service.get("id") or "").strip()
+        if not service_id:
+            continue
+        refs = by_name.get(service_id, [])
+        if len(refs) != 1:
+            continue
+
+        source_path = str(service.get("sourcePath") or "").strip()
+        compose_service = str(service.get("composeService") or "").strip()
+        expected_ref = refs[0]
+        if not source_path or not compose_service:
+            errors.append(
+                f"{expected_ref}: materialized generated service requires "
+                "sourcePath and composeService"
+            )
+            continue
+
+        actual_ref = binding_index.get((source_path, compose_service))
+        if actual_ref is None:
+            errors.append(
+                f"{source_path}:{compose_service}: materialized {expected_ref} "
+                "requires com.albandrieu.nabla.entity-ref"
+            )
+        elif actual_ref != expected_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: entity-ref label {actual_ref} "
+                f"does not match materialized {expected_ref}"
+            )
+
+    return sorted(errors)
+
+
 def backstage_materialization_debt(
     generated_catalog: Mapping[str, Any],
     entities: list[Mapping[str, Any]],
