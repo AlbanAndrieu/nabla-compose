@@ -874,16 +874,35 @@ literal Docker container name.
 
 ### 3. Add one runtime correlation label
 
-Use Docker's recommended reverse-DNS label convention:
+Use Docker's reverse-DNS label convention:
 
 ```yaml
 labels:
   com.albandrieu.nabla.entity-ref: resource:default/neo4j-security
 ```
 
-This creates a join key available both in Git and on the live container.
+The key is deliberately namespaced as `com.albandrieu.nabla.*`: reverse-DNS
+ownership minimizes collisions with Docker/Compose built-ins and third-party
+labels such as `com.docker.compose.*`, `org.opencontainers.*` or
+`traefik.*`. The value is the full Backstage entity ref, so it remains
+unambiguous across entity kinds and namespaces.
 
-Do not overload container labels with the complete catalog.
+This label is a **runtime correlation key**, not catalog metadata. Compose
+places it on the live container, where Docker/TrueNAS observers can read it
+through the Docker API and join observed runtime state back to the canonical
+Backstage entity without guessing from display names or container names.
+
+Do not use a Backstage annotation for this runtime join. Backstage
+`metadata.annotations` belong to the catalog descriptor and are useful for
+source locations, external-system references and longer metadata, but Docker
+does not automatically materialize those annotations on a running container.
+Duplicating the entity ref as both a Backstage annotation and a Docker label
+would therefore add a second catalog-owned copy without improving the join.
+
+Conversely, do not overload Docker labels with the complete catalog. Identity,
+ownership, lifecycle, BIA and business metadata remain in Backstage; Compose
+labels carry only runtime/provider configuration and the minimum stable
+correlation key.
 
 ### 4. Derive instead of duplicate
 
