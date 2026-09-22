@@ -1,4 +1,5 @@
 ---
+name: dozzle
 configs:
   users.yml:
     content: |
@@ -28,7 +29,11 @@ services:
         port: 8888
     restart: unless-stopped
     ports:
-      - "8888:8080"
+      - name: web
+        target: 8080
+        published: "8888"
+        protocol: tcp
+        app_protocol: http
     # onfigs:
     # - source: users.yml
     #   target: /mnt/cpool/dozzle/users.yml
@@ -50,6 +55,7 @@ services:
       - no-new-privileges:true
     networks: ["traefik_network"]
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/dozzle"
       - "traefik.enable=true"
       - "traefik.http.routers.dozzle.rule=Host(`dozzle.int.albandrieu.com`)"
       - "traefik.http.routers.dozzle.entrypoints=websecure"
