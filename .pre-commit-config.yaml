@@ -168,12 +168,28 @@ repos:
           ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
 
       - id: service-initialization-audit-contract
-        name: "🧰 truenas · Validate initialization audit classifier"
+        name: "🧰 truenas · Validate initialization and local ops classifier"
         language: system
-        entry: python -m unittest tests.test_service_initialization_audit -v
+        entry: python -m unittest tests.test_service_initialization_audit tests.test_nabla_ops_contract -v
         pass_filenames: false
         files: >-
-          ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:secrets/audit_consumers|truenas/audit-service-initialization)[.]py|tests/test_service_initialization_audit[.]py)$
+          ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
+
+      - id: catalog-v2-preparation-contract
+        name: "🕸️ catalog · Validate v2 migration inventory coverage"
+        language: system
+        entry: python scripts/audit-service-catalog-v2-parity.py --check
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/(?:business_criticality|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+
+      - id: catalog-v2-pilot-contract
+        name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
+        language: system
+        entry: python -m unittest tests.test_business_criticality tests.test_catalog_v2_parity tests.test_catalog_v2_pilot -v
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/(?:neo4j|cartography|sample|traefik|postgres)/(?:catalog-info[.]yaml|compose[.]yml)|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/(?:business_criticality|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_(?:parity|pilot))[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: observability-contract
         name: "📊 observability · Validate lightweight logging contract"

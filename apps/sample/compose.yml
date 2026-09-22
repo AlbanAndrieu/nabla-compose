@@ -1,4 +1,6 @@
 ---
+name: sample
+
 services:
   fastapi-sample:
     image: ${FASTAPI_SAMPLE_IMAGE:-fastapi-sample:local}
@@ -33,6 +35,16 @@ services:
       runtime:
         provider: truenas-app
         containerService: fastapi-sample
+      exposure:
+        - name: staging-public
+          hostnames:
+            - sample.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
       relations:
         - target: redis
           type: dependsOn
@@ -107,7 +119,11 @@ services:
       - "home.albandrieu.com:172.17.0.1"
 
     ports:
-      - "${FASTAPI_SAMPLE_PORT:-8091}:8080"
+      - name: web
+        target: 8080
+        published: "${FASTAPI_SAMPLE_PORT:-8091}"
+        protocol: tcp
+        app_protocol: http
 
     healthcheck:
       test:
@@ -123,6 +139,7 @@ services:
       start_period: 60s
 
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/fastapi-sample"
       # Internal DNS is synchronized from Traefik routers into Pi-hole.
       # sample.albandrieu.com is a separate Cloudflare Tunnel + Access endpoint
       # whose origin is the LAN-bound :8091 service; it is not a Traefik router.

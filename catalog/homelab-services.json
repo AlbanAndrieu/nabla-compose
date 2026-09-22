@@ -2,6 +2,7 @@
   "version": 1,
   "services": [
     {
+      "id": "truenas",
       "name": "TrueNAS",
       "icons": ["fas fa-server"],
       "description": "Storage management UI",
@@ -14,6 +15,7 @@
       "external": false
     },
     {
+      "id": "pfsense",
       "name": "pfSense",
       "icons": ["fas fa-shield-halved"],
       "description": "Firewall and router",

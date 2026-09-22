@@ -102,7 +102,7 @@ where every legacy field moved and prevents reintroducing a parallel catalog.
 | `kind` | Backstage | entity `kind` + controlled `spec.type` |
 | `category` | Backstage | `metadata.tags` |
 | `presentationRole` | Site/UI | presentation configuration only |
-| `criticality` | Backstage/OTel | catalog label; projected to `service.criticality` |
+| `criticality` | Backstage/OTel | legacy operational criticality -> `albandrieu.com/operational-criticality`, projected to OTel `service.criticality`; business criticality is a separate BIA-derived label |
 | `securityFunctions` | Backstage/NIST | `nist-*` tags |
 | `status` | Backstage label | `metadata.labels['albandrieu.com/operational-state']` |
 | `lifecycle.phase` | delete | derive boot order from dependency graph/readiness; no phase replacement |
@@ -130,6 +130,7 @@ where every legacy field moved and prevents reintroducing a parallel catalog.
 catalog/
 ├── catalog-info.yaml                  # Domain/System/Group + static infra
 ├── service-icons.json                 # presentation only; not security truth
+├── business-criticality-policy.yaml   # Nabla tier thresholds over BIA inputs
 ├── generated/
 │   ├── entities.json                  # Backstage entity/API-shaped JSON
 │   ├── operations.json                # normalized Nabla-only operational data
@@ -261,8 +262,8 @@ metadata:
     - nist-identify
     - nist-detect
   labels:
-    albandrieu.com/status: active
-    albandrieu.com/criticality: low
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
   annotations:
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cartography/
     github.com/project-slug: AlbanAndrieu/nabla-compose
@@ -295,6 +296,140 @@ deprecated
 
 The current `active | planned | disabled` field is **not** the same concept and
 must therefore stay as Nabla operational intent.
+
+## Business criticality and BIA
+
+Keep **business criticality** separate from **operational criticality**.
+
+- `albandrieu.com/operational-criticality` describes the technical/operational
+  importance of the service and is projected to OpenTelemetry
+  `service.criticality` (`critical | high | medium | low`).
+- `albandrieu.com/business-criticality` describes the business impact of loss
+  or disruption and is **calculated from BIA inputs**.
+- Do not infer one from the other. A technically central platform can have low
+  current business criticality when it hosts no business workload, while a
+  simple application can be business-critical.
+
+### Standards vocabulary
+
+Use ISO terminology as the canonical vocabulary:
+
+- **MTPD / DMTP** — maximum tolerable period of disruption / durée maximale
+  tolérable de perturbation. The French ISO vocabulary also lists **DMIA**.
+  Existing Nabla/organizational wording **DIMA** maps to this same concept and
+  must not become a second field.
+- **RTO** — recovery time objective / objectif de délai de rétablissement.
+  RTO must be lower than MTPD/DMTP.
+- **RPO** — recovery point objective / point de rétablissement des données.
+  This is applicable to data-bearing services; it may be omitted for a
+  stateless/rebuildable service.
+- **MBCO / OMCA** — minimum business continuity objective / objectif minimal de
+  continuité d'activité. Keep it as a qualitative minimum acceptable service
+  level; do not force it into a numeric score.
+
+ISO/TS 22317 also requires the BIA to consider the impact of disruption over
+time, legal/regulatory/contractual obligations, resources and dependencies.
+NIST SP 800-34 uses MTD/RTO/RPO and recovery priorities, while NIST IR 8286D
+extends BIA beyond availability toward enterprise-value impacts including
+financial, reputational, operational and regulatory consequences.
+
+References:
+
+- ISO/TS 22317:2021 — https://www.iso.org/standard/79000.html
+- ISO 22300:2025 vocabulary — https://www.iso.org/obp/ui/en/#iso:std:iso:22300:ed-4:v1:fr
+- NIST SP 800-34 Rev. 1 — https://csrc.nist.gov/pubs/sp/800/34/r1/upd1/final
+- NIST IR 8286D-upd1 (2025) — https://csrc.nist.gov/pubs/ir/8286/d/upd1/final
+
+### Backstage representation
+
+Use a queryable calculated label plus scalar annotations. Backstage labels are
+appropriate for catalog classification/filtering; annotations carry the
+supporting non-identifying BIA metadata.
+
+Example:
+
+```yaml
+metadata:
+  labels:
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: high
+  annotations:
+    albandrieu.com/bia-mtpd: P1D
+    albandrieu.com/bia-rto: PT4H
+    albandrieu.com/bia-rpo: PT1H
+    albandrieu.com/bia-mbco: minimum-service-description
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: medium
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: medium
+```
+
+Durations use the bounded ISO-8601 subset used by the repository policy
+(`PT15M`, `PT4H`, `P1D`, `P3D`, ...).
+
+### Calculation policy
+
+`catalog/business-criticality-policy.yaml` is the single source for the Nabla
+tier thresholds. The thresholds are deliberately identified as **Nabla
+policy**, not ISO/NIST thresholds.
+
+Current method: `max-of-drivers`.
+
+1. Convert MTPD, RTO and applicable RPO into a
+   `low | medium | high | critical` tier using the policy thresholds.
+2. Convert each assessed impact dimension into the same tier vocabulary.
+3. Business criticality is the most severe driver.
+4. Report the driver list and the recovery margin `MTPD - RTO`.
+5. Fail the catalog gate if `RTO >= MTPD`, duration syntax is invalid, an
+   impact value is unknown, or the declared business-criticality label differs
+   from the calculated value.
+
+Current impact dimensions are:
+
+```text
+operational
+customer
+financial
+legal-regulatory
+reputation
+confidentiality
+integrity
+privacy
+```
+
+These dimensions are not an attempt to invent a universal scoring standard.
+They are a compact catalog projection of BIA concerns from ISO/NIST and remain
+reviewable policy.
+
+### Assessment maturity
+
+Pilot values in PR #215 use:
+
+```text
+albandrieu.com/bia-status: provisional
+```
+
+A technically passing gate does **not** mean the BIA has been approved.
+`validated` is reserved for an assessment reviewed by the responsible owner.
+The bulk migration must not silently turn provisional values into validated
+values.
+
+### Dependency amplification
+
+Do not overwrite an infrastructure Resource's own BIA because a critical
+service depends on it. Keep two separate concepts:
+
+- **own business criticality** — calculated from that entity's BIA;
+- **effective/dependency criticality** — derived later from the catalog graph,
+  e.g. the maximum business criticality of required dependents.
+
+This preserves provenance and avoids circular scoring.
 
 ## Kubernetes model: do not flatten catalog, network and status
 
@@ -1207,8 +1342,8 @@ metadata:
     - nist-identify
     - nist-detect
   labels:
-    albandrieu.com/status: active
-    albandrieu.com/criticality: medium
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
   annotations:
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/neo4j/
     github.com/project-slug: AlbanAndrieu/nabla-compose
@@ -1279,7 +1414,7 @@ metadata:
     - nist-detect
   labels:
     albandrieu.com/status: active
-    albandrieu.com/criticality: low
+    albandrieu.com/operational-criticality: low
 spec:
   type: job
   lifecycle: production

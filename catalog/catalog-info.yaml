@@ -1,0 +1,255 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: nabla-platform
+  title: Nabla Platform
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: nabla
+  title: Nabla
+spec:
+  owner: group:default/nabla-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: nabla-homelab
+  title: Nabla Homelab
+spec:
+  owner: group:default/nabla-platform
+  domain: domain:default/nabla
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgresql
+  title: PostgreSQL
+  description: Shared native TrueNAS PostgreSQL service used by homelab consumers.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
+  tags:
+    - data
+  annotations:
+    albandrieu.com/bia-mtpd: PT4H
+    albandrieu.com/bia-rto: PT1H
+    albandrieu.com/bia-rpo: PT1H
+    albandrieu.com/bia-mbco: read-write-database-for-priority-consumers
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: critical
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: medium
+spec:
+  type: database
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cloudflare-tunnel
+  title: Cloudflare Tunnel
+  description: Public edge tunnel provider for reviewed homelab routes.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: high
+  tags:
+    - network
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: P1D
+    albandrieu.com/bia-rto: PT4H
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: priority-public-routes-remain-reachable
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: low
+spec:
+  type: network-edge
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: pfsense
+  title: pfSense
+  description: Homelab firewall, router and network-edge appliance.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
+  tags:
+    - network
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: PT1H
+    albandrieu.com/bia-rto: PT15M
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: lan-routing-dns-and-firewalling
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: critical
+    albandrieu.com/bia-impact-customer: high
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: medium
+spec:
+  type: firewall-router
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: pfsense-haproxy
+  title: pfSense HAProxy
+  description: pfSense HAProxy public TLS ingress and reverse-proxy edge.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
+  tags:
+    - network
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: PT4H
+    albandrieu.com/bia-rto: PT1H
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: priority-wan-ingress-for-reviewed-services
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: high
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: low
+spec:
+  type: reverse-proxy
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/pfsense
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: truenas
+  title: TrueNAS
+  description: Always-on storage, virtualization and Docker application platform.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: critical
+  tags:
+    - infrastructure
+  annotations:
+    albandrieu.com/bia-mtpd: PT4H
+    albandrieu.com/bia-rto: PT1H
+    albandrieu.com/bia-rpo: PT1H
+    albandrieu.com/bia-mbco: storage-and-priority-always-on-services
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: critical
+    albandrieu.com/bia-impact-customer: high
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: high
+    albandrieu.com/bia-impact-integrity: critical
+    albandrieu.com/bia-impact-privacy: high
+spec:
+  type: virtualization-platform
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kubernetes
+  title: Kubernetes
+  description: Talos-backed Kubernetes cluster hosted on TrueNAS.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: medium
+  tags:
+    - infrastructure
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: cluster-control-plane-recoverable-without-current-business-workloads
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+spec:
+  type: kubernetes-cluster
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: talos
+  title: Talos Linux
+  description: Immutable operating system for the homelab Kubernetes nodes.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: medium
+  tags:
+    - infrastructure
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: talos-nodes-recoverable-for-current-empty-cluster
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+spec:
+  type: host-platform
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
