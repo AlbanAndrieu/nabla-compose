@@ -5,6 +5,8 @@ services:
     image: ${PLUMBER_FRONTEND_IMAGE:-docker.io/getplumber/frontend:latest}
     container_name: plumber
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
     environment:
@@ -50,6 +52,8 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
     container_name: plumber-api
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber-api
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
     environment: &plumber-backend-env
@@ -114,6 +118,8 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
     container_name: plumber-worker
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber-worker
     command: ["--worker"]
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
