@@ -284,10 +284,15 @@ for identity, dependencies, exposure intent and reboot safety.
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
   `bia-status=provisional` until an owner has reviewed the assumptions.
-- [ ] Propagate dependency criticality as a separate derived signal (for example
-  an infrastructure Resource supporting a critical business service) without
-  rewriting the Resource's own business BIA; expose both own and effective
-  dependency criticality in read models.
+- [x] Enforce BIA coverage for every materialized Backstage `Component` /
+  `Resource`: `operational-state` is mandatory for scope, active entities
+  require business criticality + BIA metadata, and stateful data types require
+  RPO. Planned/disabled entities may remain incomplete until activated.
+- [x] Propagate dependency criticality as a separate derived read-model signal:
+  `effectiveDependencyCriticality` walks required Backstage `dependsOn`
+  edges transitively, preserves `ownBusinessCriticality`, reports
+  `inheritedFrom`, and fails closed on duplicate/unresolved graph identity.
+  It never rewrites the Resource's own BIA.
 - [ ] For every `high` / `critical` business entity, link the BIA to a concrete
   PCA/PRA/DRP recovery test plan and evidence: restore/bascule scenario, expected
   RTO/RPO, minimum continuity objective and last successful exercise. A valid
@@ -305,7 +310,9 @@ for identity, dependencies, exposure intent and reboot safety.
   generate a new canonical flat exposure catalog.
 
 **Gate P2.1.c:** 100% desired-intent parity, zero unresolved entity refs, zero
-duplicate authorities and no legacy fact without an explicit v2 disposition.
+duplicate authorities, zero active-entity BIA coverage errors, stateful RPO
+coverage, and no legacy fact without an explicit v2 disposition. Own BIA and
+effective dependency criticality must remain separately explainable.
 
 #### P2.1.d — prepare consumers before destructive cutover
 
