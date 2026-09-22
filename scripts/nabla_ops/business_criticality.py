@@ -82,6 +82,7 @@ def _policy_keys(policy: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, s
         "businessCriticality",
         "operationalCriticality",
         "operationalState",
+        "biaScope",
     )
     annotation_keys = {key: str(annotations.get(key) or "") for key in required_annotations}
     label_keys = {key: str(labels.get(key) or "") for key in required_labels}
@@ -441,14 +442,34 @@ def business_continuity_coverage_errors(
         for item in coverage.get("requiredOperationalStates", [])
         if str(item).strip()
     }
+    direct_scopes = {
+        str(item)
+        for item in coverage.get("directScopes", [])
+        if str(item).strip()
+    }
+    inherited_scopes = {
+        str(item)
+        for item in coverage.get("inheritedScopes", [])
+        if str(item).strip()
+    }
     rpo_required_types = {
         str(item)
         for item in coverage.get("rpoRequiredTypes", [])
         if str(item).strip()
     }
-    if not required_kinds or not required_states:
+    if (
+        not required_kinds
+        or not required_states
+        or not direct_scopes
+        or not inherited_scopes
+    ):
         raise ValueError(
-            "business criticality policy coverage requires kinds and states"
+            "business criticality policy coverage requires kinds, states, "
+            "direct scopes and inherited scopes"
+        )
+    if direct_scopes & inherited_scopes:
+        raise ValueError(
+            "business criticality policy direct/inherited scopes must differ"
         )
 
     errors: list[str] = []
@@ -469,10 +490,48 @@ def business_continuity_coverage_errors(
         if state not in required_states:
             continue
 
+        bia_scope = labels.get(label_keys["biaScope"])
+        if bia_scope is None:
+            errors.append(
+                f"{entity_ref}: active {kind} requires a bia-scope label"
+            )
+            continue
+
+        impact_prefix = annotation_keys["impactPrefix"]
+        has_bia_annotations = any(
+            key in annotations
+            for key in (
+                annotation_keys["mtpd"],
+                annotation_keys["rto"],
+                annotation_keys["rpo"],
+                annotation_keys["mbco"],
+                annotation_keys["status"],
+                annotation_keys["reviewedAt"],
+            )
+        ) or any(key.startswith(impact_prefix) for key in annotations)
+
+        if bia_scope in inherited_scopes:
+            if (
+                label_keys["businessCriticality"] in labels
+                or has_bia_annotations
+            ):
+                errors.append(
+                    f"{entity_ref}: inherited BIA scope must not duplicate "
+                    "business-criticality or BIA annotations"
+                )
+            continue
+
+        if bia_scope not in direct_scopes:
+            allowed = ", ".join(sorted(direct_scopes | inherited_scopes))
+            errors.append(
+                f"{entity_ref}: bia-scope must be one of: {allowed}"
+            )
+            continue
+
         if label_keys["businessCriticality"] not in labels:
             errors.append(
-                f"{entity_ref}: active {kind} requires a business-criticality "
-                "label and BIA profile"
+                f"{entity_ref}: direct BIA scope requires a "
+                "business-criticality label and BIA profile"
             )
             continue
 
