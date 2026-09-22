@@ -26,6 +26,16 @@ services:
         # Runtime secrets are pre-materialized; Vaultwarden recovery must not
         # prevent unrelated data/application waves from resuming after reboot.
         blocksLaterWaves: false
+      exposure:
+        - name: public
+          hostnames:
+            - vaultwarden.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: false
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     environment:
@@ -51,7 +61,11 @@ services:
     volumes:
       - /mnt/cpool/vaultwarden/vw-data/:/data/
     ports:
-      - 30032:80
+      - name: web
+        target: 80
+        published: "30032"
+        protocol: tcp
+        app_protocol: http
     # labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.vaultwarden.rule=Host(`vaultwarden.albandrieu.com`)"
