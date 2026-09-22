@@ -417,8 +417,8 @@ if [[ "${MODE}" == "fix" ]]; then
       pre-commit run --hook-stage pre-commit \
       --files "${CHANGED_FILES[@]}" --show-diff-on-failure; then
       printf '✅ deterministic formatter/linter fixes converged in %d pass(es)\n' "${pass}"
-      printf "ℹ️  review 'git diff' and 'git status --short', commit the result, then run this gate without --fix\n"
-      exit 0
+      printf 'ℹ️  continuing with the full local unit/contract and canonical quality gates\n'
+      break
     fi
 
     mapfile -t CHANGED_FILES < <(collect_changed_files)
