@@ -1,4 +1,5 @@
 ---
+name: nexus
 services:
   nexus:
     container_name: nexus
@@ -21,7 +22,12 @@ services:
     restart: unless-stopped
     user: "1002:1002" # TrueNAS nexus user
     ports:
-      - "8081:8081"
+      - name: web
+        target: 8081
+        published: "8081"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/nexus3:/nexus-data
     env_file:
@@ -30,6 +36,9 @@ services:
     environment:
       - INSTALL4J_ADD_VM_PARAMS=-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
     networks: ["traefik_network"]
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/nexus
+    # Additional Traefik labels stay disabled until the ingress authority is migrated.
     # labels:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.nexus.rule=Host(`nexus.int.albandrieu.com`)"
