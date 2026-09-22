@@ -44,7 +44,7 @@ Usage:
 
 Modes:
   default      strict local validation gate
-  --fix        regenerate deterministic artifacts and converge pre-commit fixes
+  --fix        regenerate/fix deterministic artifacts, then run the full local gate
   --preflight  Git-only safety gate before dependency installation/build work
   --ci         check-only changed-file gate; skips the full unit suite already required locally before push
   --publish    strict local gate plus canonical clean-tree publication check
