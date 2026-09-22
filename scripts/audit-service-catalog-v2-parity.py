@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from nabla_ops.business_criticality import (  # noqa: E402
+    business_continuity_coverage_errors,
     business_continuity_errors,
     business_criticality_inventory,
     effective_dependency_criticality_inventory,
@@ -203,10 +204,21 @@ def main() -> int:
             backstage_entities,
             business_policy,
         )
-        report["errors"] = sorted(set(report["errors"]) | set(business_errors))
+        business_coverage_errors = business_continuity_coverage_errors(
+            backstage_entities,
+            business_policy,
+        )
+        report["errors"] = sorted(
+            set(report["errors"])
+            | set(business_errors)
+            | set(business_coverage_errors)
+        )
         report["businessCriticality"] = business_inventory
         report["summary"]["businessCriticalityProfiles"] = len(business_inventory)
         report["summary"]["businessCriticalityErrors"] = len(business_errors)
+        report["summary"]["businessCriticalityCoverageErrors"] = len(
+            business_coverage_errors
+        )
         report["summary"]["businessCriticalityByLevel"] = {
             level: sum(
                 item["calculated"] == level
@@ -215,7 +227,7 @@ def main() -> int:
             for level in ("critical", "high", "medium", "low")
         }
 
-        if business_errors:
+        if business_errors or business_coverage_errors:
             effective_inventory: list[dict] = []
         else:
             effective_inventory = effective_dependency_criticality_inventory(
@@ -267,6 +279,7 @@ def main() -> int:
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
             f" business-bia={summary['businessCriticalityProfiles']}"
             f" business-bia-errors={summary['businessCriticalityErrors']}"
+            f" business-bia-coverage-errors={summary['businessCriticalityCoverageErrors']}"
             f" dependency-elevated={summary['effectiveDependencyCriticalityElevated']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
