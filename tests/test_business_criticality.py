@@ -154,6 +154,29 @@ class BusinessCriticalityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported ISO-8601 duration"):
             parse_iso8601_duration("P1DT")
 
+    def test_component_requires_operational_state_for_bia_scope(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "missing-state",
+                "labels": {},
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/missing-state: Component requires an "
+                "operational-state label for BIA coverage"
+            ],
+        )
+
     def test_active_component_requires_bia_coverage(self) -> None:
         entity = {
             "apiVersion": "backstage.io/v1alpha1",
