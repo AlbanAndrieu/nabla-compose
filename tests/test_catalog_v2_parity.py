@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
     backstage_entity_ref,
+    backstage_compose_dependency_duplicates,
     backstage_graph_errors,
     backstage_materialization_debt,
     backstage_runtime_binding_errors,
@@ -55,6 +56,53 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "spec": {"type": "team", "children": "none"},
                 }
             )
+
+    def test_same_project_compose_dependency_must_not_be_duplicated(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "source"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                    "dependsOn": ["component:default/target"],
+                },
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "target"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                },
+            },
+        ]
+        dependencies = [
+            {
+                "sourcePath": "apps/example/compose.yml",
+                "sourceEntityRef": "component:default/source",
+                "targetEntityRef": "component:default/target",
+            }
+        ]
+
+        self.assertEqual(
+            backstage_compose_dependency_duplicates(entities, dependencies),
+            [
+                "apps/example/compose.yml: Backstage component:default/source "
+                "dependsOn component:default/target duplicates same-project "
+                "Compose depends_on"
+            ],
+        )
+
+        del entities[0]["spec"]["dependsOn"]
+        self.assertEqual(
+            backstage_compose_dependency_duplicates(entities, dependencies),
+            [],
+        )
 
     def test_materialized_service_requires_matching_runtime_entity_ref(self) -> None:
         generated = {
