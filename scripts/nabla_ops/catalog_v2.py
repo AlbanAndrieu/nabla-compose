@@ -177,6 +177,72 @@ def _backstage_index(
     return by_ref, by_name
 
 
+def backstage_materialization_debt(
+    generated_catalog: Mapping[str, Any],
+    entities: list[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Inventory generated services that still lack a unique Backstage entity."""
+
+    services = _services(generated_catalog, "services")
+    _, by_name = _backstage_index(entities)
+    debt: list[dict[str, Any]] = []
+
+    for service in services:
+        service_id = str(service.get("id") or "").strip()
+        source_path = str(service.get("sourcePath") or "").strip()
+        compose_service = str(service.get("composeService") or "").strip()
+        candidate_ref = _candidate_entity_ref(service)
+
+        if not service_id:
+            debt.append(
+                {
+                    "serviceId": None,
+                    "sourcePath": source_path or None,
+                    "composeService": compose_service or None,
+                    "candidateEntityRef": candidate_ref,
+                    "expectedCatalogInfoPath": None,
+                    "reason": "missing-generated-id",
+                    "matchingEntityRefs": [],
+                }
+            )
+            continue
+
+        refs = sorted(by_name.get(service_id, []))
+        if len(refs) == 1:
+            continue
+
+        expected_catalog_info = None
+        if source_path.startswith("apps/") and "/" in source_path:
+            expected_catalog_info = (
+                source_path.rsplit("/", 1)[0] + "/catalog-info.yaml"
+            )
+
+        debt.append(
+            {
+                "serviceId": service_id,
+                "sourcePath": source_path or None,
+                "composeService": compose_service or None,
+                "candidateEntityRef": candidate_ref,
+                "expectedCatalogInfoPath": expected_catalog_info,
+                "reason": (
+                    "missing-backstage-entity"
+                    if not refs
+                    else "ambiguous-backstage-name"
+                ),
+                "matchingEntityRefs": refs,
+            }
+        )
+
+    return sorted(
+        debt,
+        key=lambda item: (
+            str(item["sourcePath"] or ""),
+            str(item["serviceId"] or ""),
+            str(item["composeService"] or ""),
+        ),
+    )
+
+
 def backstage_graph_errors(entities: list[Mapping[str, Any]]) -> list[str]:
     """Validate full entity refs used by the discovered Backstage graph."""
 
@@ -561,6 +627,10 @@ def build_parity_report(
     by_id, by_name, catalog_index_errors = _catalog_indexes(catalog_services)
     backstage_entities = backstage_entities or []
     backstage_by_ref, backstage_by_name = _backstage_index(backstage_entities)
+    materialization_debt = backstage_materialization_debt(
+        generated_catalog,
+        backstage_entities,
+    )
     overrides_by_name, errors = _override_index(overrides)
     errors.extend(catalog_index_errors)
     errors.extend(_legacy_identity_errors(legacy_services))
@@ -682,6 +752,7 @@ def build_parity_report(
         "backstageMaterializedEntries": sum(
             bool(item["backstageMaterialized"]) for item in entries
         ),
+        "backstageMaterializationDebt": len(materialization_debt),
         "resolvedEntityRefs": len(by_entity_ref),
         "identityReadyEntries": sum(bool(item["identityReady"]) for item in entries),
         "desiredExposureEntries": desired_count,
@@ -699,7 +770,15 @@ def build_parity_report(
         "cutoverBlockers": [
             "v2 desired-state sources are not materialized/verified yet",
             "legacy identity debt must be resolved before destructive cutover",
+            *(
+                [
+                    "generated services still require Backstage materialization"
+                ]
+                if materialization_debt
+                else []
+            ),
         ],
+        "backstageMaterializationDebt": materialization_debt,
         "byEntityRef": {
             entity_ref: by_entity_ref[entity_ref]
             for entity_ref in sorted(by_entity_ref)
