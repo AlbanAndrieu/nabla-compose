@@ -284,7 +284,11 @@ for identity, dependencies, exposure intent and reboot safety.
   services. Initial post-#215 baseline: 118 generated services, 5 materialized,
   113 remaining (104 active, 7 planned, 2 disabled). Prioritize the active
   `critical/high` subset before medium/low/unclassified debt; absence of
-  legacy `status` means `active` by the v1 contract.
+  legacy `status` means `active` by the v1 contract. The first bulk waves now
+  materialize the core security/data services plus Garage; `pfSense`,
+  `TrueNAS` and `Docker` are intentionally represented as root static
+  Backstage Resources instead of creating misleading app-local descriptors from
+  their legacy `sourcePath` aliases.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
