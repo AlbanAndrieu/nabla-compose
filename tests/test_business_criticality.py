@@ -44,6 +44,7 @@ def _entity(
         "metadata": {
             "name": "example",
             "labels": {
+                "albandrieu.com/operational-state": "active",
                 "albandrieu.com/operational-criticality": "medium",
                 "albandrieu.com/business-criticality": declared,
                 "albandrieu.com/bia-scope": "direct",
