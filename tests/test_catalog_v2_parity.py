@@ -96,6 +96,9 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "composeService": "missing",
                     "candidateEntityRef": "component:default/missing",
                     "expectedCatalogInfoPath": "apps/missing/catalog-info.yaml",
+                    "operationalState": "active",
+                    "operationalCriticality": None,
+                    "legacyKind": "service",
                     "reason": "missing-backstage-entity",
                     "matchingEntityRefs": [],
                 }
@@ -563,6 +566,13 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertEqual(
             report["summary"]["backstageMaterializationDebt"],
             len(report["backstageMaterializationDebt"]),
+        )
+        self.assertGreater(
+            report["summary"]["backstageMaterializationDebtByState"].get(
+                "active",
+                0,
+            ),
+            0,
         )
         self.assertGreater(report["summary"]["backstageMaterializedEntries"], 0)
         self.assertEqual(
