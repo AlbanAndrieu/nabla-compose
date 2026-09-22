@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from nabla_ops.business_criticality import (  # noqa: E402
+    business_continuity_coverage_errors,
     business_continuity_errors,
     business_criticality,
     business_criticality_inventory,
@@ -152,6 +153,80 @@ class BusinessCriticalityTests(unittest.TestCase):
     def test_invalid_iso_duration_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unsupported ISO-8601 duration"):
             parse_iso8601_duration("P1DT")
+
+    def test_active_component_requires_bia_coverage(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "missing-bia",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/missing-bia: active Component requires a "
+                "business-criticality label and BIA profile"
+            ],
+        )
+
+    def test_planned_component_does_not_require_bia_yet(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "planned-service",
+                "labels": {
+                    "albandrieu.com/operational-state": "planned",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "experimental",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [],
+        )
+
+    def test_stateful_resource_requires_rpo(self) -> None:
+        entity = _entity(
+            declared="high",
+            mtpd="P1D",
+            rto="PT4H",
+            rpo="PT1H",
+            impact="high",
+        )
+        entity["kind"] = "Resource"
+        entity["metadata"]["name"] = "database"
+        entity["metadata"]["labels"][
+            "albandrieu.com/operational-state"
+        ] = "active"
+        del entity["metadata"]["annotations"]["albandrieu.com/bia-rpo"]
+        entity["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "resource:default/database: stateful type database requires an "
+                "RPO"
+            ],
+        )
 
     def test_bia_profile_requires_governance_metadata_and_impact(self) -> None:
         entity = _entity()
@@ -300,6 +375,10 @@ class BusinessCriticalityTests(unittest.TestCase):
         entities = _repository_entities()
         policy = _policy()
         self.assertEqual(business_continuity_errors(entities, policy), [])
+        self.assertEqual(
+            business_continuity_coverage_errors(entities, policy),
+            [],
+        )
 
         inventory = business_criticality_inventory(entities, policy)
         self.assertGreaterEqual(len(inventory), 12)
