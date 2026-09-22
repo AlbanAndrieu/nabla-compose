@@ -1,9 +1,12 @@
 ---
+name: scrutiny
 services:
   scrutiny:
     image: ghcr.io/analogj/scrutiny:v0.9.3-web
     container_name: scrutiny
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/scrutiny
     x-nabla:
       id: scrutiny
       name: Scrutiny
@@ -23,13 +26,28 @@ services:
           description: Scrutiny stores SMART history in the shared InfluxDB service.
           evidence:
             - apps/scrutiny/compose.yml:SCRUTINY_WEB_INFLUXDB_HOST
+      exposure:
+        - name: public
+          hostnames:
+            - scrutiny.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
       monitoring:
         type: http
         target: http://172.17.0.24:31054/api/health
         conditions:
           - "[STATUS] == 200"
     ports:
-      - "172.17.0.24:31054:8080"
+      - name: web
+        target: 8080
+        published: "31054"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     env_file:
       - /mnt/cpool/scrutiny/.env.secrets
     environment:
@@ -59,6 +77,8 @@ services:
     image: ghcr.io/analogj/scrutiny:v0.9.3-collector
     container_name: scrutiny-collector
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/scrutiny-collector
     x-nabla:
       id: scrutiny-collector
       name: Scrutiny Collector
