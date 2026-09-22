@@ -1,4 +1,5 @@
 ---
+name: portracker
 services:
   portracker:
     image: mostafawahied/portracker:latest
@@ -19,6 +20,8 @@ services:
         host: 172.17.0.24
         port: 4999
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/portracker
     pid: "host" # Required for port detection
     # Required permissions for system ports service namespace access
     cap_add:
@@ -32,7 +35,12 @@ services:
       # Required for discovering services running in Docker
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - "4999:4999" # 30233
+      - name: web
+        target: 4999
+        published: "4999"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     environment:
       # Optional: For enhanced TrueNAS features
       - TRUENAS_API_KEY=${TRUENAS_API_KEY}
