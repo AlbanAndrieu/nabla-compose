@@ -1,10 +1,13 @@
 ---
+name: redis
 services:
   redis:
     image: docker.io/redis:8.8.0
     # image: redis:7-alpine
     # image: registry.community.greenbone.net/community/redis-server
     container_name: redis
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/redis
     x-nabla:
       id: redis
       name: Redis
