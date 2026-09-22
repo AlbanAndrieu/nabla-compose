@@ -1,3 +1,5 @@
+---
+name: nginx-proxy-manager
 services:
   app:
     image: "jc21/nginx-proxy-manager:2.15.0"
@@ -17,6 +19,8 @@ services:
         host: 172.17.0.24
         port: 30021
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/nginx-proxy-manager
     environment:
       TZ: "Europe/Paris"
     ports:
