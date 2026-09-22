@@ -43,7 +43,9 @@ def parse_iso8601_duration(value: str) -> int:
     return seconds
 
 
-def _metadata(entity: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping[str, str], Mapping[str, str]]:
+def _metadata(
+    entity: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], Mapping[str, str], Mapping[str, str]]:
     metadata = entity.get("metadata")
     if not isinstance(metadata, Mapping):
         return {}, {}, {}
@@ -77,14 +79,25 @@ def _policy_keys(policy: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, s
     labels = policy.get("labels")
     if not isinstance(annotations, Mapping) or not isinstance(labels, Mapping):
         raise ValueError("business criticality policy requires annotations and labels")
-    required_annotations = ("mtpd", "rto", "rpo", "mbco", "status", "reviewedAt", "impactPrefix")
+    required_annotations = (
+        "mtpd",
+        "rto",
+        "rpo",
+        "mbco",
+        "status",
+        "reviewedAt",
+        "impactPrefix",
+    )
     required_labels = (
         "businessCriticality",
         "operationalCriticality",
         "operationalState",
         "biaScope",
     )
-    annotation_keys = {key: str(annotations.get(key) or "") for key in required_annotations}
+    annotation_keys = {
+        key: str(annotations.get(key) or "")
+        for key in required_annotations
+    }
     label_keys = {key: str(labels.get(key) or "") for key in required_labels}
     missing = [
         key
@@ -130,7 +143,9 @@ def _duration_level(metric: str, seconds: int, policy: Mapping[str, Any]) -> str
     for level in ("critical", "high", "medium"):
         values = levels.get(level)
         if not isinstance(values, Mapping):
-            raise ValueError(f"business criticality policy level {level} must be an object")
+            raise ValueError(
+                f"business criticality policy level {level} must be an object"
+            )
         threshold = values.get(threshold_key)
         if threshold is None:
             continue
@@ -198,7 +213,13 @@ def business_criticality(
     drivers: list[dict[str, str]] = []
     for metric, seconds in (("mtpd", mtpd), ("rto", rto)):
         level = _duration_level(metric, seconds, policy)
-        drivers.append({"driver": metric, "level": level, "value": annotations[annotation_keys[metric]]})
+        drivers.append(
+            {
+                "driver": metric,
+                "level": level,
+                "value": annotations[annotation_keys[metric]],
+            }
+        )
 
     rpo_raw = annotations.get(annotation_keys["rpo"])
     if rpo_raw:
@@ -211,7 +232,9 @@ def business_criticality(
             }
         )
 
-    allowed_impacts = tuple(str(item) for item in policy.get("impactDimensions", []))
+    allowed_impacts = tuple(
+        str(item) for item in policy.get("impactDimensions", [])
+    )
     allowed_levels = tuple(str(item) for item in policy.get("impactLevels", _LEVELS))
     assessed_impacts = 0
     for dimension in allowed_impacts:
@@ -294,7 +317,9 @@ def business_continuity_errors(
         if result is None:
             continue
         if not result["declared"]:
-            errors.append(f"{ref}: business-criticality label is required for a BIA profile")
+            errors.append(
+            f"{ref}: business-criticality label is required for a BIA profile"
+        )
         elif result["declared"] != result["calculated"]:
             errors.append(
                 f"{ref}: business-criticality={result['declared']} does not match "
@@ -453,6 +478,11 @@ def business_continuity_coverage_errors(
         for item in coverage.get("requiredKinds", [])
         if str(item).strip()
     }
+    allowed_states = {
+        str(item)
+        for item in coverage.get("allowedOperationalStates", [])
+        if str(item).strip()
+    }
     required_states = {
         str(item)
         for item in coverage.get("requiredOperationalStates", [])
@@ -475,13 +505,14 @@ def business_continuity_coverage_errors(
     }
     if (
         not required_kinds
+        or not allowed_states
         or not required_states
         or not direct_scopes
         or not inherited_scopes
     ):
         raise ValueError(
-            "business criticality policy coverage requires kinds, states, "
-            "direct scopes and inherited scopes"
+            "business criticality policy coverage requires kinds, allowed/required "
+            "states, direct scopes and inherited scopes"
         )
     if direct_scopes & inherited_scopes:
         raise ValueError(
@@ -503,10 +534,22 @@ def business_continuity_coverage_errors(
                 "for BIA coverage"
             )
             continue
-        if state not in required_states:
+        if state not in allowed_states:
+            errors.append(
+                f"{entity_ref}: operational-state must be one of: "
+                + ", ".join(sorted(allowed_states))
+            )
             continue
 
         bia_scope = labels.get(label_keys["biaScope"])
+        if bia_scope is not None and bia_scope not in direct_scopes | inherited_scopes:
+            allowed = ", ".join(sorted(direct_scopes | inherited_scopes))
+            errors.append(f"{entity_ref}: bia-scope must be one of: {allowed}")
+            continue
+
+        if state not in required_states:
+            continue
+
         if bia_scope is None:
             errors.append(
                 f"{entity_ref}: active {kind} requires a bia-scope label"
@@ -535,13 +578,18 @@ def business_continuity_coverage_errors(
                     f"{entity_ref}: inherited BIA scope must not duplicate "
                     "business-criticality or BIA annotations"
                 )
-            continue
 
-        if bia_scope not in direct_scopes:
-            allowed = ", ".join(sorted(direct_scopes | inherited_scopes))
-            errors.append(
-                f"{entity_ref}: bia-scope must be one of: {allowed}"
+            spec = entity.get("spec")
+            inherited_from = (
+                spec.get("subcomponentOf")
+                if isinstance(spec, Mapping)
+                else None
             )
+            if not isinstance(inherited_from, str) or not inherited_from.strip():
+                errors.append(
+                    f"{entity_ref}: inherited BIA scope requires "
+                    "spec.subcomponentOf"
+                )
             continue
 
         if label_keys["businessCriticality"] not in labels:
