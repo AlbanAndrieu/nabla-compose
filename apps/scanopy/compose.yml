@@ -1,8 +1,11 @@
 ---
+name: scanopy
 services:
   scanopy-daemon:
     image: ghcr.io/scanopy/scanopy/daemon:latest
     container_name: scanopy-daemon
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/scanopy-daemon
     x-nabla:
       id: scanopy-daemon
       name: Scanopy Daemon
@@ -38,6 +41,8 @@ services:
   scanopy:
     image: ghcr.io/scanopy/scanopy/server:latest
     container_name: scanopy
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/scanopy
     x-nabla:
       id: scanopy
       name: Scanopy
@@ -81,7 +86,12 @@ services:
       SCANOPY_INTEGRATED_DAEMON_URL: http://host.docker.internal:60073
       TZ: ${TZ:-Europe/Paris}
     ports:
-      - "172.17.0.24:60072:60072"
+      - name: web
+        target: 60072
+        published: "60072"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:

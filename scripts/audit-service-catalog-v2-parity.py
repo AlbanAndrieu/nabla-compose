@@ -13,11 +13,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from nabla_ops.business_criticality import (  # noqa: E402
+    business_continuity_coverage_errors,
     business_continuity_errors,
     business_criticality_inventory,
+    effective_dependency_criticality_inventory,
 )
 from nabla_ops.catalog_v2 import (  # noqa: E402
+    backstage_compose_dependency_duplicates,
     backstage_graph_errors,
+    backstage_runtime_binding_errors,
     build_parity_report,
     compatibility_relation_debt,
     desired_exposure_errors,
@@ -60,6 +64,92 @@ def _label_map(service: dict) -> dict[str, str]:
             if isinstance(item, str) and "=" in item:
                 key, value = item.split("=", 1)
                 result[key] = value
+    return result
+
+
+def _compose_entity_dependencies() -> list[dict]:
+    result: list[dict] = []
+    paths = [ROOT / "docker-compose.yml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    for path in paths:
+        if not path.exists():
+            continue
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        services = payload.get("services")
+        if not isinstance(services, dict):
+            continue
+
+        refs: dict[str, str] = {}
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            entity_ref = _label_map(service).get(
+                "com.albandrieu.nabla.entity-ref",
+                "",
+            ).strip()
+            if entity_ref:
+                refs[str(service_name)] = entity_ref
+
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            source_ref = refs.get(str(service_name))
+            if not source_ref:
+                continue
+            raw = service.get("depends_on")
+            if isinstance(raw, dict):
+                targets = list(raw)
+            elif isinstance(raw, list):
+                targets = [str(value) for value in raw]
+            else:
+                continue
+            for target_name in targets:
+                target_ref = refs.get(str(target_name))
+                if not target_ref:
+                    continue
+                result.append(
+                    {
+                        "sourcePath": path.relative_to(ROOT).as_posix(),
+                        "sourceEntityRef": source_ref,
+                        "targetEntityRef": target_ref,
+                    }
+                )
+    return result
+
+
+def _compose_entity_bindings() -> list[dict]:
+    result: list[dict] = []
+    paths = [ROOT / "docker-compose.yml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    for path in paths:
+        if not path.exists():
+            continue
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        services = payload.get("services")
+        if not isinstance(services, dict):
+            continue
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            entity_ref = _label_map(service).get(
+                "com.albandrieu.nabla.entity-ref",
+                "",
+            ).strip()
+            if not entity_ref:
+                continue
+            result.append(
+                {
+                    "sourcePath": path.relative_to(ROOT).as_posix(),
+                    "composeService": str(service_name),
+                    "entityRef": entity_ref,
+                }
+            )
     return result
 
 
@@ -186,6 +276,25 @@ def main() -> int:
         report["errors"] = sorted(
             set(report["errors"]) | set(backstage_graph_errors(backstage_entities))
         )
+        runtime_binding_errors = backstage_runtime_binding_errors(
+            _load(GENERATED_CATALOG),
+            backstage_entities,
+            _compose_entity_bindings(),
+        )
+        report["errors"] = sorted(
+            set(report["errors"]) | set(runtime_binding_errors)
+        )
+        report["summary"]["runtimeBindingErrors"] = len(runtime_binding_errors)
+        dependency_duplicates = backstage_compose_dependency_duplicates(
+            backstage_entities,
+            _compose_entity_dependencies(),
+        )
+        report["errors"] = sorted(
+            set(report["errors"]) | set(dependency_duplicates)
+        )
+        report["summary"]["sameProjectDependencyDuplicates"] = len(
+            dependency_duplicates
+        )
         exposure_errors = desired_exposure_errors(
             backstage_entities,
             _compose_exposure_bindings(),
@@ -202,10 +311,21 @@ def main() -> int:
             backstage_entities,
             business_policy,
         )
-        report["errors"] = sorted(set(report["errors"]) | set(business_errors))
+        business_coverage_errors = business_continuity_coverage_errors(
+            backstage_entities,
+            business_policy,
+        )
+        report["errors"] = sorted(
+            set(report["errors"])
+            | set(business_errors)
+            | set(business_coverage_errors)
+        )
         report["businessCriticality"] = business_inventory
         report["summary"]["businessCriticalityProfiles"] = len(business_inventory)
         report["summary"]["businessCriticalityErrors"] = len(business_errors)
+        report["summary"]["businessCriticalityCoverageErrors"] = len(
+            business_coverage_errors
+        )
         report["summary"]["businessCriticalityByLevel"] = {
             level: sum(
                 item["calculated"] == level
@@ -213,6 +333,19 @@ def main() -> int:
             )
             for level in ("critical", "high", "medium", "low")
         }
+
+        if business_errors or business_coverage_errors:
+            effective_inventory: list[dict] = []
+        else:
+            effective_inventory = effective_dependency_criticality_inventory(
+                backstage_entities,
+                business_policy,
+            )
+        report["effectiveDependencyCriticality"] = effective_inventory
+        report["summary"]["effectiveDependencyCriticalityElevated"] = sum(
+            item["elevatedByDependencies"]
+            for item in effective_inventory
+        )
 
         relation_debt = compatibility_relation_debt(
             backstage_entities,
@@ -248,11 +381,16 @@ def main() -> int:
             f" unmapped={summary['unmappedServices']}"
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
+            f" backstage-debt={summary['backstageMaterializationDebt']}"
             f" identity-ready={summary['identityReadyEntries']}"
+            f" runtime-binding-errors={summary['runtimeBindingErrors']}"
+            f" same-project-dependency-duplicates={summary['sameProjectDependencyDuplicates']}"
             f" relation-debt={summary['compatibilityRelationDebt']}"
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
             f" business-bia={summary['businessCriticalityProfiles']}"
             f" business-bia-errors={summary['businessCriticalityErrors']}"
+            f" business-bia-coverage-errors={summary['businessCriticalityCoverageErrors']}"
+            f" dependency-elevated={summary['effectiveDependencyCriticalityElevated']}"
             f" desired-exposure={summary['desiredExposureEntries']}"
         )
         if summary["identityDebt"]:
@@ -260,6 +398,13 @@ def main() -> int:
                 "warning:"
                 f" {summary['identityDebt']} legacy entries still require stable"
                 " v2 identity review before destructive cutover",
+                file=sys.stderr,
+            )
+        if summary["backstageMaterializationDebt"]:
+            print(
+                "warning:"
+                f" {summary['backstageMaterializationDebt']} generated services"
+                " still require Backstage materialization",
                 file=sys.stderr,
             )
         if summary["compatibilityRelationDebt"]:

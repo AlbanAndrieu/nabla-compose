@@ -1,0 +1,44 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kafka
+  title: Apache Kafka
+  description: Shared homelab message broker.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - data
+    - messaging
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/kafka/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: message-broker
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-exporter
+  title: Kafka Exporter
+  description: Prometheus exporter for Kafka broker and consumer-group state.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - observability
+    - messaging
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/kafka/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: exporter
+  lifecycle: production
+  owner: group:default/nabla-platform
+  subcomponentOf: resource:default/kafka
+  system: system:default/nabla-homelab

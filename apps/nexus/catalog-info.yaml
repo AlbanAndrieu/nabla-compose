@@ -2,9 +2,9 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: fastapi-sample
-  title: FastAPI Sample
-  description: FastAPI service with cloud production and TrueNAS homelab staging deployments.
+  name: nexus
+  title: Nexus Repository
+  description: Repository manager for development artifacts and package proxies.
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
@@ -12,27 +12,27 @@ metadata:
     albandrieu.com/bia-scope: direct
   tags:
     - development
+    - artifact-repository
+    - supply-chain
   annotations:
     albandrieu.com/bia-mtpd: P3D
     albandrieu.com/bia-rto: P1D
     albandrieu.com/bia-rpo: P1D
-    albandrieu.com/bia-mbco: health-and-read-only-observation-capability
+    albandrieu.com/bia-mbco: priority-development-artifacts-and-package-proxies-remain-recoverable
     albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
     albandrieu.com/bia-impact-operational: medium
-    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-customer: low
     albandrieu.com/bia-impact-financial: low
     albandrieu.com/bia-impact-legal-regulatory: low
     albandrieu.com/bia-impact-reputation: low
     albandrieu.com/bia-impact-confidentiality: medium
-    albandrieu.com/bia-impact-integrity: medium
-    albandrieu.com/bia-impact-privacy: medium
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sample/
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nexus/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
-  type: service
+  type: artifact-repository
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/postgresql

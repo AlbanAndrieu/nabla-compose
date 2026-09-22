@@ -9,6 +9,7 @@ metadata:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
   tags:
     - security
     - nist-identify

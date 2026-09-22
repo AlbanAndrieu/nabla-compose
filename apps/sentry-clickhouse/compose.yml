@@ -1,4 +1,5 @@
 ---
+name: sentry-clickhouse
 configs:
   sentry_clickhouse_config:
     file: ./config.xml
@@ -6,6 +7,8 @@ configs:
 services:
   sentry-clickhouse:
     image: altinity/clickhouse-server:25.3.6.10034.altinitystable
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/sentry-clickhouse
     x-nabla:
       id: sentry-clickhouse
       name: Sentry ClickHouse

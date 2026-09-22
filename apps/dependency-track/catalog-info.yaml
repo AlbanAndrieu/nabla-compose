@@ -1,0 +1,60 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dependency-track
+  title: Dependency-Track
+  description: CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: medium
+    albandrieu.com/bia-scope: direct
+  tags:
+    - security
+    - supply-chain
+    - nist-identify
+    - nist-detect
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: current-sbom-and-vulnerability-inventory-for-priority-services
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: medium
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/dependency-track/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: security-tool
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dependency-track-api
+  title: Dependency-Track API
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - security
+    - supply-chain
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/dependency-track
+  dependsOn:
+    - resource:default/postgresql

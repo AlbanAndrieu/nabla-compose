@@ -1,0 +1,85 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: pihole
+  title: Pi-hole
+  description: LAN DNS filtering and private *.int.albandrieu.com DNS service.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/business-criticality: high
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - dns
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: P1D
+    albandrieu.com/bia-rto: PT4H
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: lan-dns-resolution-for-priority-hosts
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: high
+    albandrieu.com/bia-impact-customer: medium
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: medium
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: dns
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: pihole-dns-sync
+  title: Pi-hole DNS Sync
+  description: Reconciles repository-managed service names into Pi-hole private DNS.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - network
+    - automation
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: controller
+  lifecycle: production
+  owner: group:default/nabla-platform
+  subcomponentOf: resource:default/pihole
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/docker-socket-proxy
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: pihole-exporter
+  title: Pi-hole Exporter
+  description: Prometheus-compatible metrics exporter for Pi-hole.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - observability
+    - dns
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: exporter
+  lifecycle: production
+  owner: group:default/nabla-platform
+  subcomponentOf: resource:default/pihole
+  system: system:default/nabla-homelab

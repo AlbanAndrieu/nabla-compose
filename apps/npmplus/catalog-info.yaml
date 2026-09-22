@@ -1,38 +1,37 @@
 ---
 apiVersion: backstage.io/v1alpha1
-kind: Resource
+kind: Component
 metadata:
-  name: neo4j-security
-  title: Neo4j Security Graph
-  description: Analytical graph store for attack-path and blast-radius analysis.
+  name: npmplus
+  title: NPMplus
+  description: Hardened Nginx Proxy Manager fork tracked as the repository migration target.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/operational-criticality: medium
-    albandrieu.com/business-criticality: medium
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
   tags:
-    - security
-    - graph
-    - nist-identify
-    - nist-detect
+    - network
+    - proxy
   annotations:
     albandrieu.com/bia-mtpd: P7D
     albandrieu.com/bia-rto: P3D
     albandrieu.com/bia-rpo: P7D
-    albandrieu.com/bia-mbco: graph-query-unavailable-rebuildable-from-sources
+    albandrieu.com/bia-mbco: migration-target-not-required-for-current-primary-routing
     albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
     albandrieu.com/bia-impact-operational: low
     albandrieu.com/bia-impact-customer: low
     albandrieu.com/bia-impact-financial: low
     albandrieu.com/bia-impact-legal-regulatory: low
     albandrieu.com/bia-impact-reputation: low
-    albandrieu.com/bia-impact-confidentiality: medium
-    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
     albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/neo4j/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/npmplus/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
-  type: graph-database
+  type: proxy
+  lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab

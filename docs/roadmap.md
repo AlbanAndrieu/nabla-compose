@@ -280,14 +280,30 @@ for identity, dependencies, exposure intent and reboot safety.
 #### P2.1.c — bulk migrate nabla-compose
 
 - [ ] Generate/review all `apps/**/catalog-info.yaml`.
+- [x] Add deterministic Backstage materialization-debt inventory for generated
+  services. Initial post-#215 baseline: 118 generated services, 5 materialized,
+  113 remaining (104 active, 7 planned, 2 disabled). Prioritize the active
+  `critical/high` subset before medium/low/unclassified debt; absence of
+  legacy `status` means `active` by the v1 contract. The first bulk waves now
+  materialize the core security/data services plus Garage; `pfSense`,
+  `TrueNAS` and `Docker` are intentionally represented as root static
+  Backstage Resources instead of creating misleading app-local descriptors from
+  their legacy `sourcePath` aliases.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
   `bia-status=provisional` until an owner has reviewed the assumptions.
-- [ ] Propagate dependency criticality as a separate derived signal (for example
-  an infrastructure Resource supporting a critical business service) without
-  rewriting the Resource's own business BIA; expose both own and effective
-  dependency criticality in read models.
+- [x] Enforce explicit BIA ownership for every materialized Backstage
+  `Component` / `Resource`: `operational-state` is mandatory; active
+  entities must choose `bia-scope=direct|inherited`; direct entities require a
+  complete BIA (and stateful direct types require RPO), while inherited
+  subcomponents must not duplicate their own business-criticality/BIA.
+  Planned/disabled entities may remain incomplete until activated.
+- [x] Propagate dependency criticality as a separate derived read-model signal:
+  `effectiveDependencyCriticality` walks required Backstage `dependsOn`
+  edges transitively, preserves `ownBusinessCriticality`, reports
+  `inheritedFrom`, and fails closed on duplicate/unresolved graph identity.
+  It never rewrites the Resource's own BIA.
 - [ ] For every `high` / `critical` business entity, link the BIA to a concrete
   PCA/PRA/DRP recovery test plan and evidence: restore/bascule scenario, expected
   RTO/RPO, minimum continuity objective and last successful exercise. A valid
@@ -305,7 +321,10 @@ for identity, dependencies, exposure intent and reboot safety.
   generate a new canonical flat exposure catalog.
 
 **Gate P2.1.c:** 100% desired-intent parity, zero unresolved entity refs, zero
-duplicate authorities and no legacy fact without an explicit v2 disposition.
+duplicate authorities, zero Backstage materialization debt, zero active-entity
+BIA-scope/coverage errors, stateful direct-RPO coverage, and no legacy fact
+without an explicit v2 disposition. Own BIA and effective dependency criticality
+must remain separately explainable.
 
 #### P2.1.d — prepare consumers before destructive cutover
 

@@ -177,6 +177,188 @@ def _backstage_index(
     return by_ref, by_name
 
 
+def backstage_compose_dependency_duplicates(
+    entities: list[Mapping[str, Any]],
+    dependencies: list[Mapping[str, Any]],
+) -> list[str]:
+    """Reject Backstage dependsOn copies of same-project Compose depends_on."""
+
+    by_ref, _ = _backstage_index(entities)
+    declared: dict[str, set[str]] = {}
+    for entity_ref, entity in by_ref.items():
+        spec = entity.get("spec")
+        if not isinstance(spec, Mapping):
+            continue
+        raw = spec.get("dependsOn")
+        if isinstance(raw, list):
+            declared[entity_ref] = {
+                str(value).strip().lower()
+                for value in raw
+                if isinstance(value, str) and value.strip()
+            }
+
+    errors: list[str] = []
+    for dependency in dependencies:
+        source_ref = str(dependency.get("sourceEntityRef") or "").strip().lower()
+        target_ref = str(dependency.get("targetEntityRef") or "").strip().lower()
+        source_path = str(dependency.get("sourcePath") or "<unknown>").strip()
+        if not source_ref or not target_ref:
+            continue
+        if source_ref not in by_ref or target_ref not in by_ref:
+            continue
+        if target_ref in declared.get(source_ref, set()):
+            errors.append(
+                f"{source_path}: Backstage {source_ref} dependsOn {target_ref} "
+                "duplicates same-project Compose depends_on"
+            )
+
+    return sorted(errors)
+
+
+def backstage_runtime_binding_errors(
+    generated_catalog: Mapping[str, Any],
+    entities: list[Mapping[str, Any]],
+    bindings: list[Mapping[str, Any]],
+) -> list[str]:
+    """Validate Compose entity-ref labels for materialized generated services."""
+
+    services = _services(generated_catalog, "services")
+    by_ref, by_name = _backstage_index(entities)
+    errors: list[str] = []
+    binding_index: dict[tuple[str, str], str] = {}
+
+    for binding in bindings:
+        source_path = str(binding.get("sourcePath") or "").strip()
+        compose_service = str(binding.get("composeService") or "").strip()
+        entity_ref = str(binding.get("entityRef") or "").strip().lower()
+        if not source_path or not compose_service or not entity_ref:
+            errors.append("runtime entity binding requires sourcePath, composeService and entityRef")
+            continue
+        key = (source_path, compose_service)
+        existing = binding_index.get(key)
+        if existing is not None and existing != entity_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: conflicting entity-ref labels: "
+                f"{existing} vs {entity_ref}"
+            )
+            continue
+        binding_index[key] = entity_ref
+        if entity_ref not in by_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: entity-ref label references "
+                f"unknown Backstage entity: {entity_ref}"
+            )
+
+    for service in services:
+        service_id = str(service.get("id") or "").strip()
+        if not service_id:
+            continue
+        refs = by_name.get(service_id, [])
+        if len(refs) != 1:
+            continue
+
+        source_path = str(service.get("sourcePath") or "").strip()
+        compose_service = str(service.get("composeService") or "").strip()
+        expected_ref = refs[0]
+        if not source_path or not compose_service:
+            errors.append(
+                f"{expected_ref}: materialized generated service requires "
+                "sourcePath and composeService"
+            )
+            continue
+
+        actual_ref = binding_index.get((source_path, compose_service))
+        if actual_ref is None:
+            errors.append(
+                f"{source_path}:{compose_service}: materialized {expected_ref} "
+                "requires com.albandrieu.nabla.entity-ref"
+            )
+        elif actual_ref != expected_ref:
+            errors.append(
+                f"{source_path}:{compose_service}: entity-ref label {actual_ref} "
+                f"does not match materialized {expected_ref}"
+            )
+
+    return sorted(errors)
+
+
+def backstage_materialization_debt(
+    generated_catalog: Mapping[str, Any],
+    entities: list[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Inventory generated services that still lack a unique Backstage entity."""
+
+    services = _services(generated_catalog, "services")
+    _, by_name = _backstage_index(entities)
+    debt: list[dict[str, Any]] = []
+
+    for service in services:
+        service_id = str(service.get("id") or "").strip()
+        source_path = str(service.get("sourcePath") or "").strip()
+        compose_service = str(service.get("composeService") or "").strip()
+        candidate_ref = _candidate_entity_ref(service)
+        operational_state = str(service.get("status") or "active").strip()
+        operational_criticality = str(
+            service.get("criticality") or ""
+        ).strip() or None
+        legacy_kind = str(service.get("kind") or "").strip() or None
+
+        if not service_id:
+            debt.append(
+                {
+                    "serviceId": None,
+                    "sourcePath": source_path or None,
+                    "composeService": compose_service or None,
+                    "candidateEntityRef": candidate_ref,
+                    "expectedCatalogInfoPath": None,
+                    "operationalState": operational_state,
+                    "operationalCriticality": operational_criticality,
+                    "legacyKind": legacy_kind,
+                    "reason": "missing-generated-id",
+                    "matchingEntityRefs": [],
+                }
+            )
+            continue
+
+        refs = sorted(by_name.get(service_id, []))
+        if len(refs) == 1:
+            continue
+
+        expected_catalog_info = None
+        if source_path.startswith("apps/") and "/" in source_path:
+            expected_catalog_info = (
+                source_path.rsplit("/", 1)[0] + "/catalog-info.yaml"
+            )
+
+        debt.append(
+            {
+                "serviceId": service_id,
+                "sourcePath": source_path or None,
+                "composeService": compose_service or None,
+                "candidateEntityRef": candidate_ref,
+                "expectedCatalogInfoPath": expected_catalog_info,
+                "operationalState": operational_state,
+                "operationalCriticality": operational_criticality,
+                "legacyKind": legacy_kind,
+                "reason": (
+                    "missing-backstage-entity"
+                    if not refs
+                    else "ambiguous-backstage-name"
+                ),
+                "matchingEntityRefs": refs,
+            }
+        )
+
+    return sorted(
+        debt,
+        key=lambda item: (
+            str(item["sourcePath"] or ""),
+            str(item["serviceId"] or ""),
+            str(item["composeService"] or ""),
+        ),
+    )
+
+
 def backstage_graph_errors(entities: list[Mapping[str, Any]]) -> list[str]:
     """Validate full entity refs used by the discovered Backstage graph."""
 
@@ -561,6 +743,10 @@ def build_parity_report(
     by_id, by_name, catalog_index_errors = _catalog_indexes(catalog_services)
     backstage_entities = backstage_entities or []
     backstage_by_ref, backstage_by_name = _backstage_index(backstage_entities)
+    materialization_debt = backstage_materialization_debt(
+        generated_catalog,
+        backstage_entities,
+    )
     overrides_by_name, errors = _override_index(overrides)
     errors.extend(catalog_index_errors)
     errors.extend(_legacy_identity_errors(legacy_services))
@@ -682,6 +868,23 @@ def build_parity_report(
         "backstageMaterializedEntries": sum(
             bool(item["backstageMaterialized"]) for item in entries
         ),
+        "backstageMaterializationDebt": len(materialization_debt),
+        "backstageMaterializationDebtByState": dict(
+            sorted(
+                Counter(
+                    str(item["operationalState"])
+                    for item in materialization_debt
+                ).items()
+            )
+        ),
+        "backstageMaterializationDebtByCriticality": dict(
+            sorted(
+                Counter(
+                    str(item["operationalCriticality"] or "unclassified")
+                    for item in materialization_debt
+                ).items()
+            )
+        ),
         "resolvedEntityRefs": len(by_entity_ref),
         "identityReadyEntries": sum(bool(item["identityReady"]) for item in entries),
         "desiredExposureEntries": desired_count,
@@ -699,7 +902,15 @@ def build_parity_report(
         "cutoverBlockers": [
             "v2 desired-state sources are not materialized/verified yet",
             "legacy identity debt must be resolved before destructive cutover",
+            *(
+                [
+                    "generated services still require Backstage materialization"
+                ]
+                if materialization_debt
+                else []
+            ),
         ],
+        "backstageMaterializationDebt": materialization_debt,
         "byEntityRef": {
             entity_ref: by_entity_ref[entity_ref]
             for entity_ref in sorted(by_entity_ref)

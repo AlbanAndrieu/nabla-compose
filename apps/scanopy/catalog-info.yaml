@@ -1,0 +1,61 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: scanopy
+  title: Scanopy
+  description: Agentless network discovery and continuously updated topology documentation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: medium
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - security
+    - nist-identify
+    - nist-detect
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: recent-network-topology-can-be-rebuilt-from-discovery
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: medium
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/scanopy/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: security-tool
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/postgresql
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: scanopy-daemon
+  title: Scanopy Daemon
+  description: Privileged network and container discovery scanner for Scanopy.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - network
+    - security
+spec:
+  type: worker
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/scanopy

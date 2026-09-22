@@ -1,4 +1,5 @@
 ---
+name: garage
 x-nabla:
   nodes:
     - id: garage-admin
@@ -73,11 +74,25 @@ services:
       - /mnt/cpool/garage/data:/var/lib/garage/data
       - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     ports:
-      - "172.17.0.24:3900:3900" # S3 API, trusted LAN only
-      - "172.17.0.24:3901:3901" # RPC Garage, trusted LAN only
-      - "172.17.0.24:3903:3903" # Admin API, trusted LAN only
+      - name: s3
+        target: 3900
+        published: "3900"
+        host_ip: 172.17.0.24
+        protocol: tcp
+      - name: rpc
+        target: 3901
+        published: "3901"
+        host_ip: 172.17.0.24
+        protocol: tcp
+      - name: admin
+        target: 3903
+        published: "3903"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks: ["traefik_network"]
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/garage"
       - "traefik.enable=true"
       # S3 API
       - "traefik.http.routers.garage-s3.rule=Host(`s3.int.albandrieu.com`) || HostRegexp(`{subdomain:.+}.s3.int.albandrieu.com`)"
@@ -113,7 +128,12 @@ services:
       - source: garage_config
         target: /etc/garage.toml
     ports:
-      - "172.17.0.24:3909:3909" # WebUI, trusted LAN only
+      - name: web
+        target: 3909
+        published: "3909"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/garage/garage_admin_token:/run/secrets/garage_admin_token:ro
     environment:
@@ -122,6 +142,8 @@ services:
       S3_ENDPOINT_URL: "http://garage:3900"
       # AUTH_USER_PASS: "${GARAGE_WEBUI_ADMIN_PASS}"
     networks: ["traefik_network"]
+    labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/garage-webui"
 
 networks:
   traefik_network:

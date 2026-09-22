@@ -50,6 +50,14 @@ Do not collapse all forms of importance into one field.
   numeric/time boundaries.
 - Current pilot BIA values are `provisional`; only reviewed assessments may
   become `validated`.
+- Every materialized Component/Resource must declare `operational-state`.
+  Active entities also choose `bia-scope=direct|inherited`.
+- `direct` entities own a complete BIA; data-bearing direct types listed by
+  policy must include RPO.
+- `inherited` technical subcomponents deliberately carry no own business BIA;
+  `effectiveDependencyCriticality` is derived through required Backstage
+  `dependsOn` edges, never overwrites `ownBusinessCriticality`, and records
+  the upstream `inheritedFrom` drivers.
 
 Validate the BIA/criticality contract as part of the catalog gate:
 

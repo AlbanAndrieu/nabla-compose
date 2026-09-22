@@ -10,9 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from nabla_ops.business_criticality import (  # noqa: E402
+    business_continuity_coverage_errors,
     business_continuity_errors,
     business_criticality,
     business_criticality_inventory,
+    effective_dependency_criticality_inventory,
     parse_iso8601_duration,
 )
 
@@ -42,8 +44,10 @@ def _entity(
         "metadata": {
             "name": "example",
             "labels": {
+                "albandrieu.com/operational-state": "active",
                 "albandrieu.com/operational-criticality": "medium",
                 "albandrieu.com/business-criticality": declared,
+                "albandrieu.com/bia-scope": "direct",
             },
             "annotations": {
                 "albandrieu.com/bia-mtpd": mtpd,
@@ -152,10 +156,424 @@ class BusinessCriticalityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported ISO-8601 duration"):
             parse_iso8601_duration("P1DT")
 
+    def test_component_requires_operational_state_for_bia_scope(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "missing-state",
+                "labels": {},
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/missing-state: Component requires an "
+                "operational-state label for BIA coverage"
+            ],
+        )
+
+    def test_invalid_operational_state_cannot_bypass_bia_coverage(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "bad-state",
+                "labels": {
+                    "albandrieu.com/operational-state": "acitve",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/bad-state: operational-state must be one of: "
+                "active, disabled, planned"
+            ],
+        )
+
+    def test_inherited_bia_scope_requires_parent_or_dependent(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "orphan-worker",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "medium",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/orphan-worker: inherited BIA scope requires "
+                "spec.subcomponentOf or at least one declared dependent"
+            ],
+        )
+
+    def test_active_component_requires_bia_coverage(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "missing-bia",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/bia-scope": "direct",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/missing-bia: direct BIA scope requires a "
+                "business-criticality label and BIA profile"
+            ],
+        )
+
+    def test_planned_component_does_not_require_bia_yet(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "planned-service",
+                "labels": {
+                    "albandrieu.com/operational-state": "planned",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "lifecycle": "experimental",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [],
+        )
+
+    def test_stateful_resource_requires_rpo(self) -> None:
+        entity = _entity(
+            declared="high",
+            mtpd="P1D",
+            rto="PT4H",
+            rpo="PT1H",
+            impact="high",
+        )
+        entity["kind"] = "Resource"
+        entity["metadata"]["name"] = "database"
+        entity["metadata"]["labels"][
+            "albandrieu.com/operational-state"
+        ] = "active"
+        del entity["metadata"]["annotations"]["albandrieu.com/bia-rpo"]
+        entity["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "resource:default/database: stateful type database requires an "
+                "RPO"
+            ],
+        )
+
+    def test_inherited_shared_resource_allows_declared_dependent(self) -> None:
+        dependency = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Resource",
+            "metadata": {
+                "name": "shared-cache",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "medium",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "cache",
+                "owner": "group:default/nabla-platform",
+            },
+        }
+        consumer = _entity()
+        consumer["metadata"]["name"] = "consumer"
+        consumer["spec"]["dependsOn"] = ["resource:default/shared-cache"]
+
+        self.assertEqual(
+            business_continuity_coverage_errors(
+                [dependency, consumer],
+                _policy(),
+            ),
+            [],
+        )
+
+    def test_inherited_bia_scope_allows_dependency_only_criticality(self) -> None:
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "technical-worker",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "high",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+                "subcomponentOf": "component:default/parent",
+            },
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [],
+        )
+
+    def test_inherited_bia_scope_rejects_duplicate_own_bia(self) -> None:
+        entity = _entity()
+        entity["metadata"]["labels"]["albandrieu.com/bia-scope"] = "inherited"
+        entity["spec"]["subcomponentOf"] = "component:default/parent"
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy()),
+            [
+                "component:default/example: inherited BIA scope must not "
+                "duplicate business-criticality or BIA annotations"
+            ],
+        )
+
+    def test_bia_profile_requires_governance_metadata_and_impact(self) -> None:
+        entity = _entity()
+        annotations = entity["metadata"]["annotations"]
+        del annotations["albandrieu.com/bia-status"]
+        del annotations["albandrieu.com/bia-reviewed-at"]
+        del annotations["albandrieu.com/bia-mbco"]
+        del annotations["albandrieu.com/bia-impact-operational"]
+
+        errors = business_continuity_errors([entity], _policy())
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("MBCO/OMCA", errors[0])
+        self.assertIn("assessment status", errors[0])
+        self.assertIn("review date", errors[0])
+
+    def test_bia_profile_requires_at_least_one_impact_dimension(self) -> None:
+        entity = _entity()
+        del entity["metadata"]["annotations"][
+            "albandrieu.com/bia-impact-operational"
+        ]
+
+        self.assertEqual(
+            business_continuity_errors([entity], _policy()),
+            [
+                "component:default/example: BIA profile requires at least one "
+                "impact dimension"
+            ],
+        )
+
+    def test_dependency_criticality_is_derived_without_mutating_own_bia(self) -> None:
+        application = _entity(
+            declared="critical",
+            mtpd="PT4H",
+            rto="PT1H",
+            rpo="PT15M",
+            impact="critical",
+        )
+        application["metadata"]["name"] = "application"
+        application["spec"]["dependsOn"] = ["resource:default/database"]
+
+        database = _entity(
+            declared="low",
+            mtpd="P7D",
+            rto="P3D",
+            rpo="P7D",
+            impact="low",
+        )
+        database["kind"] = "Resource"
+        database["metadata"]["name"] = "database"
+        database["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [application, database],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["resource:default/database"]["ownBusinessCriticality"],
+            "low",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertTrue(
+            by_ref["resource:default/database"]["elevatedByDependencies"]
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"]["inheritedFrom"],
+            ["component:default/application"],
+        )
+        self.assertEqual(
+            by_ref["component:default/application"]["ownBusinessCriticality"],
+            "critical",
+        )
+        self.assertFalse(
+            by_ref["component:default/application"]["elevatedByDependencies"]
+        )
+
+    def test_parent_business_criticality_propagates_to_subcomponent(self) -> None:
+        parent = _entity(
+            declared="high",
+            mtpd="P1D",
+            rto="PT4H",
+            rpo="PT1H",
+            impact="high",
+        )
+        parent["metadata"]["name"] = "parent"
+
+        child = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "child",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "high",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {
+                "type": "worker",
+                "lifecycle": "production",
+                "owner": "group:default/nabla-platform",
+                "subcomponentOf": "component:default/parent",
+            },
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [parent, child],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["component:default/child"]["ownBusinessCriticality"],
+            None,
+        )
+        self.assertEqual(
+            by_ref["component:default/child"][
+                "effectiveDependencyCriticality"
+            ],
+            "high",
+        )
+        self.assertEqual(
+            by_ref["component:default/child"]["inheritedFrom"],
+            ["component:default/parent"],
+        )
+
+    def test_dependency_criticality_propagates_transitively(self) -> None:
+        application = _entity(
+            declared="critical",
+            mtpd="PT4H",
+            rto="PT1H",
+            rpo="PT15M",
+            impact="critical",
+        )
+        application["metadata"]["name"] = "application"
+        application["spec"]["dependsOn"] = ["component:default/middleware"]
+
+        middleware = _entity(
+            declared="medium",
+            mtpd="P3D",
+            rto="P1D",
+            rpo="P1D",
+            impact="medium",
+        )
+        middleware["metadata"]["name"] = "middleware"
+        middleware["spec"]["dependsOn"] = ["resource:default/database"]
+
+        database = _entity(
+            declared="low",
+            mtpd="P7D",
+            rto="P3D",
+            rpo="P7D",
+            impact="low",
+        )
+        database["kind"] = "Resource"
+        database["metadata"]["name"] = "database"
+        database["spec"] = {
+            "type": "database",
+            "owner": "group:default/nabla-platform",
+        }
+
+        rows = effective_dependency_criticality_inventory(
+            [application, middleware, database],
+            _policy(),
+        )
+        by_ref = {row["entityRef"]: row for row in rows}
+
+        self.assertEqual(
+            by_ref["component:default/middleware"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"][
+                "effectiveDependencyCriticality"
+            ],
+            "critical",
+        )
+        self.assertEqual(
+            by_ref["resource:default/database"]["inheritedFrom"],
+            ["component:default/application"],
+        )
+
     def test_repository_bia_profiles_are_consistent(self) -> None:
         entities = _repository_entities()
         policy = _policy()
         self.assertEqual(business_continuity_errors(entities, policy), [])
+        self.assertEqual(
+            business_continuity_coverage_errors(entities, policy),
+            [],
+        )
 
         inventory = business_criticality_inventory(entities, policy)
         self.assertGreaterEqual(len(inventory), 12)

@@ -264,6 +264,7 @@ metadata:
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: low
+    albandrieu.com/bia-scope: direct
   annotations:
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cartography/
     github.com/project-slug: AlbanAndrieu/nabla-compose
@@ -420,16 +421,46 @@ A technically passing gate does **not** mean the BIA has been approved.
 The bulk migration must not silently turn provisional values into validated
 values.
 
+### Coverage gate
+
+The catalog gate now prevents silent BIA omissions during P2.1.c:
+
+- every materialized Backstage `Component` / `Resource` must declare
+  `albandrieu.com/operational-state` so BIA scope cannot be bypassed by a
+  missing label;
+- every `active` Component/Resource must also declare
+  `albandrieu.com/bia-scope: direct | inherited`;
+- `direct` means the entity owns a BIA and therefore requires a
+  business-criticality label, MTPD/DMTP, RTO, MBCO/OMCA, assessment status,
+  review date and at least one assessed impact dimension;
+- data-bearing `direct` types listed in
+  `catalog/business-criticality-policy.yaml` additionally require RPO;
+- `inherited` means the technical subcomponent does **not** duplicate an own
+  business-criticality/BIA. Its effective criticality is derived from required
+  dependents through the Backstage graph;
+- `planned` / `disabled` entities may remain incomplete until activation,
+  but their missing BIA is explicit lifecycle debt rather than an inferred
+  low-criticality assessment.
+
 ### Dependency amplification
 
 Do not overwrite an infrastructure Resource's own BIA because a critical
 service depends on it. Keep two separate concepts:
 
 - **own business criticality** — calculated from that entity's BIA;
-- **effective/dependency criticality** — derived later from the catalog graph,
-  e.g. the maximum business criticality of required dependents.
+- **effective dependency criticality** — generated as a separate read-model
+  signal by traversing required Backstage `spec.dependsOn` edges transitively.
 
-This preserves provenance and avoids circular scoring.
+The implementation reports `ownBusinessCriticality`,
+`effectiveDependencyCriticality`, whether the entity was elevated, and the
+upstream business entities in `inheritedFrom`. An `inherited` entity is
+expected to have no own BIA and receives its effective value through this graph.
+Duplicate entity refs, malformed dependencies and unresolved dependency refs
+fail closed.
+
+This preserves provenance, avoids recursive score inflation and lets FastAPI /
+Site consumers explain why an infrastructure dependency is effectively critical
+without mutating its own BIA.
 
 ## Kubernetes model: do not flatten catalog, network and status
 
@@ -843,16 +874,35 @@ literal Docker container name.
 
 ### 3. Add one runtime correlation label
 
-Use Docker's recommended reverse-DNS label convention:
+Use Docker's reverse-DNS label convention:
 
 ```yaml
 labels:
   com.albandrieu.nabla.entity-ref: resource:default/neo4j-security
 ```
 
-This creates a join key available both in Git and on the live container.
+The key is deliberately namespaced as `com.albandrieu.nabla.*`: reverse-DNS
+ownership minimizes collisions with Docker/Compose built-ins and third-party
+labels such as `com.docker.compose.*`, `org.opencontainers.*` or
+`traefik.*`. The value is the full Backstage entity ref, so it remains
+unambiguous across entity kinds and namespaces.
 
-Do not overload container labels with the complete catalog.
+This label is a **runtime correlation key**, not catalog metadata. Compose
+places it on the live container, where Docker/TrueNAS observers can read it
+through the Docker API and join observed runtime state back to the canonical
+Backstage entity without guessing from display names or container names.
+
+Do not use a Backstage annotation for this runtime join. Backstage
+`metadata.annotations` belong to the catalog descriptor and are useful for
+source locations, external-system references and longer metadata, but Docker
+does not automatically materialize those annotations on a running container.
+Duplicating the entity ref as both a Backstage annotation and a Docker label
+would therefore add a second catalog-owned copy without improving the join.
+
+Conversely, do not overload Docker labels with the complete catalog. Identity,
+ownership, lifecycle, BIA and business metadata remain in Backstage; Compose
+labels carry only runtime/provider configuration and the minimum stable
+correlation key.
 
 ### 4. Derive instead of duplicate
 

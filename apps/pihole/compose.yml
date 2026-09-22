@@ -1,9 +1,12 @@
 ---
+name: pihole
 services:
   pihole:
     image: docker.io/pihole/pihole:2026.07.2
     container_name: pihole
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/pihole
     x-nabla:
       id: pihole
       name: Pi-hole
@@ -53,6 +56,8 @@ services:
   pihole-dns-sync:
     image: ghcr.io/cajuclc/traefik-pihole-sync:v0.0.1
     container_name: pihole-dns-sync
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/pihole-dns-sync
     x-nabla:
       id: pihole-dns-sync
       name: Pi-hole DNS Sync
@@ -104,6 +109,8 @@ services:
   pihole-exporter:
     image: docker.io/ekofr/pihole-exporter:latest
     container_name: pihole-exporter
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/pihole-exporter
     x-nabla:
       id: pihole-exporter
       name: Pi-hole Exporter

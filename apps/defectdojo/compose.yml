@@ -1,4 +1,5 @@
 ---
+name: defectdojo
 x-defectdojo-django: &defectdojo-django
   image: ${DEFECTDOJO_DJANGO_IMAGE:-defectdojo/defectdojo-django:latest}
   restart: unless-stopped
@@ -32,6 +33,8 @@ services:
       DD_INITIALIZE: ${DD_INITIALIZE:-true}
       DD_ADMIN_USER: ${DD_ADMIN_USER:-admin}
       DD_ADMIN_MAIL: ${DD_ADMIN_MAIL:-admin@defectdojo.local}
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/defectdojo-initializer
     x-nabla:
       id: defectdojo-initializer
       name: DefectDojo Initializer
@@ -64,6 +67,8 @@ services:
       - /entrypoint-uwsgi.sh
     volumes:
       - /mnt/cpool/defectdojo/media:/app/media
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/defectdojo-api
     x-nabla:
       id: defectdojo-api
       name: DefectDojo API
@@ -103,6 +108,8 @@ services:
       - "60"
       - --
       - /entrypoint-celery-beat.sh
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/defectdojo-celerybeat
     x-nabla:
       id: defectdojo-celerybeat
       name: DefectDojo Celery Beat
@@ -135,6 +142,8 @@ services:
       - /entrypoint-celery-worker.sh
     volumes:
       - /mnt/cpool/defectdojo/media:/app/media
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/defectdojo-worker
     x-nabla:
       id: defectdojo-worker
       name: DefectDojo Worker
@@ -164,11 +173,18 @@ services:
       DD_UWSGI_PORT: "3031"
       NGINX_METRICS_ENABLED: ${NGINX_METRICS_ENABLED:-false}
     ports:
-      - "172.17.0.24:31085:8080"
+      - name: web
+        target: 8080
+        published: "31085"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/defectdojo/media:/usr/share/nginx/html/media
     networks:
       - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/defectdojo
     x-nabla:
       id: defectdojo
       name: DefectDojo

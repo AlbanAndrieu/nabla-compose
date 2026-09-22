@@ -10,6 +10,8 @@ services:
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:0.3.0
     container_name: docker-socket-proxy
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/docker-socket-proxy
     x-nabla:
       id: docker-socket-proxy
       name: Docker Socket Proxy

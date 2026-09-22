@@ -13,7 +13,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
     backstage_entity_ref,
+    backstage_compose_dependency_duplicates,
     backstage_graph_errors,
+    backstage_materialization_debt,
+    backstage_runtime_binding_errors,
     build_parity_report,
     compatibility_relation_debt,
     desired_exposure_errors,
@@ -53,6 +56,173 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "spec": {"type": "team", "children": "none"},
                 }
             )
+
+    def test_same_project_compose_dependency_must_not_be_duplicated(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "source"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                    "dependsOn": ["component:default/target"],
+                },
+            },
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "target"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                },
+            },
+        ]
+        dependencies = [
+            {
+                "sourcePath": "apps/example/compose.yml",
+                "sourceEntityRef": "component:default/source",
+                "targetEntityRef": "component:default/target",
+            }
+        ]
+
+        self.assertEqual(
+            backstage_compose_dependency_duplicates(entities, dependencies),
+            [
+                "apps/example/compose.yml: Backstage component:default/source "
+                "dependsOn component:default/target duplicates same-project "
+                "Compose depends_on"
+            ],
+        )
+
+        del entities[0]["spec"]["dependsOn"]
+        self.assertEqual(
+            backstage_compose_dependency_duplicates(entities, dependencies),
+            [],
+        )
+
+    def test_materialized_service_requires_matching_runtime_entity_ref(self) -> None:
+        generated = {
+            "services": [
+                {
+                    "id": "example",
+                    "name": "Example",
+                    "kind": "service",
+                    "sourcePath": "apps/example/compose.yml",
+                    "composeService": "example",
+                }
+            ]
+        }
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "example"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                },
+            }
+        ]
+
+        self.assertEqual(
+            backstage_runtime_binding_errors(generated, entities, []),
+            [
+                "apps/example/compose.yml:example: materialized "
+                "component:default/example requires "
+                "com.albandrieu.nabla.entity-ref"
+            ],
+        )
+
+        self.assertEqual(
+            backstage_runtime_binding_errors(
+                generated,
+                entities,
+                [
+                    {
+                        "sourcePath": "apps/example/compose.yml",
+                        "composeService": "example",
+                        "entityRef": "component:default/missing",
+                    }
+                ],
+            ),
+            [
+                "apps/example/compose.yml:example: entity-ref label "
+                "component:default/missing does not match materialized "
+                "component:default/example",
+                "apps/example/compose.yml:example: entity-ref label references "
+                "unknown Backstage entity: component:default/missing",
+            ],
+        )
+
+        self.assertEqual(
+            backstage_runtime_binding_errors(
+                generated,
+                entities,
+                [
+                    {
+                        "sourcePath": "apps/example/compose.yml",
+                        "composeService": "example",
+                        "entityRef": "component:default/example",
+                    }
+                ],
+            ),
+            [],
+        )
+
+    def test_backstage_materialization_debt_tracks_missing_descriptors(self) -> None:
+        generated = {
+            "services": [
+                {
+                    "id": "materialized",
+                    "name": "Materialized",
+                    "kind": "service",
+                    "sourcePath": "apps/materialized/compose.yml",
+                    "composeService": "materialized",
+                },
+                {
+                    "id": "missing",
+                    "name": "Missing",
+                    "kind": "service",
+                    "sourcePath": "apps/missing/compose.yml",
+                    "composeService": "missing",
+                },
+            ]
+        }
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "materialized"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                },
+            }
+        ]
+
+        self.assertEqual(
+            backstage_materialization_debt(generated, entities),
+            [
+                {
+                    "serviceId": "missing",
+                    "sourcePath": "apps/missing/compose.yml",
+                    "composeService": "missing",
+                    "candidateEntityRef": "component:default/missing",
+                    "expectedCatalogInfoPath": "apps/missing/catalog-info.yaml",
+                    "operationalState": "active",
+                    "operationalCriticality": None,
+                    "legacyKind": "service",
+                    "reason": "missing-backstage-entity",
+                    "matchingEntityRefs": [],
+                }
+            ],
+        )
 
     def test_backstage_graph_requires_full_resolved_refs(self) -> None:
         entities = [
@@ -512,6 +682,17 @@ class CatalogV2ParityTests(unittest.TestCase):
         )
         self.assertGreater(report["summary"]["identityDebt"], 0)
         self.assertGreater(report["summary"]["backstageEntities"], 0)
+        self.assertEqual(
+            report["summary"]["backstageMaterializationDebt"],
+            len(report["backstageMaterializationDebt"]),
+        )
+        self.assertGreater(
+            report["summary"]["backstageMaterializationDebtByState"].get(
+                "active",
+                0,
+            ),
+            0,
+        )
         self.assertGreater(report["summary"]["backstageMaterializedEntries"], 0)
         self.assertEqual(
             report["summary"]["resolvedEntityRefs"],

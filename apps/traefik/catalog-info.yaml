@@ -9,6 +9,7 @@ metadata:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: critical
     albandrieu.com/business-criticality: critical
+    albandrieu.com/bia-scope: direct
   tags:
     - network
   annotations:
