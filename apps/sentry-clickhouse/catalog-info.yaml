@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: sentry-clickhouse
+  title: Sentry ClickHouse
+  description: Dedicated analytical datastore for the self-hosted Sentry stack.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: critical
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - data
+    - observability
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sentry-clickhouse/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: database
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
