@@ -1,8 +1,11 @@
 ---
+name: vaultwarden
 services:
   vaultwarden:
     image: vaultwarden/server:1.37.3
     container_name: vaultwarden
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/vaultwarden
     x-nabla:
       id: vaultwarden
       name: Vaultwarden
@@ -71,6 +74,8 @@ services:
   bitwarden-api:
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/vaultwarden-rest-api
     x-nabla:
       id: vaultwarden-rest-api
       name: Vaultwarden REST API Adapter
