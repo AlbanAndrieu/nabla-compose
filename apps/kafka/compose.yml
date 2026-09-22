@@ -1,7 +1,10 @@
 ---
+name: kafka
 services:
   kafka:
     image: confluentinc/cp-kafka:7.6.6
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/kafka
     x-nabla:
       id: kafka
       name: Apache Kafka
@@ -66,6 +69,8 @@ services:
   kafka-exporter:
     image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/kafka-exporter
     x-nabla:
       id: kafka-exporter
       name: Kafka Exporter
