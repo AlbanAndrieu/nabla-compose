@@ -20,6 +20,7 @@ from nabla_ops.business_criticality import (  # noqa: E402
 )
 from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_graph_errors,
+    backstage_runtime_binding_errors,
     build_parity_report,
     compatibility_relation_debt,
     desired_exposure_errors,
@@ -62,6 +63,39 @@ def _label_map(service: dict) -> dict[str, str]:
             if isinstance(item, str) and "=" in item:
                 key, value = item.split("=", 1)
                 result[key] = value
+    return result
+
+
+def _compose_entity_bindings() -> list[dict]:
+    result: list[dict] = []
+    paths = [ROOT / "docker-compose.yml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
+    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    for path in paths:
+        if not path.exists():
+            continue
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        services = payload.get("services")
+        if not isinstance(services, dict):
+            continue
+        for service_name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            entity_ref = _label_map(service).get(
+                "com.albandrieu.nabla.entity-ref",
+                "",
+            ).strip()
+            if not entity_ref:
+                continue
+            result.append(
+                {
+                    "sourcePath": path.relative_to(ROOT).as_posix(),
+                    "composeService": str(service_name),
+                    "entityRef": entity_ref,
+                }
+            )
     return result
 
 
@@ -188,6 +222,15 @@ def main() -> int:
         report["errors"] = sorted(
             set(report["errors"]) | set(backstage_graph_errors(backstage_entities))
         )
+        runtime_binding_errors = backstage_runtime_binding_errors(
+            _load(GENERATED_CATALOG),
+            backstage_entities,
+            _compose_entity_bindings(),
+        )
+        report["errors"] = sorted(
+            set(report["errors"]) | set(runtime_binding_errors)
+        )
+        report["summary"]["runtimeBindingErrors"] = len(runtime_binding_errors)
         exposure_errors = desired_exposure_errors(
             backstage_entities,
             _compose_exposure_bindings(),
@@ -276,6 +319,7 @@ def main() -> int:
             f" materialized={summary['backstageMaterializedEntries']}"
             f" backstage-debt={summary['backstageMaterializationDebt']}"
             f" identity-ready={summary['identityReadyEntries']}"
+            f" runtime-binding-errors={summary['runtimeBindingErrors']}"
             f" relation-debt={summary['compatibilityRelationDebt']}"
             f" exposure-spec-errors={summary['desiredExposureSpecErrors']}"
             f" business-bia={summary['businessCriticalityProfiles']}"
