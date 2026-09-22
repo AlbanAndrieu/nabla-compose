@@ -1,4 +1,5 @@
 ---
+name: plumber
 services:
   plumber:
     image: ${PLUMBER_FRONTEND_IMAGE:-docker.io/getplumber/frontend:latest}
@@ -11,7 +12,12 @@ services:
       API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
       API_PATH: /api
     ports:
-      - "172.17.0.24:31070:3000"
+      - name: web
+        target: 3000
+        published: "31070"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
     x-nabla:
@@ -71,7 +77,12 @@ services:
       API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
       API_PATH: /api
     ports:
-      - "172.17.0.24:31071:3000"
+      - name: api
+        target: 3000
+        published: "31071"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
     x-nabla:
