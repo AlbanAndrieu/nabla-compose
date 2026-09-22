@@ -40,4 +40,5 @@ spec:
   type: exporter
   lifecycle: production
   owner: group:default/nabla-platform
+  subcomponentOf: resource:default/kafka
   system: system:default/nabla-homelab
