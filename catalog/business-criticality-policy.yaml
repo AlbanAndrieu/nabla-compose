@@ -55,6 +55,10 @@ coverage:
   requiredKinds:
     - Component
     - Resource
+  allowedOperationalStates:
+    - active
+    - planned
+    - disabled
   requiredOperationalStates:
     - active
   directScopes:
