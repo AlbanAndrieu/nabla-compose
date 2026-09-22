@@ -177,6 +177,44 @@ def _backstage_index(
     return by_ref, by_name
 
 
+def backstage_compose_dependency_duplicates(
+    entities: list[Mapping[str, Any]],
+    dependencies: list[Mapping[str, Any]],
+) -> list[str]:
+    """Reject Backstage dependsOn copies of same-project Compose depends_on."""
+
+    by_ref, _ = _backstage_index(entities)
+    declared: dict[str, set[str]] = {}
+    for entity_ref, entity in by_ref.items():
+        spec = entity.get("spec")
+        if not isinstance(spec, Mapping):
+            continue
+        raw = spec.get("dependsOn")
+        if isinstance(raw, list):
+            declared[entity_ref] = {
+                str(value).strip().lower()
+                for value in raw
+                if isinstance(value, str) and value.strip()
+            }
+
+    errors: list[str] = []
+    for dependency in dependencies:
+        source_ref = str(dependency.get("sourceEntityRef") or "").strip().lower()
+        target_ref = str(dependency.get("targetEntityRef") or "").strip().lower()
+        source_path = str(dependency.get("sourcePath") or "<unknown>").strip()
+        if not source_ref or not target_ref:
+            continue
+        if source_ref not in by_ref or target_ref not in by_ref:
+            continue
+        if target_ref in declared.get(source_ref, set()):
+            errors.append(
+                f"{source_path}: Backstage {source_ref} dependsOn {target_ref} "
+                "duplicates same-project Compose depends_on"
+            )
+
+    return sorted(errors)
+
+
 def backstage_runtime_binding_errors(
     generated_catalog: Mapping[str, Any],
     entities: list[Mapping[str, Any]],
