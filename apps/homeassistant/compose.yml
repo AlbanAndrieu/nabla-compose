@@ -1,4 +1,5 @@
 ---
+name: homeassistant
 services:
   homeassistant:
     container_name: homeassistant
@@ -27,6 +28,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /mnt/storage0/home-assistant/config:/config
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/homeassistant"
       - "traefik.enable=true"
       - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.albanandrieu.com`)"
       - "traefik.http.routers.homeassistant.entrypoints=https"
