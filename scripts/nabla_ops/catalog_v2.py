@@ -192,6 +192,11 @@ def backstage_materialization_debt(
         source_path = str(service.get("sourcePath") or "").strip()
         compose_service = str(service.get("composeService") or "").strip()
         candidate_ref = _candidate_entity_ref(service)
+        operational_state = str(service.get("status") or "active").strip()
+        operational_criticality = str(
+            service.get("criticality") or ""
+        ).strip() or None
+        legacy_kind = str(service.get("kind") or "").strip() or None
 
         if not service_id:
             debt.append(
@@ -201,6 +206,9 @@ def backstage_materialization_debt(
                     "composeService": compose_service or None,
                     "candidateEntityRef": candidate_ref,
                     "expectedCatalogInfoPath": None,
+                    "operationalState": operational_state,
+                    "operationalCriticality": operational_criticality,
+                    "legacyKind": legacy_kind,
                     "reason": "missing-generated-id",
                     "matchingEntityRefs": [],
                 }
@@ -224,6 +232,9 @@ def backstage_materialization_debt(
                 "composeService": compose_service or None,
                 "candidateEntityRef": candidate_ref,
                 "expectedCatalogInfoPath": expected_catalog_info,
+                "operationalState": operational_state,
+                "operationalCriticality": operational_criticality,
+                "legacyKind": legacy_kind,
                 "reason": (
                     "missing-backstage-entity"
                     if not refs
@@ -753,6 +764,22 @@ def build_parity_report(
             bool(item["backstageMaterialized"]) for item in entries
         ),
         "backstageMaterializationDebt": len(materialization_debt),
+        "backstageMaterializationDebtByState": dict(
+            sorted(
+                Counter(
+                    str(item["operationalState"])
+                    for item in materialization_debt
+                ).items()
+            )
+        ),
+        "backstageMaterializationDebtByCriticality": dict(
+            sorted(
+                Counter(
+                    str(item["operationalCriticality"] or "unclassified")
+                    for item in materialization_debt
+                ).items()
+            )
+        ),
         "resolvedEntityRefs": len(by_entity_ref),
         "identityReadyEntries": sum(bool(item["identityReady"]) for item in entries),
         "desiredExposureEntries": desired_count,
