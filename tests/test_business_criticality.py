@@ -199,7 +199,7 @@ class BusinessCriticalityTests(unittest.TestCase):
         self.assertEqual(
             business_continuity_coverage_errors([entity], _policy()),
             [
-                "component:default/missing-bia: active Component requires a "
+                "component:default/missing-bia: direct BIA scope requires a "
                 "business-criticality label and BIA profile"
             ],
         )
