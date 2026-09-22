@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: npmplus
+  title: NPMplus
+  description: Hardened Nginx Proxy Manager fork tracked as the repository migration target.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - network
+    - proxy
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/npmplus/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: proxy
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
