@@ -293,7 +293,10 @@ for identity, dependencies, exposure intent and reboot safety.
   identities and runtime correlation labels; newly touched Compose services use
   stable project names and named LAN-bound ports where applicable. AutoXpose
   also declares its cross-project dependency on
-  `component:default/docker-socket-proxy`.
+  `component:default/docker-socket-proxy`. The current #218 follow-up adds
+  InfluxDB + Scrutiny, Plumber/API/worker, Dockhand and Dozzle as coherent
+  dependency groups. Active `critical/high` materialization debt remains zero
+  and active `medium` debt is reduced to 8 services.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
@@ -302,8 +305,11 @@ for identity, dependencies, exposure intent and reboot safety.
   `Component` / `Resource`: `operational-state` is mandatory; active
   entities must choose `bia-scope=direct|inherited`; direct entities require a
   complete BIA (and stateful direct types require RPO), while inherited
-  subcomponents must not duplicate their own business-criticality/BIA.
-  Planned/disabled entities may remain incomplete until activated.
+  entities must not duplicate their own business-criticality/BIA and must be
+  justified either by `spec.subcomponentOf` or by at least one incoming
+  Backstage `dependsOn`. Unknown operational-state values fail closed instead
+  of bypassing BIA coverage. Planned/disabled entities may remain incomplete
+  until activated.
 - [x] Propagate dependency criticality as a separate derived read-model signal:
   `effectiveDependencyCriticality` walks required Backstage `dependsOn`
   edges transitively, preserves `ownBusinessCriticality`, reports
@@ -315,6 +321,11 @@ for identity, dependencies, exposure intent and reboot safety.
   catalog calculation is not continuity acceptance by itself.
 - [ ] Normalize Compose project/service identity, named ports, healthchecks and
   native `depends_on`; remove redundant `container_name` only where safe.
+- [ ] Remove direct privileged Docker socket access where practical. Dockhand and
+  Dozzle currently depend on `resource:default/docker` because their
+  management/actions/shell features require broader access than the existing
+  read-only `docker-socket-proxy`; evaluate a separately scoped proxy or
+  disable privileged features before changing runtime behavior.
 - [ ] Migrate every legacy desired hostname/visibility/Access requirement to
   Traefik/Gateway/provider IaC or temporary `x-nabla.exposure`.
 - [ ] Migrate every accepted exposure/security exception to structured
