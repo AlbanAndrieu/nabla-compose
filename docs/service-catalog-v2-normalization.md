@@ -420,16 +420,39 @@ A technically passing gate does **not** mean the BIA has been approved.
 The bulk migration must not silently turn provisional values into validated
 values.
 
+### Coverage gate
+
+The catalog gate now prevents silent BIA omissions during P2.1.c:
+
+- every materialized Backstage `Component` / `Resource` must declare
+  `albandrieu.com/operational-state` so BIA scope cannot be bypassed by a
+  missing label;
+- an `active` Component/Resource requires a business-criticality label,
+  MTPD/DMTP, RTO, MBCO/OMCA, assessment status, review date and at least one
+  assessed impact dimension;
+- data-bearing types listed in
+  `catalog/business-criticality-policy.yaml` additionally require RPO;
+- `planned` / `disabled` entities may remain incomplete until activation,
+  but their missing BIA is explicit lifecycle debt rather than an inferred
+  low-criticality assessment.
+
 ### Dependency amplification
 
 Do not overwrite an infrastructure Resource's own BIA because a critical
 service depends on it. Keep two separate concepts:
 
 - **own business criticality** — calculated from that entity's BIA;
-- **effective/dependency criticality** — derived later from the catalog graph,
-  e.g. the maximum business criticality of required dependents.
+- **effective dependency criticality** — generated as a separate read-model
+  signal by traversing required Backstage `spec.dependsOn` edges transitively.
 
-This preserves provenance and avoids circular scoring.
+The implementation reports `ownBusinessCriticality`,
+`effectiveDependencyCriticality`, whether the entity was elevated, and the
+upstream business entities in `inheritedFrom`. Duplicate entity refs,
+malformed dependencies and unresolved dependency refs fail closed.
+
+This preserves provenance, avoids recursive score inflation and lets FastAPI /
+Site consumers explain why an infrastructure dependency is effectively critical
+without mutating its own BIA.
 
 ## Kubernetes model: do not flatten catalog, network and status
 
