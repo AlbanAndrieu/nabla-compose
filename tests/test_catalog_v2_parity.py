@@ -14,6 +14,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
     backstage_entity_ref,
     backstage_graph_errors,
+    backstage_materialization_debt,
     build_parity_report,
     compatibility_relation_debt,
     desired_exposure_errors,
@@ -53,6 +54,53 @@ class CatalogV2ParityTests(unittest.TestCase):
                     "spec": {"type": "team", "children": "none"},
                 }
             )
+
+    def test_backstage_materialization_debt_tracks_missing_descriptors(self) -> None:
+        generated = {
+            "services": [
+                {
+                    "id": "materialized",
+                    "name": "Materialized",
+                    "kind": "service",
+                    "sourcePath": "apps/materialized/compose.yml",
+                    "composeService": "materialized",
+                },
+                {
+                    "id": "missing",
+                    "name": "Missing",
+                    "kind": "service",
+                    "sourcePath": "apps/missing/compose.yml",
+                    "composeService": "missing",
+                },
+            ]
+        }
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Component",
+                "metadata": {"name": "materialized"},
+                "spec": {
+                    "type": "service",
+                    "lifecycle": "production",
+                    "owner": "group:default/nabla-platform",
+                },
+            }
+        ]
+
+        self.assertEqual(
+            backstage_materialization_debt(generated, entities),
+            [
+                {
+                    "serviceId": "missing",
+                    "sourcePath": "apps/missing/compose.yml",
+                    "composeService": "missing",
+                    "candidateEntityRef": "component:default/missing",
+                    "expectedCatalogInfoPath": "apps/missing/catalog-info.yaml",
+                    "reason": "missing-backstage-entity",
+                    "matchingEntityRefs": [],
+                }
+            ],
+        )
 
     def test_backstage_graph_requires_full_resolved_refs(self) -> None:
         entities = [
@@ -512,6 +560,10 @@ class CatalogV2ParityTests(unittest.TestCase):
         )
         self.assertGreater(report["summary"]["identityDebt"], 0)
         self.assertGreater(report["summary"]["backstageEntities"], 0)
+        self.assertEqual(
+            report["summary"]["backstageMaterializationDebt"],
+            len(report["backstageMaterializationDebt"]),
+        )
         self.assertGreater(report["summary"]["backstageMaterializedEntries"], 0)
         self.assertEqual(
             report["summary"]["resolvedEntityRefs"],
