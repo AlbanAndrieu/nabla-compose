@@ -264,6 +264,7 @@ metadata:
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: low
+    albandrieu.com/bia-scope: direct
   annotations:
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cartography/
     github.com/project-slug: AlbanAndrieu/nabla-compose
@@ -427,11 +428,16 @@ The catalog gate now prevents silent BIA omissions during P2.1.c:
 - every materialized Backstage `Component` / `Resource` must declare
   `albandrieu.com/operational-state` so BIA scope cannot be bypassed by a
   missing label;
-- an `active` Component/Resource requires a business-criticality label,
-  MTPD/DMTP, RTO, MBCO/OMCA, assessment status, review date and at least one
-  assessed impact dimension;
-- data-bearing types listed in
+- every `active` Component/Resource must also declare
+  `albandrieu.com/bia-scope: direct | inherited`;
+- `direct` means the entity owns a BIA and therefore requires a
+  business-criticality label, MTPD/DMTP, RTO, MBCO/OMCA, assessment status,
+  review date and at least one assessed impact dimension;
+- data-bearing `direct` types listed in
   `catalog/business-criticality-policy.yaml` additionally require RPO;
+- `inherited` means the technical subcomponent does **not** duplicate an own
+  business-criticality/BIA. Its effective criticality is derived from required
+  dependents through the Backstage graph;
 - `planned` / `disabled` entities may remain incomplete until activation,
   but their missing BIA is explicit lifecycle debt rather than an inferred
   low-criticality assessment.
@@ -447,8 +453,10 @@ service depends on it. Keep two separate concepts:
 
 The implementation reports `ownBusinessCriticality`,
 `effectiveDependencyCriticality`, whether the entity was elevated, and the
-upstream business entities in `inheritedFrom`. Duplicate entity refs,
-malformed dependencies and unresolved dependency refs fail closed.
+upstream business entities in `inheritedFrom`. An `inherited` entity is
+expected to have no own BIA and receives its effective value through this graph.
+Duplicate entity refs, malformed dependencies and unresolved dependency refs
+fail closed.
 
 This preserves provenance, avoids recursive score inflation and lets FastAPI /
 Site consumers explain why an infrastructure dependency is effectively critical
