@@ -1,9 +1,12 @@
 ---
+name: cyberbro
 services:
   cyberbro:
     image: ghcr.io/stanfrbd/cyberbro:v0.14.2
     container_name: cyberbro
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/cyberbro
     x-nabla:
       id: cyberbro
       name: Cyberbro
@@ -37,7 +40,12 @@ services:
       MIGRATE_OWNERSHIP_ON_START: "true"
       TZ: ${TZ:-Europe/Paris}
     ports:
-      - "172.17.0.24:${CYBERBRO_PORT:-5100}:5000"
+      - name: web
+        target: 5000
+        published: "${CYBERBRO_PORT:-5100}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/cyberbro/data:/app/data
       - /mnt/cpool/cyberbro/logs:/var/log/cyberbro
@@ -56,6 +64,8 @@ services:
     image: ghcr.io/stanfrbd/mcp-cyberbro:v0.0.5
     container_name: mcp-cyberbro
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/mcp-cyberbro
     x-nabla:
       id: mcp-cyberbro
       name: Cyberbro MCP
@@ -96,7 +106,12 @@ services:
       MCP_TRANSPORT: streamable-http
       SSL_VERIFY: "true"
     ports:
-      - "172.17.0.24:${CYBERBRO_MCP_PORT:-8013}:8000"
+      - name: mcp
+        target: 8000
+        published: "${CYBERBRO_MCP_PORT:-8013}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     depends_on:
       cyberbro:
         condition: service_healthy
