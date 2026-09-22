@@ -27,7 +27,7 @@ metadata:
     albandrieu.com/bia-impact-legal-regulatory: low
     albandrieu.com/bia-impact-reputation: low
     albandrieu.com/bia-impact-confidentiality: medium
-    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-integrity: medium
     albandrieu.com/bia-impact-privacy: low
     backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nexus/
     github.com/project-slug: AlbanAndrieu/nabla-compose
