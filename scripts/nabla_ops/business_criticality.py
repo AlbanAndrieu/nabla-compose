@@ -454,15 +454,21 @@ def business_continuity_coverage_errors(
     errors: list[str] = []
     for entity in entities:
         kind = str(entity.get("kind") or "").strip()
-        metadata, labels, annotations = _metadata(entity)
+        _, labels, annotations = _metadata(entity)
         if kind not in required_kinds:
             continue
 
+        entity_ref = _entity_ref(entity)
         state = labels.get(label_keys["operationalState"])
+        if state is None:
+            errors.append(
+                f"{entity_ref}: {kind} requires an operational-state label "
+                "for BIA coverage"
+            )
+            continue
         if state not in required_states:
             continue
 
-        entity_ref = _entity_ref(entity)
         if label_keys["businessCriticality"] not in labels:
             errors.append(
                 f"{entity_ref}: active {kind} requires a business-criticality "
