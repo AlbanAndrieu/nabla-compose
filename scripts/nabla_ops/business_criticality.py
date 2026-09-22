@@ -78,7 +78,11 @@ def _policy_keys(policy: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, s
     if not isinstance(annotations, Mapping) or not isinstance(labels, Mapping):
         raise ValueError("business criticality policy requires annotations and labels")
     required_annotations = ("mtpd", "rto", "rpo", "mbco", "status", "reviewedAt", "impactPrefix")
-    required_labels = ("businessCriticality", "operationalCriticality")
+    required_labels = (
+        "businessCriticality",
+        "operationalCriticality",
+        "operationalState",
+    )
     annotation_keys = {key: str(annotations.get(key) or "") for key in required_annotations}
     label_keys = {key: str(labels.get(key) or "") for key in required_labels}
     missing = [
@@ -415,4 +419,79 @@ def effective_dependency_criticality_inventory(
             }
         )
     return rows
+
+def business_continuity_coverage_errors(
+    entities: list[Mapping[str, Any]],
+    policy: Mapping[str, Any],
+) -> list[str]:
+    """Require BIA coverage for active catalog entities in policy scope."""
+
+    annotation_keys, label_keys = _policy_keys(policy)
+    coverage = policy.get("coverage")
+    if not isinstance(coverage, Mapping):
+        raise ValueError("business criticality policy requires coverage")
+
+    required_kinds = {
+        str(item)
+        for item in coverage.get("requiredKinds", [])
+        if str(item).strip()
+    }
+    required_states = {
+        str(item)
+        for item in coverage.get("requiredOperationalStates", [])
+        if str(item).strip()
+    }
+    rpo_required_types = {
+        str(item)
+        for item in coverage.get("rpoRequiredTypes", [])
+        if str(item).strip()
+    }
+    if not required_kinds or not required_states:
+        raise ValueError(
+            "business criticality policy coverage requires kinds and states"
+        )
+
+    errors: list[str] = []
+    for entity in entities:
+        kind = str(entity.get("kind") or "").strip()
+        metadata, labels, annotations = _metadata(entity)
+        if kind not in required_kinds:
+            continue
+
+        state = labels.get(label_keys["operationalState"])
+        if state not in required_states:
+            continue
+
+        entity_ref = _entity_ref(entity)
+        if label_keys["businessCriticality"] not in labels:
+            errors.append(
+                f"{entity_ref}: active {kind} requires a business-criticality "
+                "label and BIA profile"
+            )
+            continue
+
+        if (
+            annotation_keys["mtpd"] not in annotations
+            or annotation_keys["rto"] not in annotations
+        ):
+            errors.append(
+                f"{entity_ref}: active {kind} requires MTPD/DMTP and RTO"
+            )
+            continue
+
+        spec = entity.get("spec")
+        spec_type = (
+            str(spec.get("type") or "").strip()
+            if isinstance(spec, Mapping)
+            else ""
+        )
+        if (
+            spec_type in rpo_required_types
+            and annotation_keys["rpo"] not in annotations
+        ):
+            errors.append(
+                f"{entity_ref}: stateful type {spec_type} requires an RPO"
+            )
+
+    return sorted(errors)
 
