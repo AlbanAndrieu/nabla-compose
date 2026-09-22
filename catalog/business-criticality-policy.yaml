@@ -48,3 +48,22 @@ annotations:
 labels:
   businessCriticality: albandrieu.com/business-criticality
   operationalCriticality: albandrieu.com/operational-criticality
+  operationalState: albandrieu.com/operational-state
+
+coverage:
+  requiredKinds:
+    - Component
+    - Resource
+  requiredOperationalStates:
+    - active
+  rpoRequiredTypes:
+    - database
+    - graph-database
+    - cache
+    - object-storage
+    - message-broker
+    - search-engine
+    - log-store
+    - metrics-store
+    - time-series-database
+    - trace-store
