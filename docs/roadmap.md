@@ -288,7 +288,12 @@ for identity, dependencies, exposure intent and reboot safety.
   materialize the core security/data services plus Garage; `pfSense`,
   `TrueNAS` and `Docker` are intentionally represented as root static
   Backstage Resources instead of creating misleading app-local descriptors from
-  their legacy `sourcePath` aliases.
+  their legacy `sourcePath` aliases. The active `medium` wave now includes
+  Nexus, AutoXpose, Portracker, Pyroscope, Code Server and AIStor with Backstage
+  identities and runtime correlation labels; newly touched Compose services use
+  stable project names and named LAN-bound ports where applicable. AutoXpose
+  also declares its cross-project dependency on
+  `component:default/docker-socket-proxy`.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep

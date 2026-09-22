@@ -1,4 +1,5 @@
 ---
+name: pyroscope
 services:
   pyroscope:
     image: grafana/pyroscope:2.3.0
@@ -32,8 +33,15 @@ services:
           evidence:
             - apps/pyroscope/compose.yml:pyroscope.x-nabla.monitoring.url
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/pyroscope
     ports:
-      - "4040:4040"
+      - name: web
+        target: 4040
+        published: "4040"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     command:
       - "server"
       # Pyroscope v2 keeps its metastore Raft WAL/state on disk. Keep both

@@ -2,23 +2,22 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: nexus
-  title: Nexus Repository
-  description: Repository manager for development artifacts and package proxies.
+  name: aistor
+  title: AIStor
+  description: MinIO AIStor-compatible object storage service.
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct
   tags:
-    - development
-    - artifact-repository
-    - supply-chain
+    - data
+    - object-storage
   annotations:
     albandrieu.com/bia-mtpd: P3D
     albandrieu.com/bia-rto: P1D
     albandrieu.com/bia-rpo: P1D
-    albandrieu.com/bia-mbco: priority-development-artifacts-and-package-proxies-remain-recoverable
+    albandrieu.com/bia-mbco: priority-object-storage-data-remains-recoverable
     albandrieu.com/bia-status: provisional
     albandrieu.com/bia-reviewed-at: "2026-09-22"
     albandrieu.com/bia-impact-operational: medium
@@ -28,11 +27,11 @@ metadata:
     albandrieu.com/bia-impact-reputation: low
     albandrieu.com/bia-impact-confidentiality: medium
     albandrieu.com/bia-impact-integrity: medium
-    albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nexus/
+    albandrieu.com/bia-impact-privacy: medium
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/aistor/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
-  type: artifact-repository
+  type: object-storage
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
