@@ -312,6 +312,10 @@ for identity, dependencies, exposure intent and reboot safety.
   of `/mnt/cpool/openwebui/data` before treating the one-day RPO as achieved;
   then review confidentiality/integrity/privacy impacts and change
   `bia-status` from `provisional` only after owner acceptance.
+- [ ] Materialize LiteLLM as a Backstage entity before moving OpenWebUI's
+  required `consumesApi` relation out of legacy `x-nabla`; until then keep
+  exactly one declared authority for that dependency and do not create an
+  unresolved `spec.dependsOn`.
 - [x] Enforce explicit BIA ownership for every materialized Backstage
   `Component` / `Resource`: `operational-state` is mandatory; active
   entities must choose `bia-scope=direct|inherited`; direct entities require a
