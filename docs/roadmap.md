@@ -23,6 +23,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
 - [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
 - [Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md)
+- [OpenWebUI backup and disaster recovery](./openwebui-backup-pra.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
@@ -306,16 +307,22 @@ for identity, dependencies, exposure intent and reboot safety.
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
   `bia-status=provisional` until an owner has reviewed the assumptions.
-- [ ] Validate the provisional OpenWebUI BIA: current working targets are
-  MTPD/DMTP=`P3D`, RTO=`P1D`, RPO=`P1D`, with direct LiteLLM/API/CLI
-  access as the MBCO fallback. Prove a backup/snapshot cadence and one restore
-  of `/mnt/cpool/openwebui/data` before treating the one-day RPO as achieved;
-  then review confidentiality/integrity/privacy impacts and change
-  `bia-status` from `provisional` only after owner acceptance.
-- [ ] Materialize LiteLLM as a Backstage entity before moving OpenWebUI's
-  required `consumesApi` relation out of legacy `x-nabla`; until then keep
-  exactly one declared authority for that dependency and do not create an
-  unresolved `spec.dependsOn`.
+- [ ] Validate the provisional OpenWebUI BIA: reviewed targets are
+  MTPD/DMTP=`P7D`, RTO=`P1D`, RPO=`P1D` (objective, not yet proven), with
+  a **3-day recovery escalation threshold**. The MBCO requires the OpenWebUI UI
+  on the LAN plus LiteLLM, OpenRAG and a working OpenAI-compatible GPU inference
+  capability; Cloudflare Tunnel is not continuity-critical. Conversations and
+  OpenRAG-derived content are highly sensitive, prompt/history loss within the
+  RPO is acceptable, and configuration recovery is mandatory. Implement the
+  backup/PRA in `docs/openwebui-backup-pra.md`, prove <=24h backup age plus a
+  non-destructive restore, then change `bia-status` from `provisional` only
+  after owner acceptance.
+- [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
+  OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
+  A logical `resource:default/gpu-openai-compatible-inference` now represents
+  the required GPU capability without binding continuity to the intermittent
+  workstation; keep the current legacy relation only as a temporary v1
+  compatibility projection until the one-shot topology cutover.
 - [x] Enforce explicit BIA ownership for every materialized Backstage
   `Component` / `Resource`: `operational-state` is mandatory; active
   entities must choose `bia-scope=direct|inherited`; direct entities require a
@@ -626,5 +633,6 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> Kubernetes ingress + test.int.albandrieu.com
   -> Karmada multi-cluster foundation (always-on TrueNAS management plane -> nabla-talos -> intermittent workstation GPU -> future cloud GPU)
   -> Scrutiny / remaining service work
+  -> OpenWebUI backup/PRA acceptance (LAN UI + LiteLLM + OpenRAG + GPU, RTO P1D/RPO P1D, 3-day escalation, DMTP P7D)
   -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```
