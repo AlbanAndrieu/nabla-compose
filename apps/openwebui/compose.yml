@@ -12,6 +12,17 @@ x-nabla:
       kind: tool-service
       category: ai
       description: Optional agent terminal API consumed by Open WebUI tools.
+  # v1 topology compatibility projection only. The v2 desired-exposure
+  # authority is services.open-webui.x-nabla.exposure below; remove this edge
+  # with the one-shot v1 topology cutover.
+  relations:
+    - source: openwebui
+      target: cloudflared
+      type: exposedBy
+      strength: required
+      description: Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.
+      evidence:
+        - apps/openwebui/compose.yml:ports
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
