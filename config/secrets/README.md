@@ -121,24 +121,24 @@ bw --version
 The bootstrap verifies the upstream SHA-256 before installing
 `~/.local/bin/bw`. The repository currently pins CLI `2026.9.0`.
 
-On the TrueNAS host, prefer the bounded local-client configuration. It keeps
-the canonical public base URL for item identity/documentation while routing the
-Bitwarden API/identity client calls over the loopback-published Vaultwarden
-port. This avoids making secret administration depend on Cloudflare ingress:
+On the TrueNAS host, use the bounded client preflight:
 
 ```bash
 bash scripts/truenas/configure-bitwarden-cli-local.sh --check
 bash scripts/truenas/configure-bitwarden-cli-local.sh --apply
 bw config server
-bw login
-export BW_SESSION="$(bw unlock --raw)"
-bw sync --session "$BW_SESSION"
 ```
 
-The helper requires the direct local `/api/config` endpoint to be healthy
-before it changes CLI configuration. It also probes the public
-`https://vaultwarden.albandrieu.com/api/config` route and reports ingress debt
-without weakening TLS or sending credentials through the public path.
+The helper proves the native loopback origin through
+`http://127.0.0.1:30032/api/config`, but never configures that HTTP URL in the
+official Bitwarden CLI. Bitwarden CLI 2026.x rejects insecure API/identity
+endpoints even on loopback. The helper therefore also requires the canonical
+`https://vaultwarden.albandrieu.com/api/config` endpoint to work and resets
+any stale per-service HTTP override by applying the canonical HTTPS server.
+
+After that preflight, authenticate/unlock normally from the unprivileged
+operator shell. If Vaultwarden later becomes private-only, provide a
+certificate-valid HTTPS client hostname rather than disabling TLS verification.
 
 For a remote workstation, the normal single-server form remains valid only
 when the public client API is healthy:
