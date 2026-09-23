@@ -3,7 +3,7 @@ set -euo pipefail
 
 MODE="${1:---check}"
 PUBLIC_BASE="${NABLA_VAULTWARDEN_PUBLIC_BASE:-https://vaultwarden.albandrieu.com}"
-LOCAL_BASE="${NABLA_VAULTWARDEN_LOCAL_BASE:-http://127.0.0.1:30032}"
+LOCAL_ORIGIN="${NABLA_VAULTWARDEN_LOCAL_ORIGIN:-http://127.0.0.1:30032}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -16,11 +16,11 @@ case "${MODE}" in
     cat <<'EOF'
 usage: bash scripts/truenas/configure-bitwarden-cli-local.sh [--check|--apply]
 
-Configure the official Bitwarden CLI on the TrueNAS operator account so API
-and identity traffic uses the local Vaultwarden listener while the canonical
-public URL remains the configured base/web-vault identity.
+Validate the local Vaultwarden origin, then configure the official Bitwarden
+CLI with the canonical HTTPS Vaultwarden server.
 
-Run as the unprivileged operator. No vault session or secret is read.
+The local HTTP origin is a health probe only. Bitwarden CLI 2026.x intentionally
+rejects insecure API and identity URLs, including loopback URLs.
 EOF
     exit 0
     ;;
@@ -33,10 +33,10 @@ for command in bw curl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
-printf 'Checking native Vaultwarden API on %s/api/config...\n' "${LOCAL_BASE}"
+printf 'Checking native Vaultwarden origin on %s/api/config...\n' "${LOCAL_ORIGIN}"
 local_config="$(
-  curl --fail --silent --show-error --max-time 5 "${LOCAL_BASE}/api/config"
-)" || fail "native Vaultwarden API is not reachable at ${LOCAL_BASE}/api/config"
+  curl --fail --silent --show-error --max-time 5 "${LOCAL_ORIGIN}/api/config"
+)" || fail "native Vaultwarden API is not reachable at ${LOCAL_ORIGIN}/api/config"
 
 jq -e '
   type == "object" and
@@ -51,14 +51,16 @@ public_code="$(
     --output /dev/null --write-out '%{http_code}' \
     "${PUBLIC_BASE}/api/config" || true
 )"
-if [[ "${public_code}" == "200" ]]; then
-  printf 'OK: public Vaultwarden client API is reachable: %s/api/config\n' "${PUBLIC_BASE}"
-else
-  printf 'WARN: public Vaultwarden client API returned HTTP %s; TrueNAS CLI will use loopback endpoints.\n' "${public_code:-000}" >&2
+if [[ "${public_code}" != "200" ]]; then
+  printf 'WARN: canonical HTTPS Vaultwarden client API returned HTTP %s: %s/api/config\n' \
+    "${public_code:-000}" "${PUBLIC_BASE}" >&2
+  fail "official Bitwarden CLI requires a working HTTPS client endpoint; do not use the HTTP loopback origin as an API override"
 fi
 
+printf 'OK: canonical HTTPS Vaultwarden client API is reachable: %s/api/config\n' "${PUBLIC_BASE}"
+
 if [[ "${MODE}" == "--check" ]]; then
-  printf 'OK: local Vaultwarden client endpoint is ready; run --apply before bw login.\n'
+  printf 'OK: local origin and HTTPS client endpoint are ready.\n'
   exit 0
 fi
 
@@ -69,18 +71,12 @@ if [[ "${status}" != "unauthenticated" ]]; then
   fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
 fi
 
-bw config server "${PUBLIC_BASE}" \
-  --web-vault "${PUBLIC_BASE}" \
-  --api "${LOCAL_BASE}/api" \
-  --identity "${LOCAL_BASE}/identity" \
-  --icons "${LOCAL_BASE}/icons" \
-  --notifications "${LOCAL_BASE}/notifications" \
-  --events "${LOCAL_BASE}/events"
+# A plain server assignment clears stale per-service overrides. Never point the
+# official CLI at LOCAL_ORIGIN because it is intentionally HTTP-only.
+bw config server "${PUBLIC_BASE}"
 
 configured_base="$(bw config server | tr -d '\r\n')"
 [[ "${configured_base%/}" == "${PUBLIC_BASE%/}" ]] ||
   fail "Bitwarden CLI base mismatch after configuration: ${configured_base:-<unset>}"
 
-printf 'OK: Bitwarden CLI base=%s with native API/identity routed through %s\n' \
-  "${PUBLIC_BASE}" "${LOCAL_BASE}"
-printf 'Next: bw login; export BW_SESSION="$(bw unlock --raw)"; bw sync --session "$BW_SESSION"\n'
+printf 'OK: Bitwarden CLI configured for canonical HTTPS server %s\n' "${PUBLIC_BASE}"
