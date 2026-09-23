@@ -130,6 +130,17 @@ zfs list -o name,mountpoint | grep -F '/mnt/cpool/openwebui'
 Do not create or destroy datasets solely to make the runbook match an assumed
 layout.
 
+Also inventory the existing TrueNAS data-protection tasks before creating any
+new schedule:
+
+```bash
+sudo midclt call pool.snapshottask.query | jq .
+sudo midclt call replication.query | jq .
+```
+
+Do not create a duplicate task if an existing snapshot/replication policy
+already covers the resolved dataset with an adequate cadence and retention.
+
 Record:
 
 - actual ZFS dataset;
