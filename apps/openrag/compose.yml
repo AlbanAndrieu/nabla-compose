@@ -1,9 +1,12 @@
 ---
+name: openrag
 services:
   openrag-backend:
     image: docker.io/langflowai/openrag-backend:${OPENRAG_VERSION:-0.7.1}
     container_name: openrag-backend
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openrag-backend
     x-nabla:
       id: openrag-backend
       name: OpenRAG Backend
@@ -74,6 +77,8 @@ services:
     image: docker.io/langflowai/openrag-frontend:${OPENRAG_VERSION:-0.7.1}
     container_name: openrag-frontend
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openrag-frontend
     x-nabla:
       id: openrag-frontend
       name: OpenRAG Frontend
