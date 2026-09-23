@@ -566,6 +566,68 @@ class BusinessCriticalityTests(unittest.TestCase):
             ["component:default/application"],
         )
 
+    def test_openwebui_reviewed_bia_contract(self) -> None:
+        entities = _repository_entities()
+        policy = _policy()
+        by_ref = {}
+        for entity in entities:
+            kind = str(entity.get("kind") or "").lower()
+            metadata = entity.get("metadata") or {}
+            name = str(metadata.get("name") or "")
+            if kind and name:
+                by_ref[f"{kind}:default/{name}"] = entity
+
+        openwebui = by_ref["component:default/openwebui"]
+        metadata = openwebui["metadata"]
+        labels = metadata["labels"]
+        annotations = metadata["annotations"]
+        dependencies = set(openwebui["spec"]["dependsOn"])
+
+        self.assertEqual(
+            labels["albandrieu.com/business-criticality"],
+            "high",
+        )
+        self.assertEqual(annotations["albandrieu.com/bia-mtpd"], "P7D")
+        self.assertEqual(annotations["albandrieu.com/bia-rto"], "P1D")
+        self.assertEqual(annotations["albandrieu.com/bia-rpo"], "P1D")
+        self.assertEqual(annotations["albandrieu.com/bia-status"], "provisional")
+        self.assertEqual(
+            dependencies,
+            {
+                "component:default/litellm",
+                "component:default/openrag-backend",
+            },
+        )
+        self.assertNotIn(
+            "resource:default/cloudflare-tunnel",
+            dependencies,
+        )
+
+        result = business_criticality(openwebui, policy)
+        assert result is not None
+        self.assertEqual(result["calculated"], "high")
+        self.assertGreater(
+            parse_iso8601_duration(annotations["albandrieu.com/bia-mtpd"]),
+            parse_iso8601_duration(annotations["albandrieu.com/bia-rto"]),
+        )
+
+        effective = {
+            row["entityRef"]: row
+            for row in effective_dependency_criticality_inventory(
+                entities,
+                policy,
+            )
+        }
+        for dependency_ref in (
+            "component:default/litellm",
+            "component:default/openrag-backend",
+            "resource:default/gpu-openai-compatible-inference",
+        ):
+            self.assertEqual(
+                effective[dependency_ref]["effectiveDependencyCriticality"],
+                "high",
+            )
+
     def test_repository_bia_profiles_are_consistent(self) -> None:
         entities = _repository_entities()
         policy = _policy()
