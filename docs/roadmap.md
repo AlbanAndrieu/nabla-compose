@@ -314,8 +314,14 @@ for identity, dependencies, exposure intent and reboot safety.
   capability; Cloudflare Tunnel is not continuity-critical. Conversations and
   OpenRAG-derived content are highly sensitive, prompt/history loss within the
   RPO is acceptable, and configuration recovery is mandatory. Implement the
-  backup/PRA in `docs/openwebui-backup-pra.md`, prove <=24h backup age plus a
-  non-destructive restore, then change `bia-status` from `provisional` only
+  backup/PRA in `docs/openwebui-backup-pra.md`. When TrueNAS access is
+  available, first run
+  `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check` to
+  inventory the real dataset, latest snapshot, independent replication/cloud
+  backup, recent successful backup age, encryption evidence, OpenRAG recovery
+  paths and Pipelines volume debt. Until that check is green, RPO=`P1D`
+  remains an objective rather than an achieved control. Then prove a
+  non-destructive restore and change `bia-status` from `provisional` only
   after owner acceptance.
 - [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
   OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
