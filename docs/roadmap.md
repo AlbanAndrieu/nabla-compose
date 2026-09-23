@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-20.
+Last updated: 2026-09-23.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
