@@ -1,0 +1,44 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: openrag-backend
+  title: OpenRAG Backend
+  description: Knowledge retrieval backend required by the OpenWebUI continuity path.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - ai
+    - rag
+    - knowledge
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openrag/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: openrag-frontend
+  title: OpenRAG Frontend
+  description: OpenRAG frontend and collective-health UI.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - ai
+    - rag
+    - ui
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/openrag-backend
