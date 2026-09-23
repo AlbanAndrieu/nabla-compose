@@ -1,4 +1,5 @@
 ---
+name: openwebui
 x-nabla:
   nodes:
     - id: searxng
@@ -11,20 +12,13 @@ x-nabla:
       kind: tool-service
       category: ai
       description: Optional agent terminal API consumed by Open WebUI tools.
-  relations:
-    - source: openwebui
-      target: cloudflared
-      type: exposedBy
-      strength: required
-      description: Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.
-      evidence:
-        - apps/openwebui/compose.yml:ports
-
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: open-webui
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openwebui
     x-nabla:
       id: openwebui
       name: Open WebUI
@@ -34,6 +28,16 @@ services:
         provider: truenas-app
         appId: openwebui
         containerService: open-webui
+      exposure:
+        - name: public
+          hostnames:
+            - open-webui.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
       relations:
         - target: litellm
           type: consumesApi
@@ -57,7 +61,11 @@ services:
     # depends_on:
     #   - ollama
     ports:
-      - ${OPEN_WEBUI_PORT-31028}:8080
+      - name: web
+        target: 8080
+        published: "${OPEN_WEBUI_PORT-31028}"
+        protocol: tcp
+        app_protocol: http
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
@@ -98,6 +106,8 @@ services:
     image: ghcr.io/open-webui/pipelines:main
     container_name: pipelines
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openwebui-pipelines
     x-nabla:
       id: openwebui-pipelines
       name: Open WebUI Pipelines
