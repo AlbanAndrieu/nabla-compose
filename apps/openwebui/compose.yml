@@ -88,7 +88,6 @@ services:
       - ENABLE_ADMIN_EXPORT=false
       - ENABLE_COMMUNITY_SHARING=false
       - ENABLE_PERSISTENT_CONFIG=false
-      - ENABLE_DIRECT_CONNECTIONS=false
       - ENABLE_FORWARD_USER_INFO_HEADERS=true
       # - RAG_EMBEDDING_ENGINE=sentence_transformers
       # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
@@ -98,7 +97,7 @@ services:
       - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
-      - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com
+      - CORS_ALLOW_ORIGIN=https://open-webui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com
     extra_hosts:
       - host.docker.internal:host-gateway
 
