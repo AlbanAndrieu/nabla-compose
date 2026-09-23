@@ -318,10 +318,15 @@ class PublicIngressContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("target: cloudflared", compose)
         self.assertIn("open-webui.albandrieu.com", compose)
-        self.assertIn("Traefik is not in this path", compose)
+        self.assertIn(
+            "gatewayRef: resource:default/cloudflare-tunnel",
+            compose,
+        )
+        self.assertIn("backendPort: web", compose)
+        self.assertIn("required: true", compose)
         self.assertNotIn("target: traefik", compose)
+        self.assertNotIn("traefik.http.routers", compose)
 
     def test_pyroscope_v2_metastore_is_pinned_and_persistent(self) -> None:
         compose = (ROOT / "apps" / "pyroscope" / "compose.yml").read_text(
