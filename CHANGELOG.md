@@ -1,3 +1,19 @@
+# [0.42.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.41.0...0.42.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **qg:** reconcile local contract drift and bound failure output ([#212](https://github.com/AlbanAndrieu/nabla-compose/issues/212)) ([d63acc5](https://github.com/AlbanAndrieu/nabla-compose/commit/d63acc5858dfa2cc0defc1f4c0c376a68626162e))
+
+
+### Features
+
+* **catalog:** continue v2 BIA and parity hardening ([#216](https://github.com/AlbanAndrieu/nabla-compose/issues/216)) ([6845cb4](https://github.com/AlbanAndrieu/nabla-compose/commit/6845cb4a740347d1812e4e8d33b37876ae5b6ca9))
+* **catalog:** continue v2 medium-wave materialization ([#217](https://github.com/AlbanAndrieu/nabla-compose/issues/217)) ([7df2ae8](https://github.com/AlbanAndrieu/nabla-compose/commit/7df2ae807bf792faaed6f4f92fe503ca7eb304df))
+* **catalog:** prepare Backstage v2 parity pilot ([#215](https://github.com/AlbanAndrieu/nabla-compose/issues/215)) ([2e7a718](https://github.com/AlbanAndrieu/nabla-compose/commit/2e7a718d6b8eca57b180bc5f6f8956472bcee02f))
+* **secrets:** enforce Vaultwarden first-wave runtime acceptance ([#213](https://github.com/AlbanAndrieu/nabla-compose/issues/213)) ([61432ec](https://github.com/AlbanAndrieu/nabla-compose/commit/61432ecb8529542a7341702e28cf3ae9a9b14435))
+* **secrets:** rebase initialization control plane on 0.41.0 [skip ci] ([#210](https://github.com/AlbanAndrieu/nabla-compose/issues/210)) ([49ee00f](https://github.com/AlbanAndrieu/nabla-compose/commit/49ee00f20aa0ae60ff60803d8b8b093a0532800f))
+
 # [0.41.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.40.0...0.41.0) (2026-09-19)
 
 
