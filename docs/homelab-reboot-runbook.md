@@ -450,6 +450,18 @@ If a proven orphan still returns `EBUSY`, preserve evidence. Do not force it.
 Use the supported TrueNAS UI or supported `system.reboot` API only after the
 PREPARED acceptance gate. Do not substitute a raw forced reboot.
 
+TrueNAS 26 models `system.reboot` as a job with a required reason and an
+optional `delay`. For an immediate reviewed reboot after `PREPARED`:
+
+```bash
+sudo midclt call -j system.reboot \
+  "Nabla controlled reboot after PREPARED lifecycle gate" \
+  '{"delay": null}'
+```
+
+Using `-j` is intentional because `system.reboot` is a job method. The SSH
+session is expected to disconnect once the reboot begins.
+
 ## Phase 2 — post-reboot infrastructure gate
 
 After TrueNAS returns:
