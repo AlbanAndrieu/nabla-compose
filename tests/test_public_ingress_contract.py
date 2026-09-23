@@ -320,6 +320,10 @@ class PublicIngressContractTests(unittest.TestCase):
 
         self.assertIn("open-webui.albandrieu.com", compose)
         self.assertIn(
+            "CORS_ALLOW_ORIGIN=https://open-webui.albandrieu.com,",
+            compose,
+        )
+        self.assertIn(
             "gatewayRef: resource:default/cloudflare-tunnel",
             compose,
         )
