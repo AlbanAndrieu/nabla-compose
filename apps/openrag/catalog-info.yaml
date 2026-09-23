@@ -21,6 +21,8 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/gpu-openai-compatible-inference
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
