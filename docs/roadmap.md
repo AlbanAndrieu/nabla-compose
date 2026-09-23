@@ -297,14 +297,21 @@ for identity, dependencies, exposure intent and reboot safety.
   InfluxDB + Scrutiny, Plumber/API/worker, Dockhand, Dozzle, LanguageTool,
   Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
   Manager, OpenHands and Squid as reviewed dependency groups. Active
-  `critical/high/medium` materialization debt is now **zero**. Remaining active
-  debt is 47 lower-priority services: 42 unclassified and 5 low. Nginx Proxy
+  `critical/high/medium` materialization debt is now **zero**. The guided
+  OpenWebUI BIA/materialization in #218 further reduces remaining active debt to
+  45 lower-priority services: 40 unclassified and 5 low. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
   `bia-status=provisional` until an owner has reviewed the assumptions.
+- [ ] Validate the provisional OpenWebUI BIA: current working targets are
+  MTPD/DMTP=`P3D`, RTO=`P1D`, RPO=`P1D`, with direct LiteLLM/API/CLI
+  access as the MBCO fallback. Prove a backup/snapshot cadence and one restore
+  of `/mnt/cpool/openwebui/data` before treating the one-day RPO as achieved;
+  then review confidentiality/integrity/privacy impacts and change
+  `bia-status` from `provisional` only after owner acceptance.
 - [x] Enforce explicit BIA ownership for every materialized Backstage
   `Component` / `Resource`: `operational-state` is mandatory; active
   entities must choose `bia-scope=direct|inherited`; direct entities require a
