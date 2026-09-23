@@ -120,6 +120,17 @@ storage are possible implementations).
 
 ## Backup implementation preflight
 
+When TrueNAS access is available, run the read-only repository diagnostic first:
+
+```bash
+sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh
+sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check
+```
+
+The non-strict mode inventories/warns. `--check` fails when the one-day RPO is
+not evidenced by current snapshots/independent backup state. The script does
+not create snapshots, backup tasks or replication jobs.
+
 Before creating schedules, identify the real storage owner:
 
 ```bash
