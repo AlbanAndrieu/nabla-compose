@@ -196,9 +196,17 @@ replication_json="$(midclt call replication.query 2>/dev/null || printf '[]')"
 cloudsync_json="$(midclt call cloudsync.query 2>/dev/null || printf '[]')"
 jobs_json="$(midclt call core.get_jobs 2>/dev/null || printf '[]')"
 
+backup_payload="$(mktemp)"
+trap 'rm -f "${backup_payload}"' EXIT
+
+jq -n \
+  --argjson replication "${replication_json}" \
+  --argjson cloudsync "${cloudsync_json}" \
+  --argjson jobs "${jobs_json}" \
+  '{replication:$replication,cloudsync:$cloudsync,jobs:$jobs}' >"${backup_payload}"
+
 backup_result="$(
-  jq -n     --argjson replication "${replication_json}"     --argjson cloudsync "${cloudsync_json}"     --argjson jobs "${jobs_json}"     '{replication:$replication,cloudsync:$cloudsync,jobs:$jobs}' |
-    python3 - "${openwebui_dataset:-}" "${OPENWEBUI_DATA_DIR}" "${RPO_SECONDS}" <<'PY'
+  python3 - "${openwebui_dataset:-}" "${OPENWEBUI_DATA_DIR}" "${RPO_SECONDS}" "${backup_payload}" <<'PY'
 import datetime as dt
 import json
 import sys
@@ -207,7 +215,9 @@ from typing import Any
 dataset = sys.argv[1]
 data_path = sys.argv[2]
 rpo_seconds = int(sys.argv[3])
-payload = json.load(sys.stdin)
+with open(sys.argv[4], encoding="utf-8") as stream:
+    payload = json.load(stream)
+
 replication = payload.get("replication") or []
 cloudsync = payload.get("cloudsync") or []
 jobs = payload.get("jobs") or []
@@ -318,6 +328,15 @@ for kind, task_id, independent in candidate_ids:
     if independent and age is not None and age <= rpo_seconds:
         fresh_success = True
 
+for task in replication_candidates:
+    if not bool(task.get("encryption")) and not bool(
+        task.get("has_encrypted_dataset_keys")
+    ):
+        print(
+            f"warning replication id={task.get('id')} covers sensitive OpenWebUI "
+            "data without explicit encryption/key evidence; review destination encryption"
+        )
+
 for task in cloud_candidates:
     if not bool(task.get("encryption")):
         print(
@@ -353,9 +372,12 @@ else
   fi
 fi
 
-if grep -q '^warning cloudsync ' <<<"${backup_result}"; then
-  fail_or_warn "Sensitive OpenWebUI cloud backup is present without client-side encryption"
+if grep -Eq '^warning (cloudsync|replication) ' <<<"${backup_result}"; then
+  fail_or_warn "Sensitive OpenWebUI backup lacks explicit encryption evidence"
 fi
+
+rm -f "${backup_payload}"
+trap - EXIT
 
 printf '\n==> Pipelines persistence\n'
 if command -v docker >/dev/null 2>&1; then
@@ -363,7 +385,7 @@ if command -v docker >/dev/null 2>&1; then
     docker volume ls       --filter 'label=com.docker.compose.project=openwebui'       --format '{{.Name}}' 2>/dev/null |
       grep -E '(^|_)pipelines$' || true
   )
-  if (("${#pipeline_volumes[@]}" == 0)); then
+  if ((${#pipeline_volumes[@]} == 0)); then
     warn "OpenWebUI Pipelines named volume was not discovered; verify after deployment"
   else
     for volume in "${pipeline_volumes[@]}"; do
