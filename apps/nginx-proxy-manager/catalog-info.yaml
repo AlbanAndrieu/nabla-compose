@@ -1,0 +1,38 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: nginx-proxy-manager
+  title: Nginx Proxy Manager
+  description: Legacy reverse-proxy administration service retained during NPMplus migration.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: medium
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - proxy
+    - legacy
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: legacy-proxy-state-remains-recoverable-during-npmplus-migration
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nginx-proxy-manager/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: proxy
+  lifecycle: deprecated
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

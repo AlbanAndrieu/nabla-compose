@@ -1,4 +1,5 @@
 ---
+name: dockhand
 services:
   dockhand:
     image: fnsys/dockhand:latest
@@ -19,8 +20,14 @@ services:
         host: 172.17.0.24
         port: 3050
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/dockhand
     ports:
-      - 3050:3000
+      - name: web
+        target: 3000
+        published: "3050"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /mnt/cpool/dockhand:/app/data

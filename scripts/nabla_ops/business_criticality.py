@@ -536,6 +536,23 @@ def business_continuity_coverage_errors(
             "business criticality policy direct/inherited scopes must differ"
         )
 
+    incoming_dependents: dict[str, set[str]] = {}
+    for source in entities:
+        source_ref = _entity_ref(source)
+        source_spec = source.get("spec")
+        if not isinstance(source_spec, Mapping):
+            continue
+        dependencies = source_spec.get("dependsOn")
+        if not isinstance(dependencies, list):
+            continue
+        for target in dependencies:
+            if not isinstance(target, str) or not target.strip():
+                continue
+            incoming_dependents.setdefault(
+                target.strip().lower(),
+                set(),
+            ).add(source_ref)
+
     errors: list[str] = []
     for entity in entities:
         kind = str(entity.get("kind") or "").strip()

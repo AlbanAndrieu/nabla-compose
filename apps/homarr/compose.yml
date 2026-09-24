@@ -1,4 +1,5 @@
 ---
+name: homarr
 x-nabla:
   nodes:
     - id: docker
@@ -25,6 +26,8 @@ services:
   homarr:
     image: ghcr.io/homarr-labs/homarr:v1.76.2
     container_name: homarr
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/homarr
     x-nabla:
       id: homarr
       name: Homarr
@@ -72,6 +75,8 @@ services:
   homarr-sync:
     image: docker.io/library/python:3.13-alpine
     container_name: homarr-sync
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/homarr-sync
     x-nabla:
       id: homarr-sync
       name: Homarr Reconciler

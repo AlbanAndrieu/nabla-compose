@@ -50,15 +50,16 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("run as the unprivileged operator", bootstrap)
         self.assertNotIn("sudo ", bootstrap)
 
-    def test_true_nas_bitwarden_client_uses_local_native_api_without_root(self) -> None:
+    def test_true_nas_bitwarden_client_probes_local_origin_but_requires_https(self) -> None:
         helper = (
             ROOT / "scripts" / "truenas" / "configure-bitwarden-cli-local.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("http://127.0.0.1:30032", helper)
         self.assertIn("/api/config", helper)
-        self.assertIn("--api", helper)
-        self.assertIn("--identity", helper)
-        self.assertIn("--web-vault", helper)
+        self.assertIn("requires a working HTTPS client endpoint", helper)
+        self.assertIn('bw config server "${PUBLIC_BASE}"', helper)
+        self.assertNotIn('--api "${LOCAL_ORIGIN}/api"', helper)
+        self.assertNotIn('--identity "${LOCAL_ORIGIN}/identity"', helper)
         self.assertIn("bw logout", helper)
         self.assertIn("run as the unprivileged operator", helper)
         self.assertNotIn("sudo ", helper)

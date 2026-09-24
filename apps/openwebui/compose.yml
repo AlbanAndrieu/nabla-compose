@@ -1,4 +1,5 @@
 ---
+name: openwebui
 x-nabla:
   nodes:
     - id: searxng
@@ -11,6 +12,9 @@ x-nabla:
       kind: tool-service
       category: ai
       description: Optional agent terminal API consumed by Open WebUI tools.
+  # v1 topology compatibility projection only. The v2 desired-exposure
+  # authority is services.open-webui.x-nabla.exposure below; remove this edge
+  # with the one-shot v1 topology cutover.
   relations:
     - source: openwebui
       target: cloudflared
@@ -19,12 +23,13 @@ x-nabla:
       description: Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.
       evidence:
         - apps/openwebui/compose.yml:ports
-
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: open-webui
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openwebui
     x-nabla:
       id: openwebui
       name: Open WebUI
@@ -34,6 +39,16 @@ services:
         provider: truenas-app
         appId: openwebui
         containerService: open-webui
+      exposure:
+        - name: public
+          hostnames:
+            - open-webui.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
       relations:
         - target: litellm
           type: consumesApi
@@ -57,7 +72,11 @@ services:
     # depends_on:
     #   - ollama
     ports:
-      - ${OPEN_WEBUI_PORT-31028}:8080
+      - name: web
+        target: 8080
+        published: "${OPEN_WEBUI_PORT-31028}"
+        protocol: tcp
+        app_protocol: http
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
@@ -80,7 +99,6 @@ services:
       - ENABLE_ADMIN_EXPORT=false
       - ENABLE_COMMUNITY_SHARING=false
       - ENABLE_PERSISTENT_CONFIG=false
-      - ENABLE_DIRECT_CONNECTIONS=false
       - ENABLE_FORWARD_USER_INFO_HEADERS=true
       # - RAG_EMBEDDING_ENGINE=sentence_transformers
       # - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
@@ -90,7 +108,7 @@ services:
       - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
-      - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com
+      - CORS_ALLOW_ORIGIN=https://open-webui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -98,6 +116,8 @@ services:
     image: ghcr.io/open-webui/pipelines:main
     container_name: pipelines
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openwebui-pipelines
     x-nabla:
       id: openwebui-pipelines
       name: Open WebUI Pipelines

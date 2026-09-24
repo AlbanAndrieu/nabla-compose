@@ -304,3 +304,22 @@ spec:
   dependsOn:
     - resource:default/docker
 
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-openai-compatible-inference
+  title: GPU OpenAI-Compatible Inference
+  description: Logical GPU inference capability consumed by AI gateways and RAG services; currently backed by the workstation and intended to gain a cloud fallback.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - ai
+    - gpu
+    - inference
+spec:
+  type: ai-inference-capability
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

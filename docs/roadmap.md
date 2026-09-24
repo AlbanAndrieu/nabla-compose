@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-20.
+Last updated: 2026-09-23.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -23,6 +23,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
 - [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
 - [Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md)
+- [OpenWebUI backup and disaster recovery](./openwebui-backup-pra.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
 ## Current platform state
@@ -55,7 +56,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] **TrueNAS storage/runtime architecture:** repository-owned data, tracked Compose/config and runtime secret materialization are now separate contracts; `cpool/secrets` is the planned `GENERIC` root-only security dataset and application-owned datasets use the `APPS` preset when local persistence is real.
 - [ ] **TrueNAS runtime env migration:** baseline inventory found 52 env materializations requiring migration work, 23 application datasets with Apps-preset drift and eight empty unowned direct-child dataset candidates. Stage canonical copies first; do not bulk-finalize env paths or recreate non-empty datasets.
 - [x] **Cyberbro secret contract:** Vaultwarden item `nabla/prod/cyberbro` exists in the personal `TrueNAS` folder and renders 27 optional mappings as a `0600` env file. Provider credentials are intentionally empty until account/API onboarding is completed; empty optional providers do not block the free-engine baseline.
-- [ ] **Vaultwarden edge/TLS debt:** operator evidence on 2026-09-20 shows the official `bw 2026.9.0` client receives HTTP 404 while discovering the public `https://vaultwarden.albandrieu.com/api` service. Keep the canonical public hostname, but use the new loopback client configuration on TrueNAS only after `http://127.0.0.1:30032/api/config` proves the native Vaultwarden API is healthy. Separately repair the Cloudflare Tunnel/reverse-proxy path so public `/api/config` reaches Vaultwarden, investigate the earlier transient `502 origin_bad_gateway`, and correct the icon-fetch certificate-name mismatch. Do not weaken TLS verification and do not route new automation through the legacy REST adapter.
+- [ ] **Vaultwarden exposure/TLS debt:** operator evidence on 2026-09-23 proves the native origin `http://127.0.0.1:30032/api/config` is healthy, while Bitwarden CLI 2026.9.0 refuses insecure HTTP API/identity endpoints even on loopback. Keep TLS verification strict. Decide the steady-state exposure model explicitly: prefer private VPN/WARP/private-DNS access when public password-manager access is unnecessary; otherwise keep protocol-required client endpoints such as `/api/config` reachable over verified HTTPS and reduce exposure at the hostname/network/WAF layer rather than path-blocking endpoints required by stock clients. Protect `/admin` more strictly, keep signups disabled, rate-limit abusive traffic, repair any Cloudflare Tunnel routing inconsistency/502, and eliminate the raw-IP certificate-name mismatch. Treat version/environment data from `/api/config` as avoidable reconnaissance metadata where a private-only model is feasible, not as secret material.
 - [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
 
 ## P0 — controlled TrueNAS reboot accepted
@@ -160,7 +161,7 @@ script.
 11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries. The stage enum now lives in `nabla_ops`; persistence/mutation remains deliberately deferred until transaction semantics are implemented.
 12. [x] Add a root-readable, value-blind filesystem inventory for `.env` / `.env.secrets` migration candidates; it reports paths/metadata only and complements the canonical migration planner.
 13. [x] Stage `sample` as the first path-normalization pilot without Vaultwarden. Operator evidence on 2026-09-19 confirms `/mnt/cpool/secrets/runtime/sample/.env` and `.env.secrets` are root:root `0600`, non-empty and byte-consistent with the legacy sources; legacy files remain intact.
-14. [ ] **Finish Sample before deleting legacy dotenvs:** restage after the local `.env` cleanup, redeploy from the canonical paths, require `/health`, version, dedicated observer-network and TrueNAS read-only observer acceptance, then perform one controlled reboot acceptance. Only then run `--finalize sample`; after an additional clean observation/reboot cycle, remove the compatibility symlinks once repository/runtime consumers no longer reference `/mnt/cpool/sample/.env*`.
+14. [ ] **Finish Sample reboot acceptance:** operator evidence on 2026-09-23 proves Sample RUNNING on `:8091`, `/health` healthy, `/v2/version` at `1.20.8`, observer source `10.254.255.9` accepted with `APPS_READ,CATALOG_READ`, and canonical env copies consistent. The operator then finalized both legacy Sample dotenvs into compatibility symlinks to `/mnt/cpool/secrets/runtime/sample/`. Because finalization happened before the planned reboot gate, do not remove those symlinks or rotate values yet; the next controlled reboot must prove Sample resumes from canonical materialization, followed by another clean observation before legacy compatibility links can be retired.
 15. [ ] Normalize Sample database ownership: TrueNAS staging depends on shared PostgreSQL at `172.17.0.24:5432`; create database **`sample`** owned by dedicated LOGIN role **`sample`** (no SUPERUSER/CREATEDB/CREATEROLE/REPLICATION), bootstrap it idempotently with `scripts/truenas/bootstrap-sample-postgres.sh --check|--apply`, render its password through the canonical Sample secret flow, and require an authentication/application smoke before cutover. Target local config is `POSTGRES_HOST=172.17.0.24`, `POSTGRES_PORT=5432`, `POSTGRES_DB=sample`, `POSTGRES_USER=sample`. Move the historical Supabase pooler identity to explicit `SUPABASE_*` variables in `fastapi-sample`; never reuse the `postgres` superuser for Sample.
 16. [ ] Resolve the Scrutiny source conflict value-blind: repository-local `apps/scrutiny/.env.secrets` and `/mnt/cpool/scrutiny/.env.secrets` differ and must not be auto-merged. Compare key sets/value equality by key name only, select the runtime-authoritative source with evidence, then restage.
 17. [ ] Initialize the currently missing declared datasets only with their service rollout: `cyberbro`, `defectdojo`, `dependency-track`, `neo4j`, `netbox`. Their absence remains expected preparation debt until deployment; do not create them merely to make the global check green.
@@ -293,17 +294,50 @@ for identity, dependencies, exposure intent and reboot safety.
   identities and runtime correlation labels; newly touched Compose services use
   stable project names and named LAN-bound ports where applicable. AutoXpose
   also declares its cross-project dependency on
-  `component:default/docker-socket-proxy`.
+  `component:default/docker-socket-proxy`. The current #218 follow-up adds
+  InfluxDB + Scrutiny, Plumber/API/worker, Dockhand, Dozzle, LanguageTool,
+  Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
+  Manager, OpenHands and Squid as reviewed dependency groups. Active
+  `critical/high/medium` materialization debt is now **zero**. The guided
+  OpenWebUI BIA/materialization in #218 further reduces remaining active debt to
+  45 lower-priority services: 40 unclassified and 5 low. Nginx Proxy
+  Manager remains operationally active but is explicitly modeled with Backstage
+  `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
   replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
   concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
   `bia-status=provisional` until an owner has reviewed the assumptions.
+- [ ] Validate the provisional OpenWebUI BIA: reviewed targets are
+  MTPD/DMTP=`P7D`, RTO=`P1D`, RPO=`P1D` (objective, not yet proven), with
+  a **3-day recovery escalation threshold**. The MBCO requires the OpenWebUI UI
+  on the LAN plus LiteLLM, OpenRAG and a working OpenAI-compatible GPU inference
+  capability; Cloudflare Tunnel is not continuity-critical. Conversations and
+  OpenRAG-derived content are highly sensitive, prompt/history loss within the
+  RPO is acceptable, and configuration recovery is mandatory. Implement the
+  backup/PRA in `docs/openwebui-backup-pra.md`. When TrueNAS access is
+  available, first run
+  `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check` to
+  inventory the real dataset, latest snapshot, independent replication/cloud
+  backup, recent successful backup age, encryption evidence, OpenRAG recovery
+  paths and Pipelines volume debt. Until that check is green, RPO=`P1D`
+  remains an objective rather than an achieved control. Then prove a
+  non-destructive restore and change `bia-status` from `provisional` only
+  after owner acceptance.
+- [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
+  OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
+  A logical `resource:default/gpu-openai-compatible-inference` now represents
+  the required GPU capability without binding continuity to the intermittent
+  workstation; keep the current legacy relation only as a temporary v1
+  compatibility projection until the one-shot topology cutover.
 - [x] Enforce explicit BIA ownership for every materialized Backstage
   `Component` / `Resource`: `operational-state` is mandatory; active
   entities must choose `bia-scope=direct|inherited`; direct entities require a
   complete BIA (and stateful direct types require RPO), while inherited
-  subcomponents must not duplicate their own business-criticality/BIA.
-  Planned/disabled entities may remain incomplete until activated.
+  entities must not duplicate their own business-criticality/BIA and must be
+  justified either by `spec.subcomponentOf` or by at least one incoming
+  Backstage `dependsOn`. Unknown operational-state values fail closed instead
+  of bypassing BIA coverage. Planned/disabled entities may remain incomplete
+  until activated.
 - [x] Propagate dependency criticality as a separate derived read-model signal:
   `effectiveDependencyCriticality` walks required Backstage `dependsOn`
   edges transitively, preserves `ownBusinessCriticality`, reports
@@ -315,6 +349,11 @@ for identity, dependencies, exposure intent and reboot safety.
   catalog calculation is not continuity acceptance by itself.
 - [ ] Normalize Compose project/service identity, named ports, healthchecks and
   native `depends_on`; remove redundant `container_name` only where safe.
+- [ ] Remove direct privileged Docker socket access where practical. Dockhand,
+  Dozzle and OpenHands currently depend on `resource:default/docker` because
+  their management/actions/shell or sandbox features require broader access than
+  the existing read-only `docker-socket-proxy`; evaluate separately scoped
+  proxies or disable privileged features before changing runtime behavior.
 - [ ] Migrate every legacy desired hostname/visibility/Access requirement to
   Traefik/Gateway/provider IaC or temporary `x-nabla.exposure`.
 - [ ] Migrate every accepted exposure/security exception to structured
@@ -600,5 +639,6 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> Kubernetes ingress + test.int.albandrieu.com
   -> Karmada multi-cluster foundation (always-on TrueNAS management plane -> nabla-talos -> intermittent workstation GPU -> future cloud GPU)
   -> Scrutiny / remaining service work
+  -> OpenWebUI backup/PRA acceptance (LAN UI + LiteLLM + OpenRAG + GPU, RTO P1D/RPO P1D, 3-day escalation, DMTP P7D)
   -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```

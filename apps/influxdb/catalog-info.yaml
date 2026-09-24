@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: influxdb
+  title: InfluxDB
+  description: Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - data
+    - observability
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/influxdb/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: time-series-database
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

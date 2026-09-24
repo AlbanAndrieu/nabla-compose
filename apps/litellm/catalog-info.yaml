@@ -1,0 +1,25 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: litellm
+  title: LiteLLM
+  description: OpenAI-compatible model gateway used by OpenWebUI and AI workloads.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - ai
+    - gateway
+    - inference
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/litellm/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: ai-gateway
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/gpu-openai-compatible-inference

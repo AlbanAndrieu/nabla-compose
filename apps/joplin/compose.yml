@@ -1,4 +1,5 @@
 ---
+name: joplin
 services:
   joplin:
     image: joplin/server:${JOPLIN_VERSION:-3.7.18}
@@ -49,7 +50,12 @@ services:
       POSTGRES_DATABASE: joplin
       POSTGRES_USER: joplin
     ports:
-      - "172.17.0.24:22300:22300"
+      - name: web
+        target: 22300
+        published: "22300"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     healthcheck:
       test:
         - CMD
@@ -64,6 +70,7 @@ services:
       retries: 10
       start_period: 60s
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/joplin"
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"
       - "traefik.http.routers.joplin.rule=Host(`joplin.int.albandrieu.com`)"

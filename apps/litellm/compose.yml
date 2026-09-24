@@ -1,4 +1,5 @@
 ---
+name: litellm
 services:
   litellm:
     # image: docker.litellm.ai/berriai/litellm:main-latest # Buggy v1.82.x # main-stable
@@ -6,6 +7,8 @@ services:
     image: ghcr.io/berriai/litellm:main-stable # v1.84.8-stable
     container_name: litellm
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/litellm
     x-nabla:
       id: litellm
       name: LiteLLM

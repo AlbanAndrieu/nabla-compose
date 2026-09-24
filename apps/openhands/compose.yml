@@ -1,9 +1,12 @@
 ---
+name: openhands
 services:
   openhands:
     image: docker.openhands.dev/openhands/openhands:1.8
     pull_policy: missing
     container_name: openhands-app
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openhands
     x-nabla:
       id: openhands
       name: OpenHands

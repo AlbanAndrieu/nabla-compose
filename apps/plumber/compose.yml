@@ -1,9 +1,12 @@
 ---
+name: plumber
 services:
   plumber:
     image: ${PLUMBER_FRONTEND_IMAGE:-docker.io/getplumber/frontend:latest}
     container_name: plumber
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
     environment:
@@ -11,7 +14,12 @@ services:
       API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
       API_PATH: /api
     ports:
-      - "172.17.0.24:31070:3000"
+      - name: web
+        target: 3000
+        published: "31070"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
     x-nabla:
@@ -44,6 +52,8 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
     container_name: plumber-api
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber-api
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
     environment: &plumber-backend-env
@@ -71,7 +81,12 @@ services:
       API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071}
       API_PATH: /api
     ports:
-      - "172.17.0.24:31071:3000"
+      - name: api
+        target: 3000
+        published: "31071"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
     x-nabla:
@@ -103,6 +118,8 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:latest}
     container_name: plumber-worker
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/plumber-worker
     command: ["--worker"]
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
