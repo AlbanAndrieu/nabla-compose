@@ -1,31 +1,86 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "openai/gpt-4.1-mini",
-  "small_model": "openai/gpt-4.1-mini",
-  "agent": {
+  "default_agent": "build",
+  "agents": {
     "build": {
-      "mode": "primary",
       "model": "openai/gpt-4.1-mini",
-      "prompt": "{file:./.opencode/prompts/build.txt}"
+      "steps": 48
+    },
+    "title": {
+      "model": "openai/gpt-4.1-mini"
     }
   },
-  "permission": {
-    "read": {
-      "*": "allow",
-      "*.env": "deny",
-      "*.env.*": "deny",
-      "*.env.example": "allow"
+  "permissions": [
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
     },
-    "bash": {
-      "*": "allow",
-      "sudo *": "ask",
-      "rm -rf *": "ask",
-      "git clean -fd*": "ask",
-      "git reset --hard*": "ask",
-      "git push *": "ask",
-      "git push --force*": "ask",
-      "git push --no-verify*": "deny",
-      "git push * --no-verify*": "deny"
+    {
+      "action": "read",
+      "resource": "*.env",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.example",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "sudo *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "rm -rf *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean -fd*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git reset --hard*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push --force*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push --no-verify*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push * --no-verify*",
+      "effect": "deny"
     }
-  }
+  ]
 }
