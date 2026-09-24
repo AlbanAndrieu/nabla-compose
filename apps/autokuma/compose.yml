@@ -1,4 +1,5 @@
 ---
+name: autokuma
 x-nabla:
   nodes:
     - id: uptime-kuma
