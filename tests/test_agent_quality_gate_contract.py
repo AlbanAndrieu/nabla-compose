@@ -218,22 +218,41 @@ class AgentQualityGateContractTests(unittest.TestCase):
     def test_opencode_reuses_canonical_agent_policy_and_skills(self) -> None:
         config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
         self.assertEqual(config["model"], "openai/gpt-4.1-mini")
-        self.assertEqual(config["small_model"], "openai/gpt-4.1-mini")
+        self.assertEqual(config["default_agent"], "build")
         self.assertNotIn("instructions", config)
+        self.assertNotIn("permission", config)
+        self.assertNotIn("agent", config)
         self.assertEqual(
-            config["agent"]["build"]["prompt"],
-            "{file:./.opencode/prompts/build.txt}",
+            config["agents"]["build"]["model"],
+            "openai/gpt-4.1-mini",
         )
-        self.assertEqual(config["permission"]["read"]["*.env"], "deny")
-        self.assertEqual(config["permission"]["read"]["*.env.*"], "deny")
+        self.assertEqual(config["agents"]["build"]["steps"], 48)
         self.assertEqual(
-            config["permission"]["bash"]["git push --no-verify*"],
-            "deny",
+            config["agents"]["title"]["model"],
+            "openai/gpt-4.1-mini",
         )
 
-        prompt = (ROOT / ".opencode" / "prompts" / "build.txt").read_text(
-            encoding="utf-8"
+        permissions = config["permissions"]
+        self.assertIn(
+            {"action": "read", "resource": "*.env", "effect": "deny"},
+            permissions,
         )
+        self.assertIn(
+            {"action": "read", "resource": "*.env.*", "effect": "deny"},
+            permissions,
+        )
+        self.assertIn(
+            {
+                "action": "shell",
+                "resource": "git push --no-verify*",
+                "effect": "deny",
+            },
+            permissions,
+        )
+
+        build_agent = (
+            ROOT / ".opencode" / "agents" / "build.md"
+        ).read_text(encoding="utf-8")
         migrate = (
             ROOT / ".opencode" / "commands" / "migrate-service.md"
         ).read_text(encoding="utf-8")
@@ -242,8 +261,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("AGENTS.md", prompt)
-        self.assertIn(".agents/skills", prompt)
+        self.assertIn("AGENTS.md", build_agent)
+        self.assertIn(".agents/skills", build_agent)
         self.assertIn("check-service-migration-bundle.py", migrate)
         self.assertIn("mise run agent-pre-push", quality)
         self.assertIn("OpenCode and smaller-model execution", agents)
