@@ -5,11 +5,35 @@ description: Keep Docker Compose applications synchronized with the Nabla servic
 
 # Nabla service catalog
 
-Use this skill whenever adding, renaming, removing, or materially reconnecting a service in an `apps/**/compose.yml` file.
+Use this skill whenever adding, renaming, removing, materially reconnecting a
+service in an `apps/**/compose.yml` file, or migrating its runtime
+`.env/.env.secrets` contract.
 
-## Required metadata
+## Backstage v2 transition contract
 
-Every newly tracked runtime service must normally define a service-local `x-nabla` block with:
+Native Backstage `apps/<service>/catalog-info.yaml` is the target authoring
+source for identity, ownership, lifecycle and standard relations. During the
+pre-cutover period, existing `x-nabla` metadata remains a compatibility input
+for current generators/consumers; **do not delete it service-by-service**.
+
+Whenever P0.3 changes a service's runtime env path, prepare the Backstage
+descriptor and Compose entity-ref label in the same migration bundle:
+
+```bash
+python scripts/check-service-migration-bundle.py --app <service>
+```
+
+Keep standard Backstage relations in `catalog-info.yaml` when their target
+entity already resolves. If a legacy logical target is not materialized yet,
+keep the proven legacy relation until that target can be represented without an
+unresolved Backstage or runtime binding. Avoid inventing placeholder entities
+only to make the graph green.
+
+## Required compatibility metadata
+
+Until the coordinated v2 cutover removes the legacy generator contract, every
+newly tracked runtime service must normally define the minimum service-local
+`x-nabla` compatibility block with:
 
 - `id`: stable lowercase kebab-case identifier;
 - `name`: human-readable service name;
@@ -116,4 +140,7 @@ Before publishing, run the repository quality gate:
 bash scripts/quality-gate.sh
 ```
 
-A new application is not complete until its Compose configuration, `x-nabla` catalog metadata, generated contracts, dependency graph and any repository-managed consumer artifacts are synchronized.
+A new or migrated application is not complete until its Compose configuration,
+Backstage descriptor/entity-ref binding, transitional `x-nabla` compatibility
+metadata, generated contracts, dependency graph and repository-managed consumer
+artifacts are synchronized.
