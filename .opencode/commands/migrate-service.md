@@ -8,10 +8,10 @@ Prepare application `$1` as one bounded migration bundle.
 Follow this exact sequence:
 
 1. Read `AGENTS.md`.
-2. Load:
-   - `.agents/skills/homelab-secrets/SKILL.md`
-   - `.agents/skills/docker-compose-orchestration/SKILL.md`
-   - `.agents/skills/nabla-service-catalog/SKILL.md`
+2. Use the native `skill` tool to load exactly:
+   - `homelab-secrets`;
+   - `docker-compose-orchestration`;
+   - `nabla-service-catalog`.
 3. Inspect only the target service, `config/secrets/manifest.json` metadata,
    the P0.3 migration scripts/tests and directly referenced dependencies.
 4. Never read or print live `.env` / `.env.*` values. Use the repository
