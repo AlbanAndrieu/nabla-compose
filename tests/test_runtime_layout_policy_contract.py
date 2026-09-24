@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +12,7 @@ COMPOSE_SKILL = ROOT / ".agents" / "skills" / "docker-compose-orchestration" / "
 SECRETS_SKILL = ROOT / ".agents" / "skills" / "homelab-secrets" / "SKILL.md"
 ROADMAP = ROOT / "docs" / "roadmap.md"
 FIRST_WAVE = ROOT / "scripts" / "truenas" / "accept-runtime-env-first-wave.sh"
+MIGRATION_BUNDLE = ROOT / "scripts" / "check-service-migration-bundle.py"
 HOMEASSISTANT = ROOT / "apps" / "homeassistant" / "compose.yml"
 DEPLOY_HELPERS = {
     "scanopy": ROOT / "scripts" / "truenas" / "deploy-scanopy.sh",
@@ -125,6 +127,7 @@ def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -
     assert "--accept is deliberately one service at a time" in script
     assert 'bootstrap-repository-runtime.sh --apply "${app}"' in script
     assert 'bootstrap-repository-runtime.sh --check "${app}"' in script
+    assert 'python3 "${BUNDLE_CHECK}" --app "${app}"' in script
     assert 'verify-app-runtime-health.sh' in script
     assert "check_vaultwarden_materialization" in script
     assert "Generated from Vaultwarden by scripts/secrets/render_from_bitwarden.py" in script
@@ -134,6 +137,30 @@ def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -
         'bootstrap-repository-env-files.sh --finalize "${app}"'
     )
     assert "Uptime Kuma must exist and be RUNNING before acceptance" in script
+
+
+def test_first_wave_has_complete_runtime_env_and_backstage_bundles() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(MIGRATION_BUNDLE),
+            "--app",
+            "scanopy",
+            "--app",
+            "joplin",
+            "--app",
+            "autokuma",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "OK: scanopy: P0.3 runtime-env + Backstage migration bundle" in result.stdout
+    assert "OK: joplin: P0.3 runtime-env + Backstage migration bundle" in result.stdout
+    assert "OK: autokuma: P0.3 runtime-env + Backstage migration bundle" in result.stdout
 
 
 def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
