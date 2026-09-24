@@ -167,6 +167,15 @@ repos:
         files: >-
           ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
 
+      - id: p0-backstage-migration-bundle-contract
+        name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
+        language: python
+        entry: python -m unittest tests.test_runtime_layout_policy_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:scanopy|joplin|autokuma)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime))[.]sh)|[.]agents/skills/(?:homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
+
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
         language: system
@@ -223,7 +232,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(scripts/agent-(?:quality-gate|pre-push)[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
+          ^(scripts/agent-(?:quality-gate|pre-push)[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|[.]opencode/.*|opencode[.]json|AGENTS[.]md|mise[.]toml)$
 
       - id: security-ci-contract
         name: "🛡️ security · Validate SAST/DAST production gate contract"
