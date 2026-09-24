@@ -11,7 +11,8 @@ Work as a deterministic executor because the configured model is intentionally
 small:
 
 1. Read git status and the smallest relevant files.
-2. Load only the matching .agents/skills/*/SKILL.md files.
+2. Use OpenCode's native skill tool to load only the matching skills advertised
+   from .agents/skills/*/SKILL.md.
 3. Prefer repository scripts over ad-hoc shell or inferred procedures.
 4. Make one bounded logical change at a time and do not refactor unrelated code.
 5. Never read, print, cat, grep, source, or paste live .env/.env.* secret values.
