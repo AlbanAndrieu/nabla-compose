@@ -82,6 +82,27 @@ python scripts/secrets/import_env_to_bitwarden.py --app <app> --apply
 
 Dry-run is the default. The importer never prints values and refuses to overwrite an existing exact item unless `--update-existing` is explicit.
 
+## Combined P0.3 + Backstage migration bundle
+
+When P0.3 touches a service's `.env`, `.env.secrets`, `env_file`, or
+canonical runtime materialization path, prepare that service for the Backstage
+v2 catalog in the **same bounded change**. Load
+`.agents/skills/nabla-service-catalog/SKILL.md` and
+`.agents/skills/docker-compose-orchestration/SKILL.md`, then:
+
+1. keep secret values value-blind and update only manifest metadata in Git;
+2. stage/use `/mnt/cpool/secrets/runtime/<service>/...`;
+3. create or review `apps/<service>/catalog-info.yaml`;
+4. bind each materialized Compose service with
+   `com.albandrieu.nabla.entity-ref`;
+5. run `python scripts/check-service-migration-bundle.py --app <service>`;
+6. validate/restart the service once, then finalize only that service's legacy
+   env path after functional health is proven.
+
+This is **preparation for the coordinated v2 cutover**, not permission to delete
+legacy `x-nabla` compatibility metadata. Do not run an independent second
+catalog migration over a service that P0.3 already touched.
+
 ## Runtime materialization migration gate
 
 Inventory is always read-only first:
