@@ -174,7 +174,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/(?:scanopy|joplin|autokuma)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime))[.]sh)|[.]agents/skills/(?:homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
+          ^(apps/(?:scanopy|joplin|autokuma)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime))[.]sh)|[.]agents/skills/(?:docker-compose-orchestration|homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
 
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
