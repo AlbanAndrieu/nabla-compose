@@ -164,6 +164,37 @@ Never bulk-finalize all 52 materializations.
 
 ## P0.6 — migration waves
 
+### Combined P0.3 / P2.1.c service bundle
+
+Do not run runtime-env normalization and Backstage materialization as two
+independent migrations. Every service whose `.env`, `.env.secrets` or
+`env_file` path is touched by P0.3 is also prepared for the v2 catalog in the
+same bounded service change.
+
+Per service:
+
+1. inventory secret **names/semantics only** in
+   `config/secrets/manifest.json`;
+2. stage the canonical
+   `/mnt/cpool/secrets/runtime/<service>/...` materialization;
+3. create/review `apps/<service>/catalog-info.yaml`;
+4. bind every materialized Compose service with
+   `com.albandrieu.nabla.entity-ref`;
+5. run `python scripts/check-service-migration-bundle.py --app <service>`;
+6. validate Compose and perform one controlled runtime/functional acceptance;
+7. finalize only that service's legacy env path after health is proven.
+
+This prepares P2.1.c but does **not** perform the coordinated v2 consumer
+cutover. Existing `x-nabla` data remains compatibility input until the one-shot
+cutover. Standard Backstage relations are materialized only when their target
+entity already resolves; unresolved logical/native dependencies remain in the
+legacy relation model temporarily rather than creating fake catalog entities.
+
+For the first wave, Scanopy and Joplin already have Backstage descriptors.
+AutoKuma is materialized in the same change as its P0.3 acceptance preparation.
+Its Uptime Kuma dependency remains transitional until Uptime Kuma itself becomes
+a repository-owned/materializable entity.
+
 ### Wave 0 — normalize runtime paths before Vaultwarden
 
 For **existing active services with non-empty historical `.env*` files**, move
