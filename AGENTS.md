@@ -77,6 +77,50 @@ Do not repeatedly poll workflow, deployment, job, check, or observability status
 
 `AGENTS.md` is the canonical cross-agent repository policy. Agent-specific entry files such as `CLAUDE.md`, `.claude/CLAUDE.md`, and `.github/copilot-instructions.md` should point here and contain only adapter-specific routing that cannot live here. Do not duplicate this policy across agent files.
 
+## OpenCode and smaller-model execution
+
+OpenCode uses this `AGENTS.md` as its repository instruction entry point. Keep
+`opencode.json` and `.opencode/**` as thin execution adapters; do not create a
+second `agent.md` policy that can drift from this file. OpenCode can discover
+the repository `.agents/skills/<name>/SKILL.md` files on demand, so reuse those
+skills rather than copying them into an OpenCode-only tree.
+
+The workstation OpenCode profile intentionally uses `openai/gpt-4.1-mini`.
+Make its workflow deterministic:
+
+1. inspect `git status` and the smallest relevant file set;
+2. load only the skills matching the task;
+3. prefer a repository script/test to an ad-hoc command or inferred procedure;
+4. change one bounded service/logical unit at a time;
+5. run the narrowest contract first and fix the first deterministic failure;
+6. widen validation only after the targeted contract is green;
+7. never read or print live `.env` / `.env.*` values; use the value-blind
+   secret inventory/materialization tooling.
+
+Task-to-skill routing:
+
+- `.env`, `.env.secrets`, `env_file`, Vaultwarden or secret materialization:
+  load `homelab-secrets`, `docker-compose-orchestration` and
+  `nabla-service-catalog`;
+- Compose service/runtime/dependency edits: load
+  `docker-compose-orchestration` and `nabla-service-catalog`;
+- TrueNAS live-state acceptance: additionally load `homelab-runtime-status`;
+- pfSense/HAProxy/PF/Snort/pfBlockerNG: load `pfsense-api-debugging`.
+
+For **P0.3**, runtime env normalization and Backstage v2 preparation are one
+service migration bundle. A touched service must have a canonical
+`/mnt/cpool/secrets/runtime/<service>/...` contract, reviewed
+`apps/<service>/catalog-info.yaml`, and
+`com.albandrieu.nabla.entity-ref` binding before runtime acceptance. Validate
+that bundle with:
+
+```bash
+python scripts/check-service-migration-bundle.py --app <service>
+```
+
+Keep transitional `x-nabla` compatibility metadata until the coordinated v2
+cutover; do not independently remove it during P0.3.
+
 ## Protected default-branch policy
 
 Agents must **never** commit, push, create, update, delete, or otherwise mutate files directly on `master`, and must never move, force-update, or write the `master` ref directly.
