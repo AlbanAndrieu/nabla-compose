@@ -199,6 +199,15 @@ repos:
         files: >-
           ^(apps/(grafana|prometheus|gatus|autokuma)/|scripts/observability/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
+      - id: openwebui-pra-contract
+        name: "💾 continuity · Validate OpenWebUI BIA/PRA contract"
+        language: python
+        entry: python -m unittest tests.test_openwebui_pra_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:openwebui|openrag|litellm)/(?:catalog-info[.]yaml|compose[.]yml)|catalog/catalog-info[.]yaml|docs/(?:openwebui-backup-pra|roadmap)[.]md|scripts/truenas/diagnose-openwebui-backup-pra[.]sh|tests/test_openwebui_pra_contract[.]py)$
+
       - id: truenas-app-lifecycle-contract
         name: "🧰 truenas · Validate app lifecycle recovery contract"
         language: system
