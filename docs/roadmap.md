@@ -313,16 +313,30 @@ for identity, dependencies, exposure intent and reboot safety.
   on the LAN plus LiteLLM, OpenRAG and a working OpenAI-compatible GPU inference
   capability; Cloudflare Tunnel is not continuity-critical. Conversations and
   OpenRAG-derived content are highly sensitive, prompt/history loss within the
-  RPO is acceptable, and configuration recovery is mandatory. Implement the
-  backup/PRA in `docs/openwebui-backup-pra.md`. When TrueNAS access is
-  available, first run
-  `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check` to
-  inventory the real dataset, latest snapshot, independent replication/cloud
-  backup, recent successful backup age, encryption evidence, OpenRAG recovery
-  paths and Pipelines volume debt. Until that check is green, RPO=`P1D`
-  remains an objective rather than an achieved control. Then prove a
-  non-destructive restore and change `bia-status` from `provisional` only
-  after owner acceptance.
+  RPO is acceptable, and configuration recovery is mandatory.
+  - [ ] **Backup implementation:** resolve the real OpenWebUI/OpenRAG datasets,
+    schedule OpenWebUI snapshots <=12h, add encrypted/off-pool backup or
+    replication <=24h, include OpenRAG documents/config/keys/data and either
+    migrate or explicitly back up the OpenWebUI Pipelines named volume.
+  - [ ] **Backup monitoring:** alert when the newest local recovery point or
+    independent successful backup exceeds 24h; retain evidence without secret
+    values or sensitive prompt/document content.
+  - [ ] **PRA drill:** restore to an isolated path/environment, then prove LAN UI
+    login, configuration, one LiteLLM chat request, one OpenRAG retrieval and one
+    GPU-backed OpenAI-compatible inference request. Cloudflare validation is a
+    separate non-blocking step after LAN acceptance.
+  - [ ] **Recovery objectives:** record achieved RTO/RPO; target restoration is
+    <=1 day, escalate recovery/rebuild/alternate-GPU actions at 3 days, and keep
+    the 7-day DMTP as the absolute tolerable-disruption boundary.
+  - [ ] **BIA acceptance:** only change `bia-status` from `provisional` after
+    backup freshness and a non-destructive restore drill are evidenced and
+    owner-reviewed.
+  Run `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check`
+  before implementation to inventory the real dataset, latest snapshot,
+  independent replication/cloud backup, recent successful backup age,
+  encryption evidence, OpenRAG recovery paths and Pipelines volume debt. Until
+  that check is green, RPO=`P1D` remains an objective rather than an achieved
+  control. Detailed procedure: `docs/openwebui-backup-pra.md`.
 - [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
   OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
   A logical `resource:default/gpu-openai-compatible-inference` now represents
