@@ -12,6 +12,7 @@ APP_FILTER="${2:-all}"
 CANONICAL_ROOT="${NABLA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 RUNTIME_ROOT="${NABLA_RUNTIME_ENV_ROOT:-/mnt/cpool/secrets/runtime}"
 HEALTH_SCRIPT="${SCRIPT_DIR}/verify-app-runtime-health.sh"
+BUNDLE_CHECK="${CANONICAL_ROOT}/scripts/check-service-migration-bundle.py"
 
 SERVICES=(scanopy joplin autokuma)
 
@@ -51,7 +52,8 @@ if [[ "${MODE}" == "--accept" && "${APP_FILTER}" == "all" ]]; then
 fi
 
 require_root "run as root on TrueNAS"
-require_commands bash curl git grep jq midclt stat
+require_commands bash curl git grep jq midclt python3 stat
+[[ -f "${BUNDLE_CHECK}" ]] || fail "missing combined migration-bundle checker: ${BUNDLE_CHECK}"
 [[ -x "${HEALTH_SCRIPT}" ]] || fail "missing runtime health helper: ${HEALTH_SCRIPT}"
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -110,7 +112,8 @@ function check_compose_contract {
 
 function check_service {
   local app="$1"
-  printf '\n== P0.3 check: %s ==\n' "${app}"
+  printf '\n== P0.3 + Backstage check: %s ==\n' "${app}"
+  python3 "${BUNDLE_CHECK}" --app "${app}"
   bash scripts/truenas/bootstrap-repository-runtime.sh --check "${app}"
   check_compose_contract "${app}"
   check_secret_contract "${app}"
@@ -185,7 +188,7 @@ function accept_service {
 
   bash scripts/truenas/bootstrap-repository-env-files.sh --finalize "${app}"
   bash scripts/truenas/bootstrap-repository-runtime.sh --check "${app}"
-  ok "${app}: P0.3 runtime/env migration accepted and legacy path finalized"
+  ok "${app}: P0.3 runtime/env migration accepted; Backstage bundle prepared; legacy path finalized"
 }
 
 while IFS= read -r app; do
