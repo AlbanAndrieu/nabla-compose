@@ -87,9 +87,15 @@ def check_app(app: str, managed_secret_apps: set[str]) -> list[str]:
         return [f"{app}: missing {catalog_path.relative_to(ROOT)}"]
 
     compose = yaml.safe_load(compose_path.read_text(encoding="utf-8")) or {}
+    project_name = str(compose.get("name") or "").strip()
+    if project_name != app:
+        errors.append(
+            f"{app}: Compose project name must be {app!r}, got {project_name!r}"
+        )
+
     services = compose.get("services") or {}
     if not isinstance(services, dict):
-        return [f"{app}: Compose services must be a mapping"]
+        return errors + [f"{app}: Compose services must be a mapping"]
 
     entities: dict[str, str] = {}
     try:
