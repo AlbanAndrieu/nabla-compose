@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import stat
 import subprocess
 import unittest
@@ -213,6 +214,40 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.draft == false", raw)
         self.assertIn("wait-for-processing: false", raw)
         self.assertIn("Pull-request comments stay disabled", raw)
+
+    def test_opencode_reuses_canonical_agent_policy_and_skills(self) -> None:
+        config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["model"], "openai/gpt-4.1-mini")
+        self.assertEqual(config["small_model"], "openai/gpt-4.1-mini")
+        self.assertNotIn("instructions", config)
+        self.assertEqual(
+            config["agent"]["build"]["prompt"],
+            "{file:./.opencode/prompts/build.txt}",
+        )
+        self.assertEqual(config["permission"]["read"]["*.env"], "deny")
+        self.assertEqual(config["permission"]["read"]["*.env.*"], "deny")
+        self.assertEqual(
+            config["permission"]["bash"]["git push --no-verify*"],
+            "deny",
+        )
+
+        prompt = (ROOT / ".opencode" / "prompts" / "build.txt").read_text(
+            encoding="utf-8"
+        )
+        migrate = (
+            ROOT / ".opencode" / "commands" / "migrate-service.md"
+        ).read_text(encoding="utf-8")
+        quality = (ROOT / ".opencode" / "commands" / "quality.md").read_text(
+            encoding="utf-8"
+        )
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+        self.assertIn("AGENTS.md", prompt)
+        self.assertIn(".agents/skills", prompt)
+        self.assertIn("check-service-migration-bundle.py", migrate)
+        self.assertIn("mise run agent-pre-push", quality)
+        self.assertIn("OpenCode and smaller-model execution", agents)
+        self.assertIn("check-service-migration-bundle.py", agents)
 
     def test_agent_policy_protects_master_and_requires_local_convergence(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
