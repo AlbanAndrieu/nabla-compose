@@ -210,6 +210,12 @@ cluster_client_preflight() {
   if ! talos_vms_all_in_state RUNNING; then
     printf 'Talos VM runtime state is mixed/unexpected:\n' >&2
     printf '%s\n' "${summary}" | jq . >&2
+    if jq -e '
+      any(.[]; .name == "taloscp01" and .state == "STOPPED")
+      and any(.[]; (.name == "taloswk01" or .name == "taloswk02") and .state == "RUNNING")
+    ' <<<"${summary}" >/dev/null; then
+      fail "control plane is STOPPED while a worker is RUNNING; start taloscp01 with the supported TrueNAS vm.start API, wait for Kubernetes/Talos readiness, then rerun --check"
+    fi
     fail "require all Talos VMs RUNNING for cluster preflight or all STOPPED for shutdown-only preparation"
   fi
 

@@ -66,6 +66,8 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("talos_vms_all_in_state RUNNING", text)
         self.assertIn("all Talos VMs are already STOPPED", text)
         self.assertIn("mixed/unexpected", text)
+        self.assertIn("control plane is STOPPED while a worker is RUNNING", text)
+        self.assertIn("supported TrueNAS vm.start API", text)
         self.assertIn("shutdown-only preparation", text)
         self.assertIn("unavailable-talOS-vms-preexisting-stopped", text)
         self.assertIn("SKIP Talos node %s VM=%s already STOPPED", text)

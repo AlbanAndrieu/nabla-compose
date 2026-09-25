@@ -290,6 +290,31 @@ The post-reboot gate is unchanged and strict: autostart must return all three
 Talos VMs to `RUNNING`, all Talos APIs must answer, and Kubernetes must reach
 3/3 Ready.
 
+### Mixed Talos VM recovery before shutdown
+
+Do not continue a shutdown transaction when the control-plane VM is
+`STOPPED` while one or both workers are still `RUNNING`. Kubernetes cannot
+coordinate a clean worker shutdown in that state.
+
+Resolve the control-plane VM ID without guessing, start only that VM through
+the supported TrueNAS API, and wait for cluster readiness:
+
+```bash
+TALOS_CP_ID="$(
+  sudo midclt call vm.query '[["name","=","taloscp01"]]' |
+    jq -er 'if length == 1 then .[0].id else error("taloscp01 lookup mismatch") end'
+)"
+
+sudo midclt call vm.start "${TALOS_CP_ID}" '{"overcommit":false}'
+
+sudo midclt call vm.status "${TALOS_CP_ID}"
+```
+
+Then wait until `172.17.0.50` answers and Kubernetes returns all expected
+nodes Ready before rerunning the read-only reboot preflight. Do not start or
+restart the workers merely to satisfy the gate; preserve their current runtime
+state.
+
 ## Phase 1 — prepare
 
 ```bash
