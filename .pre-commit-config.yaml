@@ -178,7 +178,7 @@ repos:
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
         language: system
-        entry: python -m unittest tests.test_service_initialization_audit tests.test_nabla_ops_contract -v
+        entry: python -m pytest -q tests/test_service_initialization_audit.py tests/test_nabla_ops_contract.py
         pass_filenames: false
         files: >-
           ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
@@ -186,10 +186,10 @@ repos:
       - id: catalog-v2-preparation-contract
         name: "🕸️ catalog · Validate v2 migration inventory coverage"
         language: system
-        entry: python scripts/audit-service-catalog-v2-parity.py --check
+        entry: bash -c 'python scripts/audit-service-catalog-v2-parity.py --check && python -m pytest -q tests/test_catalog_v2_exports.py'
         pass_filenames: false
         files: >-
-          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/(?:business_criticality|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
