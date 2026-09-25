@@ -140,6 +140,19 @@ class AgentQualityGateContractTests(unittest.TestCase):
 
     def test_generated_contract_hooks_are_check_only_and_roadmap_aware(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_service_initialization_audit.py "
+            "tests/test_nabla_ops_contract.py",
+            config,
+        )
+        self.assertNotIn(
+            "python -m unittest tests.test_service_initialization_audit "
+            "tests.test_nabla_ops_contract",
+            config,
+        )
+        self.assertIn("tests/test_catalog_v2_exports.py", config)
+        self.assertIn("scripts/generate-catalog-v2-artifacts.py", config)
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
             config,
