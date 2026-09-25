@@ -43,6 +43,17 @@ sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage sample
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
 ```
 
+After `--finalize sample`, the legacy paths become compatibility symlinks to
+the root-only canonical files. Because `/mnt/cpool/secrets` is intentionally
+not traversable by the unprivileged operator, a plain `readlink -f` may print
+nothing even when the link is valid. Verify it as root:
+
+```bash
+sudo readlink -e /mnt/cpool/sample/.env
+sudo readlink -e /mnt/cpool/sample/.env.secrets
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+```
+
 Do not commit either legacy or canonical materialization.
 
 Example Redis configuration in the canonical `.env.secrets`:
