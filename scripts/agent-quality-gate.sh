@@ -135,7 +135,7 @@ print_compact_log() {
   local log="$1"
   local summary=""
 
-  summary="$(grep -E '^(FAIL|ERROR): |^Ran [0-9]+ tests|^FAILED \(' "${log}" || true)"
+  summary="$(grep -E '^(FAIL|ERROR): |^FAILED |^ERROR |^Ran [0-9]+ tests|^=+ .* (failed|error|passed).* =+$' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
     printf '%s\n' '--- failure summary ---' >&2
     printf '%s\n' "${summary}" | print_bounded_log_lines >&2
@@ -444,7 +444,8 @@ if [[ "${CI_FAST}" == true ]]; then
   printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
 else
   run_compact "repository unit/contract tests" \
-    "${PYTHON_CMD[@]}" -m unittest discover -s tests -p 'test_*.py' -q
+    "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
+    --tb=short --show-capture=no tests
 fi
 
 CANONICAL_SKIP="service-topology-sync,service-consumer-contract"
