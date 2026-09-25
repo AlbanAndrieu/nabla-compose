@@ -32,7 +32,7 @@ def test_runtime_env_migration_is_staged_before_finalize() -> None:
     assert '[[ "${primary_kind}" == "declared"' in script
     assert "deferred empty-placeholder" in script
     assert "deferred missing-source" in script
-    assert "staged every recoverable non-conflicted existing env source" in script
+    assert "staged every recoverable existing env source with deterministic runtime authority" in script
     assert "stage verified root-only canonical copies; keep old paths intact" in script
     assert "staged from %s; legacy path left intact" in script
     assert 'if [[ "${MODE}" == "--finalize" ]]' in script
