@@ -186,7 +186,10 @@ The materializer:
 9. renames the staged directory atomically;
 10. updates `current` atomically only after validation succeeds.
 
-Validate the active bundle before maintenance:
+Validate the active bundle before maintenance. Reboot bundles contain only
+repository-owned scripts/catalog metadata (no secret material) and are
+root-owned but world-readable/traversable so the operator can inspect the exact
+commit/checksums before invoking the root-only lifecycle actions:
 
 ```bash
 BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
