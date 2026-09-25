@@ -79,11 +79,16 @@ Do not repeatedly poll workflow, deployment, job, check, or observability status
 
 ## OpenCode and smaller-model execution
 
-OpenCode uses this `AGENTS.md` as its repository instruction entry point. Keep
-`opencode.json` and `.opencode/**` as thin execution adapters; do not create a
-second `agent.md` policy that can drift from this file. OpenCode can discover
-the repository `.agents/skills/<name>/SKILL.md` files on demand, so reuse those
-skills rather than copying them into an OpenCode-only tree.
+OpenCode uses this `AGENTS.md` as its repository instruction entry point.
+`agent.md` is allowed only as a **non-authoritative execution runbook** for the
+smaller workstation model; this file always wins on conflict. Keep
+`opencode.json` and `.opencode/**` as thin execution adapters. OpenCode can
+discover the repository `.agents/skills/<name>/SKILL.md` files on demand, so
+reuse those skills rather than copying them into an OpenCode-only tree.
+
+At the start of a non-trivial OpenCode implementation task, run
+`mise run agent-context`. The helper is path-only/value-blind: it summarizes
+branch/worktree scope and suggests likely skills without reading secret values.
 
 The workstation OpenCode profile intentionally uses `openai/gpt-4.1-mini`.
 Make its workflow deterministic:
