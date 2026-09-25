@@ -279,11 +279,16 @@ Acceptance:
 
 - bundle integrity is valid;
 - Talos VMs match autostart/shutdown policy;
-- Kubernetes is reachable;
-- all three Talos APIs are reachable through `.50`;
+- if all three Talos VMs are `RUNNING`, Kubernetes and all three Talos APIs must be reachable through `.50`;
+- if all three Talos VMs are already `STOPPED`, the preflight accepts that quiesced state for shutdown-only preparation, records an explicit unavailable Kubernetes snapshot marker, and does not attempt Talos API calls;
+- any mixed Talos VM state fails closed;
 - lifecycle waves are reviewed;
 - explicit maintenance resume set is correct;
 - no state is mutated.
+
+The post-reboot gate is unchanged and strict: autostart must return all three
+Talos VMs to `RUNNING`, all Talos APIs must answer, and Kubernetes must reach
+3/3 Ready.
 
 ## Phase 1 — prepare
 
