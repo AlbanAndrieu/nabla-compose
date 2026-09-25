@@ -489,8 +489,8 @@ while IFS= read -r source; do
     continue
   fi
 
-  if ! cmp -s "${source}" "${target}"; then
-    printf '❌ migration conflict: %s differs from staged target %s\n' \
+  if ! env_files_equivalent "${app}" "${source}" "${target}"; then
+    printf '❌ migration conflict: %s differs semantically from staged target %s\n' \
       "${source}" "${target}"
     invalid=$((invalid + 1))
     continue
