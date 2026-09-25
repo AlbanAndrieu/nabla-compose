@@ -22,7 +22,7 @@ usage: bootstrap-repository-env-files.sh [--check|--apply|--stage-existing|--res
 
   --check       read-only migration/status preview
   --apply       stage verified root-only canonical copies; keep old paths intact; fail on any source conflict
-  --stage-existing  stage every recoverable existing source; defer conflicts/placeholders/missing
+  --stage-existing  stage recoverable sources; prefer explicit declared runtime source; defer unresolved debt
   --restage     explicitly refresh one app's staged canonical copies from current legacy sources
   --finalize    replace accepted legacy paths with compatibility symlinks
 
@@ -358,7 +358,7 @@ if ((source_conflicts > 0)); then
     fail "resolve source conflicts before this operation"
   fi
   if [[ "${MODE}" == "--stage-existing" ]]; then
-    printf 'ℹ️  --stage-existing will skip conflicted targets and continue with independent recoverable sources.\n'
+    printf 'ℹ️  --stage-existing will use an explicitly declared runtime source when available; otherwise conflicted targets remain deferred.\n'
   else
     printf 'ℹ️  continuing read-only migration preview so unrelated migration debt remains visible.\n'
   fi
@@ -574,7 +574,7 @@ if ((status > 0)); then
 fi
 
 if [[ "${MODE}" == "--stage-existing" ]]; then
-  printf '✅ staged every recoverable non-conflicted existing env source under %s; deferred debt remains explicit.\n' "${SECRETS_ROOT}"
+  printf '✅ staged every recoverable existing env source with deterministic runtime authority under %s; deferred debt remains explicit.\n' "${SECRETS_ROOT}"
 fi
 
 if ((finalize_pending > 0)); then
