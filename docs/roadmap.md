@@ -300,8 +300,15 @@ for identity, dependencies, exposure intent and reboot safety.
   Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
   Manager, OpenHands and Squid as reviewed dependency groups. Active
   `critical/high/medium` materialization debt is now **zero**. The guided
-  OpenWebUI BIA/materialization in #218 further reduces remaining active debt to
-  45 lower-priority services: 40 unclassified and 5 low. Nginx Proxy
+  OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
+  45 lower-priority services: 40 unclassified and 5 low. This PR now
+  materializes four of the five low services — Draw.io, Hello Nginx,
+  OpenClaw Sandbox and OpenSSF Scorecard — with stable Compose project names,
+  runtime entity-ref labels, provisional low BIA profiles and named HTTP ports
+  where applicable. Remaining active debt is therefore 41 services:
+  40 unclassified and 1 low (WordPress). WordPress stays separate because its
+  current Compose file models PostgreSQL as an externally merged service and
+  should not be normalized blindly in the low-risk batch. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
