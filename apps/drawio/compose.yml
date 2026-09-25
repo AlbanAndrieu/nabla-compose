@@ -1,4 +1,6 @@
 ---
+name: drawio
+
 services:
   drawio:
     image: jgraph/drawio
@@ -18,9 +20,15 @@ services:
         type: port
         host: 172.17.0.24
         port: 9080
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/drawio
     restart: unless-stopped
     ports:
-      - 9080:8080
+      - name: web
+        target: 8080
+        published: "9080"
+        protocol: tcp
+        app_protocol: http
       # - 30425:8443 # NOK with cloudflared
     environment:
       - PUBLIC_DNS=${PUBLIC_DNS:-drawio.albandrieu.com}
