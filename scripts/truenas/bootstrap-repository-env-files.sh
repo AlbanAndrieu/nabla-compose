@@ -370,8 +370,14 @@ while IFS= read -r target; do
   target_parent="$(dirname "${target}")"
 
   if [[ "${MODE}" == "--stage-existing" && -n "${conflicted_target["${target}"]:-}" ]]; then
-    printf '⏭️  %s app=%s deferred source-conflict\n' "${target}" "${app}"
-    continue
+    primary_kind="${target_primary_kind["${target}"]:-}"
+    if [[ "${primary_kind}" == "declared" && -n "${primary}" && -f "${primary}" ]]; then
+      printf '⚠️  %s app=%s staging explicitly declared primary %s; conflicting secondary source remains deferred\n' \
+        "${target}" "${app}" "${primary}"
+    else
+      printf '⏭️  %s app=%s deferred source-conflict\n' "${target}" "${app}"
+      continue
+    fi
   fi
 
   if [[ "${MODE}" == "--restage" && -f "${target}" && -n "${primary}" && -f "${primary}" ]]; then

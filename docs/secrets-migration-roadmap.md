@@ -221,8 +221,12 @@ sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
 ```
 
 The first command is a storage-normalization operation only. It never invents a
-missing secret, never chooses between conflicting sources and never replaces an
-old source path.
+missing secret and never replaces an old source path. When multiple sources
+conflict, it normally defers the target. One bounded exception is allowed:
+when Compose explicitly declares a concrete `env_file`, that declared path is
+the runtime authority and may be staged while a lower-priority implicit
+repository-local candidate remains recorded as unresolved debt. Values are
+never merged and the secondary file is never deleted automatically.
 
 ```bash
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>

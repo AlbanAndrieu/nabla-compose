@@ -28,6 +28,8 @@ def test_runtime_env_migration_is_staged_before_finalize() -> None:
     assert "--check | --apply | --stage-existing | --restage | --finalize" in script
     assert "--stage-existing" in script
     assert "deferred source-conflict" in script
+    assert "staging explicitly declared primary" in script
+    assert 'primary_kind == "declared"' in script
     assert "deferred empty-placeholder" in script
     assert "deferred missing-source" in script
     assert "staged every recoverable non-conflicted existing env source" in script
