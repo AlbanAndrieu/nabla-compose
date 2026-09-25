@@ -209,8 +209,20 @@ contacting Vaultwarden:
 /mnt/cpool/secrets/runtime/<service>/.env*
 ```
 
-Use one service at a time. A global `--apply` remains inappropriate while any
-known source conflict exists.
+Use one service at a time for final acceptance. A global `--apply` remains
+fail-closed while any known source conflict exists. For maintenance preparation,
+`--stage-existing` may be used to copy **all recoverable, non-empty,
+non-conflicted existing sources** without finalizing any legacy path; it reports
+conflicts, missing sources and empty placeholders as deferred debt.
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --stage-existing
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
+```
+
+The first command is a storage-normalization operation only. It never invents a
+missing secret, never chooses between conflicting sources and never replaces an
+old source path.
 
 ```bash
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <service>
