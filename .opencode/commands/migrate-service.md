@@ -7,7 +7,7 @@ Prepare application `$1` as one bounded migration bundle.
 
 Follow this exact sequence:
 
-1. Read `AGENTS.md`.
+1. Run `mise run agent-context`, then read `AGENTS.md` and `agent.md`.
 2. Use the native `skill` tool to load exactly:
    - `homelab-secrets`;
    - `docker-compose-orchestration`;
@@ -26,6 +26,8 @@ Follow this exact sequence:
 8. Run:
    `python scripts/check-service-migration-bundle.py --app $1`
    and the target Compose config check.
-9. Run targeted tests, then `mise run agent-fix`. Before any push, commit and
-   run `mise run agent-pre-push`.
-10. Do not use remote CI as an iterative feedback loop.
+9. Run targeted tests, then `mise run agent-fix`.
+10. Ask the `reviewer` subagent for a bounded read-only review of the service
+    migration diff.
+11. Before any push, commit and run `mise run agent-pre-push`.
+12. Do not use remote CI as an iterative feedback loop.
