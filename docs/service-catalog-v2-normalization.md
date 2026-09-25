@@ -1611,3 +1611,26 @@ There should be no permanent dual schema and no long-running compatibility code.
   https://cyclonedx.org/docs/1.7/json/
 - Cartography:
   https://github.com/cartography-cncf/cartography
+
+## Implemented standard projections
+
+PR #224 now includes the first executable standard projections:
+
+- `scripts/nabla_ops/catalog_exports.py` loads the real Backstage descriptors,
+  assigns stable full `entityRef` identities and computes one deterministic
+  SHA-256 `catalogRevision`;
+- `scripts/generate-catalog-v2-artifacts.py` produces
+  `catalog/generated/entities.json` and
+  `catalog/generated/homelab.cdx.json`;
+- the CycloneDX document uses **specVersion 1.7**, carries the same catalog
+  revision and projects resolved Backstage dependencies into the CycloneDX
+  dependency graph;
+- `tests/test_catalog_v2_exports.py` covers deterministic revision and
+  dependency preservation.
+
+The generated files are intentionally not yet committed as authoritative
+artifacts while Backstage materialization is incomplete. Once P2.1.c reaches the
+required coverage, the generator should become a local quality-gate
+`--check` and the generated artifacts can be consumed by FastAPI, Site Alban
+and Cartography without creating another manually-maintained inventory.
+
