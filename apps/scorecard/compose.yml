@@ -1,4 +1,6 @@
 ---
+name: scorecard
+
 services:
   scorecard:
     image: ${SCORECARD_IMAGE:-ghcr.io/ossf/scorecard:latest}
@@ -11,6 +13,8 @@ services:
     command:
       - --repo=${SCORECARD_REPO:-github.com/AlbanAndrieu/nabla-compose}
       - --format=json
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openssf-scorecard
     x-nabla:
       id: openssf-scorecard
       name: OpenSSF Scorecard
