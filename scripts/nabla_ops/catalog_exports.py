@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import uuid
 from typing import Any, Iterable
 
 import yaml
@@ -24,6 +25,16 @@ def _entity_ref(entity: dict[str, Any]) -> str:
     if not name or not namespace:
         raise ValueError("Backstage entity requires metadata.name/namespace")
     return f"{kind}:{namespace}/{name}"
+
+
+def _portable_source_path(path: Path) -> str:
+    parts = path.parts
+    if "apps" in parts:
+        index = parts.index("apps")
+        return Path(*parts[index:]).as_posix()
+    if len(parts) >= 2 and parts[-2:] == ("catalog", "catalog-info.yaml"):
+        return "catalog/catalog-info.yaml"
+    return path.name
 
 
 def load_backstage_entities(paths: Iterable[Path]) -> list[dict[str, Any]]:
@@ -43,7 +54,7 @@ def load_backstage_entities(paths: Iterable[Path]) -> list[dict[str, Any]]:
             seen.add(ref)
             entity = dict(raw)
             entity["entityRef"] = ref
-            entity["sourcePath"] = path.as_posix()
+            entity["sourcePath"] = _portable_source_path(path)
             entities.append(entity)
     return sorted(entities, key=lambda item: item["entityRef"])
 
@@ -51,8 +62,9 @@ def load_backstage_entities(paths: Iterable[Path]) -> list[dict[str, Any]]:
 def catalog_revision(entities: list[dict[str, Any]]) -> str:
     """Return a stable revision over the canonical entity read model."""
 
+    ordered = sorted(entities, key=lambda item: str(item.get("entityRef") or ""))
     payload = json.dumps(
-        entities,
+        ordered,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
@@ -128,7 +140,7 @@ def cyclonedx_projection(entities: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.7",
-        "serialNumber": f"urn:uuid:{revision.removeprefix('sha256:')[:32]}",
+        "serialNumber": f"urn:uuid:{uuid.UUID(hex=revision.removeprefix('sha256:')[:32])}",
         "version": 1,
         "metadata": {
             "properties": [
