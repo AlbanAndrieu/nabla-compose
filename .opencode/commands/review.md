@@ -1,10 +1,12 @@
 ---
 description: Review the current diff with the read-only reviewer subagent
-agent: build
+agent: reviewer
+subagent: true
 ---
 
-Launch the `reviewer` subagent for the current diff.
+Review the current bounded diff for correctness, regressions, security boundary
+violations, missing skill-contract updates, stale generated artifacts and
+missing targeted tests.
 
-Use its findings as evidence, not as automatic edits. Fix only concrete findings
-that are within the current PR scope, then run the narrowest relevant local
-contract. If there are no actionable findings, leave the diff unchanged.
+Do not edit files. Report only actionable findings with exact paths and a
+concrete validation or fix. If there is no actionable finding, say so.
