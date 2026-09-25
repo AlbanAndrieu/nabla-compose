@@ -21,7 +21,7 @@ usage() {
 usage: bootstrap-repository-env-files.sh [--check|--apply|--stage-existing|--restage|--finalize] [app]
 
   --check       read-only migration/status preview
-  --apply       stage verified root-only canonical copies; fail on any source conflict
+  --apply       stage verified root-only canonical copies; keep old paths intact; fail on any source conflict
   --stage-existing  stage every recoverable existing source; defer conflicts/placeholders/missing
   --restage     explicitly refresh one app's staged canonical copies from current legacy sources
   --finalize    replace accepted legacy paths with compatibility symlinks
