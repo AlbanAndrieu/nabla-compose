@@ -47,6 +47,10 @@ pre-commit install --config .pre-commit-pre-push.yaml --install-hooks --hook-typ
 description = "Run the canonical publication quality gate"
 run = "bash scripts/quality-gate.sh"
 
+[tasks.agent-context]
+description = "Show bounded branch, changed-path and skill-routing context for local agents"
+run = "python scripts/agent-task-context.py"
+
 [tasks.agent-quality]
 description = "Run the repo-specific agent-first gate before publication"
 run = "bash scripts/agent-quality-gate.sh"
