@@ -254,17 +254,22 @@ class AgentQualityGateContractTests(unittest.TestCase):
 
         permissions = config["permissions"]
         for rule in (
-            {"action": "read", "resource": "**/.env", "effect": "deny"},
-            {"action": "read", "resource": "**/.env.*", "effect": "deny"},
-            {"action": "edit", "resource": "**/.env", "effect": "deny"},
-            {"action": "edit", "resource": "**/.env.*", "effect": "deny"},
+            {"action": "read", "resource": "*.env", "effect": "deny"},
+            {"action": "read", "resource": "*.env.*", "effect": "deny"},
+            {"action": "edit", "resource": "*.env", "effect": "deny"},
+            {"action": "edit", "resource": "*.env.*", "effect": "deny"},
             {"action": "skill", "resource": "*", "effect": "allow"},
             {"action": "subagent", "resource": "reviewer", "effect": "allow"},
             {"action": "shell", "resource": "*", "effect": "ask"},
-            {"action": "shell", "resource": "git status*", "effect": "allow"},
+            {"action": "shell", "resource": "git status *", "effect": "allow"},
             {
                 "action": "shell",
-                "resource": "mise run agent-context*",
+                "resource": "mise run agent-context *",
+                "effect": "allow",
+            },
+            {
+                "action": "shell",
+                "resource": "python -m pytest *",
                 "effect": "allow",
             },
             {
@@ -319,7 +324,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("mise run agent-context", build_agent)
         self.assertIn(".agents/skills", build_agent)
         self.assertIn("mode: subagent", reviewer)
-        self.assertIn('resource: "git diff*"', reviewer)
+        self.assertIn('resource: "git diff *"', reviewer)
         self.assertIn("check-service-migration-bundle.py", migrate)
         self.assertIn("mise run agent-context", continue_pr)
         self.assertIn("agent: reviewer", review)
