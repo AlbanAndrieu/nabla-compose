@@ -657,3 +657,64 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> OpenWebUI backup/PRA acceptance (LAN UI + LiteLLM + OpenRAG + GPU, RTO P1D/RPO P1D, 3-day escalation, DMTP P7D)
   -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```
+
+
+## P0.4 — Catalogue v2 standardisé et security graph
+
+Objectif : conserver Backstage + Compose comme autorités déclaratives tout en
+produisant des artefacts standards utilisables par les consommateurs sécurité.
+
+- [x] Ajouter une projection déterministe des descripteurs Backstage vers un
+  read-model JSON v2 avec identité canonique `entityRef` et
+  `catalogRevision=sha256:...`.
+- [x] Ajouter une projection **CycloneDX 1.7** du même graphe, partageant la même
+  révision et les dépendances Backstage résolues.
+- [x] Ajouter des tests unitaires couvrant révision déterministe, unicité des
+  références et conservation du graphe de dépendances.
+- [ ] Générer et versionner `catalog/generated/entities.json` et
+  `catalog/generated/homelab.cdx.json` lorsque la matérialisation Backstage
+  P2.1.c couvre l'ensemble des services nécessaires au cutover.
+- [ ] Brancher le générateur à la quality gate locale en mode `--check` après
+  stabilisation de la couverture Backstage, afin d'éviter un artefact généré
+  partiel présenté comme catalogue complet.
+- [ ] Ajouter la projection Nabla minimale `operations.json` pour les seules
+  politiques sans équivalent standard (exposition désirée, acceptation de
+  risque, ordre exceptionnel non dérivable).
+- [ ] Ajouter un import Cartography `nabla` corrélant
+  `Backstage entityRef ↔ runtime/provider asset`, sans faire de Neo4j la source
+  de vérité du catalogue.
+- [ ] Enrichir Cartography depuis Kubernetes, GitHub, Cloudflare et Trivy pour
+  produire le graphe observé, les chemins d'attaque et le blast radius.
+- [ ] Introduire OSCAL après stabilisation du graphe pour relier
+  `control → implementation → evidence → assessment`; ne pas représenter la
+  conformité par un simple booléen dans `x-nabla`.
+- [ ] Faire consommer le nouveau read-model par FastAPI, puis effectuer le
+  cutover coordonné de Site Alban. Pas de couche v1/v2 longue durée.
+
+Architecture cible :
+
+```text
+Backstage catalog-info.yaml + Compose + minimal x-nabla
+                     |
+                     v
+             canonical generator
+               /            \
+              v              v
+      entities.json      CycloneDX 1.7
+              |              |
+              +------+-------+
+                     v
+                  FastAPI
+                     |
+              +------+------+
+              |             |
+              v             v
+       Site Alban      Cartography/Neo4j
+                            |
+                            v
+                     observed security graph
+                            |
+                            v
+                          OSCAL
+```
+
