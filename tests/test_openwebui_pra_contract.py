@@ -98,7 +98,7 @@ class OpenWebUiPraContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("every **12 hours**", runbook)
-        self.assertIn("at least daily", runbook)
+        self.assertRegex(runbook, r"at\s+least daily")
         self.assertIn("not** an independent\nbackup", runbook)
         self.assertIn(
             'RPO_SECONDS="${RPO_SECONDS:-86400}"',
