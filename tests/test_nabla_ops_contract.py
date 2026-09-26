@@ -314,6 +314,21 @@ def test_state_store_rejects_mismatched_persisted_identity() -> None:
             raise AssertionError("mismatched persisted service identity was accepted")
 
 
+def test_state_reader_rejects_symlinked_state_root() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        real_root = Path(tmp) / "real-state"
+        real_root.mkdir()
+        symlink_root = Path(tmp) / "state-link"
+        symlink_root.symlink_to(real_root, target_is_directory=True)
+
+        try:
+            read_initialization_state("example", root=symlink_root)
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state reader followed a symlinked root")
+
+
 def test_state_store_rejects_symlinked_state_and_lock_paths() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "service-state"
