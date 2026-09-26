@@ -720,5 +720,58 @@ class CatalogV2ParityTests(unittest.TestCase):
         self.assertFalse(report["cutoverReady"])
 
 
+    def test_wordpress_models_postgresql_as_external_backstage_dependency(self) -> None:
+        compose = yaml.safe_load(
+            (ROOT / "apps" / "wordpress" / "compose.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(compose["name"], "wordpress")
+        self.assertNotIn("postgres", compose["services"])
+
+        initdb = compose["services"]["wordpress-initdb"]
+        self.assertNotIn("depends_on", initdb)
+        self.assertEqual(initdb["environment"]["PGHOST"], "postgres")
+
+        wordpress = compose["services"]["wordpress"]
+        self.assertEqual(
+            set(wordpress["depends_on"]),
+            {"wordpress-initdb"},
+        )
+        labels = wordpress["labels"]
+        self.assertEqual(
+            labels["com.albandrieu.nabla.entity-ref"],
+            "component:default/wordpress",
+        )
+        self.assertEqual(wordpress["ports"][0]["name"], "web")
+        self.assertEqual(wordpress["ports"][0]["target"], 80)
+
+        entities = [
+            entity
+            for entity in yaml.safe_load_all(
+                (ROOT / "apps" / "wordpress" / "catalog-info.yaml").read_text(
+                    encoding="utf-8"
+                )
+            )
+            if isinstance(entity, dict)
+        ]
+        self.assertEqual(len(entities), 1)
+        wordpress_entity = entities[0]
+        self.assertEqual(
+            backstage_entity_ref(wordpress_entity),
+            "component:default/wordpress",
+        )
+        self.assertEqual(
+            wordpress_entity["spec"]["dependsOn"],
+            ["resource:default/postgresql"],
+        )
+        self.assertEqual(
+            wordpress_entity["metadata"]["labels"][
+                "albandrieu.com/business-criticality"
+            ],
+            "low",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
