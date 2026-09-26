@@ -224,6 +224,45 @@ class CatalogV2ParityTests(unittest.TestCase):
             ],
         )
 
+    def test_materialization_summary_groups_debt_by_criticality(self) -> None:
+        generated = {
+            "services": [
+                {
+                    "id": "low-service",
+                    "name": "Low Service",
+                    "kind": "service",
+                    "criticality": "low",
+                    "sourcePath": "apps/low/compose.yml",
+                    "composeService": "low-service",
+                },
+                {
+                    "id": "unknown-service",
+                    "name": "Unknown Service",
+                    "kind": "service",
+                    "sourcePath": "apps/unknown/compose.yml",
+                    "composeService": "unknown-service",
+                },
+            ]
+        }
+
+        report = build_parity_report(
+            {"services": []},
+            {"services": []},
+            generated,
+            [],
+        )
+
+        self.assertEqual(report["summary"]["backstageMaterializationDebt"], 2)
+        self.assertEqual(
+            report["summary"]["backstageMaterializationDebtByCriticality"],
+            {"low": 1, "unclassified": 1},
+        )
+        self.assertEqual(
+            report["summary"]["backstageMaterializationDebtByState"],
+            {"active": 2},
+        )
+
+
     def test_backstage_graph_requires_full_resolved_refs(self) -> None:
         entities = [
             {
