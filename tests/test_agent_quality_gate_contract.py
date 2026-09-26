@@ -110,6 +110,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("nabla-compose operator path", bootstrap)
         self.assertIn("$HOME/.local/bin", bootstrap)
         self.assertIn("$NABLA_TRUENAS_DEV_VENV/bin", bootstrap)
+        self.assertIn('PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"', bootstrap)
+        self.assertIn('"pytest==${PYTEST_VERSION}"', bootstrap)
 
     def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -225,6 +227,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             raw.index("name: Setup Python"),
         )
         self.assertIn("pre-commit==4.6.2", raw)
+        self.assertIn("pytest==9.1.1", raw)
         self.assertIn("restore-keys:", raw)
         self.assertIn("Detect MegaLinter security/IaC scope", raw)
         self.assertNotIn("[.](ya?ml|json5?|sh)$", raw)
