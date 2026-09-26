@@ -98,7 +98,9 @@ print_matrix() {
     pid="$(jq -r '.pid' <<<"${row}")"
     [[ "${pid}" == "0" && ( "${running}" == "true" || "${restarting}" == "true" ) ]] || continue
     mapfile -t shims < <(find_shim_pids "${cid}")
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'       "${app:-UNKNOWN}" "${name}" "$(app_state "${app}")" "${status}"       "${running}" "${restarting}" "${pid}" "${#shims[@]}"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "${app:-UNKNOWN}" "${name}" "$(app_state "${app}")" "${status}" \
+      "${running}" "${restarting}" "${pid}" "${#shims[@]}"
   done < <(container_rows "${filter_app}")
 }
 
@@ -134,29 +136,37 @@ else
   (("${#ghosts[@]}" > 0)) ||
     fail "${APP}: app.stop failed but no Pid=0 Running/Restarting project ghost was found"
 
-  ambiguous=0
+  ambiguous=()
   recoverable=()
   for container in "${ghosts[@]}"; do
     cid="$(docker inspect "${container}" | jq -r '.[0].Id')"
     mapfile -t shims < <(find_shim_pids "${cid}")
-    printf 'ghost app=%s container=%s shims=%s\n' "${APP}" "${container}" "${#shims[@]}"
+    printf 'ghost app=%s container=%s shims=%s\n'       "${APP}" "${container}" "${#shims[@]}"
     if (("${#shims[@]}" == 1)); then
       recoverable+=("${container}")
     else
-      ambiguous=1
+      ambiguous+=("${container}")
     fi
   done
 
-  ((ambiguous == 0)) ||
-    fail "${APP}: at least one ghost has zero/multiple shims; no automatic shim recovery performed"
+  (("${#recoverable[@]}" > 0)) ||
+    fail "${APP}: app.stop failed and no exact one-shim ghost is safely recoverable"
 
   for container in "${recoverable[@]}"; do
     bash "${ORPHAN_HELPER}" --recover "${container}"
   done
 
+  if (("${#ambiguous[@]}" > 0)); then
+    warn "${APP}: ambiguous zero/multiple-shim ghosts remain before retry: ${ambiguous[*]}"
+  fi
+
   printf 'Retrying supported stop after exact ghost recovery: app=%s\n' "${APP}"
-  timeout "${APP_JOB_TIMEOUT}" midclt call -j app.stop "${APP}" >/dev/null ||
+  if ! timeout "${APP_JOB_TIMEOUT}" midclt call -j app.stop "${APP}" >/dev/null; then
+    if (("${#ambiguous[@]}" > 0)); then
+      fail "${APP}: app.stop still failed; ambiguous ghosts require manual review: ${ambiguous[*]}"
+    fi
     fail "${APP}: app.stop still failed after bounded ghost recovery"
+  fi
 fi
 
 state="$(app_state "${APP}")"
@@ -164,7 +174,8 @@ state="$(app_state "${APP}")"
   fail "${APP}: final middleware state=${state}, expected STOPPED"
 
 if docker ps -aq --filter "label=com.docker.compose.project=ix-${APP}" | grep -q .; then
-  docker ps -a --filter "label=com.docker.compose.project=ix-${APP}"     --format '  {{.Names}}\t{{.Status}}' >&2
+  docker ps -a --filter "label=com.docker.compose.project=ix-${APP}" \
+    --format '  {{.Names}}\t{{.Status}}' >&2
   fail "${APP}: project containers remain after successful app.stop"
 fi
 

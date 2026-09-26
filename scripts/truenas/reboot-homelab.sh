@@ -16,6 +16,7 @@ EXTRA_RESUME_APPS="${NABLA_REBOOT_RESUME_STOPPED_APPS:-}"
 ACCEPTANCE_DEFERRED_APPS="${NABLA_REBOOT_DEFERRED_APPS:-${2:-}}"
 ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
 MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
+AUTO_RECOVER_GHOSTS="${NABLA_REBOOT_AUTO_RECOVER_GHOSTS:-true}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
@@ -26,10 +27,12 @@ PLANNER="${NABLA_REBOOT_PLANNER:-${SCRIPT_DIR}/plan-app-lifecycle-order.py}"
 IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool.sh}"
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
+GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
 [[ -f "${ORPHAN_SHIMS}" ]] || ORPHAN_SHIMS="${REPO_ROOT}/scripts/truenas/diagnose-docker-orphan-shims.sh"
+[[ -f "${GHOST_RECOVERY}" ]] || GHOST_RECOVERY="${REPO_ROOT}/scripts/truenas/recover-app-after-docker-ghost.sh"
 
 usage() {
   cat <<'EOF'
@@ -458,7 +461,15 @@ continue_prepare() {
     printf 'STOP %s state=%s\n' "${app}" "${state}"
     if ! timeout "${APP_JOB_TIMEOUT}" midclt call -j app.stop "${app}" >/dev/null; then
       diagnose_app_runtime "${app}"
-      fail "${app}: app.stop failed/timed out; preserve manifest and use --continue-prepare"
+      if [[ "${AUTO_RECOVER_GHOSTS}" == "true" && -f "${GHOST_RECOVERY}" ]]; then
+        warn "${app}: attempting bounded App-scoped Docker ghost recovery"
+        if ! NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true \
+          bash "${GHOST_RECOVERY}" --recover-app "${app}"; then
+          fail "${app}: app.stop and bounded ghost recovery failed; preserve manifest and use --continue-prepare"
+        fi
+      else
+        fail "${app}: app.stop failed/timed out; preserve manifest and use --continue-prepare"
+      fi
     fi
     wait_app_stopped "${app}" ||
       fail "${app}: did not reach STOPPED; preserve manifest and use --continue-prepare"

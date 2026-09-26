@@ -382,6 +382,76 @@ Continuation:
 - records continuation in `prepare-history.log`;
 - continues through Docker and Talos gates.
 
+## Automated recovery transaction
+
+The 2026-09-26 incident validated a complete recovery boundary with 97 Apps
+`STOPPED`, zero running Docker containers, zero `Pid=0` ghosts, then Talos
+workers followed by the control-plane cleanly reaching `STOPPED` with
+`autostart=true`.
+
+For this abnormal path, use the dedicated transaction helper instead of an old
+normal reboot manifest:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --prepare
+```
+
+The command freezes one recovery snapshot, derives topology stop order, uses
+supported `app.stop`, applies bounded App-scoped ghost repair only after a
+stop failure, revisits residual ghosts belonging to Apps that were already
+`STOPPED`, requires all Apps `STOPPED`, requires Docker zero-running and
+zero-ghost state, then gracefully shuts down Talos `.51`, `.52`, `.50`.
+It stops at `READY_TO_REBOOT`.
+
+If interrupted before the host reboot:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --continue
+```
+
+Inspect at any time:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --status
+```
+
+Only after `READY_TO_REBOOT`:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --reboot
+```
+
+After TrueNAS returns, do not start Apps manually:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --post-reboot-check
+```
+
+This requires a changed boot ID, TrueNAS/Docker/IPAM health, no App/container
+auto-resurrection, Talos autostart, Talos API reachability and Kubernetes Ready.
+
+Recovery restore is deliberately split:
+
+```bash
+# Only Apps observed RUNNING/DEPLOYING in the frozen snapshot.
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --resume-safe
+
+# Optional second pass for explicitly reviewed candidates, including prior
+# CRASHED/ERROR Apps.
+STATE_DIR="$(sudo cat /mnt/cpool/var/nabla/recovery/latest)"
+sudo cp "${STATE_DIR}/resume-review.txt" "${STATE_DIR}/resume-approved.txt"
+sudoedit "${STATE_DIR}/resume-approved.txt"
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --resume-reviewed
+```
+
+Never copy the whole review list blindly: historical App debt remains debt until
+explicitly accepted for restart.
+
+For normal planned maintenance, `reboot-homelab.sh --prepare` now invokes the
+same bounded App-scoped ghost recovery automatically after a supported
+`app.stop` failure. Set `NABLA_REBOOT_AUTO_RECOVER_GHOSTS=false` to disable
+that repair path for diagnostic-only maintenance.
+
 ## Fast post-reboot ghost recovery procedure
 
 When a reboot returns with widespread App `CRASHED`/`STOPPED` states and

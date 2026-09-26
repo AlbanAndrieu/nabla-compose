@@ -16,12 +16,22 @@ IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
+RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, GHOST_RECOVERY, DOCKER_LIB):
+        for path in (
+            REBOOT,
+            VM_POLICY,
+            IPAM,
+            APP_RECONCILE,
+            ORPHAN_SHIMS,
+            GHOST_RECOVERY,
+            RECOVERY_REBOOT,
+            DOCKER_LIB,
+        ):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -241,6 +251,46 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("operator-acceptance.json", text)
         self.assertIn("does not make `--verify` pass", text)
         self.assertIn("frozen `resume-apps.txt`", text)
+
+    def test_normal_reboot_can_auto_recover_exact_app_ghosts(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("NABLA_REBOOT_AUTO_RECOVER_GHOSTS", text)
+        self.assertIn("NABLA_APP_GHOST_RECOVERY_HELPER", text)
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("bounded App-scoped Docker ghost recovery", text)
+
+    def test_recovery_reboot_transaction_is_fail_closed(self) -> None:
+        text = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        for mode in (
+            "--prepare",
+            "--continue",
+            "--status",
+            "--reboot",
+            "--post-reboot-check",
+            "--resume-safe",
+            "--resume-reviewed",
+        ):
+            self.assertIn(mode, text)
+        self.assertIn("READY_TO_REBOOT", text)
+        self.assertIn("resume-safe.txt", text)
+        self.assertIn("resume-review.txt", text)
+        self.assertIn("resume-approved.txt", text)
+        self.assertIn("docker_zero_gate", text)
+        self.assertIn("all_apps_stopped", text)
+        self.assertIn("shutdown --wait", text)
+        self.assertIn("172.17.0.51 172.17.0.52 172.17.0.50", text)
+        self.assertNotIn("docker kill", text)
+        self.assertNotIn("systemctl restart docker", text)
+        self.assertNotIn("systemctl restart containerd", text)
+        self.assertNotIn("shutdown --force", text)
+
+    def test_bundle_contains_recovery_transaction_helpers(self) -> None:
+        text = (ROOT / "scripts/truenas/materialize-reboot-bundle.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("recovery-reboot-homelab.sh", text)
+        self.assertIn("READY_TO_REBOOT", text)
 
     def test_app_scoped_ghost_recovery_fails_closed(self) -> None:
         text = GHOST_RECOVERY.read_text(encoding="utf-8")
