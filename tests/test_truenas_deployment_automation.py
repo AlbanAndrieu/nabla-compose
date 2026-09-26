@@ -83,7 +83,8 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert "--no-config" in script
     assert "export MISE_LOCKFILE=false" in script
     assert 'trust "${ROOT}/mise.toml"' not in script
-    assert '"pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML' in script
+    assert 'PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"' in script
+    assert '"pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}" PyYAML' in script
     assert 'if [[ -x "${DEV_VENV}/bin/python" ]]' in script
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
