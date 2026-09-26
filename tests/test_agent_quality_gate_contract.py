@@ -302,6 +302,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
             },
             {
                 "action": "shell",
+                "resource": "python scripts/audit-service-catalog-v2-parity.py *",
+                "effect": "allow",
+            },
+            {
+                "action": "shell",
                 "resource": "git reset --hard*",
                 "effect": "deny",
             },
