@@ -371,6 +371,11 @@ def main() -> int:
         print(rendered, end="")
     else:
         summary = report["summary"]
+        debt_by_criticality = json.dumps(
+            summary["backstageMaterializationDebtByCriticality"],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         print(
             "catalog-v2 preparation:"
             f" legacy={summary['legacyServices']}"
@@ -382,12 +387,7 @@ def main() -> int:
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
             f" backstage-debt={summary['backstageMaterializationDebt']}"
-            " backstage-debt-by-criticality="
-            + json.dumps(
-                summary["backstageMaterializationDebtByCriticality"],
-                sort_keys=True,
-                separators=(",", ":"),
-            )
+            f" backstage-debt-by-criticality={debt_by_criticality}"
             f" identity-ready={summary['identityReadyEntries']}"
             f" runtime-binding-errors={summary['runtimeBindingErrors']}"
             f" same-project-dependency-duplicates={summary['sameProjectDependencyDuplicates']}"
