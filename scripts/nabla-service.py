@@ -73,11 +73,12 @@ def command_stages(args: argparse.Namespace) -> int:
 
 
 def command_state(args: argparse.Namespace) -> int:
-    record = read_initialization_state(args.app, root=args.state_root)
+    service_id = str(args.app).strip()
+    record = read_initialization_state(service_id, root=args.state_root)
     if record is None:
         payload = {
             "version": 1,
-            "serviceId": args.app,
+            "serviceId": service_id,
             "stage": InitializationStage.DECLARED.value,
             "transitionCount": 0,
             "persisted": False,
