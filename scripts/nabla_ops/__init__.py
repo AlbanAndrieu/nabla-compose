@@ -13,13 +13,21 @@ from .model import (
     normalize_service_intent,
     validate_initialization_transition,
 )
+from .state import (
+    DEFAULT_STATE_ROOT,
+    advance_initialization_state,
+    read_initialization_state,
+)
 
 __all__ = [
+    "DEFAULT_STATE_ROOT",
     "InitializationStage",
     "ServiceIntent",
+    "advance_initialization_state",
     "declared_apps",
     "load_catalog",
     "normalize_initialization_stage",
     "normalize_service_intent",
+    "read_initialization_state",
     "validate_initialization_transition",
 ]
