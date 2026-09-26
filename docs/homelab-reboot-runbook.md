@@ -135,6 +135,19 @@ shutdown order is:
 
 All three VMs must end as `STOPPED` while retaining `autostart=true`.
 
+## Docker post-boot convergence
+
+`system.ready=True` does not imply that Apps/Docker initialization is complete.
+The 2026-09-26 recovery reboot observed `docker.service=activating` while
+`docker.status=INITIALIZING`.
+
+The Docker/IPAM post-reboot gate therefore waits, with a bounded timeout, for
+both `docker.service=active` and `docker.status=RUNNING` before running Docker
+network or inventory commands. Docker CLI calls are also individually bounded
+so initialization cannot make the operator workflow appear frozen. Terminal
+middleware states `FAILED`, `MIGRATION_FAILED` and `UNCONFIGURED` still
+fail immediately.
+
 ## TrueNAS readiness contract
 
 TrueNAS 26 on this host rendered a healthy readiness value as `True`, not

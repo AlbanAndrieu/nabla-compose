@@ -46,6 +46,14 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("--post-reboot-check", text)
         self.assertIn("10.200.0.0/16", text)
 
+    def test_post_reboot_waits_for_docker_initialization(self) -> None:
+        text = IPAM.read_text(encoding="utf-8")
+        self.assertIn("TRUENAS_DOCKER_POST_BOOT_WAIT_SECONDS", text)
+        self.assertIn("TRUENAS_DOCKER_CLI_TIMEOUT_SECONDS", text)
+        self.assertIn("wait_runtime_ready", text)
+        self.assertIn("docker.status entered terminal state", text)
+        self.assertIn("docker network ls timed out", text)
+
     def test_talos_policy_is_autostart_and_graceful(self) -> None:
         vars_text = (ROOT / "terraform/truenas/variables.tofu").read_text()
         vm_text = (ROOT / "terraform/truenas/talos-vms.tofu").read_text()
