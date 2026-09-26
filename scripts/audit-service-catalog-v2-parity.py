@@ -382,6 +382,12 @@ def main() -> int:
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
             f" backstage-debt={summary['backstageMaterializationDebt']}"
+            " backstage-debt-by-criticality="
+            + json.dumps(
+                summary["backstageMaterializationDebtByCriticality"],
+                sort_keys=True,
+                separators=(",", ":"),
+            )
             f" identity-ready={summary['identityReadyEntries']}"
             f" runtime-binding-errors={summary['runtimeBindingErrors']}"
             f" same-project-dependency-duplicates={summary['sameProjectDependencyDuplicates']}"
