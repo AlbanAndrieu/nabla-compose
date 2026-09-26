@@ -175,8 +175,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
         self.assertIn(
-            "entry: python -m pytest -q tests/test_agent_quality_gate_contract.py "
-            "tests/test_truenas_deployment_automation.py",
+            "entry: python -m pytest -q tests/test_agent_quality_gate_contract.py",
             config,
         )
         self.assertIn('"pytest==9.1.1"', config)
@@ -185,7 +184,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
             config,
         )
         self.assertIn("truenas/bootstrap-dev-tools", config)
-        self.assertIn("test_truenas_deployment_automation", config)
+        self.assertIn("truenas-deployment-automation-contract", config)
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_truenas_deployment_automation.py",
+            config,
+        )
 
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))
