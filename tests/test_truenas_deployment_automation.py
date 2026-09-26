@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +14,8 @@ TRUENAS_DOCO = ROOT / "docker-compose-truenas.yml"
 WORKSTATION_COMPOSE = ROOT / "docker-compose.yml"
 DEV_TOOLS = ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
 DOC = ROOT / "docs" / "truenas-deployment-automation.md"
+ROOT_CATALOG = ROOT / "catalog" / "catalog-info.yaml"
+GENERATED_SERVICES = ROOT / "catalog" / "services.json"
 
 
 def test_cron_is_branch_bounded_and_non_destructive() -> None:
@@ -59,6 +64,51 @@ def test_workstation_compose_is_not_the_truenas_doco_cd_owner() -> None:
     assert compose.startswith(
         "# Workstation-only Compose root. TrueNAS Doco-CD uses docker-compose-truenas.yml."
     )
+
+
+def test_doco_cd_catalog_authority_is_owned_by_truenas_compose() -> None:
+    truenas = yaml.safe_load(TRUENAS_DOCO.read_text(encoding="utf-8"))
+    workstation = yaml.safe_load(WORKSTATION_COMPOSE.read_text(encoding="utf-8"))
+
+    truenas_doco = truenas["services"]["doco-cd"]
+    self_metadata = truenas_doco["x-nabla"]
+    assert self_metadata["id"] == "doco-cd"
+    assert self_metadata["criticality"] == "medium"
+    assert truenas_doco["labels"]["com.albandrieu.nabla.entity-ref"] == (
+        "component:default/doco-cd"
+    )
+    assert [port["name"] for port in truenas_doco["ports"]] == [
+        "webhook",
+        "metrics",
+    ]
+
+    assert "x-nabla" not in workstation["services"]["doco-cd"]
+
+    entities = [
+        entity
+        for entity in yaml.safe_load_all(ROOT_CATALOG.read_text(encoding="utf-8"))
+        if isinstance(entity, dict)
+    ]
+    doco_entity = next(
+        entity
+        for entity in entities
+        if entity.get("kind") == "Component"
+        and entity.get("metadata", {}).get("name") == "doco-cd"
+    )
+    assert doco_entity["spec"]["dependsOn"] == [
+        "component:default/docker-socket-proxy"
+    ]
+
+    generated = json.loads(GENERATED_SERVICES.read_text(encoding="utf-8"))
+    doco_service = next(
+        service for service in generated["services"] if service["id"] == "doco-cd"
+    )
+    assert doco_service["sourcePath"] == "docker-compose-truenas.yml"
+    assert doco_service["runtime"]["networks"] == [
+        "default",
+        "intranet",
+        "secrets-backend",
+    ]
 
 
 def test_bootstrap_doco_cd_polls_real_master_with_pinned_image() -> None:
