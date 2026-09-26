@@ -38,6 +38,8 @@ def _read_record(
     *,
     expected_service_id: str | None = None,
 ) -> dict[str, Any] | None:
+    if path.is_symlink():
+        raise ValueError(f"{path} must not be a symbolic link")
     if not path.exists():
         return None
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -82,7 +84,11 @@ def read_initialization_state(
 
 
 def _ensure_state_root(root: Path) -> None:
+    if root.is_symlink():
+        raise ValueError(f"{root} must not be a symbolic link")
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError(f"{root} must be a real directory")
     os.chmod(root, 0o700)
 
 
@@ -132,7 +138,10 @@ def advance_initialization_state(
     _ensure_state_root(state_root)
 
     lock_path = state_root / f"{canonical_service_id}.lock"
-    lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    if lock_path.is_symlink():
+        raise ValueError(f"{lock_path} must not be a symbolic link")
+    lock_flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    lock_fd = os.open(lock_path, lock_flags, 0o600)
     try:
         os.fchmod(lock_fd, 0o600)
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
