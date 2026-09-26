@@ -18,6 +18,8 @@ ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
 MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
 AUTO_RECOVER_GHOSTS="${NABLA_REBOOT_AUTO_RECOVER_GHOSTS:-true}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
+VM_START_WAIT="${NABLA_REBOOT_VM_START_WAIT_SECONDS:-600}"
+VM_POLL_SECONDS="${NABLA_REBOOT_VM_POLL_SECONDS:-5}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
 VM_NAMES=(taloscp01 taloswk01 taloswk02)
@@ -176,6 +178,31 @@ talos_vms_all_in_state() {
   jq -e --arg expected "${expected}" '
     length == 3 and all(.[]; .state == $expected)
   ' <<<"${summary}" >/dev/null
+}
+
+wait_talos_vms_running() {
+  local deadline summary last=""
+  [[ "${VM_START_WAIT}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_VM_START_WAIT_SECONDS must be a positive integer"
+  [[ "${VM_POLL_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_VM_POLL_SECONDS must be a positive integer"
+
+  deadline=$((SECONDS + VM_START_WAIT))
+  while ((SECONDS < deadline)); do
+    summary="$(talos_vm_state_summary)"
+    if [[ "${summary}" != "${last}" ]]; then
+      printf 'Talos VM autostart convergence: %s\n' "${summary}"
+      last="${summary}"
+    fi
+    if talos_vms_all_in_state RUNNING; then
+      return 0
+    fi
+    sleep "${VM_POLL_SECONDS}"
+  done
+
+  printf 'Talos VM state after timeout:\n' >&2
+  talos_vm_state_summary | jq . >&2
+  fail "Talos VMs did not all become RUNNING within ${VM_START_WAIT}s"
 }
 
 vm_name_for_talos_node() {
@@ -688,13 +715,9 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   [[ -f "${IPAM_CHECK}" ]] || fail "IPAM post-reboot helper not found: ${IPAM_CHECK}"
   bash "${IPAM_CHECK}" --post-reboot-check
 
-  vm_payload="$(midclt_bounded vm.query)"
-  for name in "${VM_NAMES[@]}"; do
-    jq -e --arg name "${name}" \
-      '[.[]|select(.name==$name and .autostart==true and (.status.state//"UNKNOWN")=="RUNNING")]|length==1' \
-      <<<"${vm_payload}" >/dev/null ||
-      fail "${name}: expected autostart=true and RUNNING"
-  done
+  vm_policy_gate
+  printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_START_WAIT}"
+  wait_talos_vms_running
   for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
     talos_api_check "${node}" 60 post-reboot || fail "Talos API not ready: ${node}"
   done

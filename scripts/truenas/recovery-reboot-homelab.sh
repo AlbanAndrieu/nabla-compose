@@ -12,6 +12,11 @@ REPO_ROOT="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
 OPERATOR_USER="${NABLA_K8S_OPERATOR_USER:-albandrieu}"
 CALL_TIMEOUT="${NABLA_MIDCLT_TIMEOUT_SECONDS:-180}"
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
+POST_BOOT_DOCKER_WAIT="${NABLA_RECOVERY_DOCKER_WAIT_SECONDS:-900}"
+VM_WAIT="${NABLA_RECOVERY_VM_WAIT_SECONDS:-600}"
+TALOS_API_WAIT="${NABLA_RECOVERY_TALOS_API_WAIT_SECONDS:-600}"
+K8S_WAIT="${NABLA_RECOVERY_K8S_WAIT_SECONDS:-600}"
+POLL_SECONDS="${NABLA_RECOVERY_POLL_SECONDS:-5}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
@@ -78,6 +83,10 @@ esac
 
 require_root "run as root on TrueNAS"
 require_commands midclt jq docker python3 timeout getent awk tr sort grep install date systemctl
+for value in POST_BOOT_DOCKER_WAIT VM_WAIT TALOS_API_WAIT K8S_WAIT POLL_SECONDS; do
+  current="${!value}"
+  [[ "${current}" =~ ^[1-9][0-9]*$ ]] || fail "${value} must be a positive integer"
+done
 for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}"; do
   [[ -f "${path}" ]] || fail "required recovery helper not found: ${path}"
 done
@@ -212,6 +221,54 @@ all_talos_vms_in_state() {
     ] as $states
     | ($states | length) == 3 and all($states[]; . == $expected)
   ' <<<"${payload}" >/dev/null
+}
+
+talos_vm_summary() {
+  vm_payload |
+    jq -c '[
+      .[]
+      | select(.name=="taloscp01" or .name=="taloswk01" or .name=="taloswk02")
+      | {name,state:(.status.state // "UNKNOWN"),autostart}
+    ] | sort_by(.name)'
+}
+
+wait_talos_vms_running() {
+  local deadline summary last=""
+  deadline=$((SECONDS + VM_WAIT))
+  while ((SECONDS < deadline)); do
+    summary="$(talos_vm_summary)"
+    if [[ "${summary}" != "${last}" ]]; then
+      printf '  Talos VM convergence: %s\n' "${summary}"
+      last="${summary}"
+    fi
+    if jq -e       'length==3 and all(.[]; .autostart==true and .state=="RUNNING")'       <<<"${summary}" >/dev/null; then
+      return 0
+    fi
+    sleep "${POLL_SECONDS}"
+  done
+
+  printf 'Talos VM state after timeout:\n' >&2
+  talos_vm_summary | jq . >&2
+  fail "Talos VMs did not all become RUNNING within ${VM_WAIT}s"
+}
+
+wait_talos_apis() {
+  local node deadline ready
+  for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
+    deadline=$((SECONDS + TALOS_API_WAIT))
+    ready=0
+    printf 'Waiting for Talos API node=%s endpoint=%s...\n'       "${node}" "${TALOS_ENDPOINT}"
+    while ((SECONDS < deadline)); do
+      if run_operator timeout 15 "${TALOSCTL}"         --endpoints "${TALOS_ENDPOINT}"         --nodes "${node}" version >/dev/null 2>&1; then
+        ready=1
+        printf '  Talos API ready: %s\n' "${node}"
+        break
+      fi
+      sleep "${POLL_SECONDS}"
+    done
+    ((ready == 1)) ||
+      fail "Talos API did not become ready for ${node} within ${TALOS_API_WAIT}s"
+  done
 }
 
 latest_state_dir() {
@@ -446,12 +503,16 @@ post_reboot_check() {
   now="$(current_boot_id)"
   [[ "${now}" != "${before}" ]] || fail "boot ID did not change"
   truenas_ready || fail "TrueNAS system.ready is not true"
-  [[ "$(systemctl is-active docker)" == "active" ]] || fail "docker.service is not active"
-  [[ "$(systemctl is-active containerd)" == "active" ]] || fail "containerd.service is not active"
+  printf 'Waiting for Docker/Apps initialization before post-reboot gates...\n'
+  TRUENAS_DOCKER_POST_BOOT_WAIT_SECONDS="${POST_BOOT_DOCKER_WAIT}"     bash "${IPAM_CHECK}" --post-reboot-check
 
+  [[ "$(systemctl is-active docker)" == "active" ]] ||
+    fail "docker.service is not active after IPAM readiness gate"
+  [[ "$(systemctl is-active containerd)" == "active" ]] ||
+    fail "containerd.service is not active after IPAM readiness gate"
   status="$(midclt_bounded docker.status | jq -r '.status // empty')"
-  [[ "${status}" == "RUNNING" ]] || fail "TrueNAS docker.status=${status:-UNKNOWN}"
-  bash "${IPAM_CHECK}" --post-reboot-check
+  [[ "${status}" == "RUNNING" ]] ||
+    fail "TrueNAS docker.status=${status:-UNKNOWN} after IPAM readiness gate"
 
   midclt_bounded app.query >"${STATE_DIR}/apps-post-reboot.json"
   docker ps -a --format '{{.Names}}\t{{.Status}}' >"${STATE_DIR}/containers-post-reboot.txt"
@@ -463,23 +524,12 @@ post_reboot_check() {
     fail "Docker containers/ghosts auto-resurrected after recovery reboot"
 
   vm_policy_gate
-  payload="$(vm_payload)"
-  for name in "${VM_NAMES[@]}"; do
-    jq -e --arg name "${name}" '
-      [.[] | select(
-        .name==$name
-        and .autostart==true
-        and (.status.state // "UNKNOWN")=="RUNNING"
-      )] | length==1
-    ' <<<"${payload}" >/dev/null ||
-      fail "${name}: expected autostart=true and RUNNING after reboot"
-  done
-
-  for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
-    run_operator timeout 60 "${TALOSCTL}"       --endpoints "${TALOS_ENDPOINT}"       --nodes "${node}" version >/dev/null ||
-      fail "Talos API post-reboot check failed for ${node}"
-  done
-  run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
+  printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_WAIT}"
+  wait_talos_vms_running
+  wait_talos_apis
+  printf 'Waiting for Kubernetes nodes Ready (timeout=%ss)...\n' "${K8S_WAIT}"
+  run_operator "${KUBECTL}" wait     --for=condition=Ready node --all --timeout="${K8S_WAIT}s" ||
+    fail "Kubernetes nodes did not all become Ready within ${K8S_WAIT}s"
   run_operator "${KUBECTL}" get nodes -o wide
 
   printf '%s\n' "${now}" >"${STATE_DIR}/boot-id-after-reboot.txt"

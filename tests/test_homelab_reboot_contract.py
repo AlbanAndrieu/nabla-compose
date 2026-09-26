@@ -54,6 +54,17 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("docker.status entered terminal state", text)
         self.assertIn("docker network ls timed out", text)
 
+    def test_post_reboot_waits_for_talos_autostart_and_kubernetes(self) -> None:
+        recovery = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        normal = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("NABLA_RECOVERY_VM_WAIT_SECONDS", recovery)
+        self.assertIn("NABLA_RECOVERY_TALOS_API_WAIT_SECONDS", recovery)
+        self.assertIn("NABLA_RECOVERY_K8S_WAIT_SECONDS", recovery)
+        self.assertIn("wait_talos_vms_running", recovery)
+        self.assertIn("wait_talos_apis", recovery)
+        self.assertIn("NABLA_REBOOT_VM_START_WAIT_SECONDS", normal)
+        self.assertIn("wait_talos_vms_running", normal)
+
     def test_talos_policy_is_autostart_and_graceful(self) -> None:
         vars_text = (ROOT / "terraform/truenas/variables.tofu").read_text()
         vm_text = (ROOT / "terraform/truenas/talos-vms.tofu").read_text()

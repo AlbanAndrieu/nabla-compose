@@ -148,6 +148,11 @@ so initialization cannot make the operator workflow appear frozen. Terminal
 middleware states `FAILED`, `MIGRATION_FAILED` and `UNCONFIGURED` still
 fail immediately.
 
+Talos VM autostart is also treated as a convergence phase. Recovery waits
+separately for all three VMs to reach `RUNNING` with `autostart=true`, then
+for each Talos API endpoint, and finally for all Kubernetes Nodes to become
+`Ready`. Each phase has its own bounded timeout and diagnostic output.
+
 ## TrueNAS readiness contract
 
 TrueNAS 26 on this host rendered a healthy readiness value as `True`, not
