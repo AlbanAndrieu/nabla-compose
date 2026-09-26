@@ -369,7 +369,7 @@ def test_state_cli_read_is_side_effect_free_for_missing_state() -> None:
                 str(ROOT / "scripts" / "nabla-service.py"),
                 "state",
                 "--app",
-                "example",
+                " example ",
                 "--state-root",
                 str(root),
                 "--json",
