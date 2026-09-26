@@ -16,6 +16,7 @@ DEV_TOOLS = ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
 DOC = ROOT / "docs" / "truenas-deployment-automation.md"
 ROOT_CATALOG = ROOT / "catalog" / "catalog-info.yaml"
 GENERATED_SERVICES = ROOT / "catalog" / "services.json"
+GENERATED_TOPOLOGY = ROOT / "catalog" / "service-topology.json"
 
 
 def test_cron_is_branch_bounded_and_non_destructive() -> None:
@@ -108,6 +109,25 @@ def test_doco_cd_catalog_authority_is_owned_by_truenas_compose() -> None:
         "default",
         "intranet",
         "secrets-backend",
+    ]
+    topology = json.loads(GENERATED_TOPOLOGY.read_text(encoding="utf-8"))
+    doco_node = next(node for node in topology["nodes"] if node["id"] == "doco-cd")
+    assert doco_node["sourcePath"] == "docker-compose-truenas.yml"
+    assert doco_node["runtime"]["networks"] == [
+        "default",
+        "intranet",
+        "secrets-backend",
+    ]
+    doco_relations = {
+        (relation["type"], relation["target"]): relation
+        for relation in topology["relations"]
+        if relation["source"] == "doco-cd"
+    }
+    assert doco_relations[("hostedBy", "docker")]["evidence"] == [
+        "docker-compose-truenas.yml:doco-cd.x-nabla.runtime.containerService"
+    ]
+    assert doco_relations[("consumesApi", "docker-socket-proxy")]["evidence"] == [
+        "docker-compose-truenas.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
     ]
 
 
