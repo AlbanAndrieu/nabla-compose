@@ -600,13 +600,18 @@
       "name": "Doco-CD",
       "kind": "deployment-automation",
       "category": "operations",
-      "sourcePath": "docker-compose.yml",
+      "sourcePath": "docker-compose-truenas.yml",
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "doco-cd"
+        "containerService": "doco-cd",
+        "networks": [
+          "default",
+          "intranet",
+          "secrets-backend"
+        ]
       },
       "monitoring": {
         "type": "port",
@@ -3089,7 +3094,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "docker-compose.yml:doco-cd.x-nabla.runtime.containerService"
+        "docker-compose-truenas.yml:doco-cd.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -3099,7 +3104,7 @@
       "strength": "required",
       "description": "Doco-CD performs Docker discovery and deployments through the restricted proxy.",
       "evidence": [
-        "docker-compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
+        "docker-compose-truenas.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
       ]
     },
     {
