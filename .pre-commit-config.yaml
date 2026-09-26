@@ -183,7 +183,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
+          ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model|state)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
 
       - id: catalog-v2-preparation-contract
         name: "🕸️ catalog · Validate v2 migration inventory coverage"
