@@ -572,6 +572,12 @@ session is expected to disconnect once the reboot begins.
 
 ## Phase 2 — post-reboot infrastructure gate
 
+Automatic post-reboot/resume actions reject manifests older than 48 hours by
+default, using the frozen `apps-before.json` timestamp. This prevents a stale
+`STATE_ROOT/latest` pointer from authorizing a later unrelated reboot.
+`NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS` is an explicit recovery-only override;
+do not increase it unless the old frozen intent has been independently reviewed.
+
 After TrueNAS returns:
 
 ```bash

@@ -12,6 +12,7 @@ APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 POLL_SECONDS="${NABLA_APP_POLL_SECONDS:-5}"
 LOG_TAIL="${NABLA_APP_DIAGNOSTIC_LOG_TAIL:-80}"
+MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
 
 usage() {
@@ -43,16 +44,27 @@ case "${MODE}" in
 esac
 
 require_root "run as root on TrueNAS"
-require_commands midclt jq docker timeout sed tr
+require_commands midclt jq docker timeout sed tr stat date
 [[ -x "${HEALTH_GATE}" || -f "${HEALTH_GATE}" ]] || fail "app health gate not found: ${HEALTH_GATE}"
 
-for value in CALL_TIMEOUT APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL; do
+for value in CALL_TIMEOUT APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL MAX_MANIFEST_AGE; do
   current="${!value}"
   [[ "${current}" =~ ^[1-9][0-9]*$ ]] || fail "${value} must be a positive integer"
 done
 
 midclt_bounded() {
   timeout "${CALL_TIMEOUT}" midclt call "$@"
+}
+
+assert_manifest_fresh() {
+  local dir="$1" snapshot="${1}/apps-before.json" now mtime age
+  [[ -f "${snapshot}" ]] || fail "apps-before snapshot missing: ${snapshot}"
+  now="$(date +%s)"
+  mtime="$(stat -c %Y "${snapshot}")"
+  age=$((now - mtime))
+  ((age >= 0)) || fail "reboot manifest has a future snapshot timestamp: ${dir}"
+  ((age <= MAX_MANIFEST_AGE)) ||
+    fail "stale reboot manifest age=${age}s exceeds max=${MAX_MANIFEST_AGE}s: ${dir}; refuse automatic resume and reconstruct recovery intent explicitly"
 }
 
 latest_state_dir() {
@@ -62,6 +74,7 @@ latest_state_dir() {
   [[ -d "${dir}" ]] || fail "recorded reboot state directory is missing: ${dir}"
   [[ -f "${dir}/resume-plan.json" ]] || fail "resume plan missing: ${dir}/resume-plan.json"
   [[ -f "${dir}/boot-id-before" ]] || fail "boot id missing: ${dir}/boot-id-before"
+  assert_manifest_fresh "${dir}"
   printf '%s\n' "${dir}"
 }
 

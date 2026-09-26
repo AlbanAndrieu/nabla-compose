@@ -201,6 +201,18 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Running/Restarting but pid=0", text)
         self.assertIn("diagnose-docker-orphan-shims.sh", text)
 
+    def test_stale_reboot_manifest_fails_closed(self) -> None:
+        reboot = REBOOT.read_text(encoding="utf-8")
+        reconciler = (
+            ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
+        ).read_text(encoding="utf-8")
+        for text in (reboot, reconciler):
+            self.assertIn("NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS", text)
+            self.assertIn("172800", text)
+            self.assertIn("stale reboot manifest", text)
+            self.assertIn("apps-before.json", text)
+            self.assertIn("stat -c %Y", text)
+
     def test_operator_acceptance_is_a_strict_sidecar(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
 

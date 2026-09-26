@@ -15,6 +15,7 @@ APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 EXTRA_RESUME_APPS="${NABLA_REBOOT_RESUME_STOPPED_APPS:-}"
 ACCEPTANCE_DEFERRED_APPS="${NABLA_REBOOT_DEFERRED_APPS:-${2:-}}"
 ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
+MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
@@ -52,7 +53,7 @@ case "${MODE}" in
 esac
 
 require_root "run as root on TrueNAS"
-require_commands midclt jq docker python3 timeout getent awk tr sha256sum cmp
+require_commands midclt jq docker python3 timeout getent awk tr sha256sum cmp stat date
 [[ -f "${PLANNER}" ]] || fail "lifecycle planner not found: ${PLANNER}"
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog not found under ${REPO_ROOT}"
 [[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog not found under ${REPO_ROOT}"
@@ -267,11 +268,25 @@ print_plan_summary() {
   done
 }
 
+assert_manifest_fresh() {
+  local dir="$1" snapshot="${1}/apps-before.json" now mtime age
+  [[ "${MAX_MANIFEST_AGE}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS must be a positive integer"
+  [[ -f "${snapshot}" ]] || fail "apps-before snapshot missing: ${snapshot}"
+  now="$(date +%s)"
+  mtime="$(stat -c %Y "${snapshot}")"
+  age=$((now - mtime))
+  ((age >= 0)) || fail "reboot manifest has a future snapshot timestamp: ${dir}"
+  ((age <= MAX_MANIFEST_AGE)) ||
+    fail "stale reboot manifest age=${age}s exceeds max=${MAX_MANIFEST_AGE}s: ${dir}; refuse automatic post-reboot/resume actions"
+}
+
 latest_state_dir() {
   [[ -f "${STATE_ROOT}/latest" ]] || fail "no reboot state manifest at ${STATE_ROOT}/latest"
   local dir
   dir="$(cat "${STATE_ROOT}/latest")"
   [[ -d "${dir}" ]] || fail "recorded reboot state directory is missing: ${dir}"
+  assert_manifest_fresh "${dir}"
   printf '%s\n' "${dir}"
 }
 
