@@ -241,6 +241,15 @@ repos:
         files: >-
           ^([.]github/workflows/(?:codeql|production-security|runtime-baseline)[.]ya?ml|[.]zap/(?:rules|truenas-rules)[.]tsv|config/security/production-http-baseline[.]json|scripts/security/prepare-zap-openapi[.]py|tests/(?:test_security_ci_contract|test_prepare_zap_openapi)[.]py|docs/runtime-baseline-tests[.]md)$
 
+      - id: truenas-deployment-automation-contract
+        name: "🚢 truenas · Validate Doco-CD deployment authority"
+        language: python
+        entry: python -m pytest -q tests/test_truenas_deployment_automation.py
+        additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(docker-compose(?:-truenas)?[.]yml|bootstrap/compose[.]ya?ml|catalog/(?:catalog-info[.]yaml|services[.]json|service-topology[.]json)|docs/truenas-deployment-automation[.]md|scripts/(?:cron[.]sh|truenas/bootstrap-dev-tools[.]sh)|tests/test_truenas_deployment_automation[.]py)$
+
       - id: truenas-operator-tools-contract
         name: "🧰 truenas · Validate operator tools installer"
         language: system
