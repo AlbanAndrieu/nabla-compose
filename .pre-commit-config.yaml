@@ -227,8 +227,8 @@ repos:
       - id: agent-quality-gate-contract
         name: "✅ quality · Validate agent-first gate contract"
         language: python
-        entry: python -m unittest tests.test_agent_quality_gate_contract -v
-        additional_dependencies: ["PyYAML==6.0.3"]
+        entry: python -m pytest -q tests/test_agent_quality_gate_contract.py tests/test_truenas_deployment_automation.py
+        additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
           ^(scripts/(?:agent-(?:quality-gate|pre-push|task-context)[.](?:sh|py)|truenas/bootstrap-dev-tools[.]sh)|tests/(?:test_agent_quality_gate_contract|test_truenas_deployment_automation)[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|[.]opencode/.*|opencode[.]json|AGENTS[.]md|agent[.]md|mise[.]toml)$
