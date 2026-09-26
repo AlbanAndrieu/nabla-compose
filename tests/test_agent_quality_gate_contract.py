@@ -341,6 +341,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         quality = (ROOT / ".opencode" / "commands" / "quality.md").read_text(
             encoding="utf-8"
         )
+        catalog_wave = (
+            ROOT / ".opencode" / "commands" / "catalog-wave.md"
+        ).read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         runbook = (ROOT / "agent.md").read_text(encoding="utf-8")
         context_script = (ROOT / "scripts" / "agent-task-context.py").read_text(
@@ -358,6 +361,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("agent: reviewer", review)
         self.assertIn("subagent: true", review)
         self.assertIn("mise run agent-pre-push", quality)
+        self.assertIn("--check --debt-json", catalog_wave)
+        self.assertIn("classification-first", catalog_wave)
+        self.assertIn("do not invent", catalog_wave.lower())
         self.assertIn("OpenCode and smaller-model execution", agents)
         self.assertIn("check-service-migration-bundle.py", agents)
         self.assertIn("AGENTS.md", runbook)
