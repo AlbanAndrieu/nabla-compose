@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import stat
 import subprocess
 import unittest
@@ -189,6 +190,38 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "entry: python -m pytest -q tests/test_truenas_deployment_automation.py",
             config,
         )
+
+    def test_unittest_hooks_only_target_real_unittest_suites(self) -> None:
+        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        module_pattern = re.compile(
+            r"^entry: python -m unittest (.+?)(?: -v)?$"
+        )
+        testcase_pattern = re.compile(
+            r"class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)"
+        )
+
+        checked: list[Path] = []
+        for raw_line in config.splitlines():
+            match = module_pattern.match(raw_line.strip())
+            if match is None:
+                continue
+            arguments = match.group(1).split()
+            if arguments and arguments[0] == "discover":
+                pattern_index = arguments.index("-p") + 1
+                checked.append(ROOT / "tests" / arguments[pattern_index])
+                continue
+            for module in arguments:
+                if module.startswith("tests."):
+                    checked.append(
+                        ROOT / (module.replace(".", "/") + ".py")
+                    )
+
+        self.assertTrue(checked)
+        for path in checked:
+            with self.subTest(path=path.relative_to(ROOT)):
+                source = path.read_text(encoding="utf-8")
+                self.assertRegex(source, testcase_pattern)
+
 
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))
