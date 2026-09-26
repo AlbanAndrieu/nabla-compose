@@ -314,6 +314,37 @@ def test_state_store_rejects_mismatched_persisted_identity() -> None:
             raise AssertionError("mismatched persisted service identity was accepted")
 
 
+def test_state_store_rejects_symlinked_state_and_lock_paths() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "service-state"
+        root.mkdir(mode=0o700)
+        target = Path(tmp) / "attacker-controlled"
+        target.write_text("{}", encoding="utf-8")
+
+        state_link = root / "example.json"
+        state_link.symlink_to(target)
+        try:
+            read_initialization_state("example", root=root)
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state reader followed a symbolic link")
+        state_link.unlink()
+
+        lock_link = root / "example.lock"
+        lock_link.symlink_to(target)
+        try:
+            advance_initialization_state(
+                "example",
+                InitializationStage.DECLARED,
+                root=root,
+            )
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state writer followed a lock symbolic link")
+
+
 def test_state_cli_read_is_side_effect_free_for_missing_state() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "missing-state-root"
