@@ -5,6 +5,8 @@ MODE="${1:---check}"
 TARGET_IPV4_BASE="${TRUENAS_DOCKER_IPV4_BASE:-10.200.0.0/16}"
 TARGET_IPV4_SIZE="${TRUENAS_DOCKER_IPV4_SIZE:-24}"
 WAIT_SECONDS="${TRUENAS_DOCKER_IPAM_WAIT_SECONDS:-300}"
+POST_BOOT_WAIT_SECONDS="${TRUENAS_DOCKER_POST_BOOT_WAIT_SECONDS:-900}"
+DOCKER_CLI_TIMEOUT="${TRUENAS_DOCKER_CLI_TIMEOUT_SECONDS:-30}"
 EXPECTED_BR0_CIDR="${TRUENAS_EXPECTED_BR0_CIDR:-172.17.0.24/24}"
 OBSERVER_NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
 OBSERVER_SUBNET="${FASTAPI_SAMPLE_OBSERVER_SUBNET:-10.254.255.0/28}"
@@ -36,6 +38,42 @@ cleanup() {
   [[ -z "${smoke_network}" ]] || docker network rm "${smoke_network}" >/dev/null 2>&1 || true
   rm -f "${routes_file}"
 }
+
+runtime_snapshot() {
+  local service_state status
+  service_state="$(systemctl is-active docker 2>/dev/null || true)"
+  status="$(midclt call docker.status 2>/dev/null | jq -r '.status // "UNKNOWN"' || true)"
+  printf '%s %s\n' "${service_state:-unknown}" "${status:-UNKNOWN}"
+}
+
+wait_runtime_ready() {
+  local wait_seconds="$1" deadline service_state status current last=""
+  deadline=$((SECONDS + wait_seconds))
+  while ((SECONDS < deadline)); do
+    read -r service_state status < <(runtime_snapshot)
+    current="${service_state}/${status}"
+    if [[ "${current}" != "${last}" ]]; then
+      printf '  Docker boot convergence: service=%s middleware=%s\n'         "${service_state}" "${status}"
+      last="${current}"
+    fi
+
+    if [[ "${service_state}" == "active" && "${status}" == "RUNNING" ]]; then
+      timeout "${DOCKER_CLI_TIMEOUT}" docker info         --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}}'         >/dev/null ||
+        fail "Docker reports active/RUNNING but docker info did not respond within ${DOCKER_CLI_TIMEOUT}s"
+      return 0
+    fi
+
+    case "${status}" in
+      FAILED | MIGRATION_FAILED | UNCONFIGURED)
+        fail "TrueNAS docker.status entered terminal state ${status}"
+        ;;
+    esac
+    sleep 5
+  done
+
+  read -r service_state status < <(runtime_snapshot)
+  fail "Docker did not converge within ${wait_seconds}s: service=${service_state} middleware=${status}"
+}
 trap cleanup EXIT
 exec > >(tee -a "${report}") 2>&1
 
@@ -55,6 +93,11 @@ current_target="$(
   ' <<<"${config}"
 )"
 
+if [[ "${MODE}" == "--post-reboot-check" ]]; then
+  printf 'Waiting for post-reboot Docker initialization (timeout=%ss)...\n'     "${POST_BOOT_WAIT_SECONDS}"
+  wait_runtime_ready "${POST_BOOT_WAIT_SECONDS}"
+fi
+
 if midclt call app.query >"${app_inventory}" 2>/dev/null; then
   jq -r 'group_by(.state) | map({state:.[0].state,count:length})' "${app_inventory}"
 else
@@ -63,9 +106,17 @@ else
 fi
 printf 'apps=%s\n' "${app_inventory}"
 
-mapfile -t network_ids < <(docker network ls -q)
-if ((${#network_ids[@]})); then
-  docker network inspect "${network_ids[@]}" >"${network_inventory}"
+network_ids_raw="$(
+  timeout "${DOCKER_CLI_TIMEOUT}" docker network ls -q
+)" || fail "docker network ls timed out after ${DOCKER_CLI_TIMEOUT}s"
+if [[ -n "${network_ids_raw}" ]]; then
+  mapfile -t network_ids <<<"${network_ids_raw}"
+else
+  network_ids=()
+fi
+if (("${#network_ids[@]}")); then
+  timeout "${DOCKER_CLI_TIMEOUT}" docker network inspect "${network_ids[@]}"     >"${network_inventory}" ||
+    fail "docker network inspect timed out after ${DOCKER_CLI_TIMEOUT}s"
 else
   printf '[]\n' >"${network_inventory}"
 fi
@@ -219,7 +270,8 @@ verify_runtime_ready() {
     fail "docker.service is ${service_state:-unknown}, expected active"
   [[ "${status}" == "RUNNING" ]] ||
     fail "TrueNAS docker.status is ${status:-UNKNOWN}, expected RUNNING"
-  docker info --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}}'
+  timeout "${DOCKER_CLI_TIMEOUT}" docker info     --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}}' ||
+    fail "docker info timed out after ${DOCKER_CLI_TIMEOUT}s"
   printf 'OK: Docker service and TrueNAS middleware agree on RUNNING\n'
 }
 
@@ -311,19 +363,7 @@ else
 fi
 
 printf 'Waiting for Docker service and middleware status to converge...\n'
-deadline=$((SECONDS + WAIT_SECONDS))
-status="UNKNOWN"
-while ((SECONDS < deadline)); do
-  service_state="$(systemctl is-active docker 2>/dev/null || true)"
-  status="$(midclt call docker.status 2>/dev/null | jq -r '.status // "UNKNOWN"' || true)"
-  printf '  docker.service=%s middleware=%s\n' "${service_state:-unknown}" "${status:-UNKNOWN}"
-  [[ "${service_state}" == "active" && "${status}" == "RUNNING" ]] && break
-  sleep 5
-done
-[[ "$(systemctl is-active docker 2>/dev/null || true)" == "active" ]] ||
-  fail "Docker service did not become active within ${WAIT_SECONDS}s"
-[[ "${status}" == "RUNNING" ]] ||
-  fail "TrueNAS docker.status did not converge to RUNNING within ${WAIT_SECONDS}s"
+wait_runtime_ready "${WAIT_SECONDS}"
 
 verify_target_config
 verify_runtime_ready

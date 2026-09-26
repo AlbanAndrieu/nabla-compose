@@ -256,6 +256,11 @@ def parse_args() -> argparse.Namespace:
         help="print the complete machine-readable parity inventory",
     )
     parser.add_argument(
+        "--debt-json",
+        action="store_true",
+        help="print only the Backstage materialization debt inventory",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="write the deterministic JSON report to this path",
@@ -367,10 +372,25 @@ def main() -> int:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(rendered, encoding="utf-8")
 
-    if args.json:
+    if args.debt_json:
+        summary = report["summary"]
+        debt_payload = {
+            "version": 1,
+            "total": summary["backstageMaterializationDebt"],
+            "byState": summary["backstageMaterializationDebtByState"],
+            "byCriticality": summary["backstageMaterializationDebtByCriticality"],
+            "services": report["backstageMaterializationDebt"],
+        }
+        print(json.dumps(debt_payload, indent=2, sort_keys=True))
+    elif args.json:
         print(rendered, end="")
     else:
         summary = report["summary"]
+        debt_by_criticality = json.dumps(
+            summary["backstageMaterializationDebtByCriticality"],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         print(
             "catalog-v2 preparation:"
             f" legacy={summary['legacyServices']}"
@@ -382,6 +402,7 @@ def main() -> int:
             f" backstage={summary['backstageEntities']}"
             f" materialized={summary['backstageMaterializedEntries']}"
             f" backstage-debt={summary['backstageMaterializationDebt']}"
+            f" backstage-debt-by-criticality={debt_by_criticality}"
             f" identity-ready={summary['identityReadyEntries']}"
             f" runtime-binding-errors={summary['runtimeBindingErrors']}"
             f" same-project-dependency-duplicates={summary['sameProjectDependencyDuplicates']}"
@@ -421,7 +442,7 @@ def main() -> int:
             print(f"error: {error}", file=sys.stderr)
         return 1 if args.check else 0
 
-    if args.check:
+    if args.check and not (args.json or args.debt_json):
         print("catalog-v2 preparation coverage: OK")
     return 0
 

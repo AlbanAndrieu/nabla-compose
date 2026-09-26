@@ -15,7 +15,11 @@ APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 EXTRA_RESUME_APPS="${NABLA_REBOOT_RESUME_STOPPED_APPS:-}"
 ACCEPTANCE_DEFERRED_APPS="${NABLA_REBOOT_DEFERRED_APPS:-${2:-}}"
 ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
+MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
+AUTO_RECOVER_GHOSTS="${NABLA_REBOOT_AUTO_RECOVER_GHOSTS:-true}"
 TALOS_WAIT="${NABLA_TALOS_SHUTDOWN_TIMEOUT:-15m}"
+VM_START_WAIT="${NABLA_REBOOT_VM_START_WAIT_SECONDS:-600}"
+VM_POLL_SECONDS="${NABLA_REBOOT_VM_POLL_SECONDS:-5}"
 TALOS_ENDPOINT="${NABLA_TALOS_ENDPOINT:-172.17.0.50}"
 TALOS_NODES=(172.17.0.51 172.17.0.52 172.17.0.50)
 VM_NAMES=(taloscp01 taloswk01 taloswk02)
@@ -25,10 +29,12 @@ PLANNER="${NABLA_REBOOT_PLANNER:-${SCRIPT_DIR}/plan-app-lifecycle-order.py}"
 IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool.sh}"
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
+GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
 [[ -f "${ORPHAN_SHIMS}" ]] || ORPHAN_SHIMS="${REPO_ROOT}/scripts/truenas/diagnose-docker-orphan-shims.sh"
+[[ -f "${GHOST_RECOVERY}" ]] || GHOST_RECOVERY="${REPO_ROOT}/scripts/truenas/recover-app-after-docker-ghost.sh"
 
 usage() {
   cat <<'EOF'
@@ -52,7 +58,7 @@ case "${MODE}" in
 esac
 
 require_root "run as root on TrueNAS"
-require_commands midclt jq docker python3 timeout getent awk tr sha256sum cmp
+require_commands midclt jq docker python3 timeout getent awk tr sha256sum cmp stat date
 [[ -f "${PLANNER}" ]] || fail "lifecycle planner not found: ${PLANNER}"
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog not found under ${REPO_ROOT}"
 [[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog not found under ${REPO_ROOT}"
@@ -174,6 +180,31 @@ talos_vms_all_in_state() {
   ' <<<"${summary}" >/dev/null
 }
 
+wait_talos_vms_running() {
+  local deadline summary last=""
+  [[ "${VM_START_WAIT}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_VM_START_WAIT_SECONDS must be a positive integer"
+  [[ "${VM_POLL_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_VM_POLL_SECONDS must be a positive integer"
+
+  deadline=$((SECONDS + VM_START_WAIT))
+  while ((SECONDS < deadline)); do
+    summary="$(talos_vm_state_summary)"
+    if [[ "${summary}" != "${last}" ]]; then
+      printf 'Talos VM autostart convergence: %s\n' "${summary}"
+      last="${summary}"
+    fi
+    if talos_vms_all_in_state RUNNING; then
+      return 0
+    fi
+    sleep "${VM_POLL_SECONDS}"
+  done
+
+  printf 'Talos VM state after timeout:\n' >&2
+  talos_vm_state_summary | jq . >&2
+  fail "Talos VMs did not all become RUNNING within ${VM_START_WAIT}s"
+}
+
 vm_name_for_talos_node() {
   case "$1" in
     172.17.0.50) printf 'taloscp01\n' ;;
@@ -267,11 +298,25 @@ print_plan_summary() {
   done
 }
 
+assert_manifest_fresh() {
+  local dir="$1" snapshot="${1}/apps-before.json" now mtime age
+  [[ "${MAX_MANIFEST_AGE}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS must be a positive integer"
+  [[ -f "${snapshot}" ]] || fail "apps-before snapshot missing: ${snapshot}"
+  now="$(date +%s)"
+  mtime="$(stat -c %Y "${snapshot}")"
+  age=$((now - mtime))
+  ((age >= 0)) || fail "reboot manifest has a future snapshot timestamp: ${dir}"
+  ((age <= MAX_MANIFEST_AGE)) ||
+    fail "stale reboot manifest age=${age}s exceeds max=${MAX_MANIFEST_AGE}s: ${dir}; refuse automatic post-reboot/resume actions"
+}
+
 latest_state_dir() {
   [[ -f "${STATE_ROOT}/latest" ]] || fail "no reboot state manifest at ${STATE_ROOT}/latest"
   local dir
   dir="$(cat "${STATE_ROOT}/latest")"
   [[ -d "${dir}" ]] || fail "recorded reboot state directory is missing: ${dir}"
+  assert_manifest_fresh "${dir}"
   printf '%s\n' "${dir}"
 }
 
@@ -443,7 +488,15 @@ continue_prepare() {
     printf 'STOP %s state=%s\n' "${app}" "${state}"
     if ! timeout "${APP_JOB_TIMEOUT}" midclt call -j app.stop "${app}" >/dev/null; then
       diagnose_app_runtime "${app}"
-      fail "${app}: app.stop failed/timed out; preserve manifest and use --continue-prepare"
+      if [[ "${AUTO_RECOVER_GHOSTS}" == "true" && -f "${GHOST_RECOVERY}" ]]; then
+        warn "${app}: attempting bounded App-scoped Docker ghost recovery"
+        if ! NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true \
+          bash "${GHOST_RECOVERY}" --recover-app "${app}"; then
+          fail "${app}: app.stop and bounded ghost recovery failed; preserve manifest and use --continue-prepare"
+        fi
+      else
+        fail "${app}: app.stop failed/timed out; preserve manifest and use --continue-prepare"
+      fi
     fi
     wait_app_stopped "${app}" ||
       fail "${app}: did not reach STOPPED; preserve manifest and use --continue-prepare"
@@ -662,13 +715,9 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   [[ -f "${IPAM_CHECK}" ]] || fail "IPAM post-reboot helper not found: ${IPAM_CHECK}"
   bash "${IPAM_CHECK}" --post-reboot-check
 
-  vm_payload="$(midclt_bounded vm.query)"
-  for name in "${VM_NAMES[@]}"; do
-    jq -e --arg name "${name}" \
-      '[.[]|select(.name==$name and .autostart==true and (.status.state//"UNKNOWN")=="RUNNING")]|length==1' \
-      <<<"${vm_payload}" >/dev/null ||
-      fail "${name}: expected autostart=true and RUNNING"
-  done
+  vm_policy_gate
+  printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_START_WAIT}"
+  wait_talos_vms_running
   for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
     talos_api_check "${node}" 60 post-reboot || fail "Talos API not ready: ${node}"
   done

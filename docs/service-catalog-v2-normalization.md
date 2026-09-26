@@ -1634,3 +1634,22 @@ required coverage, the generator should become a local quality-gate
 `--check` and the generated artifacts can be consumed by FastAPI, Site Alban
 and Cartography without creating another manually-maintained inventory.
 
+## Materialization debt workflow
+
+Do not select a migration wave from directory names or a manually maintained
+count. Use the repository audit as the source of truth:
+
+```bash
+python scripts/audit-service-catalog-v2-parity.py --check --debt-json
+```
+
+The focused output contains the total debt plus `byState`,
+`byCriticality` and the exact generated service records still lacking a
+unique Backstage entity. OpenCode `/catalog-wave` consumes this contract.
+
+When the highest-priority remaining entries are `unclassified`, switch to
+**classification-first** work. Do not invent business criticality, DMTP/MTPD,
+RTO, RPO, MBCO or impact dimensions merely to create a descriptor. Inspect one
+coherent runtime group, establish statefulness/dependencies and owner evidence,
+then materialize only the entities whose classification can be justified.
+

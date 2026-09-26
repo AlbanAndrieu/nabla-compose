@@ -159,7 +159,7 @@ script.
 8. [ ] Add a local-controller profile to FastAPI Sample only after MCP/ops authentication and route exposure fail closed. The current `sample.albandrieu.com` Cloudflare Access ingress means privileged mutation routes must not be added until public-path denial/route non-registration is proven. FastAPI Cloud stays read-only.
 9. [ ] Keep the existing `fastapi_observer` TrueNAS credential read-only. Any future bounded mutation adapter must use a separate least-privilege execution identity and must never expose generic shell/`midclt` passthrough.
 10. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories. Implement generic handlers (TrueNAS App reconcile, PostgreSQL role/database, HTTP/TCP readiness, manual jobs) in `nabla_ops` before migrating additional secret waves.
-11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries. The stage enum now lives in `nabla_ops`; persistence/mutation remains deliberately deferred until transaction semantics are implemented.
+11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries. The host-local persistence primitive now lives in `nabla_ops/state.py`: canonical state root `/mnt/cpool/var/nabla/service-state`, per-service `flock`, root `0700`, state/lock `0600`, atomic temp-file + `fsync` + `os.replace`, strict service-id binding, monotonic single-step transitions and idempotent no-rewrite. `nabla-service.py state --app ...` is read-only and treats missing durable state as implicit `DECLARED` without creating files. Remaining work before checking this item complete: integrate bounded retry policy/generic handlers with this transaction store and prove operator/runtime acceptance; no privileged mutation CLI is exposed yet.
 12. [x] Add a root-readable, value-blind filesystem inventory for `.env` / `.env.secrets` migration candidates; it reports paths/metadata only and complements the canonical migration planner.
 13. [x] Stage `sample` as the first path-normalization pilot without Vaultwarden. Operator evidence on 2026-09-19 confirms `/mnt/cpool/secrets/runtime/sample/.env` and `.env.secrets` are root:root `0600`, non-empty and byte-consistent with the legacy sources; legacy files remain intact.
 14. [ ] **Finish Sample reboot acceptance:** operator evidence on 2026-09-23 proves Sample RUNNING on `:8091`, `/health` healthy, `/v2/version` at `1.20.8`, observer source `10.254.255.9` accepted with `APPS_READ,CATALOG_READ`, and canonical env copies consistent. The operator then finalized both legacy Sample dotenvs into compatibility symlinks to `/mnt/cpool/secrets/runtime/sample/`. Because finalization happened before the planned reboot gate, do not remove those symlinks or rotate values yet; the next controlled reboot must prove Sample resumes from canonical materialization, followed by another clean observation before legacy compatibility links can be retired. Extend the dedicated read-only observer privilege with `VM_READ`, then prove `vm.query` sees `taloscp01`, `taloswk01` and `taloswk02`; FastAPI Cloud must expose this as VM-runtime evidence only and must not claim Kubernetes/Talos API readiness from it.
@@ -299,7 +299,12 @@ for identity, dependencies, exposure intent and reboot safety.
   InfluxDB + Scrutiny, Plumber/API/worker, Dockhand, Dozzle, LanguageTool,
   Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
   Manager, OpenHands and Squid as reviewed dependency groups. Active
-  `critical/high/medium` materialization debt is now **zero**. The guided
+  `critical/high/medium` materialization debt is now **zero**. This PR resolves
+  the remaining Doco-CD authority debt: workstation `docker-compose.yml` no
+  longer authors its catalog metadata, TrueNAS `docker-compose-truenas.yml`
+  owns `x-nabla` + runtime entity-ref, generated catalog/topology evidence now
+  points to that TrueNAS source, and `component:default/doco-cd` captures the
+  required Docker Socket Proxy dependency. The guided
   OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
   45 lower-priority services: 40 unclassified and 5 low. This PR now
   materializes the complete low-criticality wave — Draw.io, Hello Nginx,
@@ -309,8 +314,16 @@ for identity, dependencies, exposure intent and reboot safety.
   cross-project Compose `depends_on: postgres`: its init container owns the
   bounded readiness loop on the external `intranet` network while Backstage
   owns the required dependency on `resource:default/postgresql`. Remaining
-  active Backstage materialization debt is therefore **40 unclassified
-  services and zero low services**. Nginx Proxy
+  active Backstage materialization debt is therefore **36 services**, all
+  currently **unclassified**, with zero low/medium/high/critical services. This
+  count is derived by matching generated active service IDs to actual Backstage
+  `metadata.name` values, not merely by checking whether an app directory
+  contains some descriptor. Recompute it before each wave with
+  `python scripts/audit-service-catalog-v2-parity.py --check --debt-json`;
+  do not maintain the count independently. Because all remaining entries are
+  unclassified, the next waves are classification-first: inspect one coherent
+  runtime group, establish evidence for criticality/BIA, and only then
+  materialize reviewed entities. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:

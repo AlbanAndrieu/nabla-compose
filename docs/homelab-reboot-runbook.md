@@ -135,6 +135,24 @@ shutdown order is:
 
 All three VMs must end as `STOPPED` while retaining `autostart=true`.
 
+## Docker post-boot convergence
+
+`system.ready=True` does not imply that Apps/Docker initialization is complete.
+The 2026-09-26 recovery reboot observed `docker.service=activating` while
+`docker.status=INITIALIZING`.
+
+The Docker/IPAM post-reboot gate therefore waits, with a bounded timeout, for
+both `docker.service=active` and `docker.status=RUNNING` before running Docker
+network or inventory commands. Docker CLI calls are also individually bounded
+so initialization cannot make the operator workflow appear frozen. Terminal
+middleware states `FAILED`, `MIGRATION_FAILED` and `UNCONFIGURED` still
+fail immediately.
+
+Talos VM autostart is also treated as a convergence phase. Recovery waits
+separately for all three VMs to reach `RUNNING` with `autostart=true`, then
+for each Talos API endpoint, and finally for all Kubernetes Nodes to become
+`Ready`. Each phase has its own bounded timeout and diagnostic output.
+
 ## TrueNAS readiness contract
 
 TrueNAS 26 on this host rendered a healthy readiness value as `True`, not
@@ -382,6 +400,151 @@ Continuation:
 - records continuation in `prepare-history.log`;
 - continues through Docker and Talos gates.
 
+## Automated recovery transaction
+
+The 2026-09-26 incident validated a complete recovery boundary with 97 Apps
+`STOPPED`, zero running Docker containers, zero `Pid=0` ghosts, then Talos
+workers followed by the control-plane cleanly reaching `STOPPED` with
+`autostart=true`.
+
+For this abnormal path, use the dedicated transaction helper instead of an old
+normal reboot manifest:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --prepare
+```
+
+The command freezes one recovery snapshot, derives topology stop order, uses
+supported `app.stop`, applies bounded App-scoped ghost repair only after a
+stop failure, revisits residual ghosts belonging to Apps that were already
+`STOPPED`, requires all Apps `STOPPED`, requires Docker zero-running and
+zero-ghost state, then gracefully shuts down Talos `.51`, `.52`, `.50`.
+It stops at `READY_TO_REBOOT`.
+
+If interrupted before the host reboot:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --continue
+```
+
+Inspect at any time:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --status
+```
+
+Only after `READY_TO_REBOOT`:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --reboot
+```
+
+After TrueNAS returns, do not start Apps manually:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --post-reboot-check
+```
+
+This requires a changed boot ID, TrueNAS/Docker/IPAM health, no App/container
+auto-resurrection, Talos autostart, Talos API reachability and Kubernetes Ready.
+
+Recovery restore is deliberately split:
+
+```bash
+# Only Apps observed RUNNING/DEPLOYING in the frozen snapshot.
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --resume-safe
+
+# Optional second pass for explicitly reviewed candidates, including prior
+# CRASHED/ERROR Apps.
+STATE_DIR="$(sudo cat /mnt/cpool/var/nabla/recovery/latest)"
+sudo cp "${STATE_DIR}/resume-review.txt" "${STATE_DIR}/resume-approved.txt"
+sudoedit "${STATE_DIR}/resume-approved.txt"
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --resume-reviewed
+```
+
+Never copy the whole review list blindly: historical App debt remains debt until
+explicitly accepted for restart.
+
+For normal planned maintenance, `reboot-homelab.sh --prepare` now invokes the
+same bounded App-scoped ghost recovery automatically after a supported
+`app.stop` failure. Set `NABLA_REBOOT_AUTO_RECOVER_GHOSTS=false` to disable
+that repair path for diagnostic-only maintenance.
+
+## Fast post-reboot ghost recovery procedure
+
+When a reboot returns with widespread App `CRASHED`/`STOPPED` states and
+Docker reports `Running/Restarting=true` with `Pid=0`, preserve recovery
+intent before cleanup:
+
+```bash
+RECOVERY_DIR="/mnt/cpool/var/nabla/recovery-$(date +%Y%m%d-%H%M%S)"
+sudo install -d -m 700 "${RECOVERY_DIR}"
+sudo midclt call app.query |
+  sudo tee "${RECOVERY_DIR}/apps-before-cleanup.json" >/dev/null
+sudo jq -r '
+  .[] |
+  select(.state=="RUNNING" or .state=="DEPLOYING" or .state=="CRASHED") |
+  .id
+' "${RECOVERY_DIR}/apps-before-cleanup.json" |
+  sudo tee "${RECOVERY_DIR}/resume-candidates.txt"
+sudo midclt call system.boot_id |
+  sudo tee "${RECOVERY_DIR}/boot-id.txt"
+```
+
+Get the read-only ghost matrix:
+
+```bash
+sudo bash scripts/truenas/recover-app-after-docker-ghost.sh --check
+```
+
+For a `STOPPED`, `CRASHED` or `ERROR` App:
+
+```bash
+sudo bash scripts/truenas/recover-app-after-docker-ghost.sh   --recover-app <app-id>
+```
+
+The helper tries supported `app.stop` first. If it fails, only containers from
+that App's `ix-<app>` Compose project are considered. Automatic shim recovery
+requires all of: Running or Restarting, init PID zero, and exactly one
+`containerd-shim-runc-v2` matching the full container ID. Zero or multiple
+matching shims fail closed.
+
+`RUNNING` and `DEPLOYING` Apps require explicit quiesce intent:
+
+```bash
+sudo env NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true   bash scripts/truenas/recover-app-after-docker-ghost.sh   --recover-app <app-id>
+```
+
+For a reviewed full recovery reboot, generate a shutdown plan from the preserved
+snapshot and process `stop_order`. Stop on the first helper failure:
+
+```bash
+sudo python3 scripts/truenas/plan-app-lifecycle-order.py   --apps "${RECOVERY_DIR}/apps-before-cleanup.json"   --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING   --services catalog/services.json   --topology catalog/service-topology.json   --pretty |
+  sudo tee "${RECOVERY_DIR}/shutdown-plan.json" >/dev/null
+
+while IFS= read -r app; do
+  state="$(sudo midclt call app.query "[[\"id\",\"=\",\"${app}\"]]" |
+    jq -r 'if length==1 then .[0].state else "MISSING" end')"
+  case "${state}" in
+    RUNNING|DEPLOYING)
+      sudo env NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true         bash scripts/truenas/recover-app-after-docker-ghost.sh --recover-app "${app}"
+      ;;
+    *)
+      sudo bash scripts/truenas/recover-app-after-docker-ghost.sh --recover-app "${app}"
+      ;;
+  esac || break
+done < <(sudo jq -r '.stop_order[]' "${RECOVERY_DIR}/shutdown-plan.json")
+```
+
+Before another reboot require `docker ps` empty and:
+
+```bash
+sudo bash scripts/truenas/diagnose-docker-orphan-shims.sh --check
+```
+
+to report no Running/Restarting container with `Pid=0`. Preserve the recovery
+snapshot across the reboot; do not substitute an older reboot manifest.
+
 ## Docker/containerd ghost state
 
 An App stop may fail with:
@@ -496,6 +659,12 @@ Using `-j` is intentional because `system.reboot` is a job method. The SSH
 session is expected to disconnect once the reboot begins.
 
 ## Phase 2 — post-reboot infrastructure gate
+
+Automatic post-reboot/resume actions reject manifests older than 48 hours by
+default, using the frozen `apps-before.json` timestamp. This prevents a stale
+`STATE_ROOT/latest` pointer from authorizing a later unrelated reboot.
+`NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS` is an explicit recovery-only override;
+do not increase it unless the old frozen intent has been independently reviewed.
 
 After TrueNAS returns:
 

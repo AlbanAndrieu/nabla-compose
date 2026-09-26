@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -12,9 +13,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops import (  # noqa: E402
     InitializationStage,
     ServiceIntent,
+    advance_initialization_state,
     declared_apps,
     normalize_initialization_stage,
     normalize_service_intent,
+    read_initialization_state,
     validate_initialization_transition,
 )
 
@@ -220,6 +223,170 @@ def test_initialization_transitions_are_idempotent_or_single_step_only() -> None
             raise AssertionError(
                 f"invalid initialization transition accepted: {current} -> {target}"
             )
+
+
+def test_state_store_is_value_blind_atomic_and_monotonic() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "service-state"
+
+        declared = advance_initialization_state(
+            "example",
+            InitializationStage.DECLARED,
+            root=root,
+        )
+        assert declared == {
+            "version": 1,
+            "serviceId": "example",
+            "stage": "DECLARED",
+            "transitionCount": 0,
+        }
+
+        state_path = root / "example.json"
+        lock_path = root / "example.lock"
+        assert stat.S_IMODE(root.stat().st_mode) == 0o700
+        assert stat.S_IMODE(state_path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(lock_path.stat().st_mode) == 0o600
+        assert set(json.loads(state_path.read_text(encoding="utf-8"))) == {
+            "version",
+            "serviceId",
+            "stage",
+            "transitionCount",
+        }
+
+        advanced = advance_initialization_state(
+            "example",
+            InitializationStage.SECRETS_DECLARED,
+            root=root,
+        )
+        assert advanced["stage"] == "SECRETS_DECLARED"
+        assert advanced["transitionCount"] == 1
+
+        before = state_path.read_bytes()
+        idempotent = advance_initialization_state(
+            "example",
+            InitializationStage.SECRETS_DECLARED,
+            root=root,
+        )
+        assert idempotent == advanced
+        assert state_path.read_bytes() == before
+
+        try:
+            advance_initialization_state(
+                "example",
+                InitializationStage.DEPLOYED,
+                root=root,
+            )
+        except ValueError as exc:
+            assert "advance exactly one stage" in str(exc)
+        else:
+            raise AssertionError("state store accepted a skipped transition")
+
+        assert read_initialization_state("example", root=root) == advanced
+        source = (
+            ROOT / "scripts" / "nabla_ops" / "state.py"
+        ).read_text(encoding="utf-8")
+        assert "fcntl.flock" in source
+        assert "os.replace" in source
+        assert "os.fsync" in source
+
+
+def test_state_store_rejects_mismatched_persisted_identity() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "service-state"
+        root.mkdir(mode=0o700)
+        (root / "example.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "serviceId": "other",
+                    "stage": "DECLARED",
+                    "transitionCount": 0,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        try:
+            read_initialization_state("example", root=root)
+        except ValueError as exc:
+            assert "does not match expected" in str(exc)
+        else:
+            raise AssertionError("mismatched persisted service identity was accepted")
+
+
+def test_state_reader_rejects_symlinked_state_root() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        real_root = Path(tmp) / "real-state"
+        real_root.mkdir()
+        symlink_root = Path(tmp) / "state-link"
+        symlink_root.symlink_to(real_root, target_is_directory=True)
+
+        try:
+            read_initialization_state("example", root=symlink_root)
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state reader followed a symlinked root")
+
+
+def test_state_store_rejects_symlinked_state_and_lock_paths() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "service-state"
+        root.mkdir(mode=0o700)
+        target = Path(tmp) / "attacker-controlled"
+        target.write_text("{}", encoding="utf-8")
+
+        state_link = root / "example.json"
+        state_link.symlink_to(target)
+        try:
+            read_initialization_state("example", root=root)
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state reader followed a symbolic link")
+        state_link.unlink()
+
+        lock_link = root / "example.lock"
+        lock_link.symlink_to(target)
+        try:
+            advance_initialization_state(
+                "example",
+                InitializationStage.DECLARED,
+                root=root,
+            )
+        except ValueError as exc:
+            assert "symbolic link" in str(exc)
+        else:
+            raise AssertionError("state writer followed a lock symbolic link")
+
+
+def test_state_cli_read_is_side_effect_free_for_missing_state() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "missing-state-root"
+        result = subprocess.run(
+            [
+                "python3",
+                str(ROOT / "scripts" / "nabla-service.py"),
+                "state",
+                "--app",
+                " example ",
+                "--state-root",
+                str(root),
+                "--json",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout) == {
+            "persisted": False,
+            "serviceId": "example",
+            "stage": "DECLARED",
+            "transitionCount": 0,
+            "version": 1,
+        }
+        assert not root.exists()
 
 
 def test_cli_is_read_only_and_emits_catalog_json() -> None:

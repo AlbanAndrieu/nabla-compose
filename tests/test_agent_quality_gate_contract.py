@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import stat
 import subprocess
 import unittest
@@ -163,6 +164,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
             config,
         )
         self.assertIn("tests/test_catalog_v2_exports.py", config)
+        self.assertGreaterEqual(config.count('"pytest==9.1.1"'), 4)
+        self.assertIn("docker-compose(?:-truenas)?[.]yml", config)
+        self.assertIn("truenas-deployment-automation-contract", config)
         self.assertIn("scripts/generate-catalog-v2-artifacts.py", config)
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
@@ -171,6 +175,53 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_agent_quality_gate_contract.py",
+            config,
+        )
+        self.assertIn('"pytest==9.1.1"', config)
+        self.assertNotIn(
+            "entry: python -m unittest tests.test_agent_quality_gate_contract -v",
+            config,
+        )
+        self.assertIn("truenas/bootstrap-dev-tools", config)
+        self.assertIn("truenas-deployment-automation-contract", config)
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_truenas_deployment_automation.py",
+            config,
+        )
+
+    def test_unittest_hooks_only_target_real_unittest_suites(self) -> None:
+        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        module_pattern = re.compile(
+            r"^entry: python -m unittest (.+?)(?: -v)?$"
+        )
+        testcase_pattern = re.compile(
+            r"class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)"
+        )
+
+        checked: list[Path] = []
+        for raw_line in config.splitlines():
+            match = module_pattern.match(raw_line.strip())
+            if match is None:
+                continue
+            arguments = match.group(1).split()
+            if arguments and arguments[0] == "discover":
+                pattern_index = arguments.index("-p") + 1
+                checked.append(ROOT / "tests" / arguments[pattern_index])
+                continue
+            for module in arguments:
+                if module.startswith("tests."):
+                    checked.append(
+                        ROOT / (module.replace(".", "/") + ".py")
+                    )
+
+        self.assertTrue(checked)
+        for path in checked:
+            with self.subTest(path=path.relative_to(ROOT)):
+                source = path.read_text(encoding="utf-8")
+                self.assertRegex(source, testcase_pattern)
+
 
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))
@@ -284,6 +335,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
             },
             {
                 "action": "shell",
+                "resource": "python scripts/audit-service-catalog-v2-parity.py *",
+                "effect": "allow",
+            },
+            {
+                "action": "shell",
                 "resource": "git reset --hard*",
                 "effect": "deny",
             },
@@ -323,6 +379,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         quality = (ROOT / ".opencode" / "commands" / "quality.md").read_text(
             encoding="utf-8"
         )
+        catalog_wave = (
+            ROOT / ".opencode" / "commands" / "catalog-wave.md"
+        ).read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         runbook = (ROOT / "agent.md").read_text(encoding="utf-8")
         context_script = (ROOT / "scripts" / "agent-task-context.py").read_text(
@@ -340,6 +399,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("agent: reviewer", review)
         self.assertIn("subagent: true", review)
         self.assertIn("mise run agent-pre-push", quality)
+        self.assertIn("--check --debt-json", catalog_wave)
+        self.assertIn("classification-first", catalog_wave)
+        self.assertIn("do not invent", catalog_wave.lower())
         self.assertIn("OpenCode and smaller-model execution", agents)
         self.assertIn("check-service-migration-bundle.py", agents)
         self.assertIn("AGENTS.md", runbook)
