@@ -1,4 +1,6 @@
 ---
+name: nginx
+
 services:
   nginx:
     image: nginx:1-alpine
@@ -23,7 +25,11 @@ services:
       UID: 1000
       GID: 1000
     ports:
-      - 8099:80
+      - name: web
+        target: 80
+        published: "8099"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/nginx/html/:/usr/share/nginx/html
     entrypoint:
@@ -35,6 +41,7 @@ services:
         adduser -S -D -H -u $${UID} -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
         /docker-entrypoint.sh nginx -g 'daemon off;'
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/hello-nginx"
       - "traefik.enable=true"
       - "traefik.http.routers.hello.rule=Host(`hello.int.albandrieu.com`)"
       - "traefik.http.routers.hello.entrypoints=websecure"

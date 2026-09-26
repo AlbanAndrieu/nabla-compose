@@ -95,6 +95,16 @@ For a new secret-bearing service:
 
 Existing legacy `/mnt/cpool/<service>/.env*` and repository-local `.env*` files are migration inputs only. Do not copy their pattern into a new service.
 
+When P0.3 changes one of those runtime-env contracts, do not stop after the
+Compose path rewrite. Load the catalog skill and prepare the same service's
+Backstage descriptor/entity-ref in the same bounded change, then run:
+
+```bash
+python scripts/check-service-migration-bundle.py --app <service>
+```
+
+Legacy `x-nabla` remains transitional until the coordinated v2 cutover.
+
 ## Repository rules
 
 - Prefer the existing `apps/<service>/compose.yml` pattern and reuse neighboring conventions instead of inventing a parallel layout.
@@ -106,14 +116,20 @@ Existing legacy `/mnt/cpool/<service>/.env*` and repository-local `.env*` files 
 
 ## Service catalog integration
 
-When adding, renaming, removing, or materially reconnecting a tracked service, also read `.agents/skills/nabla-service-catalog/SKILL.md` and keep:
+When adding, renaming, removing, materially reconnecting, or P0.3-migrating a
+tracked service, also read `.agents/skills/nabla-service-catalog/SKILL.md`.
+During the v2 preparation period, keep all of these synchronized:
 
-- service-local `x-nabla` metadata;
-- `catalog/services.json`;
-- `catalog/service-topology.json`;
-- repository-managed Homarr/Gatus/AutoKuma consumers
+- native `apps/<service>/catalog-info.yaml` identity/standard relations;
+- `com.albandrieu.nabla.entity-ref` runtime binding;
+- service-local `x-nabla` compatibility metadata only while legacy generators
+  still consume it;
+- generated `catalog/services.json` and `catalog/service-topology.json`;
+- repository-managed Homarr/Gatus/AutoKuma consumers.
 
-synchronized through the existing generators. Do not hand-maintain generated consumer inventories as independent sources of truth.
+Do not hand-maintain generated consumer inventories as independent sources of
+truth, and do not delete `x-nabla` per service before the coordinated v2
+cutover.
 
 ## Validation
 

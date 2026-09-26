@@ -13,7 +13,9 @@ from nabla_ops import (  # noqa: E402
     InitializationStage,
     ServiceIntent,
     declared_apps,
+    normalize_initialization_stage,
     normalize_service_intent,
+    validate_initialization_transition,
 )
 
 
@@ -181,6 +183,43 @@ def test_initialization_stage_order_is_stable() -> None:
         "RUNTIME_ACCEPTED",
         "REBOOT_ACCEPTED",
     ]
+
+
+def test_initialization_stage_normalization_is_strict() -> None:
+    assert (
+        normalize_initialization_stage("SECRETS_DECLARED")
+        is InitializationStage.SECRETS_DECLARED
+    )
+
+    try:
+        normalize_initialization_stage("secrets_declared")
+    except ValueError as exc:
+        assert "invalid initialization stage" in str(exc)
+    else:
+        raise AssertionError("lowercase initialization stage must be rejected")
+
+
+def test_initialization_transitions_are_idempotent_or_single_step_only() -> None:
+    stages = list(InitializationStage)
+
+    for stage in stages:
+        assert validate_initialization_transition(stage, stage) is stage
+
+    for current, target in zip(stages, stages[1:], strict=True):
+        assert validate_initialization_transition(current, target) is target
+
+    for current, target in (
+        (InitializationStage.DECLARED, InitializationStage.DEPENDENCIES_READY),
+        (InitializationStage.RUNTIME_ACCEPTED, InitializationStage.DEPLOYED),
+    ):
+        try:
+            validate_initialization_transition(current, target)
+        except ValueError as exc:
+            assert "advance exactly one stage" in str(exc)
+        else:
+            raise AssertionError(
+                f"invalid initialization transition accepted: {current} -> {target}"
+            )
 
 
 def test_cli_is_read_only_and_emits_catalog_json() -> None:

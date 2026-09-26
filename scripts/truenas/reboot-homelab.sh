@@ -153,6 +153,36 @@ vm_policy_gate() {
   ok "Talos VMs autostart=true and have graceful shutdown timeout >=120s"
 }
 
+talos_vm_state_summary() {
+  local payload
+  payload="$(midclt_bounded vm.query)"
+  jq -c '
+    [
+      .[]
+      | select(.name == "taloscp01" or .name == "taloswk01" or .name == "taloswk02")
+      | {name, state: (.status.state // "UNKNOWN")}
+    ]
+    | sort_by(.name)
+  ' <<<"${payload}"
+}
+
+talos_vms_all_in_state() {
+  local expected="$1" summary
+  summary="$(talos_vm_state_summary)"
+  jq -e --arg expected "${expected}" '
+    length == 3 and all(.[]; .state == $expected)
+  ' <<<"${summary}" >/dev/null
+}
+
+vm_name_for_talos_node() {
+  case "$1" in
+    172.17.0.50) printf 'taloscp01\n' ;;
+    172.17.0.51) printf 'taloswk01\n' ;;
+    172.17.0.52) printf 'taloswk02\n' ;;
+    *) fail "unknown Talos node address: $1" ;;
+  esac
+}
+
 talos_api_check() {
   local node="$1" seconds="${2:-30}" phase="${3:-preflight}" output
   output="$(
@@ -168,7 +198,27 @@ talos_api_check() {
 }
 
 cluster_client_preflight() {
-  local node
+  local node summary
+  summary="$(talos_vm_state_summary)"
+
+  if talos_vms_all_in_state STOPPED; then
+    warn "all Talos VMs are already STOPPED; skipping Kubernetes/Talos API reachability preflight for host shutdown"
+    printf '%s\n' "${summary}" | jq .
+    return 0
+  fi
+
+  if ! talos_vms_all_in_state RUNNING; then
+    printf 'Talos VM runtime state is mixed/unexpected:\n' >&2
+    printf '%s\n' "${summary}" | jq . >&2
+    if jq -e '
+      any(.[]; .name == "taloscp01" and .state == "STOPPED")
+      and any(.[]; (.name == "taloswk01" or .name == "taloswk02") and .state == "RUNNING")
+    ' <<<"${summary}" >/dev/null; then
+      fail "control plane is STOPPED while a worker is RUNNING; start taloscp01 with the supported TrueNAS vm.start API, wait for Kubernetes/Talos readiness, then rerun --check"
+    fi
+    fail "require all Talos VMs RUNNING for cluster preflight or all STOPPED for shutdown-only preparation"
+  fi
+
   run_operator "${KUBECTL}" get nodes -o wide
   for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
     talos_api_check "${node}" 30 preflight ||
@@ -410,7 +460,19 @@ continue_prepare() {
   ok "no running Docker container remains"
 
   printf '\nGracefully shutting down Talos workers, then control plane...\n'
+  vm_payload="$(midclt_bounded vm.query)"
   for node in "${TALOS_NODES[@]}"; do
+    vm_name="$(vm_name_for_talos_node "${node}")"
+    vm_state="$(
+      jq -r --arg name "${vm_name}" '
+        [.[] | select(.name == $name)]
+        | if length == 1 then .[0].status.state // "UNKNOWN" else "UNKNOWN" end
+      ' <<<"${vm_payload}"
+    )"
+    if [[ "${vm_state}" == "STOPPED" ]]; then
+      printf 'SKIP Talos node %s VM=%s already STOPPED\n' "${node}" "${vm_name}"
+      continue
+    fi
     run_operator timeout 20m "${TALOSCTL}" \
       --endpoints "${TALOS_ENDPOINT}" \
       --nodes "${node}" \
@@ -531,7 +593,21 @@ if [[ "${MODE}" == --prepare ]]; then
   midclt_bounded vm.query >"${state_dir}/vms-before.json"
   midclt_bounded docker.config >"${state_dir}/docker-config-before.json"
   docker network ls >"${state_dir}/docker-networks-before.txt"
-  run_operator "${KUBECTL}" get nodes -o json >"${state_dir}/kubernetes-nodes-before.json"
+  if talos_vms_all_in_state STOPPED; then
+    jq -n '{
+      apiVersion: "v1",
+      kind: "NodeList",
+      items: [],
+      metadata: {
+        annotations: {
+          "nabla.albandrieu.com/pre-reboot-snapshot":
+            "unavailable-talOS-vms-preexisting-stopped"
+        }
+      }
+    }' >"${state_dir}/kubernetes-nodes-before.json"
+  else
+    run_operator "${KUBECTL}" get nodes -o json >"${state_dir}/kubernetes-nodes-before.json"
+  fi
   printf '%s\n' "${boot_id}" >"${state_dir}/boot-id-before"
   make_plans "${state_dir}/apps-before.json" "${state_dir}"
   printf '%s\n' "${EXTRA_RESUME_APPS}" |

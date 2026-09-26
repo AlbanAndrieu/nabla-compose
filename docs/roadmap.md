@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-23.
+Last updated: 2026-09-26.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -133,7 +133,7 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 7. [x] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; the bootstrap is non-destructive and preserves legacy paths during staging.
 8. [x] Resolve source collisions before staging. Differing sources fail closed, and project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
 9. [x] Fix declarations with no recoverable source instead of creating empty files. Home Assistant's unused `env_file: .env` declaration was removed rather than inventing an empty runtime file.
-10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces `check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Operator evidence on 2026-09-20 confirms Scanopy's canonical `.env.secrets` and Joplin's legacy `.env.secrets` are zero-key/empty placeholders, so there is no historical value to migrate; their first real credentials must be created once in Vaultwarden and then materialized canonically. AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
+10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces the combined P0.3/P2.1.c bundle `Backstage/env contract -> check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Scanopy and Joplin already have reviewed `catalog-info.yaml` descriptors; AutoKuma is now materialized and entity-ref bound in the same migration wave. Operator evidence on 2026-09-20 confirms Scanopy's canonical `.env.secrets` and Joplin's legacy `.env.secrets` are zero-key/empty placeholders, so there is no historical value to migrate; their first real credentials must be created once in Vaultwarden and then materialized canonically. AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
 11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
 12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
 13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
@@ -141,6 +141,7 @@ This is now a gate before further broad service migration. `docs/truenas-runtime
 15. [ ] Continue metadata-only inventory in `config/secrets/manifest.json`, but defer broad Vaultwarden import/materialization until the P0.4 initialization-control-plane refactor below is accepted. Planned services may keep future metadata without becoming migration targets; disabled services must not be migrated merely because their code remains in Git.
 16. [x] Maintain agent-skill rules and a CI non-regression contract so new services cannot introduce unreviewed legacy `env_file` ownership outside `/mnt/cpool/secrets/runtime/<service>/`; existing legacy services remain explicit migration debt.
 17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
+18. [x] Couple future P0.3 env waves with P2.1.c preparation: every touched service now gets/validates its Backstage descriptor and Compose entity-ref in the same bounded migration via `scripts/check-service-migration-bundle.py`. Keep legacy `x-nabla` compatibility until the coordinated v2 cutover so this avoids duplicate operator manipulation without creating a second compatibility architecture.
 
 ## P0.4 — service intent + initialization control plane
 
@@ -165,7 +166,7 @@ script.
 15. [ ] Normalize Sample database ownership: TrueNAS staging depends on shared PostgreSQL at `172.17.0.24:5432`; create database **`sample`** owned by dedicated LOGIN role **`sample`** (no SUPERUSER/CREATEDB/CREATEROLE/REPLICATION), bootstrap it idempotently with `scripts/truenas/bootstrap-sample-postgres.sh --check|--apply`, render its password through the canonical Sample secret flow, and require an authentication/application smoke before cutover. Target local config is `POSTGRES_HOST=172.17.0.24`, `POSTGRES_PORT=5432`, `POSTGRES_DB=sample`, `POSTGRES_USER=sample`. Move the historical Supabase pooler identity to explicit `SUPABASE_*` variables in `fastapi-sample`; never reuse the `postgres` superuser for Sample.
 16. [ ] Resolve the Scrutiny source conflict value-blind: repository-local `apps/scrutiny/.env.secrets` and `/mnt/cpool/scrutiny/.env.secrets` differ and must not be auto-merged. Compare key sets/value equality by key name only, select the runtime-authoritative source with evidence, then restage.
 17. [ ] Initialize the currently missing declared datasets only with their service rollout: `cyberbro`, `defectdojo`, `dependency-track`, `neo4j`, `netbox`. Their absence remains expected preparation debt until deployment; do not create them merely to make the global check green.
-18. [ ] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop.
+18. [x] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop. The host-local model now enforces strict stage normalization plus idempotent/one-step-only transitions; the targeted initialization hook uses pytest so function-style tests cannot silently report zero coverage; catalog-v2 export tests are part of the local preparation hook; and the full agent publication gate uses pytest as the single collector for both pytest-style functions and legacy unittest.TestCase suites.
 19. [x] Bound TrueNAS deployment automation: cron job `id=6` (`albandrieu`, hourly at minute 0) only fast-forward synchronizes the local `master` checkout, refuses destructive resets/non-fast-forwards, ignores dirty submodule worktrees, and becomes a no-op on feature branches. It no longer starts/replaces Doco-CD; the running Doco-CD independently polls reviewed remote `master`. `sample` remains explicitly owned by its TrueNAS Custom App update helper during the canonical-path pilot.
 20. [x] Provide user-space TrueNAS development tooling bootstrap with mise/uv plus an isolated venv containing pre-commit/pytest/PyYAML, without enabling appliance `apt` package management. The agent gate auto-prepends `$HOME/.cache/nabla-compose/dev-venv/bin` when present; `bootstrap-dev-tools.sh --persist-shell-path` can idempotently add the venv and `~/.local/bin` to the operator `.bashrc`. Keep this separate from the existing root-managed `/mnt/cpool/tools/bin/{kubectl,talosctl}` operator-tool contract.
 21. [x] Add a pinned/checksummed user-space Bitwarden Password Manager CLI bootstrap for TrueNAS (`~/.local/bin/bw`, current pin `2026.9.0`) so Vaultwarden migration does not depend on system packages, Node/npm or the repository mise graph.
@@ -299,8 +300,17 @@ for identity, dependencies, exposure intent and reboot safety.
   Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
   Manager, OpenHands and Squid as reviewed dependency groups. Active
   `critical/high/medium` materialization debt is now **zero**. The guided
-  OpenWebUI BIA/materialization in #218 further reduces remaining active debt to
-  45 lower-priority services: 40 unclassified and 5 low. Nginx Proxy
+  OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
+  45 lower-priority services: 40 unclassified and 5 low. This PR now
+  materializes the complete low-criticality wave — Draw.io, Hello Nginx,
+  OpenClaw Sandbox, OpenSSF Scorecard and WordPress — with stable Compose
+  project names, runtime entity-ref labels, provisional low BIA profiles and
+  named HTTP ports where applicable. WordPress additionally removes invalid
+  cross-project Compose `depends_on: postgres`: its init container owns the
+  bounded readiness loop on the external `intranet` network while Backstage
+  owns the required dependency on `resource:default/postgresql`. Remaining
+  active Backstage materialization debt is therefore **40 unclassified
+  services and zero low services**. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
@@ -313,16 +323,30 @@ for identity, dependencies, exposure intent and reboot safety.
   on the LAN plus LiteLLM, OpenRAG and a working OpenAI-compatible GPU inference
   capability; Cloudflare Tunnel is not continuity-critical. Conversations and
   OpenRAG-derived content are highly sensitive, prompt/history loss within the
-  RPO is acceptable, and configuration recovery is mandatory. Implement the
-  backup/PRA in `docs/openwebui-backup-pra.md`. When TrueNAS access is
-  available, first run
-  `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check` to
-  inventory the real dataset, latest snapshot, independent replication/cloud
-  backup, recent successful backup age, encryption evidence, OpenRAG recovery
-  paths and Pipelines volume debt. Until that check is green, RPO=`P1D`
-  remains an objective rather than an achieved control. Then prove a
-  non-destructive restore and change `bia-status` from `provisional` only
-  after owner acceptance.
+  RPO is acceptable, and configuration recovery is mandatory.
+  - [ ] **Backup implementation:** resolve the real OpenWebUI/OpenRAG datasets,
+    schedule OpenWebUI snapshots <=12h, add encrypted/off-pool backup or
+    replication <=24h, include OpenRAG documents/config/keys/data and either
+    migrate or explicitly back up the OpenWebUI Pipelines named volume.
+  - [ ] **Backup monitoring:** alert when the newest local recovery point or
+    independent successful backup exceeds 24h; retain evidence without secret
+    values or sensitive prompt/document content.
+  - [ ] **PRA drill:** restore to an isolated path/environment, then prove LAN UI
+    login, configuration, one LiteLLM chat request, one OpenRAG retrieval and one
+    GPU-backed OpenAI-compatible inference request. Cloudflare validation is a
+    separate non-blocking step after LAN acceptance.
+  - [ ] **Recovery objectives:** record achieved RTO/RPO; target restoration is
+    <=1 day, escalate recovery/rebuild/alternate-GPU actions at 3 days, and keep
+    the 7-day DMTP as the absolute tolerable-disruption boundary.
+  - [ ] **BIA acceptance:** only change `bia-status` from `provisional` after
+    backup freshness and a non-destructive restore drill are evidenced and
+    owner-reviewed.
+  Run `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check`
+  before implementation to inventory the real dataset, latest snapshot,
+  independent replication/cloud backup, recent successful backup age,
+  encryption evidence, OpenRAG recovery paths and Pipelines volume debt. Until
+  that check is green, RPO=`P1D` remains an objective rather than an achieved
+  control. Detailed procedure: `docs/openwebui-backup-pra.md`.
 - [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
   OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
   A logical `resource:default/gpu-openai-compatible-inference` now represents
@@ -642,3 +666,64 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> OpenWebUI backup/PRA acceptance (LAN UI + LiteLLM + OpenRAG + GPU, RTO P1D/RPO P1D, 3-day escalation, DMTP P7D)
   -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```
+
+
+## P0.4 — Catalogue v2 standardisé et security graph
+
+Objectif : conserver Backstage + Compose comme autorités déclaratives tout en
+produisant des artefacts standards utilisables par les consommateurs sécurité.
+
+- [x] Ajouter une projection déterministe des descripteurs Backstage vers un
+  read-model JSON v2 avec identité canonique `entityRef` et
+  `catalogRevision=sha256:...`.
+- [x] Ajouter une projection **CycloneDX 1.7** du même graphe, partageant la même
+  révision et les dépendances Backstage résolues.
+- [x] Ajouter des tests unitaires couvrant révision déterministe, unicité des
+  références et conservation du graphe de dépendances.
+- [ ] Générer et versionner `catalog/generated/entities.json` et
+  `catalog/generated/homelab.cdx.json` lorsque la matérialisation Backstage
+  P2.1.c couvre l'ensemble des services nécessaires au cutover.
+- [ ] Brancher le générateur à la quality gate locale en mode `--check` après
+  stabilisation de la couverture Backstage, afin d'éviter un artefact généré
+  partiel présenté comme catalogue complet.
+- [ ] Ajouter la projection Nabla minimale `operations.json` pour les seules
+  politiques sans équivalent standard (exposition désirée, acceptation de
+  risque, ordre exceptionnel non dérivable).
+- [ ] Ajouter un import Cartography `nabla` corrélant
+  `Backstage entityRef ↔ runtime/provider asset`, sans faire de Neo4j la source
+  de vérité du catalogue.
+- [ ] Enrichir Cartography depuis Kubernetes, GitHub, Cloudflare et Trivy pour
+  produire le graphe observé, les chemins d'attaque et le blast radius.
+- [ ] Introduire OSCAL après stabilisation du graphe pour relier
+  `control → implementation → evidence → assessment`; ne pas représenter la
+  conformité par un simple booléen dans `x-nabla`.
+- [ ] Faire consommer le nouveau read-model par FastAPI, puis effectuer le
+  cutover coordonné de Site Alban. Pas de couche v1/v2 longue durée.
+
+Architecture cible :
+
+```text
+Backstage catalog-info.yaml + Compose + minimal x-nabla
+                     |
+                     v
+             canonical generator
+               /            \
+              v              v
+      entities.json      CycloneDX 1.7
+              |              |
+              +------+-------+
+                     v
+                  FastAPI
+                     |
+              +------+------+
+              |             |
+              v             v
+       Site Alban      Cartography/Neo4j
+                            |
+                            v
+                     observed security graph
+                            |
+                            v
+                          OSCAL
+```
+

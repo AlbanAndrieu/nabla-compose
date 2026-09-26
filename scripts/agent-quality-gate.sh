@@ -135,7 +135,7 @@ print_compact_log() {
   local log="$1"
   local summary=""
 
-  summary="$(grep -E '^(FAIL|ERROR): |^Ran [0-9]+ tests|^FAILED \(' "${log}" || true)"
+  summary="$(grep -E '^(FAIL|ERROR): |^FAILED |^ERROR |^Ran [0-9]+ tests|^=+ .* (failed|error|passed).* =+$' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
     printf '%s\n' '--- failure summary ---' >&2
     printf '%s\n' "${summary}" | print_bounded_log_lines >&2
@@ -313,6 +313,18 @@ if [[ "${MODE}" == "preflight" ]]; then
   exit 0
 fi
 
+(("${#PYTHON_CMD[@]}" > 0)) || {
+  echo "❌ QG_PYTHON_MISSING: python or python3 is required" >&2
+  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+  exit 1
+}
+
+if ! "${PYTHON_CMD[@]}" -c 'import pytest, yaml' >/dev/null 2>&1; then
+  echo "❌ QG_PYTHON_DEPS_MISSING: pytest and PyYAML are required by local contract hooks" >&2
+  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+  exit 1
+fi
+
 agent_gate_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
@@ -374,10 +386,6 @@ run_autofix_hook() {
 }
 
 if [[ "${MODE}" == "fix" ]]; then
-  (("${#PYTHON_CMD[@]}" > 0)) || {
-    echo "❌ python or python3 is required" >&2
-    exit 1
-  }
   command -v pre-commit >/dev/null 2>&1 || {
     echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
     echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
@@ -444,7 +452,8 @@ if [[ "${CI_FAST}" == true ]]; then
   printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
 else
   run_compact "repository unit/contract tests" \
-    "${PYTHON_CMD[@]}" -m unittest discover -s tests -p 'test_*.py' -q
+    "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
+    --tb=short --show-capture=no tests
 fi
 
 CANONICAL_SKIP="service-topology-sync,service-consumer-contract"

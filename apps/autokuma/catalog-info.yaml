@@ -2,24 +2,24 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: pyroscope
-  title: Grafana Pyroscope
-  description: Continuous profiling backend with persistent profiling metadata and profile data.
+  name: autokuma
+  title: AutoKuma
+  description: Declarative monitor reconciler for the homelab Uptime Kuma instance.
   labels:
     albandrieu.com/operational-state: active
-    albandrieu.com/operational-criticality: medium
-    albandrieu.com/business-criticality: medium
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
   tags:
     - observability
-    - profiling
+    - automation
   annotations:
     albandrieu.com/bia-mtpd: P7D
     albandrieu.com/bia-rto: P3D
-    albandrieu.com/bia-rpo: P1D
-    albandrieu.com/bia-mbco: application-remains-operational-without-continuous-profiling
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: monitoring-definitions-can-be-reconciled-after-uptime-kuma-recovery
     albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-09-22"
+    albandrieu.com/bia-reviewed-at: "2026-09-24"
     albandrieu.com/bia-impact-operational: low
     albandrieu.com/bia-impact-customer: low
     albandrieu.com/bia-impact-financial: low
@@ -28,10 +28,10 @@ metadata:
     albandrieu.com/bia-impact-confidentiality: low
     albandrieu.com/bia-impact-integrity: low
     albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pyroscope/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/autokuma/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
-  type: observability
+  type: controller
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab

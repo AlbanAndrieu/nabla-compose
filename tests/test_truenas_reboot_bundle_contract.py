@@ -12,6 +12,9 @@ def test_materializer_stages_before_atomic_activation() -> None:
     assert "mktemp -d" in text
     assert 'mv "${STAGE}" "${FINAL}"' in text
     assert 'mv "${pointer_tmp}" "${BUNDLE_ROOT}/current"' in text
+    assert 'chmod 755 "${BUNDLE_ROOT}"' in text
+    assert 'chmod 755 "${STAGE}"' in text
+    assert 'chmod 755 "${FINAL}"' in text
     assert "SOURCE_COMMIT" in text
     assert "SHA256SUMS" in text
     assert "sha256sum --quiet -c SHA256SUMS" in text

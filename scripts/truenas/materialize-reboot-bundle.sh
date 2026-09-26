@@ -49,11 +49,12 @@ require_commands git install mktemp sha256sum grep bash python3 mv awk cmp
 [[ -d "${REPO_ROOT}/.git" ]] || fail "repository not found: ${REPO_ROOT}"
 
 mkdir -p "${BUNDLE_ROOT}"
-chmod 700 "${BUNDLE_ROOT}"
+chmod 755 "${BUNDLE_ROOT}"
 
 COMMIT="$(git -C "${REPO_ROOT}" rev-parse --verify "${REF}^{commit}")"
 FINAL="${BUNDLE_ROOT}/${COMMIT}"
 STAGE="$(mktemp -d "${BUNDLE_ROOT}/.${COMMIT}.tmp.XXXXXX")"
+chmod 755 "${STAGE}"
 trap 'rm -rf "${STAGE}"' EXIT
 
 FILES=(
@@ -139,9 +140,11 @@ if [[ -e "${FINAL}" ]]; then
     fail "existing bundle contents do not match commit ${COMMIT}; refusing silent overwrite"
   rm -rf "${STAGE}"
   trap - EXIT
+  chmod 755 "${FINAL}"
   ok "verified existing immutable bundle ${FINAL}"
 else
   mv "${STAGE}" "${FINAL}"
+  chmod 755 "${FINAL}"
   trap - EXIT
   ok "materialized immutable bundle ${FINAL}"
 fi

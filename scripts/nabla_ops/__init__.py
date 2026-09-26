@@ -6,12 +6,20 @@ FastAPI Sample/Nabla Service facade through a bounded adapter.
 """
 
 from .catalog import declared_apps, load_catalog
-from .model import InitializationStage, ServiceIntent, normalize_service_intent
+from .model import (
+    InitializationStage,
+    ServiceIntent,
+    normalize_initialization_stage,
+    normalize_service_intent,
+    validate_initialization_transition,
+)
 
 __all__ = [
     "InitializationStage",
     "ServiceIntent",
     "declared_apps",
     "load_catalog",
+    "normalize_initialization_stage",
     "normalize_service_intent",
+    "validate_initialization_transition",
 ]

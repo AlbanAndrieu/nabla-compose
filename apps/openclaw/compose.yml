@@ -1,4 +1,6 @@
 ---
+name: openclaw
+
 services:
   openclaw-sandbox:
     build:
@@ -17,6 +19,8 @@ services:
       runtime:
         provider: truenas-app
         containerService: openclaw-sandbox
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/openclaw-sandbox
     restart: unless-stopped
     volumes:
       - /home/albandrieu/.openclaw/workspace/skills:/workspace/skills

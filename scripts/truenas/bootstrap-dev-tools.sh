@@ -7,6 +7,7 @@ cd "${ROOT}"
 MISE_BIN="${MISE_BIN:-${HOME}/.local/bin/mise}"
 DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
 PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"
+PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"
 SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
 export MISE_LOCKFILE=false
@@ -64,7 +65,7 @@ else
 fi
 "${MISE_BIN}" --no-config exec uv@latest -- \
   uv pip install --python "${DEV_VENV}/bin/python" \
-  "pre-commit==${PRE_COMMIT_VERSION}" pytest PyYAML
+  "pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}" PyYAML
 
 SHELLCHECK_BIN="$(
   "${MISE_BIN}" --no-config which \

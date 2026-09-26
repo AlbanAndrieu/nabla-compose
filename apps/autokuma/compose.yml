@@ -1,4 +1,5 @@
 ---
+name: autokuma
 x-nabla:
   nodes:
     - id: uptime-kuma
@@ -18,6 +19,8 @@ services:
   autokuma:
     image: ghcr.io/bigboot/autokuma:2.0.0
     container_name: autokuma
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/autokuma
     x-nabla:
       id: autokuma
       name: AutoKuma

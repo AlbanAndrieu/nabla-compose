@@ -18,10 +18,11 @@ fail() {
 
 usage() {
   cat <<'USAGE'
-usage: bootstrap-repository-env-files.sh [--check|--apply|--restage|--finalize] [app]
+usage: bootstrap-repository-env-files.sh [--check|--apply|--stage-existing|--restage|--finalize] [app]
 
   --check       read-only migration/status preview
-  --apply       stage verified root-only canonical copies; keep old paths intact
+  --apply       stage verified root-only canonical copies; keep old paths intact; fail on any source conflict
+  --stage-existing  stage recoverable sources; prefer explicit declared runtime source; defer unresolved debt
   --restage     explicitly refresh one app's staged canonical copies from current legacy sources
   --finalize    replace accepted legacy paths with compatibility symlinks
 
@@ -36,7 +37,7 @@ USAGE
 }
 
 case "${MODE}" in
-  --check | --apply | --restage | --finalize) ;;
+  --check | --apply | --stage-existing | --restage | --finalize) ;;
   -h | --help)
     usage
     exit 0
@@ -212,6 +213,7 @@ declare -A target_app=()
 declare -A target_origin=()
 declare -A target_primary_source=()
 declare -A target_primary_kind=()
+declare -A conflicted_target=()
 
 kind_priority() {
   case "$1" in
@@ -343,24 +345,40 @@ while IFS= read -r target; do
       ! env_files_equivalent "${app}" "${source}" "${primary}"; then
       printf '❌ migration conflict: multiple sources differ for %s: %s <> %s\n' \
         "${target}" "${primary}" "${source}"
+      conflicted_target["${target}"]=1
       invalid=$((invalid + 1))
     fi
   done < <(printf '%s\n' "${!source_app[@]}" | sort)
 done < <(printf '%s\n' "${!target_app[@]}" | sort)
 
-if ((invalid > 0)); then
-  printf '❌ %d migration source conflict(s) must be resolved before staging.\n' \
-    "${invalid}" >&2
-  if [[ "${MODE}" != "--check" ]]; then
-    exit 1
+source_conflicts="${invalid}"
+if ((source_conflicts > 0)); then
+  printf '❌ %d migration source conflict(s) detected.\n' "${source_conflicts}" >&2
+  if [[ "${MODE}" == "--apply" || "${MODE}" == "--restage" || "${MODE}" == "--finalize" ]]; then
+    fail "resolve source conflicts before this operation"
   fi
-  printf 'ℹ️  continuing read-only preview so unrelated migration debt remains visible.\n'
+  if [[ "${MODE}" == "--stage-existing" ]]; then
+    printf 'ℹ️  --stage-existing will use an explicitly declared runtime source when available; otherwise conflicted targets remain deferred.\n'
+  else
+    printf 'ℹ️  continuing read-only migration preview so unrelated migration debt remains visible.\n'
+  fi
 fi
 
 while IFS= read -r target; do
   app="${target_app["${target}"]}"
   primary="${target_primary_source["${target}"]:-}"
   target_parent="$(dirname "${target}")"
+
+  if [[ "${MODE}" == "--stage-existing" && -n "${conflicted_target["${target}"]:-}" ]]; then
+    primary_kind="${target_primary_kind["${target}"]:-}"
+    if [[ "${primary_kind}" == "declared" && -n "${primary}" && -f "${primary}" ]]; then
+      printf '⚠️  %s app=%s staging explicitly declared primary %s; conflicting secondary source remains deferred\n' \
+        "${target}" "${app}" "${primary}"
+    else
+      printf '⏭️  %s app=%s deferred source-conflict\n' "${target}" "${app}"
+      continue
+    fi
+  fi
 
   if [[ "${MODE}" == "--restage" && -f "${target}" && -n "${primary}" && -f "${primary}" ]]; then
     if requires_nonempty_materialization "${target}" && [[ ! -s "${primary}" ]]; then
@@ -386,15 +404,25 @@ while IFS= read -r target; do
 
   if [[ ! -f "${target}" ]]; then
     if [[ -z "${primary}" ]]; then
-      printf '❌ %s missing app=%s; no existing source can stage it (declared from %s)\n' \
-        "${target}" "${app}" "${target_origin["${target}"]}"
+      if [[ "${MODE}" == "--stage-existing" ]]; then
+        printf '⏭️  %s app=%s deferred missing-source (declared from %s)\n' \
+          "${target}" "${app}" "${target_origin["${target}"]}"
+      else
+        printf '❌ %s missing app=%s; no existing source can stage it (declared from %s)\n' \
+          "${target}" "${app}" "${target_origin["${target}"]}"
+      fi
       missing_required=$((missing_required + 1))
       continue
     fi
 
     if requires_nonempty_materialization "${target}" && [[ ! -s "${primary}" ]]; then
-      printf '❌ %s app=%s source=%s is an empty secret placeholder; populate/render it before staging\n' \
-        "${target}" "${app}" "${primary}"
+      if [[ "${MODE}" == "--stage-existing" ]]; then
+        printf '⏭️  %s app=%s source=%s deferred empty-placeholder\n' \
+          "${target}" "${app}" "${primary}"
+      else
+        printf '❌ %s app=%s source=%s is an empty secret placeholder; populate/render it before staging\n' \
+          "${target}" "${app}" "${primary}"
+      fi
       invalid=$((invalid + 1))
       continue
     fi
@@ -439,8 +467,12 @@ while IFS= read -r target; do
   fi
 
   if requires_nonempty_materialization "${target}" && [[ ! -s "${target}" ]]; then
-    printf '❌ %s app=%s empty-placeholder; populate/render secret material before acceptance\n' \
-      "${target}" "${app}"
+    if [[ "${MODE}" == "--stage-existing" ]]; then
+      printf '⏭️  %s app=%s deferred canonical-empty-placeholder\n' "${target}" "${app}"
+    else
+      printf '❌ %s app=%s empty-placeholder; populate/render secret material before acceptance\n' \
+        "${target}" "${app}"
+    fi
     invalid=$((invalid + 1))
   fi
 done < <(printf '%s\n' "${!target_app[@]}" | sort)
@@ -489,8 +521,8 @@ while IFS= read -r source; do
     continue
   fi
 
-  if ! cmp -s "${source}" "${target}"; then
-    printf '❌ migration conflict: %s differs from staged target %s\n' \
+  if ! env_files_equivalent "${app}" "${source}" "${target}"; then
+    printf '❌ migration conflict: %s differs semantically from staged target %s\n' \
       "${source}" "${target}"
     invalid=$((invalid + 1))
     continue
@@ -519,16 +551,30 @@ if [[ "${MODE}" == "--check" && ${stage_required} -gt 0 ]]; then
   status=1
 fi
 if ((missing_required > 0)); then
-  printf '❌ %d declared runtime env materialization(s) have no recoverable source.\n' \
-    "${missing_required}" >&2
-  status=1
+  if [[ "${MODE}" == "--stage-existing" ]]; then
+    printf 'ℹ️  %d declared runtime env materialization(s) remain deferred with no recoverable source.\n' \
+      "${missing_required}" >&2
+  else
+    printf '❌ %d declared runtime env materialization(s) have no recoverable source.\n' \
+      "${missing_required}" >&2
+    status=1
+  fi
 fi
 if ((invalid > 0)); then
-  printf '❌ %d runtime env migration issue(s) remain.\n' "${invalid}" >&2
-  status=1
+  if [[ "${MODE}" == "--stage-existing" ]]; then
+    printf 'ℹ️  %d runtime env issue(s) remain deferred (conflict/empty placeholder).\n' \
+      "${invalid}" >&2
+  else
+    printf '❌ %d runtime env migration issue(s) remain.\n' "${invalid}" >&2
+    status=1
+  fi
 fi
 if ((status > 0)); then
   exit 1
+fi
+
+if [[ "${MODE}" == "--stage-existing" ]]; then
+  printf '✅ staged every recoverable existing env source with deterministic runtime authority under %s; deferred debt remains explicit.\n' "${SECRETS_ROOT}"
 fi
 
 if ((finalize_pending > 0)); then

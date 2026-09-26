@@ -167,10 +167,18 @@ repos:
         files: >-
           ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
 
+      - id: p0-backstage-migration-bundle-contract
+        name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
+        language: system
+        entry: python -m pytest -q tests/test_runtime_layout_policy_contract.py
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:scanopy|joplin|autokuma)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime))[.]sh)|[.]agents/skills/(?:docker-compose-orchestration|homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
+
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
         language: system
-        entry: python -m unittest tests.test_service_initialization_audit tests.test_nabla_ops_contract -v
+        entry: python -m pytest -q tests/test_service_initialization_audit.py tests/test_nabla_ops_contract.py
         pass_filenames: false
         files: >-
           ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
@@ -178,10 +186,10 @@ repos:
       - id: catalog-v2-preparation-contract
         name: "🕸️ catalog · Validate v2 migration inventory coverage"
         language: system
-        entry: python scripts/audit-service-catalog-v2-parity.py --check
+        entry: bash -c 'python scripts/audit-service-catalog-v2-parity.py --check && python -m pytest -q tests/test_catalog_v2_exports.py'
         pass_filenames: false
         files: >-
-          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|nabla_ops/(?:business_criticality|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
@@ -199,6 +207,15 @@ repos:
         files: >-
           ^(apps/(grafana|prometheus|gatus|autokuma)/|scripts/observability/|[.]mcp[.]json|[.]cursor/mcp[.]json|config/secrets/manifest[.]json|tests/test_observability_contract[.]py)$
 
+      - id: openwebui-pra-contract
+        name: "💾 continuity · Validate OpenWebUI BIA/PRA contract"
+        language: python
+        entry: python -m unittest tests.test_openwebui_pra_contract -v
+        additional_dependencies: ["PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(apps/(?:openwebui|openrag|litellm)/(?:catalog-info[.]yaml|compose[.]yml)|catalog/catalog-info[.]yaml|docs/(?:openwebui-backup-pra|roadmap)[.]md|scripts/truenas/diagnose-openwebui-backup-pra[.]sh|tests/test_openwebui_pra_contract[.]py)$
+
       - id: truenas-app-lifecycle-contract
         name: "🧰 truenas · Validate app lifecycle recovery contract"
         language: system
@@ -214,7 +231,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(scripts/agent-(?:quality-gate|pre-push)[.]sh|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|AGENTS[.]md|mise[.]toml)$
+          ^(scripts/agent-(?:quality-gate|pre-push|task-context)[.](?:sh|py)|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|[.]opencode/.*|opencode[.]json|AGENTS[.]md|agent[.]md|mise[.]toml)$
 
       - id: security-ci-contract
         name: "🛡️ security · Validate SAST/DAST production gate contract"

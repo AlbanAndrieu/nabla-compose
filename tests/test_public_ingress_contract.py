@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import unittest
+
+import yaml
 from pathlib import Path
 
 
@@ -272,19 +274,35 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertNotIn("ollama.int.albandrieu.com", allowlist)
 
     def test_garage_host_ports_are_lan_bound(self) -> None:
-        compose = (ROOT / "apps" / "garage" / "compose.yml").read_text(
-            encoding="utf-8"
-        )
+        compose_path = ROOT / "apps" / "garage" / "compose.yml"
+        compose_text = compose_path.read_text(encoding="utf-8")
+        compose = yaml.safe_load(compose_text)
+        services = compose["services"]
 
-        for port in ("3900", "3901", "3903", "3909"):
-            self.assertIn(f'"172.17.0.24:{port}:{port}"', compose)
-        self.assertIn('API_BASE_URL: "http://garage:3903"', compose)
-        self.assertIn('S3_ENDPOINT_URL: "http://garage:3900"', compose)
-        self.assertNotIn('"3903:3903"', compose)
-        self.assertNotIn('"3909:3909"', compose)
-        self.assertNotIn("garage-admin.int.albandrieu.com", compose)
-        self.assertNotIn("traefik.http.routers.garage-admin", compose)
-        self.assertNotIn("traefik.http.routers.garage-webui", compose)
+        observed: dict[int, dict] = {}
+        for service_name in ("garage", "webui"):
+            for binding in services[service_name].get("ports", []):
+                self.assertIsInstance(binding, dict)
+                observed[int(binding["target"])] = binding
+
+        for port in (3900, 3901, 3903, 3909):
+            with self.subTest(port=port):
+                binding = observed[port]
+                self.assertEqual(binding["host_ip"], "172.17.0.24")
+                self.assertEqual(str(binding["published"]), str(port))
+                self.assertEqual(binding["protocol"], "tcp")
+
+        self.assertEqual(
+            services["webui"]["environment"]["API_BASE_URL"],
+            "http://garage:3903",
+        )
+        self.assertEqual(
+            services["webui"]["environment"]["S3_ENDPOINT_URL"],
+            "http://garage:3900",
+        )
+        self.assertNotIn("garage-admin.int.albandrieu.com", compose_text)
+        self.assertNotIn("traefik.http.routers.garage-admin", compose_text)
+        self.assertNotIn("traefik.http.routers.garage-webui", compose_text)
 
     def test_garage_presentation_catalog_models_three_exposure_surfaces(self) -> None:
         catalog = json.loads(

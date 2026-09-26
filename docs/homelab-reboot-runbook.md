@@ -186,7 +186,10 @@ The materializer:
 9. renames the staged directory atomically;
 10. updates `current` atomically only after validation succeeds.
 
-Validate the active bundle before maintenance:
+Validate the active bundle before maintenance. Reboot bundles contain only
+repository-owned scripts/catalog metadata (no secret material) and are
+root-owned but world-readable/traversable so the operator can inspect the exact
+commit/checksums before invoking the root-only lifecycle actions:
 
 ```bash
 BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
@@ -276,11 +279,41 @@ Acceptance:
 
 - bundle integrity is valid;
 - Talos VMs match autostart/shutdown policy;
-- Kubernetes is reachable;
-- all three Talos APIs are reachable through `.50`;
+- if all three Talos VMs are `RUNNING`, Kubernetes and all three Talos APIs must be reachable through `.50`;
+- if all three Talos VMs are already `STOPPED`, the preflight accepts that quiesced state for shutdown-only preparation, records an explicit unavailable Kubernetes snapshot marker, and does not attempt Talos API calls;
+- any mixed Talos VM state fails closed;
 - lifecycle waves are reviewed;
 - explicit maintenance resume set is correct;
 - no state is mutated.
+
+The post-reboot gate is unchanged and strict: autostart must return all three
+Talos VMs to `RUNNING`, all Talos APIs must answer, and Kubernetes must reach
+3/3 Ready.
+
+### Mixed Talos VM recovery before shutdown
+
+Do not continue a shutdown transaction when the control-plane VM is
+`STOPPED` while one or both workers are still `RUNNING`. Kubernetes cannot
+coordinate a clean worker shutdown in that state.
+
+Resolve the control-plane VM ID without guessing, start only that VM through
+the supported TrueNAS API, and wait for cluster readiness:
+
+```bash
+TALOS_CP_ID="$(
+  sudo midclt call vm.query '[["name","=","taloscp01"]]' |
+    jq -er 'if length == 1 then .[0].id else error("taloscp01 lookup mismatch") end'
+)"
+
+sudo midclt call vm.start "${TALOS_CP_ID}" '{"overcommit":false}'
+
+sudo midclt call vm.status "${TALOS_CP_ID}"
+```
+
+Then wait until `172.17.0.50` answers and Kubernetes returns all expected
+nodes Ready before rerunning the read-only reboot preflight. Do not start or
+restart the workers merely to satisfy the gate; preserve their current runtime
+state.
 
 ## Phase 1 — prepare
 

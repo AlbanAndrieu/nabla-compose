@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import stat
 import subprocess
 import unittest
@@ -26,6 +27,13 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("QG_LARGE_DELETION", text)
         self.assertIn("diff-filter=D", text)
         self.assertIn("QG_EXEC_BIT", text)
+        self.assertIn("QG_PYTHON_MISSING", text)
+        self.assertIn("QG_PYTHON_DEPS_MISSING", text)
+        self.assertIn("import pytest, yaml", text)
+        self.assertLess(
+            text.index('if [[ "${MODE}" == "preflight" ]]'),
+            text.index("QG_PYTHON_DEPS_MISSING"),
+        )
         self.assertIn("QUALITY_LOG_LINE_MAX", text)
         self.assertIn("print_compact_log", text)
         self.assertIn("failure summary", text)
@@ -55,9 +63,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("PYTHON_CMD=(python3)", text)
         self.assertIn(
-            "\"${PYTHON_CMD[@]}\" -m unittest discover -s tests -p 'test_*.py' -q",
+            '"${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1',
             text,
         )
+        self.assertIn("--tb=short --show-capture=no tests", text)
+        self.assertNotIn("-m unittest discover -s tests", text)
         self.assertIn("CI fast mode", text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)
@@ -91,6 +101,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
 
     def test_mise_exposes_local_fix_check_and_pre_push_workflow(self) -> None:
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
+        self.assertIn("[tasks.agent-context]", config)
+        self.assertIn("python scripts/agent-task-context.py", config)
         self.assertIn("[tasks.agent-fix]", config)
         self.assertIn("[tasks.agent-quality]", config)
         self.assertIn("[tasks.agent-publish]", config)
@@ -105,6 +117,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("nabla-compose operator path", bootstrap)
         self.assertIn("$HOME/.local/bin", bootstrap)
         self.assertIn("$NABLA_TRUENAS_DEV_VENV/bin", bootstrap)
+        self.assertIn('PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"', bootstrap)
+        self.assertIn('"pytest==${PYTEST_VERSION}"', bootstrap)
 
     def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -137,6 +151,19 @@ class AgentQualityGateContractTests(unittest.TestCase):
 
     def test_generated_contract_hooks_are_check_only_and_roadmap_aware(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_service_initialization_audit.py "
+            "tests/test_nabla_ops_contract.py",
+            config,
+        )
+        self.assertNotIn(
+            "python -m unittest tests.test_service_initialization_audit "
+            "tests.test_nabla_ops_contract",
+            config,
+        )
+        self.assertIn("tests/test_catalog_v2_exports.py", config)
+        self.assertIn("scripts/generate-catalog-v2-artifacts.py", config)
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
             config,
@@ -207,12 +234,121 @@ class AgentQualityGateContractTests(unittest.TestCase):
             raw.index("name: Setup Python"),
         )
         self.assertIn("pre-commit==4.6.2", raw)
+        self.assertIn("pytest==9.1.1", raw)
         self.assertIn("restore-keys:", raw)
         self.assertIn("Detect MegaLinter security/IaC scope", raw)
         self.assertNotIn("[.](ya?ml|json5?|sh)$", raw)
         self.assertIn("github.event.pull_request.draft == false", raw)
         self.assertIn("wait-for-processing: false", raw)
         self.assertIn("Pull-request comments stay disabled", raw)
+
+    def test_opencode_reuses_canonical_agent_policy_and_skills(self) -> None:
+        config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["model"], "openai/gpt-4.1-mini")
+        self.assertEqual(config["default_agent"], "build")
+        self.assertEqual(config["share"], "disabled")
+        self.assertNotIn("instructions", config)
+        self.assertNotIn("permission", config)
+        self.assertNotIn("agent", config)
+        self.assertEqual(config["agents"]["build"]["mode"], "primary")
+        self.assertEqual(
+            config["agents"]["build"]["model"],
+            "openai/gpt-4.1-mini",
+        )
+        self.assertEqual(config["agents"]["build"]["steps"], 48)
+        for utility_agent in ("title", "summary", "compaction"):
+            self.assertEqual(
+                config["agents"][utility_agent]["model"],
+                "openai/gpt-4.1-mini",
+            )
+
+        permissions = config["permissions"]
+        for rule in (
+            {"action": "read", "resource": "*.env", "effect": "deny"},
+            {"action": "read", "resource": "*.env.*", "effect": "deny"},
+            {"action": "edit", "resource": "*.env", "effect": "deny"},
+            {"action": "edit", "resource": "*.env.*", "effect": "deny"},
+            {"action": "skill", "resource": "*", "effect": "allow"},
+            {"action": "subagent", "resource": "reviewer", "effect": "allow"},
+            {"action": "shell", "resource": "*", "effect": "ask"},
+            {"action": "shell", "resource": "git status *", "effect": "allow"},
+            {
+                "action": "shell",
+                "resource": "mise run agent-context *",
+                "effect": "allow",
+            },
+            {
+                "action": "shell",
+                "resource": "python -m pytest *",
+                "effect": "allow",
+            },
+            {
+                "action": "shell",
+                "resource": "git reset --hard*",
+                "effect": "deny",
+            },
+            {
+                "action": "shell",
+                "resource": "git clean -fd*",
+                "effect": "deny",
+            },
+            {
+                "action": "shell",
+                "resource": "git push --force*",
+                "effect": "deny",
+            },
+            {
+                "action": "shell",
+                "resource": "git push --no-verify*",
+                "effect": "deny",
+            },
+        ):
+            self.assertIn(rule, permissions)
+
+        build_agent = (
+            ROOT / ".opencode" / "agents" / "build.md"
+        ).read_text(encoding="utf-8")
+        reviewer = (
+            ROOT / ".opencode" / "agents" / "reviewer.md"
+        ).read_text(encoding="utf-8")
+        migrate = (
+            ROOT / ".opencode" / "commands" / "migrate-service.md"
+        ).read_text(encoding="utf-8")
+        continue_pr = (
+            ROOT / ".opencode" / "commands" / "continue-pr.md"
+        ).read_text(encoding="utf-8")
+        review = (
+            ROOT / ".opencode" / "commands" / "review.md"
+        ).read_text(encoding="utf-8")
+        quality = (ROOT / ".opencode" / "commands" / "quality.md").read_text(
+            encoding="utf-8"
+        )
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        runbook = (ROOT / "agent.md").read_text(encoding="utf-8")
+        context_script = (ROOT / "scripts" / "agent-task-context.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("AGENTS.md", build_agent)
+        self.assertIn("agent.md", build_agent)
+        self.assertIn("mise run agent-context", build_agent)
+        self.assertIn(".agents/skills", build_agent)
+        self.assertIn("mode: subagent", reviewer)
+        self.assertIn('resource: "git diff *"', reviewer)
+        self.assertIn("check-service-migration-bundle.py", migrate)
+        self.assertIn("mise run agent-context", continue_pr)
+        self.assertIn("agent: reviewer", review)
+        self.assertIn("subagent: true", review)
+        self.assertIn("mise run agent-pre-push", quality)
+        self.assertIn("OpenCode and smaller-model execution", agents)
+        self.assertIn("check-service-migration-bundle.py", agents)
+        self.assertIn("AGENTS.md", runbook)
+        self.assertIn("canonical repository policy", runbook)
+        self.assertIn("mise run agent-context", runbook)
+        self.assertIn("Never invent", runbook)
+        self.assertIn("suggested_skills", context_script)
+        self.assertIn("changed_paths", context_script)
+        self.assertNotIn("read_text", context_script)
 
     def test_agent_policy_protects_master_and_requires_local_convergence(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
