@@ -265,19 +265,40 @@ if dangerous_roles:
 
 version = adapter.system_version()
 apps = adapter.list_apps()
-if "APPS_READ" not in roles and "READONLY_ADMIN" not in roles:
+vms = adapter._call("vm.query")
+if not isinstance(vms, list):
+    raise SystemExit("vm.query returned an unexpected payload")
+
+if "READONLY_ADMIN" not in roles:
+    missing_roles = sorted({"APPS_READ", "VM_READ"} - roles)
+    if missing_roles:
+        raise SystemExit(
+            "observer identity is missing required read roles: "
+            + ",".join(missing_roles)
+            + "; active roles="
+            + ",".join(sorted(roles))
+        )
+
+expected_talos_vms = {"taloscp01", "taloswk01", "taloswk02"}
+observed_talos_vms = {
+    str(vm.get("name") or "")
+    for vm in vms
+    if isinstance(vm, dict) and str(vm.get("name") or "") in expected_talos_vms
+}
+if observed_talos_vms != expected_talos_vms:
     raise SystemExit(
-        "observer identity has neither APPS_READ nor READONLY_ADMIN: "
-        + ",".join(sorted(roles))
+        "vm.query did not expose the complete Talos VM inventory: "
+        + ",".join(sorted(observed_talos_vms))
     )
 
-scope = "broad_readonly" if "READONLY_ADMIN" in roles else "apps_read"
+scope = "broad_readonly" if "READONLY_ADMIN" in roles else "apps_vm_read"
 
 print(f"authenticated_username={authenticated_username}")
 print(f"rbac_scope={scope}")
 print(f"roles={','.join(sorted(roles))}")
 print(f"version={version}")
 print(f"apps={len(apps)}")
+print(f"talos_vms={len(observed_talos_vms)}")
 PY
 
 printf 'OK: TrueNAS observer source allowlist, credential selection and read-only API calls are valid\n'
