@@ -442,7 +442,7 @@ def main() -> int:
             print(f"error: {error}", file=sys.stderr)
         return 1 if args.check else 0
 
-    if args.check:
+    if args.check and not (args.json or args.debt_json):
         print("catalog-v2 preparation coverage: OK")
     return 0
 
