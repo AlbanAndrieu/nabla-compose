@@ -316,9 +316,14 @@ for identity, dependencies, exposure intent and reboot safety.
   owns the required dependency on `resource:default/postgresql`. Remaining
   active Backstage materialization debt is therefore **36 services**, all
   currently **unclassified**, with zero low/medium/high/critical services. This
-  count is derived by matching generated active service IDs to
-  actual Backstage `metadata.name` values, not merely by checking whether an
-  app directory contains some descriptor. Nginx Proxy
+  count is derived by matching generated active service IDs to actual Backstage
+  `metadata.name` values, not merely by checking whether an app directory
+  contains some descriptor. Recompute it before each wave with
+  `python scripts/audit-service-catalog-v2-parity.py --check --debt-json`;
+  do not maintain the count independently. Because all remaining entries are
+  unclassified, the next waves are classification-first: inspect one coherent
+  runtime group, establish evidence for criticality/BIA, and only then
+  materialize reviewed entities. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
