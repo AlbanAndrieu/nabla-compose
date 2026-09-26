@@ -171,6 +171,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
+        self.assertIn("truenas/bootstrap-dev-tools", config)
+        self.assertIn("test_truenas_deployment_automation", config)
 
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))
