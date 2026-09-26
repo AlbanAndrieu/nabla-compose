@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 import unittest
 
@@ -681,6 +682,29 @@ class CatalogV2ParityTests(unittest.TestCase):
                 actual_fields.update(service)
 
         self.assertEqual(actual_fields - FIELD_DISPOSITIONS.keys(), set())
+
+    def test_debt_json_is_machine_readable_and_self_consistent(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "audit-service-catalog-v2-parity.py"),
+                "--check",
+                "--debt-json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["version"], 1)
+        self.assertEqual(payload["total"], len(payload["services"]))
+        self.assertEqual(sum(payload["byState"].values()), payload["total"])
+        self.assertEqual(sum(payload["byCriticality"].values()), payload["total"])
+        self.assertNotIn("doco-cd", {row["serviceId"] for row in payload["services"]})
+
 
     def test_repository_preparation_inventory_has_no_hidden_field_or_override(self) -> None:
         backstage_entities: list[dict] = []
