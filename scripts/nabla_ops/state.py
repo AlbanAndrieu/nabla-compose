@@ -77,8 +77,13 @@ def read_initialization_state(
     """Read one persisted service state without creating files or locks."""
 
     canonical_service_id = _service_id(service_id)
+    state_root = Path(root)
+    if state_root.is_symlink():
+        raise ValueError(f"{state_root} must not be a symbolic link")
+    if state_root.exists() and not state_root.is_dir():
+        raise ValueError(f"{state_root} must be a directory")
     return _read_record(
-        _state_path(Path(root), canonical_service_id),
+        _state_path(state_root, canonical_service_id),
         expected_service_id=canonical_service_id,
     )
 
