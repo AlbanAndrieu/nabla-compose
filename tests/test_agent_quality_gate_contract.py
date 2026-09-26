@@ -171,6 +171,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
+        self.assertIn(
+            "entry: python -m pytest -q tests/test_agent_quality_gate_contract.py "
+            "tests/test_truenas_deployment_automation.py",
+            config,
+        )
+        self.assertIn('"pytest==9.1.1"', config)
+        self.assertNotIn(
+            "entry: python -m unittest tests.test_agent_quality_gate_contract -v",
+            config,
+        )
         self.assertIn("truenas/bootstrap-dev-tools", config)
         self.assertIn("test_truenas_deployment_automation", config)
 
