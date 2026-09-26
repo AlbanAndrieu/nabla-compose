@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-25.
+Last updated: 2026-09-26.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -302,13 +302,15 @@ for identity, dependencies, exposure intent and reboot safety.
   `critical/high/medium` materialization debt is now **zero**. The guided
   OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
   45 lower-priority services: 40 unclassified and 5 low. This PR now
-  materializes four of the five low services — Draw.io, Hello Nginx,
-  OpenClaw Sandbox and OpenSSF Scorecard — with stable Compose project names,
-  runtime entity-ref labels, provisional low BIA profiles and named HTTP ports
-  where applicable. Remaining active debt is therefore 41 services:
-  40 unclassified and 1 low (WordPress). WordPress stays separate because its
-  current Compose file models PostgreSQL as an externally merged service and
-  should not be normalized blindly in the low-risk batch. Nginx Proxy
+  materializes the complete low-criticality wave — Draw.io, Hello Nginx,
+  OpenClaw Sandbox, OpenSSF Scorecard and WordPress — with stable Compose
+  project names, runtime entity-ref labels, provisional low BIA profiles and
+  named HTTP ports where applicable. WordPress additionally removes invalid
+  cross-project Compose `depends_on: postgres`: its init container owns the
+  bounded readiness loop on the external `intranet` network while Backstage
+  owns the required dependency on `resource:default/postgresql`. Remaining
+  active Backstage materialization debt is therefore **40 unclassified
+  services and zero low services**. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
   `lifecycle: deprecated` while the NPMplus migration proceeds.
 - [ ] Complete a BIA pass for every business-relevant Component/Resource:
