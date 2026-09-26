@@ -494,6 +494,49 @@ services:
                 "fixture.x-nabla",
             )
 
+    def test_truenas_vm_runtime_requires_explicit_instances(self) -> None:
+        metadata = {
+            "id": "talos",
+            "name": "Talos Linux",
+            "kind": "kubernetes-os",
+            "category": "infrastructure",
+            "runtime": {
+                "provider": "truenas-vm",
+                "instances": ["taloscp01", "taloswk01", "taloswk02"],
+            },
+            "monitoring": {
+                "type": "provider",
+                "target": "truenas:vm.query",
+            },
+        }
+
+        node = MODULE.topology_node(
+            metadata,
+            "catalog/service-topology.static.json",
+            "fixture",
+        )
+
+        self.assertEqual(node["runtime"]["provider"], "truenas-vm")
+        self.assertEqual(
+            node["runtime"]["instances"],
+            ["taloscp01", "taloswk01", "taloswk02"],
+        )
+        self.assertEqual(node["monitoring"]["type"], "provider")
+
+    def test_truenas_vm_runtime_rejects_missing_instances(self) -> None:
+        with self.assertRaisesRegex(ValueError, "requires instances"):
+            MODULE.topology_node(
+                {
+                    "id": "talos",
+                    "name": "Talos Linux",
+                    "kind": "kubernetes-os",
+                    "category": "infrastructure",
+                    "runtime": {"provider": "truenas-vm"},
+                },
+                "catalog/service-topology.static.json",
+                "fixture",
+            )
+
     def test_unknown_relation_type_is_rejected_before_generation(self) -> None:
         with self.assertRaisesRegex(ValueError, "type must be one of"):
             MODULE.topology_relation(
