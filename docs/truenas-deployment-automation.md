@@ -75,6 +75,16 @@ Its steady-state secret provider remains the webhook adapter and its Docker
 boundary remains `docker-socket-proxy`. The unused 1Password token mount is
 removed from this active definition.
 
+The repository catalog now follows the same ownership boundary:
+`docker-compose-truenas.yml` is the only Doco-CD Compose source that carries
+`x-nabla` and `com.albandrieu.nabla.entity-ref`. The workstation definition
+remains runnable but does not author catalog/runtime identity. Generated
+`catalog/services.json` and `catalog/service-topology.json` therefore point
+to `docker-compose-truenas.yml`, and Backstage
+`component:default/doco-cd` declares the required
+`component:default/docker-socket-proxy` dependency. The TrueNAS container also
+keeps `cap_drop: [ALL]` and `no-new-privileges:true`.
+
 Changing `docker-compose-truenas.yml` in Git does not retroactively rewrite the
 already-running container's embedded `/poll-config.yml`. After #211 is
 accepted, reconcile the live Doco-CD definition deliberately, then copy
