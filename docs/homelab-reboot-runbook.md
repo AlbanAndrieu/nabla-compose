@@ -382,6 +382,81 @@ Continuation:
 - records continuation in `prepare-history.log`;
 - continues through Docker and Talos gates.
 
+## Fast post-reboot ghost recovery procedure
+
+When a reboot returns with widespread App `CRASHED`/`STOPPED` states and
+Docker reports `Running/Restarting=true` with `Pid=0`, preserve recovery
+intent before cleanup:
+
+```bash
+RECOVERY_DIR="/mnt/cpool/var/nabla/recovery-$(date +%Y%m%d-%H%M%S)"
+sudo install -d -m 700 "${RECOVERY_DIR}"
+sudo midclt call app.query |
+  sudo tee "${RECOVERY_DIR}/apps-before-cleanup.json" >/dev/null
+sudo jq -r '
+  .[] |
+  select(.state=="RUNNING" or .state=="DEPLOYING" or .state=="CRASHED") |
+  .id
+' "${RECOVERY_DIR}/apps-before-cleanup.json" |
+  sudo tee "${RECOVERY_DIR}/resume-candidates.txt"
+sudo midclt call system.boot_id |
+  sudo tee "${RECOVERY_DIR}/boot-id.txt"
+```
+
+Get the read-only ghost matrix:
+
+```bash
+sudo bash scripts/truenas/recover-app-after-docker-ghost.sh --check
+```
+
+For a `STOPPED`, `CRASHED` or `ERROR` App:
+
+```bash
+sudo bash scripts/truenas/recover-app-after-docker-ghost.sh   --recover-app <app-id>
+```
+
+The helper tries supported `app.stop` first. If it fails, only containers from
+that App's `ix-<app>` Compose project are considered. Automatic shim recovery
+requires all of: Running or Restarting, init PID zero, and exactly one
+`containerd-shim-runc-v2` matching the full container ID. Zero or multiple
+matching shims fail closed.
+
+`RUNNING` and `DEPLOYING` Apps require explicit quiesce intent:
+
+```bash
+sudo env NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true   bash scripts/truenas/recover-app-after-docker-ghost.sh   --recover-app <app-id>
+```
+
+For a reviewed full recovery reboot, generate a shutdown plan from the preserved
+snapshot and process `stop_order`. Stop on the first helper failure:
+
+```bash
+sudo python3 scripts/truenas/plan-app-lifecycle-order.py   --apps "${RECOVERY_DIR}/apps-before-cleanup.json"   --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING   --services catalog/services.json   --topology catalog/service-topology.json   --pretty |
+  sudo tee "${RECOVERY_DIR}/shutdown-plan.json" >/dev/null
+
+while IFS= read -r app; do
+  state="$(sudo midclt call app.query "[[\"id\",\"=\",\"${app}\"]]" |
+    jq -r 'if length==1 then .[0].state else "MISSING" end')"
+  case "${state}" in
+    RUNNING|DEPLOYING)
+      sudo env NABLA_GHOST_RECOVERY_ALLOW_ACTIVE=true         bash scripts/truenas/recover-app-after-docker-ghost.sh --recover-app "${app}"
+      ;;
+    *)
+      sudo bash scripts/truenas/recover-app-after-docker-ghost.sh --recover-app "${app}"
+      ;;
+  esac || break
+done < <(sudo jq -r '.stop_order[]' "${RECOVERY_DIR}/shutdown-plan.json")
+```
+
+Before another reboot require `docker ps` empty and:
+
+```bash
+sudo bash scripts/truenas/diagnose-docker-orphan-shims.sh --check
+```
+
+to report no Running/Restarting container with `Pid=0`. Preserve the recovery
+snapshot across the reboot; do not substitute an older reboot manifest.
+
 ## Docker/containerd ghost state
 
 An App stop may fail with:

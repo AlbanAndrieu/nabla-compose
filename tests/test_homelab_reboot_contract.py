@@ -15,12 +15,13 @@ VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
+GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, DOCKER_LIB):
+        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, GHOST_RECOVERY, DOCKER_LIB):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -228,6 +229,28 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("operator-acceptance.json", text)
         self.assertIn("does not make `--verify` pass", text)
         self.assertIn("frozen `resume-apps.txt`", text)
+
+    def test_app_scoped_ghost_recovery_fails_closed(self) -> None:
+        text = GHOST_RECOVERY.read_text(encoding="utf-8")
+        self.assertIn("--recover-app", text)
+        self.assertIn("NABLA_GHOST_RECOVERY_ALLOW_ACTIVE", text)
+        self.assertIn("refuse active App recovery", text)
+        self.assertIn("app.stop", text)
+        self.assertIn("diagnose-docker-orphan-shims.sh", text)
+        self.assertIn("zero/multiple shims", text)
+        self.assertIn("label=com.docker.compose.project=ix-", text)
+        self.assertNotIn("systemctl restart docker", text)
+        self.assertNotIn("systemctl restart containerd", text)
+        self.assertNotIn("pkill", text)
+        self.assertNotIn("killall", text)
+
+    def test_runbook_documents_fast_post_reboot_ghost_recovery(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("Fast post-reboot ghost recovery procedure", text)
+        self.assertIn("apps-before-cleanup.json", text)
+        self.assertIn("resume-candidates.txt", text)
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("stop_order", text)
 
     def test_orphan_shim_recovery_is_narrow(self) -> None:
         text = ORPHAN_SHIMS.read_text(encoding="utf-8")
