@@ -163,6 +163,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
             config,
         )
         self.assertIn("tests/test_catalog_v2_exports.py", config)
+        self.assertGreaterEqual(config.count('"pytest==9.1.1"'), 4)
+        self.assertIn("docker-compose(?:-truenas)?[.]yml", config)
+        self.assertIn("truenas-deployment-automation-contract", config)
         self.assertIn("scripts/generate-catalog-v2-artifacts.py", config)
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
