@@ -299,11 +299,12 @@ for identity, dependencies, exposure intent and reboot safety.
   InfluxDB + Scrutiny, Plumber/API/worker, Dockhand, Dozzle, LanguageTool,
   Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
   Manager, OpenHands and Squid as reviewed dependency groups. Active
-  `critical/high` materialization debt is now **zero**. One active medium
-  service, `doco-cd`, remains explicit materialization debt because its current
-  generated source points at root `docker-compose.yml` while TrueNAS runtime
-  ownership uses `docker-compose-truenas.yml`; resolve that source authority
-  before creating a Backstage entity. The guided
+  `critical/high/medium` materialization debt is now **zero**. This PR resolves
+  the remaining Doco-CD authority debt: workstation `docker-compose.yml` no
+  longer authors its catalog metadata, TrueNAS `docker-compose-truenas.yml`
+  owns `x-nabla` + runtime entity-ref, generated catalog/topology evidence now
+  points to that TrueNAS source, and `component:default/doco-cd` captures the
+  required Docker Socket Proxy dependency. The guided
   OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
   45 lower-priority services: 40 unclassified and 5 low. This PR now
   materializes the complete low-criticality wave — Draw.io, Hello Nginx,
@@ -313,9 +314,9 @@ for identity, dependencies, exposure intent and reboot safety.
   cross-project Compose `depends_on: postgres`: its init container owns the
   bounded readiness loop on the external `intranet` network while Backstage
   owns the required dependency on `resource:default/postgresql`. Remaining
-  active Backstage materialization debt is therefore **37 services**:
-  **36 unclassified + 1 medium (`doco-cd`)**, with zero low/critical/high
-  services. This count is derived by matching generated active service IDs to
+  active Backstage materialization debt is therefore **36 services**, all
+  currently **unclassified**, with zero low/medium/high/critical services. This
+  count is derived by matching generated active service IDs to
   actual Backstage `metadata.name` values, not merely by checking whether an
   app directory contains some descriptor. Nginx Proxy
   Manager remains operationally active but is explicitly modeled with Backstage
