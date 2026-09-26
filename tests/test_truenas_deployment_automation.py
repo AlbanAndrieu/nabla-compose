@@ -83,6 +83,9 @@ def test_doco_cd_catalog_authority_is_owned_by_truenas_compose() -> None:
         "metrics",
     ]
 
+    assert truenas_doco["cap_drop"] == ["ALL"]
+    assert truenas_doco["security_opt"] == ["no-new-privileges:true"]
+
     assert "x-nabla" not in workstation["services"]["doco-cd"]
 
     entities = [
