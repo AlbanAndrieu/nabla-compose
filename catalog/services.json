@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:c9a03ea9222b34f5b697b4eae5db551a567048585e5774b2c450ad39c1b0e2eb",
+  "catalogRevision": "sha256:95c03ece3ca76c3cc13a7fa94bf8a9244ead4325d83cb2994008e861fabdc97b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
