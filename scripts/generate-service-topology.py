@@ -21,7 +21,7 @@ OUTPUT_TOPOLOGY = ROOT / "catalog" / "service-topology.json"
 OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:\.[^.]+)?\.ya?ml$")
-RUNTIME_PROVIDERS = {"truenas-app", "logical", "external", "host"}
+RUNTIME_PROVIDERS = {"truenas-app", "truenas-vm", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
 SERVICE_STATUSES = {"active", "planned", "disabled"}
@@ -248,6 +248,19 @@ def runtime_binding(
         fail(
             f"{context}.runtime requires appId or containerService for provider truenas-app"
         )
+
+    instances = raw_runtime.get("instances")
+    if instances is not None:
+        if not isinstance(instances, list) or not instances or not all(
+            isinstance(item, str) and item.strip() for item in instances
+        ):
+            fail(f"{context}.runtime.instances must be a non-empty list of strings")
+        normalized_instances = [item.strip() for item in instances]
+        if len(set(normalized_instances)) != len(normalized_instances):
+            fail(f"{context}.runtime.instances must not contain duplicates")
+        binding["instances"] = normalized_instances
+    if provider == "truenas-vm" and "instances" not in binding:
+        fail(f"{context}.runtime requires instances for provider truenas-vm")
     return binding
 
 
@@ -355,8 +368,8 @@ def monitoring_metadata(
         fail(f"{context}.monitoring must be a mapping")
 
     probe_type = optional_text(raw, "type")
-    if probe_type not in {"http", "port"}:
-        fail(f"{context}.monitoring.type must be http or port")
+    if probe_type not in {"http", "port", "provider"}:
+        fail(f"{context}.monitoring.type must be http, port or provider")
     result: dict[str, Any] = {"type": probe_type}
 
     for key in ("target", "url", "host"):

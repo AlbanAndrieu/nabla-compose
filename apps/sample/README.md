@@ -574,6 +574,14 @@ You are not allowed to access this resource
 
 is a source-address allowlist denial, not an `APPS_READ` RBAC failure.
 
+FastAPI's base TrueNAS inventory needs `APPS_READ`. The health board also
+uses read-only `vm.query` to observe the three Talos VM runtime states, which
+requires `VM_READ` on TrueNAS 26. This extra role does not grant VM mutation.
+If `VM_READ` is absent, TrueNAS/application observation remains valid but the
+Talos row must stay **unknown** rather than being inferred from Cloudflare,
+Docker Apps, or a public endpoint.
+
+
 The live 2026-09-06 recovery proved the sequence:
 
 ```text

@@ -2334,7 +2334,24 @@
       "description": "Immutable Talos Linux platform for the Kubernetes control-plane and worker VMs on TrueNAS.",
       "icon": "🔷",
       "presentationRole": "core",
-      "criticality": "critical"
+      "criticality": "critical",
+      "runtime": {
+        "provider": "truenas-vm",
+        "instances": [
+          "taloscp01",
+          "taloswk01",
+          "taloswk02"
+        ]
+      },
+      "monitoring": {
+        "type": "provider",
+        "target": "truenas:vm.query",
+        "conditions": [
+          "taloscp01=RUNNING",
+          "taloswk01=RUNNING",
+          "taloswk02=RUNNING"
+        ]
+      }
     },
     {
       "id": "tempo",
