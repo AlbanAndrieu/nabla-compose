@@ -33,7 +33,11 @@ def _state_path(root: Path, service_id: str) -> Path:
     return root / f"{_service_id(service_id)}.json"
 
 
-def _read_record(path: Path) -> dict[str, Any] | None:
+def _read_record(
+    path: Path,
+    *,
+    expected_service_id: str | None = None,
+) -> dict[str, Any] | None:
     if not path.exists():
         return None
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -42,6 +46,11 @@ def _read_record(path: Path) -> dict[str, Any] | None:
     if payload.get("version") != 1:
         raise ValueError(f"{path} has unsupported state version")
     service_id = _service_id(str(payload.get("serviceId") or ""))
+    if expected_service_id is not None and service_id != expected_service_id:
+        raise ValueError(
+            f"{path} serviceId={service_id!r} does not match "
+            f"expected {expected_service_id!r}"
+        )
     stage = normalize_initialization_stage(str(payload.get("stage") or ""))
     transition_count = payload.get("transitionCount")
     if (
@@ -65,7 +74,11 @@ def read_initialization_state(
 ) -> dict[str, Any] | None:
     """Read one persisted service state without creating files or locks."""
 
-    return _read_record(_state_path(Path(root), service_id))
+    canonical_service_id = _service_id(service_id)
+    return _read_record(
+        _state_path(Path(root), canonical_service_id),
+        expected_service_id=canonical_service_id,
+    )
 
 
 def _ensure_state_root(root: Path) -> None:
@@ -125,7 +138,10 @@ def advance_initialization_state(
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
 
         state_path = _state_path(state_root, canonical_service_id)
-        current = _read_record(state_path)
+        current = _read_record(
+            state_path,
+            expected_service_id=canonical_service_id,
+        )
         if current is None:
             current_stage = InitializationStage.DECLARED
             transition_count = 0
