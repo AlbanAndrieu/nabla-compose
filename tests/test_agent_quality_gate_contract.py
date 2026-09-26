@@ -30,6 +30,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("QG_PYTHON_MISSING", text)
         self.assertIn("QG_PYTHON_DEPS_MISSING", text)
         self.assertIn("import pytest, yaml", text)
+        self.assertLess(
+            text.index('if [[ "${MODE}" == "preflight" ]]'),
+            text.index("QG_PYTHON_DEPS_MISSING"),
+        )
         self.assertIn("QUALITY_LOG_LINE_MAX", text)
         self.assertIn("print_compact_log", text)
         self.assertIn("failure summary", text)
