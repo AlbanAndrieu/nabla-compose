@@ -643,6 +643,9 @@ The next phase can replace this manual ISO workflow with a reproducible Talos Im
 
 ### DNS bootstrap dependency guard — 2026-09-27
 
+> Incident de référence : [pfSense/Talos DNS — 2026-09-27](pfsense-dns-incident-20260927.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
+
+
 A post-reboot LAN incident proved that pfSense Kea was distributing TrueNAS
 (`172.17.0.24`) as the general LAN DNS server while no resolver was listening
 on TrueNAS port 53. This created a fragile dependency chain for clients and is
