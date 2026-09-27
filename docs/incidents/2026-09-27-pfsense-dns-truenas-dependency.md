@@ -123,6 +123,95 @@ pfSense / Unbound
 - [ ] Ajouter une alerte dédiée lorsque le resolver TrueNAS tombe, sans classifier le LAN entier comme « Internet down » tant que pfSense/Unbound reste sain.
 - [ ] Revalider IPv6 séparément : le WAN n'avait pas de route IPv6 par défaut au moment de l'incident et les RA LAN ont été désactivés temporairement pour isoler le diagnostic.
 
+## Procédure post-upgrade pfSense 26.07
+
+L'upgrade vers pfSense 26.07 a nécessité une remise en état explicite de plusieurs
+packages tiers. Ne pas considérer l'upgrade terminé tant que ces composants n'ont
+pas été réinstallés et validés.
+
+### CrowdSec
+
+Réinstaller CrowdSec avec le script officiel du package pfSense :
+
+```sh
+fetch https://raw.githubusercontent.com/crowdsecurity/pfSense-pkg-crowdsec/refs/heads/main/install-crowdsec.sh
+sh install-crowdsec.sh
+```
+
+Validation minimale :
+
+```sh
+pkg info | grep -i crowdsec
+pgrep -laf 'crowdsec|crowdsec-firewall-bouncer'
+```
+
+### pfSense REST API
+
+Réinstaller le package RESTAPI compatible pfSense 26.07 :
+
+```sh
+pkg-static -C /dev/null add https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/download/v2.10.2/pfSense-26.07-pkg-RESTAPI.pkg
+```
+
+Validation minimale :
+
+```sh
+pkg info | grep -i restapi
+```
+
+Puis valider l'endpoint REST API canonique déjà utilisé par l'observabilité :
+
+```text
+https://home.albandrieu.com:10443/api/v2/system/version
+```
+
+### Zabbix Agent 7
+
+Après l'upgrade, les packages étaient encore installés :
+
+```text
+pfSense-pkg-zabbix-agent7-1.1_1
+zabbix7-agent-7.0.27
+```
+
+mais aucun daemon Zabbix ne tournait et aucun listener n'était présent.
+
+Réinstaller `pfSense-pkg-zabbix-agent7` depuis l'UI :
+
+```text
+System
+  -> Package Manager
+    -> Installed Packages
+      -> pfSense-pkg-zabbix-agent7
+        -> Reinstall
+```
+
+Validation :
+
+```sh
+pgrep -laf zabbix
+service zabbix_agentd status
+sockstat -4 -6 -l | grep 10050
+```
+
+Puis depuis le serveur/segment de supervision :
+
+```sh
+nc -vz <PFSENSE_IP> 10050
+```
+
+### Checklist de sortie post-upgrade
+
+```text
+Unbound / DNS        OK
+Kea DHCP             OK
+DNS DHCP LAN         172.17.0.1
+WANGW / dpinger      Online
+CrowdSec             running
+pfSense REST API     reachable
+Zabbix agent         running / TCP 10050
+```
+
 ## Notes complémentaires
 
 Le même incident a aussi montré :
