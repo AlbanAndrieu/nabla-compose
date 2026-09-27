@@ -712,6 +712,47 @@ CSI_POD_READY_TIMEOUT_SECONDS=300 \
 Acceptance requires fresh provisioning, publishContext, cross-worker RWX and
 actual TrueNAS-side NFS share plus dataset reclaim.
 
+## Reviewed App-set restore helper
+
+For abnormal recovery where the original reboot manifest is unavailable or
+cannot safely authorize a broad resume, keep App membership explicit and use
+`restore-app-set.sh` to automate the mechanics:
+
+```bash
+RECOVERY_DIR=/mnt/cpool/var/nabla/recovery-YYYYMMDD-HHMMSS
+
+sudo bash scripts/truenas/restore-app-set.sh \
+  --plan \
+  --recovery-dir "${RECOVERY_DIR}" \
+  --apps-file "${RECOVERY_DIR}/restore-core-data.txt" \
+  --label core-data
+```
+
+After reviewing the generated topology waves:
+
+```bash
+sudo env \
+  NABLA_APP_JOB_TIMEOUT_SECONDS=900 \
+  NABLA_APP_START_WAIT_SECONDS=600 \
+  NABLA_APP_START_WAIT_OVERRIDES="opensearch=1200 kafka=900 clickhouse=900" \
+  bash scripts/truenas/restore-app-set.sh \
+    --apply \
+    --recovery-dir "${RECOVERY_DIR}" \
+    --apps-file "${RECOVERY_DIR}/restore-core-data.txt" \
+    --label core-data
+```
+
+The helper reads the root-owned recovery files itself, so the operator does not
+need to `paste` or otherwise read a `0700` recovery directory as an
+unprivileged user. It freezes the reviewed membership, generates the
+topology-aware plan, reconstructs the minimal reconciler transaction from the
+pre-reboot boot ID, and delegates startup/health handling to
+`reconcile-reboot-resume.sh`.
+
+It intentionally does **not** derive membership from Backstage
+`operational-state=active`: catalog operational intent is not equivalent to
+boot intent, and pre-existing intentionally stopped Apps must remain stopped.
+
 ## Phase 3 — resume Apps
 
 ```bash

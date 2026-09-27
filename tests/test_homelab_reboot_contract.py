@@ -18,6 +18,7 @@ ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
 K8S_IDENTITY_GATE = ROOT / "scripts/truenas/verify-talos-kubernetes-identity.sh"
+RESTORE_APP_SET = ROOT / "scripts/truenas/restore-app-set.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
@@ -32,6 +33,7 @@ class HomelabRebootContractTests(unittest.TestCase):
             GHOST_RECOVERY,
             RECOVERY_REBOOT,
             K8S_IDENTITY_GATE,
+            RESTORE_APP_SET,
             DOCKER_LIB,
         ):
             result = subprocess.run(
@@ -82,6 +84,20 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("node/taloscp01 node/taloswk01 node/taloswk02", recovery)
         self.assertIn("K8S_IDENTITY_GATE", normal)
         self.assertIn("K8S_IDENTITY_GATE", recovery)
+
+    def test_reviewed_app_set_restore_is_explicit_and_topology_aware(self) -> None:
+        text = RESTORE_APP_SET.read_text(encoding="utf-8")
+        self.assertIn("--apps-file", text)
+        self.assertIn("--apps", text)
+        self.assertIn("--plan", text)
+        self.assertIn("--check", text)
+        self.assertIn("--apply", text)
+        self.assertIn("plan-app-lifecycle-order.py", text)
+        self.assertIn("reconcile-reboot-resume.sh", text)
+        self.assertIn("operational-state", text)
+        self.assertIn("not boot intent", text)
+        self.assertIn("unmapped Apps", text)
+        self.assertNotIn("midclt call -j app.start", text)
 
     def test_talos_policy_is_autostart_and_graceful(self) -> None:
         vars_text = (ROOT / "terraform/truenas/variables.tofu").read_text()

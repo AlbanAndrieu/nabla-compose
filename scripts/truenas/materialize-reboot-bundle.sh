@@ -72,6 +72,7 @@ FILES=(
   scripts/truenas/verify-talos-kubernetes-identity.sh
   scripts/truenas/diagnose-csi-orphans.sh
   scripts/truenas/reconcile-reboot-resume.sh
+  scripts/truenas/restore-app-set.sh
   scripts/truenas/verify-app-runtime-health.sh
   scripts/truenas/reboot-homelab.sh
 )
@@ -113,6 +114,8 @@ validate_stage() {
     fail "materialized reboot script does not delegate resume reconciliation"
   grep -q -- 'verify-app-runtime-health.sh' "${STAGE}/scripts/truenas/reconcile-reboot-resume.sh" ||
     fail "materialized resume reconciler does not require the container health gate"
+  grep -q -- 'reviewed TrueNAS App restore set' "${STAGE}/scripts/truenas/restore-app-set.sh" ||
+    fail "materialized reviewed restore helper is missing"
   grep -q -- 'start_wave_phases' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
     fail "materialized lifecycle planner lacks phased startup ordering"
   grep -q -- 'sourcePath' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
