@@ -245,6 +245,7 @@ must not be treated as evidence that the services are intentionally public.
 - [ ] keep pfSense/Unbound as the general LAN resolver and design the private
   `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
   point of failure;
+- [x] **Incident 2026-09-27 — DHCP DNS dependency on TrueNAS:** after a TrueNAS reboot, Kea still distributed `172.17.0.24` as the LAN DNS server while port 53 on TrueNAS was refusing connections. Android clients reported "connected without Internet" and application behavior became inconsistent. The DHCP LAN resolver was changed to `172.17.0.1` (pfSense/Unbound). See [`docs/incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
 - [ ] **Diagnose the current Unbound outage before enabling any watchdog:** capture
   the exact daemon state with `pgrep -x unbound`, recent resolver/system logs,
   current free memory and top RSS consumers, and current-boot kernel OOM/reclaim
