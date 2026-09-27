@@ -28,6 +28,7 @@ ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orph
 IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool.sh}"
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
+K8S_IDENTITY_GATE="${NABLA_K8S_IDENTITY_GATE:-${SCRIPT_DIR}/verify-talos-kubernetes-identity.sh}"
 
 usage() {
   cat <<'EOF'
@@ -87,7 +88,7 @@ for value in POST_BOOT_DOCKER_WAIT VM_WAIT TALOS_API_WAIT K8S_WAIT POLL_SECONDS;
   current="${!value}"
   [[ "${current}" =~ ^[1-9][0-9]*$ ]] || fail "${value} must be a positive integer"
 done
-for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}"; do
+for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}" "${K8S_IDENTITY_GATE}"; do
   [[ -f "${path}" ]] || fail "required recovery helper not found: ${path}"
 done
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing under ${REPO_ROOT}"
@@ -527,10 +528,11 @@ post_reboot_check() {
   printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_WAIT}"
   wait_talos_vms_running
   wait_talos_apis
-  printf 'Waiting for Kubernetes nodes Ready (timeout=%ss)...\n' "${K8S_WAIT}"
-  run_operator "${KUBECTL}" wait     --for=condition=Ready node --all --timeout="${K8S_WAIT}s" ||
-    fail "Kubernetes nodes did not all become Ready within ${K8S_WAIT}s"
+  printf 'Waiting for expected Kubernetes nodes Ready (timeout=%ss)...\n' "${K8S_WAIT}"
+  run_operator "${KUBECTL}" wait     --for=condition=Ready     node/taloscp01 node/taloswk01 node/taloswk02     --timeout="${K8S_WAIT}s" ||
+    fail "expected Kubernetes nodes did not all become Ready within ${K8S_WAIT}s"
   run_operator "${KUBECTL}" get nodes -o wide
+  run_operator env     NABLA_KUBECTL="${KUBECTL}"     NABLA_KUBECONFIG="${KUBECONFIG}"     bash "${K8S_IDENTITY_GATE}"
 
   printf '%s\n' "${now}" >"${STATE_DIR}/boot-id-after-reboot.txt"
   write_phase POST_REBOOT_READY

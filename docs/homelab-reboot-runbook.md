@@ -827,3 +827,19 @@ global Docker/containerd restart for a single ghost container
 
 Prefer bounded diagnosis, exact-owner recovery, the immutable transaction
 manifest and `--continue-prepare`.
+
+
+## Kubernetes Node identity gate
+
+A successful VM autostart and reachable Talos API do not prove that Kubernetes
+re-registered the intended Nodes. The expected post-reboot identity is exactly:
+
+- `taloscp01` → `172.17.0.50`
+- `taloswk01` → `172.17.0.51`
+- `taloswk02` → `172.17.0.52`
+
+`verify-talos-kubernetes-identity.sh` requires those three Nodes to exist
+exactly once, be `Ready=True`, and have the expected `InternalIP`. Any extra
+Node object fails the gate as stale/unexpected. Stale Nodes are never deleted
+automatically: inspect Pods and VolumeAttachments first, then remove only the
+confirmed stale Node objects with supported `kubectl delete node`.

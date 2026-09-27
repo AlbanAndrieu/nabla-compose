@@ -17,6 +17,7 @@ APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
+K8S_IDENTITY_GATE = ROOT / "scripts/truenas/verify-talos-kubernetes-identity.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
@@ -30,6 +31,7 @@ class HomelabRebootContractTests(unittest.TestCase):
             ORPHAN_SHIMS,
             GHOST_RECOVERY,
             RECOVERY_REBOOT,
+            K8S_IDENTITY_GATE,
             DOCKER_LIB,
         ):
             result = subprocess.run(
@@ -64,6 +66,22 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("wait_talos_apis", recovery)
         self.assertIn("NABLA_REBOOT_VM_START_WAIT_SECONDS", normal)
         self.assertIn("wait_talos_vms_running", normal)
+
+    def test_kubernetes_node_identity_contract_is_exact(self) -> None:
+        text = K8S_IDENTITY_GATE.read_text(encoding="utf-8")
+        self.assertIn("taloscp01=172.17.0.50", text)
+        self.assertIn("taloswk01=172.17.0.51", text)
+        self.assertIn("taloswk02=172.17.0.52", text)
+        self.assertIn("stale/unexpected Kubernetes Node", text)
+        self.assertIn("Ready=True", text)
+        self.assertNotIn("kubectl delete node", text)
+
+        normal = REBOOT.read_text(encoding="utf-8")
+        recovery = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        self.assertIn("node/taloscp01 node/taloswk01 node/taloswk02", normal)
+        self.assertIn("node/taloscp01 node/taloswk01 node/taloswk02", recovery)
+        self.assertIn("K8S_IDENTITY_GATE", normal)
+        self.assertIn("K8S_IDENTITY_GATE", recovery)
 
     def test_talos_policy_is_autostart_and_graceful(self) -> None:
         vars_text = (ROOT / "terraform/truenas/variables.tofu").read_text()

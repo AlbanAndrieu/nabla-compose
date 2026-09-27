@@ -30,11 +30,13 @@ IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
 GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
+K8S_IDENTITY_GATE="${NABLA_K8S_IDENTITY_GATE:-${SCRIPT_DIR}/verify-talos-kubernetes-identity.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
 [[ -f "${ORPHAN_SHIMS}" ]] || ORPHAN_SHIMS="${REPO_ROOT}/scripts/truenas/diagnose-docker-orphan-shims.sh"
 [[ -f "${GHOST_RECOVERY}" ]] || GHOST_RECOVERY="${REPO_ROOT}/scripts/truenas/recover-app-after-docker-ghost.sh"
+[[ -f "${K8S_IDENTITY_GATE}" ]] || K8S_IDENTITY_GATE="${REPO_ROOT}/scripts/truenas/verify-talos-kubernetes-identity.sh"
 
 usage() {
   cat <<'EOF'
@@ -721,8 +723,9 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
     talos_api_check "${node}" 60 post-reboot || fail "Talos API not ready: ${node}"
   done
-  run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
+  run_operator "${KUBECTL}" wait     --for=condition=Ready     node/taloscp01 node/taloswk01 node/taloswk02     --timeout=5m
   run_operator "${KUBECTL}" get nodes -o wide
+  run_operator env     NABLA_KUBECTL="${KUBECTL}"     NABLA_KUBECONFIG="${KUBECONFIG}"     bash "${K8S_IDENTITY_GATE}"
   printf 'SUCCESS: post-reboot acceptance passed.\n'
   exit 0
 fi
