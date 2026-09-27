@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:927cebe9caa64b9a591583e316a2aec17221af8b28e1aecbefb7585ecdf09068",
+  "catalogRevision": "sha256:32c4e7acc8e7bcf468c4260adfc6f3d1ed4c3a8c2e25b7b9dfc0d4a15d32528f",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -575,7 +575,7 @@
       "name": "Doco-CD",
       "kind": "deployment-automation",
       "category": "operations",
-      "sourcePath": "docker-compose.yml",
+      "sourcePath": "docker-compose-truenas.yml",
       "composeService": "doco-cd",
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
@@ -587,7 +587,12 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "doco-cd"
+        "containerService": "doco-cd",
+        "networks": [
+          "default",
+          "intranet",
+          "secrets-backend"
+        ]
       }
     },
     {

@@ -70,6 +70,9 @@ result, and do not switch to GitHub Actions as the edit loop.
 
 - `/continue-pr` — resume the current PR from bounded Git context and roadmap
   evidence.
+- `/catalog-wave` — choose one Backstage wave from
+  `audit-service-catalog-v2-parity.py --check --debt-json`; unclassified debt
+  must be classification-first rather than assigned guessed BIA values.
 - `/migrate-service <service>` — execute the combined P0.3 + Backstage bundle.
 - `/review` — ask the read-only reviewer subagent to inspect the current diff.
 - `/quality` — converge and run the local publication workflow.

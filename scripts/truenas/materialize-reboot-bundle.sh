@@ -67,6 +67,8 @@ FILES=(
   scripts/truenas/migrate-docker-address-pool.sh
   scripts/truenas/audit-docker-network-migration.sh
   scripts/truenas/diagnose-docker-orphan-shims.sh
+  scripts/truenas/recover-app-after-docker-ghost.sh
+  scripts/truenas/recovery-reboot-homelab.sh
   scripts/truenas/diagnose-csi-orphans.sh
   scripts/truenas/reconcile-reboot-resume.sh
   scripts/truenas/verify-app-runtime-health.sh
@@ -96,6 +98,12 @@ validate_stage() {
 
   grep -q -- '--continue-prepare' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
     fail "materialized reboot script lacks --continue-prepare"
+  grep -q -- 'recover-app-after-docker-ghost.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
+    fail "materialized reboot script lacks bounded Docker ghost recovery"
+  grep -q -- 'READY_TO_REBOOT' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||
+    fail "materialized recovery reboot helper lacks READY_TO_REBOOT gate"
+  grep -q -- 'resume-approved.txt' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||
+    fail "materialized recovery reboot helper lacks reviewed resume contract"
   grep -q -- 'build_effective_resume_plan' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
     fail "materialized reboot script lacks ordering-only resume repair"
   grep -q -- 'reconcile-reboot-resume.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||

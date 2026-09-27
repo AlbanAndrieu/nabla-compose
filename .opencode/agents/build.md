@@ -27,6 +27,11 @@ small:
    then agent-pre-push. Never use GitHub Actions as the edit/format/lint loop.
 10. Never mutate master directly and never bypass hooks.
 
+For Backstage bulk work, run
+`python scripts/audit-service-catalog-v2-parity.py --check --debt-json` before
+choosing a service. Treat `unclassified` as a request for evidence/classification,
+not permission to invent business criticality or BIA targets.
+
 When unsure about repository conventions, stop broad inference and inspect the
 relevant skill, script, test, or neighboring migrated service. Never invent a
 path, command, endpoint or dependency merely to continue.

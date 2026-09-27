@@ -15,12 +15,23 @@ VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
+GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
+RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
     def test_shell_helpers_pass_bash_syntax(self) -> None:
-        for path in (REBOOT, VM_POLICY, IPAM, APP_RECONCILE, ORPHAN_SHIMS, DOCKER_LIB):
+        for path in (
+            REBOOT,
+            VM_POLICY,
+            IPAM,
+            APP_RECONCILE,
+            ORPHAN_SHIMS,
+            GHOST_RECOVERY,
+            RECOVERY_REBOOT,
+            DOCKER_LIB,
+        ):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 text=True,
@@ -34,6 +45,25 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("if network.version != target.version:", text)
         self.assertIn("--post-reboot-check", text)
         self.assertIn("10.200.0.0/16", text)
+
+    def test_post_reboot_waits_for_docker_initialization(self) -> None:
+        text = IPAM.read_text(encoding="utf-8")
+        self.assertIn("TRUENAS_DOCKER_POST_BOOT_WAIT_SECONDS", text)
+        self.assertIn("TRUENAS_DOCKER_CLI_TIMEOUT_SECONDS", text)
+        self.assertIn("wait_runtime_ready", text)
+        self.assertIn("docker.status entered terminal state", text)
+        self.assertIn("docker network ls timed out", text)
+
+    def test_post_reboot_waits_for_talos_autostart_and_kubernetes(self) -> None:
+        recovery = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        normal = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("NABLA_RECOVERY_VM_WAIT_SECONDS", recovery)
+        self.assertIn("NABLA_RECOVERY_TALOS_API_WAIT_SECONDS", recovery)
+        self.assertIn("NABLA_RECOVERY_K8S_WAIT_SECONDS", recovery)
+        self.assertIn("wait_talos_vms_running", recovery)
+        self.assertIn("wait_talos_apis", recovery)
+        self.assertIn("NABLA_REBOOT_VM_START_WAIT_SECONDS", normal)
+        self.assertIn("wait_talos_vms_running", normal)
 
     def test_talos_policy_is_autostart_and_graceful(self) -> None:
         vars_text = (ROOT / "terraform/truenas/variables.tofu").read_text()
@@ -200,6 +230,18 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Running/Restarting but pid=0", text)
         self.assertIn("diagnose-docker-orphan-shims.sh", text)
 
+    def test_stale_reboot_manifest_fails_closed(self) -> None:
+        reboot = REBOOT.read_text(encoding="utf-8")
+        reconciler = (
+            ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
+        ).read_text(encoding="utf-8")
+        for text in (reboot, reconciler):
+            self.assertIn("NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS", text)
+            self.assertIn("172800", text)
+            self.assertIn("stale reboot manifest", text)
+            self.assertIn("apps-before.json", text)
+            self.assertIn("stat -c %Y", text)
+
     def test_operator_acceptance_is_a_strict_sidecar(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
 
@@ -228,6 +270,68 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("operator-acceptance.json", text)
         self.assertIn("does not make `--verify` pass", text)
         self.assertIn("frozen `resume-apps.txt`", text)
+
+    def test_normal_reboot_can_auto_recover_exact_app_ghosts(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        self.assertIn("NABLA_REBOOT_AUTO_RECOVER_GHOSTS", text)
+        self.assertIn("NABLA_APP_GHOST_RECOVERY_HELPER", text)
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("bounded App-scoped Docker ghost recovery", text)
+
+    def test_recovery_reboot_transaction_is_fail_closed(self) -> None:
+        text = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        for mode in (
+            "--prepare",
+            "--continue",
+            "--status",
+            "--reboot",
+            "--post-reboot-check",
+            "--resume-safe",
+            "--resume-reviewed",
+        ):
+            self.assertIn(mode, text)
+        self.assertIn("READY_TO_REBOOT", text)
+        self.assertIn("resume-safe.txt", text)
+        self.assertIn("resume-review.txt", text)
+        self.assertIn("resume-approved.txt", text)
+        self.assertIn("docker_zero_gate", text)
+        self.assertIn("all_apps_stopped", text)
+        self.assertIn("shutdown --wait", text)
+        self.assertIn("172.17.0.51 172.17.0.52 172.17.0.50", text)
+        self.assertNotIn("docker kill", text)
+        self.assertNotIn("systemctl restart docker", text)
+        self.assertNotIn("systemctl restart containerd", text)
+        self.assertNotIn("shutdown --force", text)
+
+    def test_bundle_contains_recovery_transaction_helpers(self) -> None:
+        text = (ROOT / "scripts/truenas/materialize-reboot-bundle.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("recovery-reboot-homelab.sh", text)
+        self.assertIn("READY_TO_REBOOT", text)
+
+    def test_app_scoped_ghost_recovery_fails_closed(self) -> None:
+        text = GHOST_RECOVERY.read_text(encoding="utf-8")
+        self.assertIn("--recover-app", text)
+        self.assertIn("NABLA_GHOST_RECOVERY_ALLOW_ACTIVE", text)
+        self.assertIn("refuse active App recovery", text)
+        self.assertIn("app.stop", text)
+        self.assertIn("diagnose-docker-orphan-shims.sh", text)
+        self.assertIn("zero/multiple shims", text)
+        self.assertIn("label=com.docker.compose.project=ix-", text)
+        self.assertNotIn("systemctl restart docker", text)
+        self.assertNotIn("systemctl restart containerd", text)
+        self.assertNotIn("pkill", text)
+        self.assertNotIn("killall", text)
+
+    def test_runbook_documents_fast_post_reboot_ghost_recovery(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("Fast post-reboot ghost recovery procedure", text)
+        self.assertIn("apps-before-cleanup.json", text)
+        self.assertIn("resume-candidates.txt", text)
+        self.assertIn("recover-app-after-docker-ghost.sh", text)
+        self.assertIn("stop_order", text)
 
     def test_orphan_shim_recovery_is_narrow(self) -> None:
         text = ORPHAN_SHIMS.read_text(encoding="utf-8")

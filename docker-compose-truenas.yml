@@ -18,11 +18,43 @@ services:
   doco-cd:
     image: ghcr.io/kimdre/doco-cd:0.85.1
     container_name: doco-cd
+    x-nabla:
+      id: doco-cd
+      name: Doco-CD
+      kind: deployment-automation
+      category: operations
+      presentationRole: support
+      criticality: medium
+      description: Git-driven Compose deployment automation for the TrueNAS Docker runtime.
+      runtime:
+        provider: truenas-app
+        containerService: doco-cd
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 9120
+      relations:
+        - target: docker-socket-proxy
+          type: consumesApi
+          strength: required
+          description: Doco-CD performs Docker discovery and deployments through the restricted proxy.
+          evidence:
+            - docker-compose-truenas.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/doco-cd
     restart: unless-stopped
     # user: "568:568" # TrueNAS apps user
     ports:
-      - "30080:80" # Webhook endpoint
-      - "9120:9120" # Prometheus metrics
+      - name: webhook
+        target: 80
+        published: "30080"
+        protocol: tcp
+        app_protocol: http
+      - name: metrics
+        target: 9120
+        published: "9120"
+        protocol: tcp
+        app_protocol: http
     # For all available environment variables and explanations, see https://doco.cd/latest/App-Settings/
 
     # secrets: ["1pw_token"]
@@ -56,6 +88,8 @@ services:
 
     cap_drop:
       - ALL
+    security_opt:
+      - no-new-privileges:true
 
     healthcheck:
       test: [CMD, /doco-cd, healthcheck]

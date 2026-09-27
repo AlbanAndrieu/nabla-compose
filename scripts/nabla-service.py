@@ -16,7 +16,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from nabla_ops import InitializationStage, declared_apps, load_catalog  # noqa: E402
+from nabla_ops import (  # noqa: E402
+    DEFAULT_STATE_ROOT,
+    InitializationStage,
+    declared_apps,
+    load_catalog,
+    read_initialization_state,
+)
 
 CATALOG = ROOT / "catalog" / "services.json"
 
@@ -31,6 +37,11 @@ def parse_args() -> argparse.Namespace:
 
     stages = sub.add_parser("stages", help="show initialization state machine")
     stages.add_argument("--json", action="store_true")
+
+    state = sub.add_parser("state", help="show persisted initialization state")
+    state.add_argument("--app", required=True)
+    state.add_argument("--state-root", type=Path, default=DEFAULT_STATE_ROOT)
+    state.add_argument("--json", action="store_true")
     return parser.parse_args()
 
 
@@ -61,12 +72,39 @@ def command_stages(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_state(args: argparse.Namespace) -> int:
+    service_id = str(args.app).strip()
+    record = read_initialization_state(service_id, root=args.state_root)
+    if record is None:
+        payload = {
+            "version": 1,
+            "serviceId": service_id,
+            "stage": InitializationStage.DECLARED.value,
+            "transitionCount": 0,
+            "persisted": False,
+        }
+    else:
+        payload = {**record, "persisted": True}
+
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        persisted = "yes" if payload["persisted"] else "no"
+        print(
+            f"{payload['serviceId']}: stage={payload['stage']} "
+            f"transitions={payload['transitionCount']} persisted={persisted}"
+        )
+    return 0
+
+
 def main() -> int:
     args = parse_args()
     if args.command == "catalog":
         return command_catalog(args)
     if args.command == "stages":
         return command_stages(args)
+    if args.command == "state":
+        return command_state(args)
     raise AssertionError(args.command)
 
 
