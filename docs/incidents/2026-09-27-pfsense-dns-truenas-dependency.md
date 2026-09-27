@@ -174,7 +174,9 @@ pfSense-pkg-zabbix-agent7-1.1_1
 zabbix7-agent-7.0.27
 ```
 
-mais aucun daemon Zabbix ne tournait et aucun listener n'était présent.
+mais aucun daemon Zabbix ne tournait et aucun listener n'était présent. Le fichier
+runtime `/usr/local/etc/zabbix7/zabbix_agentd.conf` avait également disparu
+alors que le package fournissait encore `zabbix_agentd.conf.sample`.
 
 Réinstaller `pfSense-pkg-zabbix-agent7` depuis l'UI :
 
@@ -186,19 +188,46 @@ System
         -> Reinstall
 ```
 
-Validation :
+La réinstallation pfSense régénère la configuration et le wrapper de service
+`/usr/local/etc/rc.d/zabbix_agentd.sh`. Ne pas recréer manuellement
+`zabbix_agentd.conf` depuis le fichier sample tant que le package pfSense peut
+le régénérer.
+
+Configuration temporaire validée pendant la remise en état :
+
+```text
+Server=172.17.0.24
+ServerActive=172.17.0.24
+Hostname=pfsense
+ListenIP=172.17.0.1
+ListenPort=10050
+```
+
+Le serveur Zabbix Docker sur TrueNAS reste volontairement arrêté pour le moment.
+Les erreurs d'active checks vers `172.17.0.24:10051` sont donc attendues et ne
+signifient pas que l'agent pfSense est down.
+
+Validation finale observée le 2026-09-27 :
+
+```text
+zabbix_agentd is running as pid 17682.
+TCP 172.17.0.1:10050 LISTEN
+collector + 3 listeners + active checks workers démarrés
+```
+
+Commandes de validation :
 
 ```sh
-pgrep -laf zabbix
 service zabbix_agentd status
+pgrep -laf zabbix
 sockstat -4 -6 -l | grep 10050
+grep -E '^(Server|ServerActive|Hostname|ListenIP|ListenPort)=' \
+  /usr/local/etc/zabbix7/zabbix_agentd.conf
+tail -50 /var/log/zabbix-agent/zabbix_agentd.log
 ```
 
-Puis depuis le serveur/segment de supervision :
-
-```sh
-nc -vz <PFSENSE_IP> 10050
-```
+Puis, quand le serveur Zabbix Docker sera redémarré sur TrueNAS, valider
+`172.17.0.24:10051` et la reprise des active checks.
 
 ### Checklist de sortie post-upgrade
 
