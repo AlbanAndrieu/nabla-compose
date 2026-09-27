@@ -232,6 +232,22 @@ Ainsi, `.24` sert de **stable service ingress address** pour
 
 ### Évolution documentée de l'architecture
 
+#### 1er août 2026 — `.24` déjà utilisé comme cible DNS/ingress stable
+
+Le commit `9a37a6554aa0d8ec48a4d89ac30de37fd4cb0674`
+(`fix: refactoring traefik labels`) montre que `pihole-dns-sync` utilisait déjà :
+
+```text
+PIHOLE_URL=http://172.17.0.24:20720
+TARGET_IP=172.17.0.24
+DOMAIN_SUFFIX=int.albandrieu.com
+```
+
+Cette preuve est antérieure à la migration Pi-hole vers son Compose actuel.
+Elle confirme que `.24` était historiquement la cible stable publiée pour les
+services privés derrière Traefik.
+
+
 L'historique Git montre l'évolution suivante.
 
 #### 6 septembre 2026 — publication privée centrée sur Pi-hole
@@ -474,6 +490,7 @@ confondus avec la RCA DNS.
 - `apps/pihole/README.md`
 - `docs/truenas-talos-bootstrap.md`
 - `scripts/talos/generate-config.sh`
+- commit `9a37a6554aa0d8ec48a4d89ac30de37fd4cb0674`
 - commit `059d658e770fffd269353961ad144124a4c59f9c`
 - commit `45bc9c719582327b089f780a0233946c9816d6d8`
 - commit `292246d11c24de7278b119d271a584a9f180ba5f`
