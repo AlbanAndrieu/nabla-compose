@@ -14,6 +14,7 @@ TALOS_VERSION="${TALOS_VERSION:-$(<"${VERSION_FILE}")}"
 INSTALL_DISK="${TALOS_INSTALL_DISK:-/dev/vda}"
 OUTPUT_DIR="${TALOS_OUTPUT_DIR:-${ROOT}/.talos/generated}"
 OVERWRITE="${TALOS_OVERWRITE:-false}"
+NETWORK_PATCH_FILE="${TALOS_NETWORK_PATCH_FILE:-${ROOT}/config/talos/network-patch.yaml}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -22,6 +23,7 @@ fail() {
 
 command -v talosctl >/dev/null 2>&1 || fail "talosctl is required"
 
+[[ -r "${NETWORK_PATCH_FILE}" ]] || fail "Talos network patch missing: ${NETWORK_PATCH_FILE}"
 [[ -n "${ENDPOINT}" ]] || fail "TALOS_CONTROL_PLANE_ENDPOINT is required (for example https://10.0.0.10:6443)"
 [[ "${ENDPOINT}" =~ ^https://[^[:space:]]+:6443$ ]] || fail "TALOS_CONTROL_PLANE_ENDPOINT must use https:// and port 6443"
 [[ "${CLUSTER_NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || fail "TALOS_CLUSTER_NAME contains unsupported characters"
@@ -83,6 +85,7 @@ GEN_ARGS=(
   --output "${OUTPUT_DIR}"
   --with-docs=false
   --with-examples=false
+  --config-patch "@${NETWORK_PATCH_FILE}"
 )
 
 if [[ "${OVERWRITE}" == "true" ]]; then
@@ -105,6 +108,7 @@ Cluster:       ${CLUSTER_NAME}
 Endpoint:      ${ENDPOINT}
 Talos version: ${TALOS_VERSION}
 Install disk:  ${INSTALL_DISK}
+DNS patch:     ${NETWORK_PATCH_FILE}
 Output:        ${OUTPUT_DIR}
 
 No node was contacted and no configuration was applied.
