@@ -29,6 +29,7 @@ IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
 K8S_IDENTITY_GATE="${NABLA_K8S_IDENTITY_GATE:-${SCRIPT_DIR}/verify-talos-kubernetes-identity.sh}"
+TALOS_DNS_GATE="${NABLA_TALOS_DNS_GATE:-${SCRIPT_DIR}/../talos/verify-host-dns.sh}"
 
 usage() {
   cat <<'EOF'
@@ -88,7 +89,7 @@ for value in POST_BOOT_DOCKER_WAIT VM_WAIT TALOS_API_WAIT K8S_WAIT POLL_SECONDS;
   current="${!value}"
   [[ "${current}" =~ ^[1-9][0-9]*$ ]] || fail "${value} must be a positive integer"
 done
-for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}" "${K8S_IDENTITY_GATE}"; do
+for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}" "${K8S_IDENTITY_GATE}" "${TALOS_DNS_GATE}"; do
   [[ -f "${path}" ]] || fail "required recovery helper not found: ${path}"
 done
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing under ${REPO_ROOT}"
