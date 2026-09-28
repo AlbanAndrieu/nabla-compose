@@ -38,6 +38,11 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] Apply a seven-day cooldown to ordinary releases with strict internal age
   checks and timestamp-optional fallback. Security updates bypass
   `minimumReleaseAge` and must remain immediate.
+- [x] Harden vulnerability remediation: preserve the standard `dependencies` / `renovate`
+  labels and add `security`, cap vulnerability-fix PRs at two concurrent PRs,
+  and keep security automerge disabled. This security budget is independent of
+  the two-PR budget for routine updates, so the maximum intended open Renovate
+  set is two routine PRs plus two vulnerability-remediation PRs.
 - [ ] Install the hosted Mend Renovate GitHub App for `nabla-compose` and
   `fastapi-sample` with selected-repository access. Do not remove the current
   GitHub Actions Renovate workflow until the hosted service proves it consumes
