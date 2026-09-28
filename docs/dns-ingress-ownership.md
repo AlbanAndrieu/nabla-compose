@@ -133,6 +133,8 @@ hostname and an explicit Cloudflare Tunnel/Access or direct-ingress contract.
 
 ### DNS resilience
 
+Incident de référence : [`pfsense-dns-incident-20260927.md`](pfsense-dns-incident-20260927.md) documente le cycle de dépendance Talos → Pi-hole/TrueNAS révélé lors du reboot du 27 septembre 2026, ainsi que le retour au resolver LAN pfSense/Unbound `172.17.0.1`.
+
 General LAN DNS availability must not depend on every query traversing Pi-hole.
 pfSense/Unbound resolves public DNS independently and delegates only
 `int.albandrieu.com` to Pi-hole. If Pi-hole or TrueNAS is unavailable, private

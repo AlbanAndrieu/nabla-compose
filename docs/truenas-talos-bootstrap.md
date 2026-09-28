@@ -641,6 +641,42 @@ A CDROM device is created for each VM only when `TALOS_ISO_PATH` is non-empty.
 
 The next phase can replace this manual ISO workflow with a reproducible Talos Image Factory configuration if democratic-csi extensions such as `iscsi-tools` are required.
 
+### DNS bootstrap dependency guard — 2026-09-27
+
+> Incident de référence : [pfSense/Talos DNS — 2026-09-27](pfsense-dns-incident-20260927.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
+
+
+A post-reboot LAN incident proved that pfSense Kea was distributing TrueNAS
+(`172.17.0.24`) as the general LAN DNS server while no resolver was listening
+on TrueNAS port 53. This created a fragile dependency chain for clients and is
+also unsafe for Talos/Kubernetes bootstrap.
+
+Required steady-state contract:
+
+```text
+Talos nodes / Kubernetes
+        |
+        v
+pfSense / Unbound 172.17.0.1
+        |
+        +--> Internet DNS
+        +--> optional conditional delegation to TrueNAS private zones
+```
+
+Before bootstrap or after a TrueNAS reboot:
+
+- generate future machine configs with `scripts/talos/generate-config.sh`; it pins `machine.network.nameservers` to `172.17.0.1` by default through `TALOS_NAMESERVER`;
+- prove `dig @172.17.0.1 example.com` succeeds independently of TrueNAS Apps;
+- do not make Talos machine bootstrap, kubelet startup or CoreDNS depend on a
+  resolver hosted by TrueNAS Apps;
+- test TrueNAS-hosted private-zone DNS separately as an optional dependency;
+- if private zones are delegated to TrueNAS, failure of that delegated resolver
+  must not remove general Internet DNS for the nodes.
+
+See
+[`docs/incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
+
+
 ## 8. Transitional secrets: Vaultwarden + Doco-CD
 
 The existing 1Password integration is not currently considered a functional bootstrap dependency. Do not make the Talos project depend on finishing that migration first.

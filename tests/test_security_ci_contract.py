@@ -71,6 +71,9 @@ class SecurityCiContractTest(unittest.TestCase):
 
         self.assertIn("Check TrueNAS API exposure from the public runner", workflow)
         self.assertIn('"${TRUENAS_PUBLIC_API_URL}/api/versions"', workflow)
+        self.assertIn("docker run --rm --network=host", workflow)
+        self.assertIn("ghcr.io/zaproxy/zaproxy:stable", workflow)
+        self.assertIn("filtered for ZAP", workflow)
         self.assertIn('echo "scan=false"', workflow)
         self.assertIn("401|403)", workflow)
         self.assertIn("if: steps.truenas-api.outputs.scan == 'true'", workflow)
@@ -106,6 +109,7 @@ class SecurityCiContractTest(unittest.TestCase):
             "/readyz",
             "/api/homelab/status",
             "/api/homelab/health",
+            "/notes",
             "/notes/{note_id}",
             "/notes/{note_id}/edit",
         ):
@@ -132,10 +136,14 @@ class SecurityCiContractTest(unittest.TestCase):
         self.assertIn(
             "cf0633b12f6cc894fe9cc2a897a20fc883bd70aa", workflow
         )
+        self.assertIn(
+            "ad4382639f0e7400871e078317b3ef2314802207", workflow
+        )
         self.assertIn('PR_NUMBER: ${{ github.event.pull_request.number }}', workflow)
         self.assertIn('"${PR_NUMBER}" == "162"', workflow)
         self.assertIn('"${PR_NUMBER}" == "192"', workflow)
         self.assertIn('"${PR_NUMBER}" == "207"', workflow)
+        self.assertIn('"${PR_NUMBER}" == "227"', workflow)
         self.assertIn("/notes/{note_id}/", workflow)
         self.assertIn("/notes/{note_id}/edit", workflow)
         self.assertIn("latest master dast", workflow.lower())
