@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-28.
+Last updated: 2026-09-29.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -52,6 +52,9 @@ Accepted baseline:
 - Repository-owned storage/config/runtime-secret separation is accepted.
 - Security-tooling declarations and the catalog-v2 target architecture are
   versioned; runtime/tool acceptance remains separate.
+- DNS recovery guard is versioned: Talos generation pins pfSense/Unbound
+  `172.17.0.1` by default and the pfSense posture audit rejects TrueNAS/Pi-hole
+  `172.17.0.24` as the general LAN DHCP resolver.
 
 Active platform debt:
 
@@ -75,6 +78,10 @@ Active platform debt:
 - [ ] Resolve Vaultwarden exposure/TLS policy with verified HTTPS, least
   exposure and stricter `/admin` protection.
 - [ ] Keep the TrueNAS LXC GitHub Actions runner planned/dormant until needed.
+- [ ] DNS recovery acceptance: during the next controlled maintenance cycle,
+  stop Pi-hole, rerun the pfSense posture audit and Talos `ResolverStatus` /
+  `DNSUpstream` checks, then prove public registry resolution still works before
+  closing the 2026-09-27 incident follow-up.
 
 ## P0 — controlled TrueNAS reboot accepted
 
