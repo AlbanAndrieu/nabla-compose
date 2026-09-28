@@ -87,8 +87,13 @@ heavier DAST scan:
   OpenAPI surface, the public TrueNAS API transport when the runner is permitted,
   and the `sample.albandrieu.com` web entry point;
 - the FastAPI OpenAPI scan runs in ZAP safe mode (`-S`) against a generated
-  read-only specification; the TrueNAS checks use passive
-  zero-spider-budget baselines; active/mutating attack scanning is excluded;
+  read-only specification; state-dependent note views, including the note list
+  while it can return an application `500`, are excluded from this deterministic
+  baseline rather than downgrading ZAP disclosure rules;
+- the TrueNAS checks use passive zero-spider-budget baselines and first prove
+  reachability from the actual ZAP container network context; source-aware
+  filtering/timeouts skip that external scan instead of being reported as an
+  application vulnerability; active/mutating attack scanning is excluded;
 - PRs do not rerun ZAP. Instead `DAST master baseline gate` requires the latest
   completed `master` DAST to be successful and no older than 36 hours;
 - the PR introducing the workflow has a one-time bootstrap exception because
@@ -169,7 +174,9 @@ The master-only DAST now has three bounded layers:
 
 The FastAPI filter keeps only `GET`/`HEAD`/`OPTIONS` operations and
 explicitly removes pfSense/Snort/pfBlocker plus aggregate health routes that can
-fan out into the pfSense API.
+fan out into the pfSense API. It also excludes state-dependent note routes
+(`/notes/`, `/notes/{note_id}/` and `/notes/{note_id}/edit`) from the
+deterministic DAST input until those views have stable seeded-state fixtures.
 
 The FastAPI OpenAPI API scan runs with ZAP `-S` safe mode, so it skips active
 scanning and cannot exercise mutating OpenAPI operations. The filtered spec is
