@@ -1,37 +1,66 @@
 # Documentation map
 
-This directory is intentionally split by document purpose. Keep one canonical
-owner for each kind of information and link to it instead of copying procedures
-between files.
+The active documentation is organized by **purpose**, with one canonical owner
+for each kind of information. Prefer links over duplicated procedures.
 
-## Canonical documents
+## Start here
 
-| Purpose | Canonical document | Keep here |
-| --- | --- | --- |
-| Current priorities/status | [`roadmap.md`](./roadmap.md) | concise state, ordering, open work |
-| Controlled TrueNAS reboot procedure | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) | operator steps, gates, rollback |
-| 2026-09-11 reboot evidence | [`truenas-reboot-incident-20260911.md`](./truenas-reboot-incident-20260911.md) | historical facts and lessons only |
-| 2026-09-11 Sentry Taskbroker/project-config incident — **resolved 2026-09-12** | [`sentry-taskbroker-project-config-incident-20260911.md`](./sentry-taskbroker-project-config-incident-20260911.md) | Kafka membership/backlog evidence, Relay project-config starvation, false-green health signals, root-cause boundary, guardrails and final end-to-end acceptance |
-| Functional observability/exporter strategy | [`observability-exporters.md`](./observability-exporters.md) | Sentry/Taskbroker StatsD, Kafka group lag, Suricata EVE stats and Wazuh metric strategy |
-| CSI orphan diagnosis | [`truenas-csi-orphan-datasets.md`](./truenas-csi-orphan-datasets.md) | correlation and cleanup acceptance |
-| Kubernetes CSI setup/preflight | [`kubernetes-csi-preflight.md`](./kubernetes-csi-preflight.md) | installation and validation contract |
-| Platform migration design | [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md) | long-form target architecture/migration |
-| TrueNAS operator tooling | [`truenas-operator-tools.md`](./truenas-operator-tools.md) | installed tools and invocation patterns |
+| Need | Canonical document |
+| --- | --- |
+| Current priorities / next actions | [`roadmap.md`](./roadmap.md) |
+| Documentation ownership / navigation | this file |
+| Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |
+| Platform migration architecture | [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md) |
+| Security tooling architecture | [`security-tooling-control-architecture.md`](./security-tooling-control-architecture.md) |
+| Service catalog / graph architecture | [`service-catalog-security-graph.md`](./service-catalog-security-graph.md) |
+
+## Incidents and historical evidence
+
+All date-specific incidents belong under [`incidents/`](./incidents/).
+
+- [2026-09-11 · TrueNAS controlled reboot](./incidents/2026-09-11-truenas-reboot.md)
+- [2026-09-11 · Sentry Taskbroker / project-config](./incidents/2026-09-11-sentry-taskbroker-project-config.md)
+- [2026-09-11 · post-reboot runtime recovery notes](./incidents/2026-09-11-runtime-service-recovery.md)
+
+Incident documents retain evidence needed for diagnosis: symptoms, commands,
+observations, root cause, recovery boundary and acceptance. They are not the
+place for current priorities.
+
+## Current runbooks and diagnostics
+
+Keep supported operator procedures in focused runbooks, for example:
+
+- [TrueNAS reboot](./homelab-reboot-runbook.md)
+- [pfSense diagnosis/recovery](./pfsense-diagnose-recover.md)
+- [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
+- [TrueNAS application lifecycle](./truenas-app-lifecycle.md)
+- [TrueNAS runtime layout](./truenas-runtime-layout.md)
+- [Runtime baseline tests](./runtime-baseline-tests.md)
+- [OpenWebUI backup / PRA](./openwebui-backup-pra.md)
+
+A runbook describes the **current supported operation**. Historical command
+output belongs in an incident document instead.
+
+## Architecture and detailed workstreams
+
+Long-form design belongs in specialized documents rather than in the main
+roadmap. The main active families are:
+
+- platform/runtime migration: [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md);
+- secrets: [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md);
+- security inventory/SBOM/findings: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
+- service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
+- pfSense WAN exposure: [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md).
 
 ## Debt-control rules
 
-1. `roadmap.md` is an index, not a runbook: record status and link to detailed
-   procedures/evidence.
-2. Runbooks describe the **current** supported operation; incident documents
-   preserve what happened historically.
-3. Design/migration documents explain target architecture and trade-offs; they
-   must not become a second copy of live operator commands.
-4. Prefer links over copied command blocks. If the same procedure appears in
-   two documents, choose one canonical owner and replace the other copy with a
-   link.
-5. Date-specific evidence belongs in incident documents, not evergreen runbooks.
-6. Keep generated/reference material separate from hand-maintained operational
-   guidance.
-
-These rules let historical evidence stay detailed while keeping the active
-operator surface small and reviewable.
+1. `roadmap.md` is an index, not a runbook: keep status, ordering and next actions.
+2. Completed roadmap work is compacted into accepted milestones; detailed proof
+   remains in tests, commits, runbooks or incident documents.
+3. Runbooks own supported procedures; incident documents own historical evidence.
+4. Architecture documents own target state and trade-offs.
+5. Prefer links over copied command blocks.
+6. Keep a diagnostic only when it helps answer at least one of: **what failed,
+   how to prove it, how to recover, how to validate recovery**.
+7. Remove superseded planning documents once their still-relevant actions are
+   represented in the canonical roadmap/design document.
