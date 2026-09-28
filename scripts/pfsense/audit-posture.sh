@@ -243,8 +243,45 @@ if command -v drill >/dev/null 2>&1; then
   else
     emit FAIL unbound.public_dns_resolution failed "localhost Unbound could not resolve a public hostname"
   fi
+
+  lan_dns_answer="$(drill @172.17.0.1 example.com A 2>/dev/null | awk '$4 == "A" {print $5; exit}')"
+  if [ -n "$lan_dns_answer" ]; then
+    emit PASS unbound.lan_dns_resolution "$lan_dns_answer" "pfSense LAN resolver 172.17.0.1 resolved example.com"
+  else
+    emit FAIL unbound.lan_dns_resolution failed "pfSense LAN resolver 172.17.0.1 could not resolve a public hostname"
+  fi
 else
   emit WARN unbound.public_dns_resolution unavailable "drill is unavailable; process/control checks ran but functional public DNS was not proven"
+  emit WARN unbound.lan_dns_resolution unavailable "drill is unavailable; LAN resolver 172.17.0.1 was not functionally proven"
+fi
+
+if lan_dns_servers="$(php -r '
+$xml = @simplexml_load_file("/conf/config.xml");
+if ($xml === false) {
+    exit(2);
+}
+if (!isset($xml->dhcpd->lan)) {
+    exit(0);
+}
+foreach ($xml->dhcpd->lan->dnsserver as $server) {
+    $value = trim((string) $server);
+    if ($value !== "") {
+        echo $value, PHP_EOL;
+    }
+}
+' 2>/dev/null)"; then
+  lan_dns_value="$(printf '%s\n' "$lan_dns_servers" | awk 'NF {if (out != "") out = out ","; out = out $0} END {print out}')"
+  if printf '%s\n' "$lan_dns_servers" | grep -Fxq '172.17.0.24'; then
+    emit FAIL dhcp.lan_dns "\${lan_dns_value:-172.17.0.24}" "LAN DHCP must not advertise TrueNAS/Pi-hole as the general resolver"
+  elif [ -z "$lan_dns_value" ]; then
+    emit PASS dhcp.lan_dns automatic "LAN DHCP DNS is automatic; with Unbound enabled pfSense advertises itself"
+  elif printf '%s\n' "$lan_dns_servers" | grep -Fxq '172.17.0.1'; then
+    emit PASS dhcp.lan_dns "$lan_dns_value" "LAN DHCP includes the recovery-safe pfSense/Unbound resolver"
+  else
+    emit WARN dhcp.lan_dns "$lan_dns_value" "LAN DHCP uses explicit DNS servers but does not include 172.17.0.1; review the recovery contract"
+  fi
+else
+  emit WARN dhcp.lan_dns unavailable "could not parse /conf/config.xml to verify the LAN DHCP DNS contract"
 fi
 
 unbound_rss_kb="$(ps axo rss,command 2>/dev/null | awk '/\/usr\/local\/sbin\/unbound -c \/var\/unbound\/unbound.conf/ {print $1; exit}')"
