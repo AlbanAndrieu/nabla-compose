@@ -68,10 +68,9 @@ Application DAST belongs to `fastapi-sample`, where findings can be correlated
 with the application code, routes and releases that expose the HTTP surface.
 Do not add a second FastAPI ZAP baseline here.
 
-The historical `.zap/` rules and `scripts/security/prepare-zap-openapi.py`
-remain dormant reference material for now; they are not invoked by the active
-`nabla-compose` workflow. They can be removed later once the
-`fastapi-sample` DAST ownership is fully accepted.
+The former `.zap/` rules, OpenAPI preparation helper and their dedicated tests
+have been removed from `nabla-compose` to avoid maintaining a second dormant
+DAST implementation. Historical behavior remains recoverable from Git history.
 
 ## Diagnostic order
 
