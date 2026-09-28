@@ -294,6 +294,14 @@ repos:
         files: >-
           ^(scripts/pfsense/audit-posture[.]sh|[.]agents/skills/pfsense-api-debugging/SKILL[.]md|docs/pfsense-flow-observability-memory[.]md)$
 
+      - id: dns-recovery-contract
+        name: "🌐 DNS · Validate pfSense/Talos recovery contract"
+        language: system
+        entry: python -m unittest tests.test_dns_recovery_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:pfsense/audit-posture|talos/generate-config)[.]sh|docs/(?:talos-local-machine-config|truenas-talos-bootstrap|dns-ingress-ownership)[.]md|docs/incidents/2026-09-27-pfsense-dns-truenas-dependency[.]md|tests/test_dns_recovery_contract[.]py)$
+
       - id: pfsense-recovery-contract
         name: "🛡️ pfSense · Validate diagnosis/recovery ownership contract"
         language: system
