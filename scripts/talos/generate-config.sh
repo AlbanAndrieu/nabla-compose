@@ -14,6 +14,7 @@ TALOS_VERSION="${TALOS_VERSION:-$(<"${VERSION_FILE}")}"
 INSTALL_DISK="${TALOS_INSTALL_DISK:-/dev/vda}"
 OUTPUT_DIR="${TALOS_OUTPUT_DIR:-${ROOT}/.talos/generated}"
 OVERWRITE="${TALOS_OVERWRITE:-false}"
+NAMESERVER="${TALOS_NAMESERVER:-172.17.0.1}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -28,6 +29,7 @@ command -v talosctl >/dev/null 2>&1 || fail "talosctl is required"
 [[ "${TALOS_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "TALOS_VERSION must be a full release such as v1.13.9"
 [[ "${INSTALL_DISK}" == /dev/* ]] || fail "TALOS_INSTALL_DISK must be an absolute /dev path"
 [[ "${OVERWRITE}" == "true" || "${OVERWRITE}" == "false" ]] || fail "TALOS_OVERWRITE must be true or false"
+[[ -n "${NAMESERVER}" && "${NAMESERVER}" != *[[:space:]]* ]] || fail "TALOS_NAMESERVER must be one IP address without whitespace"
 
 if [[ "${OUTPUT_DIR}" != /* ]]; then
   OUTPUT_DIR="${ROOT}/${OUTPUT_DIR}"
@@ -73,6 +75,14 @@ else
   printf '🔐 Reusing existing cluster secrets: %s\n' "${SECRETS_FILE}"
 fi
 
+NETWORK_PATCH="$(cat <<EOF
+machine:
+  network:
+    nameservers:
+      - ${NAMESERVER}
+EOF
+)"
+
 GEN_ARGS=(
   gen config
   "${CLUSTER_NAME}"
@@ -80,6 +90,7 @@ GEN_ARGS=(
   --with-secrets "${SECRETS_FILE}"
   --talos-version "${TALOS_VERSION}"
   --install-disk "${INSTALL_DISK}"
+  --config-patch "${NETWORK_PATCH}"
   --output "${OUTPUT_DIR}"
   --with-docs=false
   --with-examples=false
@@ -105,6 +116,7 @@ Cluster:       ${CLUSTER_NAME}
 Endpoint:      ${ENDPOINT}
 Talos version: ${TALOS_VERSION}
 Install disk:  ${INSTALL_DISK}
+Nameserver:    ${NAMESERVER}
 Output:        ${OUTPUT_DIR}
 
 No node was contacted and no configuration was applied.
