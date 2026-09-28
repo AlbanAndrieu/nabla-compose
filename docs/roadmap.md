@@ -136,7 +136,7 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 - [ ] Make `smoke-truenas-csi-nfs.sh` directly verify bounded TrueNAS NFS share and ZFS dataset disappearance after Kubernetes reclaim.
 - [ ] Treat TrueNAS API success as insufficient unless the resource postcondition is also satisfied, especially for NAS-143316.
 - [ ] Keep read-only validation separate from write/admin CSI credentials where possible.
-- [ ] Harden smoke Pods toward Restricted PSS: `allowPrivilegeEscalation=false`, drop `ALL`, `runAsNonRoot=true`, seccomp `RuntimeDefault`.
+- [x] Harden smoke Pods toward Restricted PSS: non-root UID/GID + `fsGroup`, `allowPrivilegeEscalation=false`, read-only rootfs, drop `ALL` and seccomp `RuntimeDefault`; the privileged CSI driver namespace policy remains scoped separately.
 - [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is stable.
 - [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27.
 
