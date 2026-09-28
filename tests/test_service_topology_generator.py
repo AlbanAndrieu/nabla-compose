@@ -17,6 +17,12 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_tracked_compose_paths_include_root_suffix_variants(self) -> None:
+        tracked = {path.as_posix() for path in MODULE.tracked_compose_paths()}
+        self.assertIn("docker-compose-truenas.yml", tracked)
+        self.assertIn("docker-compose.prod.yml", tracked)
+        self.assertIn("compose.ai.yml", tracked)
+
     def test_hosted_by_is_a_supported_relation_type(self) -> None:
         relation = MODULE.topology_relation(
             {
