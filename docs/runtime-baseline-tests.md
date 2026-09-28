@@ -185,3 +185,7 @@ read-only TrueNAS observer acceptance checks rather than by an active ZAP scan.
 The **pfSense API on TCP/10443 is deliberately excluded from ZAP, OpenAPI DAST
 and performance/load tests** because that appliance API is sensitive to request
 fan-out. pfSense stays covered by low-frequency posture/observer checks only.
+
+## ZAP ownership
+
+OWASP ZAP/DAST is disabled in `nabla-compose` for now and delegated to `fastapi-sample`.
