@@ -209,291 +209,39 @@ Remaining work:
 
 ### P2.1 — security inventory, supply-chain and attack-graph tooling
 
-The v2 normalization decision supersedes the earlier plan to keep the complete
-catalog schema inside `x-nabla`.
+Canonical detail lives in
+[`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md),
+[`security-tooling-control-architecture.md`](./security-tooling-control-architecture.md)
+and
+[`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md).
+The main roadmap keeps only phase gates:
 
-Target contract:
+- [ ] **P2.1.a — preparation:** freeze/parity-check legacy catalog input, keep
+  schemas/provenance deterministic and reject duplicate ownership.
+- [ ] **P2.1.b — pilot:** prove Backstage + Compose authority on representative
+  services and show desired intent survives provider outages.
+- [ ] **P2.1.c — bulk migration:** generate/review service descriptors, complete
+  BIA/PRA requirements for business-relevant services and couple touched secret
+  migrations with the same service bundle.
+- [ ] **P2.1.d — consumers:** prepare FastAPI/site/operational consumers against
+  the v2 read model before destructive cutover.
+- [ ] **P2.1.e — one-shot cutover:** switch consumers together; do not maintain a
+  long-lived v1/v2 compatibility architecture.
+- [ ] **P2.1.f — cleanup/acceptance:** remove legacy contracts only after reboot,
+  health, topology and consumer acceptance.
+- [ ] **P2.1.g — later enrichment:** keep provider-native IaC cleanup,
+  Cartography/Neo4j enrichment and OSCAL outside the critical cutover path.
 
-- native Backstage descriptors own entity identity, owner/system/lifecycle and
-  standard relations;
-- Compose owns runtime facts;
-- Backstage qualified labels own operational intent; minimal `x-nabla` is reserved for exceptional `after/before/wants`, rare relation enrichment, structured risk acceptances, and temporary desired exposure/security intent when a provider is not yet Git/IaC-managed;
-- OpenTelemetry semantics align runtime service identity and operational criticality;
-- Backstage BIA annotations + a calculated `albandrieu.com/business-criticality` label own business criticality separately from operational criticality;
-- CycloneDX/Trivy owns service/package supply-chain projection;
-- Cartography/Neo4j owns observed graph correlation, not lifecycle authority.
+Security-tooling acceptance within this workstream:
 
-Detailed cutover: `docs/service-catalog-v2-normalization.md`.
-
-#### P2.1.a — prepare the migration without changing runtime behavior
-
-- [ ] Freeze the legacy v1 contract as migration input: inventory every service,
-  entity ID, dependency, public/LAN hostname, desired visibility,
-  `cloudflareAccessRequired`, accepted security exception, runtime binding,
-  lifecycle wave and consumer.
-- [x] Generate a machine-readable **v1 -> v2 parity report** with a verified
-  `byEntityRef` index for materialized Backstage identities; unresolved legacy
-  identities remain explicit debt and are never silently joined by display name.
-- [ ] Define/validate the v2 schemas and conventions:
-  Backstage descriptors, entity-ref labels, named Compose ports,
-  temporary Gateway-like `x-nabla.exposure`, exceptional
-  `boot.after/before/wants`, risk acceptances, Kubernetes-style conditions,
-  and the BIA/business-criticality policy (`DMTP/MTPD`, RTO, RPO, OMCA/MBCO,
-  impact dimensions and provisional/validated assessment status).
-- [ ] Add anti-duplication validation: detect and report compatibility debt
-  during preparation while v1 must coexist; the strict cutover gate rejects a
-  fact/relation declared in more than one authority (for example Backstage
-  `dependsOn` plus x-nabla alias, or Traefik hostname plus duplicate x-nabla
-  exposure).
-- [x] Add `catalog/business-criticality-policy.yaml` plus local validation that
-  derives `low | medium | high | critical` from the strictest BIA driver; the
-  numeric/time thresholds are explicit Nabla policy, not claimed as ISO/NIST
-  thresholds.
-- [x] Keep the current reboot wave planner and both legacy exposure JSON files
-  operational during preparation; no runtime behavior changes in this phase.
-
-**Gate P2.1.a:** the parity inventory is complete and the migration tooling can
-explain where every legacy field will move without deleting anything.
-
-#### P2.1.b — prove the model on representative services
-
-- [x] Migrate a bounded pilot set covering the main patterns:
-  `neo4j` (stateful Resource), `cartography` (manual job + dependency),
-  `postgresql` (shared data Resource), `sample` (internal + Cloudflare
-  desired exposure), and `traefik` (Git-native route provider).
-- [x] Add/review `catalog-info.yaml`, Compose project names, entity-ref labels
-  and named long-syntax ports for the pilot. The local contract validates
-  Backstage graph refs, identity collisions, named backend ports and temporary
-  desired-exposure security intent.
-- [x] Add provisional BIA profiles to the representative Backstage pilot and
-  keep business criticality distinct from `operational-criticality` / OTel
-  `service.criticality`; validate `RTO < DMTP`, ISO-8601 duration syntax and
-  declared-vs-calculated tier consistency locally.
-- [ ] Demonstrate that provider outages preserve desired intent:
-  Cloudflare/Docker/TrueNAS unavailable => hostname/visibility/Access intent
-  remains present while observed conditions become `Unknown`.
-- [ ] Prove the first dependency-DAG/readiness plan against the pilot without
-  removing the legacy wave planner.
-
-**Gate P2.1.b:** pilot v2 projection and v1 behavior are semantically equivalent
-for identity, dependencies, exposure intent and reboot safety.
-
-#### P2.1.c — bulk migrate nabla-compose
-
-- [ ] Generate/review all `apps/**/catalog-info.yaml`.
-- [x] Add deterministic Backstage materialization-debt inventory for generated
-  services. Initial post-#215 baseline: 118 generated services, 5 materialized,
-  113 remaining (104 active, 7 planned, 2 disabled). Prioritize the active
-  `critical/high` subset before medium/low/unclassified debt; absence of
-  legacy `status` means `active` by the v1 contract. The first bulk waves now
-  materialize the core security/data services plus Garage; `pfSense`,
-  `TrueNAS` and `Docker` are intentionally represented as root static
-  Backstage Resources instead of creating misleading app-local descriptors from
-  their legacy `sourcePath` aliases. The active `medium` wave now includes
-  Nexus, AutoXpose, Portracker, Pyroscope, Code Server and AIStor with Backstage
-  identities and runtime correlation labels; newly touched Compose services use
-  stable project names and named LAN-bound ports where applicable. AutoXpose
-  also declares its cross-project dependency on
-  `component:default/docker-socket-proxy`. The current #218 follow-up adds
-  InfluxDB + Scrutiny, Plumber/API/worker, Dockhand, Dozzle, LanguageTool,
-  Joplin, Docling, Homarr/reconciler, Home Assistant, legacy Nginx Proxy
-  Manager, OpenHands and Squid as reviewed dependency groups. Active
-  `critical/high/medium` materialization debt is now **zero**. This PR resolves
-  the remaining Doco-CD authority debt: workstation `docker-compose.yml` no
-  longer authors its catalog metadata, TrueNAS `docker-compose-truenas.yml`
-  owns `x-nabla` + runtime entity-ref, generated catalog/topology evidence now
-  points to that TrueNAS source, and `component:default/doco-cd` captures the
-  required Docker Socket Proxy dependency. The guided
-  OpenWebUI BIA/materialization in #218 reduced the remaining active debt to
-  45 lower-priority services: 40 unclassified and 5 low. This PR now
-  materializes the complete low-criticality wave — Draw.io, Hello Nginx,
-  OpenClaw Sandbox, OpenSSF Scorecard and WordPress — with stable Compose
-  project names, runtime entity-ref labels, provisional low BIA profiles and
-  named HTTP ports where applicable. WordPress additionally removes invalid
-  cross-project Compose `depends_on: postgres`: its init container owns the
-  bounded readiness loop on the external `intranet` network while Backstage
-  owns the required dependency on `resource:default/postgresql`. Remaining
-  active Backstage materialization debt is therefore **36 services**, all
-  currently **unclassified**, with zero low/medium/high/critical services. This
-  count is derived by matching generated active service IDs to actual Backstage
-  `metadata.name` values, not merely by checking whether an app directory
-  contains some descriptor. Recompute it before each wave with
-  `python scripts/audit-service-catalog-v2-parity.py --check --debt-json`;
-  do not maintain the count independently. Because all remaining entries are
-  unclassified, the next waves are classification-first: inspect one coherent
-  runtime group, establish evidence for criticality/BIA, and only then
-  materialize reviewed entities. Nginx Proxy
-  Manager remains operationally active but is explicitly modeled with Backstage
-  `lifecycle: deprecated` while the NPMplus migration proceeds.
-- [ ] Complete a BIA pass for every business-relevant Component/Resource:
-  replace provisional values with reviewed DMTP/MTPD (DIMA/DMIA business
-  concept), RTO, applicable RPO, OMCA/MBCO and impact dimensions; keep
-  `bia-status=provisional` until an owner has reviewed the assumptions.
-- [ ] Validate the provisional OpenWebUI BIA: reviewed targets are
-  MTPD/DMTP=`P7D`, RTO=`P1D`, RPO=`P1D` (objective, not yet proven), with
-  a **3-day recovery escalation threshold**. The MBCO requires the OpenWebUI UI
-  on the LAN plus LiteLLM, OpenRAG and a working OpenAI-compatible GPU inference
-  capability; Cloudflare Tunnel is not continuity-critical. Conversations and
-  OpenRAG-derived content are highly sensitive, prompt/history loss within the
-  RPO is acceptable, and configuration recovery is mandatory.
-  - [ ] **Backup implementation:** resolve the real OpenWebUI/OpenRAG datasets,
-    schedule OpenWebUI snapshots <=12h, add encrypted/off-pool backup or
-    replication <=24h, include OpenRAG documents/config/keys/data and either
-    migrate or explicitly back up the OpenWebUI Pipelines named volume.
-  - [ ] **Backup monitoring:** alert when the newest local recovery point or
-    independent successful backup exceeds 24h; retain evidence without secret
-    values or sensitive prompt/document content.
-  - [ ] **PRA drill:** restore to an isolated path/environment, then prove LAN UI
-    login, configuration, one LiteLLM chat request, one OpenRAG retrieval and one
-    GPU-backed OpenAI-compatible inference request. Cloudflare validation is a
-    separate non-blocking step after LAN acceptance.
-  - [ ] **Recovery objectives:** record achieved RTO/RPO; target restoration is
-    <=1 day, escalate recovery/rebuild/alternate-GPU actions at 3 days, and keep
-    the 7-day DMTP as the absolute tolerable-disruption boundary.
-  - [ ] **BIA acceptance:** only change `bia-status` from `provisional` after
-    backup freshness and a non-destructive restore drill are evidenced and
-    owner-reviewed.
-  Run `sudo bash scripts/truenas/diagnose-openwebui-backup-pra.sh --check`
-  before implementation to inventory the real dataset, latest snapshot,
-  independent replication/cloud backup, recent successful backup age,
-  encryption evidence, OpenRAG recovery paths and Pipelines volume debt. Until
-  that check is green, RPO=`P1D` remains an objective rather than an achieved
-  control. Detailed procedure: `docs/openwebui-backup-pra.md`.
-- [x] Materialize LiteLLM and OpenRAG as Backstage entities and model
-  OpenWebUI's required continuity dependencies with canonical `spec.dependsOn`.
-  A logical `resource:default/gpu-openai-compatible-inference` now represents
-  the required GPU capability without binding continuity to the intermittent
-  workstation; keep the current legacy relation only as a temporary v1
-  compatibility projection until the one-shot topology cutover.
-- [x] Enforce explicit BIA ownership for every materialized Backstage
-  `Component` / `Resource`: `operational-state` is mandatory; active
-  entities must choose `bia-scope=direct|inherited`; direct entities require a
-  complete BIA (and stateful direct types require RPO), while inherited
-  entities must not duplicate their own business-criticality/BIA and must be
-  justified either by `spec.subcomponentOf` or by at least one incoming
-  Backstage `dependsOn`. Unknown operational-state values fail closed instead
-  of bypassing BIA coverage. Planned/disabled entities may remain incomplete
-  until activated.
-- [x] Propagate dependency criticality as a separate derived read-model signal:
-  `effectiveDependencyCriticality` walks required Backstage `dependsOn`
-  edges transitively, preserves `ownBusinessCriticality`, reports
-  `inheritedFrom`, and fails closed on duplicate/unresolved graph identity.
-  It never rewrites the Resource's own BIA.
-- [ ] For every `high` / `critical` business entity, link the BIA to a concrete
-  PCA/PRA/DRP recovery test plan and evidence: restore/bascule scenario, expected
-  RTO/RPO, minimum continuity objective and last successful exercise. A valid
-  catalog calculation is not continuity acceptance by itself.
-- [ ] Normalize Compose project/service identity, named ports, healthchecks and
-  native `depends_on`; remove redundant `container_name` only where safe.
-- [ ] Remove direct privileged Docker socket access where practical. Dockhand,
-  Dozzle and OpenHands currently depend on `resource:default/docker` because
-  their management/actions/shell or sandbox features require broader access than
-  the existing read-only `docker-socket-proxy`; evaluate separately scoped
-  proxies or disable privileged features before changing runtime behavior.
-- [ ] Migrate every legacy desired hostname/visibility/Access requirement to
-  Traefik/Gateway/provider IaC or temporary `x-nabla.exposure`.
-- [ ] Migrate every accepted exposure/security exception to structured
-  `riskAcceptances`.
-- [ ] Remove duplicated catalog/runtime/relation fields from `x-nabla`.
-- [ ] Replace phase/priority/wave authoring with dependency DAG + readiness;
-  keep only exceptional systemd-style ordering metadata.
-- [ ] Generate Backstage/CycloneDX projections and the parity report; do not
-  generate a new canonical flat exposure catalog.
-
-**Gate P2.1.c:** 100% desired-intent parity, zero unresolved entity refs, zero
-duplicate authorities, zero Backstage materialization debt, zero active-entity
-BIA-scope/coverage errors, stateful direct-RPO coverage, and no legacy fact
-without an explicit v2 disposition. Own BIA and effective dependency criticality
-must remain separately explainable.
-
-#### P2.1.d — prepare consumers before destructive cutover
-
-- [ ] Prepare FastAPI to consume Backstage desired state plus provider/runtime
-  observations separately and expose Kubernetes-style conditions.
-- [ ] Expose both `operationalCriticality` and BIA-derived
-  `businessCriticality` (plus DMTP/RTO/RPO/recovery margin and assessment
-  status) in FastAPI without collapsing them into one severity.
-- [ ] Prepare Site Alban to consume entity refs and the new resource-oriented
-  FastAPI views; keep icons/layout presentation-only.
-- [ ] Keep any FastAPI/Site cold-start snapshot generated/cache-only and prove
-  that provider unavailability does not erase desired exposure intent.
-- [ ] Run local-first quality gates in all three repositories; do not depend on
-  GitHub Actions credits for deterministic formatting/lint/test feedback.
-
-**Gate P2.1.d:** all three PRs are ready together; legacy readers are no longer
-required for normal execution.
-
-#### P2.1.e — coordinated one-shot cutover
-
-- [ ] Merge/deploy the prepared `nabla-compose` v2 contract.
-- [ ] Immediately deploy the prepared FastAPI consumer.
-- [ ] Immediately deploy the prepared Site Alban consumer.
-- [ ] Run cross-repository smoke for entity refs, desired-vs-observed exposure,
-  health/status conditions, topology rendering and reboot planning.
-- [ ] Verify representative internal route, Cloudflare Tunnel + Access route,
-  direct pfSense/HAProxy route and Kubernetes route if present.
-
-**Gate P2.1.e:** all consumers operate exclusively on v2 semantics and the
-desired exposure intent remains visible with providers both healthy and
-unavailable.
-
-#### P2.1.f — remove legacy contracts and prove reboot acceptance
-
-- [ ] Delete `homelab-services.json`,
-  `homelab-exposure-overrides.json`, legacy generated
-  `services.json/service-topology.json` and obsolete compatibility code only
-  after the parity/smoke gates are green.
-- [ ] Replace the legacy resume-wave implementation with dependency-DAG +
-  readiness reconciliation.
-- [ ] Run one controlled TrueNAS reboot and require equivalent-or-better
-  acceptance before deleting the old planner.
-- [ ] Keep rollback evidence/artifacts until post-cutover acceptance is complete.
-
-**Gate P2.1.f:** no runtime or UI path depends on the legacy flat schemas or wave
-metadata.
-
-#### P2.1.g — later provider-native IaC cleanup
-
-- [ ] Move Cloudflare Tunnel/Access desired state from temporary
-  `x-nabla.exposure` into OpenTofu/Terraform when that control plane is
-  introduced.
-- [ ] Move pfSense/HAProxy desired routes into a reviewed declarative/API-managed
-  source when safe automation exists.
-- [ ] Use native Gateway API for Kubernetes-hosted routes.
-- [ ] Delete each temporary `x-nabla.exposure` entry as soon as the provider has
-  a real Git/IaC desired-state source; FastAPI continues to expose provider
-  observation as status.
-
-**Gate P2.1.g:** `x-nabla.exposure` remains only for providers that genuinely
-lack a native/declarative desired-state source.
-
-- [ ] **Backstage-native authoring:** bulk-generate/review `apps/**/catalog-info.yaml` from the current v1 catalog, then make those descriptors canonical in the same breaking cutover.
-- [ ] **Compose normalization:** add top-level project names, one reverse-DNS entity-ref label per managed service, derive image/network/port/profile/health/dependency facts from Compose, and remove redundant `x-nabla` copies.
-- [ ] **x-nabla v2 reduction:** reserve Backstage `spec.lifecycle` for `experimental | production | deprecated`; delete boot phase/priority/target/wave metadata, derive required ordering from Backstage `spec.dependsOn` + Compose `depends_on` + readiness, and retain only exceptional systemd-inspired `after/before/wants` plus non-duplicative relation/risk metadata.
-- [ ] **Static infrastructure normalization:** replace `service-topology.static.json` + legacy service-file references with Backstage static entities; preserve desired exposure/security intent in Git until each provider has native IaC, and derive only observed endpoint/route/runtime status from providers.
-- [ ] **One-shot generated contracts:** emit Backstage entity/relationship projections and CycloneDX 1.7 with one `catalogRevision`; do not generate a replacement flat exposure catalog.
-- [ ] **FastAPI one-shot cutover:** delete `homelab-services.json` and `homelab-exposure-overrides.json` only after desired-intent parity is proven; consume Backstage + provider-native/temporary Git route intent as spec-like desired state and Compose/TrueNAS/Kubernetes/Traefik/Cloudflare/pfSense observations as status-like evidence, normalize conditions, and key all joins by full entity ref.
-- [ ] **Site Alban one-shot cutover:** replace its old service/topology DTOs and bundled flat fallback, use full entity refs as React Flow IDs, consume FastAPI resource-oriented runtime/network views, and keep icons/layout presentation-only.
-- [ ] **Cross-repository gate:** prepare all three PRs before cutover and require revision parity, no unresolved refs, no display-name joins, no unstructured exposure exceptions, and a parity report proving every current public hostname / visibility / Access requirement / accepted exposure exception has a v2 declared home before deleting the legacy JSON.
-- [ ] **Security evidence flow:** prove one representative `Trivy -> CycloneDX -> Dependency-Track` path, one scanner/Trivy import into DefectDojo and one bounded Neo4j/Cartography rule joining service identity to exposure/vulnerability evidence.
-- [ ] Normalize NIST CSF 2.0 classifications to `Govern | Identify | Protect | Detect | Respond | Recover` and project service criticality to the OpenTelemetry `service.criticality` vocabulary.
-
-Runtime preparation contract for this wave:
-
-1. `scripts/truenas/prepare-security-tooling-secrets.sh --apply <app|all>` renders the exact Vaultwarden item into `/mnt/cpool/secrets/runtime/<service>/.env.secrets` as `root:root 0600`.
-2. `--verify-vaultwarden` proves byte-for-byte parity between the unlocked Vaultwarden item and the runtime materialization without printing values.
-3. `scripts/truenas/bootstrap-security-tooling-postgres.sh --apply <app>` idempotently creates/rotates dedicated shared-PostgreSQL roles and databases for Plumber, NetBox, Dependency-Track and DefectDojo, then proves authentication.
-4. `scripts/truenas/deploy-security-tooling.sh --apply <app|all>` validates Compose/catalog contracts, storage, database prerequisites, reconciles the TrueNAS Custom App, waits for middleware `RUNNING`, validates container stability and probes the service HTTP endpoint.
-5. Cartography and Scorecard remain `profile: manual` jobs: validate their Compose/secrets but do not register them as always-on TrueNAS Apps or reboot obligations.
-6. Until catalog v2 is implemented, keep the current topology-derived resume waves as the accepted runtime contract. During v2 cutover, replace them with dependency-DAG + readiness reconciliation and prove equivalent reboot acceptance before removing the legacy wave planner.
-
-
-- [ ] **NetBox** — Compose/catalog and runtime bootstrap are prepared; deploy and accept [netbox-community/netbox](https://github.com/netbox-community/netbox) for network/infrastructure source-of-truth use cases: IPAM, VLANs, prefixes, devices/VMs, interfaces and infrastructure ownership. Backstage owns service/catalog identity; NetBox owns network/infrastructure intent; reconciliation uses stable entity/infrastructure IDs.
-- [ ] **OWASP DefectDojo** — Compose/catalog and runtime bootstrap are prepared; deploy [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) as the normalized vulnerability/finding aggregation layer. Ingest selected SAST, SCA, secrets, IaC, container, DAST and infrastructure scanner outputs through import/reimport/API; validate deduplication and preserve scanner evidence instead of treating DefectDojo as an asset source of truth.
-- [ ] **OWASP Dependency-Track** — Compose/catalog and runtime bootstrap are prepared; deploy [Dependency-Track](https://github.com/DependencyTrack/dependency-track) for CycloneDX SBOM/component inventory, software-supply-chain risk and vulnerability tracking. Start with one representative service, generate/import an SBOM, then reconcile component/project identity with the canonical Nabla service ID. Reference implementation guide: [Stéphane Robert — Dependency-Track](https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/).
-- [ ] **OpenSSF Scorecard** — manual-job Compose and Vaultwarden contract are prepared; integrate [OpenSSF Scorecard](https://github.com/ossf/scorecard) for repository and upstream dependency security-health checks. Keep Scorecard findings as supply-chain posture evidence, not as an overall service-risk score; export relevant results into the vulnerability/security reporting path.
-- [ ] **Cartography + Neo4j attack graph PoC** — Neo4j persistent-App bootstrap and Cartography manual-job secret contract are prepared; evaluate [cartography-cncf/cartography](https://github.com/cartography-cncf/cartography) backed by [Neo4j](https://neo4j.com/) only after the normalized Backstage/Compose identity model is stable. Ingest GitHub, Kubernetes, cloud/identity/security sources, correlate through explicit entity refs/image digests/infrastructure IDs, and prove bounded Cypher queries for attack paths, internet exposure, privilege relationships and blast-radius analysis. Do not make Neo4j a second CMDB or use inferred graph edges to alter lifecycle ordering automatically.
-- [ ] Define the final interoperability contract: Backstage = catalog identity/standard relations; Compose = desired runtime; minimal `x-nabla` = Nabla-only operational/security policy; NetBox = network/infrastructure intent; Dependency-Track = components/SBOM; DefectDojo = normalized security findings; Scorecard = repository/upstream posture; Cartography/Neo4j = relationship/attack-path analysis. Reconciliation must use stable entity refs/digests/infrastructure IDs and preserve provenance/evidence.
+- [ ] Dependency-Check produces reproducible SCA evidence and DefectDojo remains
+  the authoritative findings/remediation store.
+- [ ] Evaluate ArcherySec and Faraday as bounded complementary PoCs; record
+  explicit keep/complement/drop decisions and avoid competing finding databases.
+- [ ] Complete NetBox/Dependency-Track/DefectDojo/Neo4j runtime acceptance before
+  treating declarations as deployed services.
+- [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
+  [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
@@ -685,24 +433,3 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> OpenWebUI backup/PRA acceptance (LAN UI + LiteLLM + OpenRAG + GPU, RTO P1D/RPO P1D, 3-day escalation, DMTP P7D)
   -> Docling / OpenRAG-LiteLLM with reviewed GPU placement/fallback
 ```
-
-
-## Catalog v2 — remaining cutover
-
-Accepted: the target authority split is defined and representative Backstage /
-Compose pilots exist. This section contains only the remaining cross-repository
-cutover work; detailed design stays in
-[`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md)
-and [`service-catalog-security-graph.md`](./service-catalog-security-graph.md).
-
-- [ ] Generate/version `catalog/generated/entities.json` plus provenance/read
-  models required by consumers.
-- [ ] Put the generator behind the local quality gate in `--check` mode after
-  generated output is deterministic.
-- [ ] Add the minimal Nabla-only `operations.json` projection.
-- [ ] Add the Cartography `nabla` import and correlate stable entity refs.
-- [ ] Enrich the graph from Kubernetes, GitHub, Cloudflare and Trivy only after
-  canonical identities are stable.
-- [ ] Introduce OSCAL after the graph/control mapping stabilizes.
-- [ ] Migrate FastAPI to the new read model, perform the coordinated one-shot
-  cutover, then remove legacy compatibility contracts.
