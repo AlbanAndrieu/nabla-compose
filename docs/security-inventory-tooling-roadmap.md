@@ -8,9 +8,27 @@ The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilit
 
 - **NetBox** — network/infrastructure intent: IPAM, prefixes, VLANs, devices/VMs, interfaces and infrastructure ownership.
 - **OWASP Dependency-Track** — CycloneDX SBOM/component inventory and software-supply-chain vulnerability/risk tracking. Reference: <https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/>.
-- **OWASP DefectDojo** — normalized security findings, deduplication, triage and remediation workflow across SAST/SCA/secrets/IaC/container/DAST/infrastructure scanners.
+- **OWASP Dependency-Check** — local/CI Software Composition Analysis producer for known vulnerable third-party dependencies; export machine-readable results and feed the central findings workflow rather than creating a second source of truth.
+- **OWASP DefectDojo** — normalized security findings, deduplication, triage and remediation workflow across SAST/SCA/secrets/IaC/container/DAST/infrastructure scanners; default findings system of record while complementary PoCs are evaluated.
+- **ArcherySec** — evaluate as a bounded vulnerability-assessment/scanner-orchestration layer, especially where active scanning and CI/CD-triggered assessment add value beyond DefectDojo. Keep it non-authoritative during the PoC.
+- **Faraday Community** — evaluate as a collaborative pentest/vulnerability workspace for scanner imports, manual findings and reporting. Keep it non-authoritative during the PoC and avoid duplicating DefectDojo ownership of remediation state.
 - **OpenSSF Scorecard** — repository and upstream dependency security-posture evidence.
 - **Cartography + Neo4j** — relationship graph for attack-path, privilege-chain, internet-exposure and blast-radius analysis after stable asset identities and provenance exist.
+
+
+## Dependency-Check + ArcherySec + Faraday evaluation
+
+The objective is to complement DefectDojo, not to multiply authoritative vulnerability databases.
+
+1. [ ] Add **OWASP Dependency-Check** to the local/CI security path for supported application repositories, producing a machine-readable artifact suitable for retention and DefectDojo import. Keep the scan reproducible and cache vulnerability-data downloads where appropriate.
+2. [ ] Define one controlled import path into **DefectDojo** and prove idempotent re-import/deduplication on a representative dependency finding set.
+3. [ ] Prepare **ArcherySec** and **Faraday Community** as manual/evaluation profiles only. Before any TrueNAS Custom App registration, review image provenance, supported database/storage model, secrets, health endpoints, backup/rollback and network exposure.
+4. [ ] Exercise the same bounded finding corpus through DefectDojo, ArcherySec and Faraday: Dependency-Check/SCA, Trivy/container, ZAP/DAST and a small Nmap or pentest sample where supported.
+5. [ ] Compare only concrete capabilities: scanner orchestration, import coverage, deduplication, vulnerability lifecycle, manual/pentest workflow, API automation, RBAC, reporting, ticketing hooks, resource footprint and operational complexity.
+6. [ ] Record an explicit **keep / complement / drop** decision. DefectDojo remains the authoritative remediation/finding store unless another tool is assigned a narrowly separated responsibility (for example active scanner orchestration or collaborative pentest workspace).
+7. [ ] If ArcherySec or Faraday is retained, model it in Backstage/Compose with explicit relations to DefectDojo and scanners, mark its lifecycle criticality deliberately, and prevent bidirectional synchronization loops or duplicated remediation ownership.
+
+Acceptance requires a documented data-flow showing one authoritative owner for finding state and evidence that repeated imports do not create uncontrolled duplicates.
 
 ## Cartography + Neo4j
 
