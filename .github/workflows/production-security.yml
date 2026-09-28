@@ -5,6 +5,22 @@ on:
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ".github/workflows/production-security.yml"
+      - ".zap/**"
+      - "config/security/**"
+      - "scripts/security/**"
+      - "scripts/testing/runtime-baseline.py"
+      - "catalog/**"
+      - "apps/**/compose*.yml"
+      - "apps/**/compose*.yaml"
+      - "apps/**/docker-compose*.yml"
+      - "apps/**/docker-compose*.yaml"
+      - "compose*.yml"
+      - "compose*.yaml"
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - "kubernetes/**"
   push:
     branches: [master]
   schedule:
