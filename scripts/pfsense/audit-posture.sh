@@ -272,7 +272,7 @@ foreach ($xml->dhcpd->lan->dnsserver as $server) {
 ' 2>/dev/null)"; then
   lan_dns_value="$(printf '%s\n' "$lan_dns_servers" | awk 'NF {if (out != "") out = out ","; out = out $0} END {print out}')"
   if printf '%s\n' "$lan_dns_servers" | grep -Fxq '172.17.0.24'; then
-    emit FAIL dhcp.lan_dns "\${lan_dns_value:-172.17.0.24}" "LAN DHCP must not advertise TrueNAS/Pi-hole as the general resolver"
+    emit FAIL dhcp.lan_dns "${lan_dns_value:-172.17.0.24}" "LAN DHCP must not advertise TrueNAS/Pi-hole as the general resolver"
   elif [ -z "$lan_dns_value" ]; then
     emit PASS dhcp.lan_dns automatic "LAN DHCP DNS is automatic; with Unbound enabled pfSense advertises itself"
   elif printf '%s\n' "$lan_dns_servers" | grep -Fxq '172.17.0.1'; then
