@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-26.
+Last updated: 2026-09-28.
 
 This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
 
@@ -26,6 +26,35 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [OpenWebUI backup and disaster recovery](./openwebui-backup-pra.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
+## Dependency automation — Renovate / Mend
+
+- [x] Make Renovate the single producer of routine dependency-version PRs; remove
+  `.github/dependabot.yml` so Dependabot version updates no longer compete for
+  `package.json`, lockfiles, Docker declarations or GitHub Actions. Keep
+  Dependabot Alerts enabled for vulnerability detection.
+- [x] Limit Renovate to two concurrent branches/PRs, use grouped schedules,
+  monthly `devDependencies`, monthly GitHub Actions maintenance and
+  `rebaseWhen=auto` to reduce merge conflicts.
+- [x] Apply a seven-day cooldown to ordinary releases with strict internal age
+  checks and timestamp-optional fallback. Security updates bypass
+  `minimumReleaseAge` and must remain immediate.
+- [ ] Install the hosted Mend Renovate GitHub App for `nabla-compose` and
+  `fastapi-sample` with selected-repository access. Do not remove the current
+  GitHub Actions Renovate workflow until the hosted service proves it consumes
+  the repository configuration correctly.
+- [ ] Grant Renovate read access to Dependabot alerts, validate one
+  vulnerability-remediation path, then disable Dependabot Security Updates so
+  Renovate becomes the single PR producer while Dependabot Alerts stay enabled.
+- [ ] Remove the self-hosted Renovate GitHub Actions workflow after hosted-app
+  acceptance; dependency maintenance should no longer consume Actions credits.
+- [ ] Re-enable selective automerge only behind authoritative required checks:
+  runtime patch updates may automerge; grouped `devDependencies` patch/minor may
+  automerge after the seven-day cooldown. Runtime minor, major, Docker and GitHub
+  Actions updates remain manual by default.
+- [ ] Acceptance: no duplicate bot PRs, no Renovate Actions-runner consumption,
+  immediate security remediation, bounded PR concurrency and no automerge without
+  green required validation.
+
 ## Current platform state
 
 - [x] Talos `v1.13.9` / Kubernetes `v1.36.3`: control plane `172.17.0.50`, workers `172.17.0.51` / `172.17.0.52`, all Ready after reboot.
@@ -43,6 +72,7 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
 - [x] **Catalog/security-graph target architecture:** the refined v2 target uses native Backstage `catalog-info.yaml` descriptors for catalog identity/standard relations, Compose for runtime facts, a minimal `x-nabla` only for Nabla-specific operational/security policy, CycloneDX for supply-chain projection and Cartography/Neo4j for analytical graph correlation. The consumer cutover is intentionally one-shot rather than a long-lived v1/v2 compatibility migration. See `docs/service-catalog-security-graph.md` and `docs/service-catalog-v2-normalization.md`.
 - [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
+- [ ] **Complementary AppSec/vulnerability tooling:** add OWASP Dependency-Check as a CI/local SCA producer whose machine-readable findings can feed the existing vulnerability-management workflow. Run bounded, non-critical PoCs of ArcherySec and Faraday Community alongside DefectDojo to evaluate active scan orchestration, pentest collaboration, import/deduplication, API/RBAC, reporting and runtime cost. DefectDojo remains the default findings system of record unless the PoC establishes a clearly separated complementary responsibility; do not operate three competing authoritative vulnerability databases.
 - [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
 - [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
 - [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
@@ -672,6 +702,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
   -> Karmada multi-cluster foundation (always-on TrueNAS management plane -> nabla-talos -> intermittent workstation GPU -> future cloud GPU)

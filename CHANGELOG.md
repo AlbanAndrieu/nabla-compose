@@ -1,3 +1,17 @@
+# [0.43.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.42.0...0.43.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **health:** observer le runtime Talos via TrueNAS ([#225](https://github.com/AlbanAndrieu/nabla-compose/issues/225)) ([c6e8256](https://github.com/AlbanAndrieu/nabla-compose/commit/c6e825677783fe2fe3f9368b0a5f8366354e3951))
+
+
+### Features
+
+* **catalog:** complete priority Backstage materialization ([#218](https://github.com/AlbanAndrieu/nabla-compose/issues/218)) ([75ed3ea](https://github.com/AlbanAndrieu/nabla-compose/commit/75ed3ea9aea27181239b6250d4d82762bb142b76))
+* **migration:** coupler P0.3 secrets, Backstage et OpenCode ([#224](https://github.com/AlbanAndrieu/nabla-compose/issues/224)) ([cf17647](https://github.com/AlbanAndrieu/nabla-compose/commit/cf1764738c52bfd1da14e53553c0ecab67ade413))
+* **ops:** local-first control-plane and catalog follow-up [skip ci] ([#226](https://github.com/AlbanAndrieu/nabla-compose/issues/226)) ([983fe55](https://github.com/AlbanAndrieu/nabla-compose/commit/983fe55bebd7382efd01248ea7fa3c6782cfe535))
+
 # [0.42.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.41.0...0.42.0) (2026-09-23)
 
 
