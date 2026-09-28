@@ -665,6 +665,7 @@ pfSense / Unbound 172.17.0.1
 
 Before bootstrap or after a TrueNAS reboot:
 
+- generate future machine configs with `scripts/talos/generate-config.sh`; it pins `machine.network.nameservers` to `172.17.0.1` by default through `TALOS_NAMESERVER`;
 - prove `dig @172.17.0.1 example.com` succeeds independently of TrueNAS Apps;
 - do not make Talos machine bootstrap, kubelet startup or CoreDNS depend on a
   resolver hosted by TrueNAS Apps;
