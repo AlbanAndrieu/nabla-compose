@@ -2,132 +2,110 @@
 
 Last updated: 2026-09-28.
 
-This file is the concise operational index. Detailed design, incident evidence and rollback procedures stay in the specialized documents:
+This is the **concise execution index**. Detailed procedures, architecture and
+historical evidence live in their canonical documents; see
+[`docs/README.md`](./README.md).
 
-- [Homelab ordered reboot runbook](./homelab-reboot-runbook.md)
-- [TrueNAS reboot incident · 2026-09-11](./truenas-reboot-incident-20260911.md)
-- [Sentry Taskbroker / Relay project-config incident · 2026-09-11](./sentry-taskbroker-project-config-incident-20260911.md)
-- [Functional observability exporters](./observability-exporters.md)
-- [TrueNAS CSI orphan datasets](./truenas-csi-orphan-datasets.md)
-- [TrueNAS Docker IPAM roadmap](./truenas-docker-ipam-roadmap.md)
-- [TrueNAS application storage and runtime env layout](./truenas-runtime-layout.md)
-- [Homelab platform migration roadmap](./homelab-platform-migration-roadmap.md)
-- [Secrets migration roadmap](./secrets-migration-roadmap.md)
-- [Cyberbro provider onboarding](./cyberbro-provider-onboarding.md)
-- [pfSense WAN exposure roadmap](./pfsense-wan-exposure-roadmap.md)
-- [Kubernetes FastAPI Sample smoke](./kubernetes-fastapi-smoke.md)
-- [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
-- [Kubernetes platform tools · Vault, Falco and Kubara](./kubernetes-platform-tools.md)
-- [TrueNAS LXC GitHub Actions runner](./github-actions-runner-lxc.md)
-- [Runtime baseline tests](./runtime-baseline-tests.md)
-- [Security tooling runtime bootstrap](./security-tooling-runtime-bootstrap.md)
-- [Service catalog, security graph and SBOM architecture](./service-catalog-security-graph.md)
-- [Service catalog v2 normalization and one-shot cutover](./service-catalog-v2-normalization.md)
-- [OpenWebUI backup and disaster recovery](./openwebui-backup-pra.md)
-- [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
+Primary references:
+
+- current reboot procedure: [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md);
+- incident evidence: [`incidents/`](./incidents/);
+- platform migration: [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md);
+- secrets migration: [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md);
+- security tooling: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
+- service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md).
 
 ## Dependency automation — Renovate / Mend
 
-- [x] Make Renovate the single producer of routine dependency-version PRs; remove
-  `.github/dependabot.yml` so Dependabot version updates no longer compete for
-  `package.json`, lockfiles, Docker declarations or GitHub Actions. Keep
-  Dependabot Alerts enabled for vulnerability detection.
-- [x] Limit Renovate to two concurrent branches/PRs, use grouped schedules,
-  monthly `devDependencies`, monthly GitHub Actions maintenance and
-  `rebaseWhen=auto` to reduce merge conflicts.
-- [x] Apply a seven-day cooldown to ordinary releases with strict internal age
-  checks and timestamp-optional fallback. Security updates bypass
-  `minimumReleaseAge` and must remain immediate.
-- [x] Harden vulnerability remediation: preserve the standard `dependencies` / `renovate`
-  labels and add `security`, cap vulnerability-fix PRs at two concurrent PRs,
-  and keep security automerge disabled. This security budget is independent of
-  the two-PR budget for routine updates, so the maximum intended open Renovate
-  set is two routine PRs plus two vulnerability-remediation PRs.
+Accepted baseline: Renovate is the single routine dependency-PR producer,
+ordinary releases use a seven-day cooldown, routine concurrency is bounded to
+two branches/PRs, and vulnerability remediation keeps
+`dependencies + renovate + security` with a separate two-PR security budget
+and no automerge.
+
+Remaining work:
+
 - [ ] Install the hosted Mend Renovate GitHub App for `nabla-compose` and
-  `fastapi-sample` with selected-repository access. Do not remove the current
-  GitHub Actions Renovate workflow until the hosted service proves it consumes
-  the repository configuration correctly.
-- [ ] Grant Renovate read access to Dependabot alerts, validate one
-  vulnerability-remediation path, then disable Dependabot Security Updates so
-  Renovate becomes the single PR producer while Dependabot Alerts stay enabled.
+  `fastapi-sample`, keeping the Actions workflow until hosted execution is proven.
+- [ ] Grant Renovate read access to Dependabot alerts and validate one real
+  vulnerability-remediation path.
+- [ ] Disable Dependabot Security Updates only after Renovate is proven as the
+  single security-fix PR producer; keep Dependabot Alerts enabled.
 - [ ] Remove the self-hosted Renovate GitHub Actions workflow after hosted-app
-  acceptance; dependency maintenance should no longer consume Actions credits.
-- [ ] Re-enable selective automerge only behind authoritative required checks:
-  runtime patch updates may automerge; grouped `devDependencies` patch/minor may
-  automerge after the seven-day cooldown. Runtime minor, major, Docker and GitHub
-  Actions updates remain manual by default.
-- [ ] Acceptance: no duplicate bot PRs, no Renovate Actions-runner consumption,
-  immediate security remediation, bounded PR concurrency and no automerge without
-  green required validation.
+  acceptance so dependency maintenance stops consuming Actions credits.
+- [ ] Re-enable selective automerge only behind authoritative required checks;
+  runtime minor/major, Docker and GitHub Actions updates remain manual by default.
+- [ ] Acceptance: no duplicate bot PRs, immediate security remediation, bounded
+  concurrency and no automerge without green required validation.
 
 ## Current platform state
 
-- [x] Talos `v1.13.9` / Kubernetes `v1.36.3`: control plane `172.17.0.50`, workers `172.17.0.51` / `172.17.0.52`, all Ready after reboot.
-- [x] Talos VM policy: `autostart=true`, graceful shutdown timeout `180s`.
-- [x] TrueNAS Docker IPAM persisted after reboot: `10.200.0.0/16`, `/24` allocations, `br0=172.17.0.24/24`, protected `sample-observer=10.254.255.0/28` intact.
-- [x] TrueNAS controlled reboot completed; boot ID changed and `system.ready` / Docker / VM autostart / Kubernetes readiness postconditions passed.
-- [x] TrueNAS CSI controller publish path is green: `attachRequired=true`, csi-attacher, VolumeAttachment RBAC and NFS publishContext.
-- [x] Fresh post-reboot TrueNAS CSI RWX acceptance is green: dynamic PVC/PV, publishContext, cross-worker write/read, namespace cleanup and Kubernetes PV reclaim.
-- [x] Historical CSI dataset `cpool/k8s/csi/pvc-03741395-a00a-4eaf-a04e-da10e08ec530` was removed with supported middleware deletion after complete quiesce; no forced ZFS destroy.
-- [x] Pi-hole ghost runtime and guarded exact-shim recovery are documented and covered by `diagnose-docker-orphan-shims.sh`.
-- [x] Immutable reboot bundles are staged, syntax/checksum validated and atomically activated.
-- [x] PR #191 introduced a manifest-aware, idempotent reboot resume reconciler and started operator-script consolidation.
-- [x] Controlled reboot/resume accepted by operator. The frozen historical manifest still reports `nginx-proxy-manager=DEPLOYING`, `openarchiver=STOPPED` and `paperless-ngx=DEPLOYING`; these three are explicitly deferred service debt and are non-blocking for this reboot acceptance. Keep strict `--verify` semantics unchanged for forensic visibility.
-- [x] Langfuse post-reboot web/database + worker runtime is green; OpenRAG core is green.
-- [x] **Security inventory/tooling declarations:** PR #207 merged repository-managed Compose/catalog topology for Plumber, NetBox, Dependency-Track, DefectDojo, Neo4j, Cartography and OpenSSF Scorecard. Runtime acceptance remains separate from declaration acceptance.
-- [x] **Catalog/security-graph target architecture:** the refined v2 target uses native Backstage `catalog-info.yaml` descriptors for catalog identity/standard relations, Compose for runtime facts, a minimal `x-nabla` only for Nabla-specific operational/security policy, CycloneDX for supply-chain projection and Cartography/Neo4j for analytical graph correlation. The consumer cutover is intentionally one-shot rather than a long-lived v1/v2 compatibility migration. See `docs/service-catalog-security-graph.md` and `docs/service-catalog-v2-normalization.md`.
-- [ ] **Security tooling runtime acceptance:** PR #208 merged the Vaultwarden-backed runtime files, shared PostgreSQL bootstrap, TrueNAS Custom App reconciliation, container-stability and HTTP-readiness automation. Operator execution on TrueNAS is still required before Plumber, NetBox, Dependency-Track, DefectDojo and Neo4j are considered deployed; Cartography and Scorecard remain explicit manual jobs.
-- [ ] **Complementary AppSec/vulnerability tooling:** add OWASP Dependency-Check as a CI/local SCA producer whose machine-readable findings can feed the existing vulnerability-management workflow. Run bounded, non-critical PoCs of ArcherySec and Faraday Community alongside DefectDojo to evaluate active scan orchestration, pentest collaboration, import/deduplication, API/RBAC, reporting and runtime cost. DefectDojo remains the default findings system of record unless the PoC establishes a clearly separated complementary responsibility; do not operate three competing authoritative vulnerability databases.
-- [ ] **Docling / OpenRAG ingest:** repository-managed `apps/docling/compose.yml` is prepared; runtime deployment, one bounded conversion and OpenRAG ingest/retrieve acceptance remain to be completed.
-- [x] **Sentry ingestion incident resolved:** Taskbroker is stable (`running`, `restarts=0`, `exit=0`), effective StatsD defaults to resolvable `127.0.0.1:8126`, Taskworker reaches `taskbroker:50051`, Kafka group `taskworker` has an active member with lag `1`, SQLite is processing `sentry` activations, `diagnose-sentry.sh --check` reports `ok=8 failed=0 warnings=0`, and `smoke-sentry-event.sh` proves `edge -> Relay -> Kafka -> ingest -> Snuba -> ClickHouse` with the synthetic event queryable in ClickHouse. Keep functional dependency/Kafka/E2E checks as the acceptance contract; see the resolved incident post-mortem.
-- [ ] **FastAPI Sentry tracing acceptance:** project `2` error ingestion is proven with `/sentry-debug`: issue/group `3`, event `6c390ee8fdeb4e2b988cf316211200bd`, environment `homelab` and trace `9eab69ab62e7f50f3e3f9701ccdb95fe` are persisted in `errors_local`. The same trace currently has no row in `eap_spans_local` or `transactions_local`, so Sentry error correlation is green but FastAPI transaction/span ingestion is not yet accepted.
-- [x] **Exporter conflict preflight:** TrueNAS Netdata is active; the only configured Reporting Exporter is disabled Graphite to `172.17.0.57:2003`; host ports/listeners `8125`, `9125`, `9102`, `9308` are free and no Docker publisher conflicts were found. StatsD remains deferred; Kafka exporter remains a separate controlled Kafka App lifecycle change.
-- [ ] **Grafana native → Compose migration:** preserve and inspect `/mnt/cpool/grafana/data` before removing the native TrueNAS Grafana App, then recreate repository-owned Grafana on `:30037` using the same data directory. Mimir/Loki/Tempo/Alloy reconciliation is intentionally sequenced after Grafana data/dashboard/datasource acceptance.
-- [ ] **Prometheus target debt:** canonical database telemetry is PostgreSQL, Redis, ClickHouse, InfluxDB and OpenSearch; Sybase is intentionally excluded. Remaining DOWN targets must be diagnosed from runtime evidence. HAProxy `:9101` is the pfSense HAProxy exporter and must source pfSense statistics through `PFSENSE_HAPROXY_SCRAPE_URI`. Alloy/Mimir/Loki/Tempo are not blockers until the Grafana native → Compose migration is accepted.
-- [x] **Suricata engine/rules:** the `eth0` crash loop is fixed, Suricata captures on TrueNAS `br0`, `/var/lib/suricata/rules/suricata.rules` is populated, 52k+ rules are loaded and `eve.json` is actively produced.
-- [ ] **Suricata downstream consumption:** prove CrowdSec/Alloy/central observability consumes the current `eve.json` stream and keep rule refresh bounded/observable.
-- [ ] **pfSense NetFlow → Cloudflare Network Analytics:** flow data no longer appears in Cloudflare Flow Analytics. Re-establish exporter/collector path, prove packet/flow emission from pfSense and confirm fresh flows arrive in Cloudflare before closing.
-- [ ] **Uptime Kuma / AutoKuma:** the former native TrueNAS Uptime Kuma App has been removed and nothing listens on `172.17.0.24:31050`. AutoKuma remains stopped until a repository-owned Uptime Kuma Compose service exists.
-- [x] **TrueNAS storage/runtime architecture:** repository-owned data, tracked Compose/config and runtime secret materialization are now separate contracts; `cpool/secrets` is the planned `GENERIC` root-only security dataset and application-owned datasets use the `APPS` preset when local persistence is real.
-- [ ] **TrueNAS runtime env migration:** baseline inventory found 52 env materializations requiring migration work, 23 application datasets with Apps-preset drift and eight empty unowned direct-child dataset candidates. Stage canonical copies first; do not bulk-finalize env paths or recreate non-empty datasets.
-- [x] **Cyberbro secret contract:** Vaultwarden item `nabla/prod/cyberbro` exists in the personal `TrueNAS` folder and renders 27 optional mappings as a `0600` env file. Provider credentials are intentionally empty until account/API onboarding is completed; empty optional providers do not block the free-engine baseline.
-- [ ] **Vaultwarden exposure/TLS debt:** operator evidence on 2026-09-23 proves the native origin `http://127.0.0.1:30032/api/config` is healthy, while Bitwarden CLI 2026.9.0 refuses insecure HTTP API/identity endpoints even on loopback. Keep TLS verification strict. Decide the steady-state exposure model explicitly: prefer private VPN/WARP/private-DNS access when public password-manager access is unnecessary; otherwise keep protocol-required client endpoints such as `/api/config` reachable over verified HTTPS and reduce exposure at the hostname/network/WAF layer rather than path-blocking endpoints required by stock clients. Protect `/admin` more strictly, keep signups disabled, rate-limit abusive traffic, repair any Cloudflare Tunnel routing inconsistency/502, and eliminate the raw-IP certificate-name mismatch. Treat version/environment data from `/api/config` as avoidable reconnaissance metadata where a private-only model is feasible, not as secret material.
-- [ ] TrueNAS LXC GitHub Actions runner remains planned/dormant; prefer an unprivileged Ubuntu 24.04 LTS LXC plus remote builder for trusted workloads.
+Accepted baseline:
+
+- Talos `v1.13.9` / Kubernetes `v1.36.3` is 3/3 Ready after reboot;
+  TrueNAS VM autostart and the Docker/IPAM/observer-network baseline are proven.
+- TrueNAS CSI dynamic provisioning, NFS `publishContext`, cross-worker RWX and
+  reclaim are accepted; the historical orphan dataset was successfully removed
+  after complete quiesce.
+- Sentry end-to-end ingestion is accepted; Suricata captures on `br0` with a
+  populated rule set and active `eve.json`.
+- Repository-owned storage/config/runtime-secret separation is accepted.
+- Security-tooling declarations and the catalog-v2 target architecture are
+  versioned; runtime/tool acceptance remains separate.
+
+Active platform debt:
+
+- [ ] Security tooling runtime acceptance for Plumber, NetBox, Dependency-Track,
+  DefectDojo and Neo4j; keep Cartography/Scorecard as explicit manual jobs.
+- [ ] Add Dependency-Check as the SCA producer; evaluate ArcherySec and Faraday
+  as bounded complements while DefectDojo remains the findings system of record.
+- [ ] Deploy/accept Docling, run one bounded conversion, then prove OpenRAG
+  ingest/retrieve.
+- [ ] Finish FastAPI Sentry transaction/span acceptance; error ingestion alone
+  is not tracing acceptance.
+- [ ] Complete the Grafana native → Compose migration before Mimir / Loki /
+  Tempo / Alloy reconciliation.
+- [ ] Reconcile Prometheus DOWN targets. Canonical database telemetry is
+  PostgreSQL, Redis, ClickHouse, InfluxDB and OpenSearch; Sybase is excluded.
+- [ ] Prove downstream consumption of Suricata `eve.json`.
+- [ ] Restore pfSense NetFlow → Cloudflare Network Analytics end to end.
+- [ ] Restore repository-owned Uptime Kuma before enabling AutoKuma.
+- [ ] Continue staged TrueNAS runtime-env migration; do not bulk-finalize paths
+  or recreate non-empty datasets.
+- [ ] Resolve Vaultwarden exposure/TLS policy with verified HTTPS, least
+  exposure and stricter `/admin` protection.
+- [ ] Keep the TrueNAS LXC GitHub Actions runner planned/dormant until needed.
 
 ## P0 — controlled TrueNAS reboot accepted
 
-The 2026-09-11 transaction is operationally accepted. Strict historical-manifest verification remains intentionally capable of reporting deferred Apps that were RUNNING before the reboot but were explicitly accepted as non-blocking afterwards.
+Accepted milestone. The 2026-09-11 reboot transaction proved:
 
-1. [x] Preserve/restore the original persistent prepare manifest after the accidental second prepare.
-2. [x] Reach the prepare boundary: all TrueNAS Apps stopped, Docker empty, Talos workers then control plane stopped, VMs `STOPPED`, `phase=PREPARED`.
-3. [x] Remove the historical CSI orphan after quiesce and verify the dataset is absent.
-4. [x] Reboot TrueNAS through the supported TrueNAS path; boot ID changed.
-5. [x] Run `--post-reboot-check`: TrueNAS ready, Docker/IPAM/br0/observer network valid, Talos APIs reachable and Kubernetes 3/3 Ready.
-6. [x] Run one fresh post-reboot CSI regression: provisioning, publishContext, cross-worker RWX and reclaim are green.
-7. [x] Resume the saved original manifest sufficiently for platform acceptance. All critical services needed for the accepted baseline are RUNNING; `nginx-proxy-manager`, `openarchiver` and `paperless-ngx` are explicitly deferred and do not block this transaction.
-8. [x] Diagnose the Graylog failure: logs proved `UnknownHostException: mongo` followed by connection refusal; `apps/graylog/compose.yml` requires Mongo and OpenSearch Security before `/docker-entrypoint.sh`.
-9. [x] Validate the repaired #191 lifecycle planner: Docker Socket Proxy is isolated in bootstrap-runtime; foundation, primary-data, secondary-data, platform and application waves are ordered correctly; Talos/Kubernetes preflight is green.
-10. [x] Close the reboot transaction operationally and move the three deferred App failures into P3 service debt. Keep the frozen manifest and strict verifier as incident evidence.
+- immutable preparation with `materialize-reboot-bundle.sh`;
+- Apps quiesce, workers-before-control-plane shutdown and supported TrueNAS reboot;
+- Docker/IPAM/Talos/Kubernetes recovery plus fresh CSI RWX/reclaim validation;
+- the historical CSI orphan was successfully removed after complete quiesce;
+- manifest-aware resume with deferred non-blocking App debt preserved for
+  forensic visibility.
+
+Detailed evidence is retained in
+[`incidents/2026-09-11-truenas-reboot.md`](./incidents/2026-09-11-truenas-reboot.md)
+and the supported procedure remains
+[`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md).
 
 ## P0.1 — reboot lifecycle hardening
 
-- [x] Normalize TrueNAS `system.ready` representation.
-- [x] Persist `PREPARING` / `PREPARED`; support `--continue-prepare`; refuse a second same-boot transaction.
-- [x] Validate immutable manifest/bundle identity and checksums.
-- [x] Add targeted Docker/containerd orphan-shim diagnostics/recovery.
-- [x] Add `scripts/truenas/reconcile-reboot-resume.sh`: idempotent resume, separate middleware/job/readiness timeouts, per-App overrides, bounded runtime/log diagnostics and wave-level error aggregation.
-- [x] Make `reboot-homelab.sh --resume` delegate App lifecycle handling to the reconciler instead of maintaining a second start/wait loop.
-- [x] Re-derive ordering from the original `apps-before.json` while freezing the original selected App membership; preserve the forensic `resume-plan.json` unchanged.
-- [x] Infer TrueNAS App ownership from explicit `runtime.appId`, then `apps/<app>/...` source ownership, then unique normalized service identity.
-- [x] Add declarative lifecycle metadata and fixtures proving Docker Socket Proxy precedes foundation services, foundations precede data tiers, Mongo/OpenSearch precedes Graylog, PostgreSQL precedes n8n, and stop order is the exact reverse.
-- [x] Add an explicit operator-acceptance/deferred annotation for historical manifests: `--accept-deferred` writes one immutable `operator-acceptance.json`, only for Apps in frozen `resume-apps.txt`, fingerprints the frozen manifest and leaves strict `--verify` semantics unchanged.
-- [x] Add a fixture that simulates an interrupted prepare after earlier Apps were stopped: it proves a fresh runtime snapshot would shrink resume membership while `--continue-prepare` neither re-queries Apps nor regenerates frozen plans.
-- [x] Add a Docker ghost-shim fixture and shared fail-closed guard: recovery is eligible only for `Running=true`/`Restarting=true`, `Pid=0` and exactly one matching shim; live `Pid>0`, ambiguous shim counts and non-ghost states are refused.
-- [ ] Continue reducing the `no topology mapping` set; use explicit `runtime.appId` only where source ownership is ambiguous or differs from the TrueNAS App ID.
-- [x] Add a generic runtime health barrier for reboot resume: a wave now requires TrueNAS `RUNNING` plus stable containers before dependent waves advance. Running containers with no Docker healthcheck remain acceptable; explicit `healthy` is required when a healthcheck exists; successful one-shot initializers may remain `Exited(0)`.
-- [x] Separate lifecycle ordering from boot criticality with optional `x-nabla.lifecycle.blocksLaterWaves` (default `true`). Vaultwarden declares `false`: its recovery failure remains strict acceptance debt but cannot prevent unrelated PostgreSQL/Redis/application waves from resuming from persistent runtime materializations.
-- [ ] Move service-specific readiness policy into declarative lifecycle metadata so selected backends can additionally require HTTP/TCP/application-level probes rather than only generic container stability.
-- [ ] Keep current + previous known-good reboot bundles until another normal reboot cycle passes.
+Accepted: persistent PREPARING/PREPARED state, immutable manifest/bundle
+identity, guarded ghost-shim recovery, idempotent resume reconciliation,
+declarative lifecycle ordering and explicit deferred-App operator acceptance.
+
+Remaining work:
+
+- [ ] Continue reducing the `no topology mapping` set; use explicit
+  `runtime.appId` only where ownership is ambiguous.
+- [ ] Move service-specific HTTP/TCP/application readiness into declarative
+  lifecycle metadata instead of duplicating readiness logic in scripts.
+- [ ] Keep current + previous known-good reboot bundles until another normal
+  reboot cycle passes.
 
 ### TrueNAS lifecycle phase contract
 
@@ -157,64 +135,50 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 
 ## P0.3 — TrueNAS storage + runtime secret normalization
 
-This is now a gate before further broad service migration. `docs/truenas-runtime-layout.md` is the architecture source of truth.
+Accepted: canonical runtime secret paths, metadata-only secret inventory,
+value-blind source comparison, staged copies before finalize, application-dataset
+policy and first-wave migration tooling are implemented.
 
-1. [x] Separate tracked `apps/<service>` code/config, application-owned `/mnt/cpool/<service>` data and root-only `/mnt/cpool/secrets` runtime materializations.
-2. [x] Make storage discovery depend on active application bind mounts instead of arbitrary `/mnt/cpool/...` strings or Code Server workspace references.
-3. [x] Define missing application datasets as TrueNAS `APPS`; keep shared/security host datasets (`compose`, `logs`, `model`, `secrets`) `GENERIC`.
-4. [x] Add read-only reporting for empty datasets, Apps-preset property drift and empty unowned direct-child candidates; never auto-delete/recreate an existing dataset.
-5. [x] Add canonical runtime env discovery across explicit `env_file`, repository-local ignored `.env*` and legacy `/mnt/cpool/<service>/.env*` files.
-6. [x] Split migration into read-only preview, non-destructive canonical staging, per-service validation and explicit per-service finalization.
-7. [x] Create/stage `cpool/secrets` as `GENERIC`, `root:root 0700`, with runtime files `root:root 0600`; the bootstrap is non-destructive and preserves legacy paths during staging.
-8. [x] Resolve source collisions before staging. Differing sources fail closed, and project interpolation `.env` is represented as `.env.compose` so it cannot overwrite a service `env_file` named `.env`.
-9. [x] Fix declarations with no recoverable source instead of creating empty files. Home Assistant's unused `env_file: .env` declaration was removed rather than inventing an empty runtime file.
-10. [ ] **Operator acceptance pending:** `accept-runtime-env-first-wave.sh` now enforces the combined P0.3/P2.1.c bundle `Backstage/env contract -> check -> stage -> dependency bootstrap -> deploy -> container/functional health -> finalize` one service at a time for Scanopy, Joplin and AutoKuma. Scanopy and Joplin already have reviewed `catalog-info.yaml` descriptors; AutoKuma is now materialized and entity-ref bound in the same migration wave. Operator evidence on 2026-09-20 confirms Scanopy's canonical `.env.secrets` and Joplin's legacy `.env.secrets` are zero-key/empty placeholders, so there is no historical value to migrate; their first real credentials must be created once in Vaultwarden and then materialized canonically. AutoKuma additionally requires Uptime Kuma to be restored and RUNNING.
-11. [ ] Convert remaining explicit legacy `env_file: /mnt/cpool/<service>/.env*` declarations to `/mnt/cpool/secrets/runtime/<service>/...`; remove each compatibility path only after restart/reboot acceptance.
-12. [ ] Classify repository-local ignored project `.env` files: move secrets to Vaultwarden/runtime materialization, move non-secret settings to tracked defaults/config, and eliminate implicit project env dependencies where practical.
-13. [ ] Review the 23 existing Apps-preset drifts. Never recreate non-empty datasets merely to change preset; separately review empty owned candidates for recreation and empty unowned candidates for deletion.
-14. [x] Keep `cpool/drawio` and `cpool/litellm` as review candidates only; current Compose does not demonstrate application-owned local persistence for either service, and storage discovery does not create datasets from workspace-only references.
-15. [ ] Continue metadata-only inventory in `config/secrets/manifest.json`, but defer broad Vaultwarden import/materialization until the P0.4 initialization-control-plane refactor below is accepted. Planned services may keep future metadata without becoming migration targets; disabled services must not be migrated merely because their code remains in Git.
-16. [x] Maintain agent-skill rules and a CI non-regression contract so new services cannot introduce unreviewed legacy `env_file` ownership outside `/mnt/cpool/secrets/runtime/<service>/`; existing legacy services remain explicit migration debt.
-17. [x] Harden the Vaultwarden renderer for workstation handoff: preserve permissions on existing parents such as `/tmp`, keep newly-created secret directories `0700`, render files `0600`, keep `BW_SESSION` unprivileged, and refuse Git-trackable output paths inside a worktree.
-18. [x] Couple future P0.3 env waves with P2.1.c preparation: every touched service now gets/validates its Backstage descriptor and Compose entity-ref in the same bounded migration via `scripts/check-service-migration-bundle.py`. Keep legacy `x-nabla` compatibility until the coordinated v2 cutover so this avoids duplicate operator manipulation without creating a second compatibility architecture.
+Remaining work:
+
+1. [ ] Accept the first-wave Scanopy/Joplin/AutoKuma migration one service at a
+   time; AutoKuma additionally requires Uptime Kuma restored and RUNNING.
+2. [ ] Convert remaining explicit legacy `env_file` paths to
+   `/mnt/cpool/secrets/runtime/<service>/...`; retire compatibility paths only
+   after restart/reboot acceptance.
+3. [ ] Classify ignored repository-local `.env` files: secrets to Vaultwarden,
+   non-secret settings to tracked config, and remove implicit project-env debt.
+4. [ ] Review Apps-preset drift without recreating non-empty datasets merely to
+   change presets.
+5. [ ] Keep metadata-only inventory current, but defer broad Vaultwarden
+   migration until the initialization-control-plane work below is accepted.
 
 ## P0.4 — service intent + initialization control plane
 
-Complete this refactor **before broad secret migration**. The objective is one
-declarative/idempotent initialization model rather than another per-service shell
-script.
+Accepted: declarative service intent, initialization audit, durable value-blind
+service-state primitives and bounded service migration helpers now exist.
 
-1. [x] Add optional `x-nabla.status = active|planned|disabled` with fallback `active`; keep observed runtime health separate from declared intent.
-2. [x] Mark Akvorado, CrowdSec, Keycloak and n8n `planned`; mark 1Password Connect `disabled` while retaining its code. Vaultwarden is the secrets target.
-3. [x] Make the TrueNAS initialization audit distinguish planned/disabled services from missing active services and suppress normal deployment recommendations for them.
-4. [x] Make reboot lifecycle planning suppress planned/disabled Apps by default; explicit operator inclusion remains the bounded override.
-5. [x] Add the repository-wide static secret-consumer/debt ratchet and the unprivileged Vaultwarden render -> bounded root install boundary from #210. Root must never receive `BW_SESSION`.
-6. [x] Establish the generic host-local Python operations foundation: `scripts/nabla_ops/` owns the shared service-intent/state model and catalog aggregation, while `scripts/nabla-service.py` is a thin read-only CLI. Missing status keeps the `active` fallback; planned/disabled/manual services are excluded from normal initialization. Continue moving duplicated per-service logic behind this library through compatibility wrappers before broad Vaultwarden migration.
-7. [x] Reuse the existing TrueNAS `apps/sample` / `fastapi-sample` runtime as the future **Nabla Service** API/UI/MCP facade instead of creating another always-on daemon or repository. Keep its stable catalog id and image identity; “Nabla Service” is a capability/profile, not a rename.
-8. [ ] Add a local-controller profile to FastAPI Sample only after MCP/ops authentication and route exposure fail closed. The current `sample.albandrieu.com` Cloudflare Access ingress means privileged mutation routes must not be added until public-path denial/route non-registration is proven. FastAPI Cloud stays read-only.
-9. [ ] Keep the existing `fastapi_observer` TrueNAS credential read-only. Any future bounded mutation adapter must use a separate least-privilege execution identity and must never expose generic shell/`midclt` passthrough.
-10. [ ] Extend declarative `x-nabla` metadata with secret-contract, initialization/dependency and readiness policy where it removes duplicated script knowledge; generate machine-readable initialization contracts rather than manually maintaining parallel inventories. Implement generic handlers (TrueNAS App reconcile, PostgreSQL role/database, HTTP/TCP readiness, manual jobs) in `nabla_ops` before migrating additional secret waves.
-11. [ ] Add durable value-blind service state (`DECLARED -> SECRETS_DECLARED -> SECRETS_MATERIALIZED -> DEPENDENCIES_READY -> DEPLOYED -> RUNTIME_ACCEPTED -> REBOOT_ACCEPTED`) plus `flock`/transaction boundaries and idempotent bounded retries. The host-local persistence primitive now lives in `nabla_ops/state.py`: canonical state root `/mnt/cpool/var/nabla/service-state`, per-service `flock`, root `0700`, state/lock `0600`, atomic temp-file + `fsync` + `os.replace`, strict service-id binding, monotonic single-step transitions and idempotent no-rewrite. `nabla-service.py state --app ...` is read-only and treats missing durable state as implicit `DECLARED` without creating files. Remaining work before checking this item complete: integrate bounded retry policy/generic handlers with this transaction store and prove operator/runtime acceptance; no privileged mutation CLI is exposed yet.
-12. [x] Add a root-readable, value-blind filesystem inventory for `.env` / `.env.secrets` migration candidates; it reports paths/metadata only and complements the canonical migration planner.
-13. [x] Stage `sample` as the first path-normalization pilot without Vaultwarden. Operator evidence on 2026-09-19 confirms `/mnt/cpool/secrets/runtime/sample/.env` and `.env.secrets` are root:root `0600`, non-empty and byte-consistent with the legacy sources; legacy files remain intact.
-14. [ ] **Finish Sample reboot acceptance:** operator evidence on 2026-09-23 proves Sample RUNNING on `:8091`, `/health` healthy, `/v2/version` at `1.20.8`, observer source `10.254.255.9` accepted with `APPS_READ,CATALOG_READ`, and canonical env copies consistent. The operator then finalized both legacy Sample dotenvs into compatibility symlinks to `/mnt/cpool/secrets/runtime/sample/`. Because finalization happened before the planned reboot gate, do not remove those symlinks or rotate values yet; the next controlled reboot must prove Sample resumes from canonical materialization, followed by another clean observation before legacy compatibility links can be retired. Extend the dedicated read-only observer privilege with `VM_READ`, then prove `vm.query` sees `taloscp01`, `taloswk01` and `taloswk02`; FastAPI Cloud must expose this as VM-runtime evidence only and must not claim Kubernetes/Talos API readiness from it.
-15. [ ] Normalize Sample database ownership: TrueNAS staging depends on shared PostgreSQL at `172.17.0.24:5432`; create database **`sample`** owned by dedicated LOGIN role **`sample`** (no SUPERUSER/CREATEDB/CREATEROLE/REPLICATION), bootstrap it idempotently with `scripts/truenas/bootstrap-sample-postgres.sh --check|--apply`, render its password through the canonical Sample secret flow, and require an authentication/application smoke before cutover. Target local config is `POSTGRES_HOST=172.17.0.24`, `POSTGRES_PORT=5432`, `POSTGRES_DB=sample`, `POSTGRES_USER=sample`. Move the historical Supabase pooler identity to explicit `SUPABASE_*` variables in `fastapi-sample`; never reuse the `postgres` superuser for Sample.
-16. [ ] Resolve the Scrutiny source conflict value-blind: repository-local `apps/scrutiny/.env.secrets` and `/mnt/cpool/scrutiny/.env.secrets` differ and must not be auto-merged. Compare key sets/value equality by key name only, select the runtime-authoritative source with evidence, then restage.
-17. [ ] Initialize the currently missing declared datasets only with their service rollout: `cyberbro`, `defectdojo`, `dependency-track`, `neo4j`, `netbox`. Their absence remains expected preparation debt until deployment; do not create them merely to make the global check green.
-18. [x] Add deterministic local tests for status fallback, secret privilege boundaries, initialization state transitions and generated contracts so routine agent work does not require GitHub Actions as the feedback loop. The host-local model now enforces strict stage normalization plus idempotent/one-step-only transitions; the targeted initialization hook uses pytest so function-style tests cannot silently report zero coverage; catalog-v2 export tests are part of the local preparation hook; and the full agent publication gate uses pytest as the single collector for both pytest-style functions and legacy unittest.TestCase suites.
-19. [x] Bound TrueNAS deployment automation: cron job `id=6` (`albandrieu`, hourly at minute 0) only fast-forward synchronizes the local `master` checkout, refuses destructive resets/non-fast-forwards, ignores dirty submodule worktrees, and becomes a no-op on feature branches. It no longer starts/replaces Doco-CD; the running Doco-CD independently polls reviewed remote `master`. `sample` remains explicitly owned by its TrueNAS Custom App update helper during the canonical-path pilot.
-20. [x] Provide user-space TrueNAS development tooling bootstrap with mise/uv plus an isolated venv containing pre-commit/pytest/PyYAML, without enabling appliance `apt` package management. The agent gate auto-prepends `$HOME/.cache/nabla-compose/dev-venv/bin` when present; `bootstrap-dev-tools.sh --persist-shell-path` can idempotently add the venv and `~/.local/bin` to the operator `.bashrc`. Keep this separate from the existing root-managed `/mnt/cpool/tools/bin/{kubectl,talosctl}` operator-tool contract.
-21. [x] Add a pinned/checksummed user-space Bitwarden Password Manager CLI bootstrap for TrueNAS (`~/.local/bin/bw`, current pin `2026.9.0`) so Vaultwarden migration does not depend on system packages, Node/npm or the repository mise graph.
-22. [x] Identify Doco-CD runtime ownership from live labels: TrueNAS uses `docker-compose-truenas.yml`; the workstation separately uses `docker-compose.yml` + `docker-compose.override.yml`. Mark root `docker-compose.yml` workstation-only. Correct the TrueNAS poll targets to `apps/vaultwarden/compose.yml` and `apps/garage/compose.yml`, pin Doco-CD `0.85.1`, retain webhook secret-provider mode, and keep Sample outside Doco-CD.
-23. [ ] Reconcile the **live** TrueNAS Doco-CD container after #211 is accepted: verify required runtime env/secret-store inputs without printing values, apply only `docker-compose-truenas.yml`, then copy/read `/poll-config.yml` back from the container and prove `reference: master`, interval `3600`, and canonical Vaultwarden/Garage paths. Do not start `bootstrap/compose.yaml` alongside it.
-24. [ ] Retire the inactive 1Password bootstrap dependency deliberately: `bootstrap/compose.yaml` remains historical/recovery code but must stay outside automatic cron execution while 1Password is `disabled`. Migrate any still-needed Doco-CD external-secret mappings to the Vaultwarden/webhook path before deleting 1Password recovery material.
+Remaining work:
 
-Exit gate: broad Vaultwarden migration starts only when the generic host-local
-control path can audit/plan one service, preserve status intent, execute
-idempotently and report acceptance without exposing values. Normal reboot must
-consume already-materialized root-only runtime files and remain independent from
-Vaultwarden availability. FastAPI Sample may expose plans/state and later bounded
-local operations, but it is not part of the minimum boot dependency chain.
+1. [ ] Add a local-controller profile to FastAPI Sample only after privileged
+   routes/authentication fail closed; FastAPI Cloud stays read-only.
+2. [ ] Keep `fastapi_observer` read-only; any future mutation adapter requires a
+   separate least-privilege identity and no generic shell/`midclt` passthrough.
+3. [ ] Extend declarative metadata only where it removes duplicated secret,
+   dependency or readiness knowledge; prefer generic `nabla_ops` handlers.
+4. [ ] Integrate bounded retry/generic handlers with durable service-state
+   transactions and prove operator/runtime acceptance before exposing mutation.
+5. [ ] Finish Sample reboot acceptance from canonical secret materialization and
+   prove read-only `VM_READ` evidence for the three Talos VMs.
+6. [ ] Normalize Sample PostgreSQL ownership to dedicated database/role
+   `sample`; never reuse the PostgreSQL superuser.
+7. [ ] Resolve the Scrutiny dotenv source conflict value-blind before restaging.
+8. [ ] Create currently missing declared datasets only with the corresponding
+   service rollout: cyberbro, defectdojo, dependency-track, neo4j and netbox.
+9. [ ] Reconcile the live TrueNAS Doco-CD container against the canonical
+   `docker-compose-truenas.yml` and verify its effective poll configuration.
+10. [ ] Retire the inactive 1Password bootstrap dependency deliberately after
+    any still-needed Doco-CD mappings are migrated.
 
 ## P0.5 — Vaultwarden migration waves
 
@@ -647,18 +611,24 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 ## Accepted code/debt reduction plan
 
-1. [x] **One resume implementation.** `reboot-homelab.sh --resume` delegates App lifecycle reconciliation to `reconcile-reboot-resume.sh --apply`.
-2. [ ] **`scripts/lib/truenas.sh`.** Continue centralizing bounded middleware calls, normalized readiness and reboot-manifest helpers. Shared Custom App state/reconcile/wait primitives are now used by the security-tooling deployment path; remaining legacy deploy scripts still duplicate lifecycle logic.
-3. [ ] **`scripts/lib/docker.sh`.** Initial side-effect-free orphan-shim recovery guard is centralized and fixture-covered. Continue with shared container state/health/PID/restarts/exit snapshots, Compose-project selection and correlation helpers.
-4. [ ] **`scripts/lib/diagnostic.sh`.** Centralize compact/full output, counters and stable exit codes.
-5. [ ] **`scripts/lib/probe.sh`.** One bounded HTTP/HTTPS/TCP/DNS probe implementation with retry semantics.
-6. [x] **`scripts/lib/secrets.sh`.** Initial shared owner/mode/presence, targeted dotenv extraction and Vaultwarden rendering helpers exist without printing secret values. Continue migrating legacy service-specific checks opportunistically.
-7. [ ] **Data over Bash policy.** Move lifecycle/readiness policy into canonical `x-nabla`/catalog metadata.
-8. [ ] **Prebuilt code-server image.** Bake packages/extensions into an immutable derived image.
-9. [x] **Incident fixtures.** Interrupted prepare/continue membership drift and Docker ghost-shim eligibility/refusal are both covered by deterministic fixtures.
-10. [ ] **Keep roadmap concise.** Roadmap=status/next action; runbooks=procedure; incident docs=evidence.
-11. [ ] **Anti-duplication quality gate.** Reject redefinitions of migrated runtime primitives.
-12. [x] **Runtime-layout non-regression gate.** CI rejects new unreviewed legacy `env_file` service ownership, verifies Home Assistant has no phantom dotenv dependency, and keeps canonical first-wave paths under `/mnt/cpool/secrets/runtime/<service>/`. Existing legacy services remain an explicit allowlisted migration set until staged/cut over.
+Already accepted: agent-first local gate, deterministic autofix convergence,
+generated-contract checks and the first shared TrueNAS/Docker primitives.
+
+Remaining reduction:
+
+1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
+   `scripts/lib/truenas.sh`.
+2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
+   and Compose-project correlation.
+3. [ ] Centralize compact/full output, counters and exit codes in
+   `scripts/lib/diagnostic.sh`.
+4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
+   `scripts/lib/probe.sh`.
+5. [ ] Prefer canonical data/metadata over repeated Bash policy.
+6. [ ] Move code-server packages/extensions into an immutable derived image.
+7. [ ] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
+   incidents=evidence.
+8. [ ] Add an anti-duplication gate for migrated runtime primitives.
 
 ## Target operator-script architecture
 
@@ -717,62 +687,22 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
 ```
 
 
-## P0.4 — Catalogue v2 standardisé et security graph
+## Catalog v2 — remaining cutover
 
-Objectif : conserver Backstage + Compose comme autorités déclaratives tout en
-produisant des artefacts standards utilisables par les consommateurs sécurité.
+Accepted: the target authority split is defined and representative Backstage /
+Compose pilots exist. This section contains only the remaining cross-repository
+cutover work; detailed design stays in
+[`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md)
+and [`service-catalog-security-graph.md`](./service-catalog-security-graph.md).
 
-- [x] Ajouter une projection déterministe des descripteurs Backstage vers un
-  read-model JSON v2 avec identité canonique `entityRef` et
-  `catalogRevision=sha256:...`.
-- [x] Ajouter une projection **CycloneDX 1.7** du même graphe, partageant la même
-  révision et les dépendances Backstage résolues.
-- [x] Ajouter des tests unitaires couvrant révision déterministe, unicité des
-  références et conservation du graphe de dépendances.
-- [ ] Générer et versionner `catalog/generated/entities.json` et
-  `catalog/generated/homelab.cdx.json` lorsque la matérialisation Backstage
-  P2.1.c couvre l'ensemble des services nécessaires au cutover.
-- [ ] Brancher le générateur à la quality gate locale en mode `--check` après
-  stabilisation de la couverture Backstage, afin d'éviter un artefact généré
-  partiel présenté comme catalogue complet.
-- [ ] Ajouter la projection Nabla minimale `operations.json` pour les seules
-  politiques sans équivalent standard (exposition désirée, acceptation de
-  risque, ordre exceptionnel non dérivable).
-- [ ] Ajouter un import Cartography `nabla` corrélant
-  `Backstage entityRef ↔ runtime/provider asset`, sans faire de Neo4j la source
-  de vérité du catalogue.
-- [ ] Enrichir Cartography depuis Kubernetes, GitHub, Cloudflare et Trivy pour
-  produire le graphe observé, les chemins d'attaque et le blast radius.
-- [ ] Introduire OSCAL après stabilisation du graphe pour relier
-  `control → implementation → evidence → assessment`; ne pas représenter la
-  conformité par un simple booléen dans `x-nabla`.
-- [ ] Faire consommer le nouveau read-model par FastAPI, puis effectuer le
-  cutover coordonné de Site Alban. Pas de couche v1/v2 longue durée.
-
-Architecture cible :
-
-```text
-Backstage catalog-info.yaml + Compose + minimal x-nabla
-                     |
-                     v
-             canonical generator
-               /            \
-              v              v
-      entities.json      CycloneDX 1.7
-              |              |
-              +------+-------+
-                     v
-                  FastAPI
-                     |
-              +------+------+
-              |             |
-              v             v
-       Site Alban      Cartography/Neo4j
-                            |
-                            v
-                     observed security graph
-                            |
-                            v
-                          OSCAL
-```
-
+- [ ] Generate/version `catalog/generated/entities.json` plus provenance/read
+  models required by consumers.
+- [ ] Put the generator behind the local quality gate in `--check` mode after
+  generated output is deterministic.
+- [ ] Add the minimal Nabla-only `operations.json` projection.
+- [ ] Add the Cartography `nabla` import and correlate stable entity refs.
+- [ ] Enrich the graph from Kubernetes, GitHub, Cloudflare and Trivy only after
+  canonical identities are stable.
+- [ ] Introduce OSCAL after the graph/control mapping stabilizes.
+- [ ] Migrate FastAPI to the new read model, perform the coordinated one-shot
+  cutover, then remove legacy compatibility contracts.
