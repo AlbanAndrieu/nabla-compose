@@ -407,6 +407,8 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 Already accepted: agent-first local gate, deterministic autofix convergence,
 generated-contract checks and the first shared TrueNAS/Docker primitives.
+Compose discovery is also normalized across generator/Pre-commit for dotted and
+hyphenated root variants such as `docker-compose-truenas.yml`.
 
 Remaining reduction:
 
@@ -420,8 +422,9 @@ Remaining reduction:
    `scripts/lib/probe.sh`.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
 6. [ ] Move code-server packages/extensions into an immutable derived image.
-7. [ ] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
-   incidents=evidence.
+7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
+   incidents=evidence. Historical/duplicate planning has been consolidated while
+   diagnostic, rollback and acceptance evidence remains in canonical documents.
 8. [ ] Add an anti-duplication gate for migrated runtime primitives.
 
 ## Target operator-script architecture
