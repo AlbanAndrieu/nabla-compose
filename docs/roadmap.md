@@ -26,6 +26,35 @@ This file is the concise operational index. Detailed design, incident evidence a
 - [OpenWebUI backup and disaster recovery](./openwebui-backup-pra.md)
 - [TrueNAS cron + Doco-CD deployment automation](./truenas-deployment-automation.md)
 
+## Dependency automation — Renovate / Mend
+
+- [x] Make Renovate the single producer of routine dependency-version PRs; remove
+  `.github/dependabot.yml` so Dependabot version updates no longer compete for
+  `package.json`, lockfiles, Docker declarations or GitHub Actions. Keep
+  Dependabot Alerts enabled for vulnerability detection.
+- [x] Limit Renovate to two concurrent branches/PRs, use grouped schedules,
+  monthly `devDependencies`, monthly GitHub Actions maintenance and
+  `rebaseWhen=auto` to reduce merge conflicts.
+- [x] Apply a seven-day cooldown to ordinary releases with strict internal age
+  checks and timestamp-optional fallback. Security updates bypass
+  `minimumReleaseAge` and must remain immediate.
+- [ ] Install the hosted Mend Renovate GitHub App for `nabla-compose` and
+  `fastapi-sample` with selected-repository access. Do not remove the current
+  GitHub Actions Renovate workflow until the hosted service proves it consumes
+  the repository configuration correctly.
+- [ ] Grant Renovate read access to Dependabot alerts, validate one
+  vulnerability-remediation path, then disable Dependabot Security Updates so
+  Renovate becomes the single PR producer while Dependabot Alerts stay enabled.
+- [ ] Remove the self-hosted Renovate GitHub Actions workflow after hosted-app
+  acceptance; dependency maintenance should no longer consume Actions credits.
+- [ ] Re-enable selective automerge only behind authoritative required checks:
+  runtime patch updates may automerge; grouped `devDependencies` patch/minor may
+  automerge after the seven-day cooldown. Runtime minor, major, Docker and GitHub
+  Actions updates remain manual by default.
+- [ ] Acceptance: no duplicate bot PRs, no Renovate Actions-runner consumption,
+  immediate security remediation, bounded PR concurrency and no automerge without
+  green required validation.
+
 ## Current platform state
 
 - [x] Talos `v1.13.9` / Kubernetes `v1.36.3`: control plane `172.17.0.50`, workers `172.17.0.51` / `172.17.0.52`, all Ready after reboot.
