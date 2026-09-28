@@ -19,7 +19,8 @@ class RenovateConfigContractTest(unittest.TestCase):
     def test_renovate_is_single_routine_update_producer(self) -> None:
         self.assertFalse(
             DEPENDABOT.exists(),
-            ".github/dependabot.yml must stay absent so Dependabot version updates do not compete with Renovate",
+            ".github/dependabot.yml must stay absent so Dependabot version updates "
+            "do not compete with Renovate",
         )
         self.assertTrue(RENOVATE_WORKFLOW.exists())
 
