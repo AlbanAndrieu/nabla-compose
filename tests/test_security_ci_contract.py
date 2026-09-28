@@ -28,6 +28,13 @@ class SecurityCiContractTest(unittest.TestCase):
             ROOT / ".github/workflows/production-security.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("  pull_request:", workflow)
+        self.assertIn('      - ".github/workflows/production-security.yml"', workflow)
+        self.assertIn('      - "config/security/**"', workflow)
+        self.assertIn('      - "scripts/security/**"', workflow)
+        self.assertIn('      - "scripts/testing/runtime-baseline.py"', workflow)
+        self.assertIn('      - "catalog/**"', workflow)
+        self.assertNotIn('      - "docs/**"', workflow)
+        self.assertNotIn('      - "renovate.json"', workflow)
         self.assertIn("  push:\n    branches: [master]", workflow)
         self.assertIn('cron: "23 4 * * *"', workflow)
         self.assertIn("Production pre/post-deploy smoke", workflow)
