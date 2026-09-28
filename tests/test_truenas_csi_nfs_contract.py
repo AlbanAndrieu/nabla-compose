@@ -253,6 +253,19 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn('test "$(cat /data/marker)"', text)
         self.assertIn("--keep", text)
 
+    def test_smoke_pods_follow_restricted_security_context(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertEqual(text.count("runAsNonRoot: true"), 2)
+        self.assertEqual(text.count("runAsUser: 1000"), 2)
+        self.assertEqual(text.count("runAsGroup: 1000"), 2)
+        self.assertEqual(text.count("fsGroup: 1000"), 2)
+        self.assertEqual(text.count("type: RuntimeDefault"), 2)
+        self.assertEqual(text.count("allowPrivilegeEscalation: false"), 2)
+        self.assertEqual(text.count("readOnlyRootFilesystem: true"), 2)
+        self.assertEqual(text.count("- ALL"), 2)
+
     def test_smoke_fails_fast_when_publish_context_is_missing(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
