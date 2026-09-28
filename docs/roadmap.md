@@ -15,6 +15,45 @@ Primary references:
 - security tooling: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md).
 
+## Roadmap contract
+
+This file deliberately keeps **status, ordering and acceptance boundaries**, not
+step-by-step procedures. The specialized document linked by an item owns the
+commands, rollback and detailed diagnostic evidence.
+
+Completion semantics:
+
+- **declared** means configuration/catalog/code exists; it does not mean the
+  service is deployed;
+- **runtime accepted** requires container/application health and a functional
+  smoke appropriate to the service;
+- **reboot accepted** requires the service to recover from canonical persisted
+  state after a controlled reboot/restart cycle;
+- security-tooling acceptance requires usable evidence/output, not merely a
+  reachable UI;
+- observability acceptance requires the relevant signal to be queryable, not
+  merely an exporter process in RUNNING state;
+- a warning caused by an optional/external dependency must remain distinguishable
+  from application DOWN;
+- rollback material is retained until the relevant observation/reboot gate is
+  complete;
+- completed historical evidence belongs in incidents/runbooks and is compacted
+  here into an accepted milestone.
+
+Current execution lanes:
+
+1. dependency automation: finish hosted Renovate acceptance without Actions
+   runner dependency;
+2. recovery: close DNS/Talos maintenance acceptance and remaining CSI hardening;
+3. runtime/secrets: continue staged canonical env/dataset migration one service
+   at a time;
+4. security platform: accept the already-declared inventory/findings tools
+   before adding more always-on services;
+5. observability: migrate Grafana before reconciling the full
+   Mimir/Loki/Tempo/Alloy stack;
+6. Kubernetes: keep Karmada/GPU federation outside the critical path until the
+   single home cluster and its storage/security baseline are stable.
+
 ## Dependency automation — Renovate / Mend
 
 Accepted baseline: Renovate is the single routine dependency-PR producer,
