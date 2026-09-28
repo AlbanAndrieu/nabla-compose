@@ -684,7 +684,7 @@ Recovery gates:
 - [x] current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration snapshot;
 - [ ] identify the affected OAuth2 account/token in the Bichon UI;
 - [ ] use **OAuth2 Tokens -> Delete Token** for the unusable encrypted token;
-- [ ] repeat the OAuth2 authorization flow for the affected account;
+- [ ] re-authorize the affected account through the OAuth2 authorization flow;
 - [ ] confirm the periodic `oauth2-token-refresh-task` no longer logs
       `Decryption failed, likely due to incorrect encryption key or corrupted data`;
 - [ ] rerun `scripts/truenas/audit-app-lifecycle.sh` and require the Bichon
