@@ -150,7 +150,7 @@ accountability intent, not a mandatory organization chart.
 
 | Tool | Priority | Three Lines | Status | Evidence / decision |
 | --- | --- | --- | --- | --- |
-| OWASP ZAP | P1 | L1 executes, L2 defines policy | **DELEGATED** | Application DAST is owned by `fastapi-sample`; `nabla-compose` no longer executes ZAP. Historical `.zap/*` and OpenAPI-preparation material remain dormant until the ownership transfer is fully accepted. |
+| OWASP ZAP | P1 | L1 executes, L2 defines policy | **DELEGATED** | Application DAST is owned by `fastapi-sample`; `nabla-compose` no longer executes or retains a parallel ZAP implementation. |
 | Nuclei | P2 | L1/L2 | **PLANNED/Notion baseline** | Included in the 90-day control architecture but no recurring execution evidence was found in the three repos reviewed. |
 | Pentest-Tools.com | P3 external assurance | L2/L3 depending engagement | **REFERENCE/EXTERNAL** | Curated by `nabla-site-alban`; external service, not repo-run control. |
 | Burp Suite / Enterprise | P3 | L2/L3 | **REFERENCE/COMMERCIAL** | Comparison candidate from Notion; use for authenticated/manual/deep testing gaps, not as duplicate baseline by default. |
@@ -345,7 +345,6 @@ Recommended J0-30 metrics:
 - `catalog/README.md`, `catalog/services.json`, `catalog/service-topology.json`
 - `.mega-linter.yml`, `.gitleaks.toml`, `.grype.yaml`, `Makefile`
 - `.github/workflows/{codeql,pre-commit,production-security,...}.yml`
-- `.zap/*`, `scripts/security/prepare-zap-openapi.py`
 - `apps/{wazuh,suricata,crowdsec,cyberbro,keycloak,2fauth,opconnect,vaultwarden,opensearch,scanopy}/`
 - `openvas/docker-compose-openvas.yml`
 - `kubernetes/platform-tools/falco-values.yaml`, platform-tool scripts/docs
