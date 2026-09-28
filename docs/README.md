@@ -21,6 +21,7 @@ All date-specific incidents belong under [`incidents/`](./incidents/).
 - [2026-09-11 · TrueNAS controlled reboot](./incidents/2026-09-11-truenas-reboot.md)
 - [2026-09-11 · Sentry Taskbroker / project-config](./incidents/2026-09-11-sentry-taskbroker-project-config.md)
 - [2026-09-11 · post-reboot runtime recovery notes](./incidents/2026-09-11-runtime-service-recovery.md)
+- [2026-09-27 · pfSense/Talos DNS dependency after TrueNAS reboot](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md)
 
 Incident documents retain evidence needed for diagnosis: symptoms, commands,
 observations, root cause, recovery boundary and acceptance. They are not the
