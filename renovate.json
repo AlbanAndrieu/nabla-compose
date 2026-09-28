@@ -4,7 +4,7 @@
     "config:recommended",
     "docker:pinDigests",
     ":dependencyDashboard",
-    ":enableVulnerabilityAlertsWithLabel('security')",
+    ":enableVulnerabilityAlertsWithAdditionalLabel('security')",
     "group:recommended"
   ],
   "timezone": "Europe/Paris",
@@ -98,5 +98,9 @@
     ]
   },
   "minimumReleaseAgeBehaviour": "timestamp-optional",
-  "internalChecksFilter": "strict"
+  "internalChecksFilter": "strict",
+  "vulnerabilityAlerts": {
+    "prConcurrentLimit": 2,
+    "automerge": false
+  }
 }
