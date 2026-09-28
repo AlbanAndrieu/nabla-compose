@@ -135,7 +135,7 @@ repos:
         entry: python -m unittest tests.test_renovate_config_contract -v
         pass_filenames: false
         files: >-
-          ^(renovate[.]json|[.]github/(?:dependabot[.]yml|workflows/renovate[.]yml)|docs/roadmap[.]md|tests/test_renovate_config_contract[.]py)$
+          ^(renovate[.]json|[.]github/(?:dependabot[.]yml|workflows/renovate[.]yml)|tests/test_renovate_config_contract[.]py)$
 
       - id: secret-manifest
         name: "🔐 secrets · Validate metadata-only manifest"
