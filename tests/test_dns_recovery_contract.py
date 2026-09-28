@@ -31,6 +31,8 @@ class DnsRecoveryContractTest(unittest.TestCase):
         self.assertIn("grep -Fxq '172.17.0.1'", text)
         self.assertIn("drill @172.17.0.1 example.com A", text)
         self.assertIn("unbound.lan_dns_resolution", text)
+        self.assertIn('${lan_dns_value:-172.17.0.24}', text)
+        self.assertNotIn('\\${lan_dns_value:-172.17.0.24}', text)
 
 
 if __name__ == "__main__":
