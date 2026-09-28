@@ -59,6 +59,8 @@ This file is the concise operational index. Detailed design, incident evidence a
 
 - [x] Talos `v1.13.9` / Kubernetes `v1.36.3`: control plane `172.17.0.50`, workers `172.17.0.51` / `172.17.0.52`, all Ready after reboot.
 - [x] Talos VM policy: `autostart=true`, graceful shutdown timeout `180s`.
+- [x] **DNS recovery guard:** Talos config generation now pins `machine.network.nameservers` to pfSense/Unbound `172.17.0.1` by default, and the pfSense posture audit fails if LAN DHCP advertises TrueNAS/Pi-hole `172.17.0.24` or if `172.17.0.1` cannot resolve a public name.
+- [ ] **DNS recovery acceptance:** on the next controlled maintenance cycle, rerun the pfSense posture audit plus Talos `ResolverStatus`/`DNSUpstream` checks with Pi-hole stopped, then prove public registry resolution remains available before closing the incident follow-up.
 - [x] TrueNAS Docker IPAM persisted after reboot: `10.200.0.0/16`, `/24` allocations, `br0=172.17.0.24/24`, protected `sample-observer=10.254.255.0/28` intact.
 - [x] TrueNAS controlled reboot completed; boot ID changed and `system.ready` / Docker / VM autostart / Kubernetes readiness postconditions passed.
 - [x] TrueNAS CSI controller publish path is green: `attachRequired=true`, csi-attacher, VolumeAttachment RBAC and NFS publishContext.
