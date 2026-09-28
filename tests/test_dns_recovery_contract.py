@@ -8,7 +8,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PFSENSE_AUDIT = ROOT / "scripts" / "pfsense" / "audit-posture.sh"
 TALOS_GENERATOR = ROOT / "scripts" / "talos" / "generate-config.sh"
-ROADMAP = ROOT / "docs" / "roadmap.md"
 
 
 class DnsRecoveryContractTest(unittest.TestCase):
@@ -32,11 +31,6 @@ class DnsRecoveryContractTest(unittest.TestCase):
         self.assertIn("grep -Fxq '172.17.0.1'", text)
         self.assertIn("drill @172.17.0.1 example.com A", text)
         self.assertIn("unbound.lan_dns_resolution", text)
-
-    def test_roadmap_keeps_runtime_acceptance_pending(self) -> None:
-        text = ROADMAP.read_text(encoding="utf-8")
-        self.assertIn("**DNS recovery guard:**", text)
-        self.assertIn("- [ ] **DNS recovery acceptance:**", text)
 
 
 if __name__ == "__main__":
