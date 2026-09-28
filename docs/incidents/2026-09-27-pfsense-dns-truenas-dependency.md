@@ -115,11 +115,11 @@ pfSense / Unbound
 - [x] Remplacer le DNS DHCP LAN `172.17.0.24` par `172.17.0.1`.
 - [ ] Vérifier le renouvellement DHCP des clients critiques après changement.
 - [ ] Documenter explicitement les zones privées qui restent déléguées à TrueNAS.
-- [ ] Ajouter un smoke test post-reboot :
+- [ ] Exécuter le smoke DNS post-reboot (les garde-fous statiques/runtime sont maintenant versionnés) :
   - `dig @172.17.0.1 example.com`
   - `dig @172.17.0.1 <nom-zone-privee>`
   - test direct du resolver TrueNAS, sans en faire un prérequis global.
-- [ ] Ajouter au runbook Talos un contrôle de dépendance DNS/cycle avant bootstrap et après reboot.
+- [x] Ajouter au runbook Talos un contrôle de dépendance DNS/cycle avant bootstrap et après reboot, et faire générer `machine.network.nameservers: [172.17.0.1]` par défaut.
 - [ ] Ajouter une alerte dédiée lorsque le resolver TrueNAS tombe, sans classifier le LAN entier comme « Internet down » tant que pfSense/Unbound reste sain.
 - [ ] Revalider IPv6 séparément : le WAN n'avait pas de route IPv6 par défaut au moment de l'incident et les RA LAN ont été désactivés temporairement pour isoler le diagnostic.
 
