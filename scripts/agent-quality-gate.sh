@@ -443,10 +443,24 @@ if [[ "${MODE}" == "fix" ]]; then
   done
 fi
 
-run_compact "declared service topology is synchronized" \
-  "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
-run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
-  "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
+generated_contract_scope_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  case "${file}" in
+    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*.yml|apps/*.yaml|apps/*/*.yml|apps/*/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+      generated_contract_scope_changed=true
+      break
+      ;;
+  esac
+done
+
+if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]; then
+  run_compact "declared service topology is synchronized" \
+    "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
+  run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
+    "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
+else
+  printf 'ℹ️  CI fast mode: generated topology/consumer checks skipped because no generator input changed\n'
+fi
 
 if [[ "${CI_FAST}" == true ]]; then
   printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
