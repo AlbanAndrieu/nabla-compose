@@ -44,6 +44,8 @@ export TALOS_CLUSTER_NAME=nabla-talos
 export TALOS_CONTROL_PLANE_ENDPOINT=https://192.0.2.10:6443
 export TALOS_VERSION=v1.13.9
 export TALOS_INSTALL_DISK=/dev/vda
+# Recovery-safe host DNS; defaults to pfSense/Unbound on the homelab LAN.
+export TALOS_NAMESERVER=172.17.0.1
 
 scripts/talos/generate-config.sh
 ```
@@ -58,7 +60,7 @@ The default output is:
 └── worker.yaml
 ```
 
-The script runs strict Talos `metal` validation for both machine configurations before it reports success.
+The script applies one strategic-merge patch to both machine types so `machine.network.nameservers` contains the recovery-safe resolver (`172.17.0.1` by default), then runs strict Talos `metal` validation for both machine configurations before it reports success. Override `TALOS_NAMESERVER` only when the target network has a different recovery-safe resolver.
 
 ## Regeneration and secret stability
 
