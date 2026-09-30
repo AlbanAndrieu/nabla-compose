@@ -156,7 +156,21 @@ wait_for_truenas_reclaim() {
   deadline=$((SECONDS + TRUENAS_RECLAIM_TIMEOUT_SECONDS))
   while ((SECONDS < deadline)); do
     state="$(truenas_reclaim_state "${dataset}" "${share_path}")"
-    IFS=  local controller_pod
+    IFS="$(printf '\t')" read -r dataset_count nfs_count zfs_exists <<<"${state}"
+    if [[ "${dataset_count}" == "0" && "${nfs_count}" == "0" && "${zfs_exists}" == "0" ]]; then
+      ok "TrueNAS reclaim postcondition satisfied: dataset, NFS share and ZFS resource are absent"
+      return 0
+    fi
+    sleep 2
+  done
+
+  state="$(truenas_reclaim_state "${dataset}" "${share_path}")"
+  IFS="$(printf '\t')" read -r dataset_count nfs_count zfs_exists <<<"${state}"
+  fail "TrueNAS reclaim postcondition failed after ${TRUENAS_RECLAIM_TIMEOUT_SECONDS}s: dataset=${dataset} middleware_dataset_count=${dataset_count} nfs_share_count=${nfs_count} zfs_exists=${zfs_exists}; do not trust DeleteVolume/API success alone (NAS-143316)"
+}
+
+dump_pvc_provisioning_diagnostics() {
+  local controller_pod
 
   printf '\n🔎 TrueNAS CSI PVC provisioning diagnostics\n' >&2
   printf '%s\n' '--- PVC ---' >&2
