@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=scripts/talos/lib/client-config.sh
 source "${ROOT}/scripts/talos/lib/client-config.sh"
+# shellcheck source=scripts/lib/truenas.sh
+source "${ROOT}/scripts/lib/truenas.sh"
 nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
 KEEP=false
@@ -123,26 +125,14 @@ trap cleanup EXIT
 truenas_reclaim_state() {
   local dataset="$1"
   local share_path="$2"
-  local dataset_json nfs_json dataset_count nfs_count zfs_exists
+  local dataset_json dataset_count nfs_count zfs_exists
 
-  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${dataset}\"]]" 2>/dev/null)" ||
+  dataset_json="$(truenas_dataset_query_by_id "${dataset}" 2>/dev/null)" ||
     fail "TrueNAS dataset API query failed while verifying reclaim for ${dataset}"
   dataset_count="$(jq 'length' <<<"${dataset_json}")"
 
-  nfs_json="$(midclt call sharing.nfs.query 2>/dev/null)" ||
+  nfs_count="$(truenas_nfs_share_count_for_path "${share_path}" 2>/dev/null)" ||
     fail "TrueNAS NFS share API query failed while verifying reclaim for ${share_path}"
-  nfs_count="$(
-    jq --arg path "${share_path}" '
-      [
-        .[]
-        | select(
-            (.path? == $path)
-            or (((.paths? // []) | index($path)) != null)
-          )
-      ]
-      | length
-    ' <<<"${nfs_json}"
-  )"
 
   if zfs list -H -o name "${dataset}" >/dev/null 2>&1; then
     zfs_exists=1
