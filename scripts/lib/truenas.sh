@@ -113,3 +113,24 @@ truenas_wait_app_running() {
   printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n'     "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
   return 1
 }
+
+
+truenas_dataset_query_by_id() {
+  local dataset_id="${1:?TrueNAS dataset id is required}"
+  midclt call pool.dataset.query "[[\"id\",\"=\",\"${dataset_id}\"]]"
+}
+
+truenas_nfs_share_count_for_path() {
+  local share_path="${1:?TrueNAS NFS share path is required}"
+  midclt call sharing.nfs.query |
+    jq --arg path "${share_path}" '
+      [
+        .[]
+        | select(
+            (.path? == $path)
+            or (((.paths? // []) | index($path)) != null)
+          )
+      ]
+      | length
+    '
+}
