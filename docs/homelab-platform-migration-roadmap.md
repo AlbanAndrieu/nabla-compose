@@ -1,411 +1,128 @@
 # Homelab platform migration roadmap
 
-This roadmap consolidates the remaining migration from legacy/native TrueNAS Apps and ixVolumes to repository-managed Docker Compose services with explicit datasets under `/mnt/cpool`, then layers secrets management and centralized identity on top.
+This document owns the **platform migration architecture and service cutover
+gates**. Current cross-platform priorities stay in
+[`roadmap.md`](./roadmap.md); detailed secret work stays in
+[`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md); historical
+failure evidence stays under [`incidents/`](./incidents/).
 
-The goal is not merely to make containers start. A migration is complete only when data, runtime health, monitoring, rollback, secrets, and authentication are all controlled deliberately.
+A migration is complete only when data, functional health, monitoring, rollback,
+secrets and authentication are deliberately controlled. A RUNNING container is
+not sufficient evidence.
 
-## Restart point — 2026-08-28
+## Accepted platform baseline
 
-- Working pull request: `AlbanAndrieu/nabla-compose#59`, branch `feat/crowdsec-central-lapi`.
-- Baseline commit `9d7374d3a269e09f7c76b10c9a08dd0fd8cf3e4f` passed Compose Validate, Service Consumers, Pre-commit and MegaLinter.
-- Public PR CI must remain on `ubuntu-latest` without private homelab access or `infra-runners`.
-- TrueNAS intentionally remains on `26.0.0-BETA.2`; keep `truenas/api_client` pinned to the matching `TS-26.0.0-BETA.2` tag and do not upgrade either side independently. Talos/OpenTofu preparation is static and must not mutate the homelab from PR CI.
-- Secret target: Vaultwarden folder `TrueNAS`, then a restricted organization collection for unattended access; per-service TrueNAS `.env` files are only a compatibility layer.
-- Immediate next execution: inventory variable names, migrate N8N as the canary, validate Doco-CD secret resolution, then continue the TrueNAS/Talos bootstrap checklist.
-- TrueNAS/Talos manual bootstrap progressed through the first reviewed create plan: `br0` survived reboot, SSH was rebound to `br0`, bootstrap-critical SMB/NFS/iSCSI/TrueNAS/Garage/Traefik listeners were verified, Garage state read/write/delete passed, and the repeated TrueNAS plan remains `15 to add, 0 to change, 0 to destroy`. The resource apply completed successfully with 15 resources created and no changes/destructions. `taloscp01` has been started for first-boot DHCP discovery; Talos machine configuration remains a workstation-driven step after its stable IP and real install disk are confirmed.
-- Talos control-plane maintenance discovery completed: `taloscp01` is reachable at `172.17.0.50:50000`, runs Talos `v1.13.9`, exposes `ens2` with the planned MAC, and reports the target install disk as `/dev/vda` (34 GB VirtIO).
-- [x] Talos boot-device normalization plan reviewed with all Talos VMs stopped: `0 to add, 6 to change, 0 to destroy`. The only actions are three DISK orders `1001 -> 1000` and three CDROM orders `1000 -> 1001`; NIC order remains `1002`.
-- [x] **Reboot persistence validated 2026-09-05:** `br0` retained `172.17.0.24/24`, `enp10s0` remained a forwarding member without IPv4, the default route remained on `br0`, and direct HTTPS validation still succeeded without `-k`. SSH required changing **Bind Interfaces** from `enp10s0` to `br0`; audit other explicitly bound services before the first VM apply.
-- Current supervised bootstrap uses `TRUENAS_INFRA_API_USERNAME=albandrieu` with a separate `TRUENAS_INFRA_API_KEY`. OpenTofu/Terragrunt must not consume the FastAPI observer `TRUENAS_API_USERNAME`/`TRUENAS_API_KEY` pair. A dedicated least-privilege `tofu_truenas` service identity remains a hardening task before unattended/recurring infrastructure automation.
+The historical bootstrap chronology has been compacted. The accepted state is:
 
-- [x] **Talos/Kubernetes bootstrap reached:** `taloscp01` is installed on `/dev/vda`, reboots from disk, authenticates with RBAC, etcd and kubelet are healthy, Kubernetes API is reachable at `172.17.0.50:6443`, and workers `.51`/`.52` are already registered with flannel/kube-proxy running;
-- [x] confirm all three Kubernetes nodes transitioned from the initial `NotReady` state to `Ready`; retained as a completed bootstrap gate before network/storage work;
-- [ ] decide whether to keep Talos-generated stable Kubernetes node names or introduce explicit HostnameConfig patches in a separately reviewed change before production workloads;
-- [x] **Talos base cluster complete:** all three nodes are `Ready`, flannel reports `NetworkUnavailable=False`, worker kubelets are healthy, and the single expected etcd member is healthy on `172.17.0.50`;
-- [x] add `scripts/talos/validate-cluster.sh` as a read-only health gate for Talos RBAC, kubelet/etcd health, node count/readiness and single-control-plane etcd membership;
-- [x] merge the IaC steady-state VM policy with `TALOS_VM_AUTOSTART=true`; the live apply/reboot acceptance remains operator-run;
-- [ ] run `scripts/truenas/verify-talos-vm-autostart.sh --check` after the reviewed 3-change apply and again after the next TrueNAS reboot;
-- [ ] validate Kubernetes DNS and pod-to-pod / pod-to-service networking with `scripts/talos/smoke-kubernetes-network.sh` before adding persistent storage;
-- [ ] introduce TrueNAS-backed persistent storage through the pinned official TrueNAS CSI NFS path after network/DNS validation;
-- [ ] bootstrap GitOps only after storage behavior and rollback are proven;
-### TrueNAS FastAPI observer boundary — 2026-09-06
+- TrueNAS uses `br0=172.17.0.24/24`; repository-managed workloads use explicit
+  datasets under `/mnt/cpool`.
+- Talos `v1.13.9` / Kubernetes `v1.36.3` is established on
+  `172.17.0.50/51/52`; VM autostart, CSI and reboot recovery are tracked by
+  their dedicated runbooks/tests.
+- the FastAPI observer uses the dedicated read-only `fastapi_observer`
+  contract and the repository-owned `sample-observer` network; do not widen
+  TrueNAS allowlists to a shared Docker subnet.
+- repository Docker consumers use the restricted Docker socket proxy without a
+  host-published Docker API port.
+- private `*.int.albandrieu.com` names are LAN/VPN intent; public exposure
+  requires an explicit reviewed exception.
+- pfSense/Unbound `172.17.0.1` is the recovery-safe general LAN/Talos resolver;
+  Pi-hole on TrueNAS is an optional private-zone/filtering dependency, not a
+  bootstrap prerequisite. See
+  [the 2026-09-27 DNS incident](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
 
-The internal FastAPI production observer now uses a dedicated TrueNAS identity:
+Historical command output and dated root-cause evidence were intentionally
+removed from this roadmap; Git history and incident documents retain them.
 
-```text
-fastapi_observer
-  -> fastapi-observer group
-  -> APPS_READ only
-  -> dedicated user-linked API key
-```
+## Active platform migration gates
 
-Runtime validation proves `system.version` and `app.query` with the native
-TrueNAS 26.0.0-BETA.2 client; the 2026-09-08 post-redeploy read gate observed
-94 apps. The earlier WebSocket denial was not RBAC:
-TrueNAS applies `system.general.ui_allowlist` to the WebSocket source address
-before authentication. Runtime evidence on 2026-09-08 proved that a fixed /32
-must not be reserved inside the shared `intranet` pool: while Sample was
-stopped, Docker assigned the old `172.16.55.9` address to Langflow.
+### TrueNAS observer boundary
 
-- [x] create the dedicated `fastapi_observer` API-only user with
-  `APPS_READ`, password login disabled, SSH password login disabled and SMB
-  disabled;
-- [x] create/reset a dedicated user-linked API key and prove native
-  `system.version` + `app.query`;
-- [x] add the current FastAPI container source address as a narrow `/32` to
-  TrueNAS `ui_allowlist`, validate the WebSocket calls, then
-  `system.general.checkin`;
-- [x] add `scripts/security/verify-truenas-observer-access.sh` as a read-only
-  preflight for container source IP, `ui_allowlist`, canonical credential
-  variable selection, HTTPS version discovery and authenticated WebSocket
-  calls;
-- [x] align the preflight with FastAPI Sample #223: only
-  `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY` can authenticate the
-  application observer; legacy usernames, MCP keys and `TRUENAS_INFRA_*`
-  credentials are ignored and reported only as configuration drift;
-- [x] finish the TrueNAS-local FastAPI redeploy with
-  `TRUENAS_API_USERNAME=fastapi_observer`; the 2026-09-08 gate reached RBAC
-  parsing only after `auth.me.pw_name` matched `fastapi_observer`, while the
-  read-only observer path reported 94 apps;
-- [ ] rerun the corrected RBAC parser and require `APPS_READ` (preferred) or
-  temporary `READONLY_ADMIN`, with no write/admin role, while retaining
-  `system.version` + `app.query`;
-- [ ] run the `--compare-cloud` A/B gate while FastAPI Cloud still uses
-  `TRUENAS_API_USERNAME=albandrieu`: require the same catalog revision and
-  exact TrueNAS application-ID inventory from both runtimes;
-- [ ] after A/B parity is green, switch FastAPI Cloud to
-  `TRUENAS_API_USERNAME=fastapi_observer` plus its paired dedicated
-  `TRUENAS_API_KEY`, keep TLS verification enabled, rerun the production
-  API/topology/UI smoke, then retire the FastAPI workload's use of the
-  `albandrieu` credential;
-- [x] remove legacy `TRUENAS_USER=albandrieu` from the FastAPI Sample runtime;
-  2026-09-08 verification selects only `TRUENAS_API_USERNAME` + `TRUENAS_API_KEY`
-  with no shadowed username/API-key variables;
-- [x] retire the unsafe shared-`intranet` reservation
-  `172.16.55.9`; runtime proved Docker can legitimately allocate that address
-  to another container while Sample is stopped;
-- [x] reject the failed Compose-managed `172.16.56.0/28`
-  candidate after Docker proved it overlaps a broader existing address pool;
-- [x] make `sample-observer` an external repository-owned bridge prepared by
-  `scripts/truenas/prepare-sample-observer-network.sh`, with Docker-network
-  and host-route CIDR overlap checks, a constrained `ip_range`, and exactly
-  one allocatable observer address recorded in a network label;
-- [x] add explicit `--check/--apply` allowlist reconciliation from that network
-  label and automatically retire both obsolete Sample /32 values
-  (`172.16.55.9/32` and `172.16.56.9/32`);
-- [x] prepare the new observer network, redeploy Sample and reconcile the selected
-  observer `/32` into TrueNAS `ui_allowlist`; 2026-09-08 runtime evidence proves
-  `sample-observer=10.254.255.0/28`, reserved source `10.254.255.9`, persisted and
-  active allowlists both contain `10.254.255.9/32`, and authenticated WebSocket
-  `system.version` + `app.query` succeed;
-- [x] restore `TRUENAS_API_VERIFY_SSL=true`; the in-container HTTPS discovery and
-  authenticated WebSocket observer validation succeed against
-  `truenas.albandrieu.com` with certificate verification enabled;
-- [x] enforce narrow observer source-address management instead of widening
-  `ui_allowlist` to a Docker subnet; the repository-owned observer bridge keeps
-  one reserved source address and reconciles that address as a `/32`.
+Accepted: dedicated read-only observer identity, verified TLS, narrow source
+address and repository-owned observer network.
 
-### Post-reboot runtime cleanup — 2026-09-05
+Remaining:
 
-Track these independently from the Talos bridge/bootstrap:
+- [ ] rerun the corrected RBAC parser and require `APPS_READ` (or a reviewed
+  temporary read-only role), never write/admin privileges;
+- [ ] complete the local/cloud A/B catalog parity check;
+- [ ] migrate FastAPI Cloud to the dedicated observer credential only after A/B
+  parity and production topology/UI smoke are green;
+- [ ] keep infrastructure automation on a distinct least-privilege identity;
+  never reuse observer credentials for OpenTofu/Terragrunt.
 
-- [x] Alertmanager configuration is now tracked in `apps/prometheus/alertmanager.yml`, mounted read-only, and integrated from Prometheus; repository rule files are also mounted and loaded. Configure a real notification receiver before depending on alert delivery;
-- [x] Native Scrutiny recovered functionally before cutover: InfluxDB `/health` and Scrutiny `/api/health` returned HTTP 200 and SMART collection ran. The native app is now stopped and the user created the target Scrutiny dataset; complete the repository-managed migration below before retiring native data;
-- [x] `opensearch-security`: data ownership corrected to UID/GID `1000:1000`; `_cluster/health` is green and Docker health is healthy;
-- [x] Open WebUI: healthy after reboot;
-- [x] Docker socket proxy: the TrueNAS-managed proxy that published
-  `0.0.0.0:2375` is stopped; AutoXpose and Doco-CD now use the repository
-  `docker-socket-proxy:2375` over the shared `intranet` network, with no
-  host-published Docker API port;
-- [ ] uninstall the stopped native TrueNAS Docker Socket Proxy app after one
-  final consumer inventory confirms no rollback dependency remains;
-- [ ] Tailscale: unused; leave stopped and clean up later rather than treating it as a Talos prerequisite.
+### DNS and private ingress
 
+Canonical architecture is
+[`dns-ingress-ownership.md`](./dns-ingress-ownership.md).
 
-### Garage WebUI Cloudflare exposure — 2026-09-08
+- [ ] during the next controlled maintenance, stop Pi-hole and prove Talos still
+  resolves/pulls public registries through pfSense/Unbound `172.17.0.1`;
+- [ ] keep `int.albandrieu.com` conditional/private and distinguish private-zone
+  loss from general DNS loss;
+- [ ] delete stale public `*.int` records without reviewed exposure exceptions;
+- [ ] move remaining public Garage/Vaultwarden `.int` dependencies to a
+  private VPN/WARP/trusted-runner path where practical;
+- [ ] diagnose any Unbound outage from process/log/memory/config evidence before
+  restart; do not hide memory-pressure loops with Service Watchdog;
+- [ ] retain separate alerts for general Unbound, private-zone/Pi-hole and
+  pfSense memory guardrails.
 
-- [x] make `https://garage-admin.albandrieu.com` the canonical external Garage WebUI URL;
-- [ ] publish `garage-admin.albandrieu.com` through Cloudflare Tunnel with Cloudflare Access enabled;
-- [ ] require authenticated admin access (prefer MFA / explicit identity policy) and keep the Garage Admin API on TCP/3903 internal-only;
-- [ ] verify the tunnel origin targets the Garage WebUI service on port 3909 rather than exposing Garage Admin API port 3903;
-- [ ] add an external HTTPS health probe for the Access-protected WebUI and retain separate internal health probes for Garage S3/Admin APIs.
+### Pi-hole native App -> repository Compose migration
 
-### pfSense WebGUI exposure roadmap — 2026-09-08
+Repository ownership is `apps/pihole/compose.yml` for Pi-hole,
+`pihole-dns-sync` and exporter on the shared intranet. The synchronizer must
+reach `docker-socket-proxy:2375` without exposing the Docker API on the LAN.
 
-- [x] use `https://home.albandrieu.com:10443/api/v2/system/version` as the canonical external pfSense REST API liveness endpoint; do not use `pfsense.albandrieu.com:10443` for API probing;
-- [ ] evaluate a dedicated `https://pfsense.albandrieu.com` WebGUI path through Cloudflare Tunnel + Access, with no direct WAN exposure of the administration listener;
-- [ ] before enabling that UI tunnel, validate WebSocket/session compatibility, certificate/origin handling, Cloudflare Access policy, MFA, CSRF behavior and emergency LAN-only rollback;
-- [ ] keep the pfSense REST API identity and WebGUI identity logically separate even if they ultimately share the same firewall origin.
+Remaining cutover gates:
 
-### Pi-hole native App -> repository Compose migration — 2026-09-07
+- [ ] inventory the exact native mounts/image and back up `/etc/pihole`;
+- [ ] copy data to `/mnt/cpool/pihole/config` preserving ownership and secrets;
+- [ ] stop the native App and prove ports `53/20720/30132/9617` are free before
+  starting Compose;
+- [ ] prove DNS sync is stable and does not continuously consume API sessions;
+- [ ] validate `sample.int.albandrieu.com -> 172.17.0.24`, Traefik HTTPS and
+  the protected external FastAPI path independently;
+- [ ] keep the native App recoverable through an observation window before
+  retirement.
 
-The Pi-hole cutover is now promoted because the internal DNS synchronizer exposed
-two coupled runtime faults:
+### Edge exposure
 
-- the native Pi-hole API hit `webserver.api.max_sessions=16`, preventing even
-  administrator login with `api_seats_exceeded`;
-- `pihole-dns-sync` could authenticate but could not resolve
-  `docker-socket-proxy`, because its deployment ownership/networking was split
-  from the repository-managed Docker proxy. The resulting restart loop repeatedly
-  allocated API sessions without completing useful Docker/Traefik discovery.
+- [ ] Garage WebUI: publish only the reviewed admin UI through Cloudflare
+  Tunnel/Access; keep Garage Admin API `:3903` internal-only.
+- [ ] pfSense WebGUI: evaluate a dedicated Tunnel + Access path with no direct
+  WAN administration listener and retain LAN emergency rollback.
+- [ ] Cloudflare Access: reconcile every declared Access-required hostname
+  against both API policy evidence and anonymous challenge evidence; zero
+  effective policies must fail closed.
+- [ ] keep pfSense REST/API identity separate from WebGUI identity even when the
+  firewall origin is shared.
 
-Target ownership:
+### Centralized logs
 
-```text
-apps/pihole/compose.yml
-  +-- pihole
-  +-- pihole-dns-sync
-  +-- pihole-exporter
+Graylog remains the central forensic target, not a bootstrap dependency.
 
-shared intranet
-  +-- docker-socket-proxy
-  +-- pihole
-  +-- pihole-dns-sync
-  +-- pihole-exporter
-```
-
-- [x] make `apps/pihole/compose.yml` the migration target and pin the official
-  Pi-hole image instead of tracking `latest`;
-- [x] move `pihole-dns-sync` out of `apps/traefik/compose.yml` so DNS
-  synchronization is owned beside Pi-hole;
-- [x] attach the synchronizer to `intranet` so
-  `docker-socket-proxy:2375` resolves without publishing the Docker API on the
-  host/LAN;
-- [x] keep `webserver.api.max_sessions=16` as the normal budget; do not mask a
-  restart/authentication loop by permanently raising the limit;
-- [x] preserve LAN compatibility ports `53`, `20720`, `30132` and exporter
-  `9617`, while normalizing Pi-hole container web ports to `80/443`;
-- [x] add `apps/pihole/README.md` with mount discovery, data copy, secret
-  preservation, cutover, acceptance and rollback steps;
-- [ ] inventory the exact native `ix-pihole-pihole-1` mounts and image version
-  before copying any data;
-- [ ] back up and copy the native `/etc/pihole` dataset into
-  `/mnt/cpool/pihole/config` without guessing the ixVolume source path;
-- [ ] migrate legacy `/etc/dnsmasq.d` only when the native mount contains
-  meaningful custom configuration;
-- [ ] validate the current UI/API password with the repository-managed container
-  without rotating it during cutover;
-- [ ] start the Compose replacement only after the native app is stopped and
-  ports `53/20720/30132/9617` are free;
-- [ ] prove `pihole-dns-sync` stays running, resolves
-  `docker-socket-proxy`, and no longer grows API sessions continuously;
-- [ ] prove `sample.int.albandrieu.com -> 172.17.0.24` through Pi-hole and
-  `https://sample.int.albandrieu.com/health` through Traefik;
-- [ ] run the full dual-path FastAPI exposure test: private
-  `sample.int.albandrieu.com` over LAN and protected
-  `sample.albandrieu.com` through Cloudflare Access/Tunnel;
-- [ ] keep the native Pi-hole app stopped but recoverable until the Compose
-  replacement survives a normal observation window;
-- [ ] uninstall the native Pi-hole app only after rollback is no longer required.
-
-
-### Internal DNS resilience and public `*.int` cleanup
-
-The private namespace contract is now:
-
-```text
-*.int.albandrieu.com -> LAN/VPN only
-public service       -> non-.int hostname + explicit exposure policy
-```
-
-Live Cloudflare DNS inventory on 2026-09-06 found historical public records for
-`code`, `dozzle`, `drawio`, `garage-admin`, `garage`, `hello`,
-`languagetool`, `ollama`, `s3`, `*.s3`, `vaultwarden` and a legacy
-`nexus-albanandrieu` host under `*.int.albandrieu.com`. These records were
-created before the Traefik Cloudflare companion excluded the `int` tree and
-must not be treated as evidence that the services are intentionally public.
-
-- [x] prevent the legacy Traefik Cloudflare companion from publishing the
-  `int` subdomain tree;
-- [x] remove AutoXpose labels from LAN-only Ollama and Hello so a private
-  Traefik route cannot also create a public DNS record;
-- [ ] delete public `*.int` records that have no explicit exposure exception,
-  beginning with Ollama, Hello, Code, Dozzle, Drawio and LanguageTool;
-- [ ] review the legacy `nexus-albanandrieu.int` record and remove it if no
-  current consumer requires it;
-- [x] narrow the Garage public exception to the single S3 root endpoint
-  `s3.int.albandrieu.com`; OpenTofu sets `use_path_style=true`, so public
-  `*.s3.int.albandrieu.com` bucket subdomains are not required;
-- [ ] delete the live Cloudflare DNS records for
-  `garage.int.albandrieu.com`, `garage-admin.int.albandrieu.com` and
-  `*.s3.int.albandrieu.com`, while retaining internal Traefik routes where
-  needed for LAN administration;
-- [ ] migrate the remaining Garage S3 state endpoint to a private runner/VPN/WARP
-  path once all OpenTofu/Terragrunt writers are proven to run inside the trusted
-  network, then remove the final public `.int` S3 exceptions;
-- [ ] migrate any workstation dependency on
-  `vaultwarden.int.albandrieu.com` away from public `.int` DNS. Prefer a
-  private VPN/WARP route for normal Bitwarden/Vaultwarden client protocols.
-  Cloudflare Access Service Auth is appropriate only for automation that can
-  explicitly send `CF-Access-Client-Id` and `CF-Access-Client-Secret`;
-  do not assume stock Bitwarden clients can inject those headers;
-- [x] add `scripts/security/audit-public-int-dns.sh`, a read-only Cloudflare
-  DNS drift check that reports every public `*.int.albandrieu.com` record and
-  fails unless it appears in the reviewed temporary-exception allowlist;
-- [ ] keep pfSense/Unbound as the general LAN resolver and design the private
-  `int.albandrieu.com` zone so Pi-hole on TrueNAS is not a global DNS single
-  point of failure;
-- [x] **Incident 2026-09-27 — DHCP DNS dependency on TrueNAS:** after a TrueNAS reboot, Kea still distributed `172.17.0.24` as the LAN DNS server while port 53 on TrueNAS was refusing connections. Android clients reported "connected without Internet" and application behavior became inconsistent. The DHCP LAN resolver was changed to `172.17.0.1` (pfSense/Unbound). See [`docs/incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
-- [ ] **Diagnose the current Unbound outage before enabling any watchdog:** capture
-  the exact daemon state with `pgrep -x unbound`, recent resolver/system logs,
-  current free memory and top RSS consumers, and current-boot kernel OOM/reclaim
-  evidence before restarting the resolver;
-- [ ] classify every Unbound outage as one of: kernel OOM/memory-pressure kill,
-  pfBlockerNG DNSBL reload/rebuild failure, invalid/generated Unbound configuration,
-  bind/listener conflict, operator/package restart, or unexplained daemon exit;
-- [ ] verify the stabilized pfBlockerNG memory baseline has not regressed: reduced
-  DNSBL dataset, heavy UT1 categories still disabled, PHP `memory_limit=128M`,
-  ntopng/softflowd disabled, Snort sizing preserved, and adequate free-memory
-  headroom before restoring optional services;
-- [ ] **keep Unbound out of Service Watchdog while OOM/memory pressure remains a
-  plausible root cause**: automatic restarts can recreate allocation pressure
-  and hide restart/bind races;
-- [ ] reconsider Service Watchdog for Unbound only after a measured observation
-  window proves stable memory headroom and the outage cause is non-memory-related;
-  if enabled later, add an alert/incident counter so repeated restarts remain visible;
-- [x] add a critical functional Unbound health check: the SSH/local pfSense
-  posture audit now fails when the `unbound` process is absent, its control
-  socket is unhealthy, or a direct localhost query cannot resolve
-  `example.com`; API mode now fails when FastAPI Sample reports
-  `.pfsense.dns.reachable=false`;
-- [ ] add a separate split-DNS delegation check for
-  `int.albandrieu.com -> 172.17.0.24:53` so a Pi-hole/private-zone outage
-  cannot be confused with loss of general LAN DNS;
-- [ ] alert on Unbound down, resolver failure rate and pfSense memory guardrails,
-  and surface the state in the homelab/FastAPI status presentation so Android
-  "connected without Internet" incidents can be attributed quickly;
-- [ ] evaluate repository-generated pfSense/Unbound host/local-zone data for
-  critical `*.int` names, with Pi-hole synchronization retained as an
-  optional secondary consumer.
-- [ ] **Diagnose and fix TrueNAS internal DNS resolution:** workstation resolution
-  of `*.int.albandrieu.com` currently works while the TrueNAS host cannot resolve
-  the same private names. Compare the effective resolver path on both systems
-  (DHCP/static DNS servers, search domains, pfSense/Unbound forwarding, Pi-hole,
-  `/etc/resolv.conf`, systemd/resolver state where applicable, and split-horizon
-  answers) before changing records;
-- [ ] prove from TrueNAS that `dig`/equivalent queries against the configured
-  resolver return the expected private address for representative names such as
-  `sample.int.albandrieu.com`, and that direct queries to pfSense/Unbound and
-  Pi-hole produce the intended authoritative/forwarded result;
-- [ ] add a read-only DNS smoke check that compares workstation/LAN expectations
-  with the TrueNAS resolver path and fails on public leakage, NXDOMAIN, resolver
-  mismatch or an unexpected address for critical `*.int.albandrieu.com` names;
-- [ ] document the final resolver ownership and fallback path so TrueNAS does not
-  depend accidentally on a workstation-only DNS configuration.
-
-### Centralized syslog -> Graylog
-
-Treat host/network logs as security telemetry rather than ad-hoc troubleshooting
-output. The next observability wave should centralize pfSense and workstation
-syslog in the repository-managed Graylog stack.
-
-Target flow:
-
-```text
-pfSense ---------+
-                 +--> Graylog input --> streams/pipelines --> search/alerts
-workstation -----+
-```
-
-- [ ] enable/review **pfSense Remote Logging** toward a dedicated Graylog Syslog
-  input, initially on the trusted LAN only; include firewall/filter, system,
-  resolver/DHCP and relevant security package logs without exposing the input to
-  WAN;
-- [ ] configure the workstation to forward system/security syslog to Graylog,
-  using a transport supported by both endpoints; prefer TCP/TLS where practical
-  and keep UDP only where a source cannot reliably use TCP;
-- [ ] define explicit Graylog inputs/ports, source allowlists and firewall rules;
-  never publish a syslog receiver to the public Internet;
-- [ ] normalize source identity, timestamp/timezone, facility/severity and common
-  fields through Graylog pipelines/extractors so pfSense and workstation events
-  can be correlated;
-- [ ] create separate streams for at least `pfsense` and `workstation`, with
-  retention/index policy sized for homelab storage rather than unlimited log
-  growth;
-- [ ] add health/acceptance checks proving that a generated test event from each
-  source reaches Graylog, is parsed with the expected source/timestamp fields,
-  is searchable in the correct stream and survives a Graylog restart;
-- [ ] add alerts/dashboards only after ingestion quality is proven, prioritizing
-  pfSense firewall denies/security events and workstation authentication or
-  privilege-related events;
-- [ ] document data sensitivity and retention: workstation logs can contain user,
-  process, path, hostname and network metadata and therefore should remain on the
-  trusted observability plane.
-
-### Cloudflare Tunnel + Access reconciliation
-
-Cloudflare public access must be treated as a declared security contract, not merely as a working DNS/Tunnel hostname.
-
-The local service catalog currently declares these services as externally reachable through a secure Cloudflare edge and therefore Access-required by FastAPI Sample unless explicitly overridden:
-
-```text
-Heimdall
-IT Tools
-Vaultwarden
-2FAuth
-Keycloak
-Homarr
-KaraKeep
-Plumber API
-Open WebUI
-Nexus
-LiteLLM
-SearXNG
-Minio
-Langfuse
-Language Tool
-n8n
-Scrutiny
-```
-
-This is an **intent inventory**, not proof that the live Cloudflare Access applications/policies exist. Use FastAPI Sample's read-only Cloudflare observer through `/sickz` to reconcile the live state:
-
-```bash
-scripts/security/audit-cloudflare-access-via-fastapi.sh
-```
-
-Acceptance gates:
-
-- [ ] every service with `external=true`, `tunnelSecure=true` and effective `cloudflareAccessRequired=true` has a matching Cloudflare Tunnel ingress;
-- [ ] every Access-required hostname has a matching Cloudflare Access application with at least one effective policy;
-- [ ] no Access-required hostname has an accidental host-wide `Everyone`/bypass policy;
-- [ ] intentional public webhook/API exceptions such as n8n are narrowed to the required path or use Service Auth rather than weakening the whole host;
-- [ ] every catalog entry with a Tunnel URL but `external=false` is reconciled: either declare the intended protected external access or remove the stale Tunnel/DNS exposure;
-- [ ] Scrutiny external navigation is `https://scrutiny.albandrieu.com/` behind Cloudflare Access, while LAN navigation remains `http://172.17.0.24:31054/`;
-- [ ] FastAPI Sample/UI consumers never synthesize `https://truenas.albandrieu.com:<application-port>/` for an application whose catalog declares an HTTP LAN endpoint.
-- [ ] FastAPI Sample `/sickz` treats an observed Access application with zero effective policies/decisions as a failure rather than compliant; the repository audit helper already fails closed on this condition.
-
-The last item is a follow-up for the FastAPI Sample presentation layer if the incorrect Scrutiny link is still rendered after the catalog changes: internal navigation must be built from `internalHost`, `internalPort` and `internalSecure`, while external navigation must use `tunnelUrl`.
-
-#### Live Cloudflare reconciliation — 2026-09-06
-
-The workstation audit against FastAPI Sample `/sickz` confirms that Cloudflare edge evidence is present for the declared tunneled services, but the API-side Tunnel ingress observer currently does not enumerate their hostnames. Treat that as an observer/inventory gap until the Cloudflare token scope and tunnel configuration API path are verified; an observed Cloudflare Access challenge remains valid enforcement evidence.
-
-The audit separates the actionable findings:
-
-- [ ] **Access protection missing or not observed:** Heimdall, Vaultwarden, Keycloak, Homarr and Plumber API. These returned neither an API-observed Access policy nor an anonymous HTTP Access challenge and must be checked in Cloudflare Zero Trust;
-- [x] **Access challenge observed:** Scrutiny, IT Tools, 2FAuth, n8n, KaraKeep, Open WebUI, Nexus, LiteLLM, SearXNG, Minio, Langfuse and Language Tool. Do not report these as missing Access policies merely because the read-only API observer cannot enumerate the application/policy;
-- [ ] **Scrutiny runtime:** Access enforcement is present, but TrueNAS correctly reports the native Scrutiny application STOPPED while the Compose migration is pending;
-- [ ] **Bichon:** the Compose-backed v2.0.3 service is RUNNING and IMAP synchronization is active, but OAuth2 refresh is degraded because stored OAuth2 tokens cannot be decrypted. The current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration snapshot, so do not rotate it. Remove the unusable OAuth2 token(s) through Bichon's OAuth2 Tokens UI and re-authorize the affected account(s). Keep unintended public exposure cleanup as a separate security task;
-- [ ] **pfSense TCP/10443:** FastAPI Cloud can currently reach the administration/API listener even though this runtime is not an approved administration source. Reconcile the WAN source policy rather than relying on dynamic blocking;
-- [x] **TrueNAS TCP/7000 and Garage:** remain explicit direct-exposure warnings under their documented security exceptions.
-
-The repository audit helper must fail only when an Access-required service has neither API-observed policy evidence nor an HTTP Access challenge, while still failing closed for an API-observed Access application with zero effective policy decisions.
-
+- [ ] forward pfSense and workstation security/system events only over reviewed
+  trusted transports and source allowlists;
+- [ ] normalize source, timestamp, facility/severity and common fields;
+- [ ] define bounded streams/retention for at least `pfsense` and
+  `workstation`;
+- [ ] accept ingestion only after generated test events are parsed, searchable
+  in the expected stream and survive a Graylog restart.
 
 ## P0 hard gate — secrets-first migration
 
-Before continuing broad native-App-to-Compose cutovers, treat the Vaultwarden migration foundation as a P0 gate:
+Before broad native-App cutovers:
 
-- use `docs/secrets-migration-roadmap.md` as the detailed execution plan;
-- inventory secret variable names and consumers without committing values;
-- keep existing git-crypt shell exports as a permanent encrypted recovery source; root-restricted TrueNAS `.env` files remain temporary runtime inputs;
-- make Vaultwarden the interim source of truth for human-managed homelab secrets;
-- validate one canary service end-to-end before expanding the migration;
-- preserve migration-critical encryption keys exactly until their dependent data has been verified;
-- keep machine-secret migration to HashiCorp Vault as the later Kubernetes-oriented target.
-
-This gate complements the current CrowdSec, TrueNAS/Talos and service-migration work; it must not roll those already-merged changes back.
+- use [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) as the
+  canonical detailed plan;
+- inventory variable names/consumers without committing values;
+- preserve migration-critical encryption keys until dependent data is proven;
+- use Vaultwarden as the interim human-managed source of truth and render
+  root-restricted runtime material outside Git;
+- validate one service at a time with functional health and rollback evidence;
+- defer long-term machine-secret migration to Vault/OpenBao until storage and
+  Kubernetes authentication are stable.
 
 ## Target principles
 
@@ -967,7 +684,7 @@ Recovery gates:
 - [x] current `BICHON_ENCRYPT_PASSWORD` matches the pre-migration snapshot;
 - [ ] identify the affected OAuth2 account/token in the Bichon UI;
 - [ ] use **OAuth2 Tokens -> Delete Token** for the unusable encrypted token;
-- [ ] repeat the OAuth2 authorization flow for the affected account;
+- [ ] re-authorize the affected account through the OAuth2 authorization flow;
 - [ ] confirm the periodic `oauth2-token-refresh-task` no longer logs
       `Decryption failed, likely due to incorrect encryption key or corrupted data`;
 - [ ] rerun `scripts/truenas/audit-app-lifecycle.sh` and require the Bichon
@@ -1393,247 +1110,69 @@ For every application:
 
 ## Secrets roadmap — Vaultwarden first, HashiCorp Vault second
 
-### S0 — secret inventory
+Detailed execution is canonical in
+[`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md). This platform
+document only keeps the cross-platform dependency contract.
 
-Create a secret inventory by variable name and consumer only. Never commit values.
+### Current contract
 
-The current sources must be treated as migration inputs, not as competing long-term sources of truth:
+- Vaultwarden is the interim source of truth for human-managed homelab secrets.
+- Existing git-crypt material remains an encrypted recovery source, not a live
+  deployment authority.
+- Runtime materializations stay outside Git, with root-restricted directories
+  and `0600` files; prefer application file/secret inputs where supported.
+- A folder is organizational, not an authorization boundary: unattended
+  automation requires a dedicated account/collection with least privilege.
+- Migrate one service at a time: inventory -> materialize -> functional smoke ->
+  rollback proof -> compatibility-path retirement.
+- Never bulk-rotate migration-critical encryption keys merely to normalize
+  storage.
 
-| Current source | Immediate treatment | End state |
-| --- | --- | --- |
-| `nabla/env/home/pass/` shell exports protected by git-crypt | Keep read-only during migration; inventory export names without decrypting values into reports | Retain indefinitely as an encrypted secondary recovery source |
-| Shell environment loaded by `.bashrc` | Use only as the in-memory input to the one-time importer | Remove secret-file sourcing from `.bashrc` |
-| Per-service `.env` files on TrueNAS | Keep root-restricted as a deployment compatibility layer | Generate from Vaultwarden, then replace with direct Doco-CD resolution where practical |
-| Vaultwarden | Make the interim source of truth | Retain for human secrets; migrate machine secrets to Vault later |
+### Remaining gates
 
-The `AlbanAndrieu/nabla` repository is already private and must remain private while it retains the git-crypt recovery source. `AlbanAndrieu/nabla-compose` may remain public only because it must contain references, manifests and item UUIDs, never secret values. Repository privacy is defense in depth, not a substitute for rotating anything that has ever appeared in Git history, CI output or a container definition.
+- [ ] finish owner/consumer/rotation classification for remaining secrets;
+- [ ] complete staged Vaultwarden materialization waves and remove legacy
+  `.bashrc`/dotenv dependencies only after reboot acceptance;
+- [ ] prove Doco-CD consumes only its reviewed secret scope;
+- [ ] retain tested encrypted recovery material;
+- [ ] deploy Vault/OpenBao for machine secrets only after persistent storage,
+  backup/recovery and least-privilege auth are accepted.
 
-Classify secrets into:
+Long-term machine authentication preference:
 
-- application encryption keys (for example 2FAuth `APP_KEY`, Reactive Resume encryption secret);
-- database credentials;
-- API keys;
-- OAuth/OIDC client secrets;
-- infrastructure credentials;
-- CI/CD credentials.
-
-Mark whether each secret is migration-critical and whether rotating it would invalidate existing encrypted data.
-
-### S1 — Vaultwarden as interim source of truth
-
-Use the existing Vaultwarden deployment and the official Bitwarden CLI (`bw`) as the initial automation interface.
-
-Important constraint: Vaultwarden is Bitwarden-client compatible but does not implement the full Bitwarden Public API. Automation should therefore use normal Bitwarden client/CLI flows rather than assume Public API parity.
-
-Suggested organization:
-
-```text
-Nabla Homelab
-├── infrastructure
-├── databases
-├── applications
-├── observability
-└── identity
-```
-
-Suggested item naming:
-
-`nabla/<environment>/<application>/<secret-name>`
-
-For the existing TrueNAS migration, use the Vaultwarden folder named `TrueNAS` with the stable identifier:
-
-```text
-BW_FOLDER_ID=44a92b83-2762-4fa5-a238-f84396fd26f9
-```
-
-Store one secret per login item. The item name is the environment variable name during the first migration, `login.username` records that same variable name, and `login.password` contains the value. Notes may contain provenance but never the secret. Consequently, retrieve the example with `.login.password`, not `.notes`:
-
-```bash
-bw get item N8N_INTERNAL_API_KEY |
-  jq -r '.login.password'
-```
-
-A Vaultwarden folder is an organizational label, not an authorization boundary. Before granting an unattended deployment or an AI client access, place the required items in a dedicated organization collection and give a dedicated automation account access only to that collection. Do not give the primary personal account to Doco-CD or an MCP client.
-
-Operational pattern:
-
-1. configure CLI against the Vaultwarden server with `bw config server ...`;
-2. authenticate/unlock interactively or with an approved machine-safe mechanism;
-3. `bw sync` before reads;
-4. fetch only required fields/items;
-5. render root-restricted `0600` env/secret files outside the Git working tree;
-6. start the target Compose service;
-7. remove transient cleartext files when no longer required.
-
-Prefer Docker secret/file inputs when an application supports them. Environment variables are acceptable for the interim phase but remain visible to privileged host/container inspection.
-
-The repository now provides two fail-closed helpers and a value-free example manifest:
-
-```bash
-export BW_FOLDER_ID="44a92b83-2762-4fa5-a238-f84396fd26f9"
-export BW_SESSION="$(bw unlock --raw)"
-
-# Preview create/update operations. Values come from the already loaded shell.
-scripts/secrets/import_env_to_vaultwarden.py \
-  --manifest docs/vaultwarden-secrets.example.tsv \
-  --dry-run
-
-# Perform the import only after reviewing the preview.
-scripts/secrets/import_env_to_vaultwarden.py \
-  --manifest docs/vaultwarden-secrets.example.tsv
-
-# Render the compatibility .env beside a TrueNAS service, outside this checkout.
-scripts/secrets/render_vaultwarden_env.py \
-  --manifest docs/vaultwarden-secrets.example.tsv \
-  --output /mnt/cpool/apps/n8n/.env \
-  --force
-```
-
-The importer never sources files from `env/home/pass/`; sourcing would execute arbitrary shell code. First load the existing trusted exports through the current shell, then give the importer a manifest containing variable names only. Both helpers require an exact item name within the configured folder, never print values and fail on missing or ambiguous items. The renderer refuses to write inside the Git checkout and rejects multiline values, which must use Docker secret files instead.
-
-Treat every generated `.env` as a local materialization cache, not another editable source of truth. Use a root-owned parent directory with mode `0700`, keep the file at `0600`, and run Compose with an explicit `--env-file`. Environment variables remain visible to privileged host users and through container inspection; prefer application `_FILE` or Docker Compose `secrets:` inputs when supported.
-
-### S1.1 — local Bitwarden MCP
-
-The official `@bitwarden/mcp-server` is pinned in `.mcp.json` and uses the local Bitwarden CLI session. Configure `bw` against Vaultwarden before starting the MCP client:
-
-```bash
-bw config server https://vaultwarden.example.com
-bw login
-export BW_SESSION="$(bw unlock --raw)"
-```
-
-Use only the CLI-backed vault-management tools with Vaultwarden. The MCP server's Bitwarden Public API organization-administration tools are not compatible with Vaultwarden's client-API-only implementation.
-
-The MCP server must remain local over stdio and must never be exposed as a network service. It can read, create, modify and delete vault items, and it does not enforce `BW_FOLDER_ID`; use a dedicated restricted account/collection, keep approval for writes, and lock/expire the session after the task. A repository MCP declaration does not connect a remote ChatGPT session or transmit credentials by itself.
-
-### S1.2 — migration sequence and rollback
-
-1. Snapshot the git-crypt repository and each TrueNAS `.env`; record hashes and permissions without copying values into the roadmap.
-2. Generate a manifest of variable names and map each variable to exactly one service and Vaultwarden item.
-3. Import from the already loaded shell with `--dry-run`, then import for real.
-4. Read each item back by UUID and compare values locally without printing them.
-5. Generate one service `.env`, restart only that service, and validate functional health rather than container state alone.
-6. Keep the previous `.env` available as a root-only rollback file until the service passes its validation window.
-7. Migrate Doco-CD from `1password` to the Vaultwarden webhook provider and remove persistent `.env` files service by service where supported.
-8. Rotate migratable live credentials when required, then optionally remove corresponding `.bashrc` includes. Preserve non-rotatable encryption keys exactly until data decryption has been proven.
-9. Retain the git-crypt secret payloads indefinitely as the encrypted secondary recovery source; test authorized decryption periodically and never automate their deletion.
-
-Do not delete, rotate or rewrite all sources in one operation. Roll back a failed service by restoring its previous root-only `.env` and Compose revision; do not copy secret values back into Git.
-
-### S2 — secret rotation and repository cleanup
-
-- remove committed/example values that look production-like;
-- ensure `.env`, rendered secret files and backup exports are ignored;
-- rotate credentials that may previously have been exposed in Git/logs;
-- add CI checks preventing new cleartext secrets;
-- document break-glass recovery separately from normal automation.
-
-Completion criteria:
-
-- [ ] every variable under `env/home/pass/` has one owner, consumer and rotation classification;
-- [ ] every migrated item is in the `TrueNAS` folder and, for automation, a restricted collection;
-- [ ] each generated TrueNAS `.env` is outside Git, root-owned and mode `0600`;
-- [ ] `.bashrc` no longer sources migrated secret files;
-- [ ] CI and secret scanners contain no plaintext or decrypted artifacts;
-- [ ] git-crypt files are retained, remain decryptable by the authorized recovery process, and are never removed by migration automation.
-
-### S3 — HashiCorp Vault
-
-Deploy Vault only after the application migration and Vaultwarden workflows are stable.
-
-Initial target:
-
-- persistent storage below `/mnt/cpool/vault`;
-- KV v2 at a predictable path such as `kv/homelab/<app>`;
-- narrowly scoped policies per application/service class;
-- audit logging enabled;
-- recovery/unseal material stored offline and separately from the normal secrets store.
-
-Migration from Vaultwarden to Vault should stream values item-by-item (`bw get ... -> vault kv put ...`) rather than create a long-lived plaintext bulk export.
-
-Human authentication target: Keycloak OIDC.
-
-Machine authentication progression:
-
-1. AppRole for standalone Compose workloads where necessary;
-2. GitHub Actions OIDC/JWT for CI where practical;
-3. Kubernetes auth once Talos/Kubernetes becomes the workload platform.
-
-Avoid making Vault's GitHub-PAT auth method the primary human login. It requires a GitHub personal access token rather than performing a GitHub OAuth flow. Prefer Keycloak OIDC for humans once the IdP is available.
+1. Kubernetes workload auth for Talos workloads;
+2. CI OIDC/JWT where supported;
+3. bounded AppRole only for standalone workloads that cannot use workload
+   identity.
 
 ## Identity roadmap — GitHub -> Keycloak -> homelab services
 
-### I0 — architecture decision
-
-Target identity flow:
+Target flow remains:
 
 ```text
 GitHub
-  -> Keycloak (identity broker / central IdP)
-      -> OIDC-capable homelab services
-      -> Vault OIDC
-      -> oauth2-proxy/forward-auth for services without native OIDC
+  -> Keycloak
+      -> native OIDC services
+      -> Vault/OpenBao OIDC
+      -> proxy-auth only for services without native OIDC
 ```
 
-Keycloak has a built-in GitHub social identity provider.
+Keycloak itself has already moved to repository ownership with the global
+PostgreSQL service; do not reintroduce a dedicated database container merely to
+follow the historical bootstrap design.
 
-Start with a GitHub OAuth App for login-only SSO because it is simpler and sufficient when downstream services only need Keycloak identity. Move to a GitHub App only if refreshable GitHub user tokens or GitHub API access through the broker becomes a real requirement.
+Remaining gates:
 
-### I1 — Keycloak bootstrap
-
-Target storage:
-
-```text
-/mnt/cpool/keycloak/
-└── postgres/
-```
-
-Use a dedicated PostgreSQL database/container initially rather than coupling Keycloak availability to the shared homelab PostgreSQL migration.
-
-Bootstrap controls:
-
-- dedicated realm such as `nabla`;
-- local break-glass Keycloak administrator not dependent on GitHub;
-- GitHub identity provider configured with the exact Keycloak redirect URI;
-- least-privilege GitHub scopes;
-- explicit user allowlist or organization/team policy before allowing automatic first-login access;
-- MFA policy decided in Keycloak rather than assuming GitHub MFA state is sufficient for every service.
-
-### I2 — service onboarding
-
-Classify services into:
-
-1. native OIDC clients — integrate directly with Keycloak;
-2. proxy-auth capable services — use an authenticated reverse-proxy pattern;
-3. services with neither — keep local authentication until a safe integration exists.
-
-Prioritize administrative surfaces first only when break-glass access is proven. Suggested early candidates include Vault and Grafana; each application must be checked for its current supported OIDC flow before implementation.
-
-Do not make Keycloak mandatory for NPMplus administration until NPMplus itself is stable and an independent recovery path exists.
-
-### I3 — authorization model
-
-Define Keycloak groups/roles independently from GitHub repository permissions, for example:
-
-- `homelab-admin`;
-- `homelab-operator`;
-- `observability-admin`;
-- `read-only`.
-
-GitHub identity proves who the user is; Keycloak remains the place where homelab authorization is mapped.
-
-Later, optionally map GitHub organization/team information into Keycloak after verifying the required GitHub scopes and token behavior.
-
-### I4 — Vault integration
-
-Once Keycloak is stable:
-
-- enable Vault OIDC/JWT auth;
-- configure Keycloak discovery URL, client ID and client secret;
-- map Keycloak groups/claims to Vault roles/policies;
-- support both Vault UI and CLI redirect URIs;
-- keep a non-OIDC break-glass Vault recovery path.
+- [ ] retain a local break-glass Keycloak administrator independent of GitHub;
+- [ ] broker GitHub with least-privilege scopes and an explicit user/team policy;
+- [ ] classify each service as native OIDC, proxy-auth capable or local-auth
+  retained;
+- [ ] define `homelab-admin`, `homelab-operator`, observability and read-only
+  roles in Keycloak independently of GitHub repository permissions;
+- [ ] integrate Vault/OpenBao OIDC only after Keycloak recovery and group/claim
+  mapping are proven;
+- [ ] never make central SSO mandatory for an administrative surface until a
+  tested independent recovery path exists.
 
 ## Execution order — reprioritized 2026-09-07
 

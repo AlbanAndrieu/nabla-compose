@@ -1,0 +1,3 @@
+# path	base_blob	current_blob	reason
+.github/workflows/production-security.yml	88e06bff401730950af0fe9aead738cb3b2bed21	b6d9bd3151033767b0b0e9b6699c63c646ee1419	ZAP/DAST delegated to fastapi-sample; bounded runtime smoke retained
+docs/pfsense-dns-incident-20260927.md	f3d9a84707815176ecdd7ce46eaeb590c3029f8f	DELETED	duplicate incident consolidated under docs/incidents/

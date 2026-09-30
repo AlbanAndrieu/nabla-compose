@@ -643,7 +643,7 @@ The next phase can replace this manual ISO workflow with a reproducible Talos Im
 
 ### DNS bootstrap dependency guard — 2026-09-27
 
-> Incident de référence : [pfSense/Talos DNS — 2026-09-27](pfsense-dns-incident-20260927.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
+> Incident de référence : [pfSense/Talos DNS — 2026-09-27](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
 
 
 A post-reboot LAN incident proved that pfSense Kea was distributing TrueNAS

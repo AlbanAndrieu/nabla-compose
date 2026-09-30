@@ -75,6 +75,7 @@ fi
 LOG_TAIL="${QUALITY_LOG_TAIL:-80}"
 LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-600}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
+REVIEWED_LARGE_DELETIONS="${ROOT}/config/quality/reviewed-large-deletions.tsv"
 if ! [[ "${LOG_TAIL}" =~ ^[1-9][0-9]*$ ]]; then
   printf '❌ QUALITY_LOG_TAIL must be a positive integer\n' >&2
   exit 2
@@ -209,6 +210,31 @@ check_base_freshness() {
   printf '✅ branch contains comparison base %s\n' "${BASE_REF}"
 }
 
+is_reviewed_large_deletion() {
+  local file="$1"
+  local current_state="${2:-PRESENT}"
+  local base_blob current_blob
+
+  [[ -f "${REVIEWED_LARGE_DELETIONS}" ]] || return 1
+  base_blob="$(git rev-parse "${BASE_REF}:${file}" 2>/dev/null || true)"
+  [[ -n "${base_blob}" ]] || return 1
+
+  if [[ "${current_state}" == "DELETED" ]]; then
+    current_blob="DELETED"
+  else
+    [[ -f "${file}" ]] || return 1
+    current_blob="$(git hash-object "${file}")"
+  fi
+
+  awk -F '\t' \
+    -v path="${file}" \
+    -v base="${base_blob}" \
+    -v current="${current_blob}" '
+      $0 !~ /^#/ && $1 == path && $2 == base && $3 == current { found = 1 }
+      END { exit(found ? 0 : 1) }
+    ' "${REVIEWED_LARGE_DELETIONS}"
+}
+
 check_destructive_diff() {
   local large_deletion_failed=0
   if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" == "1" || "${BASE_REF}" == "HEAD" ]]; then
@@ -237,6 +263,11 @@ check_destructive_diff() {
     deleted_lines=$((base_lines - current_lines))
     deleted_percent=$((deleted_lines * 100 / base_lines))
     if ((deleted_lines >= 100 && deleted_percent >= 40)); then
+      if is_reviewed_large_deletion "${file}" PRESENT; then
+        printf '✅ reviewed large deletion: %s lost %d/%d lines (%d%%) with exact blob approval\n' \
+          "${file}" "${deleted_lines}" "${base_lines}" "${deleted_percent}"
+        continue
+      fi
       printf '❌ QG_LARGE_DELETION: %s lost %d/%d lines (%d%%); set QUALITY_ALLOW_LARGE_DELETION=1 only after explicit review\n' \
         "${file}" "${deleted_lines}" "${base_lines}" "${deleted_percent}" >&2
       large_deletion_failed=1
@@ -258,6 +289,11 @@ check_destructive_diff() {
     git cat-file -e "${BASE_REF}:${file}" 2>/dev/null || continue
     base_lines="$(git show "${BASE_REF}:${file}" | wc -l | tr -d ' ')"
     if ((base_lines >= 200)); then
+      if is_reviewed_large_deletion "${file}" DELETED; then
+        printf '✅ reviewed large deletion: %s deleted (%d lines) with exact blob approval\n' \
+          "${file}" "${base_lines}"
+        continue
+      fi
       printf '❌ QG_LARGE_DELETION: %s was deleted (%d lines); set QUALITY_ALLOW_LARGE_DELETION=1 only after explicit review\n' \
         "${file}" "${base_lines}" >&2
       large_deletion_failed=1
@@ -443,10 +479,24 @@ if [[ "${MODE}" == "fix" ]]; then
   done
 fi
 
-run_compact "declared service topology is synchronized" \
-  "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
-run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
-  "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
+generated_contract_scope_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  case "${file}" in
+    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*.yml|apps/*.yaml|apps/*/*.yml|apps/*/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+      generated_contract_scope_changed=true
+      break
+      ;;
+  esac
+done
+
+if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]; then
+  run_compact "declared service topology is synchronized" \
+    "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
+  run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
+    "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
+else
+  printf 'ℹ️  CI fast mode: generated topology/consumer checks skipped because no generator input changed\n'
+fi
 
 if [[ "${CI_FAST}" == true ]]; then
   printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'

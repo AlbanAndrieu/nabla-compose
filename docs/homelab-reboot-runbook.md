@@ -30,7 +30,7 @@ reviewed Git commit
 
 Related evidence and design documents:
 
-- `truenas-reboot-incident-20260911.md`;
+- `incidents/2026-09-11-truenas-reboot.md`;
 - `truenas-csi-orphan-datasets.md`;
 - `truenas-docker-ipam-roadmap.md`;
 - `homelab-network-topology.md`.

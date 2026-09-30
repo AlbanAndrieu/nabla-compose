@@ -1,25 +1,46 @@
-# Incident DNS LAN après reboot TrueNAS — 2026-09-27
+# Incident pfSense / Talos DNS après reboot TrueNAS — 2026-09-27
+
+Status: **mitigé ; garde-fous implémentés, acceptation de maintenance encore à prouver**.
 
 ## Résumé
 
-Après la mise à niveau de pfSense vers 26.07-RELEASE et un reboot TrueNAS, plusieurs clients LAN, dont un Samsung Galaxy S24 Ultra, se sont retrouvés dans un état Android « connecté sans Internet ».
+Le reboot contrôlé de TrueNAS a révélé une dépendance circulaire : le DHCP LAN
+annonçait `172.17.0.24` (TrueNAS/Pi-hole) comme resolver général alors que les
+Apps TrueNAS, dont Pi-hole, sont volontairement arrêtées pendant la maintenance.
 
-Le diagnostic a montré que le problème principal n'était pas une panne générale du WAN IPv4 :
+Les clients LAN et les trois nœuds Talos pouvaient donc perdre leur résolution
+publique au moment même où Kubernetes devait tirer des images pour restaurer ses
+workloads. Le controller et les nodes du CSI TrueNAS/NFS ont été bloqués en
+`ImagePullBackOff`. Il ne s'agissait pas d'une perte de données CSI.
 
-- pfSense joignait Internet par IPv4 ;
-- le routage par défaut WAN était correct ;
-- Unbound sur pfSense résolvait correctement les noms ;
-- le monitoring WANGW via `dpinger` fonctionnait après réactivation ;
-- le Samsung pouvait établir certains flux HTTPS/QUIC Internet.
+Contrat corrigé :
 
-Le défaut certain identifié côté LAN était que Kea distribuait encore `172.17.0.24` (TrueNAS) comme serveur DNS alors que, après reboot, aucun service DNS n'écoutait sur `172.17.0.24:53`.
+```text
+LAN / Talos
+    |
+    v
+pfSense / Unbound 172.17.0.1:53
+    |
+    +--> DNS public indépendant de TrueNAS
+    |
+    +--> int.albandrieu.com (Domain Override)
+              |
+              v
+        Pi-hole 172.17.0.24:53
+              |
+              v
+       services privés / Traefik
+```
 
-## Symptômes observés
+## Symptômes et preuves
 
-- Samsung S24 Ultra : IP `172.17.0.14`, gateway `172.17.0.1`.
-- Android : « connecté sans Internet ».
-- Play Store : erreur réseau.
-- TrueNAS `172.17.0.24` joignable en ICMP, mais DNS indisponible :
+### LAN
+
+- certains clients Android signalaient « connecté sans Internet » ;
+- TrueNAS `172.17.0.24` restait joignable en ICMP mais aucun DNS n'écoutait
+  sur `TCP/UDP 53` ;
+- Kea distribuait `172.17.0.24` comme `domain-name-servers` ;
+- pfSense/Unbound `172.17.0.1` résolvait correctement les noms publics.
 
 ```text
 dig @172.17.0.24 google.com
@@ -29,137 +50,154 @@ nc -vz -w2 172.17.0.24 53
 connection refused
 ```
 
-- Kea généré par pfSense :
+### Talos / Kubernetes
 
-```json
-{
-  "name": "domain-name-servers",
-  "data": "172.17.0.24"
-}
+Les trois nœuds utilisaient un resolver local `127.0.0.53`, mais son upstream
+était `172.17.0.24:53`. Les logs `dns-resolve-cache` montraient
+`connection refused` / `i/o timeout` pour notamment :
+
+```text
+registry.k8s.io
+ghcr.io
+discovery.talos.dev
 ```
 
-- Gateway DHCP correcte :
+Conséquence observée :
 
-```json
-{
-  "name": "routers",
-  "data": "172.17.0.1"
-}
+```text
+truenas-csi-controller -> ImagePullBackOff
+truenas-csi-node       -> ImagePullBackOff
 ```
+
+Les volumes existants n'ont pas été perdus et aucun VolumeAttachment stale n'a
+été identifié.
 
 ## Cause racine
 
-La configuration DHCP LAN dépendait d'un resolver DNS hébergé sur TrueNAS.
-
-Cette dépendance est fragile car TrueNAS est lui-même une plateforme d'hébergement de services et peut redémarrer avec ses applications encore arrêtées ou en cours de récupération. Quand le resolver hébergé sur TrueNAS n'est pas encore disponible, les clients LAN obtiennent néanmoins son IP comme DNS primaire et peuvent perdre la résolution ou entrer dans des mécanismes de fallback variables selon les OS/applications.
-
-Cela crée une dépendance cyclique potentielle :
+Le contrat DHCP était :
 
 ```text
-Clients / Talos / Kubernetes
-        |
-        v
-DNS sur TrueNAS
-        |
-        v
-TrueNAS Apps / services
-        |
-        v
-dépendances réseau/DNS au démarrage
+pfSense DHCP LAN
+  DNS server = 172.17.0.24
 ```
 
-Pour Talos/Kubernetes, ce type de chaîne est particulièrement risqué : les composants de bootstrap et CoreDNS ne doivent pas dépendre d'un resolver dont la disponibilité dépend elle-même du bon démarrage de la plateforme hébergeant le cluster ou ses services auxiliaires.
+Pi-hole/TrueNAS devenait ainsi le resolver upstream critique du LAN et de Talos,
+alors que le runbook de reboot arrête volontairement cette App.
+
+`127.0.0.53` n'était pas la cause : le défaut était son upstream unique dans
+le domaine de panne en maintenance.
+
+`172.17.0.24` reste légitime pour le stockage NFS, l'ingress privé stable et
+l'autorité DNS privée Pi-hole ; elle ne doit plus être le resolver DNS général
+indispensable au bootstrap.
 
 ## Correction appliquée
 
-Dans pfSense :
+### pfSense
+
+Le DHCP LAN a été corrigé :
 
 ```text
-Services -> DHCP Server -> LAN
-DNS server: 172.17.0.24 -> 172.17.0.1
+avant : DNS server = 172.17.0.24
+après : DNS server = 172.17.0.1
 ```
 
-Le resolver LAN général devient donc pfSense/Unbound.
+`scripts/pfsense/audit-posture.sh` vérifie désormais :
 
-TrueNAS peut continuer à héberger un resolver spécialisé (Pi-hole/AdGuard/private-zone) mais ne doit pas être le SPOF DNS global du LAN.
+- la résolution publique via `@172.17.0.1` ;
+- FAIL si DHCP annonce `172.17.0.24` comme resolver général ;
+- PASS si `172.17.0.1` est explicitement présent ou si le mode automatique
+  pfSense/Unbound s'applique.
 
-## Contrat d'architecture cible
+### Talos
+
+`scripts/talos/generate-config.sh` impose par défaut :
+
+```yaml
+machine:
+  network:
+    nameservers:
+      - 172.17.0.1
+```
+
+Un autre resolver recovery-safe peut être choisi avec
+`TALOS_NAMESERVER=<ip>`.
+
+Validation attendue sur `.50/.51/.52` :
 
 ```text
-LAN clients
-   |
-   v
-pfSense / Unbound
-172.17.0.1
-   |
-   +--> Internet recursive DNS
-   |
-   +--> conditional/private-zone delegation
-           |
-           +--> TrueNAS resolver(s), when available
+ResolverStatus ["172.17.0.1"]
+DNSUpstream    healthy=true address=172.17.0.1:53
 ```
 
-### Règles
+### Kubernetes / CSI
 
-1. Le DHCP LAN distribue pfSense/Unbound (`172.17.0.1`) comme resolver général.
-2. Les zones privées peuvent être déléguées conditionnellement vers un resolver TrueNAS.
-3. Une panne/reboot TrueNAS ne doit pas supprimer la résolution DNS générale du LAN.
-4. Talos/Kubernetes bootstrap, control plane et CoreDNS ne doivent pas dépendre d'un resolver dont la disponibilité dépend de TrueNAS Apps.
-5. Les probes d'observabilité doivent distinguer :
-   - disponibilité du resolver général pfSense ;
-   - disponibilité des zones privées déléguées ;
-   - disponibilité d'un resolver optionnel TrueNAS.
+Après retour du DNS, aucune réinstallation CSI n'a été nécessaire. Un restart
+contrôlé a suffi :
 
-## Actions de prévention
+```bash
+kubectl -n truenas-csi rollout restart deployment/truenas-csi-controller
+kubectl -n truenas-csi rollout restart daemonset/truenas-csi-node
+```
 
-- [x] Remplacer le DNS DHCP LAN `172.17.0.24` par `172.17.0.1`.
-- [ ] Vérifier le renouvellement DHCP des clients critiques après changement.
-- [ ] Documenter explicitement les zones privées qui restent déléguées à TrueNAS.
-- [ ] Exécuter le smoke DNS post-reboot (les garde-fous statiques/runtime sont maintenant versionnés) :
-  - `dig @172.17.0.1 example.com`
-  - `dig @172.17.0.1 <nom-zone-privee>`
-  - test direct du resolver TrueNAS, sans en faire un prérequis global.
-- [x] Ajouter au runbook Talos un contrôle de dépendance DNS/cycle avant bootstrap et après reboot, et faire générer `machine.network.nameservers: [172.17.0.1]` par défaut.
-- [ ] Ajouter une alerte dédiée lorsque le resolver TrueNAS tombe, sans classifier le LAN entier comme « Internet down » tant que pfSense/Unbound reste sain.
-- [ ] Revalider IPv6 séparément : le WAN n'avait pas de route IPv6 par défaut au moment de l'incident et les RA LAN ont été désactivés temporairement pour isoler le diagnostic.
+Le smoke NFS cross-node a ensuite validé provisioning, `publishContext`,
+écriture sur `taloswk01`, lecture sur `taloswk02` et reclaim du PV.
 
-## Procédure post-upgrade pfSense 26.07
+## Contrat d'architecture
 
-L'upgrade vers pfSense 26.07 a nécessité une remise en état explicite de plusieurs
-packages tiers. Ne pas considérer l'upgrade terminé tant que ces composants n'ont
-pas été réinstallés et validés.
+1. Le DHCP LAN distribue pfSense/Unbound `172.17.0.1` comme resolver général.
+2. Le DNS public reste disponible sans TrueNAS/Pi-hole.
+3. `int.albandrieu.com` peut être délégué conditionnellement vers Pi-hole.
+4. Une panne Pi-hole peut rendre la zone privée indisponible mais ne doit pas
+   empêcher un pull depuis un registry public.
+5. Talos ne dépend pas uniquement du DNS reçu par DHCP.
+6. Les probes distinguent resolver général, zone privée et resolver TrueNAS
+   optionnel.
+
+## Acceptance de fermeture
+
+À la prochaine maintenance contrôlée :
+
+```bash
+for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
+  talosctl --endpoints 172.17.0.50 --nodes "$node" get resolvers
+  talosctl --endpoints 172.17.0.50 --nodes "$node" get dnsupstream
+done
+```
+
+Puis :
+
+1. arrêter Pi-hole volontairement ;
+2. vérifier `DNSUpstream 172.17.0.1:53 healthy=true` sur chaque nœud ;
+3. prouver une résolution ou un pull depuis un registry public ;
+4. accepter l'indisponibilité éventuelle de `*.int.albandrieu.com` ;
+5. redémarrer Pi-hole et prouver le retour de la zone privée ;
+6. rerun du smoke CSI NFS.
+
+L'incident ne doit être marqué clos qu'après ce test.
+
+## pfSense 26.07 : packages tiers après upgrade
+
+Le même cycle de maintenance a montré qu'un package pouvait rester installé mais
+ne plus être opérationnel.
 
 ### CrowdSec
-
-Réinstaller CrowdSec avec le script officiel du package pfSense :
-
-```sh
-fetch https://raw.githubusercontent.com/crowdsecurity/pfSense-pkg-crowdsec/refs/heads/main/install-crowdsec.sh
-sh install-crowdsec.sh
-```
-
-Validation minimale :
 
 ```sh
 pkg info | grep -i crowdsec
 pgrep -laf 'crowdsec|crowdsec-firewall-bouncer'
 ```
 
-### pfSense REST API
+Réinstaller via le mécanisme supporté du package pfSense si nécessaire, puis
+revalider le daemon et le bouncer.
 
-Réinstaller le package RESTAPI compatible pfSense 26.07 :
-
-```sh
-pkg-static -C /dev/null add https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/download/v2.10.2/pfSense-26.07-pkg-RESTAPI.pkg
-```
-
-Validation minimale :
+### REST API
 
 ```sh
 pkg info | grep -i restapi
 ```
 
-Puis valider l'endpoint REST API canonique déjà utilisé par l'observabilité :
+Puis valider :
 
 ```text
 https://home.albandrieu.com:10443/api/v2/system/version
@@ -167,69 +205,19 @@ https://home.albandrieu.com:10443/api/v2/system/version
 
 ### Zabbix Agent 7
 
-Après l'upgrade, les packages étaient encore installés :
-
-```text
-pfSense-pkg-zabbix-agent7-1.1_1
-zabbix7-agent-7.0.27
-```
-
-mais aucun daemon Zabbix ne tournait et aucun listener n'était présent. Le fichier
-runtime `/usr/local/etc/zabbix7/zabbix_agentd.conf` avait également disparu
-alors que le package fournissait encore `zabbix_agentd.conf.sample`.
-
-Réinstaller `pfSense-pkg-zabbix-agent7` depuis l'UI :
-
-```text
-System
-  -> Package Manager
-    -> Installed Packages
-      -> pfSense-pkg-zabbix-agent7
-        -> Reinstall
-```
-
-La réinstallation pfSense régénère la configuration et le wrapper de service
-`/usr/local/etc/rc.d/zabbix_agentd.sh`. Ne pas recréer manuellement
-`zabbix_agentd.conf` depuis le fichier sample tant que le package pfSense peut
-le régénérer.
-
-Configuration temporaire validée pendant la remise en état :
-
-```text
-Server=172.17.0.24
-ServerActive=172.17.0.24
-Hostname=pfsense
-ListenIP=172.17.0.1
-ListenPort=10050
-```
-
-Le serveur Zabbix Docker sur TrueNAS reste volontairement arrêté pour le moment.
-Les erreurs d'active checks vers `172.17.0.24:10051` sont donc attendues et ne
-signifient pas que l'agent pfSense est down.
-
-Validation finale observée le 2026-09-27 :
-
-```text
-zabbix_agentd is running as pid 17682.
-TCP 172.17.0.1:10050 LISTEN
-collector + 3 listeners + active checks workers démarrés
-```
-
-Commandes de validation :
+Après upgrade, le package pouvait rester présent alors que daemon, listener et
+configuration runtime avaient disparu. Préférer la réinstallation du package
+pfSense depuis l'UI afin de régénérer la configuration et le wrapper.
 
 ```sh
 service zabbix_agentd status
 pgrep -laf zabbix
 sockstat -4 -6 -l | grep 10050
-grep -E '^(Server|ServerActive|Hostname|ListenIP|ListenPort)=' \
-  /usr/local/etc/zabbix7/zabbix_agentd.conf
+grep -E '^(Server|ServerActive|Hostname|ListenIP|ListenPort)='   /usr/local/etc/zabbix7/zabbix_agentd.conf
 tail -50 /var/log/zabbix-agent/zabbix_agentd.log
 ```
 
-Puis, quand le serveur Zabbix Docker sera redémarré sur TrueNAS, valider
-`172.17.0.24:10051` et la reprise des active checks.
-
-### Checklist de sortie post-upgrade
+État final observé le 2026-09-27 :
 
 ```text
 Unbound / DNS        OK
@@ -241,10 +229,16 @@ pfSense REST API     reachable
 Zabbix agent         running / TCP 10050
 ```
 
-## Notes complémentaires
+Le serveur Zabbix Docker sur TrueNAS étant arrêté à ce moment, les erreurs
+d'active checks vers `172.17.0.24:10051` étaient attendues.
 
-Le même incident a aussi montré :
+## Hors cause racine
 
-- `dpinger` était initialement arrêté parce que le monitoring WANGW était explicitement désactivé, pas parce que le daemon était cassé ;
-- après réactivation, WANGW est revenu `Online` ;
-- l'exposition publique du WebConfigurator pfSense reçoit des tentatives d'authentification automatisées et doit être traitée séparément comme dette de sécurité.
+À traiter séparément :
+
+- PodSecurity warnings du CSI/smoke ;
+- IPv6/RA isolés pendant le diagnostic ;
+- exposition publique du WebConfigurator pfSense ;
+- serveur Zabbix TrueNAS et reprise des active checks.
+
+Ne pas utiliser ces dettes pour expliquer ou masquer la RCA DNS.

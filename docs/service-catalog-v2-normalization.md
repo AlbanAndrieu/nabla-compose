@@ -1497,7 +1497,7 @@ This should be implemented as one coordinated schema cutover, not as a long
 compatibility migration.
 
 The execution is deliberately **prepared in stages but switched over once**.
-`docs/roadmap.md` is the canonical execution tracker and defines:
+`docs/roadmap.md` is the concise execution tracker. The detailed P2.1 phase definitions live in this document:
 
 1. **P2.1.a — preparation:** freeze/inventory v1, generate the v1→v2 parity
    report, define schemas and anti-duplication gates; no runtime behavior change.

@@ -253,6 +253,19 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn('test "$(cat /data/marker)"', text)
         self.assertIn("--keep", text)
 
+    def test_smoke_pods_follow_restricted_security_context(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertEqual(text.count("runAsNonRoot: true"), 2)
+        self.assertEqual(text.count("runAsUser: 1000"), 2)
+        self.assertEqual(text.count("runAsGroup: 1000"), 2)
+        self.assertEqual(text.count("fsGroup: 1000"), 2)
+        self.assertEqual(text.count("type: RuntimeDefault"), 2)
+        self.assertEqual(text.count("allowPrivilegeEscalation: false"), 2)
+        self.assertEqual(text.count("readOnlyRootFilesystem: true"), 2)
+        self.assertEqual(text.count("- ALL"), 2)
+
     def test_smoke_fails_fast_when_publish_context_is_missing(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
@@ -271,6 +284,31 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             text.index('wait_for_nfs_publish_context "${pv}" "${writer_node}"'),
             text.index("wait --for=condition=Ready pod/csi-writer"),
         )
+
+    def test_smoke_verifies_authoritative_truenas_reclaim_postconditions(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS", text)
+        self.assertIn('"${MODE}" == "--apply" && "${KEEP}" != "true"', text)
+        self.assertIn("run --apply without --keep from the TrueNAS operator environment", text)
+        self.assertIn("truenas_reclaim_state", text)
+        self.assertIn("wait_for_truenas_reclaim", text)
+        self.assertEqual(text.count("truenas_reclaim_state()"), 1)
+        self.assertEqual(text.count("wait_for_truenas_reclaim()"), 1)
+        self.assertEqual(text.count("dump_pvc_provisioning_diagnostics()"), 1)
+        self.assertNotIn("TRUENAS_CSI_API_KEY", text)
+        self.assertIn("pool.dataset.query", text)
+        self.assertIn("sharing.nfs.query", text)
+        self.assertIn('zfs list -H -o name "${dataset}"', text)
+        self.assertIn("middleware_dataset_count=", text)
+        self.assertIn("nfs_share_count=", text)
+        self.assertIn("zfs_exists=", text)
+        self.assertIn("NAS-143316", text)
+        self.assertIn("do not trust DeleteVolume/API success alone", text)
+        self.assertNotIn("pool.dataset.delete", text)
+        self.assertNotIn("sharing.nfs.delete", text)
+        self.assertNotIn("zfs destroy", text)
 
     def test_smoke_surfaces_bounded_pvc_provisioning_evidence(self) -> None:
         text = (

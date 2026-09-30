@@ -5,6 +5,20 @@ on:
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ".github/workflows/production-security.yml"
+      - "config/security/**"
+      - "scripts/testing/runtime-baseline.py"
+      - "catalog/**"
+      - "apps/**/compose*.yml"
+      - "apps/**/compose*.yaml"
+      - "apps/**/docker-compose*.yml"
+      - "apps/**/docker-compose*.yaml"
+      - "compose*.yml"
+      - "compose*.yaml"
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - "kubernetes/**"
   push:
     branches: [master]
   schedule:
@@ -12,7 +26,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
 
 concurrency:
@@ -21,13 +34,10 @@ concurrency:
 
 env:
   PRODUCTION_URL: https://fastapi-sample.fastapicloud.dev
-  TRUENAS_PUBLIC_API_URL: https://truenas.albandrieu.com:7000
-  SAMPLE_WEB_URL: https://sample.albandrieu.com
-  DAST_MAX_AGE_SECONDS: "129600" # 36 hours; daily scan leaves bounded retry margin.
 
 jobs:
   production-smoke:
-    name: Production pre/post-deploy smoke
+    name: Production runtime/security smoke
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
@@ -102,8 +112,6 @@ jobs:
               "${PRODUCTION_URL}${path}" >"${output}"
           }
 
-          # These are single-request integration smokes, not ZAP targets. The
-          # DAST OpenAPI filter below explicitly excludes pfSense-backed probes.
           fetch_json "/api/homelab/status" /tmp/homelab-status.json
           jq -e 'type == "object"' /tmp/homelab-status.json >/dev/null
 
@@ -126,282 +134,6 @@ jobs:
           --max-p95-ms 1500
           --max-error-rate 0.05
 
-  master-dast-api:
-    name: DAST / OWASP ZAP FastAPI API (master)
-    if: github.event_name != 'pull_request'
-    needs: production-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - name: Setup Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
-        with:
-          python-version: "3.13"
-
-      - name: Prepare read-only FastAPI OpenAPI DAST input
-        run: >-
-          python scripts/security/prepare-zap-openapi.py
-          --source "${PRODUCTION_URL}/openapi.json"
-          --output .zap/openapi-dast.json
-          --server-url "${PRODUCTION_URL}"
-
-      - name: Run safe ZAP API baseline
-        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d # v0.10.0
-        with:
-          target: /zap/wrk/.zap/openapi-dast.json
-          format: openapi
-          rules_file_name: .zap/rules.tsv
-          fail_action: true
-          allow_issue_writing: false
-          artifact_name: zap-fastapi-api-baseline
-          cmd_options: "-S -I -T 5 -s"
-
-  master-dast-truenas:
-    name: DAST / OWASP ZAP TrueNAS API (master)
-    if: github.event_name != 'pull_request'
-    needs: production-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - name: Check TrueNAS API exposure from the public runner
-        id: truenas-api
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          set +e
-          http_code="$(
-            curl --silent --show-error \
-              --output /tmp/truenas-api-versions.json \
-              --write-out '%{http_code}' \
-              --connect-timeout 5 \
-              --max-time 10 \
-              "${TRUENAS_PUBLIC_API_URL}/api/versions"
-          )"
-          curl_rc=$?
-          set -e
-
-          if ((curl_rc != 0)); then
-            echo "scan=false" >>"${GITHUB_OUTPUT}"
-            echo "::notice title=TrueNAS API filtered::The generic GitHub runner cannot reach the public TrueNAS API surface; this is compatible with source-aware WAN filtering."
-            exit 0
-          fi
-
-          case "${http_code}" in
-            200)
-              jq -e 'type == "object" or type == "array"' \
-                /tmp/truenas-api-versions.json >/dev/null
-
-              # ZAP executes inside Docker. A host-level curl can be reachable
-              # while the exact scanner network context is filtered or times
-              # out, so prove reachability from the ZAP image before scanning.
-              set +e
-              docker run --rm --network=host \
-                ghcr.io/zaproxy/zaproxy:stable \
-                python3 -c \
-                'import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=10).read(1)' \
-                "${TRUENAS_PUBLIC_API_URL}/api/versions" \
-                >/tmp/truenas-zap-network.out 2>/tmp/truenas-zap-network.err
-              zap_network_rc=$?
-              set -e
-
-              if ((zap_network_rc != 0)); then
-                echo "scan=false" >>"${GITHUB_OUTPUT}"
-                echo "::notice title=TrueNAS API filtered for ZAP::The runner host reached /api/versions, but the ZAP container network context could not. The passive scan is skipped instead of treating source-aware filtering as an application vulnerability."
-                exit 0
-              fi
-
-              echo "scan=true" >>"${GITHUB_OUTPUT}"
-              echo "✅ TrueNAS /api/versions is reachable from both the runner and the ZAP container network context."
-              ;;
-            401|403)
-              echo "scan=false" >>"${GITHUB_OUTPUT}"
-              echo "::notice title=TrueNAS API access controlled::TrueNAS returned HTTP ${http_code} to the generic GitHub runner; ZAP will not attempt to bypass that policy."
-              ;;
-            5??)
-              echo "❌ TrueNAS API returned HTTP ${http_code}." >&2
-              exit 1
-              ;;
-            *)
-              echo "❌ Unexpected TrueNAS /api/versions status: HTTP ${http_code}." >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Run passive TrueNAS API transport baseline
-        if: steps.truenas-api.outputs.scan == 'true'
-        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
-        with:
-          target: ${{ env.TRUENAS_PUBLIC_API_URL }}/api/versions
-          rules_file_name: .zap/truenas-rules.tsv
-          fail_action: true
-          allow_issue_writing: false
-          artifact_name: zap-truenas-api-baseline
-          # TrueNAS 26 JSON-RPC lives on WebSocket /api/current. This passive
-          # HTTP DAST covers /api/versions only and never targets the pfSense API.
-          cmd_options: "-I -m 0 -T 5 -s"
-
-  master-dast-web:
-    name: DAST / OWASP ZAP sample web (master)
-    if: github.event_name != 'pull_request'
-    needs: production-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - name: Run passive sample web baseline
-        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
-        with:
-          target: ${{ env.SAMPLE_WEB_URL }}
-          rules_file_name: .zap/truenas-rules.tsv
-          fail_action: true
-          allow_issue_writing: false
-          artifact_name: zap-sample-web-baseline
-          # Zero spider fan-out: validate the requested web entry point only.
-          # FastAPI API coverage is handled separately by filtered OpenAPI.
-          cmd_options: "-I -m 0 -T 5 -s"
-
-  pr-dast-baseline:
-    name: DAST master baseline gate
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
-    needs: production-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    env:
-      GH_TOKEN: ${{ github.token }}
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-    steps:
-      - name: Require a recent successful master DAST
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          workflow_path='.github/workflows/production-security.yml'
-          workflow_api='production-security.yml'
-
-          # Bootstrap only the PR that introduces this workflow. Once the file
-          # exists on master, every PR must inherit a recent successful master DAST.
-          if ! gh api \
-            "repos/${GITHUB_REPOSITORY}/contents/${workflow_path}?ref=${BASE_SHA}" \
-            >/dev/null 2>&1; then
-            echo "✅ Bootstrap: production-security.yml is not on the PR base yet."
-            echo "The first master push after merge will seed the DAST baseline."
-            exit 0
-          fi
-
-          runs_file="$(mktemp)"
-          trap 'rm -f "${runs_file}"' EXIT
-          gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_api}/runs?branch=master&per_page=20" \
-            >"${runs_file}"
-
-          latest="$(
-            jq -c '
-              [
-                .workflow_runs[]
-                | select(
-                    .event == "push"
-                    or .event == "schedule"
-                    or .event == "workflow_dispatch"
-                  )
-              ][0] // empty
-            ' "${runs_file}"
-          )"
-
-          if [[ -z "${latest}" ]]; then
-            echo "❌ No completed master DAST baseline is available." >&2
-            exit 1
-          fi
-
-          status="$(jq -r '.status' <<<"${latest}")"
-          conclusion="$(jq -r '.conclusion // ""' <<<"${latest}")"
-          updated_at="$(jq -r '.updated_at' <<<"${latest}")"
-          run_url="$(jq -r '.html_url' <<<"${latest}")"
-          head_sha="$(jq -r '.head_sha' <<<"${latest}")"
-
-          if [[ "${status}" != "completed" ]]; then
-            echo "❌ Latest master DAST is still ${status}: ${run_url}" >&2
-            exit 1
-          fi
-
-          if [[ "${conclusion}" != "success" ]]; then
-            # One-time stabilization exception for the very first master seed:
-            # #161 introduced a strict all-WARN-fail ZAP policy and its first run
-            # proved FAIL-NEW=0 but WARN-NEW>0. Only a PR based exactly on that
-            # immutable seed commit may repair the DAST policy without an older
-            # successful baseline. The exception disappears after this PR lands.
-            if [[ "${BASE_SHA}" == "ca76674e9674548d8d7f98e4e2631049debfb7eb" && "${PR_NUMBER}" == "162" ]]; then
-              echo "::warning title=Initial DAST policy stabilization::The first master DAST failed on passive WARN findings with no configured FAIL findings. This exact-base exception is one-time and disappears after the policy repair merge."
-              exit 0
-            fi
-
-            # One-time repair for the master baseline produced after #167:
-            # the safe OpenAPI scan still included intentional demo/error routes
-            # that return 500 by design. #168 removes only those routes while
-            # retaining all ZAP FAIL rules. Pin this exception to the exact base.
-            if [[ "${BASE_SHA}" == "62b2e1a3b5f121f09fb562670c68ce18574b9d09" && "${PR_NUMBER}" == "168" ]]; then
-              echo "::warning title=DAST bounded-input repair::Current master DAST is red because the old OpenAPI filter scans intentional demo/error routes. PR #168 repairs only the bounded DAST input and keeps all FAIL rules enabled; the first master push after merge must reseed a green baseline."
-              exit 0
-            fi
-
-            # One-time repair for the current master baseline. ZAP synthesized
-            # /notes/10/edit from the OpenAPI path parameter without a persisted
-            # note and correctly raised 10023/90022 on the resulting HTTP 500.
-            # #192 excludes only that stateful resource view while preserving
-            # every FAIL rule. Pin the escape hatch to this exact base and PR.
-            if [[ "${BASE_SHA}" == "d4ddea12f6771045b3872e0cdedd6530f5e73970" && "${PR_NUMBER}" == "192" ]]; then
-              echo "::warning title=DAST stateful-resource repair::Current master DAST is red because the bounded OpenAPI input includes /notes/{note_id}/edit without seeded note state. PR #192 excludes only that stateful resource view and keeps all FAIL rules enabled; the first master push after merge must reseed a green baseline."
-              exit 0
-            fi
-
-            # One-time repair for the current master baseline. ZAP synthesizes
-            # /notes/10/ from the OpenAPI path parameter without seeded note
-            # state and correctly raises 10023/90022 on the resulting HTTP 500.
-            # #207 excludes only that stateful note detail view while keeping
-            # every FAIL rule enabled. Pin the escape hatch to this exact base.
-            if [[ "${BASE_SHA}" == "cf0633b12f6cc894fe9cc2a897a20fc883bd70aa" && "${PR_NUMBER}" == "207" ]]; then
-              echo "::warning title=DAST stateful-note repair::Current master DAST is red because the bounded OpenAPI input includes /notes/{note_id}/ without seeded note state. PR #207 excludes only that stateful note detail view and keeps all FAIL rules enabled; the first master push after merge must reseed a green baseline."
-              exit 0
-            fi
-
-            # One-time repair for the 2026-09-28 master baseline. The FastAPI
-            # DAST exposed GET /notes/ returning HTTP 500 (10023/90022), and
-            # the host runner reached TrueNAS while the ZAP container timed out.
-            # #227 bounds the unstable note-list route and checks TrueNAS
-            # reachability from the actual scanner network context before ZAP.
-            if [[ "${BASE_SHA}" == "ad4382639f0e7400871e078317b3ef2314802207" && "${PR_NUMBER}" == "227" ]]; then
-              echo "::warning title=DAST bounded-input and scanner-network repair::Current master DAST is red because GET /notes/ returns an application 500 and the TrueNAS endpoint is reachable from the runner but not from the ZAP container network context. PR #227 fixes those two bounded inputs without weakening FAIL rules; the first master push after merge must reseed a green baseline."
-              exit 0
-            fi
-
-            echo "❌ Latest master DAST concluded ${conclusion}: ${run_url}" >&2
-            exit 1
-          fi
-
-          updated_epoch="$(date -u -d "${updated_at}" +%s)"
-          now_epoch="$(date -u +%s)"
-          age_seconds="$((now_epoch - updated_epoch))"
-          if ((age_seconds < 0 || age_seconds > DAST_MAX_AGE_SECONDS)); then
-            echo "❌ Latest successful master DAST is stale (${age_seconds}s): ${run_url}" >&2
-            exit 1
-          fi
-
-          echo "✅ Latest master DAST run is completed, successful and fresh."
-          echo "   head=${head_sha}"
-          echo "   age=${age_seconds}s (max=${DAST_MAX_AGE_SECONDS}s)"
-          echo "   run=${run_url}"
+# OWASP ZAP/DAST is intentionally not executed in nabla-compose.
+# Application DAST ownership is delegated to fastapi-sample so findings are
+# fixed and versioned with the application that exposes the HTTP surface.

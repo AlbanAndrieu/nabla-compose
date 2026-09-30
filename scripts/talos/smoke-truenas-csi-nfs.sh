@@ -19,6 +19,7 @@ POD_READY_TIMEOUT_SECONDS="${CSI_POD_READY_TIMEOUT_SECONDS:-300}"
 NAMESPACE_DELETE_TIMEOUT_SECONDS="${CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS:-120}"
 DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
 KEEP_ON_FAILURE="${CSI_SMOKE_KEEP_ON_FAILURE:-false}"
+TRUENAS_RECLAIM_TIMEOUT_SECONDS="${CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS:-120}"
 
 fail() {
   printf '❌ %s\n' "$*" >&2
@@ -47,10 +48,18 @@ done
   fail "CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS must be a positive integer"
 [[ "${DIAGNOSTIC_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_DIAGNOSTIC_TAIL must be a positive integer"
+[[ "${TRUENAS_RECLAIM_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+  fail "CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS must be a positive integer"
 
 for command in kubectl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
+if [[ "${MODE}" == "--apply" && "${KEEP}" != "true" ]]; then
+  for command in midclt zfs; do
+    command -v "${command}" >/dev/null 2>&1 ||
+      fail "${command} is required for authoritative TrueNAS reclaim verification; run the apply smoke from the TrueNAS operator environment"
+  done
+fi
 [[ -s "${KUBECONFIG}" ]] || fail "kubeconfig not found: ${KUBECONFIG}"
 export KUBECONFIG
 
@@ -92,6 +101,11 @@ ok "cross-node targets selected: writer=${writer_node}, reader=${reader_node}"
 
 if [[ "${MODE}" == "--check" ]]; then
   printf 'ℹ️  --check is read-only. Use --apply to create the disposable PVC and two smoke Pods.\n'
+  if command -v midclt >/dev/null 2>&1 && command -v zfs >/dev/null 2>&1; then
+    ok "authoritative TrueNAS reclaim verification tools are available for --apply"
+  else
+    printf 'ℹ️  midclt/zfs are unavailable here; run --apply without --keep from the TrueNAS operator environment so final reclaim can be proven\n'
+  fi
   exit 0
 fi
 
@@ -105,6 +119,60 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+truenas_reclaim_state() {
+  local dataset="$1"
+  local share_path="$2"
+  local dataset_json nfs_json dataset_count nfs_count zfs_exists
+
+  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${dataset}\"]]" 2>/dev/null)" ||
+    fail "TrueNAS dataset API query failed while verifying reclaim for ${dataset}"
+  dataset_count="$(jq 'length' <<<"${dataset_json}")"
+
+  nfs_json="$(midclt call sharing.nfs.query 2>/dev/null)" ||
+    fail "TrueNAS NFS share API query failed while verifying reclaim for ${share_path}"
+  nfs_count="$(
+    jq --arg path "${share_path}" '
+      [
+        .[]
+        | select(
+            (.path? == $path)
+            or (((.paths? // []) | index($path)) != null)
+          )
+      ]
+      | length
+    ' <<<"${nfs_json}"
+  )"
+
+  if zfs list -H -o name "${dataset}" >/dev/null 2>&1; then
+    zfs_exists=1
+  else
+    zfs_exists=0
+  fi
+
+  printf '%s\t%s\t%s\n' "${dataset_count}" "${nfs_count}" "${zfs_exists}"
+}
+
+wait_for_truenas_reclaim() {
+  local dataset="$1"
+  local share_path="$2"
+  local deadline state dataset_count nfs_count zfs_exists
+
+  deadline=$((SECONDS + TRUENAS_RECLAIM_TIMEOUT_SECONDS))
+  while ((SECONDS < deadline)); do
+    state="$(truenas_reclaim_state "${dataset}" "${share_path}")"
+    IFS="$(printf '\t')" read -r dataset_count nfs_count zfs_exists <<<"${state}"
+    if [[ "${dataset_count}" == "0" && "${nfs_count}" == "0" && "${zfs_exists}" == "0" ]]; then
+      ok "TrueNAS reclaim postcondition satisfied: dataset, NFS share and ZFS resource are absent"
+      return 0
+    fi
+    sleep 2
+  done
+
+  state="$(truenas_reclaim_state "${dataset}" "${share_path}")"
+  IFS="$(printf '\t')" read -r dataset_count nfs_count zfs_exists <<<"${state}"
+  fail "TrueNAS reclaim postcondition failed after ${TRUENAS_RECLAIM_TIMEOUT_SECONDS}s: dataset=${dataset} middleware_dataset_count=${dataset_count} nfs_share_count=${nfs_count} zfs_exists=${zfs_exists}; do not trust DeleteVolume/API success alone (NAS-143316)"
+}
 
 dump_pvc_provisioning_diagnostics() {
   local controller_pod
@@ -332,9 +400,22 @@ metadata:
 spec:
   nodeName: ${writer_node}
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: writer
       image: ${SMOKE_IMAGE}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
       command:
         - sh
         - -c
@@ -378,9 +459,22 @@ metadata:
 spec:
   nodeName: ${reader_node}
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: reader
       image: ${SMOKE_IMAGE}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
       command:
         - sh
         - -c
@@ -453,7 +547,9 @@ if [[ "${pv_deleted}" != "true" ]]; then
 fi
 ok "Kubernetes PV ${pv} reclaimed after PVC deletion"
 
-printf 'ℹ️  verify TrueNAS reclaim: dataset=%s share_path=%s\n' \
-  "${volume_handle}" "${truenas_share_path}"
-printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s, Kubernetes PV reclaimed.\n' \
+printf '🔎 verifying TrueNAS reclaim postcondition for dataset=%s share_path=%s (timeout=%ss)\n' \
+  "${volume_handle}" "${truenas_share_path}" "${TRUENAS_RECLAIM_TIMEOUT_SECONDS}"
+wait_for_truenas_reclaim "${volume_handle}" "${truenas_share_path}"
+
+printf '✅ TrueNAS NFS CSI persistence smoke passed: PVC Bound, write on %s, read on %s, Kubernetes PV reclaimed, TrueNAS dataset/share/ZFS resource absent.\n' \
   "${writer_node}" "${reader_node}"

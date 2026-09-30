@@ -150,7 +150,7 @@ accountability intent, not a mandatory organization chart.
 
 | Tool | Priority | Three Lines | Status | Evidence / decision |
 | --- | --- | --- | --- | --- |
-| OWASP ZAP | P1 | L1 executes, L2 defines policy | **USED** | `nabla-compose` has bounded OpenAPI preparation and ZAP rule sets; `nabla-site-alban` has preview/production DAST workflows; FastAPI has `security-zap.yml` and DAST roadmap evidence. |
+| OWASP ZAP | P1 | L1 executes, L2 defines policy | **DELEGATED** | Application DAST is owned by `fastapi-sample`; `nabla-compose` no longer executes or retains a parallel ZAP implementation. |
 | Nuclei | P2 | L1/L2 | **PLANNED/Notion baseline** | Included in the 90-day control architecture but no recurring execution evidence was found in the three repos reviewed. |
 | Pentest-Tools.com | P3 external assurance | L2/L3 depending engagement | **REFERENCE/EXTERNAL** | Curated by `nabla-site-alban`; external service, not repo-run control. |
 | Burp Suite / Enterprise | P3 | L2/L3 | **REFERENCE/COMMERCIAL** | Comparison candidate from Notion; use for authenticated/manual/deep testing gaps, not as duplicate baseline by default. |
@@ -264,7 +264,7 @@ justifies a PoC**.
 
 ### P1 — validate exposure and runtime
 
-1. Make ZAP/API testing recurrent for authorized Internet-facing Tier 0/1 targets.
+1. Keep ZAP/API testing recurrent in the repository that owns each authorized Internet-facing application surface; for FastAPI this is `fastapi-sample`.
 2. Normalize infrastructure scanning with Greenbone/OpenVAS or a selected
    alternative, and reconcile discovered assets with the inventory.
 3. Activate Kubernetes posture/runtime controls based on the Talos threat model:
@@ -345,7 +345,6 @@ Recommended J0-30 metrics:
 - `catalog/README.md`, `catalog/services.json`, `catalog/service-topology.json`
 - `.mega-linter.yml`, `.gitleaks.toml`, `.grype.yaml`, `Makefile`
 - `.github/workflows/{codeql,pre-commit,production-security,...}.yml`
-- `.zap/*`, `scripts/security/prepare-zap-openapi.py`
 - `apps/{wazuh,suricata,crowdsec,cyberbro,keycloak,2fauth,opconnect,vaultwarden,opensearch,scanopy}/`
 - `openvas/docker-compose-openvas.yml`
 - `kubernetes/platform-tools/falco-values.yaml`, platform-tool scripts/docs

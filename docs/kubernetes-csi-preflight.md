@@ -25,6 +25,18 @@ acceptable only as a measured compatibility bridge on the current host and
 must be replaced/upgraded to the modern username/SCRAM API-key path before
 TrueNAS 27 removes the legacy method.
 
+The v1.3.0 evaluation does **not** close this debt. As of the 2026-09-04
+v1.3.0 release, the upstream Go client still invokes
+`auth.login_with_api_key` and the deployment still injects only
+`TRUENAS_API_KEY`. Keep v1.0.3 pinned until the controlled reboot/DNS baseline
+is accepted, then review the complete v1.0.3 -> v1.3.0 manifest delta separately.
+Do not describe that upgrade as an authentication migration.
+
+Upstream references:
+
+- https://github.com/truenas/truenas-csi/releases/tag/v1.3.0
+- https://github.com/truenas/truenas-csi/blob/v1.3.0/pkg/client/client.go
+
 ## Repository-owned configuration
 
 Tracked files:
@@ -207,14 +219,20 @@ The smoke must prove:
 5. the same marker is still readable;
 6. the disposable namespace/PVC is deleted afterward;
 7. the Kubernetes PV disappears after `DeleteVolume`;
-8. the smoke prints the exact TrueNAS dataset and NFS share path that must no
-   longer exist on the appliance.
+8. bounded TrueNAS middleware queries prove the dynamic dataset and NFS share
+   are absent;
+9. `zfs list` independently proves the dataset no longer exists, so a successful
+   API/DeleteVolume response cannot mask the NAS-143316 false-success class.
 
 Use `--keep` only when a failure needs post-mortem inspection. With
 `--keep`, the script prints the exact TrueNAS dataset/share path retained for
-inspection. Without `--keep`, it waits for Kubernetes PV reclaim before
-success and prints the corresponding TrueNAS paths for the final appliance
-verification.
+inspection. Without `--keep`, `--apply` must run from the TrueNAS operator environment so
+`midclt` and `zfs` are available. `--apply --keep` remains usable from another
+cluster-operator environment because it intentionally skips reclaim. A normal
+`--apply` waits for Kubernetes PV reclaim and then for the authoritative
+appliance postcondition. Override the bounded wait with
+`CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS` only when there is evidence that normal
+reclaim legitimately needs longer.
 
 ## 5. Acceptance and next gate
 
@@ -231,31 +249,12 @@ Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
 `test.int.albandrieu.com`.
 
 
-## Runtime checkpoint · first install on TrueNAS
+## Historical recovery evidence
 
-The first explicit install on TrueNAS reached this point:
+The first-install rollout timeout, VolumeAttachment/publishContext failure,
+malformed CSI credential and retained-object recovery are historical incident
+evidence, not current preflight steps. They are maintained in
+[`kubernetes-csi-rbac-recovery.md`](./kubernetes-csi-rbac-recovery.md).
 
-```text
-controller Deployment successfully rolled out
-truenas-csi-node DaemonSet created
-desired worker pods: 2
-rollout status timed out after 180s
-```
-
-Kubernetes emitted a Pod Security **warning** for the node DaemonSet because a
-CSI mount plugin necessarily uses host networking, hostPath mounts, root and
-privileged mount operations. The workload was admitted; the timeout therefore
-needs pod/event/log evidence before deciding whether the cause is image pull,
-scheduling, Talos host-path/mount readiness, registration, or CSI-node startup.
-
-Resume from this checkpoint with the improved install helper rather than
-increasing the timeout blindly. A deliberate one-off longer observation can use:
-
-```bash
-CSI_ROLLOUT_TIMEOUT=300s \
-  bash scripts/talos/install-truenas-csi-nfs.sh --apply
-```
-
-The helper is idempotent and will reconcile the already-created namespace,
-Secret, RBAC, CSIDriver, ConfigMap, controller and node DaemonSet before
-continuing to StorageClass creation.
+Use this document only for the current install/preflight/smoke contract; use the
+recovery document when diagnosing the historical failure modes.
