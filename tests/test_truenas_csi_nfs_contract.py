@@ -285,6 +285,25 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             text.index("wait --for=condition=Ready pod/csi-writer"),
         )
 
+    def test_smoke_verifies_authoritative_truenas_reclaim_postconditions(self) -> None:
+        text = (
+            ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
+        ).read_text()
+        self.assertIn("CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS", text)
+        self.assertIn("truenas_reclaim_state", text)
+        self.assertIn("wait_for_truenas_reclaim", text)
+        self.assertIn("pool.dataset.query", text)
+        self.assertIn("sharing.nfs.query", text)
+        self.assertIn('zfs list -H -o name "${dataset}"', text)
+        self.assertIn("middleware_dataset_count=", text)
+        self.assertIn("nfs_share_count=", text)
+        self.assertIn("zfs_exists=", text)
+        self.assertIn("NAS-143316", text)
+        self.assertIn("do not trust DeleteVolume/API success alone", text)
+        self.assertNotIn("pool.dataset.delete", text)
+        self.assertNotIn("sharing.nfs.delete", text)
+        self.assertNotIn("zfs destroy", text)
+
     def test_smoke_surfaces_bounded_pvc_provisioning_evidence(self) -> None:
         text = (
             ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
