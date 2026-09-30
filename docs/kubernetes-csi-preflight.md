@@ -207,14 +207,18 @@ The smoke must prove:
 5. the same marker is still readable;
 6. the disposable namespace/PVC is deleted afterward;
 7. the Kubernetes PV disappears after `DeleteVolume`;
-8. the smoke prints the exact TrueNAS dataset and NFS share path that must no
-   longer exist on the appliance.
+8. bounded TrueNAS middleware queries prove the dynamic dataset and NFS share
+   are absent;
+9. `zfs list` independently proves the dataset no longer exists, so a successful
+   API/DeleteVolume response cannot mask the NAS-143316 false-success class.
 
 Use `--keep` only when a failure needs post-mortem inspection. With
 `--keep`, the script prints the exact TrueNAS dataset/share path retained for
-inspection. Without `--keep`, it waits for Kubernetes PV reclaim before
-success and prints the corresponding TrueNAS paths for the final appliance
-verification.
+inspection. Without `--keep`, `--apply` must run from the TrueNAS operator environment so
+`midclt` and `zfs` are available. It waits for Kubernetes PV reclaim and then
+for the authoritative appliance postcondition. Override the bounded wait with
+`CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS` only when there is evidence that normal
+reclaim legitimately needs longer.
 
 ## 5. Acceptance and next gate
 
