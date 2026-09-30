@@ -17,6 +17,8 @@ CANONICAL_HELPERS = {
     "truenas_app_state": Path("scripts/lib/truenas.sh"),
     "truenas_reconcile_custom_app": Path("scripts/lib/truenas.sh"),
     "truenas_wait_app_running": Path("scripts/lib/truenas.sh"),
+    "truenas_dataset_query_by_id": Path("scripts/lib/truenas.sh"),
+    "truenas_nfs_share_count_for_path": Path("scripts/lib/truenas.sh"),
     "secrets_assert_file": Path("scripts/lib/secrets.sh"),
     "secrets_get_value": Path("scripts/lib/secrets.sh"),
 }
