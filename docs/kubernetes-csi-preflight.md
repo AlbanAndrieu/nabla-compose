@@ -215,7 +215,8 @@ The smoke must prove:
 Use `--keep` only when a failure needs post-mortem inspection. With
 `--keep`, the script prints the exact TrueNAS dataset/share path retained for
 inspection. Without `--keep`, `--apply` must run from the TrueNAS operator environment so
-`midclt` and `zfs` are available. It waits for Kubernetes PV reclaim and then
+`midclt` and `zfs` are available. `--apply --keep` remains usable from another
+cluster-operator environment because it intentionally skips reclaim. It waits for Kubernetes PV reclaim and then
 for the authoritative appliance postcondition. Override the bounded wait with
 `CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS` only when there is evidence that normal
 reclaim legitimately needs longer.
