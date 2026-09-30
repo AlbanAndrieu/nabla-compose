@@ -6,6 +6,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 # shellcheck source=scripts/lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# Shared TrueNAS helpers own the pool.dataset.query and sharing.nfs.query calls used below.
 nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
 KEEP=false
