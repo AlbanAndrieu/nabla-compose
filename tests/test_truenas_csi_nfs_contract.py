@@ -290,6 +290,8 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
             ROOT / "scripts" / "talos" / "smoke-truenas-csi-nfs.sh"
         ).read_text()
         self.assertIn("CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS", text)
+        self.assertIn('"${MODE}" == "--apply" && "${KEEP}" != "true"', text)
+        self.assertIn("run --apply without --keep from the TrueNAS operator environment", text)
         self.assertIn("truenas_reclaim_state", text)
         self.assertIn("wait_for_truenas_reclaim", text)
         self.assertIn("pool.dataset.query", text)
