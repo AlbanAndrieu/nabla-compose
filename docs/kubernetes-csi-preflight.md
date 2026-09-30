@@ -248,31 +248,12 @@ Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
 `test.int.albandrieu.com`.
 
 
-## Runtime checkpoint · first install on TrueNAS
+## Historical recovery evidence
 
-The first explicit install on TrueNAS reached this point:
+The first-install rollout timeout, VolumeAttachment/publishContext failure,
+malformed CSI credential and retained-object recovery are historical incident
+evidence, not current preflight steps. They are maintained in
+[`kubernetes-csi-rbac-recovery.md`](./kubernetes-csi-rbac-recovery.md).
 
-```text
-controller Deployment successfully rolled out
-truenas-csi-node DaemonSet created
-desired worker pods: 2
-rollout status timed out after 180s
-```
-
-Kubernetes emitted a Pod Security **warning** for the node DaemonSet because a
-CSI mount plugin necessarily uses host networking, hostPath mounts, root and
-privileged mount operations. The workload was admitted; the timeout therefore
-needs pod/event/log evidence before deciding whether the cause is image pull,
-scheduling, Talos host-path/mount readiness, registration, or CSI-node startup.
-
-Resume from this checkpoint with the improved install helper rather than
-increasing the timeout blindly. A deliberate one-off longer observation can use:
-
-```bash
-CSI_ROLLOUT_TIMEOUT=300s \
-  bash scripts/talos/install-truenas-csi-nfs.sh --apply
-```
-
-The helper is idempotent and will reconcile the already-created namespace,
-Secret, RBAC, CSIDriver, ConfigMap, controller and node DaemonSet before
-continuing to StorageClass creation.
+Use this document only for the current install/preflight/smoke contract; use the
+recovery document when diagnosing the historical failure modes.
