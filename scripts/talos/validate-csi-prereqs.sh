@@ -14,6 +14,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 # shellcheck source=scripts/lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# Shared TrueNAS helper owns the pool.dataset.query call used by this preflight.
 nabla_resolve_talos_client_config "${ROOT}"
 TRUENAS_HOST="${TRUENAS_CSI_HOST:-172.17.0.24}"
 TRUENAS_CSI_DATASET="${TRUENAS_CSI_DATASET:-cpool/k8s/csi}"
