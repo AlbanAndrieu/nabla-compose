@@ -54,7 +54,7 @@ done
 for command in kubectl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
-if [[ "${MODE}" == "--apply" ]]; then
+if [[ "${MODE}" == "--apply" && "${KEEP}" != "true" ]]; then
   for command in midclt zfs; do
     command -v "${command}" >/dev/null 2>&1 ||
       fail "${command} is required for authoritative TrueNAS reclaim verification; run the apply smoke from the TrueNAS operator environment"
@@ -101,6 +101,11 @@ ok "cross-node targets selected: writer=${writer_node}, reader=${reader_node}"
 
 if [[ "${MODE}" == "--check" ]]; then
   printf 'ℹ️  --check is read-only. Use --apply to create the disposable PVC and two smoke Pods.\n'
+  if command -v midclt >/dev/null 2>&1 && command -v zfs >/dev/null 2>&1; then
+    ok "authoritative TrueNAS reclaim verification tools are available for --apply"
+  else
+    printf 'ℹ️  midclt/zfs are unavailable here; run --apply without --keep from the TrueNAS operator environment so final reclaim can be proven\n'
+  fi
   exit 0
 fi
 
