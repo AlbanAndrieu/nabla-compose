@@ -425,7 +425,7 @@ Remaining reduction:
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
-8. [ ] Add an anti-duplication gate for migrated runtime primitives.
+8. [x] Add an anti-duplication gate for migrated runtime primitives: `scripts/quality/check-runtime-helper-duplication.py` enforces one canonical owner for the migrated TrueNAS/Docker/secret helpers, while the Pre-commit contract rejects duplicate hook IDs.
 
 ## Target operator-script architecture
 
