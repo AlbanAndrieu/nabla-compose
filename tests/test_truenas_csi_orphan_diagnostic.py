@@ -19,10 +19,9 @@ class TrueNasCsiOrphanDiagnosticTests(unittest.TestCase):
         mode = DIAGNOSTIC.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertIn("NABLA_DIAGNOSTIC_WRAPPED", text)
-        self.assertIn("DIAGNOSTIC_FULL_OUTPUT", text)
-        self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", text)
-        self.assertIn("run-diagnostic.sh", text)
+        self.assertIn("lib/diagnostic.sh", text)
+        self.assertIn("nabla_diagnostic_maybe_wrap", text)
+        self.assertNotIn("NABLA_DIAGNOSTIC_WRAPPED", text)
         self.assertIn('mode="${1:---check}"', text)
         self.assertNotIn("midclt call pool.dataset.delete", text)
         self.assertNotIn("zfs destroy ", text)

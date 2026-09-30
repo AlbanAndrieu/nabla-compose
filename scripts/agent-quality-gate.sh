@@ -479,6 +479,23 @@ if [[ "${MODE}" == "fix" ]]; then
   done
 fi
 
+runtime_primitive_scope_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  case "${file}" in
+    config/quality/runtime-primitives.json|scripts/*.sh|scripts/*/*.sh|scripts/*/*/*.sh|scripts/quality/check-runtime-primitive-duplication.py|tests/test_runtime_primitive_duplication.py)
+      runtime_primitive_scope_changed=true
+      break
+      ;;
+  esac
+done
+
+if [[ "${CI_FAST}" != true || "${runtime_primitive_scope_changed}" == true ]]; then
+  run_compact "migrated runtime primitive ownership is unique" \
+    "${PYTHON_CMD[@]}" scripts/quality/check-runtime-primitive-duplication.py
+else
+  printf 'ℹ️  CI fast mode: runtime primitive ownership check skipped because no shell primitive input changed\n'
+fi
+
 generated_contract_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in

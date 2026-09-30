@@ -409,6 +409,8 @@ Already accepted: agent-first local gate, deterministic autofix convergence,
 generated-contract checks and the first shared TrueNAS/Docker primitives.
 Compose discovery is also normalized across generator/Pre-commit for dotted and
 hyphenated root variants such as `docker-compose-truenas.yml`.
+Pre-commit configuration parsing/unicity is now an explicit local contract so
+malformed regex quoting or duplicated hook IDs fail before publication.
 
 Remaining reduction:
 
@@ -416,8 +418,10 @@ Remaining reduction:
    `scripts/lib/truenas.sh`.
 2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
    and Compose-project correlation.
-3. [ ] Centralize compact/full output, counters and exit codes in
-   `scripts/lib/diagnostic.sh`.
+3. [x] Centralize diagnostic output plumbing: `scripts/lib/diagnostic.sh`
+   owns compact/full wrapper delegation for the 23 migrated operator scripts,
+   while `scripts/run-diagnostic.sh` remains canonical for private detailed
+   logs, counters, bounded summaries and exit-code propagation.
 4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
    `scripts/lib/probe.sh`.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
@@ -425,7 +429,10 @@ Remaining reduction:
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
-8. [ ] Add an anti-duplication gate for migrated runtime primitives.
+8. [x] Add an anti-duplication gate for migrated runtime primitives. Canonical
+   owners are declared in `config/quality/runtime-primitives.json`; Pre-commit
+   and the agent gate now reject foreign shell definitions while full local
+   validation also proves the owner definition still exists exactly once.
 
 ## Target operator-script architecture
 

@@ -13,7 +13,9 @@ class DiagnosticOutputContractTest(unittest.TestCase):
     WRAPPED_SCRIPTS = (
         "scripts/truenas/audit-app-lifecycle.sh",
         "scripts/truenas/diagnose-performance.sh",
+        "scripts/truenas/diagnose-pyroscope.sh",
         "scripts/truenas/diagnose-sentry.sh",
+        "scripts/truenas/diagnose-csi-orphans.sh",
         "scripts/truenas/report-app-failures.sh",
         "scripts/truenas/diagnose-wazuh.sh",
         "scripts/truenas/verify-talos-vm-autostart.sh",
@@ -25,6 +27,8 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         "scripts/observability/verify-otlp.sh",
         "scripts/observability/verify-pfsense-syslog.sh",
         "scripts/talos/validate-cluster.sh",
+        "scripts/talos/diagnose-security-posture.sh",
+        "scripts/talos/preflight-kubara.sh",
         "scripts/talos/smoke-fastapi-sample.sh",
         "scripts/talos/smoke-kubernetes-network.sh",
         "scripts/talos/validate-csi-prereqs.sh",
@@ -43,14 +47,22 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         self.assertIn("mktemp", wrapper_text)
         self.assertNotIn('install -d -m 700 "${log_dir}"', wrapper_text)
 
-    def test_large_diagnostics_use_compact_interactive_wrapper(self) -> None:
+    def test_large_diagnostics_use_shared_compact_bootstrap(self) -> None:
+        shared = (ROOT / "scripts/lib/diagnostic.sh").read_text(encoding="utf-8")
+        self.assertIn("nabla_diagnostic_maybe_wrap()", shared)
+        self.assertIn("NABLA_DIAGNOSTIC_WRAPPED", shared)
+        self.assertIn("DIAGNOSTIC_FULL_OUTPUT", shared)
+        self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", shared)
+        self.assertIn("run-diagnostic.sh", shared)
+
         for relative in self.WRAPPED_SCRIPTS:
             with self.subTest(script=relative):
                 script = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertIn("NABLA_DIAGNOSTIC_WRAPPED", script)
-                self.assertIn("DIAGNOSTIC_FULL_OUTPUT", script)
-                self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
-                self.assertIn("run-diagnostic.sh", script)
+                self.assertIn("lib/diagnostic.sh", script)
+                self.assertIn("nabla_diagnostic_maybe_wrap", script)
+                self.assertNotIn("NABLA_DIAGNOSTIC_WRAPPED", script)
+                self.assertNotIn("DIAGNOSTIC_FULL_OUTPUT", script)
+                self.assertNotIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
 
     def test_wrapper_does_not_change_existing_shared_log_directory_mode(self) -> None:
         wrapper = ROOT / "scripts/run-diagnostic.sh"

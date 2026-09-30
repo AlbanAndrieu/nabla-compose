@@ -310,13 +310,29 @@ repos:
         files: >-
           ^(scripts/pfsense/diagnose-recover[.]sh|docs/pfsense-diagnose-recover[.]md|tests/test_pfsense_diagnose_recover_contract[.]py)$
 
+      - id: diagnostic-output-contract
+        name: "📋 diagnostics · Validate shared compact/full output contract"
+        language: system
+        entry: python -m unittest tests.test_diagnostic_output_contract tests.test_truenas_csi_orphan_diagnostic -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:lib/diagnostic|run-diagnostic)[.]sh|scripts/(?:infra|observability|security|talos|truenas)/.*[.]sh|tests/(?:test_diagnostic_output_contract|test_truenas_csi_orphan_diagnostic)[.]py|docs/roadmap[.]md)$
+
+      - id: runtime-primitive-duplication
+        name: "🧱 runtime · Reject duplicate migrated shell primitives"
+        language: system
+        entry: python scripts/quality/check-runtime-primitive-duplication.py
+        pass_filenames: false
+        files: >-
+          ^(config/quality/runtime-primitives[.]json|scripts/.*[.]sh|scripts/quality/check-runtime-primitive-duplication[.]py|tests/test_runtime_primitive_duplication[.]py|docs/roadmap[.]md)$
+
       - id: service-topology-sync
         name: "🕸️ catalog · Generate declared services and topology"
         language: python
         entry: python scripts/generate-service-topology.py --check
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)$'
 
       - id: service-consumer-contract
         name: "🧩 catalog · Validate service consumers and unit tests"
@@ -339,57 +355,5 @@ repos:
         name: "🐳 compose · Validate Compose configuration"
         language: system
         entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)([.-][^./]+)?\.ya?ml
-        stages: [pre-commit]
-
-
-      - id: service-consumer-contract
-        name: "🧩 catalog · Validate service consumers and unit tests"
-        language: python
-        entry: bash scripts/quality/check-service-consumers.sh
-        additional_dependencies: ["PyYAML==6.0.3"]
-        pass_filenames: false
-        files: >-
-          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_topology_generator)[.]py)$
-
-      - id: prometheus-config
-        name: "📈 prometheus · Validate runtime config with promtool"
-        language: system
-        entry: bash scripts/prometheus/check-config.sh
-        pass_filenames: false
-        files: >-
-          ^(apps/prometheus/(?:prometheus[.]yml|compose[.]yml|rules/.*[.]ya?ml)|scripts/prometheus/check-config[.]sh|tests/test_prometheus_quality_gate_contract[.]py)$
-
-      - id: compose-config
-        name: "🐳 compose · Validate Compose configuration"
-        language: system
-        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
-        stages: [pre-commit]
-
-        stages: [pre-commit]
-
-
-      - id: service-consumer-contract
-        name: "🧩 catalog · Validate service consumers and unit tests"
-        language: python
-        entry: bash scripts/quality/check-service-consumers.sh
-        additional_dependencies: ["PyYAML==6.0.3"]
-        pass_filenames: false
-        files: >-
-          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_topology_generator)[.]py)$
-
-      - id: prometheus-config
-        name: "📈 prometheus · Validate runtime config with promtool"
-        language: system
-        entry: bash scripts/prometheus/check-config.sh
-        pass_filenames: false
-        files: >-
-          ^(apps/prometheus/(?:prometheus[.]yml|compose[.]yml|rules/.*[.]ya?ml)|scripts/prometheus/check-config[.]sh|tests/test_prometheus_quality_gate_contract[.]py)$
-
-      - id: compose-config
-        name: "🐳 compose · Validate Compose configuration"
-        language: system
-        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)(\.[^.]+)?\.ya?ml$'
+        files: '(^|/)(compose|docker-compose)([.-][^./]+)?\.ya?ml$'
         stages: [pre-commit]
