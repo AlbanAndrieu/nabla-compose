@@ -25,6 +25,18 @@ acceptable only as a measured compatibility bridge on the current host and
 must be replaced/upgraded to the modern username/SCRAM API-key path before
 TrueNAS 27 removes the legacy method.
 
+The v1.3.0 evaluation does **not** close this debt. As of the 2026-09-04
+v1.3.0 release, the upstream Go client still invokes
+`auth.login_with_api_key` and the deployment still injects only
+`TRUENAS_API_KEY`. Keep v1.0.3 pinned until the controlled reboot/DNS baseline
+is accepted, then review the complete v1.0.3 -> v1.3.0 manifest delta separately.
+Do not describe that upgrade as an authentication migration.
+
+Upstream references:
+
+- https://github.com/truenas/truenas-csi/releases/tag/v1.3.0
+- https://github.com/truenas/truenas-csi/blob/v1.3.0/pkg/client/client.go
+
 ## Repository-owned configuration
 
 Tracked files:
