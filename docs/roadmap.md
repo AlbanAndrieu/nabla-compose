@@ -176,8 +176,8 @@ Shutdown is the exact reverse flattened start order. A failed/non-converged wave
 - [x] Treat TrueNAS API/DeleteVolume success as insufficient unless middleware + ZFS postconditions are satisfied, explicitly guarding the NAS-143316 false-success class.
 - [x] Keep reclaim validation independent from the CSI write credential: the smoke uses local TrueNAS `midclt`/`zfs` read-only evidence and never consumes `TRUENAS_CSI_API_KEY` for postcondition checks.
 - [x] Harden smoke Pods toward Restricted PSS: non-root UID/GID + `fsGroup`, `allowPrivilegeEscalation=false`, read-only rootfs, drop `ALL` and seccomp `RuntimeDefault`; the privileged CSI driver namespace policy remains scoped separately.
-- [ ] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0` only after the reboot baseline is stable.
-- [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27.
+- [x] Evaluate TrueNAS CSI `v1.0.3 -> v1.3.0`: v1.3.0 is a worthwhile later upgrade (session reconnect, metrics/Helm and storage fixes), but **do not bump in this PR**. The controlled reboot/DNS acceptance must be green first, and upstream v1.3.0 still calls legacy `auth.login_with_api_key`, so the bump does not close the TrueNAS 27 authentication debt.
+- [ ] Replace deprecated `auth.login_with_api_key` before TrueNAS 27. Upstream TrueNAS CSI v1.3.0 still authenticates with the API key alone through that RPC method; track an upstream username/SCRAM-capable release or a deliberately reviewed client/fork rather than assuming the v1.3.0 bump fixes authentication.
 
 ## P0.3 — TrueNAS storage + runtime secret normalization
 
