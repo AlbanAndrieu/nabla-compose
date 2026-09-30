@@ -4,7 +4,9 @@
     {
       "id": "truenas",
       "name": "TrueNAS",
-      "icons": ["fas fa-server"],
+      "icons": [
+        "fas fa-server"
+      ],
       "description": "Storage management UI",
       "internalHost": "172.17.0.24",
       "internalPort": 7000,
@@ -15,9 +17,26 @@
       "external": false
     },
     {
+      "id": "traefik",
+      "name": "Traefik",
+      "icons": [
+        "fas fa-route"
+      ],
+      "description": "TrueNAS edge reverse proxy for direct *.int.albandrieu.com services",
+      "internalHost": "172.17.0.24",
+      "internalPort": 443,
+      "internalSecure": true,
+      "iconSrc": "assets/selfh-icons/traefik.png",
+      "external": false,
+      "endpointEnabled": false,
+      "healthNote": "Internal TrueNAS edge service. Runtime state comes from the traefik TrueNAS app; LAN health uses TCP/443."
+    },
+    {
       "id": "pfsense",
       "name": "pfSense",
-      "icons": ["fas fa-shield-halved"],
+      "icons": [
+        "fas fa-shield-halved"
+      ],
       "description": "Firewall and router",
       "internalHost": "172.17.0.1",
       "internalPort": 10443,
@@ -31,7 +50,9 @@
     },
     {
       "name": "Home",
-      "icons": ["fas fa-house"],
+      "icons": [
+        "fas fa-house"
+      ],
       "description": "Gateway admin UI (home hostname)",
       "internalHost": "172.17.0.1",
       "internalPort": 10443,
@@ -43,7 +64,9 @@
     },
     {
       "name": "AdGuard Home",
-      "icons": ["fas fa-shield-virus"],
+      "icons": [
+        "fas fa-shield-virus"
+      ],
       "description": "Network-wide ad blocking",
       "internalHost": "172.17.0.24",
       "internalPort": 30004,
@@ -55,7 +78,9 @@
     },
     {
       "name": "Heimdall",
-      "icons": ["fas fa-table-cells-large"],
+      "icons": [
+        "fas fa-table-cells-large"
+      ],
       "description": "Application dashboard",
       "internalHost": "172.17.0.24",
       "internalPort": 30120,
@@ -67,7 +92,9 @@
     },
     {
       "name": "Domain Watchdog",
-      "icons": ["fas fa-globe"],
+      "icons": [
+        "fas fa-globe"
+      ],
       "description": "Domain monitoring service",
       "internalHost": "172.17.0.24",
       "internalPort": 30317,
@@ -79,31 +106,26 @@
     },
     {
       "name": "Prometheus",
-      "icons": ["fas fa-fire-flame-curved"],
+      "icons": [
+        "fas fa-fire-flame-curved"
+      ],
       "description": "Prometheus",
       "internalHost": "172.17.0.24",
-      "internalPort": 30104,
-      "internalSecure": true,
+      "internalPort": 9090,
+      "internalSecure": false,
       "tunnelUrl": "https://prometheus.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": true
-    },
-    {
-      "name": "Prometheus - albandrieu",
-      "icons": ["fas fa-fire-flame-curved"],
-      "description": "Prometheus",
-      "internalHost": "172.17.0.57",
-      "internalPort": 9000,
-      "internalSecure": false,
-      "tunnelUrl": "https://prometheus - albandrieu.albandrieu.com",
-      "tunnelSecure": true,
-      "iconSrc": "assets/selfh-icons/prometheus.png",
-      "external": false
+      "external": true,
+      "id": "prometheus",
+      "internalPath": "/-/ready",
+      "healthPath": "/-/ready"
     },
     {
       "name": "Open SpeedTest",
-      "icons": ["fas fa-gauge-high"],
+      "icons": [
+        "fas fa-gauge-high"
+      ],
       "description": "Open SpeedTest - Network speed testing",
       "internalHost": "172.17.0.24",
       "internalPort": 30117,
@@ -115,7 +137,9 @@
     },
     {
       "name": "Speedtest Tracker",
-      "icons": ["fas fa-gauge-high"],
+      "icons": [
+        "fas fa-gauge-high"
+      ],
       "description": "Speedtest",
       "internalHost": "172.17.0.24",
       "internalPort": 30221,
@@ -127,7 +151,9 @@
     },
     {
       "name": "PortTracker",
-      "icons": ["fas fa-network-wired"],
+      "icons": [
+        "fas fa-network-wired"
+      ],
       "description": "Port tracking service",
       "internalHost": "172.17.0.24",
       "internalPort": 30233,
@@ -139,7 +165,9 @@
     },
     {
       "name": "PortTracker - albandrieu",
-      "icons": ["fas fa-network-wired"],
+      "icons": [
+        "fas fa-network-wired"
+      ],
       "description": "Port tracking service",
       "internalHost": "172.17.0.57",
       "internalPort": 4999,
@@ -151,7 +179,9 @@
     },
     {
       "name": "Portainer",
-      "icons": ["fab fa-docker"],
+      "icons": [
+        "fab fa-docker"
+      ],
       "description": "Container management",
       "internalHost": "172.17.0.24",
       "internalPort": 31015,
@@ -163,7 +193,9 @@
     },
     {
       "name": "Scrutiny",
-      "icons": ["fas fa-hard-drive"],
+      "icons": [
+        "fas fa-hard-drive"
+      ],
       "description": "Hard drive health monitoring",
       "internalHost": "172.17.0.24",
       "internalPort": 31054,
@@ -177,7 +209,9 @@
     },
     {
       "name": "Scrutiny Collector - albandrieu",
-      "icons": ["fas fa-hard-drive"],
+      "icons": [
+        "fas fa-hard-drive"
+      ],
       "description": "Workstation SMART collector posting disk telemetry to the Scrutiny Web/API hosted on TrueNAS.",
       "internalHost": "172.17.0.57",
       "iconSrc": "assets/selfh-icons/scrutiny.png",
@@ -188,7 +222,9 @@
     },
     {
       "name": "IT Tools",
-      "icons": ["fas fa-screwdriver-wrench"],
+      "icons": [
+        "fas fa-screwdriver-wrench"
+      ],
       "description": "Developer utilities collection",
       "internalHost": "172.17.0.24",
       "internalPort": 30063,
@@ -200,7 +236,9 @@
     },
     {
       "name": "Uptime Kuma",
-      "icons": ["fas fa-heart-pulse"],
+      "icons": [
+        "fas fa-heart-pulse"
+      ],
       "description": "Uptime monitoring",
       "internalHost": "172.17.0.24",
       "internalPort": 31050,
@@ -212,7 +250,9 @@
     },
     {
       "name": "Vaultwarden",
-      "icons": ["fas fa-lock"],
+      "icons": [
+        "fas fa-lock"
+      ],
       "description": "Password manager",
       "internalHost": "172.17.0.24",
       "internalPort": 30032,
@@ -224,7 +264,9 @@
     },
     {
       "name": "2FAuth",
-      "icons": ["fas fa-mobile-screen-button"],
+      "icons": [
+        "fas fa-mobile-screen-button"
+      ],
       "description": "Two-factor codes manager",
       "internalHost": "172.17.0.24",
       "internalPort": 30081,
@@ -236,7 +278,9 @@
     },
     {
       "name": "LocalAI",
-      "icons": ["fas fa-robot"],
+      "icons": [
+        "fas fa-robot"
+      ],
       "description": "Local AI models",
       "internalHost": "172.17.0.24",
       "internalPort": 30286,
@@ -248,7 +292,9 @@
     },
     {
       "name": "Ollama",
-      "icons": ["fas fa-comment-dots"],
+      "icons": [
+        "fas fa-comment-dots"
+      ],
       "description": "Large language models",
       "internalHost": "172.17.0.24",
       "internalPort": 30068,
@@ -260,7 +306,9 @@
     },
     {
       "name": "n8n",
-      "icons": ["fas fa-diagram-project"],
+      "icons": [
+        "fas fa-diagram-project"
+      ],
       "description": "Workflow automation",
       "internalHost": "172.17.0.24",
       "internalPort": 30109,
@@ -272,7 +320,9 @@
     },
     {
       "name": "Grafana",
-      "icons": ["fas fa-chart-area"],
+      "icons": [
+        "fas fa-chart-area"
+      ],
       "description": "Analytics and monitoring",
       "internalHost": "172.17.0.24",
       "internalPort": 30037,
@@ -284,7 +334,9 @@
     },
     {
       "name": "Keycloak",
-      "icons": ["fas fa-user-shield"],
+      "icons": [
+        "fas fa-user-shield"
+      ],
       "description": "Identity and access management",
       "internalHost": "172.17.0.24",
       "internalPort": 30238,
@@ -296,7 +348,9 @@
     },
     {
       "name": "ClamAV",
-      "icons": ["fas fa-virus-slash"],
+      "icons": [
+        "fas fa-virus-slash"
+      ],
       "description": "Antivirus engine",
       "internalHost": "172.17.0.24",
       "internalPort": 3310,
@@ -308,7 +362,9 @@
     },
     {
       "name": "Homarr",
-      "icons": ["fas fa-house-chimney"],
+      "icons": [
+        "fas fa-house-chimney"
+      ],
       "description": "Homepage dashboard",
       "internalHost": "172.17.0.24",
       "internalPort": 30100,
@@ -320,7 +376,9 @@
     },
     {
       "name": "Gatus",
-      "icons": ["fas fa-signal"],
+      "icons": [
+        "fas fa-signal"
+      ],
       "description": "Health dashboard",
       "internalHost": "172.17.0.24",
       "internalPort": 30287,
@@ -332,7 +390,9 @@
     },
     {
       "name": "DDNS Updater",
-      "icons": ["fas fa-arrows-rotate"],
+      "icons": [
+        "fas fa-arrows-rotate"
+      ],
       "description": "Dynamic DNS updates",
       "internalHost": "172.17.0.24",
       "internalPort": 30007,
@@ -344,7 +404,9 @@
     },
     {
       "name": "Paperless AI",
-      "icons": ["fas fa-wand-magic-sparkles"],
+      "icons": [
+        "fas fa-wand-magic-sparkles"
+      ],
       "description": "Document management with AI",
       "internalHost": "172.17.0.24",
       "internalPort": 30226,
@@ -356,7 +418,9 @@
     },
     {
       "name": "Paperless-ngx",
-      "icons": ["fas fa-folder-open"],
+      "icons": [
+        "fas fa-folder-open"
+      ],
       "description": "Document management system",
       "internalHost": "172.17.0.24",
       "internalPort": 30070,
@@ -368,7 +432,9 @@
     },
     {
       "name": "Transmission",
-      "icons": ["fas fa-download"],
+      "icons": [
+        "fas fa-download"
+      ],
       "description": "BitTorrent client",
       "internalHost": "172.17.0.24",
       "internalPort": 30096,
@@ -380,7 +446,9 @@
     },
     {
       "name": "Sonarr",
-      "icons": ["fas fa-tv"],
+      "icons": [
+        "fas fa-tv"
+      ],
       "description": "TV series management",
       "internalHost": "172.17.0.24",
       "internalPort": 30113,
@@ -392,7 +460,9 @@
     },
     {
       "name": "Radarr",
-      "icons": ["fas fa-film"],
+      "icons": [
+        "fas fa-film"
+      ],
       "description": "Movie collection manager",
       "internalHost": "172.17.0.24",
       "internalPort": 30025,
@@ -404,7 +474,9 @@
     },
     {
       "name": "Lidarr",
-      "icons": ["fas fa-music"],
+      "icons": [
+        "fas fa-music"
+      ],
       "description": "Music collection manager",
       "internalHost": "172.17.0.24",
       "internalPort": 30071,
@@ -416,7 +488,9 @@
     },
     {
       "name": "Prowlarr",
-      "icons": ["fas fa-magnifying-glass"],
+      "icons": [
+        "fas fa-magnifying-glass"
+      ],
       "description": "Indexer manager",
       "internalHost": "172.17.0.24",
       "internalPort": 30050,
@@ -428,7 +502,9 @@
     },
     {
       "name": "Netbootxyz",
-      "icons": ["fas fa-ethernet"],
+      "icons": [
+        "fas fa-ethernet"
+      ],
       "description": "Network boot utility",
       "internalHost": "172.17.0.24",
       "internalPort": 31010,
@@ -440,7 +516,9 @@
     },
     {
       "name": "Affine",
-      "icons": ["fas fa-pen-to-square"],
+      "icons": [
+        "fas fa-pen-to-square"
+      ],
       "description": "Knowledge base and notes",
       "internalHost": "172.17.0.24",
       "internalPort": 30169,
@@ -452,7 +530,9 @@
     },
     {
       "name": "ConvertX",
-      "icons": ["fas fa-file-export"],
+      "icons": [
+        "fas fa-file-export"
+      ],
       "description": "File conversion service",
       "internalHost": "172.17.0.24",
       "internalPort": 30154,
@@ -464,7 +544,9 @@
     },
     {
       "name": "Bichon",
-      "icons": ["fas fa-paw"],
+      "icons": [
+        "fas fa-paw"
+      ],
       "description": "Custom application",
       "internalHost": "172.17.0.24",
       "internalPort": 30313,
@@ -476,7 +558,9 @@
     },
     {
       "name": "OpenArchiver",
-      "icons": ["fas fa-box-archive"],
+      "icons": [
+        "fas fa-box-archive"
+      ],
       "description": "Archive management",
       "internalHost": "172.17.0.24",
       "internalPort": 30288,
@@ -488,7 +572,9 @@
     },
     {
       "name": "pgAdmin",
-      "icons": ["fas fa-table-columns"],
+      "icons": [
+        "fas fa-table-columns"
+      ],
       "description": "PostgreSQL administration",
       "internalHost": "172.17.0.24",
       "internalPort": 30056,
@@ -501,7 +587,9 @@
     {
       "id": "postgresql",
       "name": "PostgreSQL",
-      "icons": ["fas fa-database"],
+      "icons": [
+        "fas fa-database"
+      ],
       "description": "Database server (TCP — use a Postgres client, not a normal web browser tab)",
       "internalHost": "172.17.0.24",
       "internalPort": 5432,
@@ -516,7 +604,9 @@
     },
     {
       "name": "KaraKeep",
-      "icons": ["fas fa-microphone-lines"],
+      "icons": [
+        "fas fa-microphone-lines"
+      ],
       "description": "Karaoke management",
       "internalHost": "172.17.0.24",
       "internalPort": 30147,
@@ -528,7 +618,9 @@
     },
     {
       "name": "SABnzbd",
-      "icons": ["fas fa-newspaper"],
+      "icons": [
+        "fas fa-newspaper"
+      ],
       "description": "Usenet downloader",
       "internalHost": "172.17.0.24",
       "internalPort": 30055,
@@ -540,7 +632,9 @@
     },
     {
       "name": "Stirling PDF",
-      "icons": ["fas fa-file-pdf"],
+      "icons": [
+        "fas fa-file-pdf"
+      ],
       "description": "PDF toolkit",
       "internalHost": "172.17.0.24",
       "internalPort": 30124,
@@ -552,7 +646,9 @@
     },
     {
       "name": "Stirling PDF - albandrieu",
-      "icons": ["fas fa-file-pdf"],
+      "icons": [
+        "fas fa-file-pdf"
+      ],
       "description": "PDF toolkit",
       "internalHost": "172.17.0.57",
       "internalPort": 8085,
@@ -564,7 +660,9 @@
     },
     {
       "name": "AnythingLLM",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "Private LLM workspace and RAG",
       "internalHost": "172.17.0.24",
       "internalPort": 30318,
@@ -576,7 +674,9 @@
     },
     {
       "name": "AnythingLLM - albandrieu",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "Private LLM workspace and RAG",
       "internalHost": "172.17.0.57",
       "internalPort": 3007,
@@ -588,7 +688,9 @@
     },
     {
       "name": "Reactive Resume",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "Reactive Resume",
       "internalHost": "172.17.0.24",
       "internalPort": 30393,
@@ -596,11 +698,15 @@
       "tunnelUrl": "https://reactive.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/rxresume.png",
-      "external": false
+      "external": false,
+      "id": "reactive-resume",
+      "healthPath": "/api/health"
     },
     {
       "name": "Reactive Resume - albandrieu",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "Reactive Resume",
       "internalHost": "172.17.0.57",
       "internalPort": 3008,
@@ -612,7 +718,9 @@
     },
     {
       "name": "Plumber",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "GitLab Security check",
       "internalHost": "172.17.0.57",
       "internalPort": 3001,
@@ -624,7 +732,9 @@
     },
     {
       "name": "Plumber API",
-      "icons": ["fas fa-comments"],
+      "icons": [
+        "fas fa-comments"
+      ],
       "description": "GitLab Security check",
       "internalHost": "172.17.0.57",
       "internalPort": 3003,
@@ -636,7 +746,9 @@
     },
     {
       "name": "Graylog",
-      "icons": ["fas fa-magnifying-glass-chart"],
+      "icons": [
+        "fas fa-magnifying-glass-chart"
+      ],
       "description": "Log management and analysis",
       "internalHost": "172.17.0.24",
       "internalPort": 30319,
@@ -648,7 +760,9 @@
     },
     {
       "name": "LocalAI (GPU)",
-      "icons": ["fas fa-robot"],
+      "icons": [
+        "fas fa-robot"
+      ],
       "description": "Local AI models (GPU instance)",
       "internalHost": "172.17.0.24",
       "internalPort": 30320,
@@ -660,7 +774,9 @@
     },
     {
       "name": "NetAlertX",
-      "icons": ["fas fa-bell"],
+      "icons": [
+        "fas fa-bell"
+      ],
       "description": "Network presence and alerts",
       "internalHost": "172.17.0.24",
       "internalPort": 30321,
@@ -672,7 +788,9 @@
     },
     {
       "name": "ntopng",
-      "icons": ["fas fa-network-wired"],
+      "icons": [
+        "fas fa-network-wired"
+      ],
       "description": "Network traffic visibility",
       "internalHost": "172.17.0.57",
       "internalPort": 4000,
@@ -684,7 +802,9 @@
     },
     {
       "name": "Ollama (GPU)",
-      "icons": ["fas fa-comment-dots"],
+      "icons": [
+        "fas fa-comment-dots"
+      ],
       "description": "Large language models (GPU instance)",
       "internalHost": "172.17.0.24",
       "internalPort": 30323,
@@ -696,7 +816,9 @@
     },
     {
       "name": "Open WebUI",
-      "icons": ["fas fa-window-maximize"],
+      "icons": [
+        "fas fa-window-maximize"
+      ],
       "description": "Web interface for chat models",
       "internalHost": "172.17.0.24",
       "internalPort": 31028,
@@ -708,7 +830,9 @@
     },
     {
       "name": "OpenClaw",
-      "icons": ["fas fa-terminal"],
+      "icons": [
+        "fas fa-terminal"
+      ],
       "description": "OpenClaw service",
       "internalHost": "172.17.0.24",
       "internalPort": 30325,
@@ -720,7 +844,9 @@
     },
     {
       "name": "Nexus",
-      "icons": ["fas fa-cubes"],
+      "icons": [
+        "fas fa-cubes"
+      ],
       "description": "Sonatype Nexus Repository",
       "internalHost": "172.17.0.57",
       "internalPort": 8081,
@@ -732,7 +858,9 @@
     },
     {
       "name": "LiteLLM",
-      "icons": ["fas fa-robot"],
+      "icons": [
+        "fas fa-robot"
+      ],
       "description": "LLM proxy and gateway",
       "internalHost": "172.17.0.24",
       "internalPort": 4000,
@@ -744,7 +872,9 @@
     },
     {
       "name": "LiteLLM - albandrieu",
-      "icons": ["fas fa-robot"],
+      "icons": [
+        "fas fa-robot"
+      ],
       "description": "LLM proxy and gateway",
       "internalHost": "172.17.0.57",
       "internalPort": 4000,
@@ -756,7 +886,9 @@
     },
     {
       "name": "SearXNG",
-      "icons": ["fas fa-terminal"],
+      "icons": [
+        "fas fa-terminal"
+      ],
       "description": "SearXNG service",
       "internalHost": "172.17.0.24",
       "internalPort": 30053,
@@ -768,7 +900,9 @@
     },
     {
       "name": "FreshRSS",
-      "icons": ["fas fa-terminal"],
+      "icons": [
+        "fas fa-terminal"
+      ],
       "description": "FreshRSS service",
       "internalHost": "172.17.0.24",
       "internalPort": 30108,
@@ -780,7 +914,9 @@
     },
     {
       "name": "Hello",
-      "icons": ["fas fa-terminal"],
+      "icons": [
+        "fas fa-terminal"
+      ],
       "description": "Hello World NGINX service",
       "internalHost": "172.17.0.24",
       "internalPort": 8099,
@@ -792,7 +928,9 @@
     },
     {
       "name": "Clickhouse",
-      "icons": ["fas fa-screwdriver-wrench"],
+      "icons": [
+        "fas fa-screwdriver-wrench"
+      ],
       "description": "Clickhouse",
       "internalHost": "172.17.0.24",
       "internalPort": 8123,
@@ -804,7 +942,9 @@
     },
     {
       "name": "Minio",
-      "icons": ["fas fa-screwdriver-wrench"],
+      "icons": [
+        "fas fa-screwdriver-wrench"
+      ],
       "description": "Minio",
       "internalHost": "172.17.0.24",
       "internalPort": 9091,
@@ -816,7 +956,9 @@
     },
     {
       "name": "Langfuse",
-      "icons": ["fas fa-screwdriver-wrench"],
+      "icons": [
+        "fas fa-screwdriver-wrench"
+      ],
       "description": "langfuse",
       "internalHost": "172.17.0.24",
       "internalPort": 3000,
@@ -828,7 +970,9 @@
     },
     {
       "name": "Language Tool",
-      "icons": ["fas fa-screwdriver-wrench"],
+      "icons": [
+        "fas fa-screwdriver-wrench"
+      ],
       "description": "languagetool",
       "internalHost": "172.17.0.24",
       "internalPort": 8010,
@@ -840,7 +984,9 @@
     },
     {
       "name": "Garage S3",
-      "icons": ["fas fa-database"],
+      "icons": [
+        "fas fa-database"
+      ],
       "description": "Garage S3-compatible object-storage API exposed through the direct HAProxy/TLS re-encryption/Traefik path.",
       "internalHost": "172.17.0.24",
       "internalPort": 3900,
@@ -853,7 +999,9 @@
     },
     {
       "name": "Garage",
-      "icons": ["fas fa-terminal"],
+      "icons": [
+        "fas fa-terminal"
+      ],
       "description": "Garage WebUI exposed through Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
       "internalHost": "172.17.0.24",
       "internalPort": 3909,
@@ -867,7 +1015,9 @@
     {
       "id": "garage-admin",
       "name": "Garage Admin",
-      "icons": ["fas fa-lock"],
+      "icons": [
+        "fas fa-lock"
+      ],
       "description": "Garage Admin API exposed through Cloudflare Tunnel directly to the LAN-bound :3903 origin without Traefik.",
       "internalHost": "172.17.0.24",
       "internalPort": 3903,
@@ -880,7 +1030,9 @@
     {
       "id": "joplin",
       "name": "Joplin",
-      "icons": ["fas fa-note-sticky"],
+      "icons": [
+        "fas fa-note-sticky"
+      ],
       "description": "Private Joplin synchronization server",
       "internalHost": "172.17.0.24",
       "internalPort": 22300,
