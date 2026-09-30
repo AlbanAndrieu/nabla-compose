@@ -305,5 +305,20 @@ not proof of the pre-reboot failure cause.
 ## TrueNAS 27 compatibility debt
 
 TrueNAS CSI v1.0.3 still authenticates through deprecated
-`auth.login_with_api_key`. Keep the current TrueNAS 26 path tested and track a
-supported username/SCRAM-capable driver/API path before moving to TrueNAS 27.
+`auth.login_with_api_key`.
+
+The 2026-09-30 review of upstream **v1.3.0** confirmed that this remains true:
+the v1.3.0 Go client still sends `auth.login_with_api_key` with only the API
+key. The release is still useful later for reconnect/session handling,
+Prometheus metrics/Helm support and other fixes, but **v1.0.3 -> v1.3.0 is not an
+authentication migration**.
+
+Keep the current TrueNAS 26 path tested, finish controlled reboot/DNS
+acceptance, and then review the complete manifest/image delta separately.
+Before TrueNAS 27, require an upstream username/SCRAM-capable CSI release or a
+deliberately reviewed replacement/fork.
+
+Upstream evidence:
+
+- https://github.com/truenas/truenas-csi/releases/tag/v1.3.0
+- https://github.com/truenas/truenas-csi/blob/v1.3.0/pkg/client/client.go
