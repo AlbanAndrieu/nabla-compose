@@ -413,7 +413,8 @@ hyphenated root variants such as `docker-compose-truenas.yml`.
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
-   `scripts/lib/truenas.sh`.
+   `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
+   shared by the CSI preflight/smoke, while service-specific forensic loops stay local.
 2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
    and Compose-project correlation.
 3. [ ] Centralize compact/full output, counters and exit codes in
