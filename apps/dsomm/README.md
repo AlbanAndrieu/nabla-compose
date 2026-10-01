@@ -120,7 +120,10 @@ The default reports are:
 
 The Markdown file separates detected automated evidence, automated gaps and
 manual DSOMM activities so the human assessment can be completed without
-mistaking the GitHub baseline for the final maturity score.
+mistaking the GitHub baseline for the final maturity score. It also maps each
+default repository to the matching DSOMM context using
+`config/repository-contexts.yaml`; this is a review aid, not automatic
+progress/evidence mutation.
 
 Use supported findings to seed the human assessment. For every
 `Not Supported - Manual Process` row, add human evidence only after checking
