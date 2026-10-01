@@ -72,3 +72,25 @@ def test_operational_catalog_uses_canonical_probe_targets() -> None:
     assert traefik["internalPort"] == 443
     assert traefik["external"] is False
     assert traefik["endpointEnabled"] is False
+
+
+def test_active_operator_truenas_services_are_projected() -> None:
+    generated = json.loads(
+        (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
+    )
+    legacy = json.loads(CATALOG.read_text(encoding="utf-8"))
+
+    projected_ids = {item.get("id") for item in legacy["services"]}
+    required_ids = {
+        item["id"]
+        for item in generated["services"]
+        if item.get("runtime", {}).get("provider") == "truenas-app"
+        and item.get("status", "active") not in {"planned", "disabled"}
+        and item.get("presentationRole") in {"service", "core"}
+    }
+
+    missing = required_ids - projected_ids
+    assert not missing, (
+        "active operator-visible TrueNAS services missing from "
+        f"homelab-services.json: {sorted(missing)}"
+    )
