@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-29.
+Last updated: 2026-10-01.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -280,6 +280,11 @@ The main roadmap keeps only phase gates:
 
 Security-tooling acceptance within this workstream:
 
+- [x] Vendor the Cloudflare security-audit skill under
+  `.agents/skills/security-audit/` at a reviewed upstream commit and publish a
+  one-shot defensive repository audit under `docs/security-audits/`; keep
+  remediation changes separate from the audit evidence.
+
 - [ ] Dependency-Check produces reproducible SCA evidence and DefectDojo remains
   the authoritative findings/remediation store.
 - [ ] Evaluate ArcherySec and Faraday as bounded complementary PoCs; record
@@ -293,6 +298,9 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
+- [ ] **DSOMM dataset:** create/validate explicit `cpool/dsomm` with the Apps
+  preset before runtime acceptance; keep `state/` and `reports/` inside this
+  dataset and preserve reviewed evidence outside Git.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
   `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
   evidence under protected TrueNAS runtime state, run the pinned

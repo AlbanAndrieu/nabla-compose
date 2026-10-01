@@ -110,7 +110,10 @@ Task-to-skill routing:
 - Compose service/runtime/dependency edits: load
   `docker-compose-orchestration` and `nabla-service-catalog`;
 - TrueNAS live-state acceptance: additionally load `homelab-runtime-status`;
-- pfSense/HAProxy/PF/Snort/pfBlockerNG: load `pfsense-api-debugging`.
+- pfSense/HAProxy/PF/Snort/pfBlockerNG: load `pfsense-api-debugging`;
+- defensive repository security review or vulnerability assessment: load
+  `security-audit`; preserve the skill's distinction between confirmed
+  findings, unresolved validation leads and hardening notes.
 
 For **P0.3**, runtime env normalization and Backstage v2 preparation are one
 service migration bundle. A touched service must have a canonical

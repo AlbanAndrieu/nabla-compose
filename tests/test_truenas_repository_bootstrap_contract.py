@@ -35,6 +35,14 @@ def test_repository_storage_bootstrap_uses_active_owned_bind_mounts() -> None:
     assert "--check | --apply" in script
 
 
+def test_repository_storage_bootstrap_explicitly_owns_dsomm_dataset() -> None:
+    script = STORAGE.read_text(encoding="utf-8")
+
+    assert '[[ -z "${APP_FILTER}" || "${APP_FILTER}" == "dsomm" ]]' in script
+    assert 'declared_paths["dsomm"]="APPS"' in script
+    assert "reviewed progress/evidence and generated assessment reports" in script
+
+
 def test_repository_storage_bootstrap_includes_platform_prerequisites() -> None:
     script = STORAGE.read_text(encoding="utf-8")
 

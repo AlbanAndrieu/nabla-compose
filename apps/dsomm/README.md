@@ -31,6 +31,46 @@ existing assessment. When you export progress/evidence from the browser, copy
 the reviewed YAML into these runtime paths (not the repository), preserve
 `0600`, then reload/redeploy DSOMM.
 
+## Context design
+
+A DSOMM **context represents one security-assessment boundary**, not one Git
+repository by default. Split contexts when ownership, lifecycle, risk profile,
+control implementation, or evidence can legitimately differ.
+
+Useful context candidates are a product/application spanning one or several
+repositories, the shared platform engineering capability, an independently
+governed technical service, or a functional domain/team that owns its evidence.
+
+Do not create one context for every microservice, container, library, or
+repository when they share the same engineering controls and governance. That
+would fragment evidence and create false precision.
+
+The current four contexts are only a bootstrap approximation: `Nabla Homelab
+Platform`, `FastAPI Sample`, `Nabla Site Alban`, and `Nabla Site Bababou`.
+The repository-to-context map helps ingest GitHub baseline evidence; it is not
+the long-term DSOMM domain model. Revisit merge/split decisions after the first
+human assessment.
+
+## TrueNAS storage
+
+DSOMM owns the explicit TrueNAS dataset:
+
+```text
+cpool/dsomm
+/mnt/cpool/dsomm/state
+/mnt/cpool/dsomm/reports
+```
+
+Create or validate it with:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-storage.sh --check dsomm
+sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply dsomm
+```
+
+The root dataset uses the TrueNAS Apps preset. `state/` and `reports/` are
+directories inside that dataset, not separate datasets.
+
 ## Runtime secret
 
 Create:

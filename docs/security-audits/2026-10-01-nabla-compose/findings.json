@@ -1,0 +1,159 @@
+[
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "scanopy-docker-socket-readonly-boundary",
+    "title": "Le daemon Scanopy combine privilèges host et accès direct au socket Docker",
+    "description": "Le daemon Scanopy est privilégié, utilise le réseau host et monte directement le socket Docker. Le commentaire décrit le socket comme lecture seule, mais le montage :ro ne suffit pas à démontrer que l'API Docker est limitée aux opérations GET. Une validation isolée est nécessaire avant de conclure à une capacité de mutation du daemon.",
+    "claimed_root_cause": "La découverte Docker native contourne le docker-socket-proxy déjà présent et repose sur un bind direct du socket dans un conteneur privilégié.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/scanopy/compose.yml",
+        "line": 39,
+        "scope": "scanopy-daemon volume",
+        "description": "Le socket Docker du host est monté directement dans le daemon."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/scanopy/compose.yml",
+        "line": 24,
+        "scope": "scanopy-daemon privilege",
+        "description": "Le service est exécuté avec privileged: true."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/scanopy/compose.yml",
+        "line": 23,
+        "scope": "host integration",
+        "description": "Le daemon partage aussi le réseau host, augmentant l'impact potentiel d'une compromission."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/scanopy/compose.yml",
+        "line": 39,
+        "description": "Bind direct /var/run/docker.sock:/var/run/docker.sock:ro."
+      },
+      {
+        "file": "apps/scanopy/compose.yml",
+        "line": 24,
+        "description": "privileged: true."
+      }
+    ],
+    "blockers": [
+      "Aucun sandbox Docker isolé conforme au skill Cloudflare n'est disponible dans cette exécution pour tester sans risque une opération API de mutation."
+    ],
+    "validation_plan": {
+      "local": "Dans un Docker daemon jetable, exécuter l'image Scanopy avec le même montage et vérifier explicitement si une requête Docker POST est autorisée; ne pas effectuer ce test sur TrueNAS production.",
+      "deployment": "Remplacer le bind direct par le docker-socket-proxy avec POST=0 et seulement les endpoints de découverte nécessaires, puis vérifier que la découverte Scanopy reste fonctionnelle."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "traefik-insecure-api-port-8080",
+    "title": "Traefik active l'API insecure tout en publiant le port 8080",
+    "description": "Traefik active --api.insecure=true et publie le port dashboard 8080 sans host_ip explicite. La configuration source indique donc une surface d'administration potentiellement accessible sur les interfaces du host. La portée effective doit être confirmée sur TrueNAS.",
+    "claimed_root_cause": "Le dashboard insecure est activé en parallèle d'un routage TLS authentifié, ce qui crée une seconde voie d'accès susceptible de contourner le contrôle prévu.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/traefik/compose.yml",
+        "line": 120,
+        "scope": "published dashboard port",
+        "description": "Le port cible 8080 est publié comme 8080 sans host_ip."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/traefik/compose.yml",
+        "line": 57,
+        "scope": "Traefik API configuration",
+        "description": "--api.insecure=true active l'accès insecure au dashboard/API."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/traefik/compose.yml",
+        "line": 57,
+        "description": "Traefik est lancé avec --api.insecure=true."
+      },
+      {
+        "file": "apps/traefik/compose.yml",
+        "line": 120,
+        "description": "Le port dashboard 8080 est publié."
+      }
+    ],
+    "blockers": [
+      "La portée réseau effective du port 8080 n'a pas été testée depuis le LAN dans cette exécution."
+    ],
+    "validation_plan": {
+      "local": "Valider le rendu docker compose config et confirmer l'absence de host_ip sur le mapping 8080.",
+      "deployment": "Depuis un poste LAN non privilégié, tester un GET non authentifié vers http://172.17.0.24:8080 puis supprimer api.insecure et exposer uniquement api@internal via le routeur TLS authentifié."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "dozzle-admin-socket-shell-actions",
+    "title": "Dozzle cumule socket Docker direct, actions, shell et MCP",
+    "description": "Dozzle dispose d'un accès direct au socket Docker et active simultanément les actions, le shell et MCP. Cette combinaison augmente fortement le pouvoir d'une session Dozzle compromise; l'impact exact dépend du contrôle d'authentification et de l'exposition réseau réellement appliqués.",
+    "claimed_root_cause": "Une interface d'observabilité concentre des capacités d'administration Docker et de shell alors que le repository dispose déjà d'un socket proxy restreint.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/dozzle/compose.yml",
+        "line": 41,
+        "scope": "Docker socket",
+        "description": "Dozzle monte directement le socket Docker."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/dozzle/compose.yml",
+        "line": 49,
+        "scope": "actions",
+        "description": "DOZZLE_ENABLE_ACTIONS=true."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/dozzle/compose.yml",
+        "line": 50,
+        "scope": "shell",
+        "description": "DOZZLE_ENABLE_SHELL=true."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/dozzle/compose.yml",
+        "line": 51,
+        "scope": "MCP",
+        "description": "DOZZLE_ENABLE_MCP=true."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/dozzle/compose.yml",
+        "line": 41,
+        "description": "Bind direct du socket Docker."
+      },
+      {
+        "file": "apps/dozzle/compose.yml",
+        "line": 49,
+        "description": "Actions activées."
+      },
+      {
+        "file": "apps/dozzle/compose.yml",
+        "line": 50,
+        "description": "Shell activé."
+      },
+      {
+        "file": "apps/dozzle/compose.yml",
+        "line": 51,
+        "description": "MCP activé."
+      }
+    ],
+    "blockers": [
+      "L'authentification effective, les ACL Traefik et la portée runtime du socket n'ont pas été validées dans cette exécution."
+    ],
+    "validation_plan": {
+      "local": "Revoir les besoins fonctionnels séparément: logs, actions, shell et MCP; déterminer lesquels exigent réellement le socket Docker complet.",
+      "deployment": "Confirmer l'accès réseau/authentification, puis désactiver les fonctions non nécessaires et migrer vers un proxy Docker allowlisté lorsque possible."
+    }
+  }
+]

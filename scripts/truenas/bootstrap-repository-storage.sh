@@ -89,6 +89,13 @@ while IFS='|' read -r app root; do
   declared_paths["${root}"]="$(dataset_preset "${root}")"
 done < <(discover_persistent_mounts | sort -u)
 
+# DSOMM stores reviewed progress/evidence and generated assessment reports.
+# Keep its root explicit so dataset ownership does not depend solely on future
+# Compose bind-mount parsing.
+if [[ -z "${APP_FILTER}" || "${APP_FILTER}" == "dsomm" ]]; then
+  declared_paths["dsomm"]="APPS"
+fi
+
 # These datasets are repository-owned platform prerequisites rather than Docker
 # Compose bind mounts. Keep them explicit so a full bootstrap can reconstruct
 # the TrueNAS control/storage hierarchy used by Vaultwarden materialization,
