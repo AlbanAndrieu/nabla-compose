@@ -157,6 +157,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "local pre-commit hook ids must be unique",
         )
         for hook_id in (
+            "dsomm-contract",
             "runtime-primitive-duplication",
             "service-topology-sync",
             "service-consumer-contract",
