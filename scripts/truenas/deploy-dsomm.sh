@@ -32,7 +32,15 @@ source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
 compose_path="${CANONICAL_ROOT}/apps/dsomm/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
 
-printf '==> DSOMM repository-owned storage\n'
+printf '==> DSOMM Compose contract\n'
+docker compose -f "${compose_path}" --profile manual config \
+  --quiet --no-interpolate --no-env-resolution
+
+printf '\n==> generated service contracts\n'
+python3 scripts/generate-service-topology.py --check
+python3 scripts/generate-service-consumers.py --check
+
+printf '\n==> DSOMM repository-owned storage\n'
 bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_ID}"
 
 state_root="/mnt/cpool/dsomm/state"
@@ -40,28 +48,31 @@ progress_file="${state_root}/team-progress.yaml"
 evidence_file="${state_root}/team-evidence.yaml"
 
 if [[ "${MODE}" == "--apply" ]]; then
+  [[ ! -L "${state_root}" ]] ||
+    fail "refusing symlinked DSOMM state directory: ${state_root}"
   install -d -m 0700 "${state_root}"
+  [[ -d "${state_root}" && ! -L "${state_root}" ]] ||
+    fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
-  if [[ ! -e "${progress_file}" ]]; then
-    printf 'progress:\n' >"${progress_file}"
-  fi
-  if [[ ! -e "${evidence_file}" ]]; then
-    printf 'evidence:\n' >"${evidence_file}"
-  fi
-  chmod 0600 "${progress_file}" "${evidence_file}"
+
+  for state_spec in "progress|${progress_file}" "evidence|${evidence_file}"; do
+    state_key="${state_spec%%|*}"
+    state_file="${state_spec#*|}"
+    [[ ! -L "${state_file}" ]] ||
+      fail "refusing symlinked DSOMM state file: ${state_file}"
+    if [[ ! -e "${state_file}" ]]; then
+      printf '%s:\n' "${state_key}" >"${state_file}"
+    elif [[ ! -f "${state_file}" ]]; then
+      fail "DSOMM state path is not a regular file: ${state_file}"
+    fi
+    chmod 0600 "${state_file}"
+  done
 fi
 
 for state_file in "${progress_file}" "${evidence_file}"; do
   [[ -f "${state_file}" && ! -L "${state_file}" ]] ||
     fail "missing or unsafe DSOMM state file: ${state_file}; run --apply"
 done
-
-printf '==> DSOMM Compose contract\n'
-docker compose -f "${compose_path}" --profile manual config   --quiet --no-interpolate --no-env-resolution
-
-printf '\n==> generated service contracts\n'
-python3 scripts/generate-service-topology.py --check
-python3 scripts/generate-service-consumers.py --check
 
 if [[ "${MODE}" == "--apply" ]]; then
   printf '\n==> TrueNAS Custom App reconciliation\n'
