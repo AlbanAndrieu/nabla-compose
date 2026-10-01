@@ -71,7 +71,9 @@ reviewed. After acceptance, change the UI service to `status: active`, regenerat
 catalog/consumers and rerun the local quality gate. This prevents Gatus/AutoKuma
 from reporting a service as DOWN before it is actually deployed.
 
-The upstream INSTALL currently documents `wurstbrot/dsomm:latest`. Override
+The upstream release workflow publishes both `wurstbrot/dsomm:<version>` and
+`latest`. This deployment defaults to `wurstbrot/dsomm:5.0.0` (GitHub release
+`v5.0.0`, published 2026-08-21) rather than following `latest`. Override
 `DSOMM_IMAGE` with a reviewed immutable digest when one is selected.
 
 ## Run the GitHub baseline
