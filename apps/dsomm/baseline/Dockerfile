@@ -8,13 +8,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Upstream requirements.txt currently does not pin PyYAML/tabulate versions.
+# Upstream requirements.txt only lists PyYAML/tabulate without versions.
+# Pin the compatible runtime explicitly so rebuilding the same git ref stays deterministic.
 # hadolint ignore=DL3013
 RUN git init /opt/dsomm-baseline \
     && git -C /opt/dsomm-baseline remote add origin https://github.com/tweag/dsomm-baseline.git \
     && git -C /opt/dsomm-baseline fetch --depth 1 origin "${DSOMM_BASELINE_REF}" \
     && git -C /opt/dsomm-baseline checkout --detach FETCH_HEAD \
-    && pip install --no-cache-dir -r /opt/dsomm-baseline/requirements.txt
+    && test "$(git -C /opt/dsomm-baseline rev-parse HEAD)" = "${DSOMM_BASELINE_REF}" \
+    && pip install --no-cache-dir PyYAML==6.0.3 tabulate==0.10.0
 
 COPY run-baseline.sh /usr/local/bin/run-dsomm-baseline
 COPY summarize.py /usr/local/bin/summarize-dsomm-baseline.py
