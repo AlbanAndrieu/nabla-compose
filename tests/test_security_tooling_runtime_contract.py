@@ -56,6 +56,7 @@ def test_secret_preparation_supports_vaultwarden_parity() -> None:
     assert "cmp -s" in script
     assert "/mnt/cpool/secrets/runtime/${app}/.env.secrets" in script
     assert "root:root 600" in script
+    assert "dsomm" in script
     assert "Never print secret values" in helpers
 
 
