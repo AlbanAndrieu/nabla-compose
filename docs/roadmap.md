@@ -294,9 +294,12 @@ Security-tooling acceptance within this workstream:
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
-  `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
-  evidence under protected TrueNAS runtime state, run the pinned
-  `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
+  `172.17.0.24:31088` while it remains `status: planned`.
+  - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
+  - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
+    `--check dsomm` and prove the dataset exists before runtime activation.
+  - [ ] Preserve progress/evidence under protected TrueNAS runtime state, run the
+    pinned `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
   unsupported/manual activities with reviewed evidence. The pinned Tweag
   baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
   activities remain explicit human-review scope. Promote DSOMM to `active`
