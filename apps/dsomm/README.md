@@ -130,6 +130,20 @@ Use supported findings to seed the human assessment. For every
 the corresponding DSOMM activity and current repository/runtime/process
 evidence.
 
+## Baseline coverage limit
+
+The pinned Tweag baseline commit predates **DSOMM 5.0**. Its automated check
+catalog therefore remains a partial evidence helper for the older activity set;
+it does **not** automatically assess the new DSOMM 5.0 dimensions such as
+**Agentic AI** and **Identity**. Those dimensions, and every activity that the
+baseline marks unsupported/manual, must be reviewed directly in the DSOMM 5.0
+UI.
+
+Do not convert the baseline's `LEVELx Score` or `Total Score` into the Nabla
+maturity verdict. Use those numbers only as upstream scanner diagnostics and
+attach the underlying concrete evidence to the matching DSOMM activity after
+human review.
+
 ## Upstream
 
 - DSOMM install: https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel/blob/main/INSTALL.md
