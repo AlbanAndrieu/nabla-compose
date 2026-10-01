@@ -64,6 +64,79 @@ class DiagnosticOutputContractTest(unittest.TestCase):
                 self.assertNotIn("DIAGNOSTIC_FULL_OUTPUT", script)
                 self.assertNotIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
 
+    def test_shared_bootstrap_delegates_when_compact_output_is_requested(self) -> None:
+        library = ROOT / "scripts/lib/diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            scripts = base / "scripts"
+            target_dir = scripts / "truenas"
+            target_dir.mkdir(parents=True)
+            target = target_dir / "sample.sh"
+            target.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+            wrapper = scripts / "run-diagnostic.sh"
+            wrapper.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'WRAPPED target=%s arg1=%s arg2=%s\\n' \"$1\" \"$2\" \"$3\"\n",
+                encoding="utf-8",
+            )
+            wrapper.chmod(0o755)
+
+            env = os.environ.copy()
+            env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        f"source {library}; "
+                        f"nabla_diagnostic_maybe_wrap {target} alpha beta; "
+                        "printf 'UNREACHABLE\\n'"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(
+            f"WRAPPED target={target} arg1=alpha arg2=beta",
+            result.stdout,
+        )
+        self.assertNotIn("UNREACHABLE", result.stdout)
+
+    def test_shared_bootstrap_respects_full_output_override(self) -> None:
+        library = ROOT / "scripts/lib/diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "sample.sh"
+            target.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            env = os.environ.copy()
+            env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
+            env["DIAGNOSTIC_FULL_OUTPUT"] = "1"
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        f"source {library}; "
+                        f"nabla_diagnostic_maybe_wrap {target} alpha; "
+                        "printf 'INLINE\\n'"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("INLINE\n", result.stdout)
+
     def test_wrapper_does_not_change_existing_shared_log_directory_mode(self) -> None:
         wrapper = ROOT / "scripts/run-diagnostic.sh"
 
