@@ -10,6 +10,9 @@ nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=scripts/talos/lib/client-config.sh
 source "${ROOT}/scripts/talos/lib/client-config.sh"
+# shellcheck source=scripts/lib/truenas.sh
+source "${ROOT}/scripts/lib/truenas.sh"
+# Shared TrueNAS helper owns the pool.dataset.query call used by this preflight.
 nabla_resolve_talos_client_config "${ROOT}"
 TRUENAS_HOST="${TRUENAS_CSI_HOST:-172.17.0.24}"
 TRUENAS_CSI_DATASET="${TRUENAS_CSI_DATASET:-cpool/k8s/csi}"
@@ -136,7 +139,7 @@ if command -v midclt >/dev/null 2>&1; then
     fail "TrueNAS CSI parent mountpoint is missing on the appliance: ${TRUENAS_CSI_MOUNTPOINT}"
   ok "TrueNAS CSI parent mountpoint exists on the appliance: ${TRUENAS_CSI_MOUNTPOINT}"
 
-  dataset_json="$(midclt call pool.dataset.query "[[\"id\",\"=\",\"${TRUENAS_CSI_DATASET}\"]]" 2>/dev/null)" ||
+  dataset_json="$(truenas_dataset_query_by_id "${TRUENAS_CSI_DATASET}" 2>/dev/null)" ||
     fail "TrueNAS dataset API query failed for ${TRUENAS_CSI_DATASET}"
   dataset_count="$(jq 'length' <<<"${dataset_json}")"
   [[ "${dataset_count}" -eq 1 ]] ||
