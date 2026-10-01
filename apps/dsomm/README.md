@@ -100,11 +100,14 @@ DSOMM_BASELINE_REPOS=AlbanAndrieu/nabla-compose \
   run --rm dsomm-baseline
 ```
 
-Multiple repositories are comma-separated, for example:
+By default the runner checks the four contexts configured in `meta.yaml`:
 
 ```text
 AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou
 ```
+
+Override `DSOMM_BASELINE_REPOS` with any comma-separated repository set for a
+bounded assessment run.
 
 The default reports are:
 
@@ -129,4 +132,7 @@ evidence.
 - Baseline extension: https://github.com/tweag/dsomm-baseline
 
 The baseline image is pinned to commit
-`3255561bc9162e335d2c79b72e12b1478075e610` by default.
+`3255561bc9162e335d2c79b72e12b1478075e610` by default. Its two upstream
+Python dependencies are also pinned locally to `PyYAML==6.0.3` and
+`tabulate==0.10.0` so rebuilding that commit does not silently change the
+runtime.
