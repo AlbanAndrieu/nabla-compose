@@ -285,12 +285,10 @@ Security-tooling acceptance within this workstream:
 - [ ] Evaluate ArcherySec and Faraday as bounded complementary PoCs; record
   explicit keep/complement/drop decisions and avoid competing finding databases.
 - [ ] Deploy and accept an endpoint hardware/software inventory manager, with
-  **OCS Inventory NG** as the default candidate: keep `x-nabla` authoritative
-  for application/service identity and NetBox authoritative for infrastructure
-  intent; OCS owns observed endpoint facts only. Pilot supported workstation/
-  Linux/Windows/macOS endpoints, not TrueNAS/Talos appliance agents. Treat OCS
-  3.x release candidates as test-only and re-evaluate the production version at
-  deployment time.
+  **OCS Inventory NG** as the default candidate. OCS owns observed endpoint
+  facts only; `x-nabla` keeps application/service identity and NetBox keeps
+  infrastructure intent. Detailed version, storage, enrollment and reconciliation
+  gates live in `security-inventory-tooling-roadmap.md`.
 - [ ] Complete NetBox/OCS Inventory/Dependency-Track/DefectDojo/Neo4j runtime
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
