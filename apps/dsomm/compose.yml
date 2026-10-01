@@ -76,7 +76,7 @@ services:
         containerService: dsomm-baseline
       relations:
         - target: dsomm
-          type: supports
+          type: automates
           strength: optional
           description: Baseline output helps pre-fill evidence for the DSOMM assessment but cannot replace manual assessment activities.
           evidence:
