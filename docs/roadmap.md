@@ -297,8 +297,10 @@ Security-tooling acceptance within this workstream:
   `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
   evidence under protected TrueNAS runtime state, run the pinned
   `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
-  unsupported/manual activities with reviewed evidence. Promote DSOMM to
-  `active` only after runtime acceptance; automated baseline output is supporting
+  unsupported/manual activities with reviewed evidence. The pinned Tweag
+  baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
+  activities remain explicit human-review scope. Promote DSOMM to `active`
+  only after runtime acceptance; automated baseline output is supporting
   evidence, not the maturity verdict.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
