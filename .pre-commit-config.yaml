@@ -317,7 +317,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/truenas/prepare-security-tooling-secrets[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
+          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
 
       - id: diagnostic-output-contract
         name: "📋 diagnostics · Validate shared compact/full output contract"
