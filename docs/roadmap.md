@@ -284,8 +284,15 @@ Security-tooling acceptance within this workstream:
   the authoritative findings/remediation store.
 - [ ] Evaluate ArcherySec and Faraday as bounded complementary PoCs; record
   explicit keep/complement/drop decisions and avoid competing finding databases.
-- [ ] Complete NetBox/Dependency-Track/DefectDojo/Neo4j runtime acceptance before
-  treating declarations as deployed services.
+- [ ] Deploy and accept an endpoint hardware/software inventory manager, with
+  **OCS Inventory NG** as the default candidate: keep `x-nabla` authoritative
+  for application/service identity and NetBox authoritative for infrastructure
+  intent; OCS owns observed endpoint facts only. Pilot supported workstation/
+  Linux/Windows/macOS endpoints, not TrueNAS/Talos appliance agents. Treat OCS
+  3.x release candidates as test-only and re-evaluate the production version at
+  deployment time.
+- [ ] Complete NetBox/OCS Inventory/Dependency-Track/DefectDojo/Neo4j runtime
+  acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
 
@@ -480,7 +487,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> security tooling secret materialization + shared PostgreSQL bootstrap
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
-  -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
