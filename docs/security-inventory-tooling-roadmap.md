@@ -39,6 +39,9 @@ candidate and must remain test-only; use a maintained stable 2.x release for a
 production-like pilot or defer production cutover until a 3.x GA is available.
 Re-check this decision immediately before deployment.
 
+Official references: <https://wiki.ocsinventory-ng.org/> and
+<https://github.com/OCSInventory-NG>.
+
 Implementation gates:
 
 1. [ ] Define the first inventory scope: workstation and supported
