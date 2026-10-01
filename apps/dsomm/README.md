@@ -1,0 +1,89 @@
+# OWASP DSOMM
+
+Repository-owned deployment of the OWASP DevSecOps Maturity Model UI plus a
+manual, pinned `tweag/dsomm-baseline` evidence runner.
+
+## Architecture
+
+- `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.
+- `config/meta.yaml`: default Nabla assessment contexts.
+- `dsomm-baseline`: manual profile; queries GitHub using `gh` and writes a
+  CSV under `/mnt/cpool/dsomm/reports`.
+- The baseline report is **evidence**, not a maturity verdict. Upstream explicitly
+  leaves many activities as manual/interview/process checks.
+
+DSOMM stores assessment data in YAML and browser localStorage. Do not place
+sensitive evidence directly in Git. Export reviewed progress/evidence from the
+browser and store it in an approved protected location before relying on it as
+assessment evidence.
+
+## Runtime secret
+
+Create:
+
+```text
+/mnt/cpool/secrets/runtime/dsomm/.env.secrets
+```
+
+with at least:
+
+```dotenv
+GH_TOKEN=<dedicated GitHub token>
+```
+
+Start with the least privilege that lets the selected checks read repository
+metadata/security settings. The upstream baseline README mentions broader
+write/admin permissions; do not grant them by default. Checks that require
+unavailable organization/admin APIs should remain unavailable/manual instead of
+expanding token privilege without review.
+
+## Deploy UI
+
+```bash
+docker compose -f apps/dsomm/compose.yml up -d dsomm
+curl -I http://172.17.0.24:31088/
+```
+
+The upstream INSTALL currently documents `wurstbrot/dsomm:latest`. Override
+`DSOMM_IMAGE` with a reviewed immutable digest when one is selected.
+
+## Run the GitHub baseline
+
+The runner is deliberately not always-on.
+
+```bash
+mkdir -p /mnt/cpool/dsomm/reports
+chmod 700 /mnt/cpool/dsomm/reports
+
+docker compose -f apps/dsomm/compose.yml --profile manual build dsomm-baseline
+
+DSOMM_BASELINE_REPOS=AlbanAndrieu/nabla-compose \
+  docker compose -f apps/dsomm/compose.yml --profile manual \
+  run --rm dsomm-baseline
+```
+
+Multiple repositories are comma-separated, for example:
+
+```text
+AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou
+```
+
+The default report is:
+
+```text
+/mnt/cpool/dsomm/reports/dsomm-baseline.csv
+```
+
+Use supported findings to seed the human assessment. For every
+`Not Supported - Manual Process` row, add human evidence only after checking
+the corresponding DSOMM activity and current repository/runtime/process
+evidence.
+
+## Upstream
+
+- DSOMM install: https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel/blob/main/INSTALL.md
+- DSOMM activities: https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data
+- Baseline extension: https://github.com/tweag/dsomm-baseline
+
+The baseline image is pinned to commit
+`3255561bc9162e335d2c79b72e12b1478075e610` by default.
