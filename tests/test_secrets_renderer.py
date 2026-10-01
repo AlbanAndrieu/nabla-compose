@@ -54,6 +54,7 @@ class SecretsRendererTests(TestCase):
             "neo4j",
             "cartography",
             "scorecard",
+            "dsomm",
         }
         self.assertTrue(
             required_apps <= managed_apps,
