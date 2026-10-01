@@ -293,6 +293,11 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
+- [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
+  `172.17.0.24:31088`, run the pinned `tweag/dsomm-baseline` job against the
+  selected Nabla repositories, retain CSV + human-review Markdown evidence, then
+  complete unsupported/manual activities with reviewed process/runtime evidence.
+  Automated baseline output is supporting evidence, not the maturity verdict.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
