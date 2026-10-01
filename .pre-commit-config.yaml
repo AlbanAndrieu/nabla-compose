@@ -284,7 +284,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(kubernetes/truenas-csi/|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|homelab-platform-migration-roadmap|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
+          ^(kubernetes/truenas-csi/|scripts/lib/truenas[.]sh|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|homelab-platform-migration-roadmap|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
 
       - id: pfsense-posture-audit-contract
         name: "🛡️ pfSense · Parse posture regression audit"
