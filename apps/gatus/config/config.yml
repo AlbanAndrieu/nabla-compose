@@ -430,24 +430,6 @@ endpoints:
   url: tcp://172.17.0.24:30068
   conditions:
   - '[CONNECTED] == true'
-- name: 1Password Connect API
-  group: security
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: op-connect-api
-    nabla_service_id: op-connect-api
-  url: tcp://172.17.0.24:8097
-  conditions:
-  - '[CONNECTED] == true'
-- name: 1Password Connect Sync
-  group: security
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: op-connect-sync
-    nabla_service_id: op-connect-sync
-  url: tcp://172.17.0.24:8098
-  conditions:
-  - '[CONNECTED] == true'
 - name: OpenHands
   group: ai
   interval: 60s
@@ -788,5 +770,6 @@ endpoints:
   url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'
+
 
 
