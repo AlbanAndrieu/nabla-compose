@@ -661,6 +661,54 @@
       }
     },
     {
+      "id": "dsomm",
+      "name": "OWASP DevSecOps Maturity Model",
+      "kind": "security-maturity-assessment",
+      "category": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "url": "http://172.17.0.24:31088",
+      "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "securityFunctions": [
+        "govern",
+        "identify"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dsomm",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31088
+      }
+    },
+    {
+      "id": "dsomm-baseline",
+      "name": "DSOMM GitHub Baseline",
+      "kind": "security-maturity-evidence-scanner",
+      "category": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "govern",
+        "identify"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dsomm-baseline",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "kind": "search",
@@ -3142,6 +3190,36 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/drawio/compose.yml:drawio.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dsomm",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/dsomm/compose.yml:dsomm.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dsomm-baseline",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/dsomm/compose.yml:dsomm-baseline.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dsomm-baseline",
+      "target": "dsomm",
+      "type": "automates",
+      "strength": "optional",
+      "description": "Baseline output helps pre-fill evidence for the DSOMM assessment but cannot replace manual assessment activities.",
+      "evidence": [
+        "apps/dsomm/compose.yml:DSOMM_BASELINE_OUTPUT"
       ]
     },
     {
