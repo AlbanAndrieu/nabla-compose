@@ -38,6 +38,9 @@ def test_repository_storage_bootstrap_uses_active_owned_bind_mounts() -> None:
 def test_repository_storage_bootstrap_includes_platform_prerequisites() -> None:
     script = STORAGE.read_text(encoding="utf-8")
 
+    assert '[[ -z "${APP_FILTER}" || "${APP_FILTER}" == "dsomm" ]]' in script
+    assert 'declared_paths["dsomm"]="APPS"' in script
+
     for relative in (
         "secrets",
         "k8s",
