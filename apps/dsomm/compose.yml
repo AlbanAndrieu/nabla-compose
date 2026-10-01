@@ -1,0 +1,113 @@
+---
+name: dsomm
+
+services:
+  dsomm:
+    image: ${DSOMM_IMAGE:-wurstbrot/dsomm:5.0.0}
+    container_name: dsomm
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    ports:
+      - name: web
+        target: 8080
+        published: "31088"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/meta.yaml:/srv/assets/YAML/meta.yaml:ro
+      - /mnt/cpool/dsomm/state/team-progress.yaml:/srv/assets/YAML/team-progress.yaml:ro
+      - /mnt/cpool/dsomm/state/team-evidence.yaml:/srv/assets/YAML/team-evidence.yaml:ro
+    networks:
+      - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/dsomm
+    x-nabla:
+      id: dsomm
+      name: OWASP DevSecOps Maturity Model
+      kind: security-maturity-assessment
+      category: security
+      status: planned
+      presentationRole: service
+      criticality: low
+      securityFunctions:
+        - govern
+        - identify
+      url: http://172.17.0.24:31088
+      description: OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.
+      runtime:
+        provider: truenas-app
+        containerService: dsomm
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31088
+
+  dsomm-baseline:
+    build:
+      context: ./baseline
+      args:
+        DSOMM_BASELINE_REF: ${DSOMM_BASELINE_REF:-3255561bc9162e335d2c79b72e12b1478075e610}
+    image: ${DSOMM_BASELINE_IMAGE:-nabla/dsomm-baseline:3255561}
+    container_name: dsomm-baseline
+    restart: "no"
+    profiles:
+      - manual
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/dsomm/.env.secrets
+        required: false
+    environment:
+      DSOMM_BASELINE_REPOS: ${DSOMM_BASELINE_REPOS:-AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou}
+      DSOMM_BASELINE_OUTPUT: ${DSOMM_BASELINE_OUTPUT:-/reports/dsomm-baseline.csv}
+      DSOMM_BASELINE_SUMMARY_OUTPUT: ${DSOMM_BASELINE_SUMMARY_OUTPUT:-/reports/dsomm-baseline.md}
+      PYTHONDONTWRITEBYTECODE: "1"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - /mnt/cpool/dsomm/reports:/reports
+      - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/repository-contexts.yaml:/config/repository-contexts.yaml:ro
+    networks:
+      - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/dsomm-baseline
+    x-nabla:
+      id: dsomm-baseline
+      name: DSOMM GitHub Baseline
+      kind: security-maturity-evidence-scanner
+      category: security
+      status: planned
+      presentationRole: support
+      criticality: low
+      securityFunctions:
+        - govern
+        - identify
+      description: Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.
+      runtime:
+        provider: truenas-app
+        containerService: dsomm-baseline
+      relations:
+        - target: dsomm
+          type: automates
+          strength: optional
+          description: Baseline output helps pre-fill evidence for the DSOMM assessment but cannot replace manual assessment activities.
+          evidence:
+            - apps/dsomm/compose.yml:DSOMM_BASELINE_OUTPUT
+
+networks:
+  intranet:
+    external: true
+    name: intranet

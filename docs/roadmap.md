@@ -284,10 +284,24 @@ Security-tooling acceptance within this workstream:
   the authoritative findings/remediation store.
 - [ ] Evaluate ArcherySec and Faraday as bounded complementary PoCs; record
   explicit keep/complement/drop decisions and avoid competing finding databases.
-- [ ] Complete NetBox/Dependency-Track/DefectDojo/Neo4j runtime acceptance before
-  treating declarations as deployed services.
+- [ ] Deploy and accept an endpoint hardware/software inventory manager, with
+  **OCS Inventory NG** as the default candidate. OCS owns observed endpoint
+  facts only; `x-nabla` keeps application/service identity and NetBox keeps
+  infrastructure intent. Detailed version, storage, enrollment and reconciliation
+  gates live in `security-inventory-tooling-roadmap.md`.
+- [ ] Complete NetBox/OCS Inventory/Dependency-Track/DefectDojo/Neo4j runtime
+  acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
+- [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
+  `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
+  evidence under protected TrueNAS runtime state, run the pinned
+  `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
+  unsupported/manual activities with reviewed evidence. The pinned Tweag
+  baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
+  activities remain explicit human-review scope. Promote DSOMM to `active`
+  only after runtime acceptance; automated baseline output is supporting
+  evidence, not the maturity verdict.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
@@ -409,16 +423,20 @@ Already accepted: agent-first local gate, deterministic autofix convergence,
 generated-contract checks and the first shared TrueNAS/Docker primitives.
 Compose discovery is also normalized across generator/Pre-commit for dotted and
 hyphenated root variants such as `docker-compose-truenas.yml`.
+Pre-commit configuration parsing/unicity is now an explicit local contract so
+malformed regex quoting or duplicated hook IDs fail before publication.
 
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
    `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
-   shared by the CSI preflight/smoke, while service-specific forensic loops stay local.
+   shared by CSI preflight/reclaim while service-specific forensic loops stay local.
 2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
    and Compose-project correlation.
-3. [ ] Centralize compact/full output, counters and exit codes in
-   `scripts/lib/diagnostic.sh`.
+3. [x] Centralize diagnostic output plumbing: `scripts/lib/diagnostic.sh`
+   owns compact/full wrapper delegation for the 23 migrated operator scripts,
+   while `scripts/run-diagnostic.sh` remains canonical for private detailed
+   logs, counters, bounded summaries and exit-code propagation.
 4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
    `scripts/lib/probe.sh`.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
@@ -426,7 +444,13 @@ Remaining reduction:
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
-8. [x] Add an anti-duplication gate for migrated runtime primitives: `scripts/quality/check-runtime-helper-duplication.py` enforces one canonical owner for the migrated TrueNAS/Docker/secret helpers, while the Pre-commit contract rejects duplicate hook IDs.
+8. [x] Add an anti-duplication gate for migrated runtime primitives. Canonical
+   owners are declared in `config/quality/runtime-primitives.json`; Pre-commit
+   and the agent gate now reject foreign shell definitions while full local
+   validation also proves the owner definition still exists exactly once.
+9. [x] Make runtime health consumers lifecycle-aware: `planned`/`disabled`
+   services remain catalog-visible but no longer generate Gatus/AutoKuma health
+   expectations until activation.
 
 ## Target operator-script architecture
 
@@ -474,7 +498,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> security tooling secret materialization + shared PostgreSQL bootstrap
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
-  -> security inventory baseline (NetBox + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com

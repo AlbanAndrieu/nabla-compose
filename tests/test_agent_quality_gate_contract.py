@@ -76,6 +76,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertNotIn("-m unittest discover -s tests", text)
         self.assertIn("CI fast mode", text)
         self.assertIn("generated_contract_scope_changed", text)
+        self.assertIn("runtime_primitive_scope_changed", text)
+        self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
         self.assertIn('if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]', text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
@@ -128,6 +130,41 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("$NABLA_TRUENAS_DEV_VENV/bin", bootstrap)
         self.assertIn('PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"', bootstrap)
         self.assertIn('"pytest==${PYTEST_VERSION}"', bootstrap)
+
+    def test_precommit_config_parses_and_local_hook_ids_are_unique(self) -> None:
+        path = ROOT / ".pre-commit-config.yaml"
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        self.assertIsInstance(payload, dict)
+        repositories = payload.get("repos")
+        self.assertIsInstance(repositories, list)
+
+        hook_ids: list[str] = []
+        for repository in repositories:
+            if not isinstance(repository, dict) or repository.get("repo") != "local":
+                continue
+            hooks = repository.get("hooks", [])
+            self.assertIsInstance(hooks, list)
+            hook_ids.extend(
+                hook["id"]
+                for hook in hooks
+                if isinstance(hook, dict) and isinstance(hook.get("id"), str)
+            )
+
+        self.assertTrue(hook_ids)
+        self.assertEqual(
+            len(hook_ids),
+            len(set(hook_ids)),
+            "local pre-commit hook ids must be unique",
+        )
+        for hook_id in (
+            "dsomm-contract",
+            "runtime-primitive-duplication",
+            "service-topology-sync",
+            "service-consumer-contract",
+            "prometheus-config",
+            "compose-config",
+        ):
+            self.assertEqual(hook_ids.count(hook_id), 1, hook_id)
 
     def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -199,30 +236,6 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "entry: python -m pytest -q tests/test_truenas_deployment_automation.py",
             config,
         )
-        self.assertIn("runtime-helper-dedup", config)
-        self.assertIn("check-runtime-helper-duplication.py", config)
-
-    def test_precommit_hook_ids_are_unique(self) -> None:
-        config = yaml.safe_load(
-            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
-        )
-        hook_ids = [
-            hook["id"]
-            for repository in config["repos"]
-            for hook in repository.get("hooks", [])
-        ]
-        duplicates = sorted(
-            hook_id for hook_id in set(hook_ids) if hook_ids.count(hook_id) > 1
-        )
-        self.assertEqual(duplicates, [])
-        for hook_id in (
-            "service-topology-sync",
-            "service-consumer-contract",
-            "prometheus-config",
-            "compose-config",
-            "runtime-helper-dedup",
-        ):
-            self.assertEqual(hook_ids.count(hook_id), 1)
 
     def test_unittest_hooks_only_target_real_unittest_suites(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")

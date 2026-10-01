@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "primitives": [
+    {
+      "name": "truenas_lifecycle_mark",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_lifecycle_errors_since",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_app_state",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_reconcile_custom_app",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_wait_app_running",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "docker_orphan_shim_recovery_guard",
+      "owner": "scripts/lib/docker.sh"
+    },
+    {
+      "name": "nabla_diagnostic_maybe_wrap",
+      "owner": "scripts/lib/diagnostic.sh"
+    },
+    {
+      "name": "truenas_dataset_query_by_id",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_nfs_share_count_for_path",
+      "owner": "scripts/lib/truenas.sh"
+    }
+  ]
+}

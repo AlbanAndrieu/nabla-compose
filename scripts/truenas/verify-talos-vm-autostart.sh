@@ -5,14 +5,10 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-# Keep interactive diagnostics compact while preserving full CI/non-TTY output.
-if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" &&
-      "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" &&
-      ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
-  NABLA_DIAGNOSTIC_WRAPPER="$(dirname -- "${SCRIPT_DIR}")/run-diagnostic.sh"
-  exec "${NABLA_DIAGNOSTIC_WRAPPER}" \
-    "${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
-fi
+# Shared compact/full diagnostic bootstrap.
+# shellcheck source=scripts/lib/diagnostic.sh
+source "$(dirname -- "${SCRIPT_DIR}")/lib/diagnostic.sh"
+nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
 MODE="${1:---check}"
 REQUIRE_RUNNING="${TALOS_REQUIRE_RUNNING:-true}"

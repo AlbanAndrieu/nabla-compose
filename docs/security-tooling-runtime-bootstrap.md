@@ -57,6 +57,7 @@ Examples of source names include:
 - Neo4j: `NEO4J_AUTH`
 - Cartography: `CARTOGRAPHY_NEO4J_PASSWORD`
 - Scorecard: `SCORECARD_GITHUB_AUTH_TOKEN`
+- DSOMM baseline: `DSOMM_GITHUB_TOKEN` → runtime `GH_TOKEN`
 
 Do not regenerate a `rotation: preserve` value if an existing installation
 already owns one. Recover the current value first.
@@ -113,6 +114,10 @@ Acceptance:
 - no value appears in terminal output, Git, logs or PR text.
 
 Repeat one service at a time before broad deployment.
+
+DSOMM reuses this materialization path for its manual GitHub baseline runner,
+but its UI is deployed separately from `deploy-security-tooling.sh`; see
+`apps/dsomm/README.md`.
 
 ## 6. Validate shared PostgreSQL prerequisites
 

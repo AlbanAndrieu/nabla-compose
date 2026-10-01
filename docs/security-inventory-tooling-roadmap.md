@@ -1,5 +1,7 @@
 # Security inventory, supply-chain and attack-graph roadmap
 
+_Last reviewed: 2026-10-01._
+
 This document expands the concise `docs/roadmap.md` P2.1 workstream. The canonical application/service identity and declared dependency model remain `x-nabla` plus the generated `catalog/services.json` and `catalog/service-topology.json`. Specialized tools must enrich that model without becoming competing sources of truth.
 
 The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilities, NIST CSF/SAMM mapping, priorities and lifecycle decisions are maintained in [`docs/security-tooling-control-architecture.md`](./security-tooling-control-architecture.md).
@@ -7,6 +9,7 @@ The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilit
 ## Target capability split
 
 - **NetBox** — network/infrastructure intent: IPAM, prefixes, VLANs, devices/VMs, interfaces and infrastructure ownership.
+- **OCS Inventory NG** — observed endpoint hardware/software inventory. Use agents on supported general-purpose endpoints and bounded network/SNMP discovery where useful; do not make OCS authoritative for application identity, IPAM or desired topology.
 - **OWASP Dependency-Track** — CycloneDX SBOM/component inventory and software-supply-chain vulnerability/risk tracking. Reference: <https://blog.stephane-robert.info/docs/securiser/analyser-code/dependency-track/>.
 - **OWASP Dependency-Check** — local/CI Software Composition Analysis producer for known vulnerable third-party dependencies; export machine-readable results and feed the central findings workflow rather than creating a second source of truth.
 - **OWASP DefectDojo** — normalized security findings, deduplication, triage and remediation workflow across SAST/SCA/secrets/IaC/container/DAST/infrastructure scanners; default findings system of record while complementary PoCs are evaluated.
@@ -15,6 +18,58 @@ The cross-repository tooling inventory, scan taxonomy, Three Lines responsibilit
 - **OpenSSF Scorecard** — repository and upstream dependency security-posture evidence.
 - **Cartography + Neo4j** — relationship graph for attack-path, privilege-chain, internet-exposure and blast-radius analysis after stable asset identities and provenance exist.
 
+
+## Endpoint inventory — OCS Inventory NG
+
+OCS Inventory NG is the default candidate for the missing **endpoint/host
+inventory** layer. It complements NetBox and `x-nabla` instead of replacing
+either one:
+
+- `x-nabla` remains authoritative for declared application/service identity,
+  ownership, dependencies and lifecycle intent;
+- NetBox remains authoritative for network/DCIM/IPAM and infrastructure intent;
+- OCS owns **observed** endpoint hardware, operating-system and installed
+  software facts;
+- Scanopy remains useful for network discovery/topology observations;
+- reconciliation must expose drift and identity mismatches before any automated
+  write-back is considered.
+
+Current release constraint (reviewed 2026-10-01): OCS 3.0 is still a release
+candidate and must remain test-only; use a maintained stable 2.x release for a
+production-like pilot or defer production cutover until a 3.x GA is available.
+Re-check this decision immediately before deployment.
+
+Official references: <https://wiki.ocsinventory-ng.org/> and
+<https://github.com/OCSInventory-NG>.
+
+Implementation gates:
+
+1. [ ] Define the first inventory scope: workstation and supported
+   Linux/Windows/macOS endpoints. Do **not** install an OCS agent on the TrueNAS
+   appliance or Talos nodes merely for inventory; use existing APIs/Kubernetes
+   evidence and network/SNMP discovery where appropriate.
+2. [ ] Create repository-owned `apps/ocs-inventory/compose.yml` (or a
+   deliberately documented equivalent name) with explicit `x-nabla` metadata,
+   internal-only administration exposure, health/readiness checks and persistent
+   storage.
+3. [ ] Use the database officially supported by the selected OCS generation;
+   do not force it onto the shared PostgreSQL service if that release expects a
+   different datastore. Document backup/restore and rollback before enrollment.
+4. [ ] Materialize server/admin/agent credentials through the canonical secrets
+   workflow; no credentials, registration tokens or inventory payloads belong
+   in Git.
+5. [ ] Enroll the workstation first and prove stable host identity, hardware
+   facts, OS/version and installed-software inventory without leaking sensitive
+   values into logs.
+6. [ ] Add at least one bounded network/SNMP discovery test for devices that
+   cannot or should not run an agent, while keeping discovery findings
+   distinguishable from authenticated agent inventory.
+7. [ ] Define reconciliation keys between OCS host IDs, NetBox device/VM IDs and
+   Nabla asset/service identifiers. Start read-only: report drift/duplicates
+   instead of automatically rewriting NetBox or `x-nabla`.
+8. [ ] Acceptance: inventory survives restart/reboot, a backup can restore the
+   server state, stale/decommissioned endpoints have an explicit lifecycle, and
+   the data flow has one authoritative owner per field/class of data.
 
 ## Dependency-Check + ArcherySec + Faraday evaluation
 
@@ -54,6 +109,6 @@ Repository evidence shows Plumber still uses the legacy root-level `plumber-plat
 ## Acceptance
 
 - [ ] Every deployed tool has canonical `x-nabla` metadata, explicit runtime ownership, health/readiness checks and a documented persistence/secrets model.
-- [ ] Stable IDs reconcile data across `x-nabla`, NetBox, Dependency-Track, DefectDojo, Scorecard and Cartography/Neo4j.
+- [ ] Stable IDs reconcile data across `x-nabla`, NetBox, OCS Inventory, Dependency-Track, DefectDojo, Scorecard and Cartography/Neo4j.
 - [ ] No tool silently becomes a second source of truth for service identity or declared service dependencies.
 - [ ] Attack-graph queries are read-only analytical evidence; inferred graph edges never alter deployment/lifecycle decisions automatically.

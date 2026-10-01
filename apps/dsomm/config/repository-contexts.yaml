@@ -1,0 +1,6 @@
+---
+repositories:
+  AlbanAndrieu/nabla-compose: Nabla Homelab Platform
+  AlbanAndrieu/fastapi-sample: FastAPI Sample
+  AlbanAndrieu/nabla-site-alban: Nabla Site Alban
+  AlbanAndrieu/nabla-site-bababou: Nabla Site Bababou

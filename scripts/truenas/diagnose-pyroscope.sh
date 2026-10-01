@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != "1" && "${DIAGNOSTIC_FULL_OUTPUT:-0}" != "1" && ( -t 1 || "${DIAGNOSTIC_COMPACT_OUTPUT:-0}" == "1" ) ]]; then
-  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-  WRAPPER="$(dirname -- "${SCRIPT_DIR}")/run-diagnostic.sh"
-  exec "${WRAPPER}" "${SCRIPT_DIR}/$(basename -- "${BASH_SOURCE[0]}")" "$@"
-fi
+# Shared compact/full diagnostic bootstrap.
+NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/diagnostic.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
+nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
 CONTAINER="${PYROSCOPE_CONTAINER:-pyroscope}"
 READY_URL="${PYROSCOPE_READY_URL:-http://127.0.0.1:4040/ready}"

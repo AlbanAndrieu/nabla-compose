@@ -523,26 +523,28 @@ def collect_services(
                 entry["icon"] = icon
             homarr_apps[service_id] = entry
 
-            monitor = monitor_from_metadata(
-                service_id,
-                name,
-                category,
-                description,
-                metadata.get("monitoring"),
-                default_interval,
-            )
-            if monitor is None:
-                monitor = fallback_monitor(
+            declared_status = concrete_text(metadata.get("status")) or "active"
+            if declared_status == "active":
+                monitor = monitor_from_metadata(
                     service_id,
                     name,
                     category,
                     description,
-                    host,
-                    ports,
+                    metadata.get("monitoring"),
                     default_interval,
                 )
-            if monitor:
-                monitors[service_id] = monitor
+                if monitor is None:
+                    monitor = fallback_monitor(
+                        service_id,
+                        name,
+                        category,
+                        description,
+                        host,
+                        ports,
+                        default_interval,
+                    )
+                if monitor:
+                    monitors[service_id] = monitor
 
     apply_homarr_static(homarr_apps, static)
     apply_monitoring_static(monitors, static, default_interval)

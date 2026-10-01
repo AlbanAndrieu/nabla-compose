@@ -1,6 +1,6 @@
 # Security tooling inventory and control architecture
 
-_Last reviewed: 2026-09-17._
+_Last reviewed: 2026-10-01._
 
 This document inventories security tooling evidenced across `nabla-compose`,
 `nabla-site-alban` and `fastapi-sample`, then classifies it using a consistent
@@ -62,7 +62,7 @@ inventory. Use the following dimensions together:
 ```text
                        GOVERN / IDENTIFY
              inventory · ownership · tier · evidence
-                 x-nabla · Scanopy · NetBox
+              x-nabla · Scanopy · NetBox · OCS
                           |
         +-----------------+-----------------+
         |                                   |
@@ -93,6 +93,8 @@ accountability intent, not a mandatory organization chart.
 | `x-nabla` + generated service catalog/topology | Asset/service inventory | P0 | L1 owns, L2 consumes/challenges | Govern, Identify | **USED** | `nabla-compose` canonical declared application/service identity and dependency source. Do not replace with a CMDB. |
 | Scanopy | Network discovery/topology | P0 | L1 | Identify, Detect | **AVAILABLE/USED design** | `apps/scanopy/compose.yml`, deploy/bootstrap scripts and generated catalog exist. Reconcile observations with canonical identities. |
 | NetBox | IPAM/DCIM/infrastructure source of truth | P0 | L1 with L2 consumption | Identify | **PLANNED — PR #207** | `apps/netbox/compose.yml` in #207. Own network/infrastructure intent, not application identity. |
+| OCS Inventory NG | Endpoint hardware/software observed inventory | P0 | L1 owns endpoints, L2 consumes/challenges | Identify | **PLANNED** | Add a repository-managed inventory service after version/storage review. Agents target supported general-purpose endpoints; TrueNAS/Talos remain appliance/API-driven. OCS enriches observed facts and must not replace `x-nabla` service identity or NetBox infrastructure intent. |
+| OWASP DSOMM + `tweag/dsomm-baseline` | DevSecOps maturity assessment/evidence | P1 | L1 supplies evidence, L2 facilitates/challenges | Govern, Identify | **PLANNED — PR #232** | Repository-owned DSOMM 5.0 UI plus manual pinned GitHub evidence runner. The Tweag baseline predates DSOMM 5.0 and only pre-fills supported GitHub evidence; Agentic AI/Identity plus unsupported process/interview activities require human assessment. |
 | CycloneDX / `cyclonedx-bom` | SBOM format/generator | P0 | L1 | Identify, Protect | **AVAILABLE** | `fastapi-sample` carries `cyclonedx-bom`; `run-trivy.sh` can emit CycloneDX. |
 | OWASP Dependency-Track | SCA/SBOM risk inventory | P0 | L1 supplies SBOM, L2 monitors | Identify, Protect, Detect | **PLANNED — PR #207** | `apps/dependency-track/compose.yml`; consume CycloneDX rather than becoming service inventory. |
 | OWASP DefectDojo | Finding aggregation/dedup/remediation | P1 | L2 shared capability; L1 remediates | Govern, Identify, Respond | **PLANNED — PR #207** | `apps/defectdojo/compose.yml`; normalize findings across scanners. |

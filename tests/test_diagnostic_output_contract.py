@@ -13,7 +13,9 @@ class DiagnosticOutputContractTest(unittest.TestCase):
     WRAPPED_SCRIPTS = (
         "scripts/truenas/audit-app-lifecycle.sh",
         "scripts/truenas/diagnose-performance.sh",
+        "scripts/truenas/diagnose-pyroscope.sh",
         "scripts/truenas/diagnose-sentry.sh",
+        "scripts/truenas/diagnose-csi-orphans.sh",
         "scripts/truenas/report-app-failures.sh",
         "scripts/truenas/diagnose-wazuh.sh",
         "scripts/truenas/verify-talos-vm-autostart.sh",
@@ -25,6 +27,8 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         "scripts/observability/verify-otlp.sh",
         "scripts/observability/verify-pfsense-syslog.sh",
         "scripts/talos/validate-cluster.sh",
+        "scripts/talos/diagnose-security-posture.sh",
+        "scripts/talos/preflight-kubara.sh",
         "scripts/talos/smoke-fastapi-sample.sh",
         "scripts/talos/smoke-kubernetes-network.sh",
         "scripts/talos/validate-csi-prereqs.sh",
@@ -43,14 +47,95 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         self.assertIn("mktemp", wrapper_text)
         self.assertNotIn('install -d -m 700 "${log_dir}"', wrapper_text)
 
-    def test_large_diagnostics_use_compact_interactive_wrapper(self) -> None:
+    def test_large_diagnostics_use_shared_compact_bootstrap(self) -> None:
+        shared = (ROOT / "scripts/lib/diagnostic.sh").read_text(encoding="utf-8")
+        self.assertIn("nabla_diagnostic_maybe_wrap()", shared)
+        self.assertIn("NABLA_DIAGNOSTIC_WRAPPED", shared)
+        self.assertIn("DIAGNOSTIC_FULL_OUTPUT", shared)
+        self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", shared)
+        self.assertIn("run-diagnostic.sh", shared)
+
         for relative in self.WRAPPED_SCRIPTS:
             with self.subTest(script=relative):
                 script = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertIn("NABLA_DIAGNOSTIC_WRAPPED", script)
-                self.assertIn("DIAGNOSTIC_FULL_OUTPUT", script)
-                self.assertIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
-                self.assertIn("run-diagnostic.sh", script)
+                self.assertIn("lib/diagnostic.sh", script)
+                self.assertIn("nabla_diagnostic_maybe_wrap", script)
+                self.assertNotIn("NABLA_DIAGNOSTIC_WRAPPED", script)
+                self.assertNotIn("DIAGNOSTIC_FULL_OUTPUT", script)
+                self.assertNotIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
+
+    def test_shared_bootstrap_delegates_when_compact_output_is_requested(self) -> None:
+        library = ROOT / "scripts/lib/diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            scripts = base / "scripts"
+            target_dir = scripts / "truenas"
+            target_dir.mkdir(parents=True)
+            target = target_dir / "sample.sh"
+            target.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+            wrapper = scripts / "run-diagnostic.sh"
+            wrapper.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'WRAPPED target=%s arg1=%s arg2=%s\\n' \"$1\" \"$2\" \"$3\"\n",
+                encoding="utf-8",
+            )
+            wrapper.chmod(0o755)
+
+            env = os.environ.copy()
+            env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        f"source {library}; "
+                        f"nabla_diagnostic_maybe_wrap {target} alpha beta; "
+                        "printf 'UNREACHABLE\\n'"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(
+            f"WRAPPED target={target} arg1=alpha arg2=beta",
+            result.stdout,
+        )
+        self.assertNotIn("UNREACHABLE", result.stdout)
+
+    def test_shared_bootstrap_respects_full_output_override(self) -> None:
+        library = ROOT / "scripts/lib/diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "sample.sh"
+            target.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            env = os.environ.copy()
+            env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
+            env["DIAGNOSTIC_FULL_OUTPUT"] = "1"
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    (
+                        f"source {library}; "
+                        f"nabla_diagnostic_maybe_wrap {target} alpha; "
+                        "printf 'INLINE\\n'"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("INLINE\n", result.stdout)
 
     def test_wrapper_does_not_change_existing_shared_log_directory_mode(self) -> None:
         wrapper = ROOT / "scripts/run-diagnostic.sh"
