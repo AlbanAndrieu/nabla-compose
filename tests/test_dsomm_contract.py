@@ -53,6 +53,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("/reports/*", runner)
         self.assertIn("gh auth status --hostname github.com", runner)
         self.assertIn("ALL", runner)
+        self.assertIn("summarize-dsomm-baseline.py", dockerfile)
+        self.assertIn("summarize-dsomm-baseline.py", runner)
         self.assertIn('chmod 0600 "${output}"\', runner)
 
     def test_default_meta_uses_nabla_contexts_without_evidence_in_git(self) -> None:
