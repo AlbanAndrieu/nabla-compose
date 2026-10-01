@@ -14,6 +14,7 @@ META = ROOT / "apps" / "dsomm" / "config" / "meta.yaml"
 DOCKERFILE = ROOT / "apps" / "dsomm" / "baseline" / "Dockerfile"
 RUNNER = ROOT / "apps" / "dsomm" / "baseline" / "run-baseline.sh"
 README = ROOT / "apps" / "dsomm" / "README.md"
+DEPLOY = ROOT / "scripts" / "truenas" / "deploy-dsomm.sh"
 
 
 class DsommContractTests(unittest.TestCase):
@@ -26,6 +27,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual("31088", port["published"])
         self.assertEqual("172.17.0.24", port["host_ip"])
         self.assertEqual("dsomm", service["x-nabla"]["id"])
+        self.assertEqual("planned", service["x-nabla"]["status"])
         self.assertEqual("truenas-app", service["x-nabla"]["runtime"]["provider"])
         self.assertEqual(31088, service["x-nabla"]["monitoring"]["port"])
         self.assertTrue(
@@ -36,8 +38,11 @@ class DsommContractTests(unittest.TestCase):
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm-baseline"]
         self.assertEqual(["manual"], service["profiles"])
+        self.assertEqual("planned", service["x-nabla"]["status"])
         self.assertEqual("no", service["restart"])
-        self.assertIn("/mnt/cpool/secrets/runtime/dsomm/.env.secrets", service["env_file"])
+        env_file = service["env_file"][0]
+        self.assertEqual("/mnt/cpool/secrets/runtime/dsomm/.env.secrets", env_file["path"])
+        self.assertFalse(env_file["required"])
         self.assertNotIn("GH_TOKEN", service.get("environment", {}))
         self.assertIn("/mnt/cpool/dsomm/reports:/reports", service["volumes"])
         self.assertEqual("automates", service["x-nabla"]["relations"][0]["type"])
@@ -67,6 +72,16 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual(["default/model.yaml"], payload["activityFiles"])
         self.assertNotIn("evidence", payload)
         self.assertEqual("team-evidence.yaml", payload["teamEvidenceFile"])
+
+    def test_deployer_uses_supported_truenas_custom_app_path(self) -> None:
+        text = DEPLOY.read_text(encoding="utf-8")
+        self.assertFalse(text.startswith("#!"))
+        self.assertIn('MODE="${1:---check}"', text)
+        self.assertIn("truenas_reconcile_custom_app", text)
+        self.assertIn("truenas_wait_app_running", text)
+        self.assertIn("generate-service-topology.py --check", text)
+        self.assertIn("generate-service-consumers.py --check", text)
+        self.assertIn("x-nabla.status remains planned", text)
 
     def test_readme_keeps_baseline_as_supporting_evidence(self) -> None:
         text = README.read_text(encoding="utf-8")
