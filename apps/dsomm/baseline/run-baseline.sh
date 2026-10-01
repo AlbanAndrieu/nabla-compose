@@ -10,15 +10,17 @@ summary_output="${DSOMM_BASELINE_SUMMARY_OUTPUT:-${output%.csv}.md}"
   exit 2
 }
 
-case "${output}" in
-  /reports/*) ;;
-  *)
-    printf 'ERROR: DSOMM_BASELINE_OUTPUT must stay under /reports: %s\n' "${output}" >&2
-    exit 2
-    ;;
-esac
+for report_path in "${output}" "${summary_output}"; do
+  case "${report_path}" in
+    /reports/*) ;;
+    *)
+      printf 'ERROR: DSOMM report paths must stay under /reports: %s\n' "${report_path}" >&2
+      exit 2
+      ;;
+  esac
+done
 
-mkdir -p -- "$(dirname -- "${output}")"
+mkdir -p -- "$(dirname -- "${output}")" "$(dirname -- "${summary_output}")"
 umask 077
 
 if ! gh auth status --hostname github.com >/dev/null 2>&1; then
