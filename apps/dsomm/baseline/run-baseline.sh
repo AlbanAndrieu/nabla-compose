@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -euo pipefail
 
 repos="${DSOMM_BASELINE_REPOS:-AlbanAndrieu/nabla-compose}"
