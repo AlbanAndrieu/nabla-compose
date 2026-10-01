@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:---check}"
 TARGET="${2:-all}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-APPS=(plumber netbox dependency-track defectdojo neo4j cartography scorecard)
+APPS=(plumber netbox dependency-track defectdojo neo4j cartography scorecard dsomm)
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
