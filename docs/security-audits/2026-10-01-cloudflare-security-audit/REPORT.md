@@ -3,7 +3,7 @@
 **Date :** 2026-10-01  
 **Méthode :** Cloudflare `security-audit-skill`, profil `quick`  
 **Source auditée :** `4fa9eb8d262bab437c99773475fcf84e489be863`  
-**Statut :** **INCOMPLETE / couverture partielle**
+**Statut :** **INCOMPLETE / partial source review / couverture partielle**
 
 > No confirmed vulnerabilities. Ce run source-first n'a pas exécuté de code cible,
 > n'a sondé aucun runtime partagé et ne disposait pas d'un vérificateur indépendant.
