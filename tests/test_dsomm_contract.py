@@ -14,6 +14,7 @@ META = ROOT / "apps" / "dsomm" / "config" / "meta.yaml"
 DOCKERFILE = ROOT / "apps" / "dsomm" / "baseline" / "Dockerfile"
 RUNNER = ROOT / "apps" / "dsomm" / "baseline" / "run-baseline.sh"
 README = ROOT / "apps" / "dsomm" / "README.md"
+INITIAL_REVIEW = ROOT / "apps" / "dsomm" / "INITIAL_REVIEW.md"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-dsomm.sh"
 
 
@@ -138,6 +139,15 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("DSOMM 5.0", text)
         self.assertIn("Agentic AI", text)
         self.assertIn("Identity", text)
+        self.assertIn("INITIAL_REVIEW.md", text)
+
+        initial = INITIAL_REVIEW.read_text(encoding="utf-8")
+        self.assertIn("pre-fill aid", initial)
+        self.assertIn("Nabla Homelab Platform", initial)
+        self.assertIn("FastAPI Sample", initial)
+        self.assertIn("Nabla Site Alban", initial)
+        self.assertIn("Nabla Site Bababou", initial)
+        self.assertIn("Do not convert", initial)
 
 
 if __name__ == "__main__":
