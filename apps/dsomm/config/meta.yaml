@@ -1,0 +1,61 @@
+---
+browserSettings:
+  changeTeamNames: true
+  changeProgressionDefinition: true
+
+teamProgressFile: team-progress.yaml
+teamEvidenceFile: team-evidence.yaml
+
+progressDefinition:
+  Not implemented:
+    score: 0%
+    definition: Activity not started and not planned
+  Started:
+    score: 20%
+    definition: Activity has been started, or completed for a few applications
+  Partly implemented:
+    score: 50%
+    definition: Activity has been implemented for at least half of the applications
+  Fully implemented:
+    score: 100%
+    definition: Fully implemented for (almost) all applications
+
+teams:
+  - Nabla Homelab Platform
+  - FastAPI Sample
+  - Nabla Site Alban
+  - Nabla Site Bababou
+
+teamGroups:
+  Platform:
+    - Nabla Homelab Platform
+  Applications:
+    - FastAPI Sample
+    - Nabla Site Alban
+    - Nabla Site Bababou
+
+activityFiles:
+  - default/model.yaml
+
+lang: en
+strings:
+  en:
+    allTeamsGroupName: All contexts
+    maturityLevels:
+      - "Level 1: Basic understanding of security practices"
+      - "Level 2: Adoption of basic security practices"
+      - "Level 3: High adoption of security practices"
+      - "Level 4: Very high adoption of security practices"
+      - "Level 5: Advanced deployment of security practices at scale"
+    labels:
+      - Very Low
+      - Low
+      - Medium
+      - High
+      - Very High
+    knowledgeLabels:
+      - Very Low (one discipline)
+      - Low (one discipline)
+      - Medium (two disciplines)
+      - High (two disciplines)
+      - Very High (three or more disciplines)
