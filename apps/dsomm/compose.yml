@@ -24,6 +24,7 @@ services:
       name: OWASP DevSecOps Maturity Model
       kind: security-maturity-assessment
       category: security
+      status: planned
       presentationRole: service
       criticality: low
       securityFunctions:
@@ -65,6 +66,7 @@ services:
       name: DSOMM GitHub Baseline
       kind: security-maturity-evidence-scanner
       category: security
+      status: planned
       presentationRole: support
       criticality: low
       securityFunctions:
