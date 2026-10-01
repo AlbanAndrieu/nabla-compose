@@ -429,7 +429,8 @@ malformed regex quoting or duplicated hook IDs fail before publication.
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
-   `scripts/lib/truenas.sh`.
+   `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
+   shared by CSI preflight/reclaim while service-specific forensic loops stay local.
 2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
    and Compose-project correlation.
 3. [x] Centralize diagnostic output plumbing: `scripts/lib/diagnostic.sh`
