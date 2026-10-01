@@ -37,10 +37,19 @@ Total Score,16/30
             md_path = root / "baseline.md"
             csv_path.write_text(csv_text, encoding="utf-8")
 
-            summary.summarize(csv_path, md_path)
+            context_path = root / "contexts.yaml"
+            context_path.write_text(
+                "repositories:\n"
+                "  AlbanAndrieu/nabla-compose: Nabla Homelab Platform\n",
+                encoding="utf-8",
+            )
+
+            summary.summarize(csv_path, md_path, context_path)
             text = md_path.read_text(encoding="utf-8")
 
         self.assertIn("not an OWASP DSOMM maturity verdict", text)
+        self.assertIn("AlbanAndrieu/nabla-compose → Nabla Homelab Platform", text)
+        self.assertIn("DSOMM context", text)
         self.assertIn("Detected automated evidence", text)
         self.assertIn("Automated PRs for patches", text)
         self.assertIn("Automated gaps / unavailable evidence", text)
@@ -49,6 +58,14 @@ Total Score,16/30
         self.assertIn("Security code review", text)
         self.assertIn("LEVEL1 Score", text)
         self.assertIn("16/30", text)
+
+    def test_invalid_context_map_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            context_path = root / "contexts.yaml"
+            context_path.write_text("repositories: []\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                summary.load_context_map(context_path)
 
     def test_invalid_header_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
