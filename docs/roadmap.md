@@ -294,10 +294,12 @@ Security-tooling acceptance within this workstream:
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
-  `172.17.0.24:31088`, run the pinned `tweag/dsomm-baseline` job against the
-  selected Nabla repositories, retain CSV + human-review Markdown evidence, then
-  complete unsupported/manual activities with reviewed process/runtime evidence.
-  Automated baseline output is supporting evidence, not the maturity verdict.
+  `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
+  evidence under protected TrueNAS runtime state, run the pinned
+  `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
+  unsupported/manual activities with reviewed evidence. Promote DSOMM to
+  `active` only after runtime acceptance; automated baseline output is supporting
+  evidence, not the maturity verdict.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
@@ -443,6 +445,9 @@ Remaining reduction:
    owners are declared in `config/quality/runtime-primitives.json`; Pre-commit
    and the agent gate now reject foreign shell definitions while full local
    validation also proves the owner definition still exists exactly once.
+9. [x] Make runtime health consumers lifecycle-aware: `planned`/`disabled`
+   services remain catalog-visible but no longer generate Gatus/AutoKuma health
+   expectations until activation.
 
 ## Target operator-script architecture
 
