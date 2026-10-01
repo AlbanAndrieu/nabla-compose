@@ -6,6 +6,8 @@ import argparse
 import csv
 from pathlib import Path
 
+import yaml
+
 NEGATIVE = {
     "not detected",
     "no",
@@ -30,7 +32,26 @@ def classify(value: str) -> str:
     return "detected"
 
 
-def summarize(csv_path: Path, output_path: Path) -> None:
+def load_context_map(path: Path | None) -> dict[str, str]:
+    if path is None:
+        return {}
+    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    repositories = payload.get("repositories", {})
+    if not isinstance(repositories, dict):
+        raise ValueError("repository context map must contain a repositories mapping")
+    return {
+        str(repo): str(context)
+        for repo, context in repositories.items()
+        if str(repo).strip() and str(context).strip()
+    }
+
+
+def summarize(
+    csv_path: Path,
+    output_path: Path,
+    context_map_path: Path | None = None,
+) -> None:
+    context_map = load_context_map(context_map_path)
     with csv_path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.reader(handle))
     if not rows or len(rows[0]) < 2 or rows[0][0] != "Security Feature":
@@ -73,7 +94,17 @@ def summarize(csv_path: Path, output_path: Path) -> None:
         lines.append("")
 
     for repo in repos:
-        lines.extend([f"## {repo}", ""])
+        context = context_map.get(repo)
+        title = f"## {repo}" if not context else f"## {repo} → {context}"
+        lines.extend([title, ""])
+        if context:
+            lines.extend(
+                [
+                    f"- **DSOMM context:** `{context}`",
+                    "- **Action:** review detected evidence, then attach it to the matching DSOMM activity in the UI.",
+                    "",
+                ]
+            )
         sections = (
             ("Detected automated evidence", "detected"),
             ("Automated gaps / unavailable evidence", "gap"),
@@ -99,8 +130,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("csv", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--context-map", type=Path, default=None)
     args = parser.parse_args()
-    summarize(args.csv, args.output)
+    summarize(args.csv, args.output, args.context_map)
     return 0
 
 
