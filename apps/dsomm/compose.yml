@@ -79,6 +79,7 @@ services:
       - ALL
     volumes:
       - /mnt/cpool/dsomm/reports:/reports
+      - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/repository-contexts.yaml:/config/repository-contexts.yaml:ro
     networks:
       - intranet
     labels:
