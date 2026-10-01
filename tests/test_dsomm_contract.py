@@ -33,6 +33,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertTrue(
             any("/srv/assets/YAML/meta.yaml:ro" in volume for volume in service["volumes"])
         )
+        self.assertTrue(any("team-progress.yaml:/srv/assets/YAML/team-progress.yaml:ro" in volume for volume in service["volumes"]))
+        self.assertTrue(any("team-evidence.yaml:/srv/assets/YAML/team-evidence.yaml:ro" in volume for volume in service["volumes"]))
 
     def test_baseline_is_manual_pinned_and_secret_backed(self) -> None:
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
@@ -77,6 +79,10 @@ class DsommContractTests(unittest.TestCase):
         text = DEPLOY.read_text(encoding="utf-8")
         self.assertFalse(text.startswith("#!"))
         self.assertIn('MODE="${1:---check}"', text)
+        self.assertIn("bootstrap-repository-storage.sh", text)
+        self.assertIn("team-progress.yaml", text)
+        self.assertIn("team-evidence.yaml", text)
+        self.assertIn("chmod 0600", text)
         self.assertIn("truenas_reconcile_custom_app", text)
         self.assertIn("truenas_wait_app_running", text)
         self.assertIn("generate-service-topology.py --check", text)
