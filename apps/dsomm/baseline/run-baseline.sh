@@ -37,7 +37,9 @@ printf 'y\nALL\n%s\ncsv\n%s\ny\n' "${repos}" "${output}" |
 }
 
 chmod 0600 "${output}"
-python3 /usr/local/bin/summarize-dsomm-baseline.py "${output}" "${summary_output}"
+python3 /usr/local/bin/summarize-dsomm-baseline.py \
+  "${output}" "${summary_output}" \
+  --context-map /config/repository-contexts.yaml
 chmod 0600 "${summary_output}"
 printf 'OK: DSOMM baseline report written to %s\n' "${output}"
 printf 'OK: DSOMM human-review summary written to %s\n' "${summary_output}"
