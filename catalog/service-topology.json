@@ -685,7 +685,8 @@
         "type": "port",
         "host": "172.17.0.24",
         "port": 31088
-      }
+      },
+      "status": "planned"
     },
     {
       "id": "dsomm-baseline",
@@ -706,7 +707,8 @@
         "networks": [
           "intranet"
         ]
-      }
+      },
+      "status": "planned"
     },
     {
       "id": "elasticsearch",
