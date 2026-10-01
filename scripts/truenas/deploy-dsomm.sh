@@ -17,7 +17,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo on TrueNAS"
-for command in curl docker git jq midclt python3; do
+for command in curl docker git install jq midclt python3; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -31,6 +31,30 @@ source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
 
 compose_path="${CANONICAL_ROOT}/apps/dsomm/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
+
+printf '==> DSOMM repository-owned storage\n'
+bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_ID}"
+
+state_root="/mnt/cpool/dsomm/state"
+progress_file="${state_root}/team-progress.yaml"
+evidence_file="${state_root}/team-evidence.yaml"
+
+if [[ "${MODE}" == "--apply" ]]; then
+  install -d -m 0700 "${state_root}"
+  umask 077
+  if [[ ! -e "${progress_file}" ]]; then
+    printf 'progress:\n' >"${progress_file}"
+  fi
+  if [[ ! -e "${evidence_file}" ]]; then
+    printf 'evidence:\n' >"${evidence_file}"
+  fi
+  chmod 0600 "${progress_file}" "${evidence_file}"
+fi
+
+for state_file in "${progress_file}" "${evidence_file}"; do
+  [[ -f "${state_file}" && ! -L "${state_file}" ]] ||
+    fail "missing or unsafe DSOMM state file: ${state_file}; run --apply"
+done
 
 printf '==> DSOMM Compose contract\n'
 docker compose -f "${compose_path}" --profile manual config   --quiet --no-interpolate --no-env-resolution
