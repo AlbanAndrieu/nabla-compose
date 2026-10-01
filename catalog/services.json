@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:8e05d12e0ef6f03494f23be9ca69fe4c9a491c73ffd600149f37c2713fe818c9",
+  "catalogRevision": "sha256:a05cceec70dac7da8b1f30642f8d79027740df2787137e032aa25069224aa15d",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -664,7 +664,8 @@
         "networks": [
           "intranet"
         ]
-      }
+      },
+      "status": "planned"
     },
     {
       "id": "dsomm-baseline",
@@ -686,7 +687,8 @@
         "networks": [
           "intranet"
         ]
-      }
+      },
+      "status": "planned"
     },
     {
       "id": "elasticsearch",
