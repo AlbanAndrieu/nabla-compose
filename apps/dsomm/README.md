@@ -39,17 +39,41 @@ expanding token privilege without review.
 
 ## Deploy UI
 
+The UI follows the TrueNAS Custom App lifecycle used by the rest of the
+repository. From the canonical TrueNAS checkout:
+
 ```bash
-docker compose -f apps/dsomm/compose.yml up -d dsomm
-curl -I http://172.17.0.24:31088/
+sudo bash scripts/truenas/deploy-dsomm.sh --check
+sudo bash scripts/truenas/deploy-dsomm.sh --apply
 ```
+
+The first `--check` is expected to fail with a clear missing-App message before
+initial registration, but still validates Compose and generated contracts.
+`--apply` reconciles the Custom App through TrueNAS middleware, waits for
+`RUNNING`, then requires the HTTP endpoint to answer.
+
+DSOMM remains `x-nabla.status: planned` until that runtime acceptance has been
+reviewed. After acceptance, change the UI service to `status: active`, regenerate
+catalog/consumers and rerun the local quality gate. This prevents Gatus/AutoKuma
+from reporting a service as DOWN before it is actually deployed.
 
 The upstream INSTALL currently documents `wurstbrot/dsomm:latest`. Override
 `DSOMM_IMAGE` with a reviewed immutable digest when one is selected.
 
 ## Run the GitHub baseline
 
-The runner is deliberately not always-on.
+The runner is deliberately not always-on. Export `DSOMM_GITHUB_TOKEN` securely
+in the current shell, then materialize it through the canonical Vaultwarden
+workflow:
+
+```bash
+bash scripts/truenas/prepare-security-tooling-secrets.sh --import-env dsomm
+bash scripts/truenas/prepare-security-tooling-secrets.sh --import-env-apply dsomm
+sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --apply dsomm
+sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden dsomm
+```
+
+Then build and run the bounded baseline:
 
 ```bash
 mkdir -p /mnt/cpool/dsomm/reports
