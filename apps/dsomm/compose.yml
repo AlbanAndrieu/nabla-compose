@@ -3,7 +3,7 @@ name: dsomm
 
 services:
   dsomm:
-    image: ${DSOMM_IMAGE:-wurstbrot/dsomm:latest}
+    image: ${DSOMM_IMAGE:-wurstbrot/dsomm:5.0.0}
     container_name: dsomm
     restart: unless-stopped
     security_opt:
