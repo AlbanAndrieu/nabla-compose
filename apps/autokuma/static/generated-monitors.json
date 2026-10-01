@@ -21,33 +21,6 @@
   },
   {
     "type": "http",
-    "name": "Akvorado",
-    "description": "Nabla generated monitor: akvorado-console",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:31056/"
-  },
-  {
-    "type": "http",
-    "name": "Akvorado Inlet",
-    "description": "Nabla generated monitor: akvorado-inlet",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:31057/api/v0/healthcheck"
-  },
-  {
-    "type": "http",
-    "name": "Akvorado Outlet",
-    "description": "Nabla generated monitor: akvorado-outlet",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:31058/api/v0/healthcheck"
-  },
-  {
-    "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
     "interval": 60,
@@ -92,16 +65,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:8443/healthz"
-  },
-  {
-    "type": "port",
-    "name": "CrowdSec",
-    "description": "Nabla generated monitor: crowdsec",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8084
   },
   {
     "type": "http",
@@ -190,16 +153,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9080
-  },
-  {
-    "type": "port",
-    "name": "OWASP DevSecOps Maturity Model",
-    "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31088
   },
   {
     "type": "port",
@@ -337,15 +290,6 @@
     "url": "http://172.17.0.24:9308/metrics"
   },
   {
-    "type": "http",
-    "name": "Keycloak",
-    "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:30239/health/ready"
-  },
-  {
     "type": "port",
     "name": "Kibana",
     "description": "Nabla generated monitor: kibana",
@@ -431,16 +375,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9002
-  },
-  {
-    "type": "port",
-    "name": "n8n",
-    "description": "Nabla generated monitor: n8n",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30109
   },
   {
     "type": "port",
