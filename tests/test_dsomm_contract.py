@@ -21,7 +21,7 @@ class DsommContractTests(unittest.TestCase):
     def test_ui_service_is_internal_repository_owned_dsomm(self) -> None:
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm"]
-        self.assertIn("wurstbrot/dsomm:latest", service["image"])
+        self.assertIn("wurstbrot/dsomm:5.0.0", service["image"])
         port = service["ports"][0]
         self.assertEqual(8080, port["target"])
         self.assertEqual("31088", port["published"])
