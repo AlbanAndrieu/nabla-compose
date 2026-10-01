@@ -186,6 +186,15 @@ endpoints:
   url: tcp://172.17.0.24:9080
   conditions:
   - '[CONNECTED] == true'
+- name: OWASP DevSecOps Maturity Model
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: dsomm
+    nabla_service_id: dsomm
+  url: tcp://172.17.0.24:31088
+  conditions:
+  - '[CONNECTED] == true'
 - name: Elasticsearch
   group: data
   interval: 60s
