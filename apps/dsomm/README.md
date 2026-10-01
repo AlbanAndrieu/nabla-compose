@@ -68,11 +68,16 @@ Multiple repositories are comma-separated, for example:
 AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou
 ```
 
-The default report is:
+The default reports are:
 
 ```text
 /mnt/cpool/dsomm/reports/dsomm-baseline.csv
+/mnt/cpool/dsomm/reports/dsomm-baseline.md
 ```
+
+The Markdown file separates detected automated evidence, automated gaps and
+manual DSOMM activities so the human assessment can be completed without
+mistaking the GitHub baseline for the final maturity score.
 
 Use supported findings to seed the human assessment. For every
 `Not Supported - Manual Process` row, add human evidence only after checking
