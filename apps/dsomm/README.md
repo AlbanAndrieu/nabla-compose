@@ -130,6 +130,13 @@ Use supported findings to seed the human assessment. For every
 the corresponding DSOMM activity and current repository/runtime/process
 evidence.
 
+## Initial review aid
+
+Before entering maturity states, review
+[`INITIAL_REVIEW.md`](./INITIAL_REVIEW.md). It inventories concrete candidate
+evidence visible in the four Nabla repositories and deliberately separates
+detected repository controls from manual/unverified DSOMM activities.
+
 ## Baseline coverage limit
 
 The pinned Tweag baseline commit predates **DSOMM 5.0**. Its automated check
