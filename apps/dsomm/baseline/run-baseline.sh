@@ -3,6 +3,7 @@ set -euo pipefail
 
 repos="${DSOMM_BASELINE_REPOS:-AlbanAndrieu/nabla-compose}"
 output="${DSOMM_BASELINE_OUTPUT:-/reports/dsomm-baseline.csv}"
+summary_output="${DSOMM_BASELINE_SUMMARY_OUTPUT:-${output%.csv}.md}"
 
 [[ -n "${GH_TOKEN:-}" ]] || {
   printf 'ERROR: GH_TOKEN is required via the DSOMM runtime secret file\n' >&2
@@ -35,4 +36,7 @@ printf 'y\nALL\n%s\ncsv\n%s\ny\n' "${repos}" "${output}" |
 }
 
 chmod 0600 "${output}"
+python3 /usr/local/bin/summarize-dsomm-baseline.py "${output}" "${summary_output}"
+chmod 0600 "${summary_output}"
 printf 'OK: DSOMM baseline report written to %s\n' "${output}"
+printf 'OK: DSOMM human-review summary written to %s\n' "${summary_output}"
