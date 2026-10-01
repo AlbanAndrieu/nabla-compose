@@ -51,7 +51,8 @@ services:
     profiles:
       - manual
     env_file:
-      - /mnt/cpool/secrets/runtime/dsomm/.env.secrets
+      - path: /mnt/cpool/secrets/runtime/dsomm/.env.secrets
+        required: false
     environment:
       DSOMM_BASELINE_REPOS: ${DSOMM_BASELINE_REPOS:-AlbanAndrieu/nabla-compose}
       DSOMM_BASELINE_OUTPUT: ${DSOMM_BASELINE_OUTPUT:-/reports/dsomm-baseline.csv}
