@@ -458,26 +458,6 @@
   },
   {
     "type": "port",
-    "name": "1Password Connect API",
-    "description": "1Password Connect API for machine-readable secret access.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8097
-  },
-  {
-    "type": "port",
-    "name": "1Password Connect Sync",
-    "description": "Synchronizes 1Password vault state for the Connect API.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8098
-  },
-  {
-    "type": "port",
     "name": "OpenHands",
     "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
     "interval": 60,
