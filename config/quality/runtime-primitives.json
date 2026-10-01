@@ -28,6 +28,14 @@
     {
       "name": "nabla_diagnostic_maybe_wrap",
       "owner": "scripts/lib/diagnostic.sh"
+    },
+    {
+      "name": "truenas_dataset_query_by_id",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "truenas_nfs_share_count_for_path",
+      "owner": "scripts/lib/truenas.sh"
     }
   ]
 }
