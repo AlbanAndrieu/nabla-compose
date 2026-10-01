@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:32c4e7acc8e7bcf468c4260adfc6f3d1ed4c3a8c2e25b7b9dfc0d4a15d32528f",
+  "catalogRevision": "sha256:8e05d12e0ef6f03494f23be9ca69fe4c9a491c73ffd600149f37c2713fe818c9",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -636,6 +636,56 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "drawio"
+      }
+    },
+    {
+      "id": "dsomm",
+      "name": "OWASP DevSecOps Maturity Model",
+      "kind": "security-maturity-assessment",
+      "category": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "composeService": "dsomm",
+      "url": "http://172.17.0.24:31088",
+      "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "securityFunctions": [
+        "govern",
+        "identify"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31088
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dsomm",
+        "networks": [
+          "intranet"
+        ]
+      }
+    },
+    {
+      "id": "dsomm-baseline",
+      "name": "DSOMM GitHub Baseline",
+      "kind": "security-maturity-evidence-scanner",
+      "category": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "composeService": "dsomm-baseline",
+      "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "securityFunctions": [
+        "govern",
+        "identify"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "dsomm-baseline",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
