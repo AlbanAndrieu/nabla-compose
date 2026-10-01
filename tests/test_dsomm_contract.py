@@ -49,13 +49,14 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("python:3.13-slim", dockerfile)
         self.assertIn("apt-get install -y --no-install-recommends ca-certificates git gh", dockerfile)
         self.assertIn("git -C /opt/dsomm-baseline fetch --depth 1 origin", dockerfile)
-        self.assertIn('[[ -n "${GH_TOKEN:-}" ]]\', runner)
+        self.assertIn('[[ -n "${GH_TOKEN:-}" ]]', runner)
         self.assertIn("/reports/*", runner)
         self.assertIn("gh auth status --hostname github.com", runner)
         self.assertIn("ALL", runner)
         self.assertIn("summarize-dsomm-baseline.py", dockerfile)
         self.assertIn("summarize-dsomm-baseline.py", runner)
-        self.assertIn('chmod 0600 "${output}"\', runner)
+        self.assertIn('chmod 0600 "${output}"', runner)
+        self.assertIn("DSOMM_BASELINE_SUMMARY_OUTPUT", runner)
 
     def test_default_meta_uses_nabla_contexts_without_evidence_in_git(self) -> None:
         payload = yaml.safe_load(META.read_text(encoding="utf-8"))
