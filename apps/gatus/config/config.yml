@@ -22,34 +22,6 @@ endpoints:
   url: tcp://172.17.0.24:9002
   conditions:
   - '[CONNECTED] == true'
-- name: Akvorado
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: akvorado-console
-    nabla_service_id: akvorado-console
-  url: http://172.17.0.24:31056/
-  conditions:
-  - '[STATUS] >= 200'
-  - '[STATUS] < 400'
-- name: Akvorado Inlet
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: akvorado-inlet
-    nabla_service_id: akvorado-inlet
-  url: http://172.17.0.24:31057/api/v0/healthcheck
-  conditions:
-  - '[STATUS] == 200'
-- name: Akvorado Outlet
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: akvorado-outlet
-    nabla_service_id: akvorado-outlet
-  url: http://172.17.0.24:31058/api/v0/healthcheck
-  conditions:
-  - '[STATUS] == 200'
 - name: Grafana Alloy
   group: observability
   interval: 60s
@@ -97,15 +69,6 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
-- name: CrowdSec
-  group: security
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: crowdsec
-    nabla_service_id: crowdsec
-  url: tcp://172.17.0.24:8084
-  conditions:
-  - '[CONNECTED] == true'
 - name: Cyberbro
   group: security
   interval: 60s
@@ -184,15 +147,6 @@ endpoints:
     nabla_monitor_id: drawio
     nabla_service_id: drawio
   url: tcp://172.17.0.24:9080
-  conditions:
-  - '[CONNECTED] == true'
-- name: OWASP DevSecOps Maturity Model
-  group: security
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: dsomm
-    nabla_service_id: dsomm
-  url: tcp://172.17.0.24:31088
   conditions:
   - '[CONNECTED] == true'
 - name: Elasticsearch
@@ -322,16 +276,6 @@ endpoints:
   url: http://172.17.0.24:9308/metrics
   conditions:
   - '[STATUS] == 200'
-- name: Keycloak
-  group: security
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: keycloak
-    nabla_service_id: keycloak
-  url: http://172.17.0.24:30239/health/ready
-  conditions:
-  - '[STATUS] >= 200'
-  - '[STATUS] < 400'
 - name: Kibana
   group: observability
   interval: 60s
@@ -412,15 +356,6 @@ endpoints:
     nabla_monitor_id: minio
     nabla_service_id: minio
   url: tcp://172.17.0.24:9002
-  conditions:
-  - '[CONNECTED] == true'
-- name: n8n
-  group: automation
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: n8n
-    nabla_service_id: n8n
-  url: tcp://172.17.0.24:30109
   conditions:
   - '[CONNECTED] == true'
 - name: Neo4j Security Graph
@@ -853,3 +788,4 @@ endpoints:
   url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'
+
