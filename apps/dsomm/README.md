@@ -17,6 +17,20 @@ sensitive evidence directly in Git. Export reviewed progress/evidence from the
 browser and store it in an approved protected location before relying on it as
 assessment evidence.
 
+The TrueNAS deployment mounts protected runtime state instead of the image's
+sample files:
+
+```text
+/mnt/cpool/dsomm/state/team-progress.yaml
+/mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+`deploy-dsomm.sh --apply` creates these files only when absent, initializes them
+as `progress:` / `evidence:` and enforces mode `0600`. It never overwrites an
+existing assessment. When you export progress/evidence from the browser, copy
+the reviewed YAML into these runtime paths (not the repository), preserve
+`0600`, then reload/redeploy DSOMM.
+
 ## Runtime secret
 
 Create:
