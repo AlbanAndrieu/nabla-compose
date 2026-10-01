@@ -18,7 +18,5 @@ RUN git init /opt/dsomm-baseline \
 
 COPY run-baseline.sh /usr/local/bin/run-dsomm-baseline
 COPY summarize.py /usr/local/bin/summarize-dsomm-baseline.py
-RUN chmod 0755 /usr/local/bin/run-dsomm-baseline
-
 WORKDIR /opt/dsomm-baseline
-ENTRYPOINT ["/usr/local/bin/run-dsomm-baseline"]
+ENTRYPOINT ["bash", "/usr/local/bin/run-dsomm-baseline"]
