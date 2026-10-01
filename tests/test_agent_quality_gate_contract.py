@@ -199,6 +199,30 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "entry: python -m pytest -q tests/test_truenas_deployment_automation.py",
             config,
         )
+        self.assertIn("runtime-helper-dedup", config)
+        self.assertIn("check-runtime-helper-duplication.py", config)
+
+    def test_precommit_hook_ids_are_unique(self) -> None:
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        hook_ids = [
+            hook["id"]
+            for repository in config["repos"]
+            for hook in repository.get("hooks", [])
+        ]
+        duplicates = sorted(
+            hook_id for hook_id in set(hook_ids) if hook_ids.count(hook_id) > 1
+        )
+        self.assertEqual(duplicates, [])
+        for hook_id in (
+            "service-topology-sync",
+            "service-consumer-contract",
+            "prometheus-config",
+            "compose-config",
+            "runtime-helper-dedup",
+        ):
+            self.assertEqual(hook_ids.count(hook_id), 1)
 
     def test_unittest_hooks_only_target_real_unittest_suites(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")

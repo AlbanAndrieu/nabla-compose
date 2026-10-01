@@ -413,7 +413,8 @@ hyphenated root variants such as `docker-compose-truenas.yml`.
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
-   `scripts/lib/truenas.sh`.
+   `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
+   shared by the CSI preflight/smoke, while service-specific forensic loops stay local.
 2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
    and Compose-project correlation.
 3. [ ] Centralize compact/full output, counters and exit codes in
@@ -425,7 +426,7 @@ Remaining reduction:
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
-8. [ ] Add an anti-duplication gate for migrated runtime primitives.
+8. [x] Add an anti-duplication gate for migrated runtime primitives: `scripts/quality/check-runtime-helper-duplication.py` enforces one canonical owner for the migrated TrueNAS/Docker/secret helpers, while the Pre-commit contract rejects duplicate hook IDs.
 
 ## Target operator-script architecture
 
