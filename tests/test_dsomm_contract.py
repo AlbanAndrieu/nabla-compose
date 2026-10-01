@@ -50,6 +50,12 @@ class DsommContractTests(unittest.TestCase):
         self.assertFalse(env_file["required"])
         self.assertNotIn("GH_TOKEN", service.get("environment", {}))
         self.assertIn("/mnt/cpool/dsomm/reports:/reports", service["volumes"])
+        self.assertTrue(
+            any(
+                "repository-contexts.yaml:/config/repository-contexts.yaml:ro" in volume
+                for volume in service["volumes"]
+            )
+        )
         self.assertTrue(service["read_only"])
         self.assertEqual(["ALL"], service["cap_drop"])
         self.assertIn("no-new-privileges:true", service["security_opt"])
@@ -77,6 +83,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("summarize-dsomm-baseline.py", runner)
         self.assertIn('chmod 0600 "${output}"', runner)
         self.assertIn("DSOMM_BASELINE_SUMMARY_OUTPUT", runner)
+        self.assertIn("--context-map /config/repository-contexts.yaml", runner)
 
     def test_default_meta_uses_nabla_contexts_without_evidence_in_git(self) -> None:
         payload = yaml.safe_load(META.read_text(encoding="utf-8"))
@@ -108,6 +115,9 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("not a maturity verdict", text)
         self.assertIn("least privilege", text)
         self.assertIn("Not Supported - Manual Process", text)
+        self.assertIn("DSOMM 5.0", text)
+        self.assertIn("Agentic AI", text)
+        self.assertIn("Identity", text)
 
 
 if __name__ == "__main__":
