@@ -193,6 +193,16 @@
   },
   {
     "type": "port",
+    "name": "OWASP DevSecOps Maturity Model",
+    "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31088
+  },
+  {
+    "type": "port",
     "name": "Elasticsearch",
     "description": "Nabla generated monitor: elasticsearch",
     "interval": 60,
