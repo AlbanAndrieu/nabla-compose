@@ -3,6 +3,23 @@
 Repository-owned deployment of the OWASP DevSecOps Maturity Model UI plus a
 manual, pinned `tweag/dsomm-baseline` evidence runner.
 
+## Assessment-context model
+
+DSOMM's `teams` are used here as **assessment scopes**. They are deliberately
+not generated from the service catalog and are not one-context-per-repository
+or one-context-per-container.
+
+Create a distinct context only when the scope has meaningfully different
+ownership, SDLC/security practices, risk profile, release/operating process or
+evidence that you want to score independently. Shared infrastructure services
+such as PostgreSQL, Grafana, Scanopy or DSOMM normally remain inside **Nabla
+Homelab Platform** rather than becoming individual contexts. A repository may
+contribute evidence to several scopes when it genuinely implements shared
+controls; conversely, several repositories may map to one context.
+
+The initial four scopes are therefore a pragmatic starting boundary: the
+homelab platform plus three independently delivered applications/sites.
+
 ## Architecture
 
 - `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.
