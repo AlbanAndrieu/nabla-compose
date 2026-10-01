@@ -1,0 +1,13 @@
+Cloudflare Security Audit Skill
+==============================
+
+Upstream: https://github.com/cloudflare/security-audit-skill
+Vendored from upstream main tree: c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
+Vendored on: 2026-10-01
+License: MIT (see LICENSE)
+
+Repository integration:
+- skill entry point: .agents/skills/security-audit/SKILL.md
+- use for explicit security audits, vulnerability reviews and pen-test-style source reviews
+- preserve the upstream distinction between guidance mode and full audit mode
+- never interpret a partial/source-only run as complete coverage
