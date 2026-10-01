@@ -101,7 +101,10 @@ def summarize(
             lines.extend(
                 [
                     f"- **DSOMM context:** `{context}`",
-                    "- **Action:** review detected evidence, then attach it to the matching DSOMM activity in the UI.",
+                    (
+                        "- **Action:** review detected evidence, then attach it to "
+                        "the matching DSOMM activity in the UI."
+                    ),
                     "",
                 ]
             )
