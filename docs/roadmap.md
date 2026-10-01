@@ -299,12 +299,18 @@ Security-tooling acceptance within this workstream:
   - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
     `--check dsomm` and prove the dataset exists before runtime activation.
   - [ ] Preserve progress/evidence under protected TrueNAS runtime state, run the
-    pinned `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
-  unsupported/manual activities with reviewed evidence. The pinned Tweag
-  baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
-  activities remain explicit human-review scope. Promote DSOMM to `active`
-  only after runtime acceptance; automated baseline output is supporting
-  evidence, not the maturity verdict.
+    pinned `tweag/dsomm-baseline` job against selected Nabla repositories, then
+    complete unsupported/manual activities with reviewed evidence. The pinned
+    Tweag baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
+    activities remain explicit human-review scope. Promote DSOMM to `active`
+    only after runtime acceptance; automated baseline output is supporting
+    evidence, not the maturity verdict.
+- [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
+  source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
+  explicitly partial/incomplete and is not a clean-security attestation.
+- [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
+  the deployed digest, proving initialization state + TCP/60073 exposure
+  passively, then either close the lead or harden bind/firewall/socket access.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
