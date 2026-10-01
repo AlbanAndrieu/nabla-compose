@@ -292,6 +292,28 @@
       "description": "Self-hosted diagrams.net editor."
     },
     {
+      "id": "dsomm",
+      "name": "OWASP DevSecOps Maturity Model",
+      "group": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "composeService": "dsomm",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31088",
+      "syncEligible": true,
+      "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict."
+    },
+    {
+      "id": "dsomm-baseline",
+      "name": "DSOMM GitHub Baseline",
+      "group": "security",
+      "sourcePath": "apps/dsomm/compose.yml",
+      "composeService": "dsomm-baseline",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM."
+    },
+    {
       "id": "elasticsearch",
       "name": "Elasticsearch",
       "group": "data",
