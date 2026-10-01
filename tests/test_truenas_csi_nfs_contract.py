@@ -158,7 +158,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/k8s/csi", text)
         self.assertIn("timeout", text)
         self.assertIn("TrueNAS CSI parent mountpoint exists", text)
-        self.assertIn("pool.dataset.query", text)
+        self.assertIn("truenas_dataset_query_by_id", text)
         self.assertIn(
             "TrueNAS dataset/mountpoint verification skipped on this non-appliance operator",
             text,
@@ -298,8 +298,8 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertEqual(text.count("wait_for_truenas_reclaim()"), 1)
         self.assertEqual(text.count("dump_pvc_provisioning_diagnostics()"), 1)
         self.assertNotIn("TRUENAS_CSI_API_KEY", text)
-        self.assertIn("pool.dataset.query", text)
-        self.assertIn("sharing.nfs.query", text)
+        self.assertIn("truenas_dataset_query_by_id", text)
+        self.assertIn("truenas_nfs_share_count_for_path", text)
         self.assertIn('zfs list -H -o name "${dataset}"', text)
         self.assertIn("middleware_dataset_count=", text)
         self.assertIn("nfs_share_count=", text)
@@ -309,6 +309,13 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertNotIn("pool.dataset.delete", text)
         self.assertNotIn("sharing.nfs.delete", text)
         self.assertNotIn("zfs destroy", text)
+
+    def test_shared_truenas_read_helpers_own_middleware_queries(self) -> None:
+        text = (ROOT / "scripts" / "lib" / "truenas.sh").read_text()
+        self.assertIn("truenas_dataset_query_by_id()", text)
+        self.assertIn("truenas_nfs_share_count_for_path()", text)
+        self.assertIn("pool.dataset.query", text)
+        self.assertIn("sharing.nfs.query", text)
 
     def test_smoke_surfaces_bounded_pvc_provisioning_evidence(self) -> None:
         text = (
