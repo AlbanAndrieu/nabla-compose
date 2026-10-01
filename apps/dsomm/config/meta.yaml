@@ -20,6 +20,9 @@ progressDefinition:
     score: 100%
     definition: Fully implemented for (almost) all applications
 
+# DSOMM "teams" are assessment scopes, not a one-to-one inventory of
+# repositories or technical services. Split a scope only when ownership,
+# SDLC/security process, risk model or maturity evidence is materially distinct.
 teams:
   - Nabla Homelab Platform
   - FastAPI Sample
