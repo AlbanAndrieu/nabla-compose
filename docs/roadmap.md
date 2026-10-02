@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-29.
+Last updated: 2026-10-02.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
