@@ -40,7 +40,7 @@ Total Score,16/30
             context_path = root / "contexts.yaml"
             context_path.write_text(
                 "repositories:\n"
-                "  AlbanAndrieu/nabla-compose: Nabla Homelab Platform\n",
+                "  AlbanAndrieu/nabla-compose: Nabla Platform\n",
                 encoding="utf-8",
             )
 
@@ -48,7 +48,7 @@ Total Score,16/30
             text = md_path.read_text(encoding="utf-8")
 
         self.assertIn("not an OWASP DSOMM maturity verdict", text)
-        self.assertIn("AlbanAndrieu/nabla-compose → Nabla Homelab Platform", text)
+        self.assertIn("AlbanAndrieu/nabla-compose → Nabla Platform", text)
         self.assertIn("DSOMM context", text)
         self.assertIn("Detected automated evidence", text)
         self.assertIn("Automated PRs for patches", text)
