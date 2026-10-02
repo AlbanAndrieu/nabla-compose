@@ -3,6 +3,27 @@
 Repository-owned deployment of the OWASP DevSecOps Maturity Model UI plus a
 manual, pinned `tweag/dsomm-baseline` evidence runner.
 
+## Assessment-context model
+
+DSOMM `teams` represent **maturity assessment boundaries**, not repositories,
+containers or individual services.
+
+The default model intentionally uses only two contexts:
+
+- **Nabla Platform** — `nabla-compose`, TrueNAS/Talos/Kubernetes, network,
+  observability and shared security/platform services;
+- **Nabla Applications** — FastAPI Sample and the Nabla web applications while
+  they share the same delivery/security process.
+
+The baseline still scans repositories individually so evidence remains
+traceable. `config/repository-contexts.yaml` only routes that evidence to the
+assessment context.
+
+Create another context only when ownership, SDLC/security controls, risk model,
+release/operations lifecycle or review evidence is materially different enough
+to justify an independent maturity score. Do **not** create one context per
+PostgreSQL/Grafana/Scanopy/DSOMM service or per repository by default.
+
 ## Architecture
 
 - `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.
@@ -102,7 +123,7 @@ DSOMM_BASELINE_REPOS=AlbanAndrieu/nabla-compose \
   run --rm dsomm-baseline
 ```
 
-By default the runner checks the four contexts configured in `meta.yaml`:
+By default the runner checks four repositories and maps them into the two contexts configured in `meta.yaml`:
 
 ```text
 AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou

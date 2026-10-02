@@ -65,3 +65,8 @@ roadmap. The main active families are:
    how to prove it, how to recover, how to validate recovery**.
 7. Remove superseded planning documents once their still-relevant actions are
    represented in the canonical roadmap/design document.
+
+
+## Security audit evidence
+
+- [Security audits](./security-audits/README.md) — source-first audit runs, ledgers, findings and explicit validation gaps.

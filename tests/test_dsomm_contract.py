@@ -109,7 +109,7 @@ class DsommContractTests(unittest.TestCase):
     def test_default_meta_uses_nabla_contexts_without_evidence_in_git(self) -> None:
         payload = yaml.safe_load(META.read_text(encoding="utf-8"))
         self.assertEqual(
-            ["Nabla Homelab Platform", "FastAPI Sample", "Nabla Site Alban", "Nabla Site Bababou"],
+            ["Nabla Platform", "Nabla Applications"],
             payload["teams"],
         )
         self.assertEqual(["default/model.yaml"], payload["activityFiles"])
@@ -143,10 +143,11 @@ class DsommContractTests(unittest.TestCase):
 
         initial = INITIAL_REVIEW.read_text(encoding="utf-8")
         self.assertIn("pre-fill aid", initial)
-        self.assertIn("Nabla Homelab Platform", initial)
-        self.assertIn("FastAPI Sample", initial)
-        self.assertIn("Nabla Site Alban", initial)
-        self.assertIn("Nabla Site Bababou", initial)
+        self.assertIn("Nabla Platform", initial)
+        self.assertIn("Nabla Applications", initial)
+        self.assertIn("AlbanAndrieu/fastapi-sample", initial)
+        self.assertIn("AlbanAndrieu/nabla-site-alban", initial)
+        self.assertIn("AlbanAndrieu/nabla-site-bababou", initial)
         self.assertIn("Do not convert", initial)
 
 

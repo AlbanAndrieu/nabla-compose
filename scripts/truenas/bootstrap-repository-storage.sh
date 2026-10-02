@@ -93,6 +93,13 @@ done < <(discover_persistent_mounts | sort -u)
 # Compose bind mounts. Keep them explicit so a full bootstrap can reconstruct
 # the TrueNAS control/storage hierarchy used by Vaultwarden materialization,
 # Talos VM disks, Kubernetes NFS/CSI, and the pinned Talos installation ISO.
+# DSOMM owns protected assessment state and generated reports under
+# /mnt/<pool>/dsomm. Keep this dataset explicit so a scoped bootstrap can create
+# it before the first UI deployment, even if the Compose mount layout changes.
+if [[ -z "${APP_FILTER}" || "${APP_FILTER}" == "dsomm" ]]; then
+  declared_paths["dsomm"]="APPS"
+fi
+
 if [[ -z "${APP_FILTER}" ]]; then
   declared_paths["secrets"]="GENERIC"
   declared_paths["k8s"]="GENERIC"

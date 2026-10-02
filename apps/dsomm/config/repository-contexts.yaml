@@ -1,6 +1,9 @@
 ---
+# Evidence routing only. A DSOMM context is a governance/maturity assessment
+# boundary, not a repository/service identity. Multiple repositories and services
+# map to the same context when they share owners and security delivery process.
 repositories:
-  AlbanAndrieu/nabla-compose: Nabla Homelab Platform
-  AlbanAndrieu/fastapi-sample: FastAPI Sample
-  AlbanAndrieu/nabla-site-alban: Nabla Site Alban
-  AlbanAndrieu/nabla-site-bababou: Nabla Site Bababou
+  AlbanAndrieu/nabla-compose: Nabla Platform
+  AlbanAndrieu/fastapi-sample: Nabla Applications
+  AlbanAndrieu/nabla-site-alban: Nabla Applications
+  AlbanAndrieu/nabla-site-bababou: Nabla Applications

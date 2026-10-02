@@ -166,6 +166,24 @@ The first canonical read-only inventory established the current debt boundary:
 
 The post-bootstrap storage check confirms `cpool/k8s/talos-vms` is non-empty because its child zvols are counted and confirms `cpool/secrets` as `GENERIC`. This is a migration baseline, not a deletion list. Re-run the check before every cleanup decision because runtime ownership may change.
 
+## DSOMM assessment dataset
+
+OWASP DSOMM owns durable assessment state and generated baseline reports under
+`/mnt/cpool/dsomm`. The storage bootstrap therefore declares `cpool/dsomm`
+explicitly with the TrueNAS **Apps** preset, in addition to discovering the
+Compose bind mounts. Before the first DSOMM deployment run:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply dsomm
+sudo bash scripts/truenas/bootstrap-repository-storage.sh --check dsomm
+```
+
+This creates the dataset only; it does not claim DSOMM runtime acceptance.
+`deploy-dsomm.sh --apply` remains responsible for protected
+`state/team-progress.yaml` and `state/team-evidence.yaml` initialization and
+must not overwrite an existing assessment.
+
 ## Dataset ownership and presets
 
 `scripts/truenas/bootstrap-repository-storage.sh` considers active application bind-mount sources, not arbitrary `/mnt/cpool/...` strings. Commented examples and Code Server sibling workspace mounts must not create application datasets. Dataset emptiness also accounts for descendant ZFS datasets/zvols, not only visible files in the parent mountpoint.

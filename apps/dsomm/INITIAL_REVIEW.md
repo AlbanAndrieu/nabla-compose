@@ -21,9 +21,11 @@ directly visible from the current GitHub repository structure.
 
 Do not convert the rows below directly to `Fully implemented`.
 
-## Nabla Homelab Platform — AlbanAndrieu/nabla-compose
+## Nabla Platform
 
-### Detected candidate evidence
+### Repository: AlbanAndrieu/nabla-compose
+
+#### Detected candidate evidence
 
 - [ ] **Automated dependency updates** — `renovate.json` and
   `.github/workflows/renovate.yml`.
@@ -41,7 +43,7 @@ Do not convert the rows below directly to `Fully implemented`.
 - [ ] **Infrastructure-as-code validation** —
   `.github/workflows/terragrunt-ci.yaml`.
 
-### Manual / verify
+#### Manual / verify
 
 - [ ] Map the above evidence to the exact DSOMM 5.0 activities.
 - [ ] Confirm GitHub repository/ruleset enforcement rather than inferring it
@@ -50,9 +52,11 @@ Do not convert the rows below directly to `Fully implemented`.
 - [ ] Confirm security training, threat modelling, risk acceptance,
   incident-response and organizational process evidence separately.
 
-## FastAPI Sample — AlbanAndrieu/fastapi-sample
+## Nabla Applications
 
-### Detected candidate evidence
+### Repository: AlbanAndrieu/fastapi-sample
+
+#### Detected candidate evidence
 
 - [ ] **Automated dependency updates** — `renovate.json` and
   `.github/workflows/renovate.yml`.
@@ -70,7 +74,7 @@ Do not convert the rows below directly to `Fully implemented`.
 - [ ] **Repeatable test/build gates** — dedicated test, Docker build and
   production smoke workflows.
 
-### Manual / verify
+#### Manual / verify
 
 - [ ] Confirm freshness/provenance of `trivy-sbom.json` before treating it as
   a current SBOM control.
@@ -79,9 +83,9 @@ Do not convert the rows below directly to `Fully implemented`.
   activity rather than counting workflow presence alone.
 - [ ] Review DSOMM 5.0 Agentic AI and Identity activities manually.
 
-## Nabla Site Alban — AlbanAndrieu/nabla-site-alban
+### Repository: AlbanAndrieu/nabla-site-alban
 
-### Detected candidate evidence
+#### Detected candidate evidence
 
 - [ ] **Automated dependency updates** — `renovate.json`.
 - [ ] **Secret scanning** — `.gitleaks.toml`.
@@ -95,7 +99,7 @@ Do not convert the rows below directly to `Fully implemented`.
   `.github/workflows/release.yml`.
 - [ ] **Browser/end-to-end testing** — Playwright workflow and configuration.
 
-### Not observed / verify
+#### Not observed / verify
 
 - [ ] No dedicated `codeql.yml` was observed in the workflow directory
   inventory; verify whether SAST is provided through another workflow/service
@@ -104,9 +108,9 @@ Do not convert the rows below directly to `Fully implemented`.
   build/release pipeline before marking SBOM coverage.
 - [ ] Review DSOMM 5.0 Agentic AI and Identity activities manually.
 
-## Nabla Site Bababou — AlbanAndrieu/nabla-site-bababou
+### Repository: AlbanAndrieu/nabla-site-bababou
 
-### Detected candidate evidence
+#### Detected candidate evidence
 
 - [ ] **Automated dependency updates** — `renovate.json`.
 - [ ] **Secret scanning** — `.gitleaks.toml`.
@@ -119,7 +123,7 @@ Do not convert the rows below directly to `Fully implemented`.
   `.github/workflows/release.yml`.
 - [ ] **Browser/end-to-end testing** — Playwright workflow and configuration.
 
-### Not observed / verify
+#### Not observed / verify
 
 - [ ] No dedicated `codeql.yml` was observed in the workflow directory
   inventory; verify alternative SAST coverage before marking the activity.

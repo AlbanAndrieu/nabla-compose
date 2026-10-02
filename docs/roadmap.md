@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-09-29.
+Last updated: 2026-10-02.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -293,15 +293,35 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
+- [ ] **OWASP OpenCRE standards correlation:** add a repository-owned
+  `apps/opencre/compose.yml` using the official
+  `ghcr.io/owasp/opencre/opencre` image, pinned to a reviewed version/digest
+  before activation. Keep it internal-only and enable the bounded health
+  endpoint. Use OpenCRE to correlate common requirements across DSOMM, OWASP
+  SAMM, NIST, CIS, ISO and other mapped standards; it is a reference/correlation
+  layer, not the maturity score of record. Reuse the shared Neo4j service only
+  after compatibility is proven instead of introducing an application-local
+  graph database by default.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
-  `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
-  evidence under protected TrueNAS runtime state, run the pinned
-  `tweag/dsomm-baseline` job against selected Nabla repositories, then complete
-  unsupported/manual activities with reviewed evidence. The pinned Tweag
-  baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
-  activities remain explicit human-review scope. Promote DSOMM to `active`
-  only after runtime acceptance; automated baseline output is supporting
-  evidence, not the maturity verdict.
+  `172.17.0.24:31088` while it remains `status: planned`.
+  - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
+  - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
+    `--check dsomm` and prove the dataset exists before runtime activation.
+  - [ ] Preserve progress/evidence under protected TrueNAS runtime state, run the
+    pinned `tweag/dsomm-baseline` job against the selected Nabla repositories,
+    route repository evidence into the two default maturity contexts (`Nabla
+    Platform` and `Nabla Applications`), then
+    complete unsupported/manual activities with reviewed evidence. The pinned
+    Tweag baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
+    activities remain explicit human-review scope. Promote DSOMM to `active`
+    only after runtime acceptance; automated baseline output is supporting
+    evidence, not the maturity verdict.
+- [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
+  source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
+  explicitly partial/incomplete and is not a clean-security attestation.
+- [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
+  the deployed digest, proving initialization state + TCP/60073 exposure
+  passively, then either close the lead or harden bind/firewall/socket access.
 
 ## P2.2 — multi-cluster GPU foundation with Karmada
 
