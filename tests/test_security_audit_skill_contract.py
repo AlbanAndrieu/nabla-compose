@@ -24,14 +24,15 @@ def test_cloudflare_security_audit_skill_is_vendored_with_provenance() -> None:
         "validate-findings.cjs",
         "validate-coverage-ledger.cjs",
         "LICENSE",
-        ".skill-info.txt",
+        "UPSTREAM.md",
     }
     assert required <= {path.name for path in SKILL.iterdir()}
 
-    info = (SKILL / ".skill-info.txt").read_text(encoding="utf-8")
+    info = (SKILL / "UPSTREAM.md").read_text(encoding="utf-8")
     assert "cloudflare/security-audit-skill" in info
     assert "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8" in info
     assert "License: MIT" in info
+    assert "Vendored commit" in info
 
 
 def test_agent_policy_routes_explicit_audits_to_vendored_skill() -> None:
@@ -71,3 +72,10 @@ def test_one_shot_audit_artifacts_are_self_describing_and_incomplete() -> None:
     assert "partial" in report.lower()
     assert "no confirmed vulnerabilities" in report.lower()
     assert "Scanopy" in report
+
+
+def test_precommit_routes_skill_changes_to_contract() -> None:
+    config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    assert config.count("id: security-audit-skill-contract") == 1
+    assert "tests/test_security_audit_skill_contract.py" in config
+    assert "docs/security-audits/" in config
