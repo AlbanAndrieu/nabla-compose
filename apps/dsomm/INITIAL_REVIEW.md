@@ -21,7 +21,9 @@ directly visible from the current GitHub repository structure.
 
 Do not convert the rows below directly to `Fully implemented`.
 
-## Nabla Homelab Platform — AlbanAndrieu/nabla-compose
+## Nabla Platform
+
+### Repository: AlbanAndrieu/nabla-compose
 
 ### Detected candidate evidence
 
@@ -50,7 +52,9 @@ Do not convert the rows below directly to `Fully implemented`.
 - [ ] Confirm security training, threat modelling, risk acceptance,
   incident-response and organizational process evidence separately.
 
-## FastAPI Sample — AlbanAndrieu/fastapi-sample
+## Nabla Applications
+
+### Repository: AlbanAndrieu/fastapi-sample
 
 ### Detected candidate evidence
 
@@ -79,7 +83,7 @@ Do not convert the rows below directly to `Fully implemented`.
   activity rather than counting workflow presence alone.
 - [ ] Review DSOMM 5.0 Agentic AI and Identity activities manually.
 
-## Nabla Site Alban — AlbanAndrieu/nabla-site-alban
+### Repository: AlbanAndrieu/nabla-site-alban
 
 ### Detected candidate evidence
 
@@ -104,7 +108,7 @@ Do not convert the rows below directly to `Fully implemented`.
   build/release pipeline before marking SBOM coverage.
 - [ ] Review DSOMM 5.0 Agentic AI and Identity activities manually.
 
-## Nabla Site Bababou — AlbanAndrieu/nabla-site-bababou
+### Repository: AlbanAndrieu/nabla-site-bababou
 
 ### Detected candidate evidence
 
