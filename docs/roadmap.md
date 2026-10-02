@@ -300,7 +300,9 @@ Security-tooling acceptance within this workstream:
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
 - [ ] **DSOMM dataset:** create/validate explicit `cpool/dsomm` with the Apps
   preset before runtime acceptance; keep `state/` and `reports/` inside this
-  dataset and preserve reviewed evidence outside Git.
+  dataset and preserve reviewed evidence outside Git. Operator acceptance:
+  `sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply dsomm`
+  then the same command with `--check dsomm`.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
   `172.17.0.24:31088` while it remains `status: planned`, preserve progress/
   evidence under protected TrueNAS runtime state, run the pinned
