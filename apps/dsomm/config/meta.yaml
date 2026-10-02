@@ -24,18 +24,14 @@ progressDefinition:
 # repositories or technical services. Split a scope only when ownership,
 # SDLC/security process, risk model or maturity evidence is materially distinct.
 teams:
-  - Nabla Homelab Platform
-  - FastAPI Sample
-  - Nabla Site Alban
-  - Nabla Site Bababou
+  - Nabla Platform
+  - Nabla Applications
 
 teamGroups:
   Platform:
-    - Nabla Homelab Platform
+    - Nabla Platform
   Applications:
-    - FastAPI Sample
-    - Nabla Site Alban
-    - Nabla Site Bababou
+    - Nabla Applications
 
 activityFiles:
   - default/model.yaml
