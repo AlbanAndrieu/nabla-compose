@@ -5,20 +5,24 @@ manual, pinned `tweag/dsomm-baseline` evidence runner.
 
 ## Assessment-context model
 
-DSOMM's `teams` are used here as **assessment scopes**. They are deliberately
-not generated from the service catalog and are not one-context-per-repository
-or one-context-per-container.
+DSOMM `teams` represent **maturity assessment boundaries**, not repositories,
+containers or individual services.
 
-Create a distinct context only when the scope has meaningfully different
-ownership, SDLC/security practices, risk profile, release/operating process or
-evidence that you want to score independently. Shared infrastructure services
-such as PostgreSQL, Grafana, Scanopy or DSOMM normally remain inside **Nabla
-Homelab Platform** rather than becoming individual contexts. A repository may
-contribute evidence to several scopes when it genuinely implements shared
-controls; conversely, several repositories may map to one context.
+The default model intentionally uses only two contexts:
 
-The initial four scopes are therefore a pragmatic starting boundary: the
-homelab platform plus three independently delivered applications/sites.
+- **Nabla Platform** — `nabla-compose`, TrueNAS/Talos/Kubernetes, network,
+  observability and shared security/platform services;
+- **Nabla Applications** — FastAPI Sample and the Nabla web applications while
+  they share the same delivery/security process.
+
+The baseline still scans repositories individually so evidence remains
+traceable. `config/repository-contexts.yaml` only routes that evidence to the
+assessment context.
+
+Create another context only when ownership, SDLC/security controls, risk model,
+release/operations lifecycle or review evidence is materially different enough
+to justify an independent maturity score. Do **not** create one context per
+PostgreSQL/Grafana/Scanopy/DSOMM service or per repository by default.
 
 ## Architecture
 
@@ -119,7 +123,7 @@ DSOMM_BASELINE_REPOS=AlbanAndrieu/nabla-compose \
   run --rm dsomm-baseline
 ```
 
-By default the runner checks the four contexts configured in `meta.yaml`:
+By default the runner checks four repositories and maps them into the two contexts configured in `meta.yaml`:
 
 ```text
 AlbanAndrieu/nabla-compose,AlbanAndrieu/fastapi-sample,AlbanAndrieu/nabla-site-alban,AlbanAndrieu/nabla-site-bababou
