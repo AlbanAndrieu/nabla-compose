@@ -32,15 +32,36 @@ def test_security_audit_skill_is_vendored_with_provenance() -> None:
     assert "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8" in upstream
 
 
-def test_one_shot_audit_keeps_unverified_leads_unconfirmed() -> None:
+def test_one_shot_audit_matches_cloudflare_full_audit_artifact_contract() -> None:
+    required = {
+        "run-metadata.json",
+        "architecture.md",
+        "coverage-ledger.json",
+        "findings.json",
+        "REPORT.md",
+        "FINDINGS-DETAIL.md",
+        "NEEDS-VALIDATION.md",
+    }
+    assert required.issubset({path.name for path in AUDIT.iterdir()})
+
     findings = json.loads((AUDIT / "findings.json").read_text(encoding="utf-8"))
-    assert findings
-    assert {entry["verdict"] for entry in findings} == {"needs_validation"}
+    assert len(findings) == 1
+    assert findings[0]["verdict"] == "needs_validation"
+    assert findings[0]["fingerprint"] == "scanopy-daemon-public-bootstrap-boundary"
+
+    metadata = json.loads((AUDIT / "run-metadata.json").read_text(encoding="utf-8"))
+    assert metadata["profile"] == "quick"
+    assert metadata["run_status"] == "incomplete"
+    assert metadata["execution_policy"] == "sandboxed-source-and-local-only"
+
+    ledger = json.loads((AUDIT / "coverage-ledger.json").read_text(encoding="utf-8"))
+    assert len(ledger) == 5
+    assert {unit["status"] for unit in ledger} <= {"covered", "candidate"}
 
     report = (AUDIT / "REPORT.md").read_text(encoding="utf-8")
-    assert "Aucune vulnérabilité n'est marquée **confirmed**" in report
+    assert "No confirmed vulnerabilities" in report
+    assert "INCOMPLETE / partial source review" in report
     assert "docker-socket-proxy" in report
-    assert "--api.insecure=true" in report
 
 
 def test_dsomm_dataset_is_explicit_repository_storage() -> None:
