@@ -1,0 +1,33 @@
+{
+  "run_id": "2026-10-01-cloudflare-security-audit",
+  "repo": "AlbanAndrieu/nabla-compose",
+  "target": "GitHub source snapshot of AlbanAndrieu/nabla-compose",
+  "source_ref": "4fa9eb8d262bab437c99773475fcf84e489be863",
+  "source_state": "clean merged master snapshot at audit start",
+  "profile": "quick",
+  "scope_paths": [
+    "."
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "selected_companion_files": [
+    "CLOUD-AND-DEPLOYMENT.md",
+    "SUPPLY-CHAIN-AND-RELEASE.md",
+    "WEB-PROTOCOL-AND-AUTH.md"
+  ],
+  "prior_run_paths": [],
+  "shared_file_owners": {
+    "parent": "api-source-review"
+  },
+  "run_status": "incomplete",
+  "incomplete_reason": "independent final verifier and OS-enforced sandbox execution are unavailable in this API-only session",
+  "validators": {
+    "findings": "not_executed_in_api_only_session",
+    "coverage_ledger": "not_executed_in_api_only_session"
+  },
+  "notes": [
+    "No live homelab, production endpoint, Docker socket, TrueNAS API, GitHub Actions job, or external identity was probed.",
+    "Only source inspection and public upstream documentation/source comparison were used.",
+    "The report must be treated as a partial one-shot review, not complete security coverage."
+  ]
+}
