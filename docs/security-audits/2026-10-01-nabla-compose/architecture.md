@@ -1,29 +1,22 @@
-# Architecture de l'audit one-shot
+# Architecture snapshot — security audit
 
-Date: 2026-10-01  
-Cible: `AlbanAndrieu/nabla-compose`  
-Mode: revue statique défensive, sans exécution de code cible ni mutation runtime.
+Reviewed source ref: `4fa9eb8d262bab437c99773475fcf84e489be863`.
 
-## Frontières de confiance examinées
+## Security-relevant planes
 
-- TrueNAS SCALE / Docker Engine ;
-- services Compose ayant accès au socket Docker ou au réseau host ;
-- reverse proxy Traefik et surfaces d'administration ;
-- interfaces opérateur exposées sur le LAN ;
-- secrets runtime référencés par fichiers hors Git ;
-- configuration de durcissement Compose.
+- **TrueNAS application plane:** repository-managed Compose/Custom Apps publish selected LAN ports and mount application datasets under `/mnt/cpool`.
+- **Deployment authority:** Doco-CD consumes Git state and reaches Docker through a restricted Docker socket proxy; deployment-trigger authentication and proxy permissions are high-value boundaries.
+- **Privileged discovery/observability:** scanners such as Scanopy can require host networking, host interfaces or container-runtime visibility and therefore sit close to the host trust boundary.
+- **Secrets:** Vaultwarden is the transitional authority; repository metadata maps secret names while runtime materializations live outside Git under `/mnt/cpool/secrets`.
+- **Kubernetes/Talos:** cluster manifests and operator scripts manage an independent privileged control plane; this quick run did not attempt live cluster verification.
+- **CI/supply chain:** GitHub Actions executes repository code with scoped GitHub tokens and downloads selected third-party tooling.
 
-## Surfaces prioritaires
+## Trust boundaries prioritized in this quick pass
 
-1. accès à `/var/run/docker.sock` ;
-2. `privileged`, `host network`, `SYS_ADMIN` et surfaces d'administration ;
-3. publication de ports d'administration sans restriction d'interface ;
-4. vérification TLS backend ;
-5. outils d'administration disposant de shell/actions/MCP.
+1. LAN/untrusted network input -> privileged host/container tooling.
+2. Git/webhook input -> Doco-CD -> Docker deployment authority.
+3. Pull-request/repository source -> GitHub Actions token and third-party actions.
+4. Remote installer/upstream artifact -> developer/operator shell.
+5. Generated script data -> privileged shell evaluation.
 
-## Limites
-
-Le workflow Cloudflare recommande un sandbox OS isolé et des validateurs
-indépendants. L'environnement de cette exécution ne permet ni sandbox du
-runtime TrueNAS ni validation indépendante par sous-agents. Les leads qui
-nécessitent une preuve runtime restent donc `needs_validation`.
+This is a source map for the one-shot review, not a complete attack-surface inventory.
