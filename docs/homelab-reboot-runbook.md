@@ -896,9 +896,6 @@ dependency edge. For the current set, the expected waves are:
 ```text
 wave 1  foundation / priority 10
         vaultwarden
-
-wave 2  platform-services / priority 40
-        prometheus
 ```
 
 Importance is not guessed as a synthetic score. Use the catalog fields directly:
@@ -908,8 +905,13 @@ gate: post-PRA staged restore sets prefer repository-owned Compose/TrueNAS Custo
 Apps and deliberately exclude native Apps that are migration targets.
 
 Vaultwarden is catalogued as `criticality=high`, `foundation/10`, with
-`blocksLaterWaves=false`. Prometheus deterministically inherits
-`platform-services/40` from `category=observability`.
+`blocksLaterWaves=false`.
+
+Prometheus is repository-owned Compose but is deliberately deferred: the
+catalog declares the required relation `prometheus storesIn mimir`. Mimir is
+part of the pending Grafana Compose stack, so staged recovery must not bypass
+that required dependency merely because Prometheus can technically start and
+buffer/retry remote-write failures.
 
 AdGuard Home is excluded because it remains a native TrueNAS App pending a
 reviewed Compose migration. Grafana is also excluded until its documented
