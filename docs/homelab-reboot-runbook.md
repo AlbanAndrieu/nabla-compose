@@ -883,6 +883,50 @@ Only after final acceptance:
   `secrets-backend`;
 - keep pre-existing failed Apps as separately tracked debt.
 
+## Post-PRA staged restoration
+
+After the immutable reboot transaction has reached a green `--verify`, restore
+additional services with `config/truenas/restore-post-pra-core-apps.txt`.
+The file is membership-only; ordering stays catalog-driven.
+
+The lifecycle planner orders ready Apps by declared/fallback lifecycle priority,
+while required topology relations override simple priority when they introduce a
+dependency edge. For the current set, the expected waves are:
+
+```text
+wave 1  foundation / priority 10
+        adguard-home
+        vaultwarden
+
+wave 2  platform-services / priority 40
+        grafana
+        prometheus
+```
+
+Importance is not guessed as a synthetic score. Use the catalog fields directly:
+`criticality` when declared, lifecycle `phase`/`priority`, required topology
+relations, and `blocksLaterWaves`. Vaultwarden is catalogued as
+`criticality=high`, `foundation/10`, with `blocksLaterWaves=false`.
+AdGuard Home is explicitly `foundation/10`. Prometheus and Grafana have no
+explicit lifecycle declaration, so their `observability` category deterministically
+falls back to `platform-services/40`.
+
+`uptime-kuma` is deliberately excluded: the topology declares it as a TrueNAS
+App at `platform-services/40`, but it was absent from live `app.query` on
+2026-10-03. Reconcile that catalog/runtime drift before enabling AutoKuma or
+adding Uptime Kuma to an active restore set.
+
+Validate before applying:
+
+```bash
+sudo bash scripts/truenas/restore-app-set.sh \
+  --check \
+  --apps-file config/truenas/restore-post-pra-core-apps.txt \
+  --name post-pra-core
+```
+
+Only if that plan matches the live runtime, apply the same set with `--apply`.
+
 ## Emergency fallback
 
 The normal path has no automatic forced host or VM shutdown. Do not use these
