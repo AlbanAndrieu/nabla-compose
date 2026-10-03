@@ -441,6 +441,9 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 - [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle.
 - [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
 - [ ] Re-run orphan-shim diagnostics after Apps settle.
+- [ ] Baseline Docker storage debt with `audit-docker-storage-debt.sh --check`; compare image count, `overlay2` directory cardinality and `cpool/ix-apps/docker` used bytes against the 2026-10-03 baseline (764 images / 7,408 overlay2 dirs / ~525 GiB).
+- [ ] Review targeted Docker cleanup only after PRA acceptance: dangling images, old unmanaged/exited containers and build cache. Never use `docker system prune` or `docker network prune` as a blanket cleanup.
+- [ ] Reboot once after any reviewed cleanup and record Docker cold-start convergence duration; objective is to reduce metadata reload time without sacrificing rollback/re-pull safety.
 
 ## Accepted code/debt reduction plan
 

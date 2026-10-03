@@ -191,6 +191,30 @@ so initialization cannot make the operator workflow appear frozen. Terminal
 middleware states `FAILED`, `MIGRATION_FAILED` and `UNCONFIGURED` still
 fail immediately.
 
+A STOPPED App set does **not** make Docker startup cheap. Before the TrueNAS
+middleware can expose the App inventory, `dockerd` still has to reopen
+`overlay2`, reload image/layer metadata, reconcile stopped-container metadata,
+restore network/IPAM state and make its API ready. The 2026-10-03 controlled
+reboot measured a notably large local state: 764 images, 7,408 top-level
+`overlay2` directories and about 525 GiB in `cpool/ix-apps/docker`, while all
+97 Apps remained STOPPED. Cold-start convergence took more than ten minutes.
+The gate now reports an elapsed-time heartbeat so this long metadata phase is
+visible rather than looking hung.
+
+Do not clean Docker storage during an active reboot transaction. After final
+acceptance, assess the debt read-only:
+
+```bash
+sudo bash scripts/truenas/audit-docker-storage-debt.sh --check
+# Optional, deliberately bounded because Docker's detailed accounting can be slow:
+sudo bash scripts/truenas/audit-docker-storage-debt.sh --deep
+```
+
+Cleanup must be owner-reviewed. Do not use `docker system prune` or
+`docker network prune`; prefer targeted removal of proven dangling images,
+obsolete unmanaged/exited containers or build cache, understanding that image
+removal can trade local metadata for later pull time.
+
 Talos VM autostart is also treated as a convergence phase. Recovery waits
 separately for all three VMs to reach `RUNNING` with `autostart=true`, then
 for each Talos API endpoint, and finally for all Kubernetes Nodes to become

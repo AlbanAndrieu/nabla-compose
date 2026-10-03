@@ -22,6 +22,7 @@ ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
+DOCKER_STORAGE_AUDIT = ROOT / "scripts/truenas/audit-docker-storage-debt.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
@@ -106,6 +107,7 @@ class HomelabRebootContractTests(unittest.TestCase):
             ORPHAN_SHIMS,
             GHOST_RECOVERY,
             RECOVERY_REBOOT,
+            DOCKER_STORAGE_AUDIT,
             DOCKER_LIB,
         ):
             result = subprocess.run(
@@ -129,6 +131,24 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("wait_runtime_ready", text)
         self.assertIn("docker.status entered terminal state", text)
         self.assertIn("docker network ls timed out", text)
+        self.assertIn("TRUENAS_DOCKER_POST_BOOT_HEARTBEAT_SECONDS", text)
+        self.assertIn("764 images", text)
+        self.assertIn("7408 overlay2 directories", text)
+        self.assertIn("525 GiB", text)
+        self.assertIn("No App is started by this wait", text)
+        self.assertIn("elapsed=%ss", text)
+
+    def test_docker_storage_debt_audit_is_read_only(self) -> None:
+        text = DOCKER_STORAGE_AUDIT.read_text(encoding="utf-8")
+        self.assertIn("--check", text)
+        self.assertIn("--deep", text)
+        self.assertIn("overlay2_dirs", text)
+        self.assertIn("docker system df -v", text)
+        self.assertIn("docker system prune", text)
+        self.assertIn("docker network prune", text)
+        self.assertNotIn("docker image prune", text)
+        self.assertNotIn("docker container prune", text)
+        self.assertNotIn("docker builder prune", text)
 
     def test_post_reboot_waits_for_talos_autostart_and_kubernetes(self) -> None:
         recovery = RECOVERY_REBOOT.read_text(encoding="utf-8")
