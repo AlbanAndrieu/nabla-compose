@@ -246,6 +246,23 @@ class HomelabRebootContractTests(unittest.TestCase):
             block,
         )
 
+    def test_resume_bundle_hotfix_is_explicit_and_auditable(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+
+        self.assertIn("NABLA_REBOOT_ALLOW_BUNDLE_HOTFIX", text)
+        self.assertIn("NABLA_REBOOT_HOTFIX_NOTE", text)
+        self.assertIn("resume-bundle-hotfix.json", text)
+        self.assertIn("preparedIdentity", text)
+        self.assertIn("resumeIdentity", text)
+        self.assertIn(
+            'validate_or_record_resume_bundle_identity "${state_dir}"',
+            text,
+        )
+        self.assertIn(
+            "bundle identity changed since --prepare",
+            text,
+        )
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
