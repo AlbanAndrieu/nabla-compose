@@ -181,7 +181,13 @@ metadata:
     albandrieu.com/bia-rpo: PT1H
     albandrieu.com/bia-mbco: storage-and-priority-always-on-services
     albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-09-21"
+    albandrieu.com/bia-reviewed-at: "2026-10-03"
+    albandrieu.com/pra-status: tested-with-deviation
+    albandrieu.com/pra-last-tested-at: "2026-10-03"
+    albandrieu.com/pra-runbook: docs/homelab-reboot-runbook.md
+    albandrieu.com/pra-recovery-result: passed-after-manual-power-cycle
+    albandrieu.com/pra-rto-result: target-breached
+    albandrieu.com/pra-rpo-result: not-exercised
     albandrieu.com/bia-impact-operational: critical
     albandrieu.com/bia-impact-customer: high
     albandrieu.com/bia-impact-financial: low
