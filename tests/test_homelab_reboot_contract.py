@@ -6,11 +6,14 @@ import subprocess
 import tempfile
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PLANNER = ROOT / "scripts/truenas/plan-app-lifecycle-order.py"
 REBOOT = ROOT / "scripts/truenas/reboot-homelab.sh"
 RUNBOOK = ROOT / "docs/homelab-reboot-runbook.md"
+CATALOG = ROOT / "catalog/catalog-info.yaml"
 VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
@@ -21,6 +24,60 @@ DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
+    def test_truenas_pra_catalog_matches_reviewed_targets_and_evidence(self) -> None:
+        with CATALOG.open(encoding="utf-8") as stream:
+            entities = [
+                document
+                for document in yaml.safe_load_all(stream)
+                if isinstance(document, dict)
+            ]
+        truenas = next(
+            entity
+            for entity in entities
+            if entity.get("kind") == "Resource"
+            and entity.get("metadata", {}).get("name") == "truenas"
+        )
+        annotations = truenas["metadata"]["annotations"]
+
+        self.assertEqual(annotations["albandrieu.com/bia-mtpd"], "PT4H")
+        self.assertEqual(annotations["albandrieu.com/bia-rto"], "PT1H")
+        self.assertEqual(annotations["albandrieu.com/bia-rpo"], "PT1H")
+        self.assertEqual(
+            annotations["albandrieu.com/pra-status"],
+            "tested-with-deviation",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-recovery-result"],
+            "passed-after-manual-power-cycle",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-rto-result"],
+            "target-breached",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-rpo-result"],
+            "not-exercised",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-runbook"],
+            "docs/homelab-reboot-runbook.md",
+        )
+
+    def test_runbook_documents_truenas_pra_targets_and_deviations(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+
+        for expected in (
+            "RTO | 1 hour",
+            "RPO | 1 hour",
+            "target breached",
+            "not exercised",
+            "passed-after-manual-power-cycle",
+            "software reboot mechanism itself is accepted",
+            "selected recovery point no older than one hour",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, text)
+
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
             REBOOT,
