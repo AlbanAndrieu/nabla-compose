@@ -58,6 +58,8 @@ services:
   doco-cd:
     image: ghcr.io/kimdre/doco-cd:0.85.1
     container_name: doco-cd
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/doco-cd
     restart: unless-stopped
     ports:
       - "30080:80"
