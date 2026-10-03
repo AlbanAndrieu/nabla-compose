@@ -5,7 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-REPO_ROOT="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
+DEFAULT_REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+REPO_ROOT="${NABLA_REPO_ROOT:-${DEFAULT_REPO_ROOT}}"
 BUNDLE_ROOT="${NABLA_REBOOT_BUNDLE_ROOT:-/mnt/cpool/tools/nabla-reboot}"
 REF="HEAD"
 ACTIVATE=0
@@ -46,7 +47,8 @@ done
 
 require_root "run as root on TrueNAS"
 require_commands git install mktemp sha256sum grep bash python3 mv awk cmp
-[[ -d "${REPO_ROOT}/.git" ]] || fail "repository not found: ${REPO_ROOT}"
+git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+  fail "repository/worktree not found: ${REPO_ROOT}"
 
 mkdir -p "${BUNDLE_ROOT}"
 chmod 755 "${BUNDLE_ROOT}"
