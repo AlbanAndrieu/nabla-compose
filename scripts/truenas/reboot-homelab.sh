@@ -596,6 +596,7 @@ run_resume_reconciler() {
   tmp_state="${tmp_root}/state"
   mkdir -p "${tmp_state}"
   cp "${effective}" "${tmp_state}/resume-plan.json"
+  cp "${dir}/apps-before.json" "${tmp_state}/apps-before.json"
   cp "${dir}/boot-id-before" "${tmp_state}/boot-id-before"
   printf '%s\n' "${tmp_state}" >"${tmp_root}/latest"
 
