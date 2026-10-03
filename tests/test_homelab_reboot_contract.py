@@ -223,6 +223,29 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertNotIn("midclt_bounded app.query >", continuation)
         self.assertNotIn("make_plans ", continuation)
 
+    def test_resume_temp_state_preserves_frozen_apps_snapshot(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        start = text.index("run_resume_reconciler()")
+        end = text.index("\n}\n", start)
+        block = text[start:end]
+
+        self.assertIn(
+            'cp "${dir}/apps-before.json" "${tmp_state}/apps-before.json"',
+            block,
+        )
+        self.assertIn(
+            'cp "${dir}/boot-id-before" "${tmp_state}/boot-id-before"',
+            block,
+        )
+        self.assertIn(
+            'cp "${effective}" "${tmp_state}/resume-plan.json"',
+            block,
+        )
+        self.assertIn(
+            'NABLA_REBOOT_STATE_ROOT="${tmp_root}"',
+            block,
+        )
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
