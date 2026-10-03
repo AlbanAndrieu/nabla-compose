@@ -65,11 +65,11 @@ services:
         url: http://172.17.0.24:31089/rest/v1/health
       relations:
         - target: dsomm
-          type: informs
+          type: partOf
           strength: optional
           description: >-
-            OpenCRE mappings can help correlate DSOMM activities with related
-            security standards; DSOMM remains the maturity assessment authority.
+            OpenCRE and DSOMM participate in the same security governance
+            workstream while retaining separate assessment/mapping authority.
           evidence:
             - apps/opencre/compose.yml:opencre
 
