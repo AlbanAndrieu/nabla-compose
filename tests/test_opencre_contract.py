@@ -64,4 +64,4 @@ def test_backstage_component_is_planned_security_tool() -> None:
     assert component["metadata"]["name"] == "opencre"
     assert component["metadata"]["labels"]["albandrieu.com/operational-state"] == "planned"
     assert component["spec"]["type"] == "security-tool"
-    assert "component:default/dsomm" in component["spec"]["dependsOn"]
+    assert "dependsOn" not in component["spec"]
