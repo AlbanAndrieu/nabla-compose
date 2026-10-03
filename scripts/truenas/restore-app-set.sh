@@ -15,6 +15,8 @@ STATE_ROOT="${NABLA_RESTORE_STATE_ROOT:-/mnt/cpool/var/nabla/restore}"
 PLANNER="${NABLA_RESTORE_PLANNER:-${SCRIPT_DIR}/plan-app-lifecycle-order.py}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
 OPENSEARCH_PERMISSIONS="${NABLA_OPENSEARCH_PERMISSIONS_HELPER:-${SCRIPT_DIR}/repair-opensearch-security-permissions.sh}"
+DOCKER_PROXY_NETWORK="${NABLA_DOCKER_PROXY_NETWORK_HELPER:-${SCRIPT_DIR}/ensure-docker-socket-proxy-intranet.sh}"
+PIHOLE_SYNC_GATE="${NABLA_PIHOLE_SYNC_GATE:-${SCRIPT_DIR}/verify-pihole-dns-sync.sh}"
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 POLL_SECONDS="${NABLA_APP_START_POLL_SECONDS:-5}"
@@ -77,6 +79,8 @@ require_commands midclt jq docker python3 timeout sed awk sort grep date install
 [[ -f "${PLANNER}" ]] || fail "planner not found: ${PLANNER}"
 [[ -f "${HEALTH_GATE}" ]] || fail "health gate not found: ${HEALTH_GATE}"
 [[ -f "${OPENSEARCH_PERMISSIONS}" ]] || fail "OpenSearch permissions helper not found: ${OPENSEARCH_PERMISSIONS}"
+[[ -f "${DOCKER_PROXY_NETWORK}" ]] || fail "Docker proxy network helper not found: ${DOCKER_PROXY_NETWORK}"
+[[ -f "${PIHOLE_SYNC_GATE}" ]] || fail "Pi-hole sync gate not found: ${PIHOLE_SYNC_GATE}"
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing"
 [[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog missing"
 
@@ -209,6 +213,26 @@ prepare_app_storage() {
   esac
 }
 
+prepare_app_runtime() {
+  local app="$1"
+  case "${app}" in
+    docker-socket-proxy)
+      printf 'PREPARE %s shared intranet attachment\n' "${app}"
+      bash "${DOCKER_PROXY_NETWORK}" --apply
+      ;;
+  esac
+}
+
+verify_app_contracts() {
+  local app="$1"
+  case "${app}" in
+    pihole)
+      printf 'VERIFY %s DNS sync dependency contract\n' "${app}"
+      bash "${PIHOLE_SYNC_GATE}"
+      ;;
+  esac
+}
+
 restore_app() {
   local app="$1" state timeout_seconds
   state="$(app_state "${app}")"
@@ -243,11 +267,21 @@ restore_app() {
     return 1
   }
 
+  prepare_app_runtime "${app}" || {
+    diagnose_app "${app}"
+    return 1
+  }
+
   timeout_seconds="$(app_timeout "${app}")"
   NABLA_APP_HEALTH_TIMEOUT_SECONDS="${timeout_seconds}"     bash "${HEALTH_GATE}" "${app}" || {
       diagnose_app "${app}"
       return 1
     }
+
+  verify_app_contracts "${app}" || {
+    diagnose_app "${app}"
+    return 1
+  }
 
   printf 'READY %s\n' "${app}"
 }
