@@ -10,15 +10,14 @@ Un rapport `incomplete` ne doit jamais être interprété comme une attestation
 d'absence de vulnérabilités. Les runs suivants doivent réutiliser le ledger et les
 fingerprints lorsque la source est comparable.
 
-
 ## Validation locale
 
-Every committed audit directory containing `findings.json` and
-`coverage-ledger.json` is validated by the vendored Cloudflare validators via
-`tests/test_security_audit_skill_contract.py` and the
-`security-audit-skill-contract` Pre-commit hook.
+Chaque répertoire d'audit commité qui contient `findings.json` et
+`coverage-ledger.json` est validé par les validateurs Cloudflare vendored via
+`tests/test_security_audit_skill_contract.py` et le hook Pre-commit
+`security-audit-skill-contract`.
 
-For a focused check:
+Pour un contrôle ciblé :
 
 ```bash
 node .agents/skills/security-audit/validate-findings.cjs \
@@ -30,6 +29,6 @@ node .agents/skills/security-audit/validate-coverage-ledger.cjs \
 python -m pytest -q tests/test_security_audit_skill_contract.py
 ```
 
-This validates artifact structure and semantics only. It does not upgrade an
-`incomplete` audit into complete coverage and does not replace independent
-verification or sandboxed reproduction.
+Ce contrôle valide uniquement la structure et la sémantique des artefacts. Il
+ne transforme pas un audit `incomplete` en couverture complète et ne remplace
+ni la vérification indépendante ni la reproduction dans une sandbox conforme.
