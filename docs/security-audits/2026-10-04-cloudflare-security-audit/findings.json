@@ -1,0 +1,59 @@
+[
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "scanopy-daemon-public-bootstrap-boundary",
+    "title": "Scanopy daemon first-initialization boundary may be LAN-reachable with host-level privileges",
+    "description": "The repository gives scanopy-daemon host networking, privileged container mode and the raw Docker socket. Current Scanopy upstream defaults the daemon listener to 0.0.0.0:60073 and exposes /api/initialize without authentication before the once-only initialization guard is satisfied. Because this repository deploys the unpinned :latest image and this audit did not inspect the live daemon state or firewall, exploitability of the deployed instance is not established.",
+    "claimed_root_cause": "A high-privilege daemon is attached directly to the host network and Docker socket without a target-side bind restriction or immutable image reference; whether its pre-initialization public API is reachable depends on the deployed upstream version and host/network controls.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/scanopy/compose.yml",
+        "line": 23,
+        "scope": "scanopy-daemon network boundary",
+        "description": "network_mode: host places the daemon listener directly on host networking."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/scanopy/compose.yml",
+        "line": 24,
+        "scope": "scanopy-daemon container privilege",
+        "description": "privileged: true grants broad host-facing container capabilities."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/scanopy/compose.yml",
+        "line": 39,
+        "scope": "Docker control plane",
+        "description": "The raw Docker socket is mounted into the daemon; :ro on a Unix socket mount does not itself create a read-only Docker API."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/scanopy/compose.yml",
+        "line": 23,
+        "description": "Daemon uses host networking."
+      },
+      {
+        "file": "apps/scanopy/compose.yml",
+        "line": 24,
+        "description": "Daemon runs privileged."
+      },
+      {
+        "file": "apps/scanopy/compose.yml",
+        "line": 39,
+        "description": "Daemon receives the raw Docker socket."
+      }
+    ],
+    "blockers": [
+      "The target image is ghcr.io/scanopy/scanopy/daemon:latest, so the exact deployed source revision is not pinned.",
+      "The live daemon initialization state and effective bind/listen address were not inspected.",
+      "TrueNAS/pfSense host-firewall reachability of TCP/60073 was not inspected.",
+      "The audit execution policy forbids active probes against the shared/live homelab."
+    ],
+    "validation_plan": {
+      "local": "On an isolated throwaway host, run the exact deployed image digest with dummy state and no real Docker socket, then verify whether a first initialization request is accepted without authentication and whether sensitive initialization material is written to logs.",
+      "deployment": "Owner-observed only: record docker image digest, passively inspect the listener with ss/sockstat, verify firewall policy for TCP/60073, and check whether the daemon config is already initialized without printing network IDs/API keys. Do not send a synthetic initialization request to the live daemon."
+    }
+  }
+]
