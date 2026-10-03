@@ -16,7 +16,11 @@ def test_restore_app_set_contract() -> None:
     assert "dependency barrier" in text
     assert "NABLA_APP_START_WAIT_OVERRIDES" in text
     assert "repair-opensearch-security-permissions.sh" in text
+    assert "ensure-docker-socket-proxy-intranet.sh" in text
+    assert "verify-pihole-dns-sync.sh" in text
     assert "PREPARE %s storage ownership" in text
+    assert "PREPARE %s shared intranet attachment" in text
+    assert "VERIFY %s DNS sync dependency contract" in text
     assert "midclt call -j app.start" in text
 
     assert "systemctl restart docker" not in text
