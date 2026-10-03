@@ -1652,4 +1652,3 @@ When the highest-priority remaining entries are `unclassified`, switch to
 RTO, RPO, MBCO or impact dimensions merely to create a descriptor. Inspect one
 coherent runtime group, establish statefulness/dependencies and owner evidence,
 then materialize only the entities whose classification can be justified.
-

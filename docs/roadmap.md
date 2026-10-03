@@ -739,4 +739,3 @@ Backstage catalog-info.yaml + Compose + minimal x-nabla
                             v
                           OSCAL
 ```
-
