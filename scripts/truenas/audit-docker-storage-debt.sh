@@ -33,22 +33,40 @@ container_dirs=0
   container_dirs="$(find "${DOCKER_ROOT}/containers" -mindepth 1 -maxdepth 1 -type d -printf . | wc -c)"
 
 used_bytes="$(zfs get -Hp -o value used "${DOCKER_DATASET}" 2>/dev/null || true)"
-if [[ "${used_bytes}" =~ ^[0-9]+$ ]]; then
-  used_human="$(numfmt --to=iec-i --suffix=B "${used_bytes}")"
-else
-  used_human="unknown"
-fi
+active_used_bytes="$(zfs get -Hp -o value usedbydataset "${DOCKER_DATASET}" 2>/dev/null || true)"
+snapshot_used_bytes="$(zfs get -Hp -o value usedbysnapshots "${DOCKER_DATASET}" 2>/dev/null || true)"
+logical_used_bytes="$(zfs get -Hp -o value logicalused "${DOCKER_DATASET}" 2>/dev/null || true)"
 
-printf 'filesystem overlay2_dirs=%s container_dirs=%s dataset_used=%s\n' \
-  "${overlay_dirs}" "${container_dirs}" "${used_human}"
+human_bytes() {
+  local value="$1"
+  if [[ "${value}" =~ ^[0-9]+$ ]]; then
+    numfmt --to=iec-i --suffix=B "${value}"
+  else
+    printf 'unknown\n'
+  fi
+}
+
+used_human="$(human_bytes "${used_bytes}")"
+active_used_human="$(human_bytes "${active_used_bytes}")"
+snapshot_used_human="$(human_bytes "${snapshot_used_bytes}")"
+logical_used_human="$(human_bytes "${logical_used_bytes}")"
+
+printf 'filesystem overlay2_dirs=%s container_dirs=%s zfs_used=%s active_used=%s snapshot_used=%s logical_used=%s\n' \
+  "${overlay_dirs}" "${container_dirs}" "${used_human}" "${active_used_human}" \
+  "${snapshot_used_human}" "${logical_used_human}"
 
 if [[ "${overlay_dirs}" =~ ^[0-9]+$ ]] && ((overlay_dirs >= WARN_OVERLAY_DIRS)); then
   printf 'WARN: overlay2 directory cardinality=%s is at/above advisory threshold=%s; cold-start metadata reload may be slow.\n' \
     "${overlay_dirs}" "${WARN_OVERLAY_DIRS}"
 fi
-if [[ "${used_bytes}" =~ ^[0-9]+$ ]] && ((used_bytes >= WARN_USED_GIB * 1024 * 1024 * 1024)); then
-  printf 'WARN: Docker dataset usage=%s is at/above advisory threshold=%sGiB; review image/layer debt after PRA acceptance.\n' \
-    "${used_human}" "${WARN_USED_GIB}"
+if [[ "${active_used_bytes}" =~ ^[0-9]+$ ]] &&
+  ((active_used_bytes >= WARN_USED_GIB * 1024 * 1024 * 1024)); then
+  printf 'WARN: active Docker dataset usage=%s is at/above advisory threshold=%sGiB; review image/layer debt after PRA acceptance.\n' \
+    "${active_used_human}" "${WARN_USED_GIB}"
+fi
+if [[ "${snapshot_used_bytes}" =~ ^[0-9]+$ ]] && ((snapshot_used_bytes > 0)); then
+  printf 'NOTE: ZFS snapshots retain %s; Docker prune can reclaim active references without reducing total pool usage until snapshot retention releases those blocks.\n' \
+    "${snapshot_used_human}"
 fi
 
 docker_info_line=""
