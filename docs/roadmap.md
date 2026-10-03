@@ -319,6 +319,9 @@ Security-tooling acceptance within this workstream:
 - [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
   source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
   explicitly partial/incomplete and is not a clean-security attestation.
+- [ ] Validate committed audit JSON with the vendored Cloudflare findings and
+  coverage-ledger validators through the local Pre-commit contract; keep this
+  acceptance open until the focused local test is executed on a full checkout.
 - [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
   the deployed digest, proving initialization state + TCP/60073 exposure
   passively, then either close the lead or harden bind/firewall/socket access.
