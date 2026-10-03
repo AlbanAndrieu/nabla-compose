@@ -31,7 +31,9 @@ def test_materializer_requires_resumable_reboot_script() -> None:
 def test_reboot_script_guards_same_boot_transactions_and_records_identity() -> None:
     text = REBOOT.read_text()
     assert 'for dir in "${STATE_ROOT}"/*-"${current}"' in text
-    assert "same-boot reboot transaction already exists" in text
+    assert "same-boot transaction exists" in text
+    assert "use --continue-prepare" in text
+    assert "never rerun --prepare" in text
     assert "orchestrator-identity.txt" in text
     assert "prepare-history.log" in text
     assert "verify_bundle_integrity" in text
