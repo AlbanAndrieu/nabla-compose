@@ -6,7 +6,9 @@ SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
 API_URL="${PFSENSE_API_URL:-https://home.albandrieu.com:10443}"
 LAN_API_URL="${PFSENSE_LAN_API_URL:-https://172.17.0.1:10443}"
-PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-172.17.0.24 172.17.0.57}"
+FASTAPI_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
+PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-}"
+AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
@@ -30,6 +32,9 @@ Options:
   --api-url URL             Hostname/public HTTPS URL.
   --lan-api-url URL         Direct LAN HTTPS URL used as a second vantage point.
   --probe-sources "IP ..."  Exact source IPs to attribute/unblock.
+  --fastapi-url URL          FastAPI Sample base URL used to discover current
+                            runtime active_egress_ips.
+  --no-auto-egress           Do not discover FastAPI Cloud egress automatically.
   --report PATH             Local report path.
   -h, --help                Show this help.
 
@@ -38,6 +43,7 @@ Environment:
                             it is never sent through SSH or printed.
   PFSENSE_SSH_TARGET        Default SSH target override.
   PFSENSE_SSH_PORT          Optional SSH port override.
+  FASTAPI_SAMPLE_URL         FastAPI Sample URL for runtime egress discovery.
 
 Recommended sequence:
   1. --check
@@ -95,6 +101,14 @@ while (($# > 0)); do
       (($# > 0)) || fail "--probe-sources requires a space-separated IP list"
       PROBE_SOURCES="$1"
       ;;
+    --fastapi-url)
+      shift
+      (($# > 0)) || fail "--fastapi-url requires URL"
+      FASTAPI_URL="$1"
+      ;;
+    --no-auto-egress)
+      AUTO_EGRESS=false
+      ;;
     --report)
       shift
       (($# > 0)) || fail "--report requires PATH"
@@ -122,6 +136,22 @@ fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
 fi
+if [[ "${AUTO_EGRESS}" == true ]]; then
+  runtime_json="$(mktemp)"
+  if curl --fail --silent --show-error --connect-timeout 5 --max-time 10     "${FASTAPI_URL%/}/api/runtime/topology" -o "${runtime_json}"; then
+    discovered_egress="$(jq -r '.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
+    if [[ -n "${discovered_egress}" ]]; then
+      PROBE_SOURCES="${PROBE_SOURCES:+${PROBE_SOURCES} }${discovered_egress}"
+    fi
+  else
+    warn "unable to discover FastAPI runtime egress from ${FASTAPI_URL}"
+  fi
+  rm -f "${runtime_json}"
+fi
+
+PROBE_SOURCES="$(printf '%s\n' ${PROBE_SOURCES:-} | awk 'NF && !seen[$0]++' | paste -sd' ' -)"
+[[ -n "${PROBE_SOURCES}" ]] || fail "no probe sources available; use --probe-sources or ensure /api/runtime/topology exposes active_egress_ips"
+
 for source in ${PROBE_SOURCES}; do
   [[ "${source}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "invalid IPv4 probe source: ${source}"
 done
@@ -207,7 +237,7 @@ probe_api() {
   return 1
 }
 
-log "pfSense recovery mode=${MODE} target=${SSH_TARGET} api=${API_URL} lan_api=${LAN_API_URL} sources=${PROBE_SOURCES}"
+log "pfSense recovery mode=${MODE} target=${SSH_TARGET} api=${API_URL} lan_api=${LAN_API_URL} fastapi=${FASTAPI_URL} sources=${PROBE_SOURCES}"
 log "Local report: ${REPORT}"
 log ""
 log "==> HTTPS/API vantage points"
