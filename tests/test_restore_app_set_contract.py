@@ -15,6 +15,8 @@ def test_restore_app_set_contract() -> None:
     assert "refusing blind restart" in text
     assert "dependency barrier" in text
     assert "NABLA_APP_START_WAIT_OVERRIDES" in text
+    assert "repair-opensearch-security-permissions.sh" in text
+    assert "PREPARE %s storage ownership" in text
     assert "midclt call -j app.start" in text
 
     assert "systemctl restart docker" not in text
