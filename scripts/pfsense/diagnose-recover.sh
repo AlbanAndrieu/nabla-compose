@@ -11,6 +11,7 @@ PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-}"
 AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
+DEEP_SSH=false
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
 usage() {
@@ -24,6 +25,7 @@ unreachable; SSH is required only for deep appliance diagnostics and --apply.
 Options:
   --check                   Read-only diagnosis (default).
   --api-only                Skip SSH and collect HTTPS/API evidence only.
+  --deep-ssh                With --check: collect deep appliance evidence over SSH.
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
@@ -68,6 +70,9 @@ while (($# > 0)); do
       ;;
     --api-only)
       API_ONLY=true
+      ;;
+    --deep-ssh)
+      DEEP_SSH=true
       ;;
     --apply)
       MODE="apply"
@@ -130,6 +135,9 @@ done
 if [[ "${UNBLOCK_SOURCES}" == true && "${MODE}" != "apply" ]]; then
   fail "--unblock-sources requires --apply"
 fi
+if [[ "${API_ONLY}" == true && "${DEEP_SSH}" == true ]]; then
+  fail "--api-only cannot be combined with --deep-ssh"
+fi
 if [[ "${API_ONLY}" == true && "${MODE}" == "apply" ]]; then
   fail "--api-only cannot be combined with --apply"
 fi
@@ -162,7 +170,7 @@ read -r -a probe_source_array <<<"${PROBE_SOURCES}"
 for source in "${probe_source_array[@]}"; do
   [[ "${source}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "invalid IPv4 probe source: ${source}"
 done
-if [[ "${API_ONLY}" != true || "${MODE}" == "apply" ]]; then
+if [[ "${DEEP_SSH}" == true || "${MODE}" == "apply" ]]; then
   command -v ssh >/dev/null 2>&1 || fail "ssh is required"
 fi
 
@@ -227,6 +235,14 @@ probe_api() {
     --header "@${API_HEADER_FILE}" \
     "${base_url%/}${endpoint}" 2>>"${REPORT}" || true)"
 
+  if [[ "${http_code}" == "401" || "${http_code}" == "403" ]]; then
+    local auth_summary
+    auth_summary="$(jq -c '{code,status,response_id,message}' "${body}" 2>/dev/null || true)"
+    log "${label} endpoint=${endpoint} http=${http_code} AUTH_UNCONFIRMED ${auth_summary}"
+    rm -f "${body}"
+    return 2
+  fi
+
   if [[ "${http_code}" == "200" ]] && jq -e '.code == 200 and .status == "ok"' "${body}" >/dev/null 2>&1; then
     local summary
     summary="$(jq -c '{code,status,response_id,data_type:(.data|type),count:(if (.data|type)=="array" then (.data|length) else null end)}' "${body}")"
@@ -266,9 +282,9 @@ if prepare_api_header; then
     /api/v2/system/dns
   )
   for endpoint in "${endpoints[@]}"; do
-    probe_api "api_hostname" "${API_URL}" false "${endpoint}" || api_failures=$((api_failures + 1))
+    probe_api "api_hostname" "${API_URL}" false "${endpoint}" || { status=$?; (( status == 2 )) || api_failures=$((api_failures + 1)); }
   done
-  probe_api "api_lan" "${LAN_API_URL}" true /api/v2/system/version || api_failures=$((api_failures + 1))
+  probe_api "api_lan" "${LAN_API_URL}" true /api/v2/system/version || { status=$?; (( status == 2 )) || api_failures=$((api_failures + 1)); }
 else
   log "WARN: PFSENSE_POSTURE_API_KEY unset: authenticated API evidence not evaluated"
 fi
@@ -276,6 +292,14 @@ fi
 if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
   warn "both pfSense HTTPS vantage points are unreachable; skipping SSH deep diagnostics to avoid adding load during a possible appliance/network incident"
   fail "pfSense HTTPS is unreachable from both hostname and LAN vantage points; recover basic management reachability before deep diagnostics"
+fi
+
+if [[ "${MODE}" == "check" && "${DEEP_SSH}" != true ]]; then
+  if ((api_failures > 0)); then
+    fail "lightweight diagnosis completed with ${api_failures} transport/API probe failure(s); SSH was intentionally skipped"
+  fi
+  log "OK: lightweight pfSense diagnosis completed; use --deep-ssh only when appliance evidence is required"
+  exit 0
 fi
 
 if [[ "${API_ONLY}" == true ]]; then
