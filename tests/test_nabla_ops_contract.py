@@ -208,7 +208,7 @@ def test_initialization_transitions_are_idempotent_or_single_step_only() -> None
     for stage in stages:
         assert validate_initialization_transition(stage, stage) is stage
 
-    for current, target in zip(stages, stages[1:], strict=True):
+    for current, target in zip(stages[:-1], stages[1:], strict=True):
         assert validate_initialization_transition(current, target) is target
 
     for current, target in (
