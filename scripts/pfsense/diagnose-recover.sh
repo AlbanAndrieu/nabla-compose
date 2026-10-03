@@ -136,6 +136,9 @@ fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
 fi
+for command in curl jq tee grep awk date mktemp paste; do
+  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
+done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
   if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
@@ -152,13 +155,12 @@ if [[ "${AUTO_EGRESS}" == true ]]; then
   fi
   rm -f "${runtime_json}"
 fi
-PROBE_SOURCES="$(printf '%s\n' ${PROBE_SOURCES:-} | awk 'NF && !seen[$0]++' | paste -sd' ' -)"
+read -r -a probe_source_array <<<"${PROBE_SOURCES}"
+PROBE_SOURCES="$(printf '%s\n' "${probe_source_array[@]}" | awk 'NF && !seen[$0]++' | paste -sd' ' -)"
 [[ -n "${PROBE_SOURCES}" ]] || fail "no probe sources available; use --probe-sources or enable FastAPI egress discovery"
-for source in ${PROBE_SOURCES}; do
+read -r -a probe_source_array <<<"${PROBE_SOURCES}"
+for source in "${probe_source_array[@]}"; do
   [[ "${source}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "invalid IPv4 probe source: ${source}"
-done
-for command in curl jq tee grep awk date mktemp paste; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 if [[ "${API_ONLY}" != true || "${MODE}" == "apply" ]]; then
   command -v ssh >/dev/null 2>&1 || fail "ssh is required"
