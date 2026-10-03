@@ -247,8 +247,10 @@ log ""
 log "==> HTTPS/API vantage points"
 
 api_failures=0
-probe_url "ui_hostname" "${API_URL}" false || api_failures=$((api_failures + 1))
-probe_url "ui_lan" "${LAN_API_URL}" true || api_failures=$((api_failures + 1))
+ui_hostname_ok=true
+ui_lan_ok=true
+probe_url "ui_hostname" "${API_URL}" false || { ui_hostname_ok=false; api_failures=$((api_failures + 1)); }
+probe_url "ui_lan" "${LAN_API_URL}" true || { ui_lan_ok=false; api_failures=$((api_failures + 1)); }
 
 if prepare_api_header; then
   endpoints=(
@@ -263,6 +265,11 @@ if prepare_api_header; then
   probe_api "api_lan" "${LAN_API_URL}" true /api/v2/system/version || api_failures=$((api_failures + 1))
 else
   log "WARN: PFSENSE_POSTURE_API_KEY unset: authenticated API evidence not evaluated"
+fi
+
+if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
+  warn "both pfSense HTTPS vantage points are unreachable; skipping SSH deep diagnostics to avoid adding load during a possible appliance/network incident"
+  fail "pfSense HTTPS is unreachable from both hostname and LAN vantage points; recover basic management reachability before deep diagnostics"
 fi
 
 if [[ "${API_ONLY}" == true ]]; then
