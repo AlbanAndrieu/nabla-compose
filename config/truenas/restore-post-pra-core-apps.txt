@@ -2,21 +2,21 @@
 # Order in this file is intentionally irrelevant: restore-app-set.sh delegates
 # dependency and lifecycle ordering to plan-app-lifecycle-order.py.
 #
-# Current expected waves:
+# Immediate accepted restore:
 # - foundation / priority 10: vaultwarden
-# - platform-services / priority 40: prometheus
 #
-# Deliberately excluded migration targets:
+# Deliberately deferred migration/dependency targets:
 # - adguard-home: native TrueNAS App; migrate to repository-owned Compose first.
-# - grafana: native -> Compose migration is still pending with dataset/snapshot
+# - grafana: native -> Compose migration is pending with dataset/snapshot
 #   preservation and functional acceptance.
+# - prometheus: repository-owned Compose, but catalog declares required
+#   "prometheus storesIn mimir"; Mimir belongs to the pending Grafana Compose
+#   stack, so do not bypass that required dependency during staged recovery.
 # - uptime-kuma: former native App is gone; target is a repository-owned Uptime
 #   Kuma Compose workload on :31050, then AutoKuma as its declarative reconciler.
 #   AutoKuma is not an Uptime Kuma server replacement and remains stopped until
 #   the Compose Uptime Kuma endpoint is healthy.
 #
 # vaultwarden is criticality=high, foundation/10, blocksLaterWaves=false.
-# prometheus inherits platform-services/40 from category=observability.
 
 vaultwarden
-prometheus
