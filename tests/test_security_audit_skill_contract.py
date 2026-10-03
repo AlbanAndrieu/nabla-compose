@@ -94,13 +94,7 @@ def test_all_committed_audit_json_passes_vendored_cloudflare_validators() -> Non
     node = shutil.which("node")
     assert node is not None, "node is required to validate committed security-audit artifacts"
 
-    audit_dirs = sorted(
-        path
-        for path in AUDIT_ROOT.iterdir()
-        if path.is_dir()
-        and (path / "findings.json").is_file()
-        and (path / "coverage-ledger.json").is_file()
-    )
+    audit_dirs = AUDIT_DIRS
     assert audit_dirs, "at least one committed security audit is required"
 
     validators = (
