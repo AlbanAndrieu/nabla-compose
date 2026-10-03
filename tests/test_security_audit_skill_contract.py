@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / ".agents" / "skills" / "security-audit"
-AUDIT = ROOT / "docs" / "security-audits" / "2026-10-01-cloudflare-security-audit"
+AUDIT_ROOT = ROOT / "docs" / "security-audits"
+AUDIT = AUDIT_ROOT / "2026-10-01-cloudflare-security-audit"
 
 
 def test_cloudflare_security_audit_skill_is_vendored_with_provenance() -> None:
@@ -79,3 +82,35 @@ def test_precommit_routes_skill_changes_to_contract() -> None:
     assert config.count("id: security-audit-skill-contract") == 1
     assert "tests/test_security_audit_skill_contract.py" in config
     assert "docs/security-audits/" in config
+
+
+def test_all_committed_audit_json_passes_vendored_cloudflare_validators() -> None:
+    node = shutil.which("node")
+    assert node is not None, "node is required to validate committed security-audit artifacts"
+
+    audit_dirs = sorted(
+        path
+        for path in AUDIT_ROOT.iterdir()
+        if path.is_dir()
+        and (path / "findings.json").is_file()
+        and (path / "coverage-ledger.json").is_file()
+    )
+    assert audit_dirs, "at least one committed security audit is required"
+
+    validators = (
+        ("findings.json", SKILL / "validate-findings.cjs"),
+        ("coverage-ledger.json", SKILL / "validate-coverage-ledger.cjs"),
+    )
+    for audit_dir in audit_dirs:
+        for artifact_name, validator in validators:
+            result = subprocess.run(
+                [node, str(validator), str(audit_dir / artifact_name)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert result.returncode == 0, (
+                f"{audit_dir.name}/{artifact_name} failed Cloudflare validation:\n"
+                f"{result.stdout}{result.stderr}"
+            )
