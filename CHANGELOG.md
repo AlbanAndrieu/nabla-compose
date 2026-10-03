@@ -1,3 +1,15 @@
+# [0.45.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.44.0...0.45.0) (2026-10-03)
+
+
+### Bug Fixes
+
+* **pfsense:** harden automatic egress discovery ([9218e75](https://github.com/AlbanAndrieu/nabla-compose/commit/9218e75d2ee1b7fc817e5a0296ff55ae0707bca5))
+
+
+### Features
+
+* **pfsense:** auto-discover FastAPI Cloud egress sources ([477abcb](https://github.com/AlbanAndrieu/nabla-compose/commit/477abcb8f0b6fb149a9dd439984d799ba455af5b))
+
 # [0.44.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.43.0...0.44.0) (2026-10-03)
 
 
