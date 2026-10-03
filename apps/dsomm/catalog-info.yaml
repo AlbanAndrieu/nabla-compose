@@ -1,0 +1,38 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dsomm
+  title: OWASP DevSecOps Maturity Model
+  description: Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - security
+    - devsecops
+    - maturity
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dsomm-baseline
+  title: DSOMM GitHub Baseline
+  description: Planned evidence scanner producing supporting DSOMM baseline reports for human review.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - security
+    - devsecops
+    - evidence
+spec:
+  type: tool
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
