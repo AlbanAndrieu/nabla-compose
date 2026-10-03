@@ -14,6 +14,11 @@ def test_reboot_shutdown_evidence_collector_is_read_only() -> None:
     assert "midclt call system.boot_id" in text
     assert "midclt call system.ready" in text
     assert "previous-boot-focus.txt" in text
+    assert "systemd-pstore.service" in text
+    assert "/sys/fs/pstore" in text
+    assert "/sys/class/watchdog/watchdog0/identity" in text
+    assert "/sys/module/sp5100_tco/parameters/nowayout" in text
+    assert "systemd-analyze cat-config systemd/system.conf" in text
 
     for forbidden in (
         "systemctl restart",
