@@ -72,6 +72,7 @@ FILES=(
   scripts/truenas/recover-app-after-docker-ghost.sh
   scripts/truenas/recovery-reboot-homelab.sh
   scripts/truenas/diagnose-csi-orphans.sh
+  scripts/truenas/collect-reboot-shutdown-evidence.sh
   scripts/truenas/reconcile-reboot-resume.sh
   scripts/truenas/verify-app-runtime-health.sh
   scripts/truenas/repair-opensearch-security-permissions.sh
