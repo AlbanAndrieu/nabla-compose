@@ -8,8 +8,14 @@ LOCK_FILE="${NABLA_DOCKER_IMAGE_PRUNE_LOCK_FILE:-/tmp/nabla-docker-image-prune.l
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-skip() { printf 'SKIP: %s\n' "$*"; exit 0; }
+fail() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
+skip() {
+  printf 'SKIP: %s\n' "$*"
+  exit 0
+}
 
 case "${MODE}" in
   --check | --apply) ;;
@@ -45,12 +51,15 @@ middleware_state="$(midclt call docker.status 2>/dev/null | jq -r '.status // "U
   skip "Docker is not fully converged (service=${service_state:-unknown} middleware=${middleware_state:-UNKNOWN})"
 
 printf 'Docker dangling-image maintenance mode=%s min_age=%sh\n' "${MODE}" "${MIN_AGE_HOURS}"
-printf '%s\n'   'Policy: dangling images only; never --all/-a; networks, volumes and containers are untouched.'   'Recent dangling images are retained as a short rollback/debug window.'
+printf '%s\n' \
+  'Policy: dangling images only; never --all/-a; networks, volumes and containers are untouched.' \
+  'Recent dangling images are retained as a short rollback/debug window.'
 
 bash "${AUDIT}" --check
 
 printf '\nDangling images currently visible:\n'
-docker image ls --filter dangling=true   --format 'table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedSince}}\t{{.Size}}'
+docker image ls --filter dangling=true \
+  --format 'table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.CreatedSince}}\t{{.Size}}'
 
 [[ "${MODE}" == "--apply" ]] || {
   printf 'READ-ONLY: use --apply to prune dangling images older than %sh.\n' "${MIN_AGE_HOURS}"
