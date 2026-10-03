@@ -1,0 +1,21 @@
+# Post-PRA staged restore set.
+# Order in this file is intentionally irrelevant: restore-app-set.sh delegates
+# dependency and lifecycle ordering to plan-app-lifecycle-order.py.
+#
+# Catalog-derived expected waves:
+# - foundation / priority 10: adguard-home, vaultwarden
+# - platform-services / priority 40: grafana, prometheus
+#
+# vaultwarden carries criticality=high and blocksLaterWaves=false in the catalog.
+# prometheus/grafana inherit platform-services priority 40 from their
+# observability category when no explicit lifecycle is declared.
+#
+# Deferred on 2026-10-03:
+# uptime-kuma is declared as a TrueNAS App in service-topology.json
+# (platform-services / priority 40), but was absent from live app.query.
+# Reconcile that catalog/runtime drift before adding it to an active restore set.
+
+adguard-home
+vaultwarden
+grafana
+prometheus
