@@ -138,6 +138,16 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("No App is started by this wait", text)
         self.assertIn("elapsed=%ss", text)
 
+    def test_reboot_preflight_captures_docker_storage_debt_before_shutdown(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        bundle = (
+            ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("NABLA_DOCKER_STORAGE_AUDIT", text)
+        self.assertIn("docker_storage_debt_preflight", text)
+        self.assertIn("docker-storage-debt-before.txt", text)
+        self.assertIn("audit-docker-storage-debt.sh", bundle)
+
     def test_docker_storage_debt_audit_is_read_only(self) -> None:
         text = DOCKER_STORAGE_AUDIT.read_text(encoding="utf-8")
         self.assertIn("--check", text)
@@ -146,6 +156,9 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("docker system df -v", text)
         self.assertIn("docker system prune", text)
         self.assertIn("docker network prune", text)
+        self.assertIn("NABLA_DOCKER_AUDIT_WARN_OVERLAY_DIRS", text)
+        self.assertIn("NABLA_DOCKER_AUDIT_WARN_IMAGES", text)
+        self.assertIn("NABLA_DOCKER_AUDIT_WARN_USED_GIB", text)
         self.assertNotIn("docker image prune", text)
         self.assertNotIn("docker container prune", text)
         self.assertNotIn("docker builder prune", text)

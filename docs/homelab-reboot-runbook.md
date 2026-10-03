@@ -201,6 +201,12 @@ reboot measured a notably large local state: 764 images, 7,408 top-level
 The gate now reports an elapsed-time heartbeat so this long metadata phase is
 visible rather than looking hung.
 
+The reboot preflight runs this lightweight storage-debt audit while Docker and
+Apps are still operational. `--prepare` repeats it immediately before the first
+App shutdown and stores the output as
+`docker-storage-debt-before.txt` in the immutable reboot transaction manifest.
+Advisory debt thresholds warn but do not block the reboot.
+
 Do not clean Docker storage during an active reboot transaction. After final
 acceptance, assess the debt read-only:
 

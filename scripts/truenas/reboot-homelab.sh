@@ -32,11 +32,13 @@ IPAM_CHECK="${NABLA_IPAM_CHECK_SCRIPT:-${SCRIPT_DIR}/migrate-docker-address-pool
 RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reboot-resume.sh}"
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
 GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
+DOCKER_STORAGE_AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
 [[ -f "${ORPHAN_SHIMS}" ]] || ORPHAN_SHIMS="${REPO_ROOT}/scripts/truenas/diagnose-docker-orphan-shims.sh"
 [[ -f "${GHOST_RECOVERY}" ]] || GHOST_RECOVERY="${REPO_ROOT}/scripts/truenas/recover-app-after-docker-ghost.sh"
+[[ -f "${DOCKER_STORAGE_AUDIT}" ]] || DOCKER_STORAGE_AUDIT="${REPO_ROOT}/scripts/truenas/audit-docker-storage-debt.sh"
 
 usage() {
   cat <<'EOF'
@@ -634,6 +636,18 @@ build_effective_resume_plan() {
   printf '%s\n' "${effective}"
 }
 
+docker_storage_debt_preflight() {
+  local output="${1:-}"
+  [[ -f "${DOCKER_STORAGE_AUDIT}" ]] ||
+    fail "Docker storage-debt audit helper not found: ${DOCKER_STORAGE_AUDIT}"
+  printf 'Docker storage-debt preflight (read-only; before App shutdown):\n'
+  if [[ -n "${output}" ]]; then
+    bash "${DOCKER_STORAGE_AUDIT}" --check | tee "${output}"
+  else
+    bash "${DOCKER_STORAGE_AUDIT}" --check
+  fi
+}
+
 run_resume_reconciler() {
   local dir="$1" effective tmp_root tmp_state rc
   [[ -f "${RESUME_RECONCILER}" ]] ||
@@ -672,6 +686,7 @@ if [[ "${MODE}" == --check ]]; then
   make_plans "${tmp}/apps-before.json" "${tmp}"
   vm_policy_gate
   cluster_client_preflight
+  docker_storage_debt_preflight
   print_plan_summary "${tmp}"
   printf 'READ-ONLY: reboot preflight passed; no App or VM changed.\n'
   exit 0
@@ -690,6 +705,7 @@ if [[ "${MODE}" == --prepare ]]; then
   mkdir -p "${state_dir}"
   chmod 700 "${state_dir}"
 
+  docker_storage_debt_preflight "${state_dir}/docker-storage-debt-before.txt"
   midclt_bounded app.query >"${state_dir}/apps-before.json"
   midclt_bounded vm.query >"${state_dir}/vms-before.json"
   midclt_bounded docker.config >"${state_dir}/docker-config-before.json"
