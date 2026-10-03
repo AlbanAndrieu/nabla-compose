@@ -1,0 +1,13 @@
+# Recovery foundation set.
+# One TrueNAS App id per line. Order is intentionally irrelevant:
+# scripts/truenas/restore-app-set.sh derives dependency waves from the catalog.
+docker-socket-proxy
+pihole
+traefik
+kafka
+mongo
+postgres
+redis
+clickhouse
+opensearch
+sentry-clickhouse
