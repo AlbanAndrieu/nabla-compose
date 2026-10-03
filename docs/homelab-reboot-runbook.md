@@ -895,26 +895,31 @@ dependency edge. For the current set, the expected waves are:
 
 ```text
 wave 1  foundation / priority 10
-        adguard-home
         vaultwarden
 
 wave 2  platform-services / priority 40
-        grafana
         prometheus
 ```
 
 Importance is not guessed as a synthetic score. Use the catalog fields directly:
 `criticality` when declared, lifecycle `phase`/`priority`, required topology
-relations, and `blocksLaterWaves`. Vaultwarden is catalogued as
-`criticality=high`, `foundation/10`, with `blocksLaterWaves=false`.
-AdGuard Home is explicitly `foundation/10`. Prometheus and Grafana have no
-explicit lifecycle declaration, so their `observability` category deterministically
-falls back to `platform-services/40`.
+relations, and `blocksLaterWaves`. Runtime ownership is an additional admission
+gate: post-PRA staged restore sets prefer repository-owned Compose/TrueNAS Custom
+Apps and deliberately exclude native Apps that are migration targets.
 
-`uptime-kuma` is deliberately excluded: the topology declares it as a TrueNAS
-App at `platform-services/40`, but it was absent from live `app.query` on
-2026-10-03. Reconcile that catalog/runtime drift before enabling AutoKuma or
-adding Uptime Kuma to an active restore set.
+Vaultwarden is catalogued as `criticality=high`, `foundation/10`, with
+`blocksLaterWaves=false`. Prometheus deterministically inherits
+`platform-services/40` from `category=observability`.
+
+AdGuard Home is excluded because it remains a native TrueNAS App pending a
+reviewed Compose migration. Grafana is also excluded until its documented
+native-to-Compose migration preserves/snapshots `/mnt/cpool/grafana/data` and
+passes functional acceptance.
+
+The former native Uptime Kuma App is gone. The target is **not** AutoKuma alone:
+Uptime Kuma must first become a repository-owned Compose workload on `:31050`;
+AutoKuma remains the repository-owned declarative reconciler that consumes the
+Uptime Kuma API. Keep AutoKuma stopped until that Compose endpoint is healthy.
 
 Validate before applying:
 
