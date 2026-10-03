@@ -249,8 +249,14 @@ log "==> HTTPS/API vantage points"
 api_failures=0
 ui_hostname_ok=true
 ui_lan_ok=true
-probe_url "ui_hostname" "${API_URL}" false || { ui_hostname_ok=false; api_failures=$((api_failures + 1)); }
-probe_url "ui_lan" "${LAN_API_URL}" true || { ui_lan_ok=false; api_failures=$((api_failures + 1)); }
+probe_url "ui_hostname" "${API_URL}" false || {
+  ui_hostname_ok=false
+  api_failures=$((api_failures + 1))
+}
+probe_url "ui_lan" "${LAN_API_URL}" true || {
+  ui_lan_ok=false
+  api_failures=$((api_failures + 1))
+}
 
 if prepare_api_header; then
   endpoints=(
