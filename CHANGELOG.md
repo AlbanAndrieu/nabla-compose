@@ -1,3 +1,10 @@
+# [0.44.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.43.0...0.44.0) (2026-10-03)
+
+
+### Features
+
+* **security:** intégrer security-audit, cadrer DSOMM et planifier OpenCRE ([#233](https://github.com/AlbanAndrieu/nabla-compose/issues/233)) ([8b166d8](https://github.com/AlbanAndrieu/nabla-compose/commit/8b166d8f476f099d2be609ba9ee907e8dbef43ac))
+
 # [0.43.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.42.0...0.43.0) (2026-09-28)
 
 
