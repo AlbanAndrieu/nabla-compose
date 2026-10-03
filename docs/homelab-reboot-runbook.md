@@ -827,3 +827,35 @@ global Docker/containerd restart for a single ghost container
 
 Prefer bounded diagnosis, exact-owner recovery, the immutable transaction
 manifest and `--continue-prepare`.
+
+## Foundation-specific reboot acceptance
+
+The generic App state/health gate is necessary but not sufficient for the
+foundation wave. The reboot resume reconciler also enforces the runtime
+contracts that were proven during the 2026-10-03 recovery:
+
+- `opensearch`: repair/check the `opensearch-security` datastore ownership
+  before a stopped App is started;
+- `docker-socket-proxy`: attach the active TrueNAS workload to the shared
+  `intranet` network with the `docker-socket-proxy` alias after it reaches
+  `RUNNING`;
+- `pihole`: require the DNS synchronizer to resolve the proxy, avoid a restart
+  loop/API-seat failure, and complete its initial sync.
+
+These helpers are part of the immutable reboot bundle. Consequently
+`reboot-homelab.sh --verify` fails closed when the frozen resume membership is
+middleware-`RUNNING` but one of these foundation contracts is not satisfied.
+
+For the controlled acceptance reboot, use the standard sequence:
+
+```bash
+sudo bash scripts/truenas/materialize-reboot-bundle.sh --ref HEAD --activate
+sudo bash scripts/truenas/reboot-homelab.sh --check
+sudo bash scripts/truenas/reboot-homelab.sh --prepare
+# perform the supported TrueNAS reboot
+sudo bash scripts/truenas/reboot-homelab.sh --post-reboot-check
+sudo bash scripts/truenas/reboot-homelab.sh --resume
+sudo bash scripts/truenas/reboot-homelab.sh --verify
+```
+
+Do not mark the PRA acceptance complete from `app.query state=RUNNING` alone.

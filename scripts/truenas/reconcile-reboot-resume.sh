@@ -14,6 +14,9 @@ POLL_SECONDS="${NABLA_APP_POLL_SECONDS:-5}"
 LOG_TAIL="${NABLA_APP_DIAGNOSTIC_LOG_TAIL:-80}"
 MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
+OPENSEARCH_PERMISSIONS="${NABLA_OPENSEARCH_PERMISSIONS_HELPER:-${SCRIPT_DIR}/repair-opensearch-security-permissions.sh}"
+DOCKER_PROXY_NETWORK="${NABLA_DOCKER_PROXY_NETWORK_HELPER:-${SCRIPT_DIR}/ensure-docker-socket-proxy-intranet.sh}"
+PIHOLE_SYNC_GATE="${NABLA_PIHOLE_SYNC_GATE:-${SCRIPT_DIR}/verify-pihole-dns-sync.sh}"
 
 usage() {
   cat <<'EOF'
@@ -46,6 +49,9 @@ esac
 require_root "run as root on TrueNAS"
 require_commands midclt jq docker timeout sed tr stat date
 [[ -x "${HEALTH_GATE}" || -f "${HEALTH_GATE}" ]] || fail "app health gate not found: ${HEALTH_GATE}"
+[[ -f "${OPENSEARCH_PERMISSIONS}" ]] || fail "OpenSearch permissions helper not found: ${OPENSEARCH_PERMISSIONS}"
+[[ -f "${DOCKER_PROXY_NETWORK}" ]] || fail "Docker proxy network helper not found: ${DOCKER_PROXY_NETWORK}"
+[[ -f "${PIHOLE_SYNC_GATE}" ]] || fail "Pi-hole sync gate not found: ${PIHOLE_SYNC_GATE}"
 
 for value in CALL_TIMEOUT APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL MAX_MANIFEST_AGE; do
   current="${!value}"
@@ -147,6 +153,41 @@ wait_running() {
   return 1
 }
 
+prepare_app_storage() {
+  local app="$1"
+  case "${app}" in
+    opensearch)
+      printf 'PREPARE %s storage ownership\n' "${app}"
+      bash "${OPENSEARCH_PERMISSIONS}" --apply
+      ;;
+  esac
+}
+
+prepare_app_runtime() {
+  local app="$1"
+  case "${app}" in
+    docker-socket-proxy)
+      printf 'PREPARE %s shared intranet attachment\n' "${app}"
+      bash "${DOCKER_PROXY_NETWORK}" --apply
+      ;;
+  esac
+}
+
+verify_app_contracts() {
+  local app="$1"
+  case "${app}" in
+    opensearch)
+      bash "${OPENSEARCH_PERMISSIONS}" --check
+      ;;
+    docker-socket-proxy)
+      bash "${DOCKER_PROXY_NETWORK}" --check
+      ;;
+    pihole)
+      printf 'VERIFY %s DNS sync dependency contract\n' "${app}"
+      bash "${PIHOLE_SYNC_GATE}"
+      ;;
+  esac
+}
 start_or_wait_app() {
   local app="$1" state
   state="$(app_state "${app}")"
@@ -155,6 +196,7 @@ start_or_wait_app() {
       printf 'VERIFY %s already RUNNING\n' "${app}"
       ;;
     STOPPED)
+      prepare_app_storage "${app}" || return 1
       printf 'START %s\n' "${app}"
       if ! timeout "${APP_JOB_TIMEOUT}" midclt call -j app.start "${app}" >/dev/null; then
         warn "${app}: app.start client/job did not complete within ${APP_JOB_TIMEOUT}s"
@@ -180,8 +222,18 @@ start_or_wait_app() {
     return 1
   fi
 
+  if ! prepare_app_runtime "${app}"; then
+    diagnose_app "${app}"
+    return 1
+  fi
+
   if ! NABLA_APP_HEALTH_TIMEOUT_SECONDS="$(app_timeout "${app}")"     bash "${HEALTH_GATE}" "${app}"; then
     warn "${app}: middleware RUNNING but container health did not converge"
+    diagnose_app "${app}"
+    return 1
+  fi
+
+  if ! verify_app_contracts "${app}"; then
     diagnose_app "${app}"
     return 1
   fi
@@ -224,7 +276,8 @@ for ((i=0; i<wave_count; i++)); do
       if [[ "${state}" != "RUNNING" ]] ||
         ! NABLA_APP_HEALTH_TIMEOUT_SECONDS=1 \
           NABLA_APP_HEALTH_POLL_SECONDS=1 \
-          bash "${HEALTH_GATE}" "${app}" >/dev/null 2>&1; then
+          bash "${HEALTH_GATE}" "${app}" >/dev/null 2>&1 ||
+        ! verify_app_contracts "${app}" >/dev/null 2>&1; then
         app_failed=1
       fi
     elif ! start_or_wait_app "${app}"; then

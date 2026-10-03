@@ -72,6 +72,9 @@ FILES=(
   scripts/truenas/diagnose-csi-orphans.sh
   scripts/truenas/reconcile-reboot-resume.sh
   scripts/truenas/verify-app-runtime-health.sh
+  scripts/truenas/repair-opensearch-security-permissions.sh
+  scripts/truenas/ensure-docker-socket-proxy-intranet.sh
+  scripts/truenas/verify-pihole-dns-sync.sh
   scripts/truenas/reboot-homelab.sh
 )
 
@@ -110,6 +113,12 @@ validate_stage() {
     fail "materialized reboot script does not delegate resume reconciliation"
   grep -q -- 'verify-app-runtime-health.sh' "${STAGE}/scripts/truenas/reconcile-reboot-resume.sh" ||
     fail "materialized resume reconciler does not require the container health gate"
+  grep -q -- 'repair-opensearch-security-permissions.sh' "${STAGE}/scripts/truenas/reconcile-reboot-resume.sh" ||
+    fail "materialized resume reconciler lacks OpenSearch storage recovery"
+  grep -q -- 'ensure-docker-socket-proxy-intranet.sh' "${STAGE}/scripts/truenas/reconcile-reboot-resume.sh" ||
+    fail "materialized resume reconciler lacks Docker proxy network recovery"
+  grep -q -- 'verify-pihole-dns-sync.sh' "${STAGE}/scripts/truenas/reconcile-reboot-resume.sh" ||
+    fail "materialized resume reconciler lacks Pi-hole DNS sync acceptance"
   grep -q -- 'start_wave_phases' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
     fail "materialized lifecycle planner lacks phased startup ordering"
   grep -q -- 'sourcePath' "${STAGE}/scripts/truenas/plan-app-lifecycle-order.py" ||
