@@ -442,7 +442,9 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 - [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
 - [ ] Re-run orphan-shim diagnostics after Apps settle.
 - [ ] Baseline Docker storage debt with `audit-docker-storage-debt.sh --check`; compare image count, `overlay2` directory cardinality and `cpool/ix-apps/docker` used bytes against the 2026-10-03 baseline (764 images / 7,408 overlay2 dirs / ~525 GiB).
-- [ ] Review targeted Docker cleanup only after PRA acceptance: dangling images, old unmanaged/exited containers and build cache. Never use `docker system prune` or `docker network prune` as a blanket cleanup.
+- [x] First post-PRA dangling-image cleanup reclaimed 90.45 GB: images 764→631, dangling 135→2 and top-level `overlay2` directories 7,408→6,534. Total ZFS `used` remained ~525 GiB because ~97.4 GiB is snapshot-retained; active `usedbydataset` is ~428 GiB.
+- [ ] Keep automated cleanup separate from hourly Git cron: weekly root `prune-docker-images.sh --apply`, dangling-only, default minimum age 168h, no `-a`, no network/volume/container prune and no execution during an active reboot transaction.
+- [ ] Review additional targeted Docker cleanup only after the bounded dangling-image policy is established: old unmanaged/exited containers and build cache. Never use `docker system prune` or `docker network prune` as a blanket cleanup.
 - [ ] Reboot once after any reviewed cleanup and record Docker cold-start convergence duration; objective is to reduce metadata reload time without sacrificing rollback/re-pull safety.
 
 ## Accepted code/debt reduction plan
