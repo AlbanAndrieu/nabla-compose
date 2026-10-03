@@ -296,12 +296,14 @@ Security-tooling acceptance within this workstream:
 - [ ] **OWASP OpenCRE standards correlation:** add a repository-owned
   `apps/opencre/compose.yml` using the official
   `ghcr.io/owasp/opencre/opencre` image, pinned to a reviewed version/digest
-  before activation. Keep it internal-only and enable the bounded health
-  endpoint. Use OpenCRE to correlate common requirements across DSOMM, OWASP
-  SAMM, NIST, CIS, ISO and other mapped standards; it is a reference/correlation
-  layer, not the maturity score of record. Reuse the shared Neo4j service only
-  after compatibility is proven instead of introducing an application-local
-  graph database by default.
+  before activation. Bind the upstream port `5000` internally, set
+  `CRE_ENABLE_HEALTH=true` and use `GET /rest/v1/health` as the bounded
+  readiness/uptime probe. Use OpenCRE to correlate Common Requirements across
+  DSOMM, OWASP SAMM, NIST, CIS, ISO and other mapped standards; it is the
+  reference/correlation layer, not the maturity score of record. Keep imports
+  disabled by default and reuse the shared Neo4j service only after compatibility
+  is proven instead of introducing an application-local graph database by
+  default.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
   `172.17.0.24:31088` while it remains `status: planned`.
   - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
@@ -319,6 +321,9 @@ Security-tooling acceptance within this workstream:
 - [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
   source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
   explicitly partial/incomplete and is not a clean-security attestation.
+- [ ] Validate committed audit JSON with the vendored Cloudflare findings and
+  coverage-ledger validators through the local Pre-commit contract; keep this
+  acceptance open until the focused local test is executed on a full checkout.
 - [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
   the deployed digest, proving initialization state + TCP/60073 exposure
   passively, then either close the lead or harden bind/firewall/socket access.

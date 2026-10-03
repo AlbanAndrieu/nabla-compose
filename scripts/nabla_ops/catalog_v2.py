@@ -37,6 +37,7 @@ FIELD_DISPOSITIONS: dict[str, str] = {
     "cloudflareAccessRequired": "desired-security-intent-and-observed-access",
     "endpointEnabled": "desired-presence-and-observed-status",
     "healthNote": "observer-condition-or-documentation",
+    "healthPath": "observer-condition-or-route",
     "securityException": "risk-acceptance",
 }
 
