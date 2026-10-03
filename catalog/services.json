@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:a05cceec70dac7da8b1f30642f8d79027740df2787137e032aa25069224aa15d",
+  "catalogRevision": "sha256:d0522f9fdb79d5a3c177c7702cae7e7aaccccec590e4e869b9dd0d1aa523313c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1514,6 +1514,35 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "openclaw-sandbox"
+      }
+    },
+    {
+      "id": "opencre",
+      "name": "OWASP OpenCRE",
+      "kind": "security-standards-correlation",
+      "category": "security",
+      "sourcePath": "apps/opencre/compose.yml",
+      "composeService": "opencre",
+      "url": "http://172.17.0.24:31089",
+      "description": "Internal OWASP OpenCRE service for correlating common security requirements across standards. It complements DSOMM maturity assessment and does not replace the canonical Nabla service catalog.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "securityFunctions": [
+        "govern",
+        "identify",
+        "protect"
+      ],
+      "monitoring": {
+        "type": "http",
+        "url": "http://172.17.0.24:31089/rest/v1/health"
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opencre",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
