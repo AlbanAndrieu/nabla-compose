@@ -300,7 +300,15 @@
       "sourcePath": "docs/dns-ingress-ownership.md",
       "description": "TrueNAS-hosted cloudflared connector for outbound-established Cloudflare Tunnel ingress that bypasses Traefik.",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "cloudflared"
+      },
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 50
+      }
     },
     {
       "id": "code-server",

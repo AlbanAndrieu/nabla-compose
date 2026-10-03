@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
+import subprocess
 import sys
 
 import yaml
@@ -32,6 +34,23 @@ LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
 BUSINESS_CRITICALITY_POLICY = ROOT / "catalog" / "business-criticality-policy.yaml"
+COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:[.-][^./]+)?\\.ya?ml$")
+
+
+def _tracked_compose_paths() -> list[Path]:
+    """Use the same tracked Compose path shape as the topology generator."""
+    result = subprocess.run(
+        ["git", "ls-files", "*.yml", "*.yaml"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return sorted(
+        ROOT / line
+        for line in result.stdout.splitlines()
+        if COMPOSE_PATH_RE.search(line) and (ROOT / line).is_file()
+    )
 
 
 def _backstage_entities() -> list[dict]:
@@ -69,9 +88,7 @@ def _label_map(service: dict) -> dict[str, str]:
 
 def _compose_entity_dependencies() -> list[dict]:
     result: list[dict] = []
-    paths = [ROOT / "docker-compose.yml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = _tracked_compose_paths()
     for path in paths:
         if not path.exists():
             continue
@@ -155,8 +172,7 @@ def _compose_entity_bindings() -> list[dict]:
 
 def _compose_relation_bindings() -> list[dict]:
     result: list[dict] = []
-    paths = sorted((ROOT / "apps").glob("*/compose*.yml"))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = _tracked_compose_paths()
     for path in paths:
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):

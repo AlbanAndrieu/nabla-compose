@@ -14,6 +14,7 @@ PLANNER = ROOT / "scripts/truenas/plan-app-lifecycle-order.py"
 REBOOT = ROOT / "scripts/truenas/reboot-homelab.sh"
 RUNBOOK = ROOT / "docs/homelab-reboot-runbook.md"
 CATALOG = ROOT / "catalog/catalog-info.yaml"
+STATIC_TOPOLOGY = ROOT / "catalog/service-topology.static.json"
 VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
@@ -73,10 +74,28 @@ class HomelabRebootContractTests(unittest.TestCase):
             "not exercised",
             "passed-after-manual-power-cycle",
             "software reboot mechanism itself is accepted",
-            "selected recovery point no older than one hour",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, text)
+        self.assertRegex(
+            text,
+            r"selected recovery point no\s+older than one hour",
+        )
+
+    def test_cloudflared_has_explicit_truenas_runtime_mapping(self) -> None:
+        topology = json.loads(STATIC_TOPOLOGY.read_text(encoding="utf-8"))
+        cloudflared = next(
+            node for node in topology["nodes"] if node.get("id") == "cloudflared"
+        )
+
+        self.assertEqual(
+            cloudflared["runtime"],
+            {"provider": "truenas-app", "appId": "cloudflared"},
+        )
+        self.assertEqual(
+            cloudflared["lifecycle"],
+            {"phase": "applications", "priority": 50},
+        )
 
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
