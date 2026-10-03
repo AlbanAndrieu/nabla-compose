@@ -13,6 +13,8 @@ CALL_TIMEOUT="${NABLA_MIDCLT_TIMEOUT_SECONDS:-180}"
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 EXTRA_RESUME_APPS="${NABLA_REBOOT_RESUME_STOPPED_APPS:-}"
+ALLOW_BUNDLE_HOTFIX="${NABLA_REBOOT_ALLOW_BUNDLE_HOTFIX:-false}"
+HOTFIX_NOTE="${NABLA_REBOOT_HOTFIX_NOTE:-}"
 ACCEPTANCE_DEFERRED_APPS="${NABLA_REBOOT_DEFERRED_APPS:-${2:-}}"
 ACCEPTANCE_NOTE="${NABLA_REBOOT_ACCEPTANCE_NOTE:-}"
 MAX_MANIFEST_AGE="${NABLA_REBOOT_MAX_MANIFEST_AGE_SECONDS:-172800}"
@@ -117,6 +119,51 @@ bundle_identity() {
   local source="workspace"
   [[ -f "${BUNDLE_ROOT}/SOURCE_COMMIT" ]] && source="$(cat "${BUNDLE_ROOT}/SOURCE_COMMIT")"
   printf '%s %s\n' "${source}" "$(sha256sum "${BASH_SOURCE[0]}" | awk '{print $1}')"
+}
+
+validate_or_record_resume_bundle_identity() {
+  local dir="$1" prepared current sidecar operator recorded_at tmp
+
+  prepared="$(cat "${dir}/orchestrator-identity.txt")"
+  current="$(bundle_identity)"
+  [[ "${prepared}" == "${current}" ]] && return 0
+
+  sidecar="${dir}/resume-bundle-hotfix.json"
+  if [[ -f "${sidecar}" ]]; then
+    jq -e \
+      --arg prepared "${prepared}" \
+      --arg current "${current}" \
+      '.preparedIdentity == $prepared and .resumeIdentity == $current' \
+      "${sidecar}" >/dev/null ||
+      fail "resume bundle identity differs from recorded hotfix sidecar: ${sidecar}"
+    return 0
+  fi
+
+  [[ "${ALLOW_BUNDLE_HOTFIX}" == "true" ]] ||
+    fail "bundle identity changed since --prepare; set NABLA_REBOOT_ALLOW_BUNDLE_HOTFIX=true with NABLA_REBOOT_HOTFIX_NOTE to record an explicit resume hotfix"
+  [[ -n "${HOTFIX_NOTE//[[:space:]]/}" ]] ||
+    fail "NABLA_REBOOT_HOTFIX_NOTE is required when allowing a resume bundle hotfix"
+
+  operator="${SUDO_USER:-${USER:-unknown}}"
+  recorded_at="$(date -Iseconds)"
+  tmp="$(mktemp "${dir}/.resume-bundle-hotfix.XXXXXX")"
+  jq -n \
+    --arg recordedAt "${recorded_at}" \
+    --arg operator "${operator}" \
+    --arg note "${HOTFIX_NOTE}" \
+    --arg preparedIdentity "${prepared}" \
+    --arg resumeIdentity "${current}" \
+    '{
+      schemaVersion: 1,
+      recordedAt: $recordedAt,
+      operator: $operator,
+      note: $note,
+      preparedIdentity: $preparedIdentity,
+      resumeIdentity: $resumeIdentity
+    }' >"${tmp}"
+  chmod 600 "${tmp}"
+  mv "${tmp}" "${sidecar}"
+  printf 'RECORDED: resume bundle hotfix evidence=%s\n' "${sidecar}"
 }
 
 verify_bundle_integrity() {
@@ -732,6 +779,7 @@ if [[ "${MODE}" == --resume ]]; then
   [[ "${current_boot_id}" != "${before_boot_id}" ]] ||
     fail "refusing resume before an actual reboot"
   truenas_ready || fail "TrueNAS is not ready"
+  validate_or_record_resume_bundle_identity "${state_dir}"
   run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
   mapfile -t nodes < <(run_operator "${KUBECTL}" get nodes -o name)
   for node in "${nodes[@]}"; do
@@ -747,6 +795,7 @@ fi
 # --verify
 [[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "reboot not observed"
 truenas_ready || fail "TrueNAS is not ready"
+validate_or_record_resume_bundle_identity "${state_dir}"
 print_operator_acceptance "${state_dir}"
 [[ -f "${RESUME_RECONCILER}" ]] || fail "resume reconciler not found: ${RESUME_RECONCILER}"
 NABLA_REBOOT_STATE_ROOT="${STATE_ROOT}" bash "${RESUME_RECONCILER}" --check ||
