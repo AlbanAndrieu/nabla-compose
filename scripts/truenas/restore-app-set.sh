@@ -14,6 +14,7 @@ REPO_ROOT="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
 STATE_ROOT="${NABLA_RESTORE_STATE_ROOT:-/mnt/cpool/var/nabla/restore}"
 PLANNER="${NABLA_RESTORE_PLANNER:-${SCRIPT_DIR}/plan-app-lifecycle-order.py}"
 HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh}"
+OPENSEARCH_PERMISSIONS="${NABLA_OPENSEARCH_PERMISSIONS_HELPER:-${SCRIPT_DIR}/repair-opensearch-security-permissions.sh}"
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 POLL_SECONDS="${NABLA_APP_START_POLL_SECONDS:-5}"
@@ -75,6 +76,7 @@ require_commands midclt jq docker python3 timeout sed awk sort grep date install
 [[ -r "${APPS_FILE}" ]] || fail "Apps file is not readable: ${APPS_FILE}"
 [[ -f "${PLANNER}" ]] || fail "planner not found: ${PLANNER}"
 [[ -f "${HEALTH_GATE}" ]] || fail "health gate not found: ${HEALTH_GATE}"
+[[ -f "${OPENSEARCH_PERMISSIONS}" ]] || fail "OpenSearch permissions helper not found: ${OPENSEARCH_PERMISSIONS}"
 [[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing"
 [[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog missing"
 
@@ -197,6 +199,16 @@ wait_running() {
   return 1
 }
 
+prepare_app_storage() {
+  local app="$1"
+  case "${app}" in
+    opensearch)
+      printf 'PREPARE %s storage ownership\n' "${app}"
+      bash "${OPENSEARCH_PERMISSIONS}" --apply
+      ;;
+  esac
+}
+
 restore_app() {
   local app="$1" state timeout_seconds
   state="$(app_state "${app}")"
@@ -208,6 +220,7 @@ restore_app() {
       printf 'WAIT %s already DEPLOYING\n' "${app}"
       ;;
     STOPPED)
+      prepare_app_storage "${app}"
       printf 'START %s\n' "${app}"
       timeout "${APP_JOB_TIMEOUT}" midclt call -j app.start "${app}" >/dev/null ||
         {
