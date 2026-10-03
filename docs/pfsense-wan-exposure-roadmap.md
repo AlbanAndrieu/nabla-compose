@@ -241,6 +241,33 @@ Snort HTTP Inspect false positive on TLS :7000
 
 Remediation target:
 
+Validated recurrence and fix on 2026-10-03:
+
+- FastAPI Sample reported the active production egress as `34.200.20.162` through `/api/runtime/topology`;
+- that exact address re-entered `snort2c` after a manual delete while WAN Snort was still classifying TCP/7000 as clear-text HTTP;
+- the generated WAN `snort.conf` contained `7000` in `http_inspect_server`, while the SSL preprocessor did not include `7000`;
+- the HTTP Inspect memcap had also drifted back to `150994944` bytes (~144 MiB);
+- persistent pfSense/Snort settings were corrected through the UI rather than by editing generated files:
+  - HTTP Inspect memcap restored to `33554432` bytes (32 MiB);
+  - a port alias `NABLA_HTTP_PORTS` containing only TCP/80 was created;
+  - the default WAN HTTP Inspect engine was changed from `Ports: default` to `Ports: NABLA_HTTP_PORTS`;
+  - Stream5 was left on its normal/default target-port coverage so TCP/7000 remains reconstructed, but is no longer interpreted as clear-text HTTP;
+- the generated configuration then converged to:
+
+  ```text
+  preprocessor http_inspect_server: \\
+      server default \\
+      profile all \\
+      ports { 80 } \\
+      ...
+  ```
+
+- after convergence, `pfctl -t snort2c -T test 34.200.20.162` returned `0/1 addresses match.`;
+- the public TrueNAS path again completed TCP, TLS 1.3 and HTTP/2 successfully and returned `302` to `/ui/` from `https://truenas.albandrieu.com:7000/`;
+- the currently observed FastAPI Sample egress remained `34.200.20.162` during validation, so the recovery was not explained by egress rotation.
+
+Operational rule: do not put `NABLA_HTTP_PORTS` into Stream5 `TCP Target Ports (Both)`. Stream5 and HTTP Inspect serve different purposes: Stream5 may track/reassemble TCP/7000, while HTTP Inspect must not parse that TLS listener as clear-text HTTP.
+
 - keep Snort enabled, but remove `7000` from the WAN **HTTP Inspect** server-port list;
 - optionally add `7000` to the Snort SSL/TLS preprocessor port list if that preprocessor is enabled and supported by the deployed Snort package;
 - do not suppress all `120:*` alerts globally merely to hide the symptom;

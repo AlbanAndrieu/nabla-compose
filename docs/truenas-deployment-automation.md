@@ -18,6 +18,30 @@ command: bash /mnt/cpool/compose/nabla-compose/scripts/cron.sh /mnt/cpool/compos
 The cron helper owns **Git synchronization only**. It does not deploy
 applications and does not start/replace Doco-CD.
 
+Docker storage maintenance is intentionally **not** added to this hourly Git
+cron. Runtime cleanup has a different ownership, privilege and cadence boundary.
+Use the separate root-only helper:
+
+```bash
+sudo bash scripts/truenas/prune-docker-images.sh --check
+sudo bash scripts/truenas/prune-docker-images.sh --apply
+```
+
+The apply mode removes only dangling images older than seven days by default
+(`docker image prune --filter until=168h`). It never uses `-a`, never prunes
+networks/volumes/containers, refuses cleanup while a reboot transaction is in
+`PREPARING` or `PREPARED`, and audits storage before/after.
+
+Recommended TrueNAS cron is a **separate root job**, weekly rather than hourly:
+
+```text
+minute=37 hour=4 dom=* month=* dow=0
+command=env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168 bash /mnt/cpool/compose/nabla-compose/scripts/truenas/prune-docker-images.sh --apply
+```
+
+This keeps the existing `scripts/cron.sh` single-purpose and prevents routine
+Git synchronization from mutating the Docker store.
+
 Contract:
 
 1. acquire a host-local `flock` so two Git reconciliations cannot overlap;

@@ -13,6 +13,7 @@ BOOTSTRAP = ROOT / "bootstrap" / "compose.yaml"
 TRUENAS_DOCO = ROOT / "docker-compose-truenas.yml"
 WORKSTATION_COMPOSE = ROOT / "docker-compose.yml"
 DEV_TOOLS = ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
+DOCKER_PRUNE = ROOT / "scripts" / "truenas" / "prune-docker-images.sh"
 DOC = ROOT / "docs" / "truenas-deployment-automation.md"
 ROOT_CATALOG = ROOT / "catalog" / "catalog-info.yaml"
 GENERATED_SERVICES = ROOT / "catalog" / "services.json"
@@ -32,6 +33,7 @@ def test_cron_is_branch_bounded_and_non_destructive() -> None:
     assert "--ignore-submodules=all" in script
     assert "Runtime deployment remains owned by the already-running Doco-CD instance" in script
     assert "docker compose" not in script
+    assert "docker image prune" not in script
 
     syntax = subprocess.run(
         ["bash", "-n", str(CRON)],
@@ -188,3 +190,31 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     assert "Doco-CD must not gain an implicit Sample deployment target" in doc
     assert "update-fastapi-sample.sh" in doc
     assert "bootstrap-dev-tools.sh" in doc
+
+
+def test_docker_image_cleanup_is_separate_bounded_maintenance() -> None:
+    script = DOCKER_PRUNE.read_text(encoding="utf-8")
+    doc = DOC.read_text(encoding="utf-8")
+
+    assert "NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS" in script
+    assert "168" in script
+    assert 'docker image prune -f --filter "until=' in script
+    assert "PREPARING | PREPARED" in script
+    assert "audit-docker-storage-debt.sh" in script
+    assert "docker system prune" not in script
+    assert "docker network prune" not in script
+    assert "docker volume prune" not in script
+    assert "docker container prune" not in script
+    assert "docker image prune -a" not in script
+
+    assert "separate root job" in doc
+    assert "minute=37 hour=4" in doc
+    assert "NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168" in doc
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(DOCKER_PRUNE)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr

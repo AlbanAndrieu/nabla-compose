@@ -6,6 +6,7 @@ TARGET_IPV4_BASE="${TRUENAS_DOCKER_IPV4_BASE:-10.200.0.0/16}"
 TARGET_IPV4_SIZE="${TRUENAS_DOCKER_IPV4_SIZE:-24}"
 WAIT_SECONDS="${TRUENAS_DOCKER_IPAM_WAIT_SECONDS:-300}"
 POST_BOOT_WAIT_SECONDS="${TRUENAS_DOCKER_POST_BOOT_WAIT_SECONDS:-900}"
+POST_BOOT_HEARTBEAT_SECONDS="${TRUENAS_DOCKER_POST_BOOT_HEARTBEAT_SECONDS:-60}"
 DOCKER_CLI_TIMEOUT="${TRUENAS_DOCKER_CLI_TIMEOUT_SECONDS:-30}"
 EXPECTED_BR0_CIDR="${TRUENAS_EXPECTED_BR0_CIDR:-172.17.0.24/24}"
 OBSERVER_NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
@@ -47,19 +48,28 @@ runtime_snapshot() {
 }
 
 wait_runtime_ready() {
-  local wait_seconds="$1" deadline service_state status current last=""
+  local wait_seconds="$1" deadline started service_state status current last="" next_heartbeat
+  [[ "${POST_BOOT_HEARTBEAT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "TRUENAS_DOCKER_POST_BOOT_HEARTBEAT_SECONDS must be a positive integer"
+  started="${SECONDS}"
   deadline=$((SECONDS + wait_seconds))
+  next_heartbeat="${SECONDS}"
   while ((SECONDS < deadline)); do
     read -r service_state status < <(runtime_snapshot)
     current="${service_state}/${status}"
-    if [[ "${current}" != "${last}" ]]; then
-      printf '  Docker boot convergence: service=%s middleware=%s\n'         "${service_state}" "${status}"
+    if [[ "${current}" != "${last}" ]] || ((SECONDS >= next_heartbeat)); then
+      printf '  Docker boot convergence: elapsed=%ss service=%s middleware=%s\n' \
+        "$((SECONDS - started))" "${service_state}" "${status}"
       last="${current}"
+      next_heartbeat=$((SECONDS + POST_BOOT_HEARTBEAT_SECONDS))
     fi
 
     if [[ "${service_state}" == "active" && "${status}" == "RUNNING" ]]; then
-      timeout "${DOCKER_CLI_TIMEOUT}" docker info         --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}}'         >/dev/null ||
+      timeout "${DOCKER_CLI_TIMEOUT}" docker info \
+        --format 'Server={{.ServerVersion}} Containers={{.Containers}} Running={{.ContainersRunning}}' \
+        >/dev/null ||
         fail "Docker reports active/RUNNING but docker info did not respond within ${DOCKER_CLI_TIMEOUT}s"
+      printf '  Docker boot convergence completed after %ss.\n' "$((SECONDS - started))"
       return 0
     fi
 
@@ -94,7 +104,13 @@ current_target="$(
 )"
 
 if [[ "${MODE}" == "--post-reboot-check" ]]; then
-  printf 'Waiting for post-reboot Docker initialization (timeout=%ss)...\n'     "${POST_BOOT_WAIT_SECONDS}"
+  printf 'Waiting for post-reboot Docker initialization (timeout=%ss)...\n' \
+    "${POST_BOOT_WAIT_SECONDS}"
+  printf '%s\n' \
+    'NOTE: this cold-start convergence can legitimately take several minutes even when every TrueNAS App is STOPPED.' \
+    '      Docker still has to reopen overlay2 and reload image/layer, stopped-container, network and IPAM metadata before its API and middleware status become ready.' \
+    '      2026-10-03 observed baseline on this host: 764 images, 7408 overlay2 directories and about 525 GiB under /mnt/.ix-apps/docker; >10 min convergence was observed.' \
+    '      No App is started by this wait. Do not restart Docker/containerd or prune storage while the reboot transaction is active.'
   wait_runtime_ready "${POST_BOOT_WAIT_SECONDS}"
 fi
 

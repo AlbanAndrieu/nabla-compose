@@ -2,6 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/restore-app-set.sh"
+POST_PRA_CORE = ROOT / "config/truenas/restore-post-pra-core-apps.txt"
 
 
 def test_restore_app_set_contract() -> None:
@@ -27,3 +28,17 @@ def test_restore_app_set_contract() -> None:
     assert "systemctl restart containerd" not in text
     assert "docker kill" not in text
     assert "pkill" not in text
+
+
+def test_post_pra_core_restore_set_is_catalog_driven_and_excludes_runtime_drift() -> None:
+    active = [
+        line.strip()
+        for line in POST_PRA_CORE.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+    assert set(active) == {"vaultwarden"}
+    for native_or_pending in (
+        "adguard-home", "grafana", "prometheus", "uptime-kuma", "autokuma"
+    ):
+        assert native_or_pending not in active

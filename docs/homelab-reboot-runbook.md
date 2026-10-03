@@ -191,6 +191,36 @@ so initialization cannot make the operator workflow appear frozen. Terminal
 middleware states `FAILED`, `MIGRATION_FAILED` and `UNCONFIGURED` still
 fail immediately.
 
+A STOPPED App set does **not** make Docker startup cheap. Before the TrueNAS
+middleware can expose the App inventory, `dockerd` still has to reopen
+`overlay2`, reload image/layer metadata, reconcile stopped-container metadata,
+restore network/IPAM state and make its API ready. The 2026-10-03 controlled
+reboot measured a notably large local state: 764 images, 7,408 top-level
+`overlay2` directories and about 525 GiB in `cpool/ix-apps/docker`, while all
+97 Apps remained STOPPED. Cold-start convergence took more than ten minutes.
+The gate now reports an elapsed-time heartbeat so this long metadata phase is
+visible rather than looking hung.
+
+The reboot preflight runs this lightweight storage-debt audit while Docker and
+Apps are still operational. `--prepare` repeats it immediately before the first
+App shutdown and stores the output as
+`docker-storage-debt-before.txt` in the immutable reboot transaction manifest.
+Advisory debt thresholds warn but do not block the reboot.
+
+Do not clean Docker storage during an active reboot transaction. After final
+acceptance, assess the debt read-only:
+
+```bash
+sudo bash scripts/truenas/audit-docker-storage-debt.sh --check
+# Optional, deliberately bounded because Docker's detailed accounting can be slow:
+sudo bash scripts/truenas/audit-docker-storage-debt.sh --deep
+```
+
+Cleanup must be owner-reviewed. Do not use `docker system prune` or
+`docker network prune`; prefer targeted removal of proven dangling images,
+obsolete unmanaged/exited containers or build cache, understanding that image
+removal can trade local metadata for later pull time.
+
 Talos VM autostart is also treated as a convergence phase. Recovery waits
 separately for all three VMs to reach `RUNNING` with `autostart=true`, then
 for each Talos API endpoint, and finally for all Kubernetes Nodes to become
@@ -852,6 +882,57 @@ Only after final acceptance:
 - protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and
   `secrets-backend`;
 - keep pre-existing failed Apps as separately tracked debt.
+
+## Post-PRA staged restoration
+
+After the immutable reboot transaction has reached a green `--verify`, restore
+additional services with `config/truenas/restore-post-pra-core-apps.txt`.
+The file is membership-only; ordering stays catalog-driven.
+
+The lifecycle planner orders ready Apps by declared/fallback lifecycle priority,
+while required topology relations override simple priority when they introduce a
+dependency edge. For the current set, the expected waves are:
+
+```text
+wave 1  foundation / priority 10
+        vaultwarden
+```
+
+Importance is not guessed as a synthetic score. Use the catalog fields directly:
+`criticality` when declared, lifecycle `phase`/`priority`, required topology
+relations, and `blocksLaterWaves`. Runtime ownership is an additional admission
+gate: post-PRA staged restore sets prefer repository-owned Compose/TrueNAS Custom
+Apps and deliberately exclude native Apps that are migration targets.
+
+Vaultwarden is catalogued as `criticality=high`, `foundation/10`, with
+`blocksLaterWaves=false`.
+
+Prometheus is repository-owned Compose but is deliberately deferred: the
+catalog declares the required relation `prometheus storesIn mimir`. Mimir is
+part of the pending Grafana Compose stack, so staged recovery must not bypass
+that required dependency merely because Prometheus can technically start and
+buffer/retry remote-write failures.
+
+AdGuard Home is excluded because it remains a native TrueNAS App pending a
+reviewed Compose migration. Grafana is also excluded until its documented
+native-to-Compose migration preserves/snapshots `/mnt/cpool/grafana/data` and
+passes functional acceptance.
+
+The former native Uptime Kuma App is gone. The target is **not** AutoKuma alone:
+Uptime Kuma must first become a repository-owned Compose workload on `:31050`;
+AutoKuma remains the repository-owned declarative reconciler that consumes the
+Uptime Kuma API. Keep AutoKuma stopped until that Compose endpoint is healthy.
+
+Validate before applying:
+
+```bash
+sudo bash scripts/truenas/restore-app-set.sh \
+  --check \
+  --apps-file config/truenas/restore-post-pra-core-apps.txt \
+  --name post-pra-core
+```
+
+Only if that plan matches the live runtime, apply the same set with `--apply`.
 
 ## Emergency fallback
 

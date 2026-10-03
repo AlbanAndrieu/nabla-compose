@@ -32,9 +32,8 @@ Options:
   --api-url URL             Hostname/public HTTPS URL.
   --lan-api-url URL         Direct LAN HTTPS URL used as a second vantage point.
   --probe-sources "IP ..."  Exact source IPs to attribute/unblock.
-  --fastapi-url URL          FastAPI Sample base URL used to discover current
-                            runtime active_egress_ips.
-  --no-auto-egress           Do not discover FastAPI Cloud egress automatically.
+  --fastapi-url URL         FastAPI Sample URL used to discover active egress.
+  --no-auto-egress          Do not add FastAPI Sample active egress addresses.
   --report PATH             Local report path.
   -h, --help                Show this help.
 
@@ -43,7 +42,7 @@ Environment:
                             it is never sent through SSH or printed.
   PFSENSE_SSH_TARGET        Default SSH target override.
   PFSENSE_SSH_PORT          Optional SSH port override.
-  FASTAPI_SAMPLE_URL         FastAPI Sample URL for runtime egress discovery.
+  FASTAPI_SAMPLE_URL        FastAPI Sample base URL for egress discovery.
 
 Recommended sequence:
   1. --check
@@ -127,6 +126,7 @@ done
 
 [[ "${API_URL}" == https://* ]] || fail "--api-url must use https://"
 [[ "${LAN_API_URL}" == https://* ]] || fail "--lan-api-url must use https://"
+[[ "${FASTAPI_URL}" == https://* ]] || fail "--fastapi-url must use https://"
 if [[ "${UNBLOCK_SOURCES}" == true && "${MODE}" != "apply" ]]; then
   fail "--unblock-sources requires --apply"
 fi
@@ -141,7 +141,8 @@ for command in curl jq tee grep awk date mktemp paste; do
 done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
-  if curl --fail --silent --show-error --connect-timeout 5 --max-time 10     "${FASTAPI_URL%/}/api/runtime/topology" -o "${runtime_json}"; then
+  if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
+    "${FASTAPI_URL%/}/api/runtime/topology" -o "${runtime_json}"; then
     discovered_egress="$(jq -r '.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
     if [[ -n "${discovered_egress}" ]]; then
       printf 'FASTAPI_EGRESS=%s\n' "${discovered_egress}"
@@ -150,15 +151,15 @@ if [[ "${AUTO_EGRESS}" == true ]]; then
       warn "FastAPI runtime topology returned no active_egress_ips"
     fi
   else
-    warn "unable to discover FastAPI runtime egress from ${FASTAPI_URL}"
+    warn "unable to discover FastAPI Sample active egress from ${FASTAPI_URL}"
   fi
   rm -f "${runtime_json}"
 fi
-
-PROBE_SOURCES="$(printf '%s\n' ${PROBE_SOURCES:-} | awk 'NF && !seen[$0]++' | paste -sd' ' -)"
-[[ -n "${PROBE_SOURCES}" ]] || fail "no probe sources available; use --probe-sources or ensure /api/runtime/topology exposes active_egress_ips"
-
-for source in ${PROBE_SOURCES}; do
+read -r -a probe_source_array <<<"${PROBE_SOURCES}"
+PROBE_SOURCES="$(printf '%s\n' "${probe_source_array[@]}" | awk 'NF && !seen[$0]++' | paste -sd' ' -)"
+[[ -n "${PROBE_SOURCES}" ]] || fail "no probe sources available; use --probe-sources or enable FastAPI egress discovery"
+read -r -a probe_source_array <<<"${PROBE_SOURCES}"
+for source in "${probe_source_array[@]}"; do
   [[ "${source}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "invalid IPv4 probe source: ${source}"
 done
 if [[ "${API_ONLY}" != true || "${MODE}" == "apply" ]]; then
@@ -246,8 +247,16 @@ log ""
 log "==> HTTPS/API vantage points"
 
 api_failures=0
-probe_url "ui_hostname" "${API_URL}" false || api_failures=$((api_failures + 1))
-probe_url "ui_lan" "${LAN_API_URL}" true || api_failures=$((api_failures + 1))
+ui_hostname_ok=true
+ui_lan_ok=true
+probe_url "ui_hostname" "${API_URL}" false || {
+  ui_hostname_ok=false
+  api_failures=$((api_failures + 1))
+}
+probe_url "ui_lan" "${LAN_API_URL}" true || {
+  ui_lan_ok=false
+  api_failures=$((api_failures + 1))
+}
 
 if prepare_api_header; then
   endpoints=(
@@ -262,6 +271,11 @@ if prepare_api_header; then
   probe_api "api_lan" "${LAN_API_URL}" true /api/v2/system/version || api_failures=$((api_failures + 1))
 else
   log "WARN: PFSENSE_POSTURE_API_KEY unset: authenticated API evidence not evaluated"
+fi
+
+if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
+  warn "both pfSense HTTPS vantage points are unreachable; skipping SSH deep diagnostics to avoid adding load during a possible appliance/network incident"
+  fail "pfSense HTTPS is unreachable from both hostname and LAN vantage points; recover basic management reachability before deep diagnostics"
 fi
 
 if [[ "${API_ONLY}" == true ]]; then
@@ -355,6 +369,33 @@ for source in ${PROBE_SOURCES}; do
   done
 done
 printf 'block_match_count=%s\n' "${BLOCK_MATCH_COUNT}"
+
+SNORT_CONF="$(find /usr/local/etc/snort -type f -path '*mvneta0.4090/snort.conf' 2>/dev/null | head -n 1)"
+if [ -n "${SNORT_CONF}" ]; then
+  HTTP_BLOCK="$(awk '
+    /^preprocessor http_inspect_server/ {capture=1}
+    capture {print}
+    capture && $0 !~ /\\[[:space:]]*$/ {exit}
+  ' "${SNORT_CONF}" 2>/dev/null)"
+  HTTP_MEMCAP="$(grep -A12 'preprocessor http_inspect: global' "${SNORT_CONF}" 2>/dev/null | sed -n 's/.*memcap[[:space:]]\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+  if printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+    echo 'SNORT_HTTP_7000=present'
+  else
+    echo 'SNORT_HTTP_7000=absent'
+  fi
+  printf 'SNORT_HTTP_MEMCAP=%s\n' "${HTTP_MEMCAP:-unknown}"
+else
+  echo 'SNORT_HTTP_7000=unknown'
+  echo 'SNORT_HTTP_MEMCAP=unknown'
+fi
+
+if [ "${BLOCK_MATCH_COUNT}" -gt 0 ]; then
+  echo 'INGRESS_ATTRIBUTION=blocked_source_present'
+elif [ -n "${SNORT_CONF}" ] && ! printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+  echo 'INGRESS_ATTRIBUTION=snort2c_clear_http7000_absent'
+else
+  echo 'INGRESS_ATTRIBUTION=no_exact_block_match'
+fi
 
 if [ "${MODE}" = apply ]; then
   section "Targeted recovery actions"

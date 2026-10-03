@@ -68,6 +68,7 @@ FILES=(
   scripts/truenas/reconcile-talos-vm-policy.sh
   scripts/truenas/migrate-docker-address-pool.sh
   scripts/truenas/audit-docker-network-migration.sh
+  scripts/truenas/audit-docker-storage-debt.sh
   scripts/truenas/diagnose-docker-orphan-shims.sh
   scripts/truenas/recover-app-after-docker-ghost.sh
   scripts/truenas/recovery-reboot-homelab.sh
@@ -106,6 +107,8 @@ validate_stage() {
     fail "materialized reboot script lacks --continue-prepare"
   grep -q -- 'recover-app-after-docker-ghost.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
     fail "materialized reboot script lacks bounded Docker ghost recovery"
+  grep -q -- 'audit-docker-storage-debt.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
+    fail "materialized reboot script lacks pre-shutdown Docker storage-debt audit"
   grep -q -- 'READY_TO_REBOOT' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||
     fail "materialized recovery reboot helper lacks READY_TO_REBOOT gate"
   grep -q -- 'resume-approved.txt' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||
