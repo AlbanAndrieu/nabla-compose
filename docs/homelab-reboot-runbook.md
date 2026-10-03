@@ -846,16 +846,26 @@ These helpers are part of the immutable reboot bundle. Consequently
 `reboot-homelab.sh --verify` fails closed when the frozen resume membership is
 middleware-`RUNNING` but one of these foundation contracts is not satisfied.
 
-For the controlled acceptance reboot, use the standard sequence:
+For the controlled acceptance reboot, materialize from the reviewed checkout
+and execute lifecycle operations from the activated immutable bundle:
 
 ```bash
 sudo bash scripts/truenas/materialize-reboot-bundle.sh --ref HEAD --activate
-sudo bash scripts/truenas/reboot-homelab.sh --check
-sudo bash scripts/truenas/reboot-homelab.sh --prepare
+BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --check
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --prepare
 # perform the supported TrueNAS reboot
-sudo bash scripts/truenas/reboot-homelab.sh --post-reboot-check
-sudo bash scripts/truenas/reboot-homelab.sh --resume
-sudo bash scripts/truenas/reboot-homelab.sh --verify
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --post-reboot-check
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --resume
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --verify
 ```
 
 Do not mark the PRA acceptance complete from `app.query state=RUNNING` alone.
