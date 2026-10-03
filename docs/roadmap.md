@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-02.
+Last updated: 2026-10-04.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -293,17 +293,22 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
-- [ ] **OWASP OpenCRE standards correlation:** add a repository-owned
-  `apps/opencre/compose.yml` using the official
-  `ghcr.io/owasp/opencre/opencre` image, pinned to a reviewed version/digest
-  before activation. Bind the upstream port `5000` internally, set
-  `CRE_ENABLE_HEALTH=true` and use `GET /rest/v1/health` as the bounded
-  readiness/uptime probe. Use OpenCRE to correlate Common Requirements across
-  DSOMM, OWASP SAMM, NIST, CIS, ISO and other mapped standards; it is the
-  reference/correlation layer, not the maturity score of record. Keep imports
-  disabled by default and reuse the shared Neo4j service only after compatibility
-  is proven instead of introducing an application-local graph database by
-  default.
+- [ ] **OWASP OpenCRE standards correlation:** repository-owned
+  deployment intent now exists under `apps/opencre/` on
+  `172.17.0.24:31089 -> 5000`, with persistent SQLite state,
+  `CRE_ENABLE_HEALTH=1`, imports/MyOpenCRE/login disabled and `status: planned`.
+  - [x] Declare Compose + Backstage metadata + local contract tests.
+  - [ ] Regenerate/review catalog topology and create/check `cpool/opencre`
+    through the generic repository storage bootstrap.
+  - [ ] Replace upstream `:latest` with a reviewed immutable tag/digest before
+    activation; upstream currently documents `:latest` and publishes no GitHub
+    release.
+  - [ ] Deploy internally, require `GET /rest/v1/health == 200`, prove one
+    useful DSOMM/SAMM/NIST/CIS/ISO correlation, then reboot/redeploy and verify
+    persistent state before changing intent to `active`.
+  OpenCRE remains the standards-correlation/reference layer, not the maturity
+  score of record; shared Neo4j/gap-analysis stays deferred until compatibility
+  and value are demonstrated.
 - [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
   `172.17.0.24:31088` while it remains `status: planned`.
   - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
@@ -318,12 +323,13 @@ Security-tooling acceptance within this workstream:
     activities remain explicit human-review scope. Promote DSOMM to `active`
     only after runtime acceptance; automated baseline output is supporting
     evidence, not the maturity verdict.
-- [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
-  source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
-  explicitly partial/incomplete and is not a clean-security attestation.
-- [ ] Validate committed audit JSON with the vendored Cloudflare findings and
-  coverage-ledger validators through the local Pre-commit contract; keep this
-  acceptance open until the focused local test is executed on a full checkout.
+- [x] Vendor the Cloudflare `security-audit-skill` at reviewed upstream commit
+  `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` and keep provenance/tests local.
+- [x] Publish source-first one-shot audits under `docs/security-audits/`; the
+  2026-10-04 quick revalidation carries unchanged 2026-10-01 coverage and keeps
+  Scanopy as `needs_validation`, not as a confirmed vulnerability.
+- [ ] Validate every committed audit JSON with the vendored Cloudflare findings
+  and coverage-ledger validators on a full local checkout before merge.
 - [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
   the deployed digest, proving initialization state + TCP/60073 exposure
   passively, then either close the lead or harden bind/firewall/socket access.
