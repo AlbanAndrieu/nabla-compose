@@ -34,7 +34,10 @@
       "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
       "presentationRole": "support",
       "criticality": "high",
-      "securityFunctions": ["protect", "detect"]
+      "securityFunctions": [
+        "protect",
+        "detect"
+      ]
     },
     {
       "id": "adguard-home",
@@ -104,7 +107,15 @@
       "sourcePath": "docs/dns-ingress-ownership.md",
       "description": "TrueNAS-hosted cloudflared connector for outbound-established Cloudflare Tunnel ingress that bypasses Traefik.",
       "presentationRole": "support",
-      "criticality": "high"
+      "criticality": "high",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "cloudflared"
+      },
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 50
+      }
     },
     {
       "id": "heimdall",

@@ -60,9 +60,16 @@ class DiagnosticOutputContractTest(unittest.TestCase):
                 script = (ROOT / relative).read_text(encoding="utf-8")
                 self.assertIn("lib/diagnostic.sh", script)
                 self.assertIn("nabla_diagnostic_maybe_wrap", script)
-                self.assertNotIn("NABLA_DIAGNOSTIC_WRAPPED", script)
-                self.assertNotIn("DIAGNOSTIC_FULL_OUTPUT", script)
-                self.assertNotIn("DIAGNOSTIC_COMPACT_OUTPUT", script)
+
+                # Only the bootstrap must delegate compact/full selection to the
+                # shared library. The diagnostic body may intentionally set
+                # DIAGNOSTIC_* when invoking a child diagnostic with an explicit
+                # output policy.
+                bootstrap_end = script.index("nabla_diagnostic_maybe_wrap")
+                bootstrap = script[:bootstrap_end]
+                self.assertNotIn("NABLA_DIAGNOSTIC_WRAPPED", bootstrap)
+                self.assertNotIn("DIAGNOSTIC_FULL_OUTPUT", bootstrap)
+                self.assertNotIn("DIAGNOSTIC_COMPACT_OUTPUT", bootstrap)
 
     def test_shared_bootstrap_delegates_when_compact_output_is_requested(self) -> None:
         library = ROOT / "scripts/lib/diagnostic.sh"

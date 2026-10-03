@@ -6,11 +6,15 @@ import subprocess
 import tempfile
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PLANNER = ROOT / "scripts/truenas/plan-app-lifecycle-order.py"
 REBOOT = ROOT / "scripts/truenas/reboot-homelab.sh"
 RUNBOOK = ROOT / "docs/homelab-reboot-runbook.md"
+CATALOG = ROOT / "catalog/catalog-info.yaml"
+STATIC_TOPOLOGY = ROOT / "catalog/service-topology.static.json"
 VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
@@ -21,6 +25,78 @@ DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
+    def test_truenas_pra_catalog_matches_reviewed_targets_and_evidence(self) -> None:
+        with CATALOG.open(encoding="utf-8") as stream:
+            entities = [
+                document
+                for document in yaml.safe_load_all(stream)
+                if isinstance(document, dict)
+            ]
+        truenas = next(
+            entity
+            for entity in entities
+            if entity.get("kind") == "Resource"
+            and entity.get("metadata", {}).get("name") == "truenas"
+        )
+        annotations = truenas["metadata"]["annotations"]
+
+        self.assertEqual(annotations["albandrieu.com/bia-mtpd"], "PT4H")
+        self.assertEqual(annotations["albandrieu.com/bia-rto"], "PT1H")
+        self.assertEqual(annotations["albandrieu.com/bia-rpo"], "PT1H")
+        self.assertEqual(
+            annotations["albandrieu.com/pra-status"],
+            "tested-with-deviation",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-recovery-result"],
+            "passed-after-manual-power-cycle",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-rto-result"],
+            "target-breached",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-rpo-result"],
+            "not-exercised",
+        )
+        self.assertEqual(
+            annotations["albandrieu.com/pra-runbook"],
+            "docs/homelab-reboot-runbook.md",
+        )
+
+    def test_runbook_documents_truenas_pra_targets_and_deviations(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+
+        for expected in (
+            "RTO | 1 hour",
+            "RPO | 1 hour",
+            "target breached",
+            "not exercised",
+            "passed-after-manual-power-cycle",
+            "software reboot mechanism itself is accepted",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, text)
+        self.assertRegex(
+            text,
+            r"selected recovery point no\s+older than one hour",
+        )
+
+    def test_cloudflared_has_explicit_truenas_runtime_mapping(self) -> None:
+        topology = json.loads(STATIC_TOPOLOGY.read_text(encoding="utf-8"))
+        cloudflared = next(
+            node for node in topology["nodes"] if node.get("id") == "cloudflared"
+        )
+
+        self.assertEqual(
+            cloudflared["runtime"],
+            {"provider": "truenas-app", "appId": "cloudflared"},
+        )
+        self.assertEqual(
+            cloudflared["lifecycle"],
+            {"phase": "applications", "priority": 50},
+        )
+
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
             REBOOT,
@@ -223,6 +299,46 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertNotIn("midclt_bounded app.query >", continuation)
         self.assertNotIn("make_plans ", continuation)
 
+    def test_resume_temp_state_preserves_frozen_apps_snapshot(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+        start = text.index("run_resume_reconciler()")
+        end = text.index("\n}\n", start)
+        block = text[start:end]
+
+        self.assertIn(
+            'cp "${dir}/apps-before.json" "${tmp_state}/apps-before.json"',
+            block,
+        )
+        self.assertIn(
+            'cp "${dir}/boot-id-before" "${tmp_state}/boot-id-before"',
+            block,
+        )
+        self.assertIn(
+            'cp "${effective}" "${tmp_state}/resume-plan.json"',
+            block,
+        )
+        self.assertIn(
+            'NABLA_REBOOT_STATE_ROOT="${tmp_root}"',
+            block,
+        )
+
+    def test_resume_bundle_hotfix_is_explicit_and_auditable(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+
+        self.assertIn("NABLA_REBOOT_ALLOW_BUNDLE_HOTFIX", text)
+        self.assertIn("NABLA_REBOOT_HOTFIX_NOTE", text)
+        self.assertIn("resume-bundle-hotfix.json", text)
+        self.assertIn("preparedIdentity", text)
+        self.assertIn("resumeIdentity", text)
+        self.assertIn(
+            'validate_or_record_resume_bundle_identity "${state_dir}"',
+            text,
+        )
+        self.assertIn(
+            "bundle identity changed since --prepare",
+            text,
+        )
+
     def test_failed_app_stop_reports_probable_orphan_shim(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("diagnose_app_runtime", text)
@@ -318,7 +434,8 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("refuse active App recovery", text)
         self.assertIn("app.stop", text)
         self.assertIn("diagnose-docker-orphan-shims.sh", text)
-        self.assertIn("zero/multiple shims", text)
+        self.assertIn("ambiguous zero/multiple-shim ghosts", text)
+        self.assertIn("no exact one-shim ghost is safely recoverable", text)
         self.assertIn("label=com.docker.compose.project=ix-", text)
         self.assertNotIn("systemctl restart docker", text)
         self.assertNotIn("systemctl restart containerd", text)

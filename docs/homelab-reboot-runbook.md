@@ -1,6 +1,6 @@
 # Homelab ordered reboot runbook
 
-Last updated: 2026-09-19.
+Last updated: 2026-10-03.
 
 This runbook defines the controlled TrueNAS reboot lifecycle for the homelab.
 The transaction is deliberately fail-closed and preserves one immutable
@@ -34,6 +34,49 @@ Related evidence and design documents:
 - `truenas-csi-orphan-datasets.md`;
 - `truenas-docker-ipam-roadmap.md`;
 - `homelab-network-topology.md`.
+
+## TrueNAS BIA / PRA objectives
+
+The canonical continuity targets for `resource:default/truenas` are declared in
+`catalog/catalog-info.yaml`:
+
+| Objective | Target | 2026-10-03 evidence |
+| --- | --- | --- |
+| Business criticality | critical | TrueNAS hosts persistent storage, Docker Apps and Talos VMs |
+| MTPD / DMTP | 4 hours | unchanged; business-impact ceiling, not a measured restore duration |
+| RTO | 1 hour | **target breached** during this exercise because the software reboot hung and recovery required a manual power-cycle plus an orchestrator hotfix |
+| RPO | 1 hour | **not exercised** by this reboot test; no backup/restore recovery point was selected |
+| MBCO | storage and priority always-on services | recovered: FOUNDATION Apps, Talos/Kubernetes and CSI NFS |
+
+The requested DTO is represented as the existing Nabla **RTO** field; no separate
+DTO annotation is introduced because the catalog already uses RTO/RPO as the
+canonical BIA recovery objectives.
+
+The 2026-10-03 exercise proves the recovery path after a manual power-cycle:
+
+```text
+PREPARED
+  -> software reboot reaches reboot.target/systemd-shutdown
+  -> host fails to restart automatically
+  -> manual power-cycle
+  -> Docker/IPAM persistence PASS
+  -> Talos/Kubernetes 3/3 Ready
+  -> CSI cross-node RWX + reclaim PASS
+  -> explicit audited prepare->resume bundle hotfix
+  -> 5/5 App resume waves PASS
+  -> final --verify PASS
+```
+
+This is therefore recorded as `pra-status=tested-with-deviation` and
+`pra-recovery-result=passed-after-manual-power-cycle`. It is **not** evidence
+that the software reboot mechanism itself is accepted. A subsequent controlled
+software reboot must complete without physical intervention before that
+deviation can be closed.
+
+RPO acceptance is also separate from reboot acceptance. A healthy ZFS pool and
+zero observed data loss after reboot do not prove a one-hour RPO. That objective
+requires backup/snapshot recovery evidence with a selected recovery point no
+older than one hour.
 
 ## Safety rules
 
@@ -827,3 +870,45 @@ global Docker/containerd restart for a single ghost container
 
 Prefer bounded diagnosis, exact-owner recovery, the immutable transaction
 manifest and `--continue-prepare`.
+
+## Foundation-specific reboot acceptance
+
+The generic App state/health gate is necessary but not sufficient for the
+foundation wave. The reboot resume reconciler also enforces the runtime
+contracts that were proven during the 2026-10-03 recovery:
+
+- `opensearch`: repair/check the `opensearch-security` datastore ownership
+  before a stopped App is started;
+- `docker-socket-proxy`: attach the active TrueNAS workload to the shared
+  `intranet` network with the `docker-socket-proxy` alias after it reaches
+  `RUNNING`;
+- `pihole`: require the DNS synchronizer to resolve the proxy, avoid a restart
+  loop/API-seat failure, and complete its initial sync.
+
+These helpers are part of the immutable reboot bundle. Consequently
+`reboot-homelab.sh --verify` fails closed when the frozen resume membership is
+middleware-`RUNNING` but one of these foundation contracts is not satisfied.
+
+For the controlled acceptance reboot, materialize from the reviewed checkout
+and execute lifecycle operations from the activated immutable bundle:
+
+```bash
+sudo bash scripts/truenas/materialize-reboot-bundle.sh --ref HEAD --activate
+BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --check
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --prepare
+# perform the supported TrueNAS reboot
+
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --post-reboot-check
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --resume
+sudo env NABLA_REPO_ROOT="${BUNDLE}" \
+  bash "${BUNDLE}/scripts/truenas/reboot-homelab.sh" --verify
+```
+
+Do not mark the PRA acceptance complete from `app.query state=RUNNING` alone.

@@ -21,6 +21,15 @@ def test_materializer_stages_before_atomic_activation() -> None:
     assert "cmp -s" in text
 
 
+def test_materializer_uses_invoked_checkout_as_default_repo_root() -> None:
+    text = MATERIALIZER.read_text()
+    assert 'DEFAULT_REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"' in text
+    assert 'REPO_ROOT="${NABLA_REPO_ROOT:-${DEFAULT_REPO_ROOT}}"' in text
+    assert 'git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree' in text
+    assert '[[ -d "${REPO_ROOT}/.git" ]]' not in text
+    assert '/mnt/cpool/compose/nabla-compose' not in text
+
+
 def test_materializer_requires_resumable_reboot_script() -> None:
     text = MATERIALIZER.read_text()
     assert "--continue-prepare" in text
@@ -31,7 +40,9 @@ def test_materializer_requires_resumable_reboot_script() -> None:
 def test_reboot_script_guards_same_boot_transactions_and_records_identity() -> None:
     text = REBOOT.read_text()
     assert 'for dir in "${STATE_ROOT}"/*-"${current}"' in text
-    assert "same-boot reboot transaction already exists" in text
+    assert "same-boot transaction exists" in text
+    assert "use --continue-prepare" in text
+    assert "never rerun --prepare" in text
     assert "orchestrator-identity.txt" in text
     assert "prepare-history.log" in text
     assert "verify_bundle_integrity" in text
