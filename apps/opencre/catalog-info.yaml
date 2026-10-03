@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: opencre
+  title: OWASP OpenCRE
+  description: Planned internal service for correlating common security requirements across standards.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - security
+    - standards
+    - owasp
+    - governance
+spec:
+  type: security-tool
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/dsomm
