@@ -18,5 +18,3 @@ spec:
   lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
-  dependsOn:
-    - component:default/dsomm
