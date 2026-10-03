@@ -1,21 +1,22 @@
-# Post-PRA staged restore set.
+# Post-PRA staged restore set: repository-owned Compose runtimes only.
 # Order in this file is intentionally irrelevant: restore-app-set.sh delegates
 # dependency and lifecycle ordering to plan-app-lifecycle-order.py.
 #
-# Catalog-derived expected waves:
-# - foundation / priority 10: adguard-home, vaultwarden
-# - platform-services / priority 40: grafana, prometheus
+# Current expected waves:
+# - foundation / priority 10: vaultwarden
+# - platform-services / priority 40: prometheus
 #
-# vaultwarden carries criticality=high and blocksLaterWaves=false in the catalog.
-# prometheus/grafana inherit platform-services priority 40 from their
-# observability category when no explicit lifecycle is declared.
+# Deliberately excluded migration targets:
+# - adguard-home: native TrueNAS App; migrate to repository-owned Compose first.
+# - grafana: native -> Compose migration is still pending with dataset/snapshot
+#   preservation and functional acceptance.
+# - uptime-kuma: former native App is gone; target is a repository-owned Uptime
+#   Kuma Compose workload on :31050, then AutoKuma as its declarative reconciler.
+#   AutoKuma is not an Uptime Kuma server replacement and remains stopped until
+#   the Compose Uptime Kuma endpoint is healthy.
 #
-# Deferred on 2026-10-03:
-# uptime-kuma is declared as a TrueNAS App in service-topology.json
-# (platform-services / priority 40), but was absent from live app.query.
-# Reconcile that catalog/runtime drift before adding it to an active restore set.
+# vaultwarden is criticality=high, foundation/10, blocksLaterWaves=false.
+# prometheus inherits platform-services/40 from category=observability.
 
-adguard-home
 vaultwarden
-grafana
 prometheus
