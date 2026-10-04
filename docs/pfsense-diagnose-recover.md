@@ -114,12 +114,26 @@ Neither identity should belong to a named privilege-bearing group such as
 `admins`. The only normal group membership is pfSense's implicit `all`
 group.
 
+The privilege ID observed on the appliance for the DNS Resolver settings GET is
+`api-v2-services-dns-resolver-settings-get` (hyphens), while the REST path
+remains `/api/v2/services/dns_resolver/settings` (underscore). The helper uses
+the appliance privilege ID exactly. Unexpected privileges such as
+`api-v2-system-restapi-version-get` are reported as drift and removed by the
+explicit reconcile/finalize actions.
+
 Audit both accounts, privileges and persisted key metadata without exercising
-KeyAuth:
+KeyAuth. Identity lifecycle commands are intentionally **workstation-only**:
+the helper preflights SSH config and requires the validated management path
+`admin@home.albandrieu.com:9922`. Running them from TrueNAS without that SSH
+credential/config would otherwise fall back to the local username on port 22
+and time out.
 
 ```bash
+cd /path/to/nabla-compose
 bash scripts/pfsense/diagnose-recover.sh --check-identities
 ```
+
+Do not use `git cd`; `cd` is a shell builtin, not a Git command.
 
 If either user is missing, create/reconcile both accounts to the steady-state
 contract with one-line password files. Existing users keep their current
