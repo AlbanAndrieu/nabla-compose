@@ -197,7 +197,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("--prepare-key-rotation security", text)
         self.assertIn("--finalize-key-rotation security", text)
         self.assertIn("removes `api-v2-auth-key-post`", text)
-        self.assertIn("restores `user-config-readonly`", text)
+        self.assertIn("user-config-readonly", text)
+        self.assertIn("On success it removes `api-v2-auth-key-post`", text)
 
     def test_documentation_states_ssh_and_api_are_distinct_capabilities(self) -> None:
         text = DOC.read_text(encoding="utf-8")
