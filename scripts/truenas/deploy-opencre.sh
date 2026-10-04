@@ -43,7 +43,9 @@ else
 fi
 
 printf '\n==> OpenCRE Compose contract\n'
-OPENCRE_IMAGE="${OPENCRE_IMAGE}" docker compose -f "${compose_path}" config   --quiet --no-interpolate --no-env-resolution
+OPENCRE_IMAGE="${OPENCRE_IMAGE}" \
+  docker compose -f "${compose_path}" config \
+  --quiet --no-interpolate --no-env-resolution
 
 printf '\n==> generated service contracts\n'
 python3 scripts/generate-service-topology.py --check
@@ -54,7 +56,8 @@ bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_ID}"
 
 if [[ "${MODE}" == "--apply" ]]; then
   printf '\n==> TrueNAS Custom App reconciliation\n'
-  OPENCRE_IMAGE="${OPENCRE_IMAGE}"     truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+  OPENCRE_IMAGE="${OPENCRE_IMAGE}" \
+    truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
 fi
 
 state="$(truenas_app_state "${APP_ID}")"
