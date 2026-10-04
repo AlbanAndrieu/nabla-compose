@@ -128,6 +128,14 @@ Garage WebUI is the regression example: `external=false`,
 `internalHost=172.17.0.24`, `internalPort=3909`, and
 `internalSecure=false`.
 
+After a revision containing `nabla.api.pfsense_auth_smoke` is deployed,
+`update-fastapi-sample.sh` also validates the posture/security least-privilege
+matrix from inside the TrueNAS container using the LAN-pinned hostname
+`https://home.albandrieu.com:10443`. This check is intentionally non-blocking:
+invalid pfSense observer credentials produce a warning but must not fail the
+FastAPI deployment, TrueNAS health, or homelab probe visualization. The smoke
+stops at the first HTTP 401 to avoid feeding pfSense Login Protection.
+
 After deployment, verify the effective runtime without printing unrelated secrets:
 
 ```bash
