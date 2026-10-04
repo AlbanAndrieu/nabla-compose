@@ -65,19 +65,22 @@ else
   printf 'Generated a new internally-consistent Sentry migrator secret without printing it.\n'
 fi
 
-docker exec   -e NABLA_MIGRATOR_PASSWORD="${password}"   "${CLICKHOUSE_CONTAINER}"   sh -lc '
+{
+  printf "CREATE USER IF NOT EXISTS sentry_migrator IDENTIFIED WITH sha256_password BY '%s';\n" "${password}"
+  printf "ALTER USER sentry_migrator IDENTIFIED WITH sha256_password BY '%s';\n" "${password}"
+  printf '%s\n' \
+    'GRANT ALL ON sentry.* TO sentry_migrator;' \
+    'GRANT SELECT ON system.tables TO sentry_migrator;' \
+    'GRANT SELECT ON system.replicas TO sentry_migrator;' \
+    'GRANT SELECT ON system.columns TO sentry_migrator;' \
+    'GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;'
+} |
+  docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
     set -eu
-    clickhouse-client       --user "$CLICKHOUSE_USER"       --password "$CLICKHOUSE_PASSWORD"       --multiquery       --query "
-        CREATE USER IF NOT EXISTS sentry_migrator
-          IDENTIFIED WITH sha256_password BY '$NABLA_MIGRATOR_PASSWORD';
-        ALTER USER sentry_migrator
-          IDENTIFIED WITH sha256_password BY '$NABLA_MIGRATOR_PASSWORD';
-        GRANT ALL ON sentry.* TO sentry_migrator;
-        GRANT SELECT ON system.tables TO sentry_migrator;
-        GRANT SELECT ON system.replicas TO sentry_migrator;
-        GRANT SELECT ON system.columns TO sentry_migrator;
-        GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator;
-      "
+    clickhouse-client \
+      --user "$CLICKHOUSE_USER" \
+      --password "$CLICKHOUSE_PASSWORD" \
+      --multiquery
   '
 
 unset password readonly_password trace_password
