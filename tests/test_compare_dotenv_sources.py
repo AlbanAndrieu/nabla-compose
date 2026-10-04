@@ -61,3 +61,36 @@ def test_allowed_path_is_bounded_to_app_env_roots() -> None:
         "scrutiny",
         Path("/etc/shadow"),
     )
+
+
+def test_normalize_keys_accepts_manifest_runtime_alias() -> None:
+    normalized = compare.normalize_keys(
+        {"CODE_PASSWORD": "same-secret"},
+        {"CODE_PASSWORD": "PASSWORD"},
+    )
+
+    assert normalized == {"PASSWORD": "same-secret"}
+    assert "same-secret" not in repr(compare.compare_values(normalized, {"PASSWORD": "same-secret"}))
+
+
+def test_normalize_keys_rejects_alias_value_conflict() -> None:
+    try:
+        compare.normalize_keys(
+            {
+                "CODE_PASSWORD": "legacy-secret",
+                "PASSWORD": "different-secret",
+            },
+            {"CODE_PASSWORD": "PASSWORD"},
+        )
+    except compare.SecretsError as exc:
+        assert "normalized key PASSWORD" in str(exc)
+        assert "legacy-secret" not in str(exc)
+        assert "different-secret" not in str(exc)
+    else:
+        raise AssertionError("alias conflict must fail closed")
+
+
+def test_code_manifest_declares_legacy_to_runtime_alias() -> None:
+    aliases = compare.app_key_aliases("code")
+
+    assert aliases["CODE_PASSWORD"] == "PASSWORD"
