@@ -18,6 +18,7 @@ elif type lsb_release >/dev/null 2>&1; then
   OS="$(lsb_release -si)"
   VER="$(lsb_release -sr)"
 elif [ -f /etc/lsb-release ]; then
+  # shellcheck disable=SC1091 # OS-provided runtime metadata.
   . /etc/lsb-release
   OS="${DISTRIB_ID}"
   VER="${DISTRIB_RELEASE}"
