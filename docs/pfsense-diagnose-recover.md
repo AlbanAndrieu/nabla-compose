@@ -56,11 +56,24 @@ Observed incident sequence on 2026-10-04:
 3. subsequent API calls and SSH from that source timed out;
 4. a separate LAN request still returned HTTP/2 200 from nginx.
 
-This pattern is source-specific and is compatible with Login Protection/
-`sshguard`; it is not evidence of a global WebConfigurator outage. Confirm an
-exact source address in the `sshguard` table from an unblocked management path
-before deleting anything. The recovery helper intentionally never removes
-`sshguard` entries automatically.
+The sequence initially made Login Protection/`sshguard` a reasonable
+hypothesis, but appliance evidence subsequently **invalidated it as the cause of
+this incident**: `pfctl -t sshguard -T show` was empty, including for
+`172.17.0.57`. The fail-fast guard remains useful defensive behavior because a
+diagnostic must not emit a burst of rejected credentials, but a timeout after a
+401 must not be attributed to `sshguard` without a matching table entry.
+
+Later evidence also proved that SSH itself was healthy: `sshd` listened on
+`*:9922`, the LAN anti-lockout rule allowed TCP/9922, and a direct
+`admin@172.17.0.1:9922` connection completed key exchange and public-key
+authentication. The workstation resolves `home.albandrieu.com` to the public
+WAN address `82.66.4.247`, so FQDN SSH exercises a different/hairpin path from
+direct LAN administration. Existing OpenSSH ControlMaster sockets can additionally
+produce a misleading `mux ... Broken pipe`; recovery diagnostics deliberately
+disable multiplexing.
+
+The recovery helper intentionally never removes `sshguard` entries
+automatically.
 
 The SSH evidence also reports, without secret material:
 
