@@ -539,6 +539,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (protected DSOMM state, reviewed evidence, immutable OpenCRE image, persistence/reboot proof)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
