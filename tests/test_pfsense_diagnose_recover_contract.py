@@ -70,6 +70,14 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("NO_UNBLOCK_ACTION table=sshguard", text)
         self.assertNotIn('pfctl -t "sshguard" -T delete', text)
 
+    def test_documentation_requires_writable_key_bootstrap_then_readonly_restore(self) -> None:
+        text = DOC.read_text(encoding="utf-8")
+
+        self.assertIn("temporarily remove `User - Config: Deny Config Write`", text)
+        self.assertIn("temporarily grant only `api-v2-auth-key-post`", text)
+        self.assertIn("restore `User - Config: Deny Config Write`", text)
+        self.assertIn("A key returned to the caller is not sufficient persistence evidence", text)
+
     def test_documentation_states_ssh_and_api_are_distinct_capabilities(self) -> None:
         text = DOC.read_text(encoding="utf-8")
 
