@@ -11,7 +11,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / ".agents" / "skills" / "security-audit"
 AUDIT_ROOT = ROOT / "docs" / "security-audits"
-AUDIT = AUDIT_ROOT / "2026-10-01-cloudflare-security-audit"
+AUDIT_DIRS = sorted(
+    path
+    for path in AUDIT_ROOT.iterdir()
+    if path.is_dir()
+    and (path / "findings.json").is_file()
+    and (path / "coverage-ledger.json").is_file()
+)
+LATEST_AUDIT = AUDIT_DIRS[-1]
 
 
 def test_cloudflare_security_audit_skill_is_vendored_with_provenance() -> None:
@@ -45,7 +52,7 @@ def test_agent_policy_routes_explicit_audits_to_vendored_skill() -> None:
     assert "incomplete-run rules" in agents
 
 
-def test_one_shot_audit_artifacts_are_self_describing_and_incomplete() -> None:
+def test_latest_one_shot_audit_artifacts_are_self_describing_and_incomplete() -> None:
     expected = {
         "run-metadata.json",
         "architecture.md",
@@ -55,23 +62,36 @@ def test_one_shot_audit_artifacts_are_self_describing_and_incomplete() -> None:
         "FINDINGS-DETAIL.md",
         "NEEDS-VALIDATION.md",
     }
-    assert expected <= {path.name for path in AUDIT.iterdir()}
+    assert expected <= {path.name for path in LATEST_AUDIT.iterdir()}
 
-    metadata = json.loads((AUDIT / "run-metadata.json").read_text(encoding="utf-8"))
+    metadata = json.loads(
+        (LATEST_AUDIT / "run-metadata.json").read_text(encoding="utf-8")
+    )
     assert metadata["profile"] == "quick"
-    assert metadata["source_ref"] == "4fa9eb8d262bab437c99773475fcf84e489be863"
+    assert metadata["source_ref"] == "e8acbc56121e520359824e6e353e611ee573fea3"
+    assert metadata["prior_run_paths"] == [
+        "docs/security-audits/2026-10-01-cloudflare-security-audit"
+    ]
     assert metadata["run_status"] == "incomplete"
     assert "independent" in metadata["incomplete_reason"]
     assert metadata["execution_policy"] == "sandboxed-source-and-local-only"
 
-    findings = json.loads((AUDIT / "findings.json").read_text(encoding="utf-8"))
+    findings = json.loads(
+        (LATEST_AUDIT / "findings.json").read_text(encoding="utf-8")
+    )
     assert any(
         finding.get("fingerprint") == "scanopy-daemon-public-bootstrap-boundary"
         and finding.get("verdict") == "needs_validation"
         for finding in findings
     )
 
-    report = (AUDIT / "REPORT.md").read_text(encoding="utf-8")
+    ledger = json.loads(
+        (LATEST_AUDIT / "coverage-ledger.json").read_text(encoding="utf-8")
+    )
+    assert any(unit["prior_status"] == "prior_needs_validation" for unit in ledger)
+    assert any(unit["prior_status"] == "prior_covered_same_source" for unit in ledger)
+
+    report = (LATEST_AUDIT / "REPORT.md").read_text(encoding="utf-8")
     assert "partial" in report.lower()
     assert "no confirmed vulnerabilities" in report.lower()
     assert "Scanopy" in report
@@ -86,22 +106,17 @@ def test_precommit_routes_skill_changes_to_contract() -> None:
 
 def test_all_committed_audit_json_passes_vendored_cloudflare_validators() -> None:
     node = shutil.which("node")
-    assert node is not None, "node is required to validate committed security-audit artifacts"
-
-    audit_dirs = sorted(
-        path
-        for path in AUDIT_ROOT.iterdir()
-        if path.is_dir()
-        and (path / "findings.json").is_file()
-        and (path / "coverage-ledger.json").is_file()
+    assert node is not None, (
+        "node is required to validate committed security-audit artifacts"
     )
-    assert audit_dirs, "at least one committed security audit is required"
+
+    assert AUDIT_DIRS, "at least one committed security audit is required"
 
     validators = (
         ("findings.json", SKILL / "validate-findings.cjs"),
         ("coverage-ledger.json", SKILL / "validate-coverage-ledger.cjs"),
     )
-    for audit_dir in audit_dirs:
+    for audit_dir in AUDIT_DIRS:
         for artifact_name, validator in validators:
             result = subprocess.run(
                 [node, str(validator), str(audit_dir / artifact_name)],

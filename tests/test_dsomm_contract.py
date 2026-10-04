@@ -15,6 +15,10 @@ DOCKERFILE = ROOT / "apps" / "dsomm" / "baseline" / "Dockerfile"
 RUNNER = ROOT / "apps" / "dsomm" / "baseline" / "run-baseline.sh"
 README = ROOT / "apps" / "dsomm" / "README.md"
 INITIAL_REVIEW = ROOT / "apps" / "dsomm" / "INITIAL_REVIEW.md"
+SEED_ACTIVITIES = ROOT / "apps" / "dsomm" / "config" / "seed-activities.yaml"
+SEED_PROGRESS = ROOT / "apps" / "dsomm" / "config" / "team-progress.seed.yaml"
+SEED_EVIDENCE = ROOT / "apps" / "dsomm" / "config" / "team-evidence.seed.yaml"
+SEED_VALIDATOR = ROOT / "scripts" / "dsomm" / "validate-seed.py"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-dsomm.sh"
 
 
@@ -123,12 +127,52 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("bootstrap-repository-storage.sh", text)
         self.assertIn("team-progress.yaml", text)
         self.assertIn("team-evidence.yaml", text)
+        self.assertIn("team-progress.seed.yaml", text)
+        self.assertIn("team-evidence.seed.yaml", text)
+        self.assertIn("python3 scripts/dsomm/validate-seed.py", text)
+        self.assertIn('install -m 0600 "${state_seed}" "${state_file}"', text)
+        self.assertNotIn("printf '%s:\\n' \"${state_key}\"", text)
         self.assertIn("chmod 0600", text)
         self.assertIn("truenas_reconcile_custom_app", text)
         self.assertIn("truenas_wait_app_running", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("x-nabla.status remains planned", text)
+
+    def test_assessment_seed_is_offline_validated_and_conservative(self) -> None:
+        activities = yaml.safe_load(SEED_ACTIVITIES.read_text(encoding="utf-8"))
+        progress = yaml.safe_load(SEED_PROGRESS.read_text(encoding="utf-8"))
+        evidence = yaml.safe_load(SEED_EVIDENCE.read_text(encoding="utf-8"))
+
+        self.assertEqual("5.0.2", activities["model"]["version"])
+        self.assertEqual(
+            {"Nabla Platform", "Nabla Applications"},
+            {
+                team
+                for activity in progress["progress"].values()
+                for team in activity
+            },
+        )
+        self.assertEqual(
+            "Fully implemented",
+            list(
+                progress["progress"]["066084c6-1135-4635-9cc5-9e75c7c5459f"][
+                    "Nabla Platform"
+                ]
+            )[-1],
+        )
+        pra = progress["progress"]["c72da779-86cc-45b1-a339-190ce5093171"][
+            "Nabla Platform"
+        ]
+        self.assertIn("Partly implemented", pra)
+        self.assertNotIn("Fully implemented", pra)
+
+        evidence_text = SEED_EVIDENCE.read_text(encoding="utf-8")
+        self.assertIn("target was breached", evidence_text)
+        self.assertIn("RPO was not exercised", evidence_text)
+        self.assertIn("master as unprotected", evidence_text)
+        self.assertTrue(evidence["evidence"])
+        self.assertTrue(SEED_VALIDATOR.is_file())
 
     def test_readme_keeps_baseline_as_supporting_evidence(self) -> None:
         text = README.read_text(encoding="utf-8")

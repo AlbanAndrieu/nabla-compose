@@ -1,0 +1,70 @@
+---
+name: opencre
+
+services:
+  opencre:
+    image: ${OPENCRE_IMAGE:-ghcr.io/owasp/opencre/opencre:latest}
+    container_name: opencre
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PROD_DATABASE_URL: sqlite:////db/db.sqlite
+      CRE_ENABLE_HEALTH: "1"
+      CRE_ALLOW_IMPORT: "0"
+      CRE_ENABLE_MYOPENCRE: "0"
+      CRE_ENABLE_LOGIN: "0"
+      NO_LOGIN: "1"
+    ports:
+      - name: web
+        target: 5000
+        published: "31089"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/opencre/db:/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:5000/rest/v1/health', timeout=5)"
+      interval: 30s
+      timeout: 8s
+      retries: 10
+      start_period: 120s
+    networks:
+      - intranet
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/opencre
+    x-nabla:
+      id: opencre
+      name: OWASP OpenCRE
+      kind: security-standards-correlation
+      category: security
+      status: planned
+      presentationRole: service
+      criticality: low
+      securityFunctions:
+        - govern
+        - identify
+        - protect
+      url: http://172.17.0.24:31089
+      description: >-
+        Internal OWASP OpenCRE service for correlating common security
+        requirements across standards. It complements DSOMM maturity assessment
+        and does not replace the canonical Nabla service catalog.
+      runtime:
+        provider: truenas-app
+        containerService: opencre
+      monitoring:
+        type: http
+        url: http://172.17.0.24:31089/rest/v1/health
+
+networks:
+  intranet:
+    external: true
+    name: intranet

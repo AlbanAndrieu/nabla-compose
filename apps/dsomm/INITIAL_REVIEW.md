@@ -1,6 +1,6 @@
 # DSOMM initial evidence review
 
-_Last reviewed: 2026-10-01._
+_Last reviewed: 2026-10-04._
 
 This is a **pre-fill aid**, not an OWASP DSOMM maturity score. It records
 repository evidence that can be reviewed and attached to the matching activity
@@ -20,6 +20,18 @@ directly visible from the current GitHub repository structure.
   Agentic AI / Identity dimensions not covered by the pinned Tweag baseline.
 
 Do not convert the rows below directly to `Fully implemented`.
+
+## Seeded assessment status
+
+The reviewed evidence below has already been converted into the conservative
+DSOMM 5.0.2 seed under `config/team-progress.seed.yaml` and
+`config/team-evidence.seed.yaml`; this document remains the **source inventory
+and manual-review aid**, not a second status tracker.
+
+Key acceptance constraints are canonical in [`README.md`](./README.md): only
+`Version control` is seeded Fully implemented, GitHub branch/ruleset
+enforcement is not demonstrated, and the TrueNAS continuity evidence remains
+partial because the PT1H RTO was breached and PT1H RPO was not exercised.
 
 ## Nabla Platform
 

@@ -30,9 +30,18 @@ cd "${CANONICAL_ROOT}"
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
 
 compose_path="${CANONICAL_ROOT}/apps/dsomm/compose.yml"
+progress_seed="${CANONICAL_ROOT}/apps/dsomm/config/team-progress.seed.yaml"
+evidence_seed="${CANONICAL_ROOT}/apps/dsomm/config/team-evidence.seed.yaml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
+for seed_file in "${progress_seed}" "${evidence_seed}"; do
+  [[ -f "${seed_file}" && ! -L "${seed_file}" ]] ||
+    fail "missing or unsafe DSOMM seed file: ${seed_file}"
+done
 
-printf '==> DSOMM Compose contract\n'
+printf '==> DSOMM assessment seed contract\n'
+python3 scripts/dsomm/validate-seed.py
+
+printf '\n==> DSOMM Compose contract\n'
 docker compose -f "${compose_path}" --profile manual config \
   --quiet --no-interpolate --no-env-resolution
 
@@ -55,13 +64,17 @@ if [[ "${MODE}" == "--apply" ]]; then
     fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
 
-  for state_spec in "progress|${progress_file}" "evidence|${evidence_file}"; do
-    state_key="${state_spec%%|*}"
-    state_file="${state_spec#*|}"
+  state_specs=(
+    "progress|${progress_file}|${progress_seed}"
+    "evidence|${evidence_file}|${evidence_seed}"
+  )
+  for state_spec in "${state_specs[@]}"; do
+    IFS='|' read -r state_key state_file state_seed <<<"${state_spec}"
     [[ ! -L "${state_file}" ]] ||
       fail "refusing symlinked DSOMM state file: ${state_file}"
     if [[ ! -e "${state_file}" ]]; then
-      printf '%s:\n' "${state_key}" >"${state_file}"
+      printf 'Initializing DSOMM %s from reviewed repository seed\n' "${state_key}"
+      install -m 0600 "${state_seed}" "${state_file}"
     elif [[ ! -f "${state_file}" ]]; then
       fail "DSOMM state path is not a regular file: ${state_file}"
     fi
@@ -90,8 +103,9 @@ deadline=$((SECONDS + WAIT_SECONDS))
 while ((SECONDS < deadline)); do
   if curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${DSOMM_URL}"; then
     printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"
-    printf '%s\n' \
-      'INFO: x-nabla.status remains planned until runtime acceptance is reviewed and committed as active.'
+    printf '%s%s\n' \
+      'INFO: x-nabla.status remains planned until runtime acceptance is reviewed ' \
+      'and committed as active.'
     exit 0
   fi
   sleep 4
