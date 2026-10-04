@@ -139,9 +139,7 @@ def _compose_entity_dependencies() -> list[dict]:
 
 def _compose_entity_bindings() -> list[dict]:
     result: list[dict] = []
-    paths = [ROOT / "docker-compose.yml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = _tracked_compose_paths()
     for path in paths:
         if not path.exists():
             continue
