@@ -60,6 +60,7 @@ def test_grafana_storage_repair_is_bounded() -> None:
 
     assert "--check" in script
     assert "--apply" in script
+    assert "--finalize" in script
     assert "/mnt/cpool/loki" in script
     assert "/mnt/cpool/tempo" in script
     assert "docker image inspect" in script
@@ -204,6 +205,7 @@ def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
     assert "smoke-sentry-event.sh" in script
     assert "--restage sentry" in script
     assert "--finalize sentry" in script
+    assert "pre-finalization end-to-end ingestion smoke" in script
     assert "--reset-offsets" not in script
     assert "docker restart" not in script
     assert "DROP DATABASE" not in script
