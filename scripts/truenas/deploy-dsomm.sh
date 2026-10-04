@@ -103,8 +103,9 @@ deadline=$((SECONDS + WAIT_SECONDS))
 while ((SECONDS < deadline)); do
   if curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${DSOMM_URL}"; then
     printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"
-    printf '%s\n' \
-      'INFO: x-nabla.status remains planned until runtime acceptance is reviewed and committed as active.'
+    printf '%s%s\n' \
+      'INFO: x-nabla.status remains planned until runtime acceptance is reviewed ' \
+      'and committed as active.'
     exit 0
   fi
   sleep 4
