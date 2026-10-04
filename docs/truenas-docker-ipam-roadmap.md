@@ -258,10 +258,13 @@ be used to make a failed reboot appear healthy.
 
 ### P5.1 — archive the successful baseline
 
-- [ ] Persist the successful reboot manifest, TrueNAS boot ID, `app.query`,
-  `docker info`, `docker ps`, complete Docker network inspect, routes, relevant
-  middleware/docker boot logs, Talos/Kubernetes node state and CSI acceptance
-  evidence outside `/tmp`.
+- [x] Add `archive-reboot-evidence.sh`: strict `VERIFIED` admission,
+  before/after boot-ID proof, allowlisted manifest files, SHA-256 inventory,
+  idempotent existing-archive verification and no automatic retention deletion.
+- [ ] Execute the archive helper after the next accepted normal `--verify` and
+  retain the resulting evidence under `/mnt/cpool/var/nabla/reboot-archive`.
+  Additional live `docker info`/routes/logs/CSI evidence stays a separate
+  reviewed capture when it is required by the incident/PRA record.
 - [ ] Retain the exact successful orchestration bundle and at least one previous
   rollback/recovery bundle until a subsequent normal reboot is accepted.
 - [ ] Add an explicit retention policy before removing older bundles/evidence;
