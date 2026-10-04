@@ -1,0 +1,106 @@
+---
+# Initial evidence-based DSOMM seed. It is deliberately conservative and must
+# be reviewed in the DSOMM UI before being treated as an accepted maturity score.
+progress:
+  066084c6-1135-4635-9cc5-9e75c7c5459f: # Version control
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+      'Fully implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+      'Fully implemented': 2026-10-04
+  f6f7737f-25a9-4317-8de2-09bf59f29b5b: # Defined build process
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  598897a2-358e-441f-984c-e12ec4f6110a: # Regular automated tests
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  c6e3c812-56e2-41b0-ae01-b7afc41a004c: # Test for stored secrets in code
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  df428c9d-efa0-4226-9f47-a15bb53f822b: # Environment depending configuration parameters (secrets)
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+  2a44b708-734f-4463-b0cb-86dc46344b2f: # Inventory of production components
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  13e9757e-58e2-4277-bc0f-eadc674891e6: # Inventory of production dependencies
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  8b994601-575e-4ea5-b228-accb18c8e514: # Infrastructure as Code
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  8fc3de67-7b8d-420b-8d24-f35928cfed6e: # Test the definition of virtualized environments
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  c72da779-86cc-45b1-a339-190ce5093171: # Definition of simple BCDR practices for critical components
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  5c61fd6b-8106-4c68-ac28-a8a42f1c67dc: # Backup
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  4eced38a-7904-4c45-adb0-50b663065540: # Centralized system logging
+    'Nabla Platform':
+      'Started': 2026-10-04
+  ded39bcf-4eaa-4c5f-9c94-09acde0a4734: # Visualized metrics
+    'Nabla Platform':
+      'Started': 2026-10-04
+  6c05c837-8c99-46e2-828b-7c903e27dba4: # Static analysis for important server side components
+    'Nabla Applications':
+      'Started': 2026-10-04
+  e237176b-bec5-447d-a926-e37d6dd60e4b: # Static analysis for important client side components
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  d918cd44-a972-43e9-a974-eff3f4a5dcfe: # Software Composition Analysis (server side)
+    'Nabla Applications':
+      'Started': 2026-10-04
+  07fe8c4f-ae33-4409-b1b2-cf64cfccea86: # Software Composition Analysis (client side)
+    'Nabla Applications':
+      'Started': 2026-10-04
+  07796811-37f9-467c-9ff2-48f346e77ff3: # Simple Scan
+    'Nabla Applications':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+  2858ac12-0179-40d9-9acf-1b839c030473: # SBOM of components
+    'Nabla Applications':
+      'Started': 2026-10-04
+  1b9281b9-48e2-4c01-9ac6-9db9931c4885: # Information security targets are communicated
+    'Nabla Platform':
+      'Started': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+  72737130-472c-4984-80f8-9ab2f1c2ed5d: # Determining the protection requirement
+    'Nabla Platform':
+      'Started': 2026-10-04
+      'Partly implemented': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
+  7121b0c7-6ace-4d6b-95d0-94535dbccb57: # Security code review
+    'Nabla Platform':
+      'Started': 2026-10-04
+    'Nabla Applications':
+      'Started': 2026-10-04
