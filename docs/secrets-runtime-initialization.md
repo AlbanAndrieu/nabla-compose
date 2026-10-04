@@ -168,7 +168,7 @@ legacy source
 This branch adds manifest ownership for:
 
 - AIStor — `MINIO_ROOT_PASSWORD`;
-- Code Server — `CODE_PASSWORD`;
+- Code Server — runtime `PASSWORD`, imported from the historical `CODE_PASSWORD` field;
 - Dozzle — `DOZZLE_ADMIN_PASSWORD_BCRYPTED`;
 - Elasticsearch — `ELASTIC_PASSWORD`;
 - Grafana runtime admin — `GRAFANA_ADMIN_PASSWORD`;
@@ -421,7 +421,15 @@ this path-only cutover.
 
 ### Wave 2 — explicit single-owner secrets
 
-Migrate the newly inventoried AIStor, Code, Dozzle, Elasticsearch, Grafana,
+Code Server is now prepared as a bounded canonical/Vaultwarden migration:
+the historical `CODE_PASSWORD` source maps to the LinuxServer runtime key
+`PASSWORD`. The manifest alias is also used by the value-blind dotenv
+comparator, so finalization accepts a key rename only when the underlying value
+is unchanged and rejects extra/different keys. Runtime acceptance still requires
+the staged legacy files, Vaultwarden materialization, TrueNAS reconciliation,
+`/healthz`, then per-service finalization.
+
+Migrate the remaining newly inventoried AIStor, Dozzle, Elasticsearch, Grafana,
 MinIO, OpenSearch, Portracker, SonarQube, Wazuh and WordPress app credential
 contracts.
 
