@@ -165,6 +165,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("that key record is", text)
         self.assertIn("persisted in pfSense configuration", text)
         self.assertIn("temporary rotation privilege", text)
+        self.assertIn("failed configuration-write gate", text)
+        self.assertIn("not the key-generation", text)
         self.assertIn("--prepare-key-rotation security", text)
         self.assertIn("--finalize-key-rotation security", text)
         self.assertIn("removes `api-v2-auth-key-post`", text)
