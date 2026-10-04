@@ -223,7 +223,16 @@ while IFS= read -r app; do
       printf 'NEXT: Loki/Tempo permission failures require bind-root ownership repair before restarting Grafana.\n'
       ;;
     i2p)
-      printf 'NEXT: inspect Docker healthcheck output; App restart alone is unlikely to repair a persistent unhealthy healthcheck.\n'
+      printf 'NEXT: the I2P router healthcheck must listen on 7657; if I2P is intentionally deferred, keep the App STOPPED instead of forcing convergence.\n'
+      ;;
+    openrag)
+      printf 'NEXT: require Langflow and OpenSearch healthy before restarting OpenRAG; the frontend collective health depends on both backend and Langflow.\n'
+      ;;
+    tailscale)
+      printf 'NEXT: Tailscale is documented as intentionally deferred; keep it STOPPED unless it has an explicit current consumer.\n'
+      ;;
+    vaultwarden)
+      printf 'NEXT: Vaultwarden main service may be healthy while the legacy bitwarden-api adapter prevents aggregate convergence; inspect only that sidecar.\n'
       ;;
   esac
 
