@@ -63,3 +63,24 @@ def test_grafana_storage_repair_is_bounded() -> None:
         check=False,
     )
     assert syntax.returncode == 0, syntax.stderr
+
+def test_sentry_migrator_credential_diagnostic_is_bounded_and_secret_safe() -> None:
+    path = ROOT / "scripts" / "truenas" / "diagnose-sentry-migrator-credential.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "/mnt/cpool/sentry/.env.migrator.secrets" in script
+    assert "SENTRY_MIGRATOR_CHECK_TIMEOUT_SECONDS" in script
+    assert "system.users" in script
+    assert "SELECT 1" in script
+    assert "NABLA_MIGRATOR_PASSWORD" in script
+    assert "CLICKHOUSE_PASSWORD is missing/empty" in script
+    assert 'cat "${SECRET_FILE}"' not in script
+    assert 'echo "${password}"' not in script
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
