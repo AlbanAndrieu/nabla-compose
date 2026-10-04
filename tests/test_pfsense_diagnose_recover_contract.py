@@ -45,9 +45,30 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
     def test_api_key_is_not_embedded_in_curl_command_line(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
-        self.assertIn('chmod 600 "${API_HEADER_FILE}"', text)
-        self.assertIn('--header "@${API_HEADER_FILE}"', text)
+        self.assertIn('chmod 600 "${output_file}"', text)
+        self.assertIn('--header "@${header_file}"', text)
         self.assertNotIn('-H "X-API-Key: ${PFSENSE_POSTURE_API_KEY}"', text)
+        self.assertNotIn('-H "X-API-Key: ${PFSENSE_SECURITY_API_KEY}"', text)
+
+    def test_service_identity_matrix_and_redacted_inventory_are_bounded(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("PFSENSE_SECURITY_API_KEY", text)
+        self.assertIn('"/api/v2/diagnostics/table?id=snort2c" 403', text)
+        self.assertIn('"/api/v2/diagnostics/table?id=snort2c" 200', text)
+        self.assertIn("/api/v2/status/services 403", text)
+        self.assertIn('section "REST API settings / service identities (redacted)"', text)
+        self.assertIn("api_key user=%s length_bytes=%s hash_algo=%s descr=%s hash_present=%s", text)
+        self.assertNotIn("api_key_value", text)
+        self.assertNotIn("hash=%s", text)
+
+    def test_login_protection_is_diagnosed_but_never_auto_unblocked(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("sshguard$", text)
+        self.assertIn("LOGIN_PROTECTION_MATCH", text)
+        self.assertIn("NO_UNBLOCK_ACTION table=sshguard", text)
+        self.assertNotIn('pfctl -t "sshguard" -T delete', text)
 
     def test_documentation_states_ssh_and_api_are_distinct_capabilities(self) -> None:
         text = DOC.read_text(encoding="utf-8")
