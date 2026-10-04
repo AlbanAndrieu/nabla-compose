@@ -197,6 +197,10 @@ package_version="$(
 
 runtime_image="${FASTAPI_SAMPLE_IMAGE:-fastapi-sample:local}"
 release_image="${FASTAPI_SAMPLE_RELEASE_IMAGE:-${IMAGE_REPOSITORY}:${package_version}}"
+release_image_explicit=false
+[[ -n "${FASTAPI_SAMPLE_RELEASE_IMAGE:-}" ]] && release_image_explicit=true
+release_ref=false
+[[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]] && release_ref=true
 export FASTAPI_SAMPLE_IMAGE="${runtime_image}"
 
 printf 'FastAPI Sample target %s: %s (version %s)\n' \
@@ -206,19 +210,24 @@ printf 'Runtime image: %s\n' "${runtime_image}"
 run_docker compose -f apps/sample/compose.yml config --quiet --no-interpolate --no-env-resolution
 
 image_source="local-build"
-if [[ "${DEPLOY_MODE}" != "build" ]]; then
+if [[ "${DEPLOY_MODE}" != "build" && ( "${release_ref}" == true || "${release_image_explicit}" == true ) ]]; then
     printf 'Trying immutable release image: %s\n' "${release_image}"
     if run_docker pull "${release_image}"; then
         if [[ "${release_image}" != "${runtime_image}" ]]; then
             run_docker tag "${release_image}" "${runtime_image}"
         fi
         image_source="release-pull"
-        printf 'Using prebuilt release image; local Python dependency build skipped.\n'
+        printf 'Using prebuilt release image for immutable release ref; local Python dependency build skipped.\n'
     elif [[ "${DEPLOY_MODE}" == "pull" ]]; then
         fail "release image pull failed in pull-only mode: ${release_image}"
     else
         printf 'WARN: release image unavailable; falling back to local BuildKit build.\n' >&2
     fi
+elif [[ "${DEPLOY_MODE}" == "pull" ]]; then
+    fail "pull-only mode requires a version ref such as 1.20.18 or an explicit FASTAPI_SAMPLE_RELEASE_IMAGE; refusing to substitute a package-version image for moving ref ${REF}"
+elif [[ "${DEPLOY_MODE}" == "auto" ]]; then
+    printf 'Moving/source ref %s selected; building target commit %s locally instead of reusing package-version image %s.\n' \
+        "${REF}" "${target}" "${release_image}"
 fi
 
 if [[ "${image_source}" == "local-build" ]]; then
