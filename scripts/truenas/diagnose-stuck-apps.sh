@@ -2,8 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_LIB="${SCRIPT_DIR}/../lib/common.sh"
+if [[ ! -r "${COMMON_LIB}" ]]; then
+  COMMON_LIB="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}/scripts/lib/common.sh"
+fi
 # shellcheck source=../lib/common.sh
-source "${SCRIPT_DIR}/../lib/common.sh"
+source "${COMMON_LIB}"
 
 MODE="${1:---check}"
 shift || true
