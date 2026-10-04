@@ -49,7 +49,12 @@ for item in networks:
     name = item.get("Name", "?")
     labels = item.get("Labels") or {}
     project = labels.get("com.docker.compose.project") or "-"
-    endpoints = len(item.get("Containers") or {})
+    containers = item.get("Containers") or {}
+    endpoints = len(containers)
+    endpoint_names = sorted(
+        (details or {}).get("Name") or container_id[:12]
+        for container_id, details in containers.items()
+    )
     driver = item.get("Driver") or "?"
     ipv4_subnets = []
     for cfg in item.get("IPAM", {}).get("Config") or []:
@@ -65,32 +70,54 @@ for item in networks:
 
     if name in {"host", "none"}:
         classification = "builtin"
+        cleanup_gate = "blocked-builtin"
         action = "keep"
     elif name in protected:
         classification = "protected-shared"
+        cleanup_gate = "blocked-protected"
         action = "retain; audit consumers before any recreate"
     elif any(network.subnet_of(target) for network in ipv4_subnets):
         classification = "target-pool"
+        cleanup_gate = "retain-target"
         action = "keep"
     elif any(network.subnet_of(legacy) for network in ipv4_subnets):
         if endpoints:
             classification = "legacy-active"
+            cleanup_gate = "blocked-live-endpoints"
             action = "owner-specific redeploy; never disconnect live endpoints blindly"
         else:
             classification = "legacy-empty"
+            cleanup_gate = "owner-review-required"
             action = "candidate for reviewed owner-specific recreate"
     elif name == "bridge":
         classification = "builtin"
+        cleanup_gate = "blocked-builtin"
         action = "keep"
     else:
         classification = "other"
+        cleanup_gate = "owner-review-required"
         action = "review"
 
     counts[classification] += 1
     subnet_text = ",".join(str(network) for network in ipv4_subnets) or "-"
-    rows.append((classification, name, subnet_text, endpoints, project, driver, action))
+    endpoint_text = ",".join(endpoint_names) or "-"
+    rows.append(
+        (
+            classification,
+            name,
+            subnet_text,
+            endpoints,
+            endpoint_text,
+            project,
+            driver,
+            cleanup_gate,
+            action,
+        )
+    )
 
-print("CLASSIFICATION\tNAME\tIPV4_SUBNET\tENDPOINTS\tPROJECT\tDRIVER\tACTION")
+print(
+    "CLASSIFICATION\tNAME\tIPV4_SUBNET\tENDPOINTS\tENDPOINT_NAMES\tPROJECT\tDRIVER\tCLEANUP_GATE\tACTION"
+)
 for row in sorted(rows, key=lambda value: (value[0], value[1])):
     print("\t".join(map(str, row)))
 
@@ -101,5 +128,10 @@ for classification, count in sorted(counts.items()):
 legacy_empty = [row for row in rows if row[0] == "legacy-empty"]
 legacy_active = [row for row in rows if row[0] == "legacy-active"]
 print(f"\nLegacy migration candidates: active={len(legacy_active)} empty={len(legacy_empty)}")
+print(
+    "Evidence includes Compose project ownership plus attached endpoint names; "
+    "CLEANUP_GATE never authorizes deletion and owner-review-required still needs "
+    "canonical owner/reference review."
+)
 print("No network was modified or removed.")
 PY

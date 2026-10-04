@@ -618,6 +618,216 @@ a silent exporter is flow degradation, and neither proves the firewall itself
 is down. Cloudflare Network Flow remains an independent second collector for
 corroborating exporter behavior.
 
+## CrowdSec / PF firewall-log pressure — 2026-10-04
+
+A live investigation of sustained CrowdSec load on the Netgate 1100 found that
+the engine was useful and healthy, but was being fed a disproportionate volume
+of PF pass logs.
+
+Observed CrowdSec process state:
+
+```text
+crowdsec RSS          ~95 MiB
+crowdsec CPU          ~36-41%
+process uptime        ~7 days
+firewall bouncer RSS  ~14 MiB
+```
+
+The load was not explained by an alert storm. At the time of diagnosis there
+was one active local `firewallservices/pf-scan-multi_ports` decision, while the
+bouncer also consumed CrowdSec CAPI decisions. CrowdSec therefore remains a
+useful security control and must not be disabled merely to recover memory.
+
+### Parser semantics
+
+The CrowdSec acquisition counters initially appeared to show approximately
+8.7M unparsed `filter.log` lines out of 9.0M. This does **not** mean that the
+pfSense parser is broken.
+
+The downstream parser counters showed:
+
+```text
+file:/var/log/filter.log      ~9.00M lines read
+firewallservices/pf-logs      ~8.33M parsed
+firewallservices/pf-logs-drop ~318.84k parsed
+pf-scan-multi_ports           ~109.47k poured
+```
+
+The PF parser therefore recognizes most of the raw events. Only a much smaller
+subset is relevant to the drop-oriented pipeline and scan scenario. Do not
+attempt to "fix" this by weakening or replacing the CrowdSec PF parser without
+new evidence.
+
+### Root cause of excess log volume
+
+A sample of `/var/log/filter.log` showed repeated `pass,out` events generated
+by the firewall itself toward LAN services, Cloudflare and other destinations.
+The corresponding PF rule trackers were resolved with `pfctl -vvsr` and
+`/tmp/rules.debug`:
+
+| Tracker | Generated PF rule | Observed scale |
+| --- | --- | ---: |
+| `1000005715` | `let out anything IPv4 from firewall host itself` | ~111M packets / ~499k state creations |
+| `1000005811` | WAN `route-to` variant of firewall-host outbound pass | ~85.6M packets / ~417k state creations |
+| `1000005711` | `pass IPv4 loopback` | ~1.15M packets / ~7k state creations |
+
+All three generated rules contained the PF `log` keyword. They are internal
+pfSense rules, not ordinary user-authored firewall rules. Do not edit
+`/tmp/rules.debug` or mutate the loaded PF rules with `pfctl` as a persistent
+fix; pfSense regenerates them.
+
+The authoritative pfSense logging control is:
+
+```text
+Status -> System Logs -> Settings
+  -> Logging Preferences
+  -> Default Firewall "pass" Rules
+```
+
+Netgate documents this option as disabled by default and warns that enabling it
+generates a large amount of log data for outbound connections from the
+firewall. It is intended primarily for bounded troubleshooting.
+
+### Target steady state
+
+For this memory-constrained appliance:
+
+1. keep **Default Firewall "block" Rules** logging enabled unless a separately
+   reviewed noise-reduction rule justifies an exception;
+2. disable **Default Firewall "pass" Rules** logging after troubleshooting;
+3. keep explicit pass-rule logging only where it has a defined audit,
+   security or diagnostic purpose;
+4. keep CrowdSec, the pfSense parser/scenarios and the firewall bouncer active;
+5. measure CrowdSec CPU/RSS and `filter.log` rate before and after changing the
+   logging preference;
+6. do not start a DNSBL Force Reload until memory headroom has been re-measured
+   and is safe for the legacy pfBlockerNG rebuild path.
+
+Validation after changing the logging preference:
+
+```csh
+pfctl -vvsr | grep -B 3 -A 6 '1000005715'
+pfctl -vvsr | grep -B 3 -A 6 '1000005811'
+pfctl -vvsr | grep -B 3 -A 6 '1000005711'
+ps axo pid,ppid,etime,rss,%cpu,command | grep crowdsec
+cscli metrics
+ls -lh /var/log/filter.log
+```
+
+The generated default-pass rules should no longer contain `log`. CrowdSec
+must remain operational, and block/security telemetry must continue to reach
+its scenarios and bouncer.
+
+This optimization is deliberately performed at the pfSense logging source,
+rather than writing millions of low-value pass events and discarding them later
+inside CrowdSec.
+
+### Post-reboot acceptance — 2026-10-04
+
+The pfSense UI setting **Default Firewall "pass" Rules** was disabled and the
+appliance was rebooted. The setting persisted across reboot.
+
+The generated rules remained present but no longer carried the `log` keyword:
+
+```text
+1000005711  pass in on lo0 ... descr=pass IPv4 loopback
+1000005715  pass out inet all ... descr=let out anything IPv4 from firewall host itself
+1000005811  pass out route-to (...) ... descr=let out anything from firewall host itself
+```
+
+This proves the change removed only default-pass logging; it did not remove the
+underlying PF allow rules.
+
+Immediately after reboot, `filter.log` was only 246 KiB. This is encouraging
+but is not yet a comparable long-duration rate because log rotation/reboot reset
+the observation window.
+
+CrowdSec was also still in startup/catch-up state after approximately 44 seconds:
+
+```text
+crowdsec RSS                  ~84 MiB
+crowdsec CPU                  ~73%
+crowdsec-firewall-bouncer RSS ~19 MiB
+```
+
+Do not use that CPU value as the post-change steady-state baseline. Re-sample
+after several minutes and compare elapsed process time, RSS/CPU and log growth.
+
+The first post-reboot `cscli metrics` call could not reach the local engine
+Prometheus endpoint on `127.0.0.1:6060`, while bouncer metrics were still
+available and reported ~26.38k active decisions. Treat this as a separate
+CrowdSec metrics-endpoint/startup diagnostic until a later sample proves whether
+it persists; it does not by itself show that the firewall bouncer is down.
+
+
+## Recovery diagnostic lessons — 2026-10-04
+
+A post-reboot run of `scripts/pfsense/diagnose-recover.sh --check` exposed two
+failure modes that must not be conflated.
+
+### API probe failure classification
+
+The WebConfigurator returned HTTP 200 through both the public hostname and the
+direct LAN address while the API probes were initially summarized as
+`http=000 ERROR`. Appliance logs subsequently proved that requests from the
+workstation, TrueNAS and the FastAPI cloud egress were reaching pfSense and
+were rejected as user `unknown`.
+
+A REST API key had also been deleted shortly before these probes. Therefore a
+failed API probe must not automatically be described as a network outage.
+
+The recovery helper now records the curl exit status and stderr and classifies
+failed probes as:
+
+- `transport`: curl failed before a usable HTTP response;
+- `authentication`: HTTP 401/403;
+- `server`: HTTP 5xx;
+- `application`: another non-success HTTP/API response.
+
+When pfSense system logs show an authentication rejection for the same source
+and timestamp, that appliance-side evidence takes precedence over a client-side
+`000` summary when determining whether the request reached the firewall.
+
+Never print the API key while collecting this evidence.
+
+### SSH transient failure
+
+The first deep-diagnostic SSH attempt reported:
+
+```text
+mux_client_request_session: read from master failed: Broken pipe
+```
+
+but the same diagnostic run subsequently completed its appliance snapshot. The
+runtime listener evidence also showed sshd on TCP 9922.
+
+Treat a multiplexed-session `Broken pipe` as a potentially stale SSH control
+connection, not immediate proof that sshd or pfSense is down. The helper now
+disables SSH connection multiplexing for diagnostic sessions with
+`ControlMaster=no` and `ControlPath=none`.
+
+The script deliberately does not hard-code TCP 9922: an operator SSH alias may
+already map the target to the correct port. Use `--port 9922` only when the
+active SSH configuration does not.
+
+### CrowdSec post-change acceptance
+
+After disabling pfSense **Default Firewall "pass" Rules** logging and rebooting:
+
+- generated PF trackers `1000005711`, `1000005715` and `1000005811`
+  remained present but no longer contained the `log` keyword;
+- CrowdSec's metrics listener recovered on `127.0.0.1:6060`;
+- a fresh metrics window showed about 2.01k `filter.log` lines read, 1.99k
+  parsed and only 19 unparsed;
+- `firewallservices/pf-logs-drop` parsed the relevant PF events;
+- the firewall bouncer remained active with roughly 26k CAPI decisions;
+- a later `top` sample showed CrowdSec falling to about 5% instantaneous CPU
+  with the appliance around 85% idle.
+
+The earlier ~70% process CPU value immediately after reboot must therefore not
+be retained as a steady-state conclusion. Continue to trend CPU/RSS and log
+growth, but the default-pass logging reduction itself is accepted.
+
 ## Security and observability follow-ups
 
 - Monitor pfSense memory pressure through the existing Prometheus/Grafana path.

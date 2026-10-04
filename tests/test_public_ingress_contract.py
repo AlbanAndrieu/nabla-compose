@@ -19,6 +19,8 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("SENTRY_ENVIRONMENT: homelab", compose)
         self.assertIn('SENTRY_AI_INTEGRATIONS_ENABLED: "true"', compose)
         self.assertIn("FASTAPI_RUNTIME_MODE: homelab", compose)
+        self.assertIn('PFSENSE_POSTURE_API_VERIFY_SSL: "true"', compose)
+        self.assertIn('PFSENSE_SECURITY_API_VERIFY_SSL: "true"', compose)
         self.assertIn("name: sample-observer", compose)
         self.assertIn("external: true", compose)
         self.assertIn("gw_priority: 1", compose)

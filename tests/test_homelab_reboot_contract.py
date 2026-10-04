@@ -23,6 +23,7 @@ GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
 DOCKER_LIB = ROOT / "scripts/lib/docker.sh"
 DOCKER_STORAGE_AUDIT = ROOT / "scripts/truenas/audit-docker-storage-debt.sh"
+REBOOT_ARCHIVE = ROOT / "scripts/truenas/archive-reboot-evidence.sh"
 
 
 class HomelabRebootContractTests(unittest.TestCase):
@@ -108,6 +109,7 @@ class HomelabRebootContractTests(unittest.TestCase):
             GHOST_RECOVERY,
             RECOVERY_REBOOT,
             DOCKER_STORAGE_AUDIT,
+            REBOOT_ARCHIVE,
             DOCKER_LIB,
         ):
             result = subprocess.run(
@@ -640,6 +642,44 @@ class HomelabRebootContractTests(unittest.TestCase):
             )
             self.assertNotIn("disabled", plan["selected_apps"])
             self.assertEqual(["unmapped"], plan["unmapped_apps"])
+
+
+    def test_successful_verify_persists_archive_gate(self) -> None:
+        text = REBOOT.read_text(encoding="utf-8")
+
+        self.assertIn('>"${state_dir}/boot-id-after"', text)
+        self.assertIn("VERIFIED", text)
+        self.assertIn(
+            'record_prepare_history "${state_dir}" verified',
+            text,
+        )
+        self.assertIn(
+            "homelab reboot lifecycle acceptance passed. manifest=%s",
+            text,
+        )
+
+    def test_reboot_evidence_archive_is_immutable_and_runtime_read_only(self) -> None:
+        text = REBOOT_ARCHIVE.read_text(encoding="utf-8")
+        bundle = (
+            ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--check | --apply", text)
+        self.assertIn("reboot transaction is not VERIFIED", text)
+        self.assertIn("boot-id-before", text)
+        self.assertIn("boot-id-after", text)
+        self.assertIn("ARCHIVE-MANIFEST.json", text)
+        self.assertIn("SHA256SUMS", text)
+        self.assertIn("operator-acceptance.json", text)
+        self.assertIn("resume-bundle-hotfix.json", text)
+        self.assertIn("immutable Git source commit", text)
+        self.assertIn("No reboot archive or recovery bundle was deleted", text)
+        self.assertIn("archive-reboot-evidence.sh", bundle)
+        self.assertNotIn("docker network prune", text)
+        self.assertNotIn("zfs destroy", text)
+        self.assertNotIn("midclt ", text)
+        self.assertNotIn("kubectl ", text)
+        self.assertNotIn("systemctl ", text)
 
 
 if __name__ == "__main__":

@@ -392,6 +392,7 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy from `apps/graf
 - [ ] **Prometheus DOWN-target reconciliation** — Sybase is excluded by design. Canonical database telemetry is PostgreSQL, Redis, ClickHouse, InfluxDB and OpenSearch. Diagnose/repair those jobs from Prometheus `lastError` plus listener/owner evidence. Keep HAProxy `:9101` as the pfSense HAProxy exporter and prove its runtime `PFSENSE_HAPROXY_SCRAPE_URI` reads the pfSense HAProxy statistics endpoint. Defer Alloy/Mimir/Loki/Tempo target acceptance until the Grafana migration above is green.
 - [x] **Suricata capture + rules/EVE acceptance** — engine RUNNING on TrueNAS `br0`; persistent rules file populated; ~52k rules load; alerts generated; `eve.json` active.
 - [ ] **Suricata downstream consumption** — prove CrowdSec/Alloy/central observability consumes current EVE and monitor kernel drops/rule refresh health.
+- [x] **pfSense/CrowdSec default-pass log pressure** — `Default Firewall "pass" Rules` logging is disabled and reboot-persistent; trackers `1000005711/5715/5811` keep their pass semantics without `log`, CrowdSec `:6060` recovered, fresh PF parsing is healthy and instantaneous CrowdSec CPU fell to ~5% in a later sample. Continue trending CPU/RSS as operational telemetry.
 - [ ] **pfSense NetFlow → Cloudflare Network Analytics** — restore flow export path and prove fresh flow arrival end to end.
 - [ ] Scrutiny: finish TrueNAS SMART acceptance plus workstation collector with pinned v0.9.3 collector.
 - [ ] **Joplin Server** — deploy `apps/joplin/compose.yml`, bootstrap the dedicated shared-PostgreSQL role/database, change the bootstrap administrator credentials and validate `/api/ping` plus client sync through `joplin.int.albandrieu.com`.
@@ -432,16 +433,16 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 ## P5 — bounded post-reboot cleanup
 
-- [ ] Archive reboot manifest, boot IDs, source SHA, operator acceptance exceptions and incident evidence.
-- [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset remains.
-- [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence; never use `docker network prune`.
-- [ ] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend`.
-- [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle.
-- [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
-- [ ] Re-run orphan-shim diagnostics after Apps settle.
-- [ ] Baseline Docker storage debt with `audit-docker-storage-debt.sh --check`; compare image count, `overlay2` directory cardinality and `cpool/ix-apps/docker` used bytes against the 2026-10-03 baseline (764 images / 7,408 overlay2 dirs / ~525 GiB).
-- [x] First post-PRA dangling-image cleanup reclaimed 90.45 GB: images 764→631, dangling 135→2 and top-level `overlay2` directories 7,408→6,534. Total ZFS `used` remained ~525 GiB because ~97.4 GiB is snapshot-retained; active `usedbydataset` is ~428 GiB.
-- [ ] Keep automated cleanup separate from hourly Git cron: weekly root `prune-docker-images.sh --apply`, dangling-only, default minimum age 168h, no `-a`, no network/volume/container prune and no execution during an active reboot transaction.
+- [ ] Archive the accepted reboot evidence on TrueNAS — the repository now has a VERIFIED-only immutable archive helper; runtime archival and current+previous known-good retention still require acceptance.
+- [x] CSI disposable-state cleanup is accepted: the fresh cross-node smoke terminates its namespace, waits for PV reclaim and proves the TrueNAS dataset/NFS share/ZFS resource absent before reporting success.
+- [x] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence via `audit-docker-network-migration.sh --check`; the report remains read-only and never uses `docker network prune`.
+- [x] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend` in the network classifier; cleanup remains owner-specific.
+- [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle; the read-only classifier now marks protected/live networks blocked and empty legacy networks `owner-review-required`, never deletion-authorized.
+- [x] Correlate stuck Apps with the frozen reboot manifest: intentional `STOPPED` and pre-existing failed Apps are reported as deferred debt, while `RUNNING/DEPLOYING` members expected to resume remain regression candidates.
+- [ ] After Apps settle, rerun the canonical `diagnose-platform.sh` phase that includes `diagnose-docker-orphan-shims.sh --check`; keep this runtime evidence separate from cleanup.
+- [x] Docker storage baseline + first bounded dangling-image cleanup accepted: 764→631 images, 135→2 dangling images, 7,408→6,534 top-level `overlay2` directories and 90.45 GB reclaimed. ZFS `used` stayed ~525 GiB because ~97.4 GiB is snapshot-retained; active `usedbydataset` is ~428 GiB.
+- [x] Docker image cleanup contract is bounded and separate from Git sync: root-only `prune-docker-images.sh`, dangling-only, default age 168h, no `-a`/network/volume/container prune, and blocked through `PREPARING|PREPARED|RESUMED` until strict `VERIFIED`.
+- [ ] Install/accept the documented weekly root TrueNAS cron for that helper; do not attach cleanup to the hourly Git reconciliation.
 - [ ] Review additional targeted Docker cleanup only after the bounded dangling-image policy is established: old unmanaged/exited containers and build cache. Never use `docker system prune` or `docker network prune` as a blanket cleanup.
 - [ ] Reboot once after any reviewed cleanup and record Docker cold-start convergence duration; objective is to reduce metadata reload time without sacrificing rollback/re-pull safety.
 

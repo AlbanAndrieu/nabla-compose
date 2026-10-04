@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+IDENTITY_HELPER="${SCRIPT_DIR}/manage-api-identities.php"
+
 MODE="check"
 SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
 API_URL="${PFSENSE_API_URL:-https://home.albandrieu.com:10443}"
 LAN_API_URL="${PFSENSE_LAN_API_URL:-https://172.17.0.1:10443}"
 FASTAPI_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
-PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-}"
+PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-172.17.0.24 172.17.0.57}"
 AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
+VERBOSE=false
+CONSOLE_OUTPUT=true
+IDENTITY_ACTION=""
+IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
 usage() {
@@ -24,9 +31,19 @@ unreachable; SSH is required only for deep appliance diagnostics and --apply.
 Options:
   --check                   Read-only diagnosis (default).
   --api-only                Skip SSH and collect HTTPS/API evidence only.
+  -v, --verbose             Stream full SSH evidence; default prints a summary.
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
+  --check-identities         SSH-only audit of fastapi_posture/fastapi_security
+                            users, group membership, privileges and persisted keys.
+  --apply-identities         Create missing service users (password files required)
+                            and reconcile both to steady-state least privilege.
+  --prepare-key-rotation ID  Prepare posture|security for key creation: remove
+                            Deny Config Write and grant api-v2-auth-key-post.
+  --finalize-key-rotation ID Restore posture|security to steady state after a
+                            persisted key is visible: remove key POST, restore
+                            Deny Config Write. Refuses finalization with zero keys.
   --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
   --port PORT               Optional SSH port; otherwise SSH config/default applies.
   --api-url URL             Hostname/public HTTPS URL.
@@ -38,17 +55,32 @@ Options:
   -h, --help                Show this help.
 
 Environment:
-  PFSENSE_POSTURE_API_KEY   Optional read-only API key. It stays on the caller;
-                            it is never sent through SSH or printed.
+  PFSENSE_POSTURE_API_KEY   Optional posture GET-only API key. It stays on the
+                            caller; it is never sent through SSH or printed.
+  PFSENSE_SECURITY_API_KEY  Optional diagnostics-table GET-only API key with the
+                            same secret-handling contract.
   PFSENSE_SSH_TARGET        Default SSH target override.
   PFSENSE_SSH_PORT          Optional SSH port override.
   FASTAPI_SAMPLE_URL        FastAPI Sample base URL for egress discovery.
+  PFSENSE_POSTURE_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing fastapi_posture user.
+  PFSENSE_SECURITY_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing fastapi_security user.
 
 Recommended sequence:
   1. --check
   2. review HTTPS/API and, when reachable, SSH evidence
   3. --apply only when recovery is justified
   4. --apply --unblock-sources only after an exact BLOCK_MATCH
+
+Identity/key lifecycle:
+  --check-identities
+  --prepare-key-rotation posture|security
+  create the key with that service user's Basic credentials
+  --finalize-key-rotation posture|security
+  --check-identities
 USAGE
 }
 
@@ -69,11 +101,34 @@ while (($# > 0)); do
     --api-only)
       API_ONLY=true
       ;;
+    -v | --verbose)
+      VERBOSE=true
+      ;;
     --apply)
       MODE="apply"
       ;;
     --unblock-sources)
       UNBLOCK_SOURCES=true
+      ;;
+    --check-identities)
+      IDENTITY_ACTION="check"
+      IDENTITY_TARGET="all"
+      ;;
+    --apply-identities)
+      IDENTITY_ACTION="apply"
+      IDENTITY_TARGET="all"
+      ;;
+    --prepare-key-rotation)
+      shift
+      (($# > 0)) || fail "--prepare-key-rotation requires posture or security"
+      IDENTITY_ACTION="prepare"
+      IDENTITY_TARGET="$1"
+      ;;
+    --finalize-key-rotation)
+      shift
+      (($# > 0)) || fail "--finalize-key-rotation requires posture or security"
+      IDENTITY_ACTION="finalize"
+      IDENTITY_TARGET="$1"
       ;;
     --target)
       shift
@@ -133,23 +188,123 @@ fi
 if [[ "${API_ONLY}" == true && "${MODE}" == "apply" ]]; then
   fail "--api-only cannot be combined with --apply"
 fi
+if [[ -n "${IDENTITY_ACTION}" && ( "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
+  fail "identity lifecycle options cannot be combined with --api-only, --apply, or --unblock-sources"
+fi
+if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" ]]; then
+  fail "identity target must be posture or security"
+fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
 fi
+
+password_file_b64() {
+  local path="$1"
+  local label="$2"
+  local value=""
+  [[ -n "${path}" ]] || return 0
+  [[ -f "${path}" && -r "${path}" ]] || fail "${label} password file is not readable: ${path}"
+  IFS= read -r value <"${path}" || true
+  [[ -n "${value}" ]] || fail "${label} password file is empty: ${path}"
+  if tail -n +2 "${path}" | grep -q '[^[:space:]]'; then
+    fail "${label} password file must contain exactly one password line"
+  fi
+  printf '%s' "${value}" | base64 | tr -d '\r\n'
+}
+
+identity_ssh_preflight() {
+  local resolved user port hostname
+  resolved="$(ssh -G "${SSH_TARGET}" 2>/dev/null)" ||
+    fail "unable to resolve SSH configuration for ${SSH_TARGET}"
+  user="$(awk '$1 == "user" {print $2; exit}' <<<"${resolved}")"
+  port="$(awk '$1 == "port" {print $2; exit}' <<<"${resolved}")"
+  hostname="$(awk '$1 == "hostname" {print $2; exit}' <<<"${resolved}")"
+
+  if [[ -n "${SSH_PORT}" ]]; then
+    port="${SSH_PORT}"
+  fi
+  if [[ "${SSH_TARGET}" == *@* ]]; then
+    user="${SSH_TARGET%%@*}"
+  fi
+
+  printf 'pfSense identity SSH path: user=%s host=%s port=%s\n'     "${user:-unknown}" "${hostname:-unknown}" "${port:-unknown}"
+
+  if [[ "${user:-}" != "admin" || "${port:-}" != "9922" ]]; then
+    fail "pfSense identity lifecycle must use the workstation management SSH contract admin@home.albandrieu.com:9922; current SSH resolution is ${user:-unknown}@${hostname:-unknown}:${port:-unknown}. Run from the workstation, or pass --target admin@home.albandrieu.com --port 9922 only from a host that already has the required SSH credential."
+  fi
+}
+
+run_identity_admin() {
+  local action="$1"
+  local target="$2"
+  local posture_password_b64=""
+  local security_password_b64=""
+  local status=0
+  local -a ssh_opts=(
+    -o BatchMode=yes
+    -o ConnectTimeout=8
+    -o ServerAliveInterval=5
+    -o ServerAliveCountMax=2
+    -o ControlMaster=no
+    -o ControlPath=none
+  )
+
+  [[ -f "${IDENTITY_HELPER}" ]] || fail "identity helper not found: ${IDENTITY_HELPER}"
+  if [[ -n "${SSH_PORT}" ]]; then
+    ssh_opts+=(-p "${SSH_PORT}")
+  fi
+  if [[ "${action}" == "apply" ]]; then
+    posture_password_b64="$(password_file_b64 "${PFSENSE_POSTURE_PASSWORD_FILE:-}" "posture")"
+    security_password_b64="$(password_file_b64 "${PFSENSE_SECURITY_PASSWORD_FILE:-}" "security")"
+  fi
+
+  set +e
+  {
+    printf '<?php\n'
+    printf "define('NABLA_IDENTITY_ACTION', '%s');\n" "${action}"
+    printf "define('NABLA_IDENTITY_TARGET', '%s');\n" "${target}"
+    printf "define('NABLA_POSTURE_PASSWORD_B64', '%s');\n" "${posture_password_b64}"
+    printf "define('NABLA_SECURITY_PASSWORD_B64', '%s');\n" "${security_password_b64}"
+    printf '?>\n'
+    cat "${IDENTITY_HELPER}"
+  } | ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
+  status=${PIPESTATUS[1]}
+  set -e
+  return "${status}"
+}
+
+if [[ -n "${IDENTITY_ACTION}" ]]; then
+  command -v ssh >/dev/null 2>&1 || fail "ssh is required for identity lifecycle actions"
+  command -v base64 >/dev/null 2>&1 || fail "base64 is required for identity lifecycle actions"
+  identity_ssh_preflight
+  run_identity_admin "${IDENTITY_ACTION}" "${IDENTITY_TARGET}" ||
+    fail "pfSense identity lifecycle action failed"
+  exit 0
+fi
+
 for command in curl jq tee grep awk date mktemp paste; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
+  runtime_source=""
   if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
     "${FASTAPI_URL%/}/api/runtime/topology" -o "${runtime_json}"; then
+    runtime_source="runtime-topology"
     discovered_egress="$(jq -r '.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
-    if [[ -n "${discovered_egress}" ]]; then
-      printf 'FASTAPI_EGRESS=%s\n' "${discovered_egress}"
-      PROBE_SOURCES="${PROBE_SOURCES:+${PROBE_SOURCES} }${discovered_egress}"
-    else
-      warn "FastAPI runtime topology returned no active_egress_ips"
-    fi
+  elif curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
+    "${FASTAPI_URL%/}/api/health-board" -o "${runtime_json}"; then
+    runtime_source="health-board"
+    discovered_egress="$(jq -r '.runtime.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
+  else
+    discovered_egress=""
+  fi
+
+  if [[ -n "${discovered_egress}" ]]; then
+    printf 'FASTAPI_EGRESS=%s source=%s\n' "${discovered_egress}" "${runtime_source}"
+    PROBE_SOURCES="${PROBE_SOURCES:+${PROBE_SOURCES} }${discovered_egress}"
+  elif [[ -n "${runtime_source}" ]]; then
+    warn "FastAPI ${runtime_source} returned no active_egress_ips"
   else
     warn "unable to discover FastAPI Sample active egress from ${FASTAPI_URL}"
   fi
@@ -170,7 +325,10 @@ mkdir -p "$(dirname "${REPORT}")"
 : >"${REPORT}"
 
 log() {
-  printf '%s\n' "$*" | tee -a "${REPORT}"
+  printf '%s\n' "$*" >>"${REPORT}"
+  if [[ "${CONSOLE_OUTPUT}" == true ]]; then
+    printf '%s\n' "$*"
+  fi
 }
 
 probe_url() {
@@ -184,7 +342,7 @@ probe_url() {
   fi
   if output="$(curl "${tls_args[@]}" --fail --silent --show-error \
     --connect-timeout 5 --max-time 15 -o /dev/null \
-    -w "${label} http=%{http_code} peer=%{remote_ip} tls=%{ssl_verify_result} time=%{time_total}" \
+    -w "${label} http=%{http_code} peer=%{remote_ip} tls_verify=%{ssl_verify_result} connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s" \
     "${url%/}/" 2>&1)"; then
     log "${output}"
     return 0
@@ -193,20 +351,23 @@ probe_url() {
   return 1
 }
 
-API_HEADER_FILE=""
+POSTURE_API_HEADER_FILE=""
+SECURITY_API_HEADER_FILE=""
 cleanup() {
-  [[ -z "${API_HEADER_FILE}" ]] || rm -f "${API_HEADER_FILE}"
+  [[ -z "${POSTURE_API_HEADER_FILE}" ]] || rm -f "${POSTURE_API_HEADER_FILE}"
+  [[ -z "${SECURITY_API_HEADER_FILE}" ]] || rm -f "${SECURITY_API_HEADER_FILE}"
 }
 trap cleanup EXIT
 
 prepare_api_header() {
-  [[ -n "${PFSENSE_POSTURE_API_KEY:-}" ]] || return 1
-  API_HEADER_FILE="$(mktemp)"
-  chmod 600 "${API_HEADER_FILE}"
+  local key="$1"
+  local output_file="$2"
+  [[ -n "${key}" ]] || return 1
+  chmod 600 "${output_file}"
   {
-    printf 'X-API-Key: %s\n' "${PFSENSE_POSTURE_API_KEY}"
+    printf 'X-API-Key: %s\n' "${key}"
     printf 'Accept: application/json\n'
-  } >"${API_HEADER_FILE}"
+  } >"${output_file}"
 }
 
 probe_api() {
@@ -214,30 +375,49 @@ probe_api() {
   local base_url="$2"
   local insecure="$3"
   local endpoint="$4"
+  local expected_http="$5"
+  local header_file="$6"
   local -a tls_args=()
-  local body http_code
+  local body error_file meta curl_status=0
+  local http_code peer time_connect time_tls time_first time_total
   body="$(mktemp)"
+  error_file="$(mktemp)"
   if [[ "${insecure}" == true ]]; then
     tls_args=(-k)
   fi
 
-  http_code="$(curl "${tls_args[@]}" --silent --show-error \
+  meta="$(curl "${tls_args[@]}" --silent --show-error \
     --connect-timeout 5 --max-time 15 \
-    -o "${body}" -w '%{http_code}' \
-    --header "@${API_HEADER_FILE}" \
-    "${base_url%/}${endpoint}" 2>>"${REPORT}" || true)"
+    -o "${body}" \
+    -w '%{http_code}|%{remote_ip}|%{time_connect}|%{time_appconnect}|%{time_starttransfer}|%{time_total}' \
+    --header "@${header_file}" \
+    "${base_url%/}${endpoint}" 2>"${error_file}")" || curl_status=$?
+  IFS='|' read -r http_code peer time_connect time_tls time_first time_total <<<"${meta}"
 
-  if [[ "${http_code}" == "200" ]] && jq -e '.code == 200 and .status == "ok"' "${body}" >/dev/null 2>&1; then
-    local summary
-    summary="$(jq -c '{code,status,response_id,data_type:(.data|type),count:(if (.data|type)=="array" then (.data|length) else null end)}' "${body}")"
-    log "${label} endpoint=${endpoint} http=${http_code} ${summary}"
-    rm -f "${body}"
-    return 0
+  if ((curl_status != 0)); then
+    local curl_error
+    curl_error="$(tr '\r\n\t' '   ' <"${error_file}" | head -c 320)"
+    log "${label} endpoint=${endpoint} http=${http_code:-000} curl_exit=${curl_status} peer=${peer:-unknown} connect=${time_connect:-unknown}s tls=${time_tls:-unknown}s first=${time_first:-unknown}s total=${time_total:-unknown}s ERROR"
+    [[ -z "${curl_error}" ]] || log "${label} curl_error=${curl_error}"
+    rm -f "${body}" "${error_file}"
+    return 1
   fi
 
-  log "${label} endpoint=${endpoint} http=${http_code:-000} ERROR"
+  if [[ "${http_code}" == "${expected_http}" ]]; then
+    if [[ "${expected_http}" != "200" ]] || jq -e '.code == 200 and .status == "ok"' "${body}" >/dev/null 2>&1; then
+      local summary=""
+      if [[ -s "${body}" ]]; then
+        summary="$(jq -c '{code,status,response_id,data_type:(.data|type),count:(if (.data|type)=="array" then (.data|length) else null end)}' "${body}" 2>/dev/null || true)"
+      fi
+      log "${label} endpoint=${endpoint} http=${http_code} expected=${expected_http} peer=${peer:-unknown} connect=${time_connect:-unknown}s tls=${time_tls:-unknown}s first=${time_first:-unknown}s total=${time_total:-unknown}s${summary:+ ${summary}}"
+      rm -f "${body}" "${error_file}"
+      return 0
+    fi
+  fi
+
+  log "${label} endpoint=${endpoint} http=${http_code:-000} expected=${expected_http} peer=${peer:-unknown} connect=${time_connect:-unknown}s tls=${time_tls:-unknown}s first=${time_first:-unknown}s total=${time_total:-unknown}s ERROR"
   jq -c '{code,status,response_id,message}' "${body}" 2>/dev/null | tee -a "${REPORT}" || true
-  rm -f "${body}"
+  rm -f "${body}" "${error_file}"
   return 1
 }
 
@@ -245,8 +425,12 @@ log "pfSense recovery mode=${MODE} target=${SSH_TARGET} api=${API_URL} lan_api=$
 log "Local report: ${REPORT}"
 log ""
 log "==> HTTPS/API vantage points"
+if [[ "${VERBOSE}" != true ]]; then
+  CONSOLE_OUTPUT=false
+fi
 
 api_failures=0
+auth_lockout_risk=false
 ui_hostname_ok=true
 ui_lan_ok=true
 probe_url "ui_hostname" "${API_URL}" false || {
@@ -258,19 +442,64 @@ probe_url "ui_lan" "${LAN_API_URL}" true || {
   api_failures=$((api_failures + 1))
 }
 
-if prepare_api_header; then
-  endpoints=(
+if [[ -n "${PFSENSE_POSTURE_API_KEY:-}" ]]; then
+  POSTURE_API_HEADER_FILE="$(mktemp)"
+  prepare_api_header "${PFSENSE_POSTURE_API_KEY}" "${POSTURE_API_HEADER_FILE}"
+  posture_endpoints=(
     /api/v2/system/version
     /api/v2/status/services
     /api/v2/services/dns_resolver/settings
     /api/v2/system/dns
   )
-  for endpoint in "${endpoints[@]}"; do
-    probe_api "api_hostname" "${API_URL}" false "${endpoint}" || api_failures=$((api_failures + 1))
-  done
-  probe_api "api_lan" "${LAN_API_URL}" true /api/v2/system/version || api_failures=$((api_failures + 1))
+  # KeyAuth failures can feed pfSense REST API Login Protection/sshguard.
+  # Probe one harmless endpoint first and fail closed on 401 instead of turning
+  # a stale key into a burst of authentication failures that can lock out the
+  # diagnostic workstation from HTTPS and SSH.
+  posture_preflight_body="$(mktemp)"
+  posture_preflight_meta="$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
+    -o "${posture_preflight_body}" -w '%{http_code}' \
+    --header "@${POSTURE_API_HEADER_FILE}" \
+    "${API_URL%/}/api/v2/system/version" 2>/dev/null || true)"
+  if [[ "${posture_preflight_meta}" == "401" ]]; then
+    log "posture_hostname endpoint=/api/v2/system/version http=401 ERROR class=authentication"
+    jq -c '{code,status,response_id,message}' "${posture_preflight_body}" 2>/dev/null | tee -a "${REPORT}" || true
+    warn "posture API key rejected; stopping authenticated API matrix to avoid triggering REST API Login Protection/sshguard"
+    auth_lockout_risk=true
+    api_failures=$((api_failures + 1))
+  else
+    for endpoint in "${posture_endpoints[@]}"; do
+      probe_api "posture_hostname" "${API_URL}" false "${endpoint}" 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+    done
+    probe_api "posture_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 403 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+    probe_api "posture_lan" "${LAN_API_URL}" true /api/v2/system/version 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+  fi
+  rm -f "${posture_preflight_body}"
 else
-  log "WARN: PFSENSE_POSTURE_API_KEY unset: authenticated API evidence not evaluated"
+  log "WARN: PFSENSE_POSTURE_API_KEY unset: posture identity matrix not evaluated"
+fi
+
+if [[ "${auth_lockout_risk}" == true ]]; then
+  log "WARN: security identity matrix skipped because an authentication lockout risk was detected"
+elif [[ -n "${PFSENSE_SECURITY_API_KEY:-}" ]]; then
+  SECURITY_API_HEADER_FILE="$(mktemp)"
+  prepare_api_header "${PFSENSE_SECURITY_API_KEY}" "${SECURITY_API_HEADER_FILE}"
+  probe_api "security_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 200 "${SECURITY_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+  probe_api "security_hostname" "${API_URL}" false /api/v2/status/services 403 "${SECURITY_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+  probe_api "security_lan" "${LAN_API_URL}" true "/api/v2/diagnostics/table?id=snort2c" 200 "${SECURITY_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+else
+  log "WARN: PFSENSE_SECURITY_API_KEY unset: security identity matrix not evaluated"
+fi
+
+if [[ "${VERBOSE}" != true ]]; then
+  CONSOLE_OUTPUT=true
+  log "API summary: ui_hostname=$([[ "${ui_hostname_ok}" == true ]] && echo OK || echo FAIL) ui_lan=$([[ "${ui_lan_ok}" == true ]] && echo OK || echo FAIL) failures=${api_failures}"
+  if [[ "${auth_lockout_risk}" == true ]]; then
+    log "AUTH: posture key rejected; authenticated matrix stopped"
+  elif ((api_failures > 0)); then
+    grep -E ' (ERROR|endpoint=.*http=(401|403|000|5[0-9][0-9]).*ERROR)' "${REPORT}" | tail -n 8 || true
+  else
+    log "AUTH: posture/security least-privilege matrix OK"
+  fi
 fi
 
 if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
@@ -291,6 +520,8 @@ SSH_OPTS=(
   -o ConnectTimeout=8
   -o ServerAliveInterval=5
   -o ServerAliveCountMax=2
+  -o ControlMaster=no
+  -o ControlPath=none
 )
 if [[ -n "${SSH_PORT}" ]]; then
   SSH_OPTS+=(-p "${SSH_PORT}")
@@ -301,7 +532,8 @@ log "==> Deep appliance evidence over SSH"
 ssh_status=0
 set +e
 ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" /bin/sh -s -- \
-  "${MODE}" "${UNBLOCK_SOURCES}" "${PROBE_SOURCES}" <<'REMOTE' 2>&1 | tee -a "${REPORT}"
+  "${MODE}" "${UNBLOCK_SOURCES}" "${PROBE_SOURCES}" <<'REMOTE' 2>&1 | \
+  tee -a "${REPORT}" > >(if [[ "${VERBOSE}" == true ]]; then cat; else cat >/dev/null; fi)
 set -u
 MODE="$1"
 UNBLOCK_SOURCES="$2"
@@ -347,21 +579,149 @@ if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf 
 fi
 printf 'unbound_control_healthy=%s\n' "${UNBOUND_HEALTHY}"
 
-section "Snort / pfBlockerNG / PF attribution"
-pgrep -laf 'snort|pfblocker|pfb_' 2>/dev/null || true
-TABLES="$(pfctl -s Tables 2>/dev/null | egrep '^(snort2c|pfB_|pfb_)' || true)"
+section "REST API settings / service identities (redacted)"
+run_optional pkg info -x 'pfSense-pkg-RESTAPI'
+if [ -x /usr/local/bin/php ]; then
+  /usr/local/bin/php <<'PHP' 2>&1 || true
+<?php
+require_once('/etc/inc/config.inc');
+global $config;
+
+$targets = ['fastapi_posture', 'fastapi_security'];
+$expected = [
+    'fastapi_posture' => [
+        'api-v2-system-version-get',
+        'api-v2-status-services-get',
+        'api-v2-services-dns-resolver-settings-get',
+        'api-v2-system-dns-get',
+        'user-config-readonly',
+    ],
+    'fastapi_security' => [
+        'api-v2-diagnostics-table-get',
+        'user-config-readonly',
+    ],
+];
+
+$api = [];
+foreach (($config['installedpackages']['package'] ?? []) as $package) {
+    if (($package['name'] ?? '') === 'RESTAPI') {
+        $api = $package['conf'] ?? [];
+        break;
+    }
+}
+$authMethods = $api['auth_methods'] ?? [];
+if (!is_array($authMethods)) {
+    $authMethods = [$authMethods];
+}
+sort($authMethods);
+printf(
+    "restapi enabled=%s read_only=%s login_protection=%s auth_methods=%s\n",
+    ($api['enabled'] ?? 'unknown'),
+    ($api['read_only'] ?? 'unknown'),
+    ($api['login_protection'] ?? 'unknown'),
+    implode(',', $authMethods)
+);
+
+$users = $config['system']['user'] ?? [];
+$groups = $config['system']['group'] ?? [];
+foreach ($targets as $name) {
+    $found = null;
+    foreach ($users as $user) {
+        if (($user['name'] ?? '') === $name) {
+            $found = $user;
+            break;
+        }
+    }
+    if ($found === null) {
+        printf("identity user=%s exists=no\n", $name);
+        continue;
+    }
+
+    $privs = $found['priv'] ?? [];
+    if (!is_array($privs)) {
+        $privs = [$privs];
+    }
+    sort($privs);
+    $missing = array_values(array_diff($expected[$name], $privs));
+    $unexpected = array_values(array_diff($privs, $expected[$name]));
+    $uid = (string)($found['uid'] ?? '');
+    $admins = 'no';
+    foreach ($groups as $group) {
+        if (($group['name'] ?? '') !== 'admins') {
+            continue;
+        }
+        $members = $group['member'] ?? [];
+        if (!is_array($members)) {
+            $members = [$members];
+        }
+        if ($uid !== '' && in_array($uid, array_map('strval', $members), true)) {
+            $admins = 'yes';
+        }
+    }
+    printf(
+        "identity user=%s exists=yes disabled=%s admins=%s privileges=%s missing=%s unexpected=%s\n",
+        $name,
+        isset($found['disabled']) ? 'yes' : 'no',
+        $admins,
+        implode(',', $privs),
+        $missing ? implode(',', $missing) : '<none>',
+        $unexpected ? implode(',', $unexpected) : '<none>'
+    );
+}
+
+$keys = $api['keys']['key'] ?? [];
+if (!is_array($keys)) {
+    $keys = [];
+}
+$keyCounts = array_fill_keys($targets, 0);
+foreach ($keys as $key) {
+    $username = (string)($key['username'] ?? '');
+    if (!array_key_exists($username, $keyCounts)) {
+        continue;
+    }
+    $keyCounts[$username]++;
+    $descr = preg_replace('/\s+/', ' ', (string)($key['descr'] ?? ''));
+    printf(
+        "api_key user=%s length_bytes=%s hash_algo=%s descr=%s hash_present=%s\n",
+        $username,
+        (string)($key['length_bytes'] ?? 'unknown'),
+        (string)($key['hash_algo'] ?? 'unknown'),
+        $descr === '' ? '<empty>' : $descr,
+        empty($key['hash']) ? 'no' : 'yes'
+    );
+}
+foreach ($keyCounts as $username => $count) {
+    printf("api_key_count user=%s count=%d\n", $username, $count);
+}
+PHP
+else
+  echo 'WARN: php CLI unavailable; REST API identity inventory skipped'
+fi
+
+section "Snort / pfBlockerNG / Login Protection / PF attribution"
+pgrep -laf 'snort|pfblocker|pfb_|sshguard' 2>/dev/null || true
+TABLES="$(pfctl -s Tables 2>/dev/null | egrep '^(snort2c|pfB_|pfb_|sshguard$)' || true)"
 printf 'candidate_tables:\n%s\n' "${TABLES:-<none>}"
 BLOCK_MATCH_COUNT=0
+LOGIN_PROTECTION_MATCH_COUNT=0
 for source in ${PROBE_SOURCES}; do
   for table in ${TABLES}; do
     if pfctl -t "${table}" -T show 2>/dev/null | awk -v ip="${source}" '$1 == ip {found=1} END {exit !found}'; then
-      BLOCK_MATCH_COUNT=$((BLOCK_MATCH_COUNT + 1))
-      echo "BLOCK_MATCH table=${table} source=${source} exact=yes"
+      if [ "${table}" = sshguard ]; then
+        LOGIN_PROTECTION_MATCH_COUNT=$((LOGIN_PROTECTION_MATCH_COUNT + 1))
+        echo "LOGIN_PROTECTION_MATCH table=sshguard source=${source} exact=yes action=diagnose-only"
+      else
+        BLOCK_MATCH_COUNT=$((BLOCK_MATCH_COUNT + 1))
+        echo "BLOCK_MATCH table=${table} source=${source} exact=yes"
+      fi
       if [ "${MODE}" = apply ] && [ "${UNBLOCK_SOURCES}" = true ]; then
         case "${table}" in
           snort2c | pfB_* | pfb_*)
             echo "UNBLOCK_ACTION table=${table} source=${source}"
             pfctl -t "${table}" -T delete "${source}" 2>&1 || true
+            ;;
+          sshguard)
+            echo "NO_UNBLOCK_ACTION table=sshguard source=${source} reason=login-protection-requires-separate-operator-review"
             ;;
         esac
       fi
@@ -369,6 +729,7 @@ for source in ${PROBE_SOURCES}; do
   done
 done
 printf 'block_match_count=%s\n' "${BLOCK_MATCH_COUNT}"
+printf 'login_protection_match_count=%s\n' "${LOGIN_PROTECTION_MATCH_COUNT}"
 
 SNORT_CONF="$(find /usr/local/etc/snort -type f -path '*mvneta0.4090/snort.conf' 2>/dev/null | head -n 1)"
 if [ -n "${SNORT_CONF}" ]; then
@@ -426,6 +787,10 @@ if ((ssh_status != 0)); then
   log "WARN: SSH unavailable; use --port/SSH config if pfSense SSH is not on port 22, or --api-only when SSH is intentionally filtered"
 else
   log "OK: SSH appliance diagnostics completed"
+  if [[ "${VERBOSE}" != true ]]; then
+    log "SSH summary (full evidence: ${REPORT})"
+    grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
+  fi
 fi
 
 if ((api_failures > 0)); then

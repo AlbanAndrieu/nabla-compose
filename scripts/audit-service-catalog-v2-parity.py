@@ -34,7 +34,7 @@ LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
 BUSINESS_CRITICALITY_POLICY = ROOT / "catalog" / "business-criticality-policy.yaml"
-COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:[.-][^./]+)?\\.ya?ml$")
+COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml$")
 
 
 def _tracked_compose_paths() -> list[Path]:
@@ -139,9 +139,7 @@ def _compose_entity_dependencies() -> list[dict]:
 
 def _compose_entity_bindings() -> list[dict]:
     result: list[dict] = []
-    paths = [ROOT / "docker-compose.yml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yml")))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = _tracked_compose_paths()
     for path in paths:
         if not path.exists():
             continue

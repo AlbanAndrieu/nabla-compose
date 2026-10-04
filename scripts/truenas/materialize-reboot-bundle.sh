@@ -74,6 +74,7 @@ FILES=(
   scripts/truenas/recovery-reboot-homelab.sh
   scripts/truenas/diagnose-csi-orphans.sh
   scripts/truenas/collect-reboot-shutdown-evidence.sh
+  scripts/truenas/archive-reboot-evidence.sh
   scripts/truenas/reconcile-reboot-resume.sh
   scripts/truenas/verify-app-runtime-health.sh
   scripts/truenas/repair-opensearch-security-permissions.sh
@@ -109,6 +110,8 @@ validate_stage() {
     fail "materialized reboot script lacks bounded Docker ghost recovery"
   grep -q -- 'audit-docker-storage-debt.sh' "${STAGE}/scripts/truenas/reboot-homelab.sh" ||
     fail "materialized reboot script lacks pre-shutdown Docker storage-debt audit"
+  grep -q -- 'reboot transaction is not VERIFIED' "${STAGE}/scripts/truenas/archive-reboot-evidence.sh" ||
+    fail "materialized evidence archive does not require VERIFIED lifecycle state"
   grep -q -- 'READY_TO_REBOOT' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||
     fail "materialized recovery reboot helper lacks READY_TO_REBOOT gate"
   grep -q -- 'resume-approved.txt' "${STAGE}/scripts/truenas/recovery-reboot-homelab.sh" ||

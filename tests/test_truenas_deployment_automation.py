@@ -89,6 +89,7 @@ def test_doco_cd_catalog_authority_is_owned_by_truenas_compose() -> None:
     assert truenas_doco["security_opt"] == ["no-new-privileges:true"]
 
     assert "x-nabla" not in workstation["services"]["doco-cd"]
+    assert "labels" not in workstation["services"]["doco-cd"]
 
     entities = [
         entity
@@ -164,7 +165,12 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
     assert 'ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"' in script
-    assert 'PATH="${DEV_VENV}/bin:\\$PATH" bash scripts/agent-quality-gate.sh --fix' in script
+    assert "The agent quality gate automatically prepends this venv when it exists" in script
+    agent_gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"' in agent_gate
+    assert 'export PATH="${DEV_VENV}/bin:${PATH}"' in agent_gate
     assert "install-operator-tools.sh --check" in script
     assert "apt install" not in script
     assert "apt-get" not in script
@@ -189,6 +195,23 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     assert "docker-compose.yml,docker-compose.override.yml" in doc
     assert "Doco-CD must not gain an implicit Sample deployment target" in doc
     assert "update-fastapi-sample.sh" in doc
+    updater = (ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh").read_text(
+        encoding="utf-8",
+    )
+    assert "pfsense_auth_smoke" in updater
+    assert "--url https://home.albandrieu.com:10443" in updater
+    assert "deployment remains accepted because pfSense is optional diagnostic evidence" in updater
+    assert 'release_ref=false' in updater
+    assert '[[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]]' in updater
+    assert "pull-only mode requires a version ref" in updater
+    assert "Moving/source ref %s selected; building target commit %s locally" in updater
+    syntax = subprocess.run(
+        ["bash", "-n", str(ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
     assert "bootstrap-dev-tools.sh" in doc
 
 
@@ -199,7 +222,8 @@ def test_docker_image_cleanup_is_separate_bounded_maintenance() -> None:
     assert "NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS" in script
     assert "168" in script
     assert 'docker image prune -f --filter "until=' in script
-    assert "PREPARING | PREPARED" in script
+    assert "PREPARING | PREPARED | RESUMED" in script
+    assert "forbidden until VERIFIED" in script
     assert "audit-docker-storage-debt.sh" in script
     assert "docker system prune" not in script
     assert "docker network prune" not in script

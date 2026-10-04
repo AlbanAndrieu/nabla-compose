@@ -395,11 +395,14 @@ class ObservabilityContractTests(unittest.TestCase):
         gatus = (
             ROOT / "apps" / "gatus" / "config" / "config.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn(
+        # Akvorado is still lifecycle status=planned. Its future functional
+        # probes remain declared in Compose, while generated runtime consumers must
+        # not monitor it until activation.
+        self.assertNotIn(
             "http://172.17.0.24:31057/api/v0/healthcheck",
             gatus,
         )
-        self.assertIn(
+        self.assertNotIn(
             "http://172.17.0.24:31058/api/v0/healthcheck",
             gatus,
         )

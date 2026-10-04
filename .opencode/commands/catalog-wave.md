@@ -11,7 +11,7 @@ Plan exactly one bounded Backstage materialization wave from repository evidence
    directory names.
 3. Prefer declared criticality in this order:
    `critical -> high -> medium -> low -> unclassified`.
-4. If the highest remaining candidates are `unclassified`, do **not** invent
+4. If the highest remaining candidates are `unclassified`, do not invent
    business criticality, RTO, RPO, MTPD/DMTP or impact values. Switch to a
    classification-first task:
    - group candidates by `sourcePath`;

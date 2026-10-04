@@ -756,6 +756,17 @@
       "description": "Isolated sandbox for OpenClaw skills and local calendar tooling."
     },
     {
+      "id": "opencre",
+      "name": "OWASP OpenCRE",
+      "group": "security",
+      "sourcePath": "apps/opencre/compose.yml",
+      "composeService": "opencre",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31089",
+      "syncEligible": true,
+      "description": "Internal OWASP OpenCRE service for correlating common security requirements across standards. It complements DSOMM maturity assessment and does not replace the canonical Nabla service catalog."
+    },
+    {
       "id": "openhands",
       "name": "OpenHands",
       "group": "ai",

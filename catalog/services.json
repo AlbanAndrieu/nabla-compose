@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:d0522f9fdb79d5a3c177c7702cae7e7aaccccec590e4e869b9dd0d1aa523313c",
+  "catalogRevision": "sha256:6837ef2b22469ca526adb3e54338c38eaac65bca0c04bfd516aa105b0a6bf43c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -649,6 +649,7 @@
       "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
       "presentationRole": "service",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "govern",
         "identify"
@@ -664,8 +665,7 @@
         "networks": [
           "intranet"
         ]
-      },
-      "status": "planned"
+      }
     },
     {
       "id": "dsomm-baseline",
@@ -677,6 +677,7 @@
       "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "govern",
         "identify"
@@ -687,8 +688,7 @@
         "networks": [
           "intranet"
         ]
-      },
-      "status": "planned"
+      }
     },
     {
       "id": "elasticsearch",

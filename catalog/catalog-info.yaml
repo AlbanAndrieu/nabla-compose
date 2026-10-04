@@ -348,6 +348,8 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/docker-socket-proxy
 
 ---
 apiVersion: backstage.io/v1alpha1

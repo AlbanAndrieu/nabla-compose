@@ -524,6 +524,10 @@ while IFS= read -r source; do
   if ! env_files_equivalent "${app}" "${source}" "${target}"; then
     printf '❌ migration conflict: %s differs semantically from staged target %s\n' \
       "${source}" "${target}"
+    if [[ "${MODE}" == "--apply" || "${MODE}" == "--check" ]]; then
+      printf '   If the legacy source was intentionally updated, refresh only this app with:\n'
+      printf '   sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage %s\n' "${app}"
+    fi
     invalid=$((invalid + 1))
     continue
   fi

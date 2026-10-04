@@ -128,6 +128,14 @@ Garage WebUI is the regression example: `external=false`,
 `internalHost=172.17.0.24`, `internalPort=3909`, and
 `internalSecure=false`.
 
+After a revision containing `nabla.api.pfsense_auth_smoke` is deployed,
+`update-fastapi-sample.sh` also validates the posture/security least-privilege
+matrix from inside the TrueNAS container using the LAN-pinned hostname
+`https://home.albandrieu.com:10443`. This check is intentionally non-blocking:
+invalid pfSense observer credentials produce a warning but must not fail the
+FastAPI deployment, TrueNAS health, or homelab probe visualization. The smoke
+stops at the first HTTP 401 to avoid feeding pfSense Login Protection.
+
 After deployment, verify the effective runtime without printing unrelated secrets:
 
 ```bash
@@ -185,17 +193,22 @@ bash scripts/truenas/update-fastapi-sample.sh
 ```
 
 By default the helper fetches the **current `origin/master` of the
-`fastapi-sample` submodule** and resolves its package version. In
-`FASTAPI_SAMPLE_DEPLOY_MODE=auto` it first tries the immutable release image:
+`fastapi-sample` submodule** and resolves its package version. A moving source
+ref such as `master` is always built from the resolved commit in
+`FASTAPI_SAMPLE_DEPLOY_MODE=auto`; the helper must not silently substitute an
+older package-version image that happens to carry the same semantic version.
+
+Immutable release images remain available for explicit version refs such as
+`FASTAPI_SAMPLE_REF=1.20.18` (or when
+`FASTAPI_SAMPLE_RELEASE_IMAGE` is explicitly supplied):
 
 ```text
 ghcr.io/albanandrieu/fastapi-sample:<release-version>
 ```
 
-When that image exists, the helper pulls it, retags it as
+For those immutable refs, the helper pulls the release image, retags it as
 `fastapi-sample:local`, and skips the expensive local Python dependency
-build. TrueNAS still owns the Custom App/container lifecycle. If the release
-image is unavailable, `auto` falls back to the repository Docker build.
+build. TrueNAS still owns the Custom App/container lifecycle.
 
 This matters because semantic-release changes `pyproject.toml` for every
 version. The Dockerfile copies that file before `uv sync`, so a local release
@@ -1072,3 +1085,25 @@ is accepted.
 Do not add privileged Nabla Service routes while the same local container is
 reachable through `sample.albandrieu.com`. Route non-registration/public-path
 denial and fail-closed authentication are prerequisites.
+
+
+### Converged health-board checks
+
+`/api/health-board` refreshes asynchronously. The first response can therefore
+legitimately be `state=pending` with `homelab=null`; do not interpret that
+single response as missing TrueNAS/pfSense evidence.
+
+Use the canonical HTTP-only checker, which requires neither SSH nor
+`DIAGNOSTICS_ACCESS_KEY`:
+
+```bash
+# TrueNAS-hosted runtime
+bash scripts/truenas/check-fastapi-health-board.sh
+
+# FastAPI Cloud: public HTTPS only, no cloud SSH required
+bash scripts/truenas/check-fastapi-health-board.sh \
+  --url https://fastapi-sample.fastapicloud.dev
+```
+
+The helper triggers a refresh, polls until `.homelab != null`, then emits the
+sanitized TrueNAS API/path stages and pfSense authentication/security evidence.

@@ -824,4 +824,8 @@ while IFS= read -r app; do
 done <"${state_dir}/intentional-stopped.txt"
 vm_policy_gate
 run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=60s
-printf 'SUCCESS: homelab reboot lifecycle acceptance passed.\n'
+printf '%s\n' "${current_boot_id}" >"${state_dir}/boot-id-after"
+chmod 0600 "${state_dir}/boot-id-after"
+printf 'VERIFIED\n' >"${state_dir}/phase"
+record_prepare_history "${state_dir}" verified
+printf 'SUCCESS: homelab reboot lifecycle acceptance passed. manifest=%s\n' "${state_dir}"

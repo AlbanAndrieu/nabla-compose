@@ -114,6 +114,9 @@ services:
     init: true
     user: "568:568" # TrueNAS apps user
     environment:
+      # Upstream Bitwarden CLI refuses insecure HTTP server URLs. Keep this
+      # legacy adapter on the HTTPS Vaultwarden origin until Doco-CD no longer
+      # depends on it and the compatibility service can be retired.
       BW_HOST: "https://vaultwarden.albandrieu.com"
       BW_CLIENTID: "${BW_CLIENTID}"
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"

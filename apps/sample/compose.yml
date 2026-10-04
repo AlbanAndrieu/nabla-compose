@@ -96,6 +96,10 @@ services:
       # Becomes fail-closed with fastapi-sample#274; no privileged Nabla routes exist yet.
       MCP_OPS_REQUIRE_KEY: "true"
       # home.albandrieu.com is pinned below to pfSense LAN 172.17.0.1.
+      # Keep both dedicated identities on verified TLS; explicit compose values
+      # override any stale per-identity false values in the runtime env files.
+      PFSENSE_POSTURE_API_VERIFY_SSL: "true"
+      PFSENSE_SECURITY_API_VERIFY_SSL: "true"
       # This control path is independent from the public WAN listener.
       PFSENSE_SECURITY_PATH_MODE: out_of_band
       PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040

@@ -770,6 +770,3 @@ endpoints:
   url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'
-
-
-

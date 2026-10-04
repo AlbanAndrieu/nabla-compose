@@ -334,7 +334,7 @@ Talos/Kubernetes trust root                    ✅ post-reboot baseline healthy
   ↓
 PSA/PSS + least-privilege RBAC                 ✅ baseline; Restricted target
   ↓
-TrueNAS CSI attach/publish + RWX/reclaim        ⛔ current blocker
+TrueNAS CSI attach/publish + RWX/reclaim        ✅ accepted post-reboot
   ↓
 Vault bootstrap / workload identity            ⏸️ blocked by CSI
   ↓

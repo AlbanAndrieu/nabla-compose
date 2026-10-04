@@ -678,6 +678,7 @@
       "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
       "presentationRole": "service",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "govern",
         "identify"
@@ -693,8 +694,7 @@
         "type": "port",
         "host": "172.17.0.24",
         "port": 31088
-      },
-      "status": "planned"
+      }
     },
     {
       "id": "dsomm-baseline",
@@ -705,6 +705,7 @@
       "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "govern",
         "identify"
@@ -715,8 +716,7 @@
         "networks": [
           "intranet"
         ]
-      },
-      "status": "planned"
+      }
     },
     {
       "id": "elasticsearch",
