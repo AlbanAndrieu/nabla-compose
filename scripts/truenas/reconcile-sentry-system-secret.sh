@@ -31,7 +31,10 @@ read_key() {
     $1 == key {
       sub(/^[^=]*=/, "")
       value = $0
-      if ((value ~ /^'.*'$/) || (value ~ /^".*"$/)) {
+      first = substr(value, 1, 1)
+      last = substr(value, length(value), 1)
+      quote = sprintf("%c", 39)
+      if ((first == quote && last == quote) || (first == "\"" && last == "\"")) {
         value = substr(value, 2, length(value) - 2)
       }
       print value
