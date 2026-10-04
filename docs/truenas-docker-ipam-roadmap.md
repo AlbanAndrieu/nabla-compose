@@ -1,6 +1,6 @@
 # TrueNAS Docker IPAM and network migration roadmap
 
-Last updated: 2026-09-11.
+Last updated: 2026-10-04.
 
 This roadmap tracks the post-reboot Docker/Apps network migration on TrueNAS.
 The canonical network/IPAM map is documented in
@@ -270,18 +270,16 @@ be used to make a failed reboot appear healthy.
 - [ ] Add an explicit retention policy before removing older bundles/evidence;
   never remove the only known-good recovery snapshot merely to save space.
 
-### P5.2 — remove disposable CSI smoke state only after reclaim proof
+### P5.2 — disposable CSI smoke state accepted
 
-- [ ] Require no retained `nabla-csi-smoke` namespace, writer/reader Pod, PVC,
-  PV or VolumeAttachment after the successful acceptance/reclaim sequence.
-- [ ] Verify the corresponding TrueNAS CSI NFS share and dataset are removed by
-  the normal CSI reclaim path.
-- [ ] If Kubernetes objects are gone but the dataset/share remains, record it as
-  a CSI orphan and diagnose controller/reclaim evidence before any manual
-  deletion. Do not `zfs destroy` or delete the share as the first recovery step.
-- [ ] Record any genuinely orphaned historical CSI dataset/share separately from
-  the reboot and remove it only after proving no PV/PVC/VolumeAttachment or
-  workload references it.
+- [x] The accepted fresh post-reboot smoke deletes `nabla-csi-smoke`, waits for
+  namespace termination and PV reclaim, then fails closed unless the TrueNAS
+  middleware dataset, NFS share and ZFS resource are all absent.
+- [x] The historical retained CSI orphan was separately correlated and removed
+  only after complete quiesce; the runbook/incident retain that forensic path.
+- [ ] For any future orphan, keep `diagnose-csi-orphans.sh --check` as the
+  read-only first step and never use manual dataset/share deletion to make a
+  failed reclaim appear successful.
 
 ### P5.3 — converge legacy Docker networks in bounded owner-aware batches
 
