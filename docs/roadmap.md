@@ -316,15 +316,28 @@ Security-tooling acceptance within this workstream:
   - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
   - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
     `--check dsomm` and prove the dataset exists before runtime activation.
-  - [ ] Preserve progress/evidence under protected TrueNAS runtime state, run the
-    pinned `tweag/dsomm-baseline` job against the selected Nabla repositories,
-    route repository evidence into the two default maturity contexts (`Nabla
-    Platform` and `Nabla Applications`), then
-    complete unsupported/manual activities with reviewed evidence. The pinned
-    Tweag baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
-    activities remain explicit human-review scope. Promote DSOMM to `active`
-    only after runtime acceptance; automated baseline output is supporting
-    evidence, not the maturity verdict.
+  - [x] Derive a conservative DSOMM 5.0.2 seed from current catalog,
+    GitHub/workflow evidence, the 2026-10-03 TrueNAS PRA and reviewed Notion
+    control documentation. Keep only two maturity contexts: `Nabla Platform`
+    and `Nabla Applications`.
+  - [x] Validate seeded UUIDs, contexts, progression order and evidence structure
+    offline with `scripts/dsomm/validate-seed.py`; first `--apply` copies the
+    seed into protected runtime state and later deploys never overwrite it.
+  - [ ] Run the seed validator + DSOMM contract tests on the full local checkout,
+    then import/render the seed in the DSOMM 5.0 UI after `cpool/dsomm` exists.
+  - [ ] Run the pinned `tweag/dsomm-baseline` job against the selected Nabla
+    repositories and reconcile scanner output with the reviewed seed; baseline
+    output remains supporting evidence, not the maturity verdict.
+  - [ ] Close or explicitly accept the GitHub governance gap: `master` is
+    currently unprotected and no repository ruleset is configured, so Require
+    PR / required status checks / block force-push are not seeded as implemented.
+  - [ ] Complete unsupported/manual activities with reviewed evidence, especially
+    Security Champions/training, broad IAM, DSOMM 5 Agentic AI/Identity and
+    organization/process controls requiring interviews.
+  - [ ] Improve continuity evidence before raising BCDR/Backup maturity:
+    TrueNAS recovery is `tested-with-deviation`, the PT1H RTO was breached and
+    the PT1H RPO was not exercised. Promote DSOMM to `active` only after runtime
+    acceptance and reviewed assessment evidence.
 - [x] Vendor the Cloudflare `security-audit-skill` at reviewed upstream commit
   `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` and keep provenance/tests local.
 - [x] Publish source-first one-shot audits under `docs/security-audits/`; the
