@@ -293,51 +293,26 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
-- [ ] **OWASP OpenCRE standards correlation:** repository-owned
-  deployment intent now exists under `apps/opencre/` on
-  `172.17.0.24:31089 -> 5000`, with persistent SQLite state,
-  `CRE_ENABLE_HEALTH=1`, imports/MyOpenCRE/login disabled and `status: planned`.
-  - [x] Declare Compose + Backstage metadata + local contract tests.
-  - [x] Regenerate/review catalog topology and add bounded
-    `scripts/truenas/deploy-opencre.sh` with shared TrueNAS lifecycle helpers.
-  - [ ] On TrueNAS, create/check `cpool/opencre` through the generic repository
-    storage bootstrap.
-  - [ ] Replace upstream `:latest` with a reviewed immutable digest before
-    activation. `deploy-opencre.sh --apply` rejects mutable images unless an
-    explicit PoC-only override is supplied.
-  - [ ] Deploy internally, require `GET /rest/v1/health == 200`, prove one
-    useful DSOMM/SAMM/NIST/CIS/ISO correlation, then reboot/redeploy and verify
-    persistent state before changing intent to `active`.
-  OpenCRE remains the standards-correlation/reference layer, not the maturity
-  score of record; shared Neo4j/gap-analysis stays deferred until compatibility
-  and value are demonstrated.
-- [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
-  `172.17.0.24:31088` while it remains `status: planned`.
-  - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
-  - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
-    `--check dsomm` and prove the dataset exists before runtime activation.
-  - [x] Derive a conservative DSOMM 5.0.2 seed from current catalog,
-    GitHub/workflow evidence, the 2026-10-03 TrueNAS PRA and reviewed Notion
-    control documentation. Keep only two maturity contexts: `Nabla Platform`
-    and `Nabla Applications`.
-  - [x] Validate seeded UUIDs, contexts, progression order and evidence structure
-    offline with `scripts/dsomm/validate-seed.py`; first `--apply` copies the
-    seed into protected runtime state and later deploys never overwrite it.
-  - [ ] Run the seed validator + DSOMM contract tests on the full local checkout,
-    then import/render the seed in the DSOMM 5.0 UI after `cpool/dsomm` exists.
-  - [ ] Run the pinned `tweag/dsomm-baseline` job against the selected Nabla
-    repositories and reconcile scanner output with the reviewed seed; baseline
-    output remains supporting evidence, not the maturity verdict.
-  - [ ] Close or explicitly accept the GitHub governance gap: `master` is
-    currently unprotected and no repository ruleset is configured, so Require
-    PR / required status checks / block force-push are not seeded as implemented.
-  - [ ] Complete unsupported/manual activities with reviewed evidence, especially
-    Security Champions/training, broad IAM, DSOMM 5 Agentic AI/Identity and
-    organization/process controls requiring interviews.
-  - [ ] Improve continuity evidence before raising BCDR/Backup maturity:
-    TrueNAS recovery is `tested-with-deviation`, the PT1H RTO was breached and
-    the PT1H RPO was not exercised. Promote DSOMM to `active` only after runtime
-    acceptance and reviewed assessment evidence.
+- [ ] **OWASP OpenCRE standards correlation** — declaration repository-owned
+  terminée; contrat/exploitation canonique dans
+  [`apps/opencre/README.md`](../apps/opencre/README.md).
+  - [ ] Créer/vérifier `cpool/opencre`.
+  - [ ] Remplacer l'image flottante par un digest immutable revu.
+  - [ ] Déployer, valider `/rest/v1/health`, une corrélation utile et la
+    persistance après reboot avant de passer `status: active`.
+- [ ] **OWASP DSOMM assessment** — seed DSOMM 5.0.2 et contrats offline
+  terminés; modèle, preuves et exploitation canoniques dans
+  [`apps/dsomm/README.md`](../apps/dsomm/README.md) et
+  [`apps/dsomm/INITIAL_REVIEW.md`](../apps/dsomm/INITIAL_REVIEW.md).
+  - [ ] Créer/vérifier `cpool/dsomm`, exécuter le déploiement puis confirmer le
+    rendu du seed sans écraser un assessment existant.
+  - [ ] Exécuter le baseline Tweag pin, puis réconcilier uniquement les preuves
+    supportées avec le seed revu; aucun score automatique ne vaut verdict.
+  - [ ] Fermer ou accepter explicitement le gap GitHub (branche `master` non
+    protégée, aucun ruleset), puis compléter les activités manuelles
+    Security Champions/IAM/Agentic AI/Identity/process.
+  - [ ] Rejouer PRA/RPO avant toute hausse BCDR/Backup: RTO PT1H dépassé et RPO
+    PT1H non exercé lors du test courant.
 - [x] Vendor the Cloudflare `security-audit-skill` at reviewed upstream commit
   `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` and keep provenance/tests local.
 - [x] Publish source-first one-shot audits under `docs/security-audits/`; the
