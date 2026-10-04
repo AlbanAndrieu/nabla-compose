@@ -64,7 +64,11 @@ if [[ "${MODE}" == "--apply" ]]; then
     fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
 
-  for state_spec in     "progress|${progress_file}|${progress_seed}"     "evidence|${evidence_file}|${evidence_seed}"; do
+  state_specs=(
+    "progress|${progress_file}|${progress_seed}"
+    "evidence|${evidence_file}|${evidence_seed}"
+  )
+  for state_spec in "${state_specs[@]}"; do
     IFS='|' read -r state_key state_file state_seed <<<"${state_spec}"
     [[ ! -L "${state_file}" ]] ||
       fail "refusing symlinked DSOMM state file: ${state_file}"
