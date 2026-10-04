@@ -253,7 +253,7 @@ if [[ -n "${IDENTITY_ACTION}" ]]; then
   exit 0
 fi
 
-for command in curl jq tee grep awk date mktemp paste; do  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
+for command in curl jq tee grep awk date mktemp paste; do\n  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
