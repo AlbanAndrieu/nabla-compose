@@ -195,6 +195,17 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     assert "pfsense_auth_smoke" in updater
     assert "--url https://home.albandrieu.com:10443" in updater
     assert "deployment remains accepted because pfSense is optional diagnostic evidence" in updater
+    assert 'release_ref=false' in updater
+    assert '[[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]]' in updater
+    assert "pull-only mode requires a version ref" in updater
+    assert "Moving/source ref %s selected; building target commit %s locally" in updater
+    syntax = subprocess.run(
+        ["bash", "-n", str(ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
     assert "bootstrap-dev-tools.sh" in doc
 
 
