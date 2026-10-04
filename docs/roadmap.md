@@ -435,8 +435,8 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 - [ ] Archive reboot manifest, boot IDs, source SHA, operator acceptance exceptions and incident evidence.
 - [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset remains.
-- [ ] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence; never use `docker network prune`.
-- [ ] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend`.
+- [x] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence via `audit-docker-network-migration.sh --check`; the report remains read-only and never uses `docker network prune`.
+- [x] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend` in the network classifier; cleanup remains owner-specific.
 - [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle.
 - [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
 - [ ] Re-run orphan-shim diagnostics after Apps settle.
