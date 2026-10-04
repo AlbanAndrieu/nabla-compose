@@ -298,11 +298,13 @@ Security-tooling acceptance within this workstream:
   `172.17.0.24:31089 -> 5000`, with persistent SQLite state,
   `CRE_ENABLE_HEALTH=1`, imports/MyOpenCRE/login disabled and `status: planned`.
   - [x] Declare Compose + Backstage metadata + local contract tests.
-  - [ ] Regenerate/review catalog topology and create/check `cpool/opencre`
-    through the generic repository storage bootstrap.
-  - [ ] Replace upstream `:latest` with a reviewed immutable tag/digest before
-    activation; upstream currently documents `:latest` and publishes no GitHub
-    release.
+  - [x] Regenerate/review catalog topology and add bounded
+    `scripts/truenas/deploy-opencre.sh` with shared TrueNAS lifecycle helpers.
+  - [ ] On TrueNAS, create/check `cpool/opencre` through the generic repository
+    storage bootstrap.
+  - [ ] Replace upstream `:latest` with a reviewed immutable digest before
+    activation. `deploy-opencre.sh --apply` rejects mutable images unless an
+    explicit PoC-only override is supplied.
   - [ ] Deploy internally, require `GET /rest/v1/health == 200`, prove one
     useful DSOMM/SAMM/NIST/CIS/ISO correlation, then reboot/redeploy and verify
     persistent state before changing intent to `active`.
@@ -328,8 +330,10 @@ Security-tooling acceptance within this workstream:
 - [x] Publish source-first one-shot audits under `docs/security-audits/`; the
   2026-10-04 quick revalidation carries unchanged 2026-10-01 coverage and keeps
   Scanopy as `needs_validation`, not as a confirmed vulnerability.
-- [ ] Validate every committed audit JSON with the vendored Cloudflare findings
-  and coverage-ledger validators on a full local checkout before merge.
+- [x] Wire every committed audit JSON to the vendored Cloudflare findings and
+  coverage-ledger validators through `security-audit-skill-contract`.
+- [ ] Run that contract on a full local checkout before merge; the assistant
+  runtime cannot resolve `github.com` and must not substitute Actions for it.
 - [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
   the deployed digest, proving initialization state + TCP/60073 exposure
   passively, then either close the lead or harden bind/firewall/socket access.
