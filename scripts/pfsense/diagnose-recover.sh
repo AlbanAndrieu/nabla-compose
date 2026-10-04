@@ -15,6 +15,7 @@ AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
 VERBOSE=false
+CONSOLE_OUTPUT=true
 IDENTITY_ACTION=""
 IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
@@ -421,6 +422,9 @@ log "pfSense recovery mode=${MODE} target=${SSH_TARGET} api=${API_URL} lan_api=$
 log "Local report: ${REPORT}"
 log ""
 log "==> HTTPS/API vantage points"
+if [[ "${VERBOSE}" != true ]]; then
+  CONSOLE_OUTPUT=false
+fi
 
 api_failures=0
 auth_lockout_risk=false
@@ -481,6 +485,18 @@ elif [[ -n "${PFSENSE_SECURITY_API_KEY:-}" ]]; then
   probe_api "security_lan" "${LAN_API_URL}" true "/api/v2/diagnostics/table?id=snort2c" 200 "${SECURITY_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
 else
   log "WARN: PFSENSE_SECURITY_API_KEY unset: security identity matrix not evaluated"
+fi
+
+if [[ "${VERBOSE}" != true ]]; then
+  CONSOLE_OUTPUT=true
+  log "API summary: ui_hostname=$([[ "${ui_hostname_ok}" == true ]] && echo OK || echo FAIL) ui_lan=$([[ "${ui_lan_ok}" == true ]] && echo OK || echo FAIL) failures=${api_failures}"
+  if [[ "${auth_lockout_risk}" == true ]]; then
+    log "AUTH: posture key rejected; authenticated matrix stopped"
+  elif ((api_failures > 0)); then
+    grep -E ' (ERROR|endpoint=.*http=(401|403|000|5[0-9][0-9]).*ERROR)' "${REPORT}" | tail -n 8 || true
+  else
+    log "AUTH: posture/security least-privilege matrix OK"
+  fi
 fi
 
 if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
