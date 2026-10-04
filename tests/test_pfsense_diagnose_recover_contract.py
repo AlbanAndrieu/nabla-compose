@@ -62,6 +62,48 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertNotIn("api_key_value", text)
         self.assertNotIn("hash=%s", text)
 
+    def test_auth_matrix_is_fail_fast_and_egress_has_public_fallback(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("stopping authenticated API matrix", text)
+        self.assertIn('auth_lockout_risk=true', text)
+        self.assertIn('/api/runtime/topology', text)
+        self.assertIn('/api/health-board', text)
+        self.assertIn(".runtime.active_egress_ips[]?", text)
+
+    def test_transport_metadata_preserves_empty_remote_ip_fields(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("%{http_code}|%{remote_ip}|%{time_connect}", text)
+        self.assertIn("IFS='|' read -r http_code peer", text)
+        self.assertNotIn("        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("sshguard$", text)
+        self.assertIn("LOGIN_PROTECTION_MATCH", text)
+        self.assertIn("NO_UNBLOCK_ACTION table=sshguard", text)
+        self.assertNotIn('pfctl -t "sshguard" -T delete', text)
+
+    def test_documentation_requires_writable_key_bootstrap_then_readonly_restore(self) -> None:
+        text = DOC.read_text(encoding="utf-8")
+
+        self.assertIn("temporarily remove `User - Config: Deny Config Write`", text)
+        self.assertIn("temporarily grant only `api-v2-auth-key-post`", text)
+        self.assertIn("restore `User - Config: Deny Config Write`", text)
+        self.assertIn("A key returned to the caller is not sufficient persistence evidence", text)
+
+    def test_documentation_states_ssh_and_api_are_distinct_capabilities(self) -> None:
+        text = DOC.read_text(encoding="utf-8")
+
+        self.assertIn("does **not** prove that TCP/22 is reachable", text)
+        self.assertIn("Do not assume port 22", text)
+        self.assertIn("admin@home.albandrieu.com:9922", text)
+        self.assertIn("`--apply` requires a successful SSH control path", text)
+
+
+if __name__ == "__main__":
+    unittest.main()
+%{http_code}\\t%{remote_ip}", text)
+
     def test_login_protection_is_diagnosed_but_never_auto_unblocked(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
