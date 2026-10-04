@@ -122,7 +122,12 @@ the appliance privilege ID exactly. Unexpected privileges such as
 explicit reconcile/finalize actions.
 
 Audit both accounts, privileges and persisted key metadata without exercising
-KeyAuth. Identity lifecycle commands are intentionally **workstation-only**:
+KeyAuth. The audit also instantiates the installed pfREST endpoint classes and
+prints their effective GET privilege sets as `endpoint_acl ... get_privileges=...`.
+Use this appliance-derived evidence to distinguish a role drift from an endpoint
+ACL/package-version difference when a valid key returns HTTP 403.
+
+Identity lifecycle commands are intentionally **workstation-only**:
 the helper preflights SSH config and requires the validated management path
 `admin@home.albandrieu.com:9922`. Running them from TrueNAS without that SSH
 credential/config would otherwise fall back to the local username on port 22
