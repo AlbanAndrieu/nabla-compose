@@ -313,11 +313,11 @@ repos:
       - id: dsomm-contract
         name: "🧭 dsomm · Validate maturity UI and baseline evidence contract"
         language: python
-        entry: python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary -v
+        entry: bash -c 'python scripts/dsomm/validate-seed.py && python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary -v'
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
+          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/dsomm/validate-seed[.]py|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
 
       - id: security-audit-skill-contract
         name: "🛡️ security · Validate vendored audit/report contract"
