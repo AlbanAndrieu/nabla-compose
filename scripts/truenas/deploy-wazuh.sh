@@ -64,6 +64,27 @@ else
   )"
 fi
 
+app_state="$(
+  midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+    jq -r '.[0].state // "MISSING"'
+)"
+case "${app_state}" in
+  STOPPED)
+    printf 'Starting TrueNAS Custom App %s after configuration reconciliation...\n' "${APP_ID}"
+    midclt call -j app.start "${APP_ID}"
+    ;;
+  RUNNING | DEPLOYING)
+    printf 'TrueNAS Custom App %s is already %s; continuing convergence checks.\n'       "${APP_ID}" "${app_state}"
+    ;;
+  CRASHED)
+    printf 'TrueNAS Custom App %s is CRASHED after reconciliation; attempting one controlled start.\n' "${APP_ID}"
+    midclt call -j app.start "${APP_ID}"
+    ;;
+  *)
+    fail "unexpected TrueNAS App state after reconciliation: ${app_state}"
+    ;;
+esac
+
 if docker network inspect nabla-security >/dev/null 2>&1; then
   printf 'Optional Wazuh forwarding network nabla-security is present.\n'
 else
