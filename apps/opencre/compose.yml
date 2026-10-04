@@ -63,15 +63,6 @@ services:
       monitoring:
         type: http
         url: http://172.17.0.24:31089/rest/v1/health
-      relations:
-        - target: dsomm
-          type: partOf
-          strength: optional
-          description: >-
-            OpenCRE and DSOMM participate in the same security governance
-            workstream while retaining separate assessment/mapping authority.
-          evidence:
-            - apps/opencre/compose.yml:opencre
 
 networks:
   intranet:
