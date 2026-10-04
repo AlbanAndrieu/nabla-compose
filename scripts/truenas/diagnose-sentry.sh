@@ -54,7 +54,22 @@ for command in midclt jq docker curl; do
   require_command "${command}"
 done
 
-printf '==> TrueNAS Sentry application state\n'
+printf '==> Sentry system-secret preflight\n'
+sentry_secret_file="${SENTRY_SECRET_FILE:-/mnt/cpool/sentry/.env.secrets}"
+if [[ -r "${sentry_secret_file}" ]] &&
+  awk -F= '
+    ($1 == "SENTRY_SECRET_KEY" || $1 == "SENTRY_SYSTEM_SECRET_KEY") && length($0) > length($1) + 1 {
+      found = 1
+    }
+    END { exit(found ? 0 : 1) }
+  ' "${sentry_secret_file}"; then
+  printf '✅ Sentry runtime system secret is present without printing it\n'
+else
+  printf '❌ Sentry runtime system secret is missing/unreadable: %s\n' "${sentry_secret_file}" >&2
+  printf '   NEXT: sudo bash scripts/truenas/reconcile-sentry-system-secret.sh --check\n' >&2
+fi
+
+printf '\n==> TrueNAS Sentry application state\n'
 app_json="$(
   midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" '{"extra":{"retrieve_config":true}}'
 )"
@@ -188,6 +203,10 @@ sock.close()
         printf '  ⚠️ expected one-shot migration is still running\n'
       else
         printf '  ❌ expected one-shot migration did not exit cleanly\n'
+        printf '  recent_migration_error_evidence:\n'
+        docker logs --tail "${SENTRY_MIGRATION_LOG_TAIL:-80}" "${id}" 2>&1 |
+          grep -Ei 'traceback|runtimeerror|error|exception|fatal|must be set|permission|denied|migration|postgres|kafka|clickhouse' |
+          tail -30 || true
         one_shot_failure_count=$((one_shot_failure_count + 1))
       fi
       ;;
