@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import subprocess
 import sys
 
@@ -118,6 +119,24 @@ def test_sample_uses_canonical_runtime_env_files() -> None:
     assert 'MCP_OPS_REQUIRE_KEY: "true"' in compose
 
 
+def test_code_runtime_secret_uses_canonical_password_key() -> None:
+    compose = (ROOT / "apps" / "code" / "compose.yml").read_text(encoding="utf-8")
+    manifest = json.loads(
+        (ROOT / "config" / "secrets" / "manifest.json").read_text(encoding="utf-8")
+    )
+    code = next(item for item in manifest["items"] if item["app"] == "code")
+    secret = code["secrets"][0]
+
+    assert "/mnt/cpool/secrets/runtime/code/.env" in compose
+    assert "/mnt/cpool/secrets/runtime/code/.env.secrets" in compose
+    assert "/mnt/cpool/code/.env" not in compose
+    assert "/mnt/cpool/code/.env.secrets" not in compose
+    assert "${CODE_PASSWORD}" not in compose
+    assert secret["env"] == "PASSWORD"
+    assert secret["importEnv"] == "CODE_PASSWORD"
+    assert secret["field"] == "CODE_PASSWORD"
+
+
 def test_homeassistant_does_not_require_missing_dotenv() -> None:
     compose = HOMEASSISTANT.read_text(encoding="utf-8")
 
@@ -128,7 +147,7 @@ def test_homeassistant_does_not_require_missing_dotenv() -> None:
 def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -> None:
     script = FIRST_WAVE.read_text(encoding="utf-8")
 
-    for app in ("scanopy", "joplin", "autokuma"):
+    for app in ("scanopy", "joplin", "autokuma", "code"):
         assert app in script
     assert "--check | --stage | --accept" in script
     assert "--accept is deliberately one service at a time" in script
@@ -157,7 +176,8 @@ def test_first_wave_has_complete_runtime_env_and_backstage_bundles() -> None:
             "joplin",
             "--app",
             "autokuma",
-        ],
+            "--app",
+            ],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -168,6 +188,7 @@ def test_first_wave_has_complete_runtime_env_and_backstage_bundles() -> None:
     assert "OK: scanopy: P0.3 runtime-env + Backstage migration bundle" in result.stdout
     assert "OK: joplin: P0.3 runtime-env + Backstage migration bundle" in result.stdout
     assert "OK: autokuma: P0.3 runtime-env + Backstage migration bundle" in result.stdout
+    assert "OK: code: P0.3 runtime-env + Backstage migration bundle" in result.stdout
 
 
 def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
