@@ -30,6 +30,16 @@ require_commands docker awk openssl install mktemp stat
 docker inspect "${CLICKHOUSE_CONTAINER}" >/dev/null 2>&1 ||
   fail "ClickHouse container not found: ${CLICKHOUSE_CONTAINER}"
 
+if ! docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
+  clickhouse-client \
+    --user "$CLICKHOUSE_USER" \
+    --password "$CLICKHOUSE_PASSWORD" \
+    --query "SELECT 1" >/dev/null
+'; then
+  fail "ClickHouse admin identity from the dedicated container cannot authenticate; refusing secret/user mutation"
+fi
+ok "ClickHouse admin identity is usable"
+
 read_key() {
   local key="$1"
   [[ -f "${SECRET_FILE}" ]] || return 0
