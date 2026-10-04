@@ -29,8 +29,9 @@ sudo bash scripts/truenas/prune-docker-images.sh --apply
 
 The apply mode removes only dangling images older than seven days by default
 (`docker image prune --filter until=168h`). It never uses `-a`, never prunes
-networks/volumes/containers, refuses cleanup while a reboot transaction is in
-`PREPARING` or `PREPARED`, and audits storage before/after.
+networks/volumes/containers, refuses cleanup while a normal reboot transaction
+is in `PREPARING`, `PREPARED` or `RESUMED`, and audits storage before/after.
+The transaction must reach the strict `VERIFIED` gate before cleanup is eligible.
 
 Recommended TrueNAS cron is a **separate root job**, weekly rather than hourly:
 
