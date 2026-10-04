@@ -112,8 +112,10 @@ Active platform debt:
 - [ ] Prove downstream consumption of Suricata `eve.json`.
 - [ ] Restore pfSense NetFlow → Cloudflare Network Analytics end to end.
 - [ ] Restore repository-owned Uptime Kuma before enabling AutoKuma.
-- [ ] Continue staged TrueNAS runtime-env migration; do not bulk-finalize paths
-  or recreate non-empty datasets.
+- [ ] Continue staged TrueNAS runtime-env migration; Sentry now has a bounded
+  recovery/restage/finalize transaction, but runtime `--finalize` acceptance
+  still has to be executed on TrueNAS. Do not bulk-finalize paths or recreate
+  non-empty datasets.
 - [ ] Resolve Vaultwarden exposure/TLS policy with verified HTTPS, least
   exposure and stricter `/admin` protection.
 - [ ] Keep the TrueNAS LXC GitHub Actions runner planned/dormant until needed.
@@ -191,7 +193,11 @@ Remaining work:
    time; AutoKuma additionally requires Uptime Kuma restored and RUNNING.
 2. [ ] Convert remaining explicit legacy `env_file` paths to
    `/mnt/cpool/secrets/runtime/<service>/...`; retire compatibility paths only
-   after restart/reboot acceptance.
+   after restart/reboot acceptance. Sentry path normalization is now
+   acceptance-gated: `recover-sentry-deploying.sh --apply` refreshes both
+   canonical files after E2E ingestion, and `--finalize` requires another
+   current diagnostic + ingestion smoke before replacing its two legacy files
+   with compatibility symlinks.
 3. [ ] Classify ignored repository-local `.env` files: secrets to Vaultwarden,
    non-secret settings to tracked config, and remove implicit project-env debt.
 4. [ ] Review Apps-preset drift without recreating non-empty datasets merely to
@@ -528,7 +534,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
-  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (protected DSOMM state, reviewed evidence, immutable OpenCRE image, persistence/reboot proof)
+  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (DSOMM seed syntax/structure is validated; next runtime gate is deploy-dsomm.sh --apply + HTTP/persistence acceptance, then immutable OpenCRE image and correlation/reboot proof)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com
