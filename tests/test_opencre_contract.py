@@ -10,6 +10,7 @@ COMPOSE = ROOT / "apps" / "opencre" / "compose.yml"
 README = ROOT / "apps" / "opencre" / "README.md"
 CATALOG = ROOT / "apps" / "opencre" / "catalog-info.yaml"
 STORAGE = ROOT / "scripts" / "truenas" / "bootstrap-repository-storage.sh"
+DEPLOY = ROOT / "scripts" / "truenas" / "deploy-opencre.sh"
 
 
 def test_opencre_compose_is_internal_persistent_and_fail_safe() -> None:
@@ -37,7 +38,7 @@ def test_opencre_compose_is_internal_persistent_and_fail_safe() -> None:
     assert service["cap_drop"] == ["ALL"]
     assert "no-new-privileges:true" in service["security_opt"]
     assert "healthcheck" in service
-    assert service["x-nabla"]["relations"][0]["target"] == "dsomm"
+    assert "relations" not in service["x-nabla"]
 
 
 def test_opencre_docs_keep_floating_image_blocked_from_activation() -> None:
@@ -65,3 +66,17 @@ def test_backstage_component_is_planned_security_tool() -> None:
     assert component["metadata"]["labels"]["albandrieu.com/operational-state"] == "planned"
     assert component["spec"]["type"] == "security-tool"
     assert "dependsOn" not in component["spec"]
+
+
+def test_deployer_uses_shared_truenas_lifecycle_and_blocks_mutable_apply() -> None:
+    text = DEPLOY.read_text(encoding="utf-8")
+
+    assert not text.startswith("#!")
+    assert 'MODE="${1:---check}"' in text
+    assert "bootstrap-repository-storage.sh" in text
+    assert "truenas_reconcile_custom_app" in text
+    assert "truenas_wait_app_running" in text
+    assert "/rest/v1/health" in text
+    assert "@sha256:" in text
+    assert "OPENCRE_ALLOW_MUTABLE_IMAGE" in text
+    assert "x-nabla.status remains planned" in text
