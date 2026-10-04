@@ -10,6 +10,7 @@ shift || true
 
 APP_QUERY_TIMEOUT="${NABLA_STUCK_APP_QUERY_TIMEOUT_SECONDS:-90}"
 LOG_TAIL="${NABLA_STUCK_APP_LOG_TAIL:-40}"
+TOPOLOGY="${NABLA_TOPOLOGY_FILE:-/mnt/cpool/compose/nabla-compose/catalog/service-topology.json}"
 APP_FILTERS=()
 
 usage() {
@@ -26,6 +27,7 @@ or STOPPED. It correlates:
 - bounded recent logs for unhealthy/restarting/non-zero-exit containers
 
 With --app, only the named Apps are inspected.
+Required catalog dependencies are printed with their current TrueNAS state when resolvable.
 EOF
 }
 
@@ -56,6 +58,7 @@ done
 
 require_root "run as root on TrueNAS"
 require_commands timeout midclt jq docker grep tail sed head sort mktemp
+[[ -r "${TOPOLOGY}" ]] || fail "topology catalog is not readable: ${TOPOLOGY}"
 
 for value in APP_QUERY_TIMEOUT LOG_TAIL; do
   current="${!value}"
@@ -93,6 +96,34 @@ while IFS= read -r app; do
   [[ -n "${app_state}" ]] || app_state="MISSING"
 
   printf '\n=== APP %s state=%s ===\n' "${app}" "${app_state}"
+
+  printf '%s\n' '-- required catalog dependencies --'
+  jq -r --arg app "${app}" '
+    .nodes as $nodes
+    | [
+        .relations[]?
+        | select(.source == $app and (.strength // "required") == "required")
+        | .target
+      ]
+    | unique[]
+  ' "${TOPOLOGY}" 2>/dev/null |
+    while IFS= read -r dependency; do
+      [[ -n "${dependency}" ]] || continue
+      runtime_id="$(
+        jq -r --arg dep "${dependency}" '
+          (.nodes[]? | select(.id == $dep) | .runtime.appId) //
+          (.nodes[]? | select(.id == $dep) | .id) //
+          $dep
+        ' "${TOPOLOGY}" 2>/dev/null |
+          head -n 1
+      )"
+      dep_state="$(
+        jq -r --arg rid "${runtime_id}" '
+          [.[] | select(.id == $rid) | .state][0] // "UNRESOLVED"
+        ' "${apps_json}"
+      )"
+      printf 'dependency=%s runtime=%s state=%s\n' "${dependency}" "${runtime_id}" "${dep_state}"
+    done
 
   printf '%s\n' '-- recent lifecycle jobs --'
   jq -r --arg app "${app}" '
@@ -153,7 +184,10 @@ while IFS= read -r app; do
       printf '      If prerequisites are valid and state stays STOPPED: sudo bash scripts/truenas/deploy-wazuh.sh\n'
       ;;
     langflow)
-      printf 'NEXT: inspect the restart-loop logs above before changing image/configuration.\n'
+      printf 'NEXT: verify /mnt/cpool/langflow/.env.secrets contains a non-empty LANGFLOW_SUPERUSER_PASSWORD before restart.\n'
+      ;;
+    grafana)
+      printf 'NEXT: Loki/Tempo permission failures require bind-root ownership repair before restarting Grafana.\n'
       ;;
     i2p)
       printf 'NEXT: inspect Docker healthcheck output; App restart alone is unlikely to repair a persistent unhealthy healthcheck.\n'
