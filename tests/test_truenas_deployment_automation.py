@@ -199,7 +199,8 @@ def test_docker_image_cleanup_is_separate_bounded_maintenance() -> None:
     assert "NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS" in script
     assert "168" in script
     assert 'docker image prune -f --filter "until=' in script
-    assert "PREPARING | PREPARED" in script
+    assert "PREPARING | PREPARED | RESUMED" in script
+    assert "forbidden until VERIFIED" in script
     assert "audit-docker-storage-debt.sh" in script
     assert "docker system prune" not in script
     assert "docker network prune" not in script
