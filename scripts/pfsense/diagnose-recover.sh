@@ -206,6 +206,28 @@ password_file_b64() {
   printf '%s' "${value}" | base64 | tr -d '\r\n'
 }
 
+identity_ssh_preflight() {
+  local resolved user port hostname
+  resolved="$(ssh -G "${SSH_TARGET}" 2>/dev/null)" ||
+    fail "unable to resolve SSH configuration for ${SSH_TARGET}"
+  user="$(awk '$1 == "user" {print $2; exit}' <<<"${resolved}")"
+  port="$(awk '$1 == "port" {print $2; exit}' <<<"${resolved}")"
+  hostname="$(awk '$1 == "hostname" {print $2; exit}' <<<"${resolved}")"
+
+  if [[ -n "${SSH_PORT}" ]]; then
+    port="${SSH_PORT}"
+  fi
+  if [[ "${SSH_TARGET}" == *@* ]]; then
+    user="${SSH_TARGET%%@*}"
+  fi
+
+  printf 'pfSense identity SSH path: user=%s host=%s port=%s\n'     "${user:-unknown}" "${hostname:-unknown}" "${port:-unknown}"
+
+  if [[ "${user:-}" != "admin" || "${port:-}" != "9922" ]]; then
+    fail "pfSense identity lifecycle must use the workstation management SSH contract admin@home.albandrieu.com:9922; current SSH resolution is ${user:-unknown}@${hostname:-unknown}:${port:-unknown}. Run from the workstation, or pass --target admin@home.albandrieu.com --port 9922 only from a host that already has the required SSH credential."
+  fi
+}
+
 run_identity_admin() {
   local action="$1"
   local target="$2"
@@ -248,6 +270,7 @@ run_identity_admin() {
 if [[ -n "${IDENTITY_ACTION}" ]]; then
   command -v ssh >/dev/null 2>&1 || fail "ssh is required for identity lifecycle actions"
   command -v base64 >/dev/null 2>&1 || fail "base64 is required for identity lifecycle actions"
+  identity_ssh_preflight
   run_identity_admin "${IDENTITY_ACTION}" "${IDENTITY_TARGET}" ||
     fail "pfSense identity lifecycle action failed"
   exit 0
