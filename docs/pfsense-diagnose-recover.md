@@ -94,7 +94,7 @@ The canonical service accounts are deliberately split:
 
 | Identity | Steady-state privileges | Purpose |
 | --- | --- | --- |
-| `fastapi_posture` | `api-v2-system-version-get`, `api-v2-status-services-get`, `api-v2-services-dns_resolver-settings-get`, `api-v2-system-dns-get`, `user-config-readonly` | pfSense service/DNS posture |
+| `fastapi_posture` | `api-v2-system-version-get`, `api-v2-status-services-get`, `api-v2-services-dns-resolver-settings-get`, `api-v2-system-dns-get`, `user-config-readonly` | pfSense service/DNS posture |
 | `fastapi_security` | `api-v2-diagnostics-table-get`, `user-config-readonly` | exact Snort/PF table evidence |
 
 Neither identity should belong to a named privilege-bearing group such as
