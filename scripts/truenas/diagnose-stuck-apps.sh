@@ -104,7 +104,9 @@ reboot_context() {
 
   if [[ -n "${REBOOT_STATE_DIR}" ]]; then
     before_state="$(
-      jq -r --arg app "${app}"         '[.[] | select(.id == $app) | .state][0] // "UNKNOWN"'         "${REBOOT_STATE_DIR}/apps-before.json"
+      jq -r --arg app "${app}" \
+        '[.[] | select(.id == $app) | .state][0] // "UNKNOWN"' \
+        "${REBOOT_STATE_DIR}/apps-before.json"
     )"
     if grep -Fxq -- "${app}" "${REBOOT_STATE_DIR}/preexisting-failed.txt"; then
       context="preexisting-failed"
@@ -161,7 +163,8 @@ while IFS= read -r app; do
 
   IFS="$(printf '\t')" read -r reboot_class pre_reboot_state < <(reboot_context "${app}")
   printf '\n=== APP %s state=%s ===\n' "${app}" "${app_state}"
-  printf 'reboot_context=%s pre_reboot_state=%s manifest=%s\n'     "${reboot_class}" "${pre_reboot_state}" "${REBOOT_STATE_DIR:-unavailable}"
+  printf 'reboot_context=%s pre_reboot_state=%s manifest=%s\n' \
+    "${reboot_class}" "${pre_reboot_state}" "${REBOOT_STATE_DIR:-unavailable}"
 
   printf '%s\n' '-- required catalog dependencies --'
   jq -r --arg app "${app}" '
@@ -260,7 +263,8 @@ while IFS= read -r app; do
     exit_code="$(jq -r '.[0].State.ExitCode // 0' <<<"${inspect}")"
     restarts="$(jq -r '.[0].RestartCount // 0' <<<"${inspect}")"
 
-    printf 'container=%s service=%s status=%s health=%s exit=%s restarts=%s\n'       "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
+    printf 'container=%s service=%s status=%s health=%s exit=%s restarts=%s\n' \
+      "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
 
     if [[ "${status}" == "restarting" || "${health}" == "unhealthy" || "${exit_code}" -ne 0 ]]; then
       printf '%s\n' '  recent logs:'
@@ -312,5 +316,6 @@ while IFS= read -r app; do
   esac
 done <"${tmp}/selected.txt"
 
-printf '\nSUMMARY problematic_apps=%d regressions=%d deferred=%d\n'   "${problematic}" "${failures}" "${deferred}"
+printf '\nSUMMARY problematic_apps=%d regressions=%d deferred=%d\n' \
+  "${problematic}" "${failures}" "${deferred}"
 ((failures == 0))
