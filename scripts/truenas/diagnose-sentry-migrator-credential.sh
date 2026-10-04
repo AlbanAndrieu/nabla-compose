@@ -38,11 +38,12 @@ trace_password="$(read_key CLICKHOUSE_TRACE_PASSWORD)"
 [[ -n "${trace_password}" ]] || fail "CLICKHOUSE_TRACE_PASSWORD is missing/empty"
 ok "all three Sentry migrator ClickHouse secret keys are present"
 
-if [[ "${password}" != "${readonly_password}" || "${password}" != "${trace_password}" ]]; then
+if ! [[ "${password}" == "${readonly_password}" && "${password}" == "${trace_password}" ]]; then
   fail "the three migrator passwords differ although all three roles use sentry_migrator"
 fi
 ok "migrator ClickHouse passwords are internally consistent"
 
+# shellcheck disable=SC2016 # Variables are intentionally expanded inside the container.
 if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
   clickhouse-client \
     --user "$CLICKHOUSE_USER" \
@@ -53,6 +54,7 @@ if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
 fi
 ok "ClickHouse admin identity is usable"
 
+# shellcheck disable=SC2016 # Variables are intentionally expanded inside the container.
 user_count="$(
   printf "%s\n" "SELECT count() FROM system.users WHERE name = 'sentry_migrator';" |
     timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
@@ -66,8 +68,15 @@ user_count="$(
   fail "ClickHouse user sentry_migrator is absent"
 ok "ClickHouse user sentry_migrator exists"
 
-if timeout "${TIMEOUT_SECONDS}" docker exec   -e NABLA_MIGRATOR_PASSWORD="${password}"   "${CLICKHOUSE_CONTAINER}"   sh -lc '
-    clickhouse-client       --user sentry_migrator       --password "$NABLA_MIGRATOR_PASSWORD"       --query "SELECT 1" >/dev/null
+# shellcheck disable=SC2016 # NABLA_MIGRATOR_PASSWORD is expanded inside the container.
+if timeout "${TIMEOUT_SECONDS}" docker exec \
+  -e NABLA_MIGRATOR_PASSWORD="${password}" \
+  "${CLICKHOUSE_CONTAINER}" \
+  sh -lc '
+    clickhouse-client \
+      --user sentry_migrator \
+      --password "$NABLA_MIGRATOR_PASSWORD" \
+      --query "SELECT 1" >/dev/null
   '; then
   ok "sentry_migrator accepts the current /mnt/cpool/sentry/.env.migrator.secrets password"
   exit 0
