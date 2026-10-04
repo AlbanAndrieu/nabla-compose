@@ -84,3 +84,28 @@ def test_sentry_migrator_credential_diagnostic_is_bounded_and_secret_safe() -> N
         check=False,
     )
     assert syntax.returncode == 0, syntax.stderr
+
+
+def test_sentry_migrator_reconcile_is_scoped_and_secret_safe() -> None:
+    path = ROOT / "scripts" / "truenas" / "reconcile-sentry-migrator-credential.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "--check" in script
+    assert "--apply" in script
+    assert "CREATE USER IF NOT EXISTS sentry_migrator" in script
+    assert "ALTER USER sentry_migrator" in script
+    assert "GRANT ALL ON sentry.* TO sentry_migrator" in script
+    assert "GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator" in script
+    assert "openssl rand -hex 32" in script
+    assert "docker restart" not in script
+    assert "app.redeploy" not in script
+    assert "DROP DATABASE" not in script
+    assert "DROP USER" not in script
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
