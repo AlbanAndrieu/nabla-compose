@@ -46,7 +46,7 @@ capture_startup() {
   docker compose     -f apps/scrutiny/compose.yml     up -d --no-deps scrutiny
 
   # Invoked indirectly by the EXIT trap below.
-  # shellcheck disable=SC2317
+  # shellcheck disable=SC2317,SC2329
   cleanup_capture() {
     printf '\n==> Cleaning standalone diagnostic container\n'
     docker compose -f apps/scrutiny/compose.yml stop scrutiny >/dev/null 2>&1 || true
