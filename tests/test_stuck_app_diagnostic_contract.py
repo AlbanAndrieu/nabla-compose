@@ -155,3 +155,40 @@ def test_vaultwarden_legacy_adapter_keeps_https_origin() -> None:
     )
     assert 'BW_HOST: "https://vaultwarden.albandrieu.com"' in compose
     assert 'BW_HOST: "http://vaultwarden"' not in compose
+
+
+def test_sentry_system_secret_reconcile_is_bounded() -> None:
+    path = ROOT / "scripts" / "truenas" / "reconcile-sentry-system-secret.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "--check" in script
+    assert "--apply" in script
+    assert "/mnt/cpool/sentry/.env.secrets" in script
+    assert "/mnt/cpool/secrets/runtime/sentry/.env.secrets" in script
+    assert "SENTRY_SECRET_KEY" in script
+    assert "SENTRY_SYSTEM_SECRET_KEY" in script
+    assert "openssl rand -hex 32" in script
+    assert "--restage sentry" in script
+    assert "value not printed" in script
+    assert "docker restart" not in script
+    assert "app.redeploy" not in script
+    assert "cat " not in script
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
+
+
+def test_sentry_diagnostic_surfaces_system_secret_and_migration_errors() -> None:
+    script = (ROOT / "scripts" / "truenas" / "diagnose-sentry.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Sentry system-secret preflight" in script
+    assert "reconcile-sentry-system-secret.sh --check" in script
+    assert "recent_migration_error_evidence" in script
+    assert "SENTRY_MIGRATION_LOG_TAIL" in script
