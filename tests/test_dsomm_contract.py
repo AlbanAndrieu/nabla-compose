@@ -134,6 +134,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertNotIn("printf '%s:\\n' \"${state_key}\"", text)
         self.assertIn("chmod 0600", text)
         self.assertIn("truenas_reconcile_custom_app", text)
+        self.assertIn('if [[ "${state}" == "STOPPED" ]]', text)
+        self.assertIn('midclt call -j app.start "${APP_ID}"', text)
         self.assertIn("truenas_wait_app_running", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
