@@ -325,7 +325,10 @@ mkdir -p "$(dirname "${REPORT}")"
 : >"${REPORT}"
 
 log() {
-  printf '%s\n' "$*" | tee -a "${REPORT}"
+  printf '%s\n' "$*" >>"${REPORT}"
+  if [[ "${CONSOLE_OUTPUT}" == true ]]; then
+    printf '%s\n' "$*"
+  fi
 }
 
 probe_url() {
