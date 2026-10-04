@@ -38,6 +38,14 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         )
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
 
+    def test_check_is_concise_by_default_and_verbose_is_explicit(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("-v, --verbose", text)
+        self.assertIn("VERBOSE=false", text)
+        self.assertIn("SSH summary (full evidence:", text)
+        self.assertIn('if [[ "${VERBOSE}" == true ]]', text)
+
     def test_check_keeps_api_evidence_when_ssh_is_unavailable(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
