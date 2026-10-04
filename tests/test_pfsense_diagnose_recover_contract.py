@@ -124,7 +124,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
 
         self.assertIn("'api-v2-system-version-get'", helper)
         self.assertIn("'api-v2-status-services-get'", helper)
-        self.assertIn("'api-v2-services-dns_resolver-settings-get'", helper)
+        self.assertIn("'api-v2-services-dns-resolver-settings-get'", helper)
         self.assertIn("'api-v2-system-dns-get'", helper)
         self.assertIn("'api-v2-diagnostics-table-get'", helper)
         self.assertIn("if ($mode === 'rotation')", helper)
