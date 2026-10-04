@@ -7,7 +7,7 @@ SSH_PORT="${PFSENSE_SSH_PORT:-}"
 API_URL="${PFSENSE_API_URL:-https://home.albandrieu.com:10443}"
 LAN_API_URL="${PFSENSE_LAN_API_URL:-https://172.17.0.1:10443}"
 FASTAPI_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
-PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-}"
+PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-172.17.0.24 172.17.0.57}"
 AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
@@ -186,7 +186,7 @@ probe_url() {
   fi
   if output="$(curl "${tls_args[@]}" --fail --silent --show-error \
     --connect-timeout 5 --max-time 15 -o /dev/null \
-    -w "${label} http=%{http_code} peer=%{remote_ip} tls=%{ssl_verify_result} time=%{time_total}" \
+    -w "${label} http=%{http_code} peer=%{remote_ip} tls_verify=%{ssl_verify_result} connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s" \
     "${url%/}/" 2>&1)"; then
     log "${output}"
     return 0
@@ -514,11 +514,11 @@ LOGIN_PROTECTION_MATCH_COUNT=0
 for source in ${PROBE_SOURCES}; do
   for table in ${TABLES}; do
     if pfctl -t "${table}" -T show 2>/dev/null | awk -v ip="${source}" '$1 == ip {found=1} END {exit !found}'; then
-      BLOCK_MATCH_COUNT=$((BLOCK_MATCH_COUNT + 1))
       if [ "${table}" = sshguard ]; then
         LOGIN_PROTECTION_MATCH_COUNT=$((LOGIN_PROTECTION_MATCH_COUNT + 1))
         echo "LOGIN_PROTECTION_MATCH table=sshguard source=${source} exact=yes action=diagnose-only"
       else
+        BLOCK_MATCH_COUNT=$((BLOCK_MATCH_COUNT + 1))
         echo "BLOCK_MATCH table=${table} source=${source} exact=yes"
       fi
       if [ "${MODE}" = apply ] && [ "${UNBLOCK_SOURCES}" = true ]; then
