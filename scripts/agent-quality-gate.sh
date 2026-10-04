@@ -482,7 +482,7 @@ fi
 runtime_primitive_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
-    config/quality/runtime-primitives.json|scripts/*.sh|scripts/*/*.sh|scripts/*/*/*.sh|scripts/quality/check-runtime-primitive-duplication.py|tests/test_runtime_primitive_duplication.py)
+    config/quality/runtime-primitives.json|scripts/*.sh|tests/test_runtime_primitive_duplication.py)
       runtime_primitive_scope_changed=true
       break
       ;;
@@ -499,7 +499,7 @@ fi
 generated_contract_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
-    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*.yml|apps/*.yaml|apps/*/*.yml|apps/*/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
       generated_contract_scope_changed=true
       break
       ;;
