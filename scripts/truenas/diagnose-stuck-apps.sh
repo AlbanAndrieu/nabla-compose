@@ -276,14 +276,15 @@ while IFS= read -r app; do
 
   case "${app}" in
     sentry)
-      printf 'NEXT: sudo bash scripts/truenas/diagnose-sentry.sh --check\n'
+      printf 'NEXT: sudo bash scripts/truenas/recover-sentry-deploying.sh --check\n'
+      printf '      If the secret prerequisites fail or Sentry remains DEPLOYING: sudo bash scripts/truenas/recover-sentry-deploying.sh --apply\n'
       ;;
     wazuh)
       printf 'NEXT: sudo bash scripts/truenas/diagnose-wazuh.sh --check\n'
       printf '      If prerequisites are valid and state stays STOPPED: sudo bash scripts/truenas/deploy-wazuh.sh\n'
       ;;
     langflow)
-      printf 'NEXT: verify /mnt/cpool/langflow/.env.secrets contains a non-empty LANGFLOW_SUPERUSER_PASSWORD before restart.\n'
+      printf 'NEXT: verify the active Langflow secret path resolves to a non-empty LANGFLOW_SUPERUSER_PASSWORD; prefer the canonical /mnt/cpool/secrets/runtime/langflow/.env.secrets materialization before restart.\n'
       ;;
     grafana)
       printf 'NEXT: Loki/Tempo permission failures require bind-root ownership repair before restarting Grafana.\n'
