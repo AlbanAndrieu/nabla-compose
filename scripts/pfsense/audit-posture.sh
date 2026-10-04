@@ -238,7 +238,7 @@ fi
 
 if command -v drill >/dev/null 2>&1; then
   public_dns_output="$(drill @127.0.0.1 example.com A 2>/dev/null || true)"
-  public_dns_answer="$(printf '%s\n' "$public_dns_output" | awk '$3 == "IN" && $4 == "A" {print $5; exit}')"
+  public_dns_answer="$(printf '%s\n' "$public_dns_output" | awk '!/^;/ && /[[:space:]]IN[[:space:]]+A[[:space:]]/ {print $NF; exit}')"
   if printf '%s\n' "$public_dns_output" | grep -q 'rcode: NOERROR' && [ -n "$public_dns_answer" ]; then
     emit PASS unbound.public_dns_resolution "$public_dns_answer" "localhost Unbound resolved example.com with NOERROR"
   else
@@ -246,7 +246,7 @@ if command -v drill >/dev/null 2>&1; then
   fi
 
   lan_dns_output="$(drill @172.17.0.1 example.com A 2>/dev/null || true)"
-  lan_dns_answer="$(printf '%s\n' "$lan_dns_output" | awk '$3 == "IN" && $4 == "A" {print $5; exit}')"
+  lan_dns_answer="$(printf '%s\n' "$lan_dns_output" | awk '!/^;/ && /[[:space:]]IN[[:space:]]+A[[:space:]]/ {print $NF; exit}')"
   if printf '%s\n' "$lan_dns_output" | grep -q 'rcode: NOERROR' && [ -n "$lan_dns_answer" ]; then
     emit PASS unbound.lan_dns_resolution "$lan_dns_answer" "pfSense LAN resolver 172.17.0.1 resolved example.com with NOERROR"
   else
