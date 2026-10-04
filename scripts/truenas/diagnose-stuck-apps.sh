@@ -292,6 +292,16 @@ while IFS= read -r app; do
     i2p)
       printf 'NEXT: the I2P router healthcheck must listen on 7657; if I2P is intentionally deferred, keep the App STOPPED instead of forcing convergence.\n'
       ;;
+    nginx-proxy-manager)
+      printf 'NEXT: sudo bash scripts/truenas/diagnose-nginx-proxy-manager.sh --check\n'
+      printf '      Keep the legacy App recoverable until the independent NPMplus functional/restart gate is green.\n'
+      ;;
+    openarchiver)
+      printf 'NEXT: no repository-owned OpenArchiver Compose exists; preserve the saved TrueNAS App/data and inventory its runtime contract before mutation.\n'
+      ;;
+    paperless-ngx)
+      printf 'NEXT: no repository-owned Paperless-ngx Compose exists; preserve the saved TrueNAS App/data and inventory PostgreSQL/Redis/Tika dependencies before mutation.\n'
+      ;;
     openrag)
       printf 'NEXT: require Langflow and OpenSearch healthy, then run reconcile-openrag-opensearch-secret.sh --check before restarting OpenRAG.\n'
       ;;
