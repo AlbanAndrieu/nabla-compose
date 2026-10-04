@@ -271,6 +271,7 @@ log ""
 log "==> HTTPS/API vantage points"
 
 api_failures=0
+auth_lockout_risk=false
 ui_hostname_ok=true
 ui_lan_ok=true
 probe_url "ui_hostname" "${API_URL}" false || {
@@ -291,16 +292,36 @@ if [[ -n "${PFSENSE_POSTURE_API_KEY:-}" ]]; then
     /api/v2/services/dns_resolver/settings
     /api/v2/system/dns
   )
-  for endpoint in "${posture_endpoints[@]}"; do
-    probe_api "posture_hostname" "${API_URL}" false "${endpoint}" 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
-  done
-  probe_api "posture_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 403 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
-  probe_api "posture_lan" "${LAN_API_URL}" true /api/v2/system/version 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+  # KeyAuth failures can feed pfSense REST API Login Protection/sshguard.
+  # Probe one harmless endpoint first and fail closed on 401 instead of turning
+  # a stale key into a burst of authentication failures that can lock out the
+  # diagnostic workstation from HTTPS and SSH.
+  posture_preflight_body="$(mktemp)"
+  posture_preflight_meta="$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
+    -o "${posture_preflight_body}" -w '%{http_code}' \
+    --header "@${POSTURE_API_HEADER_FILE}" \
+    "${API_URL%/}/api/v2/system/version" 2>/dev/null || true)"
+  if [[ "${posture_preflight_meta}" == "401" ]]; then
+    log "posture_hostname endpoint=/api/v2/system/version http=401 ERROR class=authentication"
+    jq -c '{code,status,response_id,message}' "${posture_preflight_body}" 2>/dev/null | tee -a "${REPORT}" || true
+    warn "posture API key rejected; stopping authenticated API matrix to avoid triggering REST API Login Protection/sshguard"
+    auth_lockout_risk=true
+    api_failures=$((api_failures + 1))
+  else
+    for endpoint in "${posture_endpoints[@]}"; do
+      probe_api "posture_hostname" "${API_URL}" false "${endpoint}" 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+    done
+    probe_api "posture_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 403 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+    probe_api "posture_lan" "${LAN_API_URL}" true /api/v2/system/version 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+  fi
+  rm -f "${posture_preflight_body}"
 else
   log "WARN: PFSENSE_POSTURE_API_KEY unset: posture identity matrix not evaluated"
 fi
 
-if [[ -n "${PFSENSE_SECURITY_API_KEY:-}" ]]; then
+if [[ "${auth_lockout_risk}" == true ]]; then
+  log "WARN: security identity matrix skipped because an authentication lockout risk was detected"
+elif [[ -n "${PFSENSE_SECURITY_API_KEY:-}" ]]; then
   SECURITY_API_HEADER_FILE="$(mktemp)"
   prepare_api_header "${PFSENSE_SECURITY_API_KEY}" "${SECURITY_API_HEADER_FILE}"
   probe_api "security_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 200 "${SECURITY_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
