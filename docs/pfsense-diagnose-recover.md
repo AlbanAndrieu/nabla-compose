@@ -76,6 +76,18 @@ The direct IP probe intentionally disables certificate hostname validation becau
 it is transport comparison evidence; the hostname probe remains the TLS-trust
 proof.
 
+The helper discovers FastAPI Cloud egress from `/api/runtime/topology` and
+falls back to the shared `/api/health-board` runtime projection when that route
+is not exposed by the active deployment. A failed egress discovery never removes
+the explicit LAN observer sources.
+
+Authenticated matrices are fail-fast: a first `401` stops further KeyAuth
+requests, including the second identity, to avoid feeding REST API Login
+Protection/sshguard. Transport output uses a non-whitespace field separator so
+an empty curl `remote_ip` remains `peer=unknown` instead of shifting latency
+fields.
+
+
 ## API-key bootstrap and rotation
 
 `POST /api/v2/auth/key` is a configuration write even though the returned key is
