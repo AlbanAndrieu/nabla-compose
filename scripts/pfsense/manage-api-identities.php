@@ -2,6 +2,7 @@
 
 require_once('/etc/inc/config.inc');
 require_once('/etc/inc/auth.inc');
+require_once 'RESTAPI/autoloader.inc';
 
 if (!defined('NABLA_IDENTITY_ACTION') || !defined('NABLA_IDENTITY_TARGET')) {
     fwrite(STDERR, "ERROR: invoke this helper through diagnose-recover.sh\n");
@@ -235,6 +236,43 @@ function nabla_reconcile_service_user(
     return $changed;
 }
 
+function nabla_report_endpoint_acl(): void {
+    $classes = [
+        'system_version' => '\\RESTAPI\\Endpoints\\SystemVersionEndpoint',
+        'status_services' => '\\RESTAPI\\Endpoints\\StatusServicesEndpoint',
+        'dns_resolver_settings' => '\\RESTAPI\\Endpoints\\ServicesDNSResolverSettingsEndpoint',
+        'system_dns' => '\\RESTAPI\\Endpoints\\SystemDNSEndpoint',
+    ];
+
+    foreach ($classes as $name => $class) {
+        try {
+            if (!class_exists($class)) {
+                printf(
+                    "endpoint_acl name=%s available=no get_privileges=<unknown>\n",
+                    $name
+                );
+                continue;
+            }
+            $endpoint = new $class();
+            $privileges = is_array($endpoint->get_privileges ?? null)
+                ? $endpoint->get_privileges
+                : [];
+            printf(
+                "endpoint_acl name=%s path=%s get_privileges=%s\n",
+                $name,
+                (string)($endpoint->url ?? '<unknown>'),
+                empty($privileges) ? '<none>' : implode(',', $privileges)
+            );
+        } catch (Throwable $exc) {
+            printf(
+                "endpoint_acl name=%s available=error error=%s\n",
+                $name,
+                get_class($exc)
+            );
+        }
+    }
+}
+
 function nabla_report_identity(
     string $name,
     array $definition,
@@ -315,6 +353,7 @@ printf(
     implode(',', $authMethods),
     in_array('KeyAuth', $authMethods, true) ? 'yes' : 'no'
 );
+nabla_report_endpoint_acl();
 
 try {
     $changed = false;
