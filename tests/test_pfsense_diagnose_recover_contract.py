@@ -45,6 +45,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("VERBOSE=false", text)
         self.assertIn("SSH summary (full evidence:", text)
         self.assertIn('if [[ "${VERBOSE}" == true ]]', text)
+        self.assertIn('if [[ "${CONSOLE_OUTPUT}" == true ]]', text)
+        self.assertIn('printf \'%s\\\\n\' "$*" >>"${REPORT}"', text)
 
     def test_check_keeps_api_evidence_when_ssh_is_unavailable(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
