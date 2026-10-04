@@ -57,8 +57,8 @@ Observed incident sequence on 2026-10-04:
 4. a separate LAN request still returned HTTP/2 200 from nginx.
 
 The sequence initially made Login Protection/`sshguard` a reasonable
-hypothesis, but appliance evidence subsequently **invalidated it as the cause of
-this incident**: `pfctl -t sshguard -T show` was empty, including for
+hypothesis, but appliance evidence subsequently **invalidated it as the cause of this incident**:
+`pfctl -t sshguard -T show` was empty, including for
 `172.17.0.57`. The fail-fast guard remains useful defensive behavior because a
 diagnostic must not emit a burst of rejected credentials, but a timeout after a
 401 must not be attributed to `sshguard` without a matching table entry.
@@ -170,9 +170,9 @@ write.
 
 Observed on 2026-10-04: after removing `User - Config: Deny Config Write`
 from `fastapi_posture` while keeping `api-v2-auth-key-post`, the generated key
-became visible on `/system_restapi_key.php`. This confirms the failed
-configuration-write gate was `user-config-readonly`, not the key-generation
-privilege. The remaining `api-v2-auth-key-post` grant is still temporary and
+became visible on `/system_restapi_key.php`. This confirms the failed configuration-write gate
+was `user-config-readonly`, not the key-generation privilege. The remaining
+`api-v2-auth-key-post` grant is still temporary and
 must be removed after rotation.
 
 The evidence must be interpreted precisely:
