@@ -4272,16 +4272,6 @@
       ]
     },
     {
-      "source": "opencre",
-      "target": "dsomm",
-      "type": "partOf",
-      "strength": "optional",
-      "description": "OpenCRE and DSOMM participate in the same security governance workstream while retaining separate assessment/mapping authority.",
-      "evidence": [
-        "apps/opencre/compose.yml:opencre"
-      ]
-    },
-    {
       "source": "openhands",
       "target": "docker",
       "type": "hostedBy",
