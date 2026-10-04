@@ -13,19 +13,23 @@ WAIT_SECONDS="${SENTRY_RECOVERY_WAIT_SECONDS:-1200}"
 
 usage() {
   cat <<'EOF'
-usage: sudo bash scripts/truenas/recover-sentry-deploying.sh [--check|--apply]
+usage: sudo bash scripts/truenas/recover-sentry-deploying.sh [--check|--apply|--finalize]
 
 --check is read-only and validates the two known secret prerequisites plus the
 current Sentry diagnostic.
 --apply repairs only missing bounded credential material, redeploys only the
 Sentry TrueNAS App, waits for RUNNING, then requires diagnostic + E2E ingestion
-success. It never resets Kafka offsets, deletes topics/databases, or restarts
-shared Kafka/Redis/PostgreSQL/ClickHouse Apps.
+success and refreshes canonical runtime-secret copies.
+--finalize performs no redeploy: it requires current diagnostic + E2E ingestion
+success, then replaces only Sentry legacy env files with compatibility symlinks
+to the already-staged canonical copies.
+No mode resets Kafka offsets, deletes topics/databases, or restarts shared
+Kafka/Redis/PostgreSQL/ClickHouse Apps.
 EOF
 }
 
 case "${MODE}" in
-  --check | --apply) ;;
+  --check | --apply | --finalize) ;;
   -h | --help)
     usage
     exit 0
@@ -66,6 +70,17 @@ if [[ "${MODE}" == "--check" ]]; then
   exec bash "${diagnostic}" --check
 fi
 
+if [[ "${MODE}" == "--finalize" ]]; then
+  printf '\n==> Sentry pre-finalization functional diagnosis\n'
+  bash "${diagnostic}" --check
+  printf '\n==> Sentry pre-finalization end-to-end ingestion smoke\n'
+  bash "${smoke}"
+  printf '\n==> finalize canonical Sentry runtime-secret paths\n'
+  bash "${SCRIPT_DIR}/bootstrap-repository-env-files.sh" --finalize sentry
+  ok "Sentry legacy env paths finalized as compatibility links after functional acceptance"
+  exit 0
+fi
+
 printf '\n==> targeted Sentry redeploy\n'
 state="$(truenas_app_state "${APP_ID}")"
 [[ "${state}" != "MISSING" ]] || fail "TrueNAS App is missing: ${APP_ID}"
@@ -85,5 +100,5 @@ printf '\n==> canonical runtime-secret staging\n'
 bash "${SCRIPT_DIR}/bootstrap-repository-env-files.sh" --restage sentry
 
 ok "Sentry redeploy converged; canonical runtime secret copies refreshed"
-printf 'NEXT: after the observation window, finalize only Sentry legacy env paths:\n'
-printf '  sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize sentry\n'
+printf 'NEXT: after the observation window, finalize only Sentry legacy env paths through the acceptance-gated mode:\n'
+printf '  sudo bash scripts/truenas/recover-sentry-deploying.sh --finalize\n'
