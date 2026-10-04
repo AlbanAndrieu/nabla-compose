@@ -405,9 +405,9 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy from `apps/graf
 - [ ] **Uptime Kuma + AutoKuma Compose** — add repository-owned Uptime Kuma on host port `31050`; AutoKuma remains only the declarative reconciler and stays stopped while Kuma is absent.
 - [ ] **Homarr bootstrap** — make first-run initialization idempotent and secret-backed, then apply generated topology through `homarr-sync`.
 - [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps until backup/rollback/consumer validation is designed.
-- [ ] **Deferred: nginx-proxy-manager** — investigate persistent `DEPLOYING` / unhealthy state.
-- [ ] **Deferred: OpenArchiver** — restore saved App or formally remove from runtime intent after review.
-- [ ] **Deferred: Paperless-ngx** — restore health, then refactor dedicated PostgreSQL/Redis toward shared services with migration/rollback.
+- [ ] **Deferred: nginx-proxy-manager** — read-only specialist diagnosis is now versioned; run `diagnose-nginx-proxy-manager.sh --check` to distinguish stale middleware `DEPLOYING` from Docker/storage/UI failure. Keep the legacy proxy recoverable until the independent NPMplus functional + restart gate is green.
+- [ ] **Deferred: OpenArchiver** — no repository-owned Compose exists yet; preserve the saved TrueNAS App/data and inventory its runtime/database/Tika contract before either restoring it or removing runtime intent.
+- [ ] **Deferred: Paperless-ngx** — no repository-owned Compose exists yet; preserve the saved TrueNAS App/data and inventory PostgreSQL/Redis/Tika dependencies before restore/refactor with rollback.
 - [ ] Akvorado ingestion/query acceptance.
 - [ ] ntopng reconciliation after Suricata.
 - [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
