@@ -14,6 +14,8 @@ def test_health_board_checker_is_http_only_and_waits_for_homelab() -> None:
     assert "/api/health-board?refresh=true" not in source
     assert '"${endpoint}?refresh=true"' in source
     assert ".homelab != null" in source
+    assert ".refreshing == false" in source
+    assert '.state == "fresh" or .state == "stale"' in source
     assert "Health-board pending" in source
     assert "Health-board converged" in source
     assert "DIAGNOSTICS_ACCESS_KEY are not used" in source
