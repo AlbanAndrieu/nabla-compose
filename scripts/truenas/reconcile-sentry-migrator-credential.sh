@@ -56,10 +56,10 @@ password="$(read_key CLICKHOUSE_PASSWORD)"
 readonly_password="$(read_key CLICKHOUSE_READONLY_PASSWORD)"
 trace_password="$(read_key CLICKHOUSE_TRACE_PASSWORD)"
 
-if [[ -n "${password}" &&
+if [[ "${password}" =~ ^[0-9a-fA-F]{64}$ &&
       "${password}" == "${readonly_password}" &&
       "${password}" == "${trace_password}" ]]; then
-  printf 'Preserving existing internally-consistent Sentry migrator secret.\n'
+  printf 'Preserving existing internally-consistent hex Sentry migrator secret.\n'
 else
   password="$(openssl rand -hex 32)"
   tmp="$(mktemp /mnt/cpool/sentry/.env.migrator.secrets.tmp.XXXXXX)"
