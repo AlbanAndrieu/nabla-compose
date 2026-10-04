@@ -104,20 +104,49 @@ while IFS= read -r app; do
   printf '%s\n' '-- required catalog dependencies --'
   jq -r --arg app "${app}" '
     .nodes as $nodes
+    | (
+        $nodes
+        | map(
+            select(
+              .id == $app
+              or .runtime.appId == $app
+              or .sourcePath == ("apps/" + $app + "/compose.yml")
+            )
+          )
+        | map(.id)
+      ) as $sources
     | [
         .relations[]?
-        | select(.source == $app and (.strength // "required") == "required")
+        | select((.strength // "required") == "required")
+        | select(.source as $source | $sources | index($source))
         | .target
       ]
     | unique[]
   ' "${TOPOLOGY}" 2>/dev/null |
     while IFS= read -r dependency; do
       [[ -n "${dependency}" ]] || continue
+      if [[ "${dependency}" == "docker" ]]; then
+        if docker info >/dev/null 2>&1; then
+          printf 'dependency=docker runtime=host-docker state=RUNNING\n'
+        else
+          printf 'dependency=docker runtime=host-docker state=UNAVAILABLE\n'
+        fi
+        continue
+      fi
+
       runtime_id="$(
         jq -r --arg dep "${dependency}" '
-          (.nodes[]? | select(.id == $dep) | .runtime.appId) //
-          (.nodes[]? | select(.id == $dep) | .id) //
-          $dep
+          (
+            .nodes[]?
+            | select(.id == $dep)
+            | .runtime.appId //
+              (
+                .sourcePath
+                | select(type == "string")
+                | capture("^apps/(?<app>[^/]+)/compose[.]yml$").app
+              ) //
+              .id
+          ) // $dep
         ' "${TOPOLOGY}" 2>/dev/null |
           head -n 1
       )"
