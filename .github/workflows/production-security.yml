@@ -34,6 +34,7 @@ concurrency:
 
 env:
   PRODUCTION_URL: https://fastapi-sample.fastapicloud.dev
+  FASTAPI_SAMPLE_DIAGNOSTICS_KEY: ${{ secrets.FASTAPI_SAMPLE_DIAGNOSTICS_KEY }}
 
 jobs:
   production-smoke:
@@ -100,29 +101,81 @@ jobs:
         run: |
           set -euo pipefail
 
-          fetch_json() {
+          curl_common=(
+            --silent
+            --show-error
+            --connect-timeout 10
+            --max-time 30
+            --retry 3
+            --retry-delay 3
+            --retry-all-errors
+          )
+          auth_args=()
+          if [[ -n "${FASTAPI_SAMPLE_DIAGNOSTICS_KEY:-}" ]]; then
+            auth_args=(-H "X-Diagnostics-Key: ${FASTAPI_SAMPLE_DIAGNOSTICS_KEY}")
+          fi
+
+          fetch_protected_json() {
             local path="$1"
             local output="$2"
-            curl --fail --silent --show-error \
-              --connect-timeout 10 \
-              --max-time 30 \
-              --retry 3 \
-              --retry-delay 3 \
-              --retry-all-errors \
-              "${PRODUCTION_URL}${path}" >"${output}"
+            local status
+
+            status="$(
+              curl "${curl_common[@]}" "${auth_args[@]}" \
+                --output "${output}" \
+                --write-out '%{http_code}' \
+                "${PRODUCTION_URL}${path}"
+            )"
+
+            if [[ "${status}" == "200" ]]; then
+              return 0
+            fi
+
+            if [[ -z "${FASTAPI_SAMPLE_DIAGNOSTICS_KEY:-}" && "${status}" == "401" ]]; then
+              printf 'INFO: %s is protected by DIAGNOSTICS_ACCESS_KEY; validating public topology fallback instead.\n' "${path}"
+              return 10
+            fi
+
+            printf 'ERROR: %s returned HTTP %s\n' "${path}" "${status}" >&2
+            cat "${output}" >&2 || true
+            return 1
           }
 
-          fetch_json "/api/homelab/status" /tmp/homelab-status.json
-          jq -e 'type == "object"' /tmp/homelab-status.json >/dev/null
+          protected_available=true
+          if ! fetch_protected_json "/api/homelab/status" /tmp/homelab-status.json; then
+            rc=$?
+            if ((rc == 10)); then
+              protected_available=false
+            else
+              exit "${rc}"
+            fi
+          fi
 
-          fetch_json "/api/runtime/topology" /tmp/runtime-topology.json
-          jq -e '
-            (.observed_instance_count | type == "number" and . >= 1) and
-            (.instances | type == "array" and length >= 1) and
-            (.active_egress_ips | type == "array") and
-            (.recent_egress_ips | type == "array") and
-            (.count_semantics | type == "string" and length > 0)
-          ' /tmp/runtime-topology.json >/dev/null
+          if [[ "${protected_available}" == true ]]; then
+            jq -e 'type == "object"' /tmp/homelab-status.json >/dev/null
+
+            fetch_protected_json "/api/runtime/topology" /tmp/runtime-topology.json
+            jq -e '
+              (.observed_instance_count | type == "number" and . >= 1) and
+              (.instances | type == "array" and length >= 1) and
+              (.active_egress_ips | type == "array") and
+              (.recent_egress_ips | type == "array") and
+              (.count_semantics | type == "string" and length > 0)
+            ' /tmp/runtime-topology.json >/dev/null
+          else
+            status="$(
+              curl "${curl_common[@]}" \
+                --output /tmp/public-topology.json \
+                --write-out '%{http_code}' \
+                "${PRODUCTION_URL}/api/public-topology"
+            )"
+            [[ "${status}" == "200" ]] || {
+              printf 'ERROR: public topology fallback returned HTTP %s\n' "${status}" >&2
+              cat /tmp/public-topology.json >&2 || true
+              exit 1
+            }
+            jq -e 'type == "object"' /tmp/public-topology.json >/dev/null
+          fi
 
       - name: Run bounded post-merge performance smoke
         if: github.event_name != 'pull_request'
