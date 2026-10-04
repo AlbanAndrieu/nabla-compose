@@ -672,6 +672,7 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("SHA256SUMS", text)
         self.assertIn("operator-acceptance.json", text)
         self.assertIn("resume-bundle-hotfix.json", text)
+        self.assertIn("immutable Git source commit", text)
         self.assertIn("No reboot archive or recovery bundle was deleted", text)
         self.assertIn("archive-reboot-evidence.sh", bundle)
         self.assertNotIn("docker network prune", text)
