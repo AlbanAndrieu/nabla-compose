@@ -25,7 +25,7 @@ $definitions = [
         'base_privs' => [
             'api-v2-system-version-get',
             'api-v2-status-services-get',
-            'api-v2-services-dns_resolver-settings-get',
+            'api-v2-services-dns-resolver-settings-get',
             'api-v2-system-dns-get',
         ],
     ],
