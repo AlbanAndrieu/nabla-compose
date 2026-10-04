@@ -44,7 +44,7 @@ case "${MODE}" in
 esac
 
 case "${APP_FILTER}" in
-  scanopy | joplin | autokuma | all) ;;
+  scanopy | joplin | autokuma | code | all) ;;
   *)
     fail "unsupported first-wave service: ${APP_FILTER}"
     ;;
@@ -166,7 +166,7 @@ function accept_dependency {
 }
 
 function deploy_service {
-  local app="$1"
+  local app="$1" state
   case "${app}" in
     scanopy) bash scripts/truenas/deploy-scanopy.sh ;;
     joplin) bash scripts/truenas/deploy-joplin.sh ;;
