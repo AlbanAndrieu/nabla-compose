@@ -97,6 +97,8 @@ def test_sentry_migrator_reconcile_is_scoped_and_secret_safe() -> None:
     assert "GRANT ALL ON sentry.* TO sentry_migrator" in script
     assert "GRANT CREATE WORKLOAD, DROP WORKLOAD ON *.* TO sentry_migrator" in script
     assert "openssl rand -hex 32" in script
+    assert "docker exec -i" in script
+    assert "NABLA_MIGRATOR_PASSWORD" not in script
     assert "docker restart" not in script
     assert "app.redeploy" not in script
     assert "DROP DATABASE" not in script
