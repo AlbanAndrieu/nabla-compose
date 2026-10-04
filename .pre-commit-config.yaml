@@ -193,6 +193,8 @@ repos:
         files: >-
           ^(catalog/services[.]json|config/secrets/(?:manifest|debt-baseline)[.]json|scripts/(?:nabla-service[.]py|nabla_ops/(?:__init__|catalog|model|state)[.]py|secrets/audit_consumers[.]py|truenas/audit-service-initialization[.]py)|tests/(?:test_service_initialization_audit|test_nabla_ops_contract)[.]py)$
 
+      # generate-catalog-v2-artifacts.py remains scope-only until Backstage
+      # materialization is complete; generated v2 artifacts are not yet authoritative.
       - id: catalog-v2-preparation-contract
         name: "🕸️ catalog · Validate v2 migration inventory coverage"
         language: python
