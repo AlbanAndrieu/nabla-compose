@@ -143,15 +143,24 @@ for command in curl jq tee grep awk date mktemp paste; do
 done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
+  runtime_source=""
   if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
     "${FASTAPI_URL%/}/api/runtime/topology" -o "${runtime_json}"; then
+    runtime_source="runtime-topology"
     discovered_egress="$(jq -r '.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
-    if [[ -n "${discovered_egress}" ]]; then
-      printf 'FASTAPI_EGRESS=%s\n' "${discovered_egress}"
-      PROBE_SOURCES="${PROBE_SOURCES:+${PROBE_SOURCES} }${discovered_egress}"
-    else
-      warn "FastAPI runtime topology returned no active_egress_ips"
-    fi
+  elif curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
+    "${FASTAPI_URL%/}/api/health-board" -o "${runtime_json}"; then
+    runtime_source="health-board"
+    discovered_egress="$(jq -r '.runtime.active_egress_ips[]? // empty' "${runtime_json}" | paste -sd' ' -)"
+  else
+    discovered_egress=""
+  fi
+
+  if [[ -n "${discovered_egress}" ]]; then
+    printf 'FASTAPI_EGRESS=%s source=%s\n' "${discovered_egress}" "${runtime_source}"
+    PROBE_SOURCES="${PROBE_SOURCES:+${PROBE_SOURCES} }${discovered_egress}"
+  elif [[ -n "${runtime_source}" ]]; then
+    warn "FastAPI ${runtime_source} returned no active_egress_ips"
   else
     warn "unable to discover FastAPI Sample active egress from ${FASTAPI_URL}"
   fi
@@ -233,10 +242,10 @@ probe_api() {
   meta="$(curl "${tls_args[@]}" --silent --show-error \
     --connect-timeout 5 --max-time 15 \
     -o "${body}" \
-    -w $'%{http_code}\t%{remote_ip}\t%{time_connect}\t%{time_appconnect}\t%{time_starttransfer}\t%{time_total}' \
+    -w '%{http_code}|%{remote_ip}|%{time_connect}|%{time_appconnect}|%{time_starttransfer}|%{time_total}' \
     --header "@${header_file}" \
     "${base_url%/}${endpoint}" 2>"${error_file}")" || curl_status=$?
-  IFS=$'\t' read -r http_code peer time_connect time_tls time_first time_total <<<"${meta}"
+  IFS='|' read -r http_code peer time_connect time_tls time_first time_total <<<"${meta}"
 
   if ((curl_status != 0)); then
     local curl_error
