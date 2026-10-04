@@ -177,7 +177,8 @@ def test_first_wave_has_complete_runtime_env_and_backstage_bundles() -> None:
             "--app",
             "autokuma",
             "--app",
-            ],
+            "code",
+        ],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -195,7 +196,6 @@ def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
     import yaml
 
     legacy_allowlist = {
-        "code",
         "mongo",
         "sentry",
         "nexus",
