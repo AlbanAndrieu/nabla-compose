@@ -703,26 +703,3 @@ fi
 if ((strict == 1 && warnings > 0)); then
   exit 2
 fi
-\t' read -r level key value message; do
-    [[ -n "${level}" ]] || continue
-    case "${level}" in
-      PASS) display_level="✅ PASS" ;;
-      WARN) display_level="⚠️ WARN" ;;
-      FAIL) display_level="❌ FAIL" ;;
-      INFO) display_level="ℹ️ INFO" ;;
-      SKIP) display_level="⏭️ SKIP" ;;
-      *) display_level="${level}" ;;
-    esac
-    printf '%-8s %-38s %-18s %s\n' "${display_level}" "${key}" "${value}" "${message}"
-  done <"${tmp}"
-fi
-
-failures="$(awk -F '\t' '$1 == "FAIL" {count++} END {print count + 0}' "${tmp}")"
-warnings="$(awk -F '\t' '$1 == "WARN" {count++} END {print count + 0}' "${tmp}")"
-
-if ((failures > 0)); then
-  exit 1
-fi
-if ((strict == 1 && warnings > 0)); then
-  exit 2
-fi
