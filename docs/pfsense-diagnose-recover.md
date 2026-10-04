@@ -22,16 +22,28 @@ If SSH is intentionally filtered or unavailable, use:
 scripts/pfsense/diagnose-recover.sh --api-only
 ```
 
-The read-only API key is taken from `PFSENSE_POSTURE_API_KEY`. It is written to a
-mode-0600 temporary curl header file so the key is not placed on the curl command
-line, is never sent through SSH, and is not printed in the report.
+Two independent least-privilege identities are evaluated when their keys are
+present in the caller environment:
 
-The API contract covers:
+- `PFSENSE_POSTURE_API_KEY`: the four posture GET endpoints must return `200`
+  and `/api/v2/diagnostics/table?id=snort2c` must return `403`;
+- `PFSENSE_SECURITY_API_KEY`: the Snort table endpoint must return `200` and
+  `/api/v2/status/services` must return `403`.
 
-- `/api/v2/system/version`;
-- `/api/v2/status/services`;
-- `/api/v2/services/dns_resolver/settings`;
-- `/api/v2/system/dns`.
+Each key is written to its own mode-0600 temporary curl header file so no secret
+is placed on the curl command line, sent through SSH, or printed in the report.
+A `401` is therefore an authentication result, a `403` can be an expected
+least-privilege result, while `http=000` is reported with the curl exit code and
+transport timings instead of being collapsed into an authentication failure.
+
+The SSH evidence also reports, without secret material:
+
+- REST API enabled/read-only/login-protection/auth-method settings;
+- whether `fastapi_posture` and `fastapi_security` exist, are enabled and are
+  outside the `admins` group;
+- exact privileges, including missing or unexpected grants;
+- API-key owner, byte length, hash algorithm, description, hash presence and key
+  count. The key value and stored hash are never emitted.
 
 The helper probes both the configured hostname path and the direct LAN address.
 The direct IP probe intentionally disables certificate hostname validation because
@@ -72,5 +84,10 @@ recovery actions implemented by the helper: restart PHP-FPM/webConfigurator and,
 when Unbound was not proven healthy, restart the resolver. Dynamic Snort or
 pfBlockerNG host entries are removed only with the additional explicit
 `--unblock-sources` opt-in and only for exact source-address matches.
+
+The read-only attribution also inspects the pfSense `sshguard` table used by
+Login Protection. An exact match is reported as `LOGIN_PROTECTION_MATCH`, but
+the helper deliberately never deletes `sshguard` entries: authentication
+lockouts require separate operator review.
 
 Never widen firewall policy or flush PF tables merely to make a diagnostic pass.
