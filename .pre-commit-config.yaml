@@ -334,7 +334,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/opencre/|docs/(?:roadmap|security-tooling-control-architecture)[.]md|scripts/truenas/bootstrap-repository-storage[.]sh|tests/test_opencre_contract[.]py)$
+          ^(apps/opencre/|docs/(?:roadmap|security-tooling-control-architecture)[.]md|scripts/truenas/(?:bootstrap-repository-storage|deploy-opencre)[.]sh|tests/test_opencre_contract[.]py)$
 
       - id: diagnostic-output-contract
         name: "📋 diagnostics · Validate shared compact/full output contract"
