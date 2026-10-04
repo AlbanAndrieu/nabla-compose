@@ -433,7 +433,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 
 ## P5 — bounded post-reboot cleanup
 
-- [ ] Archive reboot manifest, boot IDs, source SHA, operator acceptance exceptions and incident evidence.
+- [ ] Archive the accepted reboot evidence on TrueNAS — the repository now has a VERIFIED-only immutable archive helper; runtime archival and current+previous known-good retention still require acceptance.
 - [ ] Confirm no disposable CSI namespace/PVC/PV/VolumeAttachment/share/dataset remains.
 - [x] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence via `audit-docker-network-migration.sh --check`; the report remains read-only and never uses `docker network prune`.
 - [x] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend` in the network classifier; cleanup remains owner-specific.
