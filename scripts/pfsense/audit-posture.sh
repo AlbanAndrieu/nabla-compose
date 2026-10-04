@@ -703,7 +703,7 @@ else
       else if (level == "SKIP") { icon="⏭️"; color=cs }
       message=$4
       for (i=5; i<=NF; i++) message=message FS $i
-      printf "%s%-10s%s %-38s %-18s %s\\n", color, icon " " level, cr, $2, $3, message
+      printf "%s%-10s%s %-38s %-18s %s%c", color, icon " " level, cr, $2, $3, message, 10
     }
   ' "${tmp}"
 fi
