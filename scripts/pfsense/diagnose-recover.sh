@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+IDENTITY_HELPER="${SCRIPT_DIR}/manage-api-identities.php"
+
 MODE="check"
 SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
@@ -188,8 +191,69 @@ fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
 fi
-for command in curl jq tee grep awk date mktemp paste; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
+
+password_file_b64() {
+  local path="$1"
+  local label="$2"
+  local value=""
+  [[ -n "${path}" ]] || return 0
+  [[ -f "${path}" && -r "${path}" ]] || fail "${label} password file is not readable: ${path}"
+  IFS= read -r value <"${path}" || true
+  [[ -n "${value}" ]] || fail "${label} password file is empty: ${path}"
+  if tail -n +2 "${path}" | grep -q '[^[:space:]]'; then
+    fail "${label} password file must contain exactly one password line"
+  fi
+  printf '%s' "${value}" | base64 | tr -d '\r\n'
+}
+
+run_identity_admin() {
+  local action="$1"
+  local target="$2"
+  local posture_password_b64=""
+  local security_password_b64=""
+  local status=0
+  local -a ssh_opts=(
+    -o BatchMode=yes
+    -o ConnectTimeout=8
+    -o ServerAliveInterval=5
+    -o ServerAliveCountMax=2
+    -o ControlMaster=no
+    -o ControlPath=none
+  )
+
+  [[ -f "${IDENTITY_HELPER}" ]] || fail "identity helper not found: ${IDENTITY_HELPER}"
+  if [[ -n "${SSH_PORT}" ]]; then
+    ssh_opts+=(-p "${SSH_PORT}")
+  fi
+  if [[ "${action}" == "apply" ]]; then
+    posture_password_b64="$(password_file_b64 "${PFSENSE_POSTURE_PASSWORD_FILE:-}" "posture")"
+    security_password_b64="$(password_file_b64 "${PFSENSE_SECURITY_PASSWORD_FILE:-}" "security")"
+  fi
+
+  set +e
+  {
+    printf '<?php\n'
+    printf "define('NABLA_IDENTITY_ACTION', '%s');\n" "${action}"
+    printf "define('NABLA_IDENTITY_TARGET', '%s');\n" "${target}"
+    printf "define('NABLA_POSTURE_PASSWORD_B64', '%s');\n" "${posture_password_b64}"
+    printf "define('NABLA_SECURITY_PASSWORD_B64', '%s');\n" "${security_password_b64}"
+    printf '?>\n'
+    cat "${IDENTITY_HELPER}"
+  } | ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
+  status=${PIPESTATUS[1]}
+  set -e
+  return "${status}"
+}
+
+if [[ -n "${IDENTITY_ACTION}" ]]; then
+  command -v ssh >/dev/null 2>&1 || fail "ssh is required for identity lifecycle actions"
+  command -v base64 >/dev/null 2>&1 || fail "base64 is required for identity lifecycle actions"
+  run_identity_admin "${IDENTITY_ACTION}" "${IDENTITY_TARGET}" ||
+    fail "pfSense identity lifecycle action failed"
+  exit 0
+fi
+
+for command in curl jq tee grep awk date mktemp paste; do  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 if [[ "${AUTO_EGRESS}" == true ]]; then
   runtime_json="$(mktemp)"
