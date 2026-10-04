@@ -14,6 +14,7 @@ PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-172.17.0.24 172.17.0.57}"
 AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
+VERBOSE=false
 IDENTITY_ACTION=""
 IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
@@ -29,6 +30,7 @@ unreachable; SSH is required only for deep appliance diagnostics and --apply.
 Options:
   --check                   Read-only diagnosis (default).
   --api-only                Skip SSH and collect HTTPS/API evidence only.
+  -v, --verbose             Stream full SSH evidence; default prints a summary.
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
@@ -97,6 +99,9 @@ while (($# > 0)); do
       ;;
     --api-only)
       API_ONLY=true
+      ;;
+    -v | --verbose)
+      VERBOSE=true
       ;;
     --apply)
       MODE="apply"
@@ -508,7 +513,8 @@ log "==> Deep appliance evidence over SSH"
 ssh_status=0
 set +e
 ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" /bin/sh -s -- \
-  "${MODE}" "${UNBLOCK_SOURCES}" "${PROBE_SOURCES}" <<'REMOTE' 2>&1 | tee -a "${REPORT}"
+  "${MODE}" "${UNBLOCK_SOURCES}" "${PROBE_SOURCES}" <<'REMOTE' 2>&1 | \
+  tee -a "${REPORT}" > >(if [[ "${VERBOSE}" == true ]]; then cat; else cat >/dev/null; fi)
 set -u
 MODE="$1"
 UNBLOCK_SOURCES="$2"
@@ -762,6 +768,10 @@ if ((ssh_status != 0)); then
   log "WARN: SSH unavailable; use --port/SSH config if pfSense SSH is not on port 22, or --api-only when SSH is intentionally filtered"
 else
   log "OK: SSH appliance diagnostics completed"
+  if [[ "${VERBOSE}" != true ]]; then
+    log "SSH summary (full evidence: ${REPORT})"
+    grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
+  fi
 fi
 
 if ((api_failures > 0)); then
