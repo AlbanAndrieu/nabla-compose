@@ -49,7 +49,12 @@ for item in networks:
     name = item.get("Name", "?")
     labels = item.get("Labels") or {}
     project = labels.get("com.docker.compose.project") or "-"
-    endpoints = len(item.get("Containers") or {})
+    containers = item.get("Containers") or {}
+    endpoints = len(containers)
+    endpoint_names = sorted(
+        (details or {}).get("Name") or container_id[:12]
+        for container_id, details in containers.items()
+    )
     driver = item.get("Driver") or "?"
     ipv4_subnets = []
     for cfg in item.get("IPAM", {}).get("Config") or []:
@@ -88,9 +93,23 @@ for item in networks:
 
     counts[classification] += 1
     subnet_text = ",".join(str(network) for network in ipv4_subnets) or "-"
-    rows.append((classification, name, subnet_text, endpoints, project, driver, action))
+    endpoint_text = ",".join(endpoint_names) or "-"
+    rows.append(
+        (
+            classification,
+            name,
+            subnet_text,
+            endpoints,
+            endpoint_text,
+            project,
+            driver,
+            action,
+        )
+    )
 
-print("CLASSIFICATION\tNAME\tIPV4_SUBNET\tENDPOINTS\tPROJECT\tDRIVER\tACTION")
+print(
+    "CLASSIFICATION\tNAME\tIPV4_SUBNET\tENDPOINTS\tENDPOINT_NAMES\tPROJECT\tDRIVER\tACTION"
+)
 for row in sorted(rows, key=lambda value: (value[0], value[1])):
     print("\t".join(map(str, row)))
 
@@ -101,5 +120,9 @@ for classification, count in sorted(counts.items()):
 legacy_empty = [row for row in rows if row[0] == "legacy-empty"]
 legacy_active = [row for row in rows if row[0] == "legacy-active"]
 print(f"\nLegacy migration candidates: active={len(legacy_active)} empty={len(legacy_empty)}")
+print(
+    "Evidence includes Compose project ownership plus attached endpoint names; "
+    "review the full docker network inspect report before any owner-specific lifecycle action."
+)
 print("No network was modified or removed.")
 PY
