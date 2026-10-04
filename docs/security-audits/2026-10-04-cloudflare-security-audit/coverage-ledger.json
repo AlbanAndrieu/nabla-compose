@@ -1,0 +1,220 @@
+[
+  {
+    "coverage_id": ".envrc%23nvm-install::.envrc%23remote-installer-to-developer-shell::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": ".envrc#nvm-install",
+      "boundary": ".envrc#remote-installer-to-developer-shell",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "direnv/NVM bootstrap",
+    "boundary": "Remote GitHub-hosted installer content to developer shell",
+    "subsystem": "quick profile: all in-scope subsystems",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      ".envrc"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "api-source-review",
+    "reviewed_paths": [
+      ".envrc"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "api-source-review",
+        "reviewed_paths": [
+          ".envrc"
+        ],
+        "invariant": "Review Remote GitHub-hosted installer content to developer shell",
+        "method": "source",
+        "result": "NVM is version-pinned to v0.39.7 but the installer is streamed directly from raw.githubusercontent.com into bash without a repository-pinned digest. This is a supply-chain hardening gap, not evidence of a current compromise.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": ".github%2Fworkflows%23github-actions::.github%2Fworkflows%23repository-token-and-third-party-actions::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": ".github/workflows#github-actions",
+      "boundary": ".github/workflows#repository-token-and-third-party-actions",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "GitHub Actions workflows",
+    "boundary": "Pull-request/repository source to GitHub token and third-party action execution",
+    "subsystem": "quick profile: all in-scope subsystems",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      ".github/workflows/codeql.yml",
+      ".github/workflows/renovate.yml",
+      ".github/workflows/terragrunt-ci.yaml"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "api-source-review",
+    "reviewed_paths": [
+      ".github/workflows/codeql.yml",
+      ".github/workflows/renovate.yml",
+      ".github/workflows/terragrunt-ci.yaml"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "api-source-review",
+        "reviewed_paths": [
+          ".github/workflows/codeql.yml",
+          ".github/workflows/renovate.yml",
+          ".github/workflows/terragrunt-ci.yaml"
+        ],
+        "invariant": "Review Pull-request/repository source to GitHub token and third-party action execution",
+        "method": "source",
+        "result": "Reviewed workflows use SHA-pinned actions, persist-credentials:false and scoped read/default permissions; Terragrunt binary download is version-pinned and checked against upstream SHA256SUMS.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "apps%2Fscanopy%2Fcompose.yml%23scanopy-daemon::apps%2Fscanopy%2Fcompose.yml%23host-network%2Bdocker-socket::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "apps/scanopy/compose.yml#scanopy-daemon",
+      "boundary": "apps/scanopy/compose.yml#host-network+docker-socket",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "Scanopy daemon host-network API",
+    "boundary": "LAN/daemon API to privileged TrueNAS host and Docker control plane",
+    "subsystem": "quick profile: all in-scope subsystems",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "apps/scanopy/compose.yml"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "candidate",
+    "agent_id": "api-source-review",
+    "reviewed_paths": [
+      "apps/scanopy/compose.yml"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "api-source-review",
+        "reviewed_paths": [
+          "apps/scanopy/compose.yml"
+        ],
+        "invariant": "Review LAN/daemon API to privileged TrueNAS host and Docker control plane",
+        "method": "source",
+        "result": "The target Compose uses host networking, privileged mode and the raw Docker socket. The image is tagged latest, so the exact deployed daemon initialization/authentication behavior is not pinned by this repository.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [
+      "scanopy-daemon-public-bootstrap-boundary"
+    ],
+    "unresolved": [
+      "Deployed image digest/version, daemon initialization state, host firewall policy and LAN reachability of TCP/60073 are runtime facts; this audit did not live-probe them."
+    ]
+  },
+  {
+    "coverage_id": "docker-compose-truenas.yml%23doco-cd-webhook::docker-compose-truenas.yml%23webhook-auth-and-deployment-authority::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "docker-compose-truenas.yml#doco-cd-webhook",
+      "boundary": "docker-compose-truenas.yml#webhook-auth-and-deployment-authority",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "Doco-CD published webhook listener",
+    "boundary": "Inbound webhook trigger to deployment automation",
+    "subsystem": "quick profile: all in-scope subsystems",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "docker-compose-truenas.yml",
+      "secret-store.yml"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "api-source-review",
+    "reviewed_paths": [
+      "docker-compose-truenas.yml",
+      "secret-store.yml"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "api-source-review",
+        "reviewed_paths": [
+          "docker-compose-truenas.yml",
+          "secret-store.yml"
+        ],
+        "invariant": "Review Inbound webhook trigger to deployment automation",
+        "method": "source",
+        "result": "The target publishes TCP/30080 but does not configure WEBHOOK_SECRET. Current upstream Doco-CD documents the webhook endpoint as disabled without that secret; polling remains configured, so no source-grounded authentication bypass was established.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "scripts%2Ftruenas%2Fprepare-sample-observer-network.sh%23selection::scripts%2Ftruenas%2Fprepare-sample-observer-network.sh%23python-output-to-shell-eval::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "scripts/truenas/prepare-sample-observer-network.sh#selection",
+      "boundary": "scripts/truenas/prepare-sample-observer-network.sh#python-output-to-shell-eval",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "FastAPI observer network allocator",
+    "boundary": "Inline Python output to privileged shell eval",
+    "subsystem": "quick profile: all in-scope subsystems",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "scripts/truenas/prepare-sample-observer-network.sh"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "api-source-review",
+    "reviewed_paths": [
+      "scripts/truenas/prepare-sample-observer-network.sh"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "api-source-review",
+        "reviewed_paths": [
+          "scripts/truenas/prepare-sample-observer-network.sh"
+        ],
+        "invariant": "Review Inline Python output to privileged shell eval",
+        "method": "source",
+        "result": "The eval input is generated by inline Python from a fixed candidate CIDR list and ipaddress-derived numeric values; no lower-trust source reaches the evaluated assignments in the reviewed path.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  }
+]

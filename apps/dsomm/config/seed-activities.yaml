@@ -1,0 +1,73 @@
+---
+model:
+  version: "5.0.2"
+  released: "2026-09-17"
+  reviewedAt: "2026-10-04"
+  source: https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data
+activities:
+  066084c6-1135-4635-9cc5-9e75c7c5459f:
+    name: Version control
+    level: 1
+  f6f7737f-25a9-4317-8de2-09bf59f29b5b:
+    name: Defined build process
+    level: 1
+  598897a2-358e-441f-984c-e12ec4f6110a:
+    name: Regular automated tests
+    level: 2
+  c6e3c812-56e2-41b0-ae01-b7afc41a004c:
+    name: Test for stored secrets in code
+    level: 1
+  df428c9d-efa0-4226-9f47-a15bb53f822b:
+    name: Environment depending configuration parameters (secrets)
+    level: 2
+  2a44b708-734f-4463-b0cb-86dc46344b2f:
+    name: Inventory of production components
+    level: 1
+  13e9757e-58e2-4277-bc0f-eadc674891e6:
+    name: Inventory of production dependencies
+    level: 3
+  8b994601-575e-4ea5-b228-accb18c8e514:
+    name: Infrastructure as Code
+    level: 3
+  8fc3de67-7b8d-420b-8d24-f35928cfed6e:
+    name: Test the definition of virtualized environments
+    level: 2
+  c72da779-86cc-45b1-a339-190ce5093171:
+    name: Definition of simple BCDR practices for critical components
+    level: 1
+  5c61fd6b-8106-4c68-ac28-a8a42f1c67dc:
+    name: Backup
+    level: 2
+  4eced38a-7904-4c45-adb0-50b663065540:
+    name: Centralized system logging
+    level: 1
+  ded39bcf-4eaa-4c5f-9c94-09acde0a4734:
+    name: Visualized metrics
+    level: 2
+  6c05c837-8c99-46e2-828b-7c903e27dba4:
+    name: Static analysis for important server side components
+    level: 3
+  e237176b-bec5-447d-a926-e37d6dd60e4b:
+    name: Static analysis for important client side components
+    level: 3
+  d918cd44-a972-43e9-a974-eff3f4a5dcfe:
+    name: Software Composition Analysis (server side)
+    level: 2
+  07fe8c4f-ae33-4409-b1b2-cf64cfccea86:
+    name: Software Composition Analysis (client side)
+    level: 3
+  07796811-37f9-467c-9ff2-48f346e77ff3:
+    name: Simple Scan
+    level: 2
+  2858ac12-0179-40d9-9acf-1b839c030473:
+    name: SBOM of components
+    level: 2
+  1b9281b9-48e2-4c01-9ac6-9db9931c4885:
+    name: Information security targets are communicated
+    level: 2
+  72737130-472c-4984-80f8-9ab2f1c2ed5d:
+    name: Determining the protection requirement
+    level: 2
+  7121b0c7-6ace-4d6b-95d0-94535dbccb57:
+    name: Security code review
+    level: 2

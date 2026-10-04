@@ -21,6 +21,51 @@ directly visible from the current GitHub repository structure.
 
 Do not convert the rows below directly to `Fully implemented`.
 
+## Seeded DSOMM 5.0.2 assessment
+
+The current repository seed now converts the strongest evidence below into
+actual DSOMM UUID-based `team-progress` and `team-evidence` files. It covers
+22 reviewed activities across the two contexts.
+
+### Seed confidence
+
+- **Fully implemented:** Version control only.
+- **Partly implemented:** defined build/test paths, secret scanning, selected
+  platform inventory/IaC/container-definition controls, TrueNAS BCDR/backup,
+  selected client SAST and application DAST.
+- **Started:** controls whose implementation is real but not demonstrated
+  across the whole assessment context, including centralized logging/metrics,
+  server/client SCA/SAST subsets, SBOM coverage, communicated security targets
+  and code review.
+- **Unscored intentionally:** activities requiring evidence not currently
+  demonstrated by source/configuration, especially GitHub branch enforcement,
+  Security Champions/training, broad IAM assurance and DSOMM 5 Agentic
+  AI/Identity process controls.
+
+### TrueNAS continuity evidence included
+
+The platform context incorporates the 2026-10-03 TrueNAS PRA:
+
+```text
+MTPD = PT4H
+RTO  = PT1H -> target breached
+RPO  = PT1H -> not exercised
+PRA  = tested-with-deviation
+recovery = passed-after-manual-power-cycle
+```
+
+The exercise recovered FOUNDATION Apps, Talos/Kubernetes and CSI, but it does
+not justify a Fully implemented BCDR/Backup score. A clean software reboot and a
+backup/restore exercise using a recovery point no older than one hour remain
+required.
+
+### GitHub enforcement gap included
+
+The live GitHub repository reports `master` as unprotected and the rulesets
+endpoint returns an empty list. PR-based development is visible, but the seed
+therefore records Security code review only as Started and does not mark
+Require-PR, required status checks or block-force-push controls as implemented.
+
 ## Nabla Platform
 
 ### Repository: AlbanAndrieu/nabla-compose
