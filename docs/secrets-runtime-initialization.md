@@ -308,12 +308,23 @@ rotation remains a separate certificate bootstrap contract.
 
 #### Sentry
 
-Sentry uses multiple secret materializations, including
-`.env.secrets` and `.env.migrator.secrets`.
+Sentry uses two secret materializations with intentionally different
+privileges: runtime `.env.secrets` and one-shot
+`.env.migrator.secrets`.
 
-The generic renderer currently targets one `.env.secrets` file. Sentry should
-move only after multi-materialization support can select fields per output file
-without duplicating or broadening secret exposure.
+**Path normalization is now supported independently of Vaultwarden authority.**
+The generic env migration helper stages both files under
+`/mnt/cpool/secrets/runtime/sentry/` without changing values. The bounded
+Sentry recovery flow requires runtime health plus end-to-end ingestion before a
+separate `--finalize` mode may replace the two historical
+`/mnt/cpool/sentry/.env*` files with compatibility symlinks.
+
+This does **not** mean the Vaultwarden migration is complete. The current
+generic Vaultwarden renderer still emits one `.env.secrets` output and cannot
+represent the runtime ClickHouse identity and the distinct
+`sentry_migrator` identity under the same environment-variable names without
+broadening exposure. Multi-materialization metadata/rendering remains required
+before Vaultwarden becomes Sentry's authority for both files.
 
 #### Doco-CD / legacy 1Password adapter
 
