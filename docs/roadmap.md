@@ -114,8 +114,10 @@ Active platform debt:
 - [ ] Restore repository-owned Uptime Kuma before enabling AutoKuma.
 - [ ] Continue staged TrueNAS runtime-env migration; Sentry now has a bounded
   recovery/restage/finalize transaction, but runtime `--finalize` acceptance
-  still has to be executed on TrueNAS. Do not bulk-finalize paths or recreate
-  non-empty datasets.
+  still has to be executed on TrueNAS. Code Server now consumes canonical
+  runtime paths and maps legacy `CODE_PASSWORD` to runtime `PASSWORD`; run
+  its staged Vaultwarden + `/healthz` acceptance before finalizing the legacy
+  files. Do not bulk-finalize paths or recreate non-empty datasets.
 - [ ] Resolve Vaultwarden exposure/TLS policy with verified HTTPS, least
   exposure and stricter `/admin` protection.
 - [ ] Keep the TrueNAS LXC GitHub Actions runner planned/dormant until needed.
