@@ -441,7 +441,8 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 - [x] Correlate stuck Apps with the frozen reboot manifest: intentional `STOPPED` and pre-existing failed Apps are reported as deferred debt, while `RUNNING/DEPLOYING` members expected to resume remain regression candidates.
 - [ ] After Apps settle, rerun the canonical `diagnose-platform.sh` phase that includes `diagnose-docker-orphan-shims.sh --check`; keep this runtime evidence separate from cleanup.
 - [x] Docker storage baseline + first bounded dangling-image cleanup accepted: 764→631 images, 135→2 dangling images, 7,408→6,534 top-level `overlay2` directories and 90.45 GB reclaimed. ZFS `used` stayed ~525 GiB because ~97.4 GiB is snapshot-retained; active `usedbydataset` is ~428 GiB.
-- [ ] Keep automated cleanup separate from hourly Git cron: weekly root `prune-docker-images.sh --apply`, dangling-only, default minimum age 168h, no `-a`, no network/volume/container prune and no execution during an active reboot transaction.
+- [x] Docker image cleanup contract is bounded and separate from Git sync: root-only `prune-docker-images.sh`, dangling-only, default age 168h, no `-a`/network/volume/container prune, and blocked through `PREPARING|PREPARED|RESUMED` until strict `VERIFIED`.
+- [ ] Install/accept the documented weekly root TrueNAS cron for that helper; do not attach cleanup to the hourly Git reconciliation.
 - [ ] Review additional targeted Docker cleanup only after the bounded dangling-image policy is established: old unmanaged/exited containers and build cache. Never use `docker system prune` or `docker network prune` as a blanket cleanup.
 - [ ] Reboot once after any reviewed cleanup and record Docker cold-start convergence duration; objective is to reduce metadata reload time without sacrificing rollback/re-pull safety.
 
