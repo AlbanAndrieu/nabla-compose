@@ -149,14 +149,18 @@ docker ps --format '{{.Names}}\t{{.Ports}}' |
   grep -E '(^|[^0-9])(30020|30021|30022)->|:(30020|30021|30022)->' || true
 
 printf '\n==> persistent path metadata\n'
-for path in "${DATA_ROOT}" "${LETSENCRYPT_ROOT}"; do
-  if [[ -e "${path}" ]]; then
-    stat -c '%n owner=%U:%G mode=%a type=%F size=%s' "${path}"
-  else
-    printf '❌ missing path: %s\n' "${path}" >&2
-    runtime_fail=1
-  fi
-done
+if [[ -e "${DATA_ROOT}" ]]; then
+  stat -c '%n owner=%U:%G mode=%a type=%F size=%s' "${DATA_ROOT}"
+else
+  printf '❌ missing persistent data root: %s\n' "${DATA_ROOT}" >&2
+  runtime_fail=1
+fi
+if [[ -e "${LETSENCRYPT_ROOT}" ]]; then
+  stat -c '%n owner=%U:%G mode=%a type=%F size=%s' "${LETSENCRYPT_ROOT}"
+else
+  printf '⚠️ repository certificate source is absent: %s\n' "${LETSENCRYPT_ROOT}"
+  printf '   Compare it with the actual container mount evidence before changing storage.\n'
+fi
 
 if [[ -f "${DATA_ROOT}/database.sqlite" ]]; then
   stat -c 'database.sqlite owner=%U:%G mode=%a size=%s mtime=%y' \
