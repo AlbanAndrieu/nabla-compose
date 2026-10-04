@@ -680,7 +680,18 @@ PY
 else
   printf '%-8s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
   printf '%-8s %-38s %-18s %s\n' "--------" "--------------------------------------" "------------------" "-------"
-  while IFS=
+  while IFS=$'\\t' read -r level key value message; do
+    [[ -n "${level}" ]] || continue
+    case "${level}" in
+      PASS) display_level="✅ PASS" ;;
+      WARN) display_level="⚠️ WARN" ;;
+      FAIL) display_level="❌ FAIL" ;;
+      INFO) display_level="ℹ️ INFO" ;;
+      SKIP) display_level="⏭️ SKIP" ;;
+      *) display_level="${level}" ;;
+    esac
+    printf '%-8s %-38s %-18s %s\n' "${display_level}" "${key}" "${value}" "${message}"
+  done <"${tmp}"
 fi
 
 failures="$(awk -F '\t' '$1 == "FAIL" {count++} END {print count + 0}' "${tmp}")"
