@@ -1566,6 +1566,34 @@
       }
     },
     {
+      "id": "opencre",
+      "name": "OWASP OpenCRE",
+      "kind": "security-standards-correlation",
+      "category": "security",
+      "sourcePath": "apps/opencre/compose.yml",
+      "url": "http://172.17.0.24:31089",
+      "description": "Internal OWASP OpenCRE service for correlating common security requirements across standards. It complements DSOMM maturity assessment and does not replace the canonical Nabla service catalog.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "securityFunctions": [
+        "govern",
+        "identify",
+        "protect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "opencre",
+        "networks": [
+          "intranet"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "url": "http://172.17.0.24:31089/rest/v1/health"
+      }
+    },
+    {
       "id": "openhands",
       "name": "OpenHands",
       "kind": "ai-coding-agent",
@@ -4231,6 +4259,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/openclaw/compose.yml:openclaw-sandbox.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "opencre",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/opencre/compose.yml:opencre.x-nabla.runtime.containerService"
       ]
     },
     {

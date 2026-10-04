@@ -313,11 +313,11 @@ repos:
       - id: dsomm-contract
         name: "🧭 dsomm · Validate maturity UI and baseline evidence contract"
         language: python
-        entry: python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary -v
+        entry: bash -c 'python scripts/dsomm/validate-seed.py && python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary -v'
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
+          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/dsomm/validate-seed[.]py|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
 
       - id: security-audit-skill-contract
         name: "🛡️ security · Validate vendored audit/report contract"
@@ -326,6 +326,15 @@ repos:
         pass_filenames: false
         files: >-
           ^([.]agents/skills/security-audit/|docs/security-audits/|scripts/truenas/bootstrap-repository-storage[.]sh|apps/dsomm/README[.]md|docs/roadmap[.]md|tests/test_security_audit_skill_contract[.]py)$
+
+      - id: opencre-contract
+        name: "🧭 opencre · Validate standards-correlation service contract"
+        language: python
+        entry: python -m pytest -q tests/test_opencre_contract.py
+        additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
+        pass_filenames: false
+        files: >-
+          ^(apps/opencre/|docs/(?:roadmap|security-tooling-control-architecture)[.]md|scripts/truenas/(?:bootstrap-repository-storage|deploy-opencre)[.]sh|tests/test_opencre_contract[.]py)$
 
       - id: diagnostic-output-contract
         name: "📋 diagnostics · Validate shared compact/full output contract"

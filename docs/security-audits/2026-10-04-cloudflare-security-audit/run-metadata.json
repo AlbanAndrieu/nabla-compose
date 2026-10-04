@@ -1,0 +1,36 @@
+{
+  "run_id": "2026-10-04-cloudflare-security-audit",
+  "repo": "AlbanAndrieu/nabla-compose",
+  "target": "GitHub source snapshot of AlbanAndrieu/nabla-compose",
+  "source_ref": "e8acbc56121e520359824e6e353e611ee573fea3",
+  "source_state": "clean merged master snapshot at audit start",
+  "profile": "quick",
+  "scope_paths": [
+    "."
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "selected_companion_files": [
+    "CLOUD-AND-DEPLOYMENT.md",
+    "SUPPLY-CHAIN-AND-RELEASE.md",
+    "WEB-PROTOCOL-AND-AUTH.md"
+  ],
+  "prior_run_paths": [
+    "docs/security-audits/2026-10-01-cloudflare-security-audit"
+  ],
+  "shared_file_owners": {
+    "parent": "api-source-review"
+  },
+  "run_status": "incomplete",
+  "incomplete_reason": "independent final verifier and OS-enforced sandbox execution are unavailable in this API-only session",
+  "validators": {
+    "findings": "not_executed_in_api_only_session",
+    "coverage_ledger": "not_executed_in_api_only_session"
+  },
+  "notes": [
+    "No live homelab, production endpoint, Docker socket, TrueNAS API, GitHub Actions job, or external identity was probed.",
+    "The five quick-profile source surfaces from the 2026-10-01 run are unchanged at this source ref and were revalidated as prior same-source coverage.",
+    "The Scanopy lead remains needs_validation because deployed digest, initialization state and network/firewall reachability are runtime facts.",
+    "The report must be treated as a partial one-shot review, not complete security coverage."
+  ]
+}

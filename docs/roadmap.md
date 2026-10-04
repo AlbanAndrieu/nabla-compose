@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-02.
+Last updated: 2026-10-04.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -293,37 +293,35 @@ Security-tooling acceptance within this workstream:
   acceptance before treating declarations as deployed services.
 - [ ] Keep OpenWebUI/OpenRAG BIA/PRA evidence in
   [`openwebui-backup-pra.md`](./openwebui-backup-pra.md), not duplicated here.
-- [ ] **OWASP OpenCRE standards correlation:** add a repository-owned
-  `apps/opencre/compose.yml` using the official
-  `ghcr.io/owasp/opencre/opencre` image, pinned to a reviewed version/digest
-  before activation. Bind the upstream port `5000` internally, set
-  `CRE_ENABLE_HEALTH=true` and use `GET /rest/v1/health` as the bounded
-  readiness/uptime probe. Use OpenCRE to correlate Common Requirements across
-  DSOMM, OWASP SAMM, NIST, CIS, ISO and other mapped standards; it is the
-  reference/correlation layer, not the maturity score of record. Keep imports
-  disabled by default and reuse the shared Neo4j service only after compatibility
-  is proven instead of introducing an application-local graph database by
-  default.
-- [ ] **OWASP DSOMM assessment:** deploy the repository-owned DSOMM UI on
-  `172.17.0.24:31088` while it remains `status: planned`.
-  - [x] Storage contract explicitly owns `cpool/dsomm` with the Apps preset.
-  - [ ] On TrueNAS, run `bootstrap-repository-storage.sh --apply dsomm` then
-    `--check dsomm` and prove the dataset exists before runtime activation.
-  - [ ] Preserve progress/evidence under protected TrueNAS runtime state, run the
-    pinned `tweag/dsomm-baseline` job against the selected Nabla repositories,
-    route repository evidence into the two default maturity contexts (`Nabla
-    Platform` and `Nabla Applications`), then
-    complete unsupported/manual activities with reviewed evidence. The pinned
-    Tweag baseline predates DSOMM 5.0, so Agentic AI/Identity and other uncovered
-    activities remain explicit human-review scope. Promote DSOMM to `active`
-    only after runtime acceptance; automated baseline output is supporting
-    evidence, not the maturity verdict.
-- [x] Vendor the Cloudflare `security-audit-skill` and publish an initial
-  source-first one-shot under `docs/security-audits/`; the 2026-10-01 run is
-  explicitly partial/incomplete and is not a clean-security attestation.
-- [ ] Validate committed audit JSON with the vendored Cloudflare findings and
-  coverage-ledger validators through the local Pre-commit contract; keep this
-  acceptance open until the focused local test is executed on a full checkout.
+- [ ] **OWASP OpenCRE standards correlation** — declaration repository-owned
+  terminée; contrat/exploitation canonique dans
+  [`apps/opencre/README.md`](../apps/opencre/README.md).
+  - [ ] Créer/vérifier `cpool/opencre`.
+  - [ ] Remplacer l'image flottante par un digest immutable revu.
+  - [ ] Déployer, valider `/rest/v1/health`, une corrélation utile et la
+    persistance après reboot avant de passer `status: active`.
+- [ ] **OWASP DSOMM assessment** — seed DSOMM 5.0.2 et contrats offline
+  terminés; modèle, preuves et exploitation canoniques dans
+  [`apps/dsomm/README.md`](../apps/dsomm/README.md) et
+  [`apps/dsomm/INITIAL_REVIEW.md`](../apps/dsomm/INITIAL_REVIEW.md).
+  - [ ] Créer/vérifier `cpool/dsomm`, exécuter le déploiement puis confirmer le
+    rendu du seed sans écraser un assessment existant.
+  - [ ] Exécuter le baseline Tweag pin, puis réconcilier uniquement les preuves
+    supportées avec le seed revu; aucun score automatique ne vaut verdict.
+  - [ ] Fermer ou accepter explicitement le gap GitHub (branche `master` non
+    protégée, aucun ruleset), puis compléter les activités manuelles
+    Security Champions/IAM/Agentic AI/Identity/process.
+  - [ ] Rejouer PRA/RPO avant toute hausse BCDR/Backup: RTO PT1H dépassé et RPO
+    PT1H non exercé lors du test courant.
+- [x] Vendor the Cloudflare `security-audit-skill` at reviewed upstream commit
+  `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` and keep provenance/tests local.
+- [x] Publish source-first one-shot audits under `docs/security-audits/`; the
+  2026-10-04 quick revalidation carries unchanged 2026-10-01 coverage and keeps
+  Scanopy as `needs_validation`, not as a confirmed vulnerability.
+- [x] Wire every committed audit JSON to the vendored Cloudflare findings and
+  coverage-ledger validators through `security-audit-skill-contract`.
+- [ ] Run that contract on a full local checkout before merge; the assistant
+  runtime cannot resolve `github.com` and must not substitute Actions for it.
 - [ ] Validate the Scanopy daemon bootstrap boundary from that audit by pinning
   the deployed digest, proving initialization state + TCP/60073 exposure
   passively, then either close the lead or harden bind/firewall/socket access.
@@ -530,6 +528,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
+  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (protected DSOMM state, reviewed evidence, immutable OpenCRE image, persistence/reboot proof)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com

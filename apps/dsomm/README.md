@@ -24,6 +24,54 @@ release/operations lifecycle or review evidence is materially different enough
 to justify an independent maturity score. Do **not** create one context per
 PostgreSQL/Grafana/Scanopy/DSOMM service or per repository by default.
 
+## Reviewed assessment seed
+
+The repository now carries a conservative DSOMM **5.0.2** seed:
+
+```text
+config/seed-activities.yaml
+config/team-progress.seed.yaml
+config/team-evidence.seed.yaml
+```
+
+The seed was derived on 2026-10-04 from:
+
+- current `nabla-compose` catalog/topology and operator documentation;
+- GitHub repository/workflow evidence for `nabla-compose`, `fastapi-sample`,
+  `nabla-site-alban` and `nabla-site-bababou`;
+- the TrueNAS BIA/PRA evidence in the catalog and
+  `docs/homelab-reboot-runbook.md`;
+- reviewed Notion control documentation, notably **Nabla — Système
+  opérationnel DevSecOps sur 90 jours**, **Annexe F — Continuité d’activité,
+  PRA/DRP et tests de résilience**, **Annexe D — OWASP SAMM** and the
+  **Cybersecurity Checklist**.
+
+Only evidence that can be traced to a repository, GitHub configuration or
+reviewed control document is seeded. The two contexts remain governance
+boundaries, not inventory entries.
+
+The initial seed is deliberately conservative:
+
+- `Version control` is the only seeded activity at `Fully implemented` for
+  both contexts;
+- most repository/runtime controls are `Started` or `Partly implemented`;
+- the TrueNAS PRA/BCDR evidence is only `Partly implemented`: recovery
+  succeeded after a manual power-cycle, the one-hour RTO was breached and the
+  one-hour RPO was not exercised;
+- GitHub reports `master` as **unprotected** and returns no repository
+  rulesets, so Require-PR / required-status-check / force-push controls are not
+  marked implemented;
+- Security Champions/training, DSOMM 5 Agentic AI/Identity activities and
+  organization/process controls requiring interviews remain human-review scope.
+
+`scripts/dsomm/validate-seed.py` validates this subset offline against the
+reviewed UUID/name set. It checks contexts, progression ordering, evidence UUIDs
+and evidence/progress consistency without downloading the full upstream model.
+
+On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
+runtime state with mode `0600`. Existing runtime progress/evidence files are
+**never overwritten** by later deploys.
+
 ## Architecture
 
 - `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.
@@ -46,9 +94,9 @@ sample files:
 /mnt/cpool/dsomm/state/team-evidence.yaml
 ```
 
-`deploy-dsomm.sh --apply` creates these files only when absent, initializes them
-as `progress:` / `evidence:` and enforces mode `0600`. It never overwrites an
-existing assessment. When you export progress/evidence from the browser, copy
+`deploy-dsomm.sh --apply` creates these files only when absent, initializing
+them from the reviewed repository seed and enforcing mode `0600`. It never
+overwrites an existing assessment. When you export progress/evidence from the browser, copy
 the reviewed YAML into these runtime paths (not the repository), preserve
 `0600`, then reload/redeploy DSOMM.
 
