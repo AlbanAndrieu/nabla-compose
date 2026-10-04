@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -euo pipefail
 
 MODE="${1:---check}"
@@ -91,6 +90,12 @@ done
 if [[ "${MODE}" == "--apply" ]]; then
   printf '\n==> TrueNAS Custom App reconciliation\n'
   truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+
+  state="$(truenas_app_state "${APP_ID}")"
+  if [[ "${state}" == "STOPPED" ]]; then
+    printf 'Starting DSOMM Custom App after configuration reconciliation...\n'
+    midclt call -j app.start "${APP_ID}"
+  fi
 fi
 
 state="$(truenas_app_state "${APP_ID}")"
