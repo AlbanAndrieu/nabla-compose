@@ -36,6 +36,32 @@ A `401` is therefore an authentication result, a `403` can be an expected
 least-privilege result, while `http=000` is reported with the curl exit code and
 transport timings instead of being collapsed into an authentication failure.
 
+### Authentication lockout guard
+
+REST API KeyAuth failures can feed pfSense REST API Login Protection and its
+`sshguard` table. This matters because a stale 64-character key can initially
+produce normal HTTP `401 AUTH_AUTHENTICATION_FAILED` responses and, after
+several attempts, the same workstation can observe HTTPS and SSH connection
+timeouts even though nginx/WebConfigurator remains healthy for another source.
+
+The helper therefore performs a single posture-key preflight against
+`/api/v2/system/version`. If it returns HTTP 401, the remaining authenticated
+posture and security matrices are skipped. Do not repeatedly rerun the helper
+with a rejected key.
+
+Observed incident sequence on 2026-10-04:
+
+1. UI hostname and LAN probes returned HTTP 200;
+2. three posture API calls with the stale workstation key returned HTTP 401;
+3. subsequent API calls and SSH from that source timed out;
+4. a separate LAN request still returned HTTP/2 200 from nginx.
+
+This pattern is source-specific and is compatible with Login Protection/
+`sshguard`; it is not evidence of a global WebConfigurator outage. Confirm an
+exact source address in the `sshguard` table from an unblocked management path
+before deleting anything. The recovery helper intentionally never removes
+`sshguard` entries automatically.
+
 The SSH evidence also reports, without secret material:
 
 - REST API enabled/read-only/login-protection/auth-method settings;
