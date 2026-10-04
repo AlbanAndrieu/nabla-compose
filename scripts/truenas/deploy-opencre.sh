@@ -38,7 +38,9 @@ if [[ "${OPENCRE_IMAGE}" == *@sha256:* ]]; then
 else
   printf 'WARNING: OpenCRE image is mutable: %s\n' "${OPENCRE_IMAGE}" >&2
   if [[ "${MODE}" == "--apply" && "${OPENCRE_ALLOW_MUTABLE_IMAGE:-0}" != "1" ]]; then
-    fail "refusing OpenCRE --apply with mutable image; use an @sha256 digest or OPENCRE_ALLOW_MUTABLE_IMAGE=1 for a bounded PoC"
+    fail \
+      "refusing OpenCRE --apply with mutable image; use an @sha256 digest or " \
+      "OPENCRE_ALLOW_MUTABLE_IMAGE=1 for a bounded PoC"
   fi
 fi
 
@@ -71,7 +73,9 @@ deadline=$((SECONDS + WAIT_SECONDS))
 while ((SECONDS < deadline)); do
   if curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${OPENCRE_URL}"; then
     printf 'OK: OpenCRE health endpoint ready: %s\n' "${OPENCRE_URL}"
-    printf '%s\n' 'INFO: x-nabla.status remains planned until immutable-image, correlation, persistence and reboot acceptance are reviewed.'
+    printf '%s%s\n' \
+      'INFO: x-nabla.status remains planned until immutable-image, correlation, ' \
+      'persistence and reboot acceptance are reviewed.'
     exit 0
   fi
   sleep 5
