@@ -89,12 +89,3 @@ PY
 
 printf 'OK: pfSense exporter runtime config hardened without printing the API key\n'
 printf '    scrape pressure is controlled by Prometheus (300s) and collectors are serialized\n'
-scripts/truenas/audit-app-lifecycle.sh:1858:1: `}` can only be used to close a block
-Unable to find image 'mvdan/shfmt:v3.13.1@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be' locally
-docker.io/mvdan/shfmt@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be: Pulling from mvdan/shfmt
-5b958e81722e: Pulling fs layer
-5b958e81722e: Verifying Checksum
-5b958e81722e: Download complete
-5b958e81722e: Pull complete
-Digest: sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be
-Status: Downloaded newer image for mvdan/shfmt@sha256:f22f3936140be1ba02d493b5d2b91d0e8b4af93fd903e7f46c477822bca4a3be
