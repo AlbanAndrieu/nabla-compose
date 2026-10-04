@@ -1085,3 +1085,25 @@ is accepted.
 Do not add privileged Nabla Service routes while the same local container is
 reachable through `sample.albandrieu.com`. Route non-registration/public-path
 denial and fail-closed authentication are prerequisites.
+
+
+### Converged health-board checks
+
+`/api/health-board` refreshes asynchronously. The first response can therefore
+legitimately be `state=pending` with `homelab=null`; do not interpret that
+single response as missing TrueNAS/pfSense evidence.
+
+Use the canonical HTTP-only checker, which requires neither SSH nor
+`DIAGNOSTICS_ACCESS_KEY`:
+
+```bash
+# TrueNAS-hosted runtime
+bash scripts/truenas/check-fastapi-health-board.sh
+
+# FastAPI Cloud: public HTTPS only, no cloud SSH required
+bash scripts/truenas/check-fastapi-health-board.sh \
+  --url https://fastapi-sample.fastapicloud.dev
+```
+
+The helper triggers a refresh, polls until `.homelab != null`, then emits the
+sanitized TrueNAS API/path stages and pfSense authentication/security evidence.
