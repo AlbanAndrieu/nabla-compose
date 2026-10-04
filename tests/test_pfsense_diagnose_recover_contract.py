@@ -148,6 +148,15 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("IFS='|' read -r http_code peer", text)
         self.assertNotIn("%{http_code}\\t%{remote_ip}", text)
 
+    def test_rejected_sshguard_hypothesis_and_direct_lan_ssh_are_documented(self) -> None:
+        text = DOC.read_text(encoding="utf-8")
+
+        self.assertIn("invalidated it as the cause of this incident", text)
+        self.assertIn("pfctl -t sshguard -T show", text)
+        self.assertIn("172.17.0.57", text)
+        self.assertIn("admin@172.17.0.1:9922", text)
+        self.assertIn("ControlMaster", text)
+
     def test_login_protection_is_diagnosed_but_never_auto_unblocked(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
