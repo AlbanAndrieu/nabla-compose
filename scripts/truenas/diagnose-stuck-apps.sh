@@ -226,13 +226,13 @@ while IFS= read -r app; do
       printf 'NEXT: the I2P router healthcheck must listen on 7657; if I2P is intentionally deferred, keep the App STOPPED instead of forcing convergence.\n'
       ;;
     openrag)
-      printf 'NEXT: require Langflow and OpenSearch healthy before restarting OpenRAG; the frontend collective health depends on both backend and Langflow.\n'
+      printf 'NEXT: require Langflow and OpenSearch healthy, then run reconcile-openrag-opensearch-secret.sh --check before restarting OpenRAG.\n'
       ;;
     tailscale)
       printf 'NEXT: Tailscale is documented as intentionally deferred; keep it STOPPED unless it has an explicit current consumer.\n'
       ;;
     vaultwarden)
-      printf 'NEXT: Vaultwarden main service may be healthy while the legacy bitwarden-api adapter prevents aggregate convergence; inspect only that sidecar.\n'
+      printf 'NEXT: validate local + canonical HTTPS /api/config with configure-bitwarden-cli-local.sh --check; a public 404 is an ingress/tunnel defect.\n'
       ;;
   esac
 
