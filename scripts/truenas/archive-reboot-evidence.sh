@@ -104,7 +104,13 @@ validate_source() {
   [[ -n "${identity//[[:space:]]/}" ]] ||
     fail "orchestrator identity is empty"
 
-  for file in     apps-before.json     vms-before.json     docker-config-before.json     kubernetes-nodes-before.json     shutdown-plan.json     resume-plan.json; do
+  for file in \
+    apps-before.json \
+    vms-before.json \
+    docker-config-before.json \
+    kubernetes-nodes-before.json \
+    shutdown-plan.json \
+    resume-plan.json; do
     jq -e . "${source_real}/${file}" >/dev/null ||
       fail "invalid JSON evidence: ${file}"
   done
@@ -154,7 +160,9 @@ if [[ -e "${final}" ]]; then
     fail "existing archive is incomplete: ${final}"
   (cd "${final}" && sha256sum --quiet -c SHA256SUMS) ||
     fail "existing archive checksum verification failed: ${final}"
-  jq -e --argjson files "${files_json}" '.files == $files'     "${final}/ARCHIVE-MANIFEST.json" >/dev/null ||
+  jq -e --argjson files "${files_json}" \
+    '.files == $files' \
+    "${final}/ARCHIVE-MANIFEST.json" >/dev/null ||
     fail "existing archive file inventory differs from verified source"
   for file in "${selected_files[@]}"; do
     cmp -s "${source_real}/${file}" "${final}/${file}" ||
@@ -174,7 +182,15 @@ done
 
 identity="$(cat "${source_real}/orchestrator-identity.txt")"
 source_commit="${identity%% *}"
-jq -n   --arg archivedAt "$(date -Iseconds)"   --arg sourceDirectory "${source_real}"   --arg bootIdBefore "$(cat "${source_real}/boot-id-before")"   --arg bootIdAfter "$(cat "${source_real}/boot-id-after")"   --arg orchestratorIdentity "${identity}"   --arg sourceCommit "${source_commit}"   --argjson files "${files_json}"   '{
+jq -n \
+  --arg archivedAt "$(date -Iseconds)" \
+  --arg sourceDirectory "${source_real}" \
+  --arg bootIdBefore "$(cat "${source_real}/boot-id-before")" \
+  --arg bootIdAfter "$(cat "${source_real}/boot-id-after")" \
+  --arg orchestratorIdentity "${identity}" \
+  --arg sourceCommit "${source_commit}" \
+  --argjson files "${files_json}" \
+  '{
     schemaVersion: 1,
     status: "VERIFIED",
     archivedAt: $archivedAt,
