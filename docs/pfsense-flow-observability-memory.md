@@ -618,6 +618,110 @@ a silent exporter is flow degradation, and neither proves the firewall itself
 is down. Cloudflare Network Flow remains an independent second collector for
 corroborating exporter behavior.
 
+## CrowdSec / PF firewall-log pressure — 2026-10-04
+
+A live investigation of sustained CrowdSec load on the Netgate 1100 found that
+the engine was useful and healthy, but was being fed a disproportionate volume
+of PF pass logs.
+
+Observed CrowdSec process state:
+
+```text
+crowdsec RSS          ~95 MiB
+crowdsec CPU          ~36-41%
+process uptime        ~7 days
+firewall bouncer RSS  ~14 MiB
+```
+
+The load was not explained by an alert storm. At the time of diagnosis there
+was one active local `firewallservices/pf-scan-multi_ports` decision, while the
+bouncer also consumed CrowdSec CAPI decisions. CrowdSec therefore remains a
+useful security control and must not be disabled merely to recover memory.
+
+### Parser semantics
+
+The CrowdSec acquisition counters initially appeared to show approximately
+8.7M unparsed `filter.log` lines out of 9.0M. This does **not** mean that the
+pfSense parser is broken.
+
+The downstream parser counters showed:
+
+```text
+file:/var/log/filter.log      ~9.00M lines read
+firewallservices/pf-logs      ~8.33M parsed
+firewallservices/pf-logs-drop ~318.84k parsed
+pf-scan-multi_ports           ~109.47k poured
+```
+
+The PF parser therefore recognizes most of the raw events. Only a much smaller
+subset is relevant to the drop-oriented pipeline and scan scenario. Do not
+attempt to "fix" this by weakening or replacing the CrowdSec PF parser without
+new evidence.
+
+### Root cause of excess log volume
+
+A sample of `/var/log/filter.log` showed repeated `pass,out` events generated
+by the firewall itself toward LAN services, Cloudflare and other destinations.
+The corresponding PF rule trackers were resolved with `pfctl -vvsr` and
+`/tmp/rules.debug`:
+
+| Tracker | Generated PF rule | Observed scale |
+| --- | --- | ---: |
+| `1000005715` | `let out anything IPv4 from firewall host itself` | ~111M packets / ~499k state creations |
+| `1000005811` | WAN `route-to` variant of firewall-host outbound pass | ~85.6M packets / ~417k state creations |
+| `1000005711` | `pass IPv4 loopback` | ~1.15M packets / ~7k state creations |
+
+All three generated rules contained the PF `log` keyword. They are internal
+pfSense rules, not ordinary user-authored firewall rules. Do not edit
+`/tmp/rules.debug` or mutate the loaded PF rules with `pfctl` as a persistent
+fix; pfSense regenerates them.
+
+The authoritative pfSense logging control is:
+
+```text
+Status -> System Logs -> Settings
+  -> Logging Preferences
+  -> Default Firewall "pass" Rules
+```
+
+Netgate documents this option as disabled by default and warns that enabling it
+generates a large amount of log data for outbound connections from the
+firewall. It is intended primarily for bounded troubleshooting.
+
+### Target steady state
+
+For this memory-constrained appliance:
+
+1. keep **Default Firewall "block" Rules** logging enabled unless a separately
+   reviewed noise-reduction rule justifies an exception;
+2. disable **Default Firewall "pass" Rules** logging after troubleshooting;
+3. keep explicit pass-rule logging only where it has a defined audit,
+   security or diagnostic purpose;
+4. keep CrowdSec, the pfSense parser/scenarios and the firewall bouncer active;
+5. measure CrowdSec CPU/RSS and `filter.log` rate before and after changing the
+   logging preference;
+6. do not start a DNSBL Force Reload until memory headroom has been re-measured
+   and is safe for the legacy pfBlockerNG rebuild path.
+
+Validation after changing the logging preference:
+
+```csh
+pfctl -vvsr | grep -B 3 -A 6 '1000005715'
+pfctl -vvsr | grep -B 3 -A 6 '1000005811'
+pfctl -vvsr | grep -B 3 -A 6 '1000005711'
+ps axo pid,ppid,etime,rss,%cpu,command | grep crowdsec
+cscli metrics
+ls -lh /var/log/filter.log
+```
+
+The generated default-pass rules should no longer contain `log`. CrowdSec
+must remain operational, and block/security telemetry must continue to reach
+its scenarios and bouncer.
+
+This optimization is deliberately performed at the pfSense logging source,
+rather than writing millions of low-value pass events and discarding them later
+inside CrowdSec.
+
 ## Security and observability follow-ups
 
 - Monitor pfSense memory pressure through the existing Prometheus/Grafana path.
