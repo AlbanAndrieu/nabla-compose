@@ -22,7 +22,7 @@ require_root "run as root on TrueNAS"
 require_commands docker stat chown chmod
 
 check_path() {
-  local container="$1" path="$2" image configured_user owner mode uid
+  local container="$1" path="$2" image configured_user owner mode uid gid target_owner
 
   docker inspect "${container}" >/dev/null 2>&1 ||
     fail "container not found: ${container}"
@@ -36,6 +36,14 @@ check_path() {
   [[ "${uid}" =~ ^[0-9]+$ ]] ||
     fail "${container}: non-numeric image user '${configured_user}' cannot be mapped safely"
 
+  if [[ "${configured_user}" == *:* ]]; then
+    gid="${configured_user#*:}"
+    [[ "${gid}" =~ ^[0-9]+$ ]] ||
+      fail "${container}: non-numeric image group '${configured_user}' cannot be mapped safely"
+  else
+    gid=""
+  fi
+
   [[ -d "${path}" ]] || fail "storage path missing: ${path}"
   owner="$(stat -c '%u:%g' "${path}")"
   mode="$(stat -c '%a' "${path}")"
@@ -43,8 +51,14 @@ check_path() {
   printf '%s image=%s image_user=%s path=%s owner=%s mode=%s\n' \
     "${container}" "${image}" "${configured_user}" "${path}" "${owner}" "${mode}"
 
-  if [[ "${owner%%:*}" == "${uid}" ]]; then
-    ok "${container}: storage root owner matches image uid ${uid}"
+  target_owner="${uid}"
+  if [[ -n "${gid}" ]]; then
+    target_owner="${uid}:${gid}"
+  fi
+
+  if [[ "${owner%%:*}" == "${uid}" ]] &&
+    { [[ -z "${gid}" ]] || [[ "${owner#*:}" == "${gid}" ]]; }; then
+    ok "${container}: storage root owner matches image identity ${target_owner}"
     return 0
   fi
 
@@ -53,8 +67,8 @@ check_path() {
     return 1
   fi
 
-  printf 'APPLY %s owner %s -> %s (root only; no recursive chown)\n' "${path}" "${owner}" "${uid}"
-  chown "${uid}" "${path}"
+  printf 'APPLY %s owner %s -> %s (root only; no recursive chown)\n' "${path}" "${owner}" "${target_owner}"
+  chown "${target_owner}" "${path}"
   chmod u+rwx "${path}"
   ok "${container}: storage root repaired"
 }
