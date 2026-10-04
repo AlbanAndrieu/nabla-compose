@@ -60,7 +60,6 @@ def test_grafana_storage_repair_is_bounded() -> None:
 
     assert "--check" in script
     assert "--apply" in script
-    assert "--finalize" in script
     assert "/mnt/cpool/loki" in script
     assert "/mnt/cpool/tempo" in script
     assert "docker image inspect" in script
@@ -197,6 +196,7 @@ def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
 
     assert "--check" in script
     assert "--apply" in script
+    assert "--finalize" in script
     assert "reconcile-sentry-system-secret.sh" in script
     assert "reconcile-sentry-migrator-credential.sh" in script
     assert 'midclt call -j app.redeploy "${APP_ID}"' in script
