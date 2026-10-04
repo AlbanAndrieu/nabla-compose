@@ -1,6 +1,7 @@
 """Contracts for the canonical pfSense diagnosis/recovery helper."""
 
 from pathlib import Path
+import subprocess
 import unittest
 
 
@@ -27,6 +28,15 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             text.index("==> HTTPS/API vantage points"),
             text.index("==> Deep appliance evidence over SSH"),
         )
+
+    def test_shell_helper_parses_after_identity_lifecycle_changes(self) -> None:
+        syntax = subprocess.run(
+            ["bash", "-n", str(SCRIPT)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
 
     def test_check_keeps_api_evidence_when_ssh_is_unavailable(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
@@ -146,27 +156,19 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("NO_UNBLOCK_ACTION table=sshguard", text)
         self.assertNotIn('pfctl -t "sshguard" -T delete', text)
 
-    def test_documentation_requires_writable_key_bootstrap_then_readonly_restore(
+    def test_documentation_distinguishes_persistence_from_rotation_state(
         self,
     ) -> None:
         text = DOC.read_text(encoding="utf-8")
 
-        self.assertIn(
-            "temporarily remove `User - Config: Deny Config Write`",
-            text,
-        )
-        self.assertIn(
-            "temporarily grant only `api-v2-auth-key-post`",
-            text,
-        )
-        self.assertIn(
-            "restore `User - Config: Deny Config Write`",
-            text,
-        )
-        self.assertIn(
-            "A key returned to the caller is not sufficient persistence evidence",
-            text,
-        )
+        self.assertIn("System → REST API → Keys", text)
+        self.assertIn("that key record is", text)
+        self.assertIn("persisted in pfSense configuration", text)
+        self.assertIn("temporary rotation privilege", text)
+        self.assertIn("--prepare-key-rotation security", text)
+        self.assertIn("--finalize-key-rotation security", text)
+        self.assertIn("removes `api-v2-auth-key-post`", text)
+        self.assertIn("restores `user-config-readonly`", text)
 
     def test_documentation_states_ssh_and_api_are_distinct_capabilities(self) -> None:
         text = DOC.read_text(encoding="utf-8")
