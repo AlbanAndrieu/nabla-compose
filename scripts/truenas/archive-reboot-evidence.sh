@@ -83,7 +83,7 @@ optional_files=(
 )
 
 validate_source() {
-  local file before after identity
+  local file before after identity source_commit
 
   [[ "$(cat "${source_real}/phase" 2>/dev/null || true)" == "VERIFIED" ]] ||
     fail "reboot transaction is not VERIFIED: ${source_real}"
@@ -103,6 +103,9 @@ validate_source() {
   identity="$(cat "${source_real}/orchestrator-identity.txt")"
   [[ -n "${identity//[[:space:]]/}" ]] ||
     fail "orchestrator identity is empty"
+  source_commit="${identity%% *}"
+  [[ "${source_commit}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] ||
+    fail "verified archive requires an immutable Git source commit; got ${source_commit}"
 
   for file in \
     apps-before.json \
