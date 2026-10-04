@@ -189,6 +189,12 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     assert "docker-compose.yml,docker-compose.override.yml" in doc
     assert "Doco-CD must not gain an implicit Sample deployment target" in doc
     assert "update-fastapi-sample.sh" in doc
+    updater = (ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh").read_text(
+        encoding="utf-8",
+    )
+    assert "pfsense_auth_smoke" in updater
+    assert "--url https://home.albandrieu.com:10443" in updater
+    assert "deployment remains accepted because pfSense is optional diagnostic evidence" in updater
     assert "bootstrap-dev-tools.sh" in doc
 
 
