@@ -285,9 +285,9 @@ be used to make a failed reboot appear healthy.
 
 - [ ] Rerun `scripts/truenas/audit-docker-network-migration.sh --check` after all
   intended Apps are stable.
-- [ ] For every remaining `172.16.x.0/24` network record: network name/subnet,
-  endpoint count, Compose/TrueNAS owner labels, external/shared semantics and
-  relevant sandbox/container references.
+- [x] The read-only classifier records network/subnet, endpoint count/names,
+  Compose project ownership and a fail-closed `CLEANUP_GATE`: protected/live
+  networks are blocked and empty legacy networks remain `owner-review-required`.
 - [ ] Never generically remove `intranet`, `traefik_network`, `sample-observer`,
   `nabla-security` or `secrets-backend`; they remain protected even with zero
   endpoints until their explicit contract is deliberately migrated.
