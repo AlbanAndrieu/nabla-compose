@@ -55,7 +55,7 @@ while (($#)); do
 done
 
 require_root "run as root on TrueNAS"
-require_commands timeout midclt jq docker grep tail
+require_commands timeout midclt jq docker grep tail sed head sort mktemp
 
 for value in APP_QUERY_TIMEOUT LOG_TAIL; do
   current="${!value}"
