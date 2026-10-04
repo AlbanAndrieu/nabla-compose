@@ -15,7 +15,7 @@ def test_stuck_app_diagnostic_is_read_only_and_bounded() -> None:
     assert "docker ps -a" in text
     assert "docker inspect" in text
     assert "docker logs --tail" in text
-    assert "diagnose-sentry.sh --check" in text
+    assert "recover-sentry-deploying.sh --check" in text
     assert "diagnose-wazuh.sh --check" in text
     assert "required catalog dependencies" in text
     assert "service-topology.json" in text
