@@ -678,21 +678,34 @@ for row in rows:
 print(json.dumps({"schema": "nabla.pfsense.posture.v1", "counts": counts, "checks": rows}, indent=2, sort_keys=True))
 PY
 else
-  printf '%-8s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
-  printf '%-8s %-38s %-18s %s\n' "--------" "--------------------------------------" "------------------" "-------"
-  tab="$(printf '\\t')"
-  while IFS="${tab}" read -r level key value message; do
-    [[ -n "${level}" ]] || continue
-    case "${level}" in
-      PASS) display_level="✅ PASS" ;;
-      WARN) display_level="⚠️ WARN" ;;
-      FAIL) display_level="❌ FAIL" ;;
-      INFO) display_level="ℹ️ INFO" ;;
-      SKIP) display_level="⏭️ SKIP" ;;
-      *) display_level="${level}" ;;
-    esac
-    printf '%-8s %-38s %-18s %s\n' "${display_level}" "${key}" "${value}" "${message}"
-  done <"${tmp}"
+  if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    color_pass=$'\033[32m'
+    color_warn=$'\033[33m'
+    color_fail=$'\033[31m'
+    color_info=$'\033[36m'
+    color_skip=$'\033[90m'
+    color_reset=$'\033[0m'
+  else
+    color_pass="" color_warn="" color_fail="" color_info="" color_skip="" color_reset=""
+  fi
+  printf '%-10s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
+  printf '%-10s %-38s %-18s %s\n' "----------" "--------------------------------------" "------------------" "-------"
+  awk -F '\t' -v cp="${color_pass}" -v cw="${color_warn}" -v cf="${color_fail}" \
+    -v ci="${color_info}" -v cs="${color_skip}" -v cr="${color_reset}" '
+    NF >= 4 {
+      level=$1
+      icon=""
+      color=""
+      if (level == "PASS") { icon="✅"; color=cp }
+      else if (level == "WARN") { icon="⚠️"; color=cw }
+      else if (level == "FAIL") { icon="❌"; color=cf }
+      else if (level == "INFO") { icon="ℹ️"; color=ci }
+      else if (level == "SKIP") { icon="⏭️"; color=cs }
+      message=$4
+      for (i=5; i<=NF; i++) message=message FS $i
+      printf "%s%-10s%s %-38s %-18s %s\\n", color, icon " " level, cr, $2, $3, message
+    }
+  ' "${tmp}"
 fi
 
 failures="$(awk -F '\t' '$1 == "FAIL" {count++} END {print count + 0}' "${tmp}")"
