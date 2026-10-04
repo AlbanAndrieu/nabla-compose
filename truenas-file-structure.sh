@@ -366,8 +366,8 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
     # Function to extract API key from config file
     extract_api_key() {
       local config_file="$1"
-      if [ -f "$config_file" ]; then
-        grep -oP '(?<=<ApiKey>)[^<]+' "$config_file"
+      if [ -f "${config_file}" ]; then
+        grep -oP '(?<=<ApiKey>)[^<]+' "${config_file}"
       else
         echo ""
       fi
@@ -375,7 +375,7 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
 
     # Wait for config files to be generated
     echo "Waiting for Radarr and Sonarr to generate config files..."
-    while [ ! -f "$RADARR_CONFIG_FILE" ] || [ ! -f "$SONARR_CONFIG_FILE" ]; do
+    while [ ! -f "${RADARR_CONFIG_FILE}" ] || [ ! -f "${SONARR_CONFIG_FILE}" ]; do
       sleep 5
       echo "Waiting for config files..."
     done
@@ -408,7 +408,7 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
       # Add root folder to Radarr
       echo "Adding root folder to Radarr..."
       curl -X POST "http://localhost:7878/api/v3/rootfolder" \
-        -H "X-Api-Key: $RADARR_API_KEY" \
+        -H "X-Api-Key: ${RADARR_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{
                     "path": "/media/movies"
@@ -417,7 +417,7 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
       # Add root folder to Sonarr
       echo "Adding root folder to Sonarr..."
       curl -X POST "http://localhost:8989/api/v3/rootfolder" \
-        -H "X-Api-Key: $SONARR_API_KEY" \
+        -H "X-Api-Key: ${SONARR_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{
                     "path": "/media/tv"
@@ -432,10 +432,10 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
   fi
 else
   echo "Docker containers were not launched. You can start them manually by running:"
-  echo "cd $DOCKER_COMPOSE_PATH && docker compose up -d"
+  echo "cd ${DOCKER_COMPOSE_PATH} && docker compose up -d"
 fi
 # Print running containers and their accessible URLs
-if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
+if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
   echo "Listing all running containers and their accessible URLs:"
 
   # Get the host's IP address
@@ -444,27 +444,27 @@ if [[ "$LAUNCH_CONTAINERS" =~ ^[Yy]es$ ]]; then
   # Get a list of all running containers
   docker ps --format "{{.Names}}" | while read -r container_name; do
     # Get the container's exposed ports
-    ports=$(docker inspect -f '{{range $p, $conf := .NetworkSettings.Ports}}{{if $conf}}{{ (index $conf 0).HostPort }} {{end}}{{end}}' "$container_name")
+    ports=$(docker inspect -f '{{range $p, $conf := .NetworkSettings.Ports}}{{if $conf}}{{ (index $conf 0).HostPort }} {{end}}{{end}}' "${container_name}")
 
     # Print the container name and its accessible URL
-    if [ -n "$ports" ]; then
-      for port in $ports; do
-        echo "$container_name | http://$host_ip:$port"
+    if [ -n "${ports}" ]; then
+      for port in ${ports}; do
+        echo "${container_name} | http://${host_ip}:${port}"
       done
     else
-      echo "$container_name | No exposed port found"
+      echo "${container_name} | No exposed port found"
     fi
   done
 
   # Extract and print the qBittorrent password from the logs
   qbittorrent_container="qbittorrent"
-  if docker ps --format "{{.Names}}" | grep -q "$qbittorrent_container"; then
+  if docker ps --format "{{.Names}}" | grep -q "${qbittorrent_container}"; then
     echo "Fetching qBittorrent password from logs..."
     # Wait a few seconds for qBittorrent to fully start and log the password
     sleep 10
-    qbittorrent_password=$(docker logs "$qbittorrent_container" 2>&1 | grep -oP 'A temporary password is provided for this session: \K\S+' | tail -1)
-    if [ -n "$qbittorrent_password" ]; then
-      echo "qBittorrent WebUI password: $qbittorrent_password"
+    qbittorrent_password=$(docker logs "${qbittorrent_container}" 2>&1 | grep -oP 'A temporary password is provided for this session: \K\S+' | tail -1)
+    if [ -n "${qbittorrent_password}" ]; then
+      echo "qBittorrent WebUI password: ${qbittorrent_password}"
     else
       echo "qBittorrent WebUI password not found in logs. The container may still be starting."
     fi
