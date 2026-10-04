@@ -50,6 +50,25 @@ The direct IP probe intentionally disables certificate hostname validation becau
 it is transport comparison evidence; the hostname probe remains the TLS-trust
 proof.
 
+## API-key bootstrap and rotation
+
+`POST /api/v2/auth/key` is a configuration write even though the returned key is
+only shown once. A service identity carrying `User - Config: Deny Config Write`
+cannot persist that key. The safe rotation sequence is therefore:
+
+1. temporarily remove `User - Config: Deny Config Write` from the service identity;
+2. temporarily grant only `api-v2-auth-key-post`;
+3. create the key through `POST /api/v2/auth/key` using that identity's Basic
+   credentials; do not enable global BasicAuth merely for this endpoint;
+4. verify that the SSH redacted inventory contains the expected owner, byte
+   length, hash algorithm and description;
+5. remove `api-v2-auth-key-post` and restore `User - Config: Deny Config Write`;
+6. run the posture/security `200/403` matrix again.
+
+A key returned to the caller is not sufficient persistence evidence when pfSense
+logged `Save config permission denied`. The inventory and subsequent KeyAuth
+matrix are the acceptance evidence.
+
 ## SSH is a separate capability
 
 A successful `/api/v2/status/services` row showing `sshd` as running proves the
