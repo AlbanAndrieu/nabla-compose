@@ -678,11 +678,31 @@ for row in rows:
 print(json.dumps({"schema": "nabla.pfsense.posture.v1", "counts": counts, "checks": rows}, indent=2, sort_keys=True))
 PY
 else
-  printf '%-5s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
-  printf '%-5s %-38s %-18s %s\n' "-----" "--------------------------------------" "------------------" "-------"
-  while IFS=$'\t' read -r level key value message; do
+  printf '%-8s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
+  printf '%-8s %-38s %-18s %s\n' "--------" "--------------------------------------" "------------------" "-------"
+  while IFS=
+fi
+
+failures="$(awk -F '\t' '$1 == "FAIL" {count++} END {print count + 0}' "${tmp}")"
+warnings="$(awk -F '\t' '$1 == "WARN" {count++} END {print count + 0}' "${tmp}")"
+
+if ((failures > 0)); then
+  exit 1
+fi
+if ((strict == 1 && warnings > 0)); then
+  exit 2
+fi
+\t' read -r level key value message; do
     [[ -n "${level}" ]] || continue
-    printf '%-5s %-38s %-18s %s\n' "${level}" "${key}" "${value}" "${message}"
+    case "${level}" in
+      PASS) display_level="✅ PASS" ;;
+      WARN) display_level="⚠️ WARN" ;;
+      FAIL) display_level="❌ FAIL" ;;
+      INFO) display_level="ℹ️ INFO" ;;
+      SKIP) display_level="⏭️ SKIP" ;;
+      *) display_level="${level}" ;;
+    esac
+    printf '%-8s %-38s %-18s %s\n' "${display_level}" "${key}" "${value}" "${message}"
   done <"${tmp}"
 fi
 
