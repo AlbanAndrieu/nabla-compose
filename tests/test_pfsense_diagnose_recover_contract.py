@@ -106,6 +106,10 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("password file must contain exactly one password line", shell)
         self.assertIn('cat "${IDENTITY_HELPER}"', shell)
         self.assertIn("/usr/local/bin/php", shell)
+        self.assertIn("identity_ssh_preflight", shell)
+        self.assertIn('"${user:-}" != "admin"', shell)
+        self.assertIn('"${port:-}" != "9922"', shell)
+        self.assertIn("workstation management SSH contract", shell)
         self.assertNotIn("PFSENSE_POSTURE_PASSWORD=", shell)
         self.assertNotIn("PFSENSE_SECURITY_PASSWORD=", shell)
 
@@ -125,6 +129,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("'api-v2-system-version-get'", helper)
         self.assertIn("'api-v2-status-services-get'", helper)
         self.assertIn("'api-v2-services-dns-resolver-settings-get'", helper)
+        self.assertNotIn("'api-v2-services-dns_resolver-settings-get'", helper)
         self.assertIn("'api-v2-system-dns-get'", helper)
         self.assertIn("'api-v2-diagnostics-table-get'", helper)
         self.assertIn("if ($mode === 'rotation')", helper)
