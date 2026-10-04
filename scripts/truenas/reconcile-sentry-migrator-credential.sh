@@ -69,9 +69,9 @@ docker exec   -e NABLA_MIGRATOR_PASSWORD="${password}"   "${CLICKHOUSE_CONTAINER
     set -eu
     clickhouse-client       --user "$CLICKHOUSE_USER"       --password "$CLICKHOUSE_PASSWORD"       --multiquery       --query "
         CREATE USER IF NOT EXISTS sentry_migrator
-          IDENTIFIED WITH sha256_password BY '''${NABLA_MIGRATOR_PASSWORD}''';
+          IDENTIFIED WITH sha256_password BY '$NABLA_MIGRATOR_PASSWORD';
         ALTER USER sentry_migrator
-          IDENTIFIED WITH sha256_password BY '''${NABLA_MIGRATOR_PASSWORD}''';
+          IDENTIFIED WITH sha256_password BY '$NABLA_MIGRATOR_PASSWORD';
         GRANT ALL ON sentry.* TO sentry_migrator;
         GRANT SELECT ON system.tables TO sentry_migrator;
         GRANT SELECT ON system.replicas TO sentry_migrator;
