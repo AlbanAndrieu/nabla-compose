@@ -190,9 +190,5 @@ else
 fi
 
 bash "${BASH_SOURCE[0]}" --check
-printf 'NEXT: redeploy only Sentry, prove functional ingestion, then refresh/finalize canonical runtime files:\n'
-printf '  sudo midclt call -j app.redeploy sentry\n'
-printf '  sudo bash scripts/truenas/diagnose-sentry.sh --check\n'
-printf '  sudo bash scripts/truenas/smoke-sentry-event.sh\n'
-printf '  sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage sentry\n'
-printf '  sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize sentry\n'
+printf 'NEXT: run the bounded Sentry recovery/acceptance flow:\n'
+printf '  sudo bash scripts/truenas/recover-sentry-deploying.sh --apply\n'
