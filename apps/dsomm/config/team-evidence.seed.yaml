@@ -1,0 +1,369 @@
+---
+# Initial DSOMM 5.0.2 evidence seed derived from repository, GitHub and reviewed
+# Notion control documentation. No secret values or private evidence payloads
+# belong in this file. Human review in DSOMM remains required.
+evidence:
+  066084c6-1135-4635-9cc5-9e75c7c5459f: # Version control
+    - id: ef1ae3de-d921-5eed-989e-90c623077a62
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: GitHub repositories are the canonical source-control system
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        nabla-compose, fastapi-sample, nabla-site-alban and
+        nabla-site-bababou are actively versioned GitHub repositories with
+        release/build history. This proves use of version control, not branch
+        protection.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/fastapi-sample
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-alban
+
+  f6f7737f-25a9-4317-8de2-09bf59f29b5b: # Defined build process
+    - id: d2f01997-1b90-5ad8-9592-c233e5fec07e
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Repository-owned reproducible build and validation workflows
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Compose validation, Docker build, application CI, Playwright and local
+        quality-gate workflows define repeatable build/validation paths across
+        the assessed repositories. Coverage and enforcement still differ by
+        repository, so this is not marked fully implemented.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/.github/workflows
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/fastapi-sample/tree/master/.github/workflows
+
+  598897a2-358e-441f-984c-e12ec4f6110a: # Regular automated tests
+    - id: 15f9f116-74fb-5c38-8c37-e30d404e22ff
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Automated and local-first test gates exist across Nabla repositories
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Automated test workflows, Pre-commit contracts, Playwright and
+        repository-specific security checks exist. GitHub Actions credits are
+        currently intentionally not used as the correction loop, so current
+        execution assurance depends heavily on the local quality gates.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/.pre-commit-config.yaml
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/scripts/agent-quality-gate.sh
+
+  c6e3c812-56e2-41b0-ae01-b7afc41a004c: # Test for stored secrets in code
+    - id: e23e2a97-952f-55ed-9dbc-bc557fe8d828
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Secret scanning is repository-integrated
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Gitleaks is configured in the reviewed repositories and nabla-compose
+        includes secret-manifest, renderer and unmanaged-secret-debt contracts.
+        This proves active scanning/configuration but not an exhaustive scan of
+        every historical revision.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/.gitleaks.toml
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/config/secrets/manifest.json
+
+  df428c9d-efa0-4226-9f47-a15bb53f822b: # Environment depending configuration parameters (secrets)
+    - id: f6740191-f1ec-5d04-b2b7-11cd30448fcf
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Runtime secrets are separated from declarative configuration
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        nabla-compose defines a metadata-only secret manifest and runtime
+        materialization flow backed by Vaultwarden, while application
+        repositories use environment/secret mechanisms rather than committing
+        secret values. Platform migration is advanced; application consistency
+        still needs repository-by-repository review.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/config/secrets/manifest.json
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/docs/secrets-runtime-initialization.md
+
+  2a44b708-734f-4463-b0cb-86dc46344b2f: # Inventory of production components
+    - id: 2777d55c-e133-53ce-b36f-6d36e33569c5
+      teams:
+        - Nabla Platform
+      title: Canonical service and resource inventory
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        x-nabla metadata, Backstage entities and generated service catalog
+        artifacts inventory services/resources, ownership, runtime provider,
+        lifecycle and criticality. Runtime reconciliation is still incomplete
+        for some planned/native services.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/services.json
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/catalog-info.yaml
+
+  13e9757e-58e2-4277-bc0f-eadc674891e6: # Inventory of production dependencies
+    - id: 257ad14d-c4e0-5f64-9650-9964ecd6af07
+      teams:
+        - Nabla Platform
+      title: Dependency topology is generated from declarative ownership
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        service-topology.json captures required/optional relations and is used
+        by lifecycle/recovery planning. Catalog v2 migration and observed-vs-
+        declared reconciliation are still ongoing.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/service-topology.json
+
+  8b994601-575e-4ea5-b228-accb18c8e514: # Infrastructure as Code
+    - id: 7448594c-d2d5-5622-9166-179b1573f595
+      teams:
+        - Nabla Platform
+      title: TrueNAS/Talos and supporting infrastructure have declarative code
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Terraform/OpenTofu, Terragrunt, Talos generation, Compose and
+        repository-owned lifecycle scripts encode infrastructure state and
+        validate it through local/CI contracts. Some appliance-native settings
+        remain outside full IaC ownership.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/terraform
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/.github/workflows/terragrunt-ci.yaml
+
+  8fc3de67-7b8d-420b-8d24-f35928cfed6e: # Test the definition of virtualized environments
+    - id: f8c01e4f-c27c-5f77-8dc5-34b458d0b75f
+      teams:
+        - Nabla Platform
+      title: Container and deployment definitions are statically validated
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Hadolint, Compose config validation, Trivy/Checkov-related configuration
+        and repository contracts test container/deployment definitions. Runtime
+        posture coverage is not yet uniform across all services.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/.pre-commit-config.yaml
+
+  c72da779-86cc-45b1-a339-190ce5093171: # Definition of simple BCDR practices for critical components
+    - id: 4a62fff7-db97-565b-8576-f7ce79a83af8
+      teams:
+        - Nabla Platform
+      title: TrueNAS PRA has BIA targets and a tested recovery path
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        TrueNAS is catalogued as critical with MTPD PT4H, RTO PT1H and RPO
+        PT1H. The 2026-10-03 PRA recovered FOUNDATION Apps, Talos/Kubernetes
+        and CSI after a manual power-cycle. It remains tested-with-deviation:
+        the RTO target was breached and the RPO was not exercised. Notion
+        evidence: "Annexe F — Continuité d’activité, PRA/DRP et tests de
+        résilience".
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/docs/homelab-reboot-runbook.md
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/catalog-info.yaml
+
+  5c61fd6b-8106-4c68-ac28-a8a42f1c67dc: # Backup
+    - id: 67eda135-6112-5447-b73e-402100317577
+      teams:
+        - Nabla Platform
+      title: Backup and restore objectives are documented but not fully accepted
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        OpenWebUI and platform PRA documentation defines snapshot, independent
+        backup, retention and isolated restore-drill requirements. The TrueNAS
+        PRA did not exercise the one-hour RPO and OpenWebUI backup acceptance
+        is still provisional, therefore Backup is only partly implemented.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/docs/openwebui-backup-pra.md
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/docs/homelab-reboot-runbook.md
+
+  4eced38a-7904-4c45-adb0-50b663065540: # Centralized system logging
+    - id: 657b4082-a4ca-559c-be87-58428f9b5080
+      teams:
+        - Nabla Platform
+      title: Central logging components and ingestion paths are repository-managed
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Wazuh, OpenSearch, Grafana/Loki/Alloy and pfSense/syslog validation
+        paths exist, but the observability migration and cross-signal acceptance
+        are still incomplete. This evidence supports Started only.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/wazuh
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/grafana
+
+  ded39bcf-4eaa-4c5f-9c94-09acde0a4734: # Visualized metrics
+    - id: d1501c2a-f13f-51ef-8461-1048d3ea1c31
+      teams:
+        - Nabla Platform
+      title: Metrics visualization is present with migration acceptance outstanding
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Prometheus and Grafana definitions plus observability contracts exist,
+        but Grafana native-to-Compose migration and final cross-signal
+        acceptance are still open. This is seeded as Started only.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/prometheus
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/grafana
+
+  6c05c837-8c99-46e2-828b-7c903e27dba4: # Static analysis for important server side components
+    - id: 73ed0267-d937-5026-954d-e5ac21d101d0
+      teams:
+        - Nabla Applications
+      title: Server-side SAST exists for FastAPI
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        fastapi-sample has CodeQL/Bandit/Semgrep-related security analysis.
+        Equivalent evidence is not yet demonstrated across every repository in
+        the aggregate Applications context, so the activity remains Started.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/fastapi-sample/blob/master/.github/workflows/codeql.yml
+
+  e237176b-bec5-447d-a926-e37d6dd60e4b: # Static analysis for important client side components
+    - id: 37a0bdf4-7bb0-50a9-b212-d2ab6cd7bee5
+      teams:
+        - Nabla Applications
+      title: Client-side repositories run lint/static security-oriented gates
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Both Nabla web repositories carry MegaLinter/Biome/ESLint quality and
+        security-related checks. Dedicated CodeQL was not observed for those
+        repositories, so this remains Partly implemented.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-alban/tree/master/.github/workflows
+
+  d918cd44-a972-43e9-a974-eff3f4a5dcfe: # Software Composition Analysis (server side)
+    - id: f95ae5c2-65b8-5c05-ae52-8ff565ab653a
+      teams:
+        - Nabla Applications
+      title: Server-side dependency scanning evidence is present but not uniform
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        fastapi-sample contains Trivy/Grype and dependency automation evidence.
+        Dependency-Track is still planned for centralized SBOM risk inventory,
+        so aggregate Applications coverage is Started only.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/fastapi-sample
+
+  07fe8c4f-ae33-4409-b1b2-cf64cfccea86: # Software Composition Analysis (client side)
+    - id: 132ecfc1-880a-5685-bf78-025401d0ce8a
+      teams:
+        - Nabla Applications
+      title: Client dependency automation exists; SCA proof remains incomplete
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Renovate and dependency manifests exist for the web applications, but
+        current evidence does not prove a recurrent vulnerability-analysis
+        result for every client repository. Seed as Started.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-alban
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-bababou
+
+  07796811-37f9-467c-9ff2-48f346e77ff3: # Simple Scan
+    - id: 898eb242-411a-57d5-862c-95cdb4e864b1
+      teams:
+        - Nabla Applications
+      title: Application DAST is repository-owned
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        fastapi-sample owns its ZAP workflow; both web repositories contain
+        production DAST and preview ZAP workflows. Current execution freshness
+        is not treated as continuously proven while Actions are not used as the
+        correction loop, therefore this is Partly implemented.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/.github/workflows/production-dast.yml
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/.github/workflows/zap-preview.yml
+
+  2858ac12-0179-40d9-9acf-1b839c030473: # SBOM of components
+    - id: d0df708a-b1fc-584e-9adc-a6f7b0b65fe9
+      teams:
+        - Nabla Applications
+      title: SBOM evidence exists for FastAPI but not all application repositories
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        fastapi-sample can emit and carries CycloneDX/Trivy SBOM evidence.
+        Dependency-Track ingestion and fresh SBOM coverage for all Nabla
+        applications remain roadmap work, so the activity is Started.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/fastapi-sample
+
+  1b9281b9-48e2-4c01-9ac6-9db9931c4885: # Information security targets are communicated
+    - id: 626d0fe3-62a5-5842-92e1-a4b7d83a216c
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Risk-driven DevSecOps targets are documented
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        The Notion page "Nabla — Système opérationnel DevSecOps sur 90 jours"
+        defines measurable inventory, SAST/SCA/secrets/IaC/container/Kubernetes/
+        DAST/runtime targets and recovery objectives. Repository roadmaps map
+        implementation work to those targets. Evidence of organization-wide
+        communication/review is not yet demonstrated, therefore Started only.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/docs/security-tooling-control-architecture.md
+
+  72737130-472c-4984-80f8-9ab2f1c2ed5d: # Determining the protection requirement
+    - id: ba91944b-60c0-56c2-808b-3c968fe0b957
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Criticality and BIA drive protection priorities
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        The catalog carries operational/business criticality and BIA impact
+        metadata, including TrueNAS RTO/RPO/MTPD. The Notion 90-day plan
+        requires Tier 0-3 risk-based controls. Platform evidence is mature
+        enough for Partly implemented; application-specific classification is
+        still incomplete and therefore only Started.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/catalog-info.yaml
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/catalog/business-criticality-policy.yaml
+
+  7121b0c7-6ace-4d6b-95d0-94535dbccb57: # Security code review
+    - id: d29c5904-f052-51cd-8620-91dae103c36d
+      teams:
+        - Nabla Platform
+        - Nabla Applications
+      title: Pull-request review is practiced but not enforced by branch policy
+      evidenceRecorded: '2026-10-04'
+      description: >-
+        Active PR-based development provides review evidence. However, GitHub
+        reports master as unprotected and the repository rulesets endpoint
+        returns an empty list as of 2026-10-04. Security code review is therefore
+        seeded as Started, and Require-PR/status-check/force-push DSOMM controls
+        are deliberately not marked implemented.
+      attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/pulls
