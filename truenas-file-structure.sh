@@ -402,8 +402,12 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
 
       # Wait for Radarr and Sonarr to be fully initialized
       echo "Waiting for Radarr and Sonarr to be ready..."
-      until curl -s "http://localhost:7878/api/v3/system/status" -o /dev/null; do sleep 5; done
-      until curl -s "http://localhost:8989/api/v3/system/status" -o /dev/null; do sleep 5; done
+      until curl -s "http://localhost:7878/api/v3/system/status" -o /dev/null; do
+        sleep 5
+      done
+      until curl -s "http://localhost:8989/api/v3/system/status" -o /dev/null; do
+        sleep 5
+      done
 
       # Add root folder to Radarr
       echo "Adding root folder to Radarr..."
