@@ -70,7 +70,8 @@ def test_normalize_keys_accepts_manifest_runtime_alias() -> None:
     )
 
     assert normalized == {"PASSWORD": "same-secret"}
-    assert "same-secret" not in repr(compare.compare_values(normalized, {"PASSWORD": "same-secret"}))
+    result = compare.compare_values(normalized, {"PASSWORD": "same-secret"})
+    assert "same-secret" not in repr(result)
 
 
 def test_normalize_keys_rejects_alias_value_conflict() -> None:
