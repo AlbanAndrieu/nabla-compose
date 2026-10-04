@@ -291,6 +291,17 @@ jq . <<<"${version_payload}"
 
 sudo bash scripts/security/verify-truenas-observer-access.sh
 
+printf 'Checking optional pfSense split-identity observer...\n'
+if run_docker exec "${CONTAINER}" /code/.venv/bin/python -c     'import nabla.api.pfsense_auth_smoke' >/dev/null 2>&1; then
+    if run_docker exec "${CONTAINER}" /code/.venv/bin/python         -m nabla.api.pfsense_auth_smoke         --url https://home.albandrieu.com:10443; then
+        printf 'OK: pfSense posture/security least-privilege matrix validated from TrueNAS runtime.\n'
+    else
+        printf 'WARN: pfSense observer authentication/authorization is degraded; FastAPI deployment remains accepted because pfSense is optional diagnostic evidence.\n' >&2
+    fi
+else
+    printf 'NOTE: deployed FastAPI Sample revision does not yet provide pfsense_auth_smoke; skipping optional pfSense identity validation.\n'
+fi
+
 printf 'Rechecking canonical Sample runtime env after deployment...\n'
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
 
