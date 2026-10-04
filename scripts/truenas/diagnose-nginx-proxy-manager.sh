@@ -43,7 +43,9 @@ case "${MODE}" in
     ;;
 esac
 
-for command in curl docker git jq midclt stat; do
+[[ "${EUID}" -eq 0 ]] || fail "run with sudo on TrueNAS"
+
+for command in curl docker jq midclt stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -104,7 +106,7 @@ mapfile -t container_ids < <(
 if [[ "${#container_ids[@]}" -eq 0 ]]; then
   mapfile -t container_ids < <(
     docker ps -a \
-      --filter 'label=com.docker.compose.service=app' \
+      --filter 'ancestor=jc21/nginx-proxy-manager:2.15.0' \
       --format '{{.ID}}'
   )
 fi
