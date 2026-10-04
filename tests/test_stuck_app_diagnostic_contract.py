@@ -1,4 +1,5 @@
 from pathlib import Path
+import stat
 import subprocess
 
 
@@ -210,6 +211,9 @@ def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
     assert "docker restart" not in script
     assert "DROP DATABASE" not in script
     assert "kafka-topics --delete" not in script
+    assert path.stat().st_mode & stat.S_IXUSR
+    assert path.stat().st_mode & stat.S_IXGRP
+    assert path.stat().st_mode & stat.S_IXOTH
 
     syntax = subprocess.run(
         ["bash", "-n", str(path)],
