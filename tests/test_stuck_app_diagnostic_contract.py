@@ -19,6 +19,18 @@ def test_stuck_app_diagnostic_is_read_only_and_bounded() -> None:
     assert "diagnose-wazuh.sh --check" in text
     assert "required catalog dependencies" in text
     assert "service-topology.json" in text
+    assert "NABLA_REBOOT_STATE_ROOT" in text
+    assert "apps-before.json" in text
+    assert "resume-apps.txt" in text
+    assert "intentional-stopped.txt" in text
+    assert "preexisting-failed.txt" in text
+    assert "reboot_context=" in text
+    assert "pre_reboot_state=" in text
+    assert "expected-resume" in text
+    assert "preexisting-failed" in text
+    assert "intentional-stopped" in text
+    assert "regressions=%d deferred=%d" in text
+    assert '.state == "ERROR"' in text
 
     for forbidden in (
         "app.start",
