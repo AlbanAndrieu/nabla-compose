@@ -872,15 +872,36 @@ expected to satisfy the original lifecycle contract.
 
 ## Phase 5 — bounded cleanup
 
-Only after final acceptance:
+Strict `--verify` now persists `phase=VERIFIED`, the post-reboot boot ID and
+the verification event in `prepare-history.log`. Only that state is eligible
+for evidence archival.
 
-- archive the reboot manifest, boot IDs, source commit, prepare history and any\n  `operator-acceptance.json` annotation;
-- retain current and previous known-good reboot bundles;
+From the activated immutable bundle:
+
+```bash
+BUNDLE="$(cat /mnt/cpool/tools/nabla-reboot/current)"
+
+sudo bash "${BUNDLE}/scripts/truenas/archive-reboot-evidence.sh" --check
+sudo bash "${BUNDLE}/scripts/truenas/archive-reboot-evidence.sh" --apply
+```
+
+The archive helper is evidence-only. It copies a reviewed allowlist from the
+normal reboot manifest into
+`/mnt/cpool/var/nabla/reboot-archive/<transaction>/`, creates
+`ARCHIVE-MANIFEST.json` and `SHA256SUMS`, verifies an existing archive
+idempotently and refuses a non-`VERIFIED` transaction. It never changes
+Docker, Apps, Kubernetes or ZFS and never deletes an older archive.
+
+After archival:
+
+- retain the current and previous known-good reboot bundles;
+- keep any `operator-acceptance.json` or resume-hotfix sidecar with the
+  transaction evidence;
 - confirm disposable CSI smoke resources are gone;
 - classify legacy Docker networks owner-by-owner;
 - never use `docker network prune`;
-- protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and
-  `secrets-backend`;
+- protect `intranet`, `traefik_network`, `sample-observer`,
+  `nabla-security` and `secrets-backend`;
 - keep pre-existing failed Apps as separately tracked debt.
 
 ## Post-PRA staged restoration
