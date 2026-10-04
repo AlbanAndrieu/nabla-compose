@@ -287,6 +287,27 @@ curl -fsS http://172.17.0.24:4000/v1/embeddings \
 jq '.data[0].embedding | length'
 ```
 
+## Shared OpenSearch credential preflight
+
+The OpenRAG 0.7.1 backend requires `OPENSEARCH_PASSWORD` in addition to the
+host, port and username. Before restarting a backend stuck on
+`No connections were configured`, compare its secret with the active
+OpenSearch authority without printing either value:
+
+```bash
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+If the helper reports a missing or mismatched value, reconcile only that key:
+
+```bash
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --apply
+```
+
+Then recreate the OpenRAG containers through the TrueNAS lifecycle so the
+updated env file is loaded. Do not copy the whole OpenSearch env file into the
+OpenRAG runtime.
+
 ## Read-only diagnostic
 
 Run from TrueNAS:
