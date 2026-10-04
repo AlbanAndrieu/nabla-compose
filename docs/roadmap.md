@@ -437,7 +437,7 @@ Keep FastAPI as an observer, not an appliance recovery controller.
 - [x] CSI disposable-state cleanup is accepted: the fresh cross-node smoke terminates its namespace, waits for PV reclaim and proves the TrueNAS dataset/NFS share/ZFS resource absent before reporting success.
 - [x] Inventory legacy Docker `172.16.x.0/24` networks with owner/endpoint evidence via `audit-docker-network-migration.sh --check`; the report remains read-only and never uses `docker network prune`.
 - [x] Protect `intranet`, `traefik_network`, `sample-observer`, `nabla-security` and `secrets-backend` in the network classifier; cleanup remains owner-specific.
-- [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle.
+- [ ] Remove only reviewed zero-endpoint stale networks through canonical owner lifecycle; the read-only classifier now marks protected/live networks blocked and empty legacy networks `owner-review-required`, never deletion-authorized.
 - [ ] Keep pre-existing CRASHED/DEPLOYING/STOPPED deferred Apps as separately tracked debt, not reboot regressions.
 - [ ] Re-run orphan-shim diagnostics after Apps settle.
 - [ ] Baseline Docker storage debt with `audit-docker-storage-debt.sh --check`; compare image count, `overlay2` directory cardinality and `cpool/ix-apps/docker` used bytes against the 2026-10-03 baseline (764 images / 7,408 overlay2 dirs / ~525 GiB).
