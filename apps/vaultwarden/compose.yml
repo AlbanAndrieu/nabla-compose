@@ -109,12 +109,13 @@ services:
           strength: required
           description: The compatibility adapter authenticates against Vaultwarden.
           evidence:
-            - apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com
+            - apps/vaultwarden/compose.yml:BW_HOST=http://vaultwarden
     restart: unless-stopped
     init: true
     user: "568:568" # TrueNAS apps user
     environment:
-      BW_HOST: "https://vaultwarden.albandrieu.com"
+      # Internal Docker identity: the legacy adapter must not depend on public ingress.
+      BW_HOST: "http://vaultwarden"
       BW_CLIENTID: "${BW_CLIENTID}"
       BW_CLIENTSECRET: "${BW_CLIENTSECRET}"
       BW_PASSWORD: "${BW_PASSWORD}"
