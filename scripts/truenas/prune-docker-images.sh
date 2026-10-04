@@ -39,8 +39,8 @@ if [[ -f "${REBOOT_STATE_ROOT}/latest" ]]; then
   [[ -n "${state_dir}" && -f "${state_dir}/phase" ]] &&
     phase="$(cat "${state_dir}/phase" 2>/dev/null || true)"
   case "${phase}" in
-    PREPARING | PREPARED)
-      skip "reboot transaction is active (phase=${phase}); Docker cleanup is forbidden"
+    PREPARING | PREPARED | RESUMED)
+      skip "reboot transaction is active (phase=${phase}); Docker cleanup is forbidden until VERIFIED"
       ;;
   esac
 fi
