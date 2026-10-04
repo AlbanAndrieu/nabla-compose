@@ -164,7 +164,12 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
     assert 'ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"' in script
-    assert 'PATH="${DEV_VENV}/bin:\\$PATH" bash scripts/agent-quality-gate.sh --fix' in script
+    assert "The agent quality gate automatically prepends this venv when it exists" in script
+    agent_gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"' in agent_gate
+    assert 'export PATH="${DEV_VENV}/bin:${PATH}"' in agent_gate
     assert "install-operator-tools.sh --check" in script
     assert "apt install" not in script
     assert "apt-get" not in script
