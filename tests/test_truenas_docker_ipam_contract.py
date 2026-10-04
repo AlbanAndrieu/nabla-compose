@@ -41,6 +41,10 @@ class TrueNASDockerIPAMContractTests(unittest.TestCase):
         self.assertIn("secrets-backend", script)
         self.assertIn("legacy-active", script)
         self.assertIn("legacy-empty", script)
+        self.assertIn("ENDPOINT_NAMES", script)
+        self.assertIn('item.get("Containers") or {}', script)
+        self.assertIn('com.docker.compose.project', script)
+        self.assertIn("full docker network inspect report", script)
         self.assertNotIn("docker network prune", script)
         self.assertNotIn("docker network rm", script)
 
