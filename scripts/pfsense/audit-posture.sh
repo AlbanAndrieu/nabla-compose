@@ -237,18 +237,20 @@ else
 fi
 
 if command -v drill >/dev/null 2>&1; then
-  public_dns_answer="$(drill @127.0.0.1 example.com A 2>/dev/null | awk '$4 == "A" {print $5; exit}')"
-  if [ -n "$public_dns_answer" ]; then
-    emit PASS unbound.public_dns_resolution "$public_dns_answer" "localhost Unbound resolved example.com"
+  public_dns_output="$(drill @127.0.0.1 example.com A 2>/dev/null || true)"
+  public_dns_answer="$(printf '%s\n' "$public_dns_output" | awk '$2 == "IN" && $3 == "A" {print $4; exit}')"
+  if printf '%s\n' "$public_dns_output" | grep -q 'rcode: NOERROR' && [ -n "$public_dns_answer" ]; then
+    emit PASS unbound.public_dns_resolution "$public_dns_answer" "localhost Unbound resolved example.com with NOERROR"
   else
-    emit FAIL unbound.public_dns_resolution failed "localhost Unbound could not resolve a public hostname"
+    emit FAIL unbound.public_dns_resolution failed "localhost Unbound did not return NOERROR with an A answer"
   fi
 
-  lan_dns_answer="$(drill @172.17.0.1 example.com A 2>/dev/null | awk '$4 == "A" {print $5; exit}')"
-  if [ -n "$lan_dns_answer" ]; then
-    emit PASS unbound.lan_dns_resolution "$lan_dns_answer" "pfSense LAN resolver 172.17.0.1 resolved example.com"
+  lan_dns_output="$(drill @172.17.0.1 example.com A 2>/dev/null || true)"
+  lan_dns_answer="$(printf '%s\n' "$lan_dns_output" | awk '$2 == "IN" && $3 == "A" {print $4; exit}')"
+  if printf '%s\n' "$lan_dns_output" | grep -q 'rcode: NOERROR' && [ -n "$lan_dns_answer" ]; then
+    emit PASS unbound.lan_dns_resolution "$lan_dns_answer" "pfSense LAN resolver 172.17.0.1 resolved example.com with NOERROR"
   else
-    emit FAIL unbound.lan_dns_resolution failed "pfSense LAN resolver 172.17.0.1 could not resolve a public hostname"
+    emit FAIL unbound.lan_dns_resolution failed "pfSense LAN resolver 172.17.0.1 did not return NOERROR with an A answer"
   fi
 else
   emit WARN unbound.public_dns_resolution unavailable "drill is unavailable; process/control checks ran but functional public DNS was not proven"
@@ -301,14 +303,19 @@ native_cache_bytes="$(number_or_zero "$native_cache_bytes")"
 emit INFO unbound.native_cache_bytes "$native_cache_bytes" "sum of native mem.* counters; Python DNSBL allocations are separate"
 
 page_count="$(number_or_zero "$(sysctl -n vm.stats.vm.v_free_count 2>/dev/null || printf '0')")"
+inactive_page_count="$(number_or_zero "$(sysctl -n vm.stats.vm.v_inactive_count 2>/dev/null || printf '0')")"
 page_size="$(number_or_zero "$(sysctl -n hw.pagesize 2>/dev/null || printf '4096')")"
 free_kb=$((page_count * page_size / 1024))
-if [ "$free_kb" -le "$free_fail_kb" ]; then
-  emit FAIL memory.free_kb "$free_kb" "free memory is inside the critical OOM guardrail"
-elif [ "$free_kb" -le "$free_warn_kb" ]; then
-  emit WARN memory.free_kb "$free_kb" "free memory is below preferred steady-state headroom"
+inactive_kb=$((inactive_page_count * page_size / 1024))
+available_kb=$(((page_count + inactive_page_count) * page_size / 1024))
+emit INFO memory.free_kb "$free_kb" "strictly free FreeBSD pages"
+emit INFO memory.inactive_kb "$inactive_kb" "inactive FreeBSD pages are generally reclaimable under pressure"
+if [ "$available_kb" -le "$free_fail_kb" ]; then
+  emit FAIL memory.available_kb "$available_kb" "free + inactive memory is inside the critical OOM guardrail"
+elif [ "$available_kb" -le "$free_warn_kb" ]; then
+  emit WARN memory.available_kb "$available_kb" "free + inactive memory is below preferred steady-state headroom"
 else
-  emit PASS memory.free_kb "$free_kb" "free memory is above the warning guardrail"
+  emit PASS memory.available_kb "$available_kb" "free + inactive memory is above the warning guardrail"
 fi
 
 swap_used_kb="$(swapinfo -k 2>/dev/null | awk 'NR > 1 {sum += $3} END {print sum + 0}')"
