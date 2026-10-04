@@ -88,24 +88,128 @@ an empty curl `remote_ip` remains `peer=unknown` instead of shifting latency
 fields.
 
 
+## REST API service identities
+
+The canonical service accounts are deliberately split:
+
+| Identity | Steady-state privileges | Purpose |
+| --- | --- | --- |
+| `fastapi_posture` | `api-v2-system-version-get`, `api-v2-status-services-get`, `api-v2-services-dns_resolver-settings-get`, `api-v2-system-dns-get`, `user-config-readonly` | pfSense service/DNS posture |
+| `fastapi_security` | `api-v2-diagnostics-table-get`, `user-config-readonly` | exact Snort/PF table evidence |
+
+Neither identity should belong to a named privilege-bearing group such as
+`admins`. The only normal group membership is pfSense's implicit `all`
+group.
+
+Audit both accounts, privileges and persisted key metadata without exercising
+KeyAuth:
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --check-identities
+```
+
+If either user is missing, create/reconcile both accounts to the steady-state
+contract with one-line password files. Existing users keep their current
+passwords; the files are used only to create missing users.
+
+```bash
+umask 077
+printf '%s\n' '<posture-password>' > /tmp/pfsense-posture.password
+printf '%s\n' '<security-password>' > /tmp/pfsense-security.password
+
+PFSENSE_POSTURE_PASSWORD_FILE=/tmp/pfsense-posture.password \
+PFSENSE_SECURITY_PASSWORD_FILE=/tmp/pfsense-security.password \
+  bash scripts/pfsense/diagnose-recover.sh --apply-identities
+
+rm -f /tmp/pfsense-posture.password /tmp/pfsense-security.password
+```
+
+The helper sends password material only through the encrypted SSH stdin stream;
+it does not put plaintext passwords on the SSH command line or in the recovery
+report.
+
 ## API-key bootstrap and rotation
 
-`POST /api/v2/auth/key` is a configuration write even though the returned key is
-only shown once. A service identity carrying `User - Config: Deny Config Write`
-cannot persist that key. The safe rotation sequence is therefore:
+`POST /api/v2/auth/key` first generates a key, then persists its hash through
+pfSense configuration write logic. `User - Config: Deny Config Write`
+(`user-config-readonly`) is therefore incompatible with **key creation**:
+pfREST can generate and return a key while pfSense rejects the configuration
+write.
 
-1. temporarily remove `User - Config: Deny Config Write` from the service identity;
-2. temporarily grant only `api-v2-auth-key-post`;
-3. create the key through `POST /api/v2/auth/key` using that identity's Basic
-   credentials; do not enable global BasicAuth merely for this endpoint;
-4. verify that the SSH redacted inventory contains the expected owner, byte
-   length, hash algorithm and description;
-5. remove `api-v2-auth-key-post` and restore `User - Config: Deny Config Write`;
-6. run the posture/security `200/403` matrix again.
+The evidence must be interpreted precisely:
 
-A key returned to the caller is not sufficient persistence evidence when pfSense
-logged `Save config permission denied`. The inventory and subsequent KeyAuth
-matrix are the acceptance evidence.
+- if a key for the service identity is visible in
+  **System → REST API → Keys** (`/system_restapi_key.php`), that key record is
+  persisted in pfSense configuration;
+- a key returned once by `POST /api/v2/auth/key` is not persistence evidence
+  when pfSense logged `Save config permission denied`;
+- seeing a persisted key record does not recover its plaintext value. If the
+  deployed plaintext produces HTTP `401`, rotate it;
+- `api-v2-auth-key-post` is a **temporary rotation privilege** and must not
+  remain in the steady-state role after a successful rotation.
+
+The helper models the two explicit states.
+
+Prepare one identity for rotation:
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --prepare-key-rotation posture
+# or:
+bash scripts/pfsense/diagnose-recover.sh --prepare-key-rotation security
+```
+
+This operation keeps only the role-specific GET privilege(s), removes
+`User - Config: Deny Config Write`, and grants
+`api-v2-auth-key-post`. It does **not** create a key or print a secret.
+
+Create the key with the selected service user's own Basic credentials. For the
+security identity:
+
+```bash
+curl -ksS \
+  --user fastapi_security \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -X POST \
+  'https://172.17.0.1:10443/api/v2/auth/key' \
+  -d '{
+    "length_bytes": 24,
+    "hash_algo": "sha256",
+    "descr": "FastAPI security observer"
+  }'
+```
+
+Do not paste the response into tickets, chat or logs: `data.key` is the
+one-time plaintext secret. Store it in the appropriate runtime secret source,
+then confirm that the new key is visible in **System → REST API → Keys**.
+
+Finalize the identity:
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --finalize-key-rotation security
+```
+
+Finalization refuses to proceed when pfSense has zero persisted keys for the
+selected user. On success it removes `api-v2-auth-key-post` and restores
+`user-config-readonly`.
+
+Then verify the steady state again:
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --check-identities
+```
+
+Finally run the KeyAuth matrix only with the new plaintext values. The expected
+least-privilege contract is:
+
+- posture GET endpoints: HTTP `200`;
+- posture `diagnostics/table?id=snort2c`: HTTP `403`;
+- security `diagnostics/table?id=snort2c`: HTTP `200`;
+- security `status/services`: HTTP `403`.
+
+If a rotation temporarily leaves more than one persisted key, validate the new
+key first and then remove the superseded key explicitly from the REST API Keys
+page. The helpers never guess which persisted key should be deleted.
 
 ## SSH is a separate capability
 
