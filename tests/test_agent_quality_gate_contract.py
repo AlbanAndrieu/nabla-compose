@@ -213,7 +213,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("docker-compose(?:-truenas)?[.]yml", config)
         self.assertIn("truenas-deployment-automation-contract", config)
         self.assertGreaterEqual(config.count("(?:[.-][^./]+)?"), 3)
-        self.assertIn("scripts/generate-catalog-v2-artifacts.py", config)
+        self.assertIn("scripts/generate-catalog-v2-artifacts[.]py", config)
+        self.assertNotIn(
+            "entry: python scripts/generate-catalog-v2-artifacts.py --check",
+            config,
+        )
         self.assertIn(
             "entry: python scripts/generate-service-topology.py --check",
             config,
