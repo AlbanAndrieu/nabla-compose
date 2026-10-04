@@ -760,6 +760,74 @@ CrowdSec metrics-endpoint/startup diagnostic until a later sample proves whether
 it persists; it does not by itself show that the firewall bouncer is down.
 
 
+## Recovery diagnostic lessons — 2026-10-04
+
+A post-reboot run of `scripts/pfsense/diagnose-recover.sh --check` exposed two
+failure modes that must not be conflated.
+
+### API probe failure classification
+
+The WebConfigurator returned HTTP 200 through both the public hostname and the
+direct LAN address while the API probes were initially summarized as
+`http=000 ERROR`. Appliance logs subsequently proved that requests from the
+workstation, TrueNAS and the FastAPI cloud egress were reaching pfSense and
+were rejected as user `unknown`.
+
+A REST API key had also been deleted shortly before these probes. Therefore a
+failed API probe must not automatically be described as a network outage.
+
+The recovery helper now records the curl exit status and stderr and classifies
+failed probes as:
+
+- `transport`: curl failed before a usable HTTP response;
+- `authentication`: HTTP 401/403;
+- `server`: HTTP 5xx;
+- `application`: another non-success HTTP/API response.
+
+When pfSense system logs show an authentication rejection for the same source
+and timestamp, that appliance-side evidence takes precedence over a client-side
+`000` summary when determining whether the request reached the firewall.
+
+Never print the API key while collecting this evidence.
+
+### SSH transient failure
+
+The first deep-diagnostic SSH attempt reported:
+
+```text
+mux_client_request_session: read from master failed: Broken pipe
+```
+
+but the same diagnostic run subsequently completed its appliance snapshot. The
+runtime listener evidence also showed sshd on TCP 9922.
+
+Treat a multiplexed-session `Broken pipe` as a potentially stale SSH control
+connection, not immediate proof that sshd or pfSense is down. The helper now
+disables SSH connection multiplexing for diagnostic sessions with
+`ControlMaster=no` and `ControlPath=none`.
+
+The script deliberately does not hard-code TCP 9922: an operator SSH alias may
+already map the target to the correct port. Use `--port 9922` only when the
+active SSH configuration does not.
+
+### CrowdSec post-change acceptance
+
+After disabling pfSense **Default Firewall "pass" Rules** logging and rebooting:
+
+- generated PF trackers `1000005711`, `1000005715` and `1000005811`
+  remained present but no longer contained the `log` keyword;
+- CrowdSec's metrics listener recovered on `127.0.0.1:6060`;
+- a fresh metrics window showed about 2.01k `filter.log` lines read, 1.99k
+  parsed and only 19 unparsed;
+- `firewallservices/pf-logs-drop` parsed the relevant PF events;
+- the firewall bouncer remained active with roughly 26k CAPI decisions;
+- a later `top` sample showed CrowdSec falling to about 5% instantaneous CPU
+  with the appliance around 85% idle.
+
+The earlier ~70% process CPU value immediately after reboot must therefore not
+be retained as a steady-state conclusion. Continue to trend CPU/RSS and log
+growth, but the default-pass logging reduction itself is accepted.
+
 ## Security and observability follow-ups
 
 - Monitor pfSense memory pressure through the existing Prometheus/Grafana path.
