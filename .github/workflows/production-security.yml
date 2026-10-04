@@ -142,7 +142,9 @@ jobs:
           }
 
           protected_available=true
-          if ! fetch_protected_json "/api/homelab/status" /tmp/homelab-status.json; then
+          if fetch_protected_json "/api/homelab/status" /tmp/homelab-status.json; then
+            jq -e 'type == "object"' /tmp/homelab-status.json >/dev/null
+          else
             rc=$?
             if ((rc == 10)); then
               protected_available=false
@@ -152,16 +154,22 @@ jobs:
           fi
 
           if [[ "${protected_available}" == true ]]; then
-            jq -e 'type == "object"' /tmp/homelab-status.json >/dev/null
-
-            fetch_protected_json "/api/runtime/topology" /tmp/runtime-topology.json
-            jq -e '
-              (.observed_instance_count | type == "number" and . >= 1) and
-              (.instances | type == "array" and length >= 1) and
-              (.active_egress_ips | type == "array") and
-              (.recent_egress_ips | type == "array") and
-              (.count_semantics | type == "string" and length > 0)
-            ' /tmp/runtime-topology.json >/dev/null
+            if fetch_protected_json "/api/runtime/topology" /tmp/runtime-topology.json; then
+              jq -e '
+                (.observed_instance_count | type == "number" and . >= 1) and
+                (.instances | type == "array" and length >= 1) and
+                (.active_egress_ips | type == "array") and
+                (.recent_egress_ips | type == "array") and
+                (.count_semantics | type == "string" and length > 0)
+              ' /tmp/runtime-topology.json >/dev/null
+            else
+              rc=$?
+              if ((rc == 10)); then
+                protected_available=false
+              else
+                exit "${rc}"
+              fi
+            fi
           else
             status="$(
               curl "${curl_common[@]}" \
