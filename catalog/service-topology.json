@@ -5200,7 +5200,7 @@
       "strength": "required",
       "description": "The compatibility adapter authenticates against Vaultwarden.",
       "evidence": [
-        "apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com"
+        "apps/vaultwarden/compose.yml:BW_HOST=http://vaultwarden"
       ]
     },
     {
