@@ -6,24 +6,24 @@ ROOT="$(git rev-parse --show-toplevel)"
 TEMPLATE="${ROOT}/apps/prometheus/pfsense-exporter.example.yml"
 
 fail() {
-	printf 'ERROR: %s\n' "$*" >&2
-	exit 1
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
 }
 
 [[ "${EUID}" -eq 0 ]] ||
-	fail "run with sudo so the runtime config remains root-owned mode 0600"
+  fail "run with sudo so the runtime config remains root-owned mode 0600"
 
 for command in python3 git; do
-	command -v "${command}" >/dev/null 2>&1 ||
-		fail "${command} is required"
+  command -v "${command}" >/dev/null 2>&1 ||
+    fail "${command} is required"
 done
 
 [[ -f "${RUNTIME_CONFIG}" ]] ||
-	fail "runtime config must be a regular file: ${RUNTIME_CONFIG}"
+  fail "runtime config must be a regular file: ${RUNTIME_CONFIG}"
 [[ -s "${RUNTIME_CONFIG}" ]] ||
-	fail "runtime config is empty: ${RUNTIME_CONFIG}"
+  fail "runtime config is empty: ${RUNTIME_CONFIG}"
 [[ -f "${TEMPLATE}" ]] ||
-	fail "reviewed template is missing: ${TEMPLATE}"
+  fail "reviewed template is missing: ${TEMPLATE}"
 
 python3 - "${RUNTIME_CONFIG}" "${TEMPLATE}" <<'PY'
 from __future__ import annotations
