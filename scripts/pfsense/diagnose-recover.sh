@@ -221,23 +221,40 @@ probe_api() {
     tls_args=(-k)
   fi
 
+  local curl_error curl_status
+  curl_error="$(mktemp)"
+  set +e
   http_code="$(curl "${tls_args[@]}" --silent --show-error \
     --connect-timeout 5 --max-time 15 \
     -o "${body}" -w '%{http_code}' \
     --header "@${API_HEADER_FILE}" \
-    "${base_url%/}${endpoint}" 2>>"${REPORT}" || true)"
+    "${base_url%/}${endpoint}" 2>"${curl_error}")"
+  curl_status=$?
+  set -e
 
   if [[ "${http_code}" == "200" ]] && jq -e '.code == 200 and .status == "ok"' "${body}" >/dev/null 2>&1; then
     local summary
     summary="$(jq -c '{code,status,response_id,data_type:(.data|type),count:(if (.data|type)=="array" then (.data|length) else null end)}' "${body}")"
     log "${label} endpoint=${endpoint} http=${http_code} ${summary}"
-    rm -f "${body}"
+    rm -f "${body}" "${curl_error}"
     return 0
   fi
 
-  log "${label} endpoint=${endpoint} http=${http_code:-000} ERROR"
+  local classification="application"
+  if ((curl_status != 0)); then
+    classification="transport"
+  elif [[ "${http_code}" == "401" || "${http_code}" == "403" ]]; then
+    classification="authentication"
+  elif [[ "${http_code}" =~ ^5 ]]; then
+    classification="server"
+  fi
+
+  log "${label} endpoint=${endpoint} http=${http_code:-000} ERROR class=${classification} curl_status=${curl_status}"
+  if [[ -s "${curl_error}" ]]; then
+    sed 's/^/curl_error: /' "${curl_error}" | tee -a "${REPORT}"
+  fi
   jq -c '{code,status,response_id,message}' "${body}" 2>/dev/null | tee -a "${REPORT}" || true
-  rm -f "${body}"
+  rm -f "${body}" "${curl_error}"
   return 1
 }
 
@@ -291,6 +308,8 @@ SSH_OPTS=(
   -o ConnectTimeout=8
   -o ServerAliveInterval=5
   -o ServerAliveCountMax=2
+  -o ControlMaster=no
+  -o ControlPath=none
 )
 if [[ -n "${SSH_PORT}" ]]; then
   SSH_OPTS+=(-p "${SSH_PORT}")
