@@ -43,13 +43,28 @@ if [[ "${password}" != "${readonly_password}" || "${password}" != "${trace_passw
 fi
 ok "migrator ClickHouse passwords are internally consistent"
 
-if timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
-  clickhouse-client     --user "$CLICKHOUSE_USER"     --password "$CLICKHOUSE_PASSWORD"     --query "SELECT count() FROM system.users WHERE name = '''sentry_migrator'''"     | grep -qx "1"
+if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
+  clickhouse-client \
+    --user "$CLICKHOUSE_USER" \
+    --password "$CLICKHOUSE_PASSWORD" \
+    --query "SELECT 1" >/dev/null
 '; then
-  ok "ClickHouse user sentry_migrator exists"
-else
-  fail "unable to confirm sentry_migrator through the ClickHouse admin identity"
+  fail "ClickHouse admin identity from the dedicated container cannot authenticate"
 fi
+ok "ClickHouse admin identity is usable"
+
+user_count="$(
+  printf "%s\n" "SELECT count() FROM system.users WHERE name = 'sentry_migrator';" |
+    timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
+      clickhouse-client \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --format TabSeparatedRaw
+    '
+)"
+[[ "${user_count}" == "1" ]] ||
+  fail "ClickHouse user sentry_migrator is absent"
+ok "ClickHouse user sentry_migrator exists"
 
 if timeout "${TIMEOUT_SECONDS}" docker exec   -e NABLA_MIGRATOR_PASSWORD="${password}"   "${CLICKHOUSE_CONTAINER}"   sh -lc '
     clickhouse-client       --user sentry_migrator       --password "$NABLA_MIGRATOR_PASSWORD"       --query "SELECT 1" >/dev/null
