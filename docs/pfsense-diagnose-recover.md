@@ -229,8 +229,7 @@ bash scripts/pfsense/diagnose-recover.sh --finalize-key-rotation security
 ```
 
 Finalization refuses to proceed when pfSense has zero persisted keys for the
-selected user. On success it removes `api-v2-auth-key-post` and restores
-`user-config-readonly`.
+selected user. On success it removes `api-v2-auth-key-post` and restores `user-config-readonly`.
 
 Then verify the steady state again:
 
