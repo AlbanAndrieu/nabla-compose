@@ -70,6 +70,16 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("vaultwarden/server:1.37.3", compose)
         self.assertNotIn("vaultwarden/server:latest", compose)
 
+    def test_env_staging_conflict_points_to_scoped_restage(self) -> None:
+        helper = (
+            ROOT / "scripts" / "truenas" / "bootstrap-repository-env-files.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("--restage", helper)
+        self.assertIn(
+            "bootstrap-repository-env-files.sh --restage %s",
+            helper,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
