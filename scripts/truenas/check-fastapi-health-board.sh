@@ -87,14 +87,20 @@ for ((attempt = 1; attempt <= ATTEMPTS; attempt++)); do
 
   state="$(jq -r '.state // "unknown"' <<<"${payload}")"
   refreshing="$(jq -r '.refreshing // false' <<<"${payload}")"
-  if jq -e '.homelab != null' >/dev/null 2>&1 <<<"${payload}"; then
-    printf 'Health-board converged: attempt=%d state=%s refreshing=%s\n' \
-      "${attempt}" "${state}" "${refreshing}"
+  if jq -e '
+    .homelab != null
+    and .refreshing == false
+    and (.state == "fresh" or .state == "stale")
+  ' >/dev/null 2>&1 <<<"${payload}"; then
+    printf 'Health-board converged: attempt=%d state=%s refreshing=%s age_seconds=%s\n' \
+      "${attempt}" "${state}" "${refreshing}" \
+      "$(jq -r '.age_seconds // "unknown"' <<<"${payload}")"
     break
   fi
 
-  printf 'Health-board pending: attempt=%d/%d state=%s refreshing=%s\n' \
-    "${attempt}" "${ATTEMPTS}" "${state}" "${refreshing}" >&2
+  printf 'Health-board pending: attempt=%d/%d state=%s refreshing=%s age_seconds=%s\n' \
+    "${attempt}" "${ATTEMPTS}" "${state}" "${refreshing}" \
+    "$(jq -r '.age_seconds // "unknown"' <<<"${payload}")" >&2
 
   if ((attempt == ATTEMPTS)); then
     jq '{
