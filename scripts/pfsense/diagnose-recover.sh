@@ -11,6 +11,8 @@ PROBE_SOURCES="${PFSENSE_PROBE_SOURCES:-172.17.0.24 172.17.0.57}"
 AUTO_EGRESS=true
 UNBLOCK_SOURCES=false
 API_ONLY=false
+IDENTITY_ACTION=""
+IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
 usage() {
@@ -27,6 +29,15 @@ Options:
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
+  --check-identities         SSH-only audit of fastapi_posture/fastapi_security
+                            users, group membership, privileges and persisted keys.
+  --apply-identities         Create missing service users (password files required)
+                            and reconcile both to steady-state least privilege.
+  --prepare-key-rotation ID  Prepare posture|security for key creation: remove
+                            Deny Config Write and grant api-v2-auth-key-post.
+  --finalize-key-rotation ID Restore posture|security to steady state after a
+                            persisted key is visible: remove key POST, restore
+                            Deny Config Write. Refuses finalization with zero keys.
   --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
   --port PORT               Optional SSH port; otherwise SSH config/default applies.
   --api-url URL             Hostname/public HTTPS URL.
@@ -45,12 +56,25 @@ Environment:
   PFSENSE_SSH_TARGET        Default SSH target override.
   PFSENSE_SSH_PORT          Optional SSH port override.
   FASTAPI_SAMPLE_URL        FastAPI Sample base URL for egress discovery.
+  PFSENSE_POSTURE_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing fastapi_posture user.
+  PFSENSE_SECURITY_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing fastapi_security user.
 
 Recommended sequence:
   1. --check
   2. review HTTPS/API and, when reachable, SSH evidence
   3. --apply only when recovery is justified
   4. --apply --unblock-sources only after an exact BLOCK_MATCH
+
+Identity/key lifecycle:
+  --check-identities
+  --prepare-key-rotation posture|security
+  create the key with that service user's Basic credentials
+  --finalize-key-rotation posture|security
+  --check-identities
 USAGE
 }
 
@@ -76,6 +100,26 @@ while (($# > 0)); do
       ;;
     --unblock-sources)
       UNBLOCK_SOURCES=true
+      ;;
+    --check-identities)
+      IDENTITY_ACTION="check"
+      IDENTITY_TARGET="all"
+      ;;
+    --apply-identities)
+      IDENTITY_ACTION="apply"
+      IDENTITY_TARGET="all"
+      ;;
+    --prepare-key-rotation)
+      shift
+      (($# > 0)) || fail "--prepare-key-rotation requires posture or security"
+      IDENTITY_ACTION="prepare"
+      IDENTITY_TARGET="$1"
+      ;;
+    --finalize-key-rotation)
+      shift
+      (($# > 0)) || fail "--finalize-key-rotation requires posture or security"
+      IDENTITY_ACTION="finalize"
+      IDENTITY_TARGET="$1"
       ;;
     --target)
       shift
@@ -134,6 +178,12 @@ if [[ "${UNBLOCK_SOURCES}" == true && "${MODE}" != "apply" ]]; then
 fi
 if [[ "${API_ONLY}" == true && "${MODE}" == "apply" ]]; then
   fail "--api-only cannot be combined with --apply"
+fi
+if [[ -n "${IDENTITY_ACTION}" && ( "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
+  fail "identity lifecycle options cannot be combined with --api-only, --apply, or --unblock-sources"
+fi
+if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" ]]; then
+  fail "identity target must be posture or security"
 fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
