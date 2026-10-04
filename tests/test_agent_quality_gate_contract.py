@@ -213,7 +213,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("docker-compose(?:-truenas)?[.]yml", config)
         self.assertIn("truenas-deployment-automation-contract", config)
         self.assertGreaterEqual(config.count("(?:[.-][^./]+)?"), 3)
-        self.assertIn("scripts/generate-catalog-v2-artifacts[.]py", config)
+        payload = yaml.safe_load(config)
+        local_hooks = next(
+            repository["hooks"]
+            for repository in payload["repos"]
+            if repository.get("repo") == "local"
+        )
+        catalog_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "catalog-v2-preparation-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(catalog_hook["files"]),
+                "scripts/generate-catalog-v2-artifacts.py",
+            )
+        )
         self.assertNotIn(
             "entry: python scripts/generate-catalog-v2-artifacts.py --check",
             config,
