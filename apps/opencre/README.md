@@ -54,6 +54,28 @@ sudo bash scripts/truenas/bootstrap-repository-storage.sh --check opencre
 
 No separate explicit dataset exception is required.
 
+## Operator workflow
+
+The repository-owned TrueNAS wrapper validates Compose, generated catalog
+contracts and storage before touching the Custom App:
+
+```bash
+sudo bash scripts/truenas/deploy-opencre.sh --check
+```
+
+`--apply` is fail-closed when `OPENCRE_IMAGE` is mutable. The preferred
+activation path is an immutable digest:
+
+```bash
+sudo env \
+  OPENCRE_IMAGE='ghcr.io/owasp/opencre/opencre@sha256:<reviewed-digest>' \
+  bash scripts/truenas/deploy-opencre.sh --apply
+```
+
+For a deliberately bounded PoC only, a mutable image can be authorized
+explicitly with `OPENCRE_ALLOW_MUTABLE_IMAGE=1`. That override does **not**
+satisfy production/runtime acceptance and the catalog remains `planned`.
+
 ## Acceptance before activation
 
 1. pin `OPENCRE_IMAGE` to a reviewed immutable version/digest;
