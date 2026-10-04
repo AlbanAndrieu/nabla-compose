@@ -86,7 +86,7 @@ def validate(
         try:
             uuid.UUID(str(activity_uuid))
         except ValueError as exc:
-            fail(f"invalid DSOMM activity UUID: {activity_uuid}") from exc
+            raise ValueError(f"invalid DSOMM activity UUID: {activity_uuid}") from exc
         if not isinstance(activity, dict) or not str(activity.get("name", "")).strip():
             fail(f"{activity_uuid}: activity name is required")
         level = activity.get("level")
@@ -144,7 +144,9 @@ def validate(
             try:
                 uuid.UUID(evidence_id)
             except ValueError as exc:
-                fail(f"{activity_uuid}: invalid evidence UUID {evidence_id}") from exc
+                raise ValueError(
+                    f"{activity_uuid}: invalid evidence UUID {evidence_id}"
+                ) from exc
             if evidence_id in seen_ids:
                 fail(f"duplicate evidence UUID {evidence_id}")
             seen_ids.add(evidence_id)
