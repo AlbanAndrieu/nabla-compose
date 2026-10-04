@@ -680,7 +680,8 @@ PY
 else
   printf '%-8s %-38s %-18s %s\n' "LEVEL" "CHECK" "VALUE" "MESSAGE"
   printf '%-8s %-38s %-18s %s\n' "--------" "--------------------------------------" "------------------" "-------"
-  while IFS=$'\\t' read -r level key value message; do
+  tab="$(printf '\\t')"
+  while IFS="${tab}" read -r level key value message; do
     [[ -n "${level}" ]] || continue
     case "${level}" in
       PASS) display_level="✅ PASS" ;;
