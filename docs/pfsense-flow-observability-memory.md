@@ -722,6 +722,44 @@ This optimization is deliberately performed at the pfSense logging source,
 rather than writing millions of low-value pass events and discarding them later
 inside CrowdSec.
 
+### Post-reboot acceptance — 2026-10-04
+
+The pfSense UI setting **Default Firewall "pass" Rules** was disabled and the
+appliance was rebooted. The setting persisted across reboot.
+
+The generated rules remained present but no longer carried the `log` keyword:
+
+```text
+1000005711  pass in on lo0 ... descr=pass IPv4 loopback
+1000005715  pass out inet all ... descr=let out anything IPv4 from firewall host itself
+1000005811  pass out route-to (...) ... descr=let out anything from firewall host itself
+```
+
+This proves the change removed only default-pass logging; it did not remove the
+underlying PF allow rules.
+
+Immediately after reboot, `filter.log` was only 246 KiB. This is encouraging
+but is not yet a comparable long-duration rate because log rotation/reboot reset
+the observation window.
+
+CrowdSec was also still in startup/catch-up state after approximately 44 seconds:
+
+```text
+crowdsec RSS                  ~84 MiB
+crowdsec CPU                  ~73%
+crowdsec-firewall-bouncer RSS ~19 MiB
+```
+
+Do not use that CPU value as the post-change steady-state baseline. Re-sample
+after several minutes and compare elapsed process time, RSS/CPU and log growth.
+
+The first post-reboot `cscli metrics` call could not reach the local engine
+Prometheus endpoint on `127.0.0.1:6060`, while bouncer metrics were still
+available and reported ~26.38k active decisions. Treat this as a separate
+CrowdSec metrics-endpoint/startup diagnostic until a later sample proves whether
+it persists; it does not by itself show that the firewall bouncer is down.
+
+
 ## Security and observability follow-ups
 
 - Monitor pfSense memory pressure through the existing Prometheus/Grafana path.
