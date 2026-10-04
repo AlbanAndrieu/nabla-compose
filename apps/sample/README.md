@@ -193,17 +193,22 @@ bash scripts/truenas/update-fastapi-sample.sh
 ```
 
 By default the helper fetches the **current `origin/master` of the
-`fastapi-sample` submodule** and resolves its package version. In
-`FASTAPI_SAMPLE_DEPLOY_MODE=auto` it first tries the immutable release image:
+`fastapi-sample` submodule** and resolves its package version. A moving source
+ref such as `master` is always built from the resolved commit in
+`FASTAPI_SAMPLE_DEPLOY_MODE=auto`; the helper must not silently substitute an
+older package-version image that happens to carry the same semantic version.
+
+Immutable release images remain available for explicit version refs such as
+`FASTAPI_SAMPLE_REF=1.20.18` (or when
+`FASTAPI_SAMPLE_RELEASE_IMAGE` is explicitly supplied):
 
 ```text
 ghcr.io/albanandrieu/fastapi-sample:<release-version>
 ```
 
-When that image exists, the helper pulls it, retags it as
+For those immutable refs, the helper pulls the release image, retags it as
 `fastapi-sample:local`, and skips the expensive local Python dependency
-build. TrueNAS still owns the Custom App/container lifecycle. If the release
-image is unavailable, `auto` falls back to the repository Docker build.
+build. TrueNAS still owns the Custom App/container lifecycle.
 
 This matters because semantic-release changes `pyproject.toml` for every
 version. The Dockerfile copies that file before `uv sync`, so a local release
