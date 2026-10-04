@@ -167,12 +167,47 @@ def test_sentry_system_secret_reconcile_is_bounded() -> None:
     assert "/mnt/cpool/secrets/runtime/sentry/.env.secrets" in script
     assert "SENTRY_SECRET_KEY" in script
     assert "SENTRY_SYSTEM_SECRET_KEY" in script
+    assert "RELAY_ID" in script
+    assert "RELAY_PUBLIC_KEY" in script
+    assert "RELAY_SECRET_KEY" in script
+    assert "ghcr.io/getsentry/relay:26.8.0" in script
+    assert "credentials generate --stdout" in script
+    assert "--network none" in script
     assert "openssl rand -hex 32" in script
-    assert "--restage sentry" in script
+    assert "recover-sentry-deploying.sh --apply" in script
     assert "value not printed" in script
+    assert "values not printed" in script
     assert "docker restart" not in script
     assert "app.redeploy" not in script
     assert "cat " not in script
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
+
+
+def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
+    path = ROOT / "scripts" / "truenas" / "recover-sentry-deploying.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "--check" in script
+    assert "--apply" in script
+    assert "reconcile-sentry-system-secret.sh" in script
+    assert "reconcile-sentry-migrator-credential.sh" in script
+    assert 'midclt call -j app.redeploy "${APP_ID}"' in script
+    assert "truenas_wait_app_running" in script
+    assert "diagnose-sentry.sh" in script
+    assert "smoke-sentry-event.sh" in script
+    assert "--restage sentry" in script
+    assert "--finalize sentry" in script
+    assert "--reset-offsets" not in script
+    assert "docker restart" not in script
+    assert "DROP DATABASE" not in script
+    assert "kafka-topics --delete" not in script
 
     syntax = subprocess.run(
         ["bash", "-n", str(path)],
