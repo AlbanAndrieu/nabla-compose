@@ -136,6 +136,13 @@ pfSense configuration write logic. `User - Config: Deny Config Write`
 pfREST can generate and return a key while pfSense rejects the configuration
 write.
 
+Observed on 2026-10-04: after removing `User - Config: Deny Config Write`
+from `fastapi_posture` while keeping `api-v2-auth-key-post`, the generated key
+became visible on `/system_restapi_key.php`. This confirms the failed
+configuration-write gate was `user-config-readonly`, not the key-generation
+privilege. The remaining `api-v2-auth-key-post` grant is still temporary and
+must be removed after rotation.
+
 The evidence must be interpreted precisely:
 
 - if a key for the service identity is visible in
