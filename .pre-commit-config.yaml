@@ -175,6 +175,15 @@ repos:
         files: >-
           ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
 
+      - id: dotenv-source-compare-contract
+        name: "🔐 secrets · Validate dotenv alias comparison"
+        language: python
+        entry: python -m pytest -q tests/test_compare_dotenv_sources.py
+        additional_dependencies: ["pytest==9.1.1"]
+        pass_filenames: false
+        files: >-
+          ^(scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/manifest[.]json|tests/test_compare_dotenv_sources[.]py)$
+
       - id: p0-backstage-migration-bundle-contract
         name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
         language: python
