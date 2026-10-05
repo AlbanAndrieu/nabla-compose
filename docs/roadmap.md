@@ -468,10 +468,12 @@ Remaining reduction:
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
    `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
    shared by CSI preflight/reclaim while service-specific forensic loops stay local.
-2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
-   and Compose-project correlation.
+2. [x] Expand `scripts/lib/docker.sh` with shared Compose-project lookup and
+   container state/health/PID/exit/restart summaries. Stuck-App and legacy NPM
+   diagnostics now consume those read-only primitives; owner-specific mutation
+   remains outside the library and the contract is enforced by Pre-commit.
 3. [x] Centralize diagnostic output plumbing: `scripts/lib/diagnostic.sh`
-   owns compact/full wrapper delegation for the 23 migrated operator scripts,
+   owns compact/full wrapper delegation for the 24 migrated operator scripts,
    while `scripts/run-diagnostic.sh` remains canonical for private detailed
    logs, counters, bounded summaries and exit-code propagation.
 4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
