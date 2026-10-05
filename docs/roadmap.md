@@ -490,9 +490,10 @@ Remaining reduction:
 4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
    `scripts/lib/probe.sh`. Host HTTP/TCP/DNS plus bounded container DNS/TCP
    primitives are shared. DSOMM, legacy NPM, P0.3 first-wave, CSI NFS TCP/2049,
-   Sample exposure, application lifecycle and Pi-hole sync checks are migrated
-   with dedicated Pre-commit/anti-duplication contracts; migrate only remaining
-   reviewed callers before closing this item.
+   Sample exposure, application lifecycle, Pi-hole sync, Sentry edge smoke/
+   diagnostic and Langflow bootstrap readiness checks are migrated with dedicated
+   Pre-commit/anti-duplication contracts. Keep response-body/authenticated probes
+   local; migrate only remaining plain success/readiness callers before closing.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
 6. [ ] Move code-server packages/extensions into an immutable derived image.
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
