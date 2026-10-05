@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/probe.sh
+source "${SCRIPT_DIR}/../lib/probe.sh"
+
 SYNC_CONTAINER="${NABLA_PIHOLE_SYNC_CONTAINER:-pihole-dns-sync}"
 PIHOLE_CONTAINER="${NABLA_PIHOLE_CONTAINER:-pihole}"
 NETWORK="${NABLA_DOCKER_PROXY_NETWORK:-intranet}"
@@ -15,7 +19,7 @@ fail() {
 }
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root"
-for command in docker grep jq; do
+for command in docker grep jq timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 for value in TIMEOUT_SECONDS POLL_SECONDS EXPECTED_MAX_SESSIONS; do
@@ -49,7 +53,7 @@ while ((SECONDS < deadline)); do
   [[ "$(jq -r '.network' <<<"${sync_state}")" != "null" ]] ||
     fail "${SYNC_CONTAINER}: not attached to ${NETWORK}"
 
-  if ! docker exec "${SYNC_CONTAINER}" getent hosts "${PROXY_ALIAS}" >/dev/null 2>&1; then
+  if ! probe_container_dns_success "${SYNC_CONTAINER}" "${PROXY_ALIAS}" 3; then
     fail "${SYNC_CONTAINER}: cannot resolve ${PROXY_ALIAS} through Docker DNS"
   fi
 
@@ -96,5 +100,8 @@ if [[ "${restarts}" != "0" ]]; then
   printf 'WARN: %s restart_count=%s; current start is healthy but review previous failures\n'     "${SYNC_CONTAINER}" "${restarts}" >&2
 fi
 
-resolved="$(docker exec "${SYNC_CONTAINER}" getent hosts "${PROXY_ALIAS}" | head -n1)"
+resolved="$(
+  probe_container_dns_records "${SYNC_CONTAINER}" "${PROXY_ALIAS}" 3 |
+    head -n1
+)"
 printf 'OK: Pi-hole DNS sync healthy; proxy=%s max_sessions=%s\n'   "${resolved}" "${actual_sessions}"
