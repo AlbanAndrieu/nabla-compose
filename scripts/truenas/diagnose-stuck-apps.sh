@@ -9,6 +9,13 @@ fi
 # shellcheck source=../lib/common.sh
 source "${COMMON_LIB}"
 
+DOCKER_LIB="${SCRIPT_DIR}/../lib/docker.sh"
+if [[ ! -r "${DOCKER_LIB}" ]]; then
+  DOCKER_LIB="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}/scripts/lib/docker.sh"
+fi
+# shellcheck source=../lib/docker.sh
+source "${DOCKER_LIB}"
+
 MODE="${1:---check}"
 shift || true
 
@@ -246,25 +253,19 @@ while IFS= read -r app; do
   ' "${jobs_json}" || true
 
   project="ix-${app}"
-  mapfile -t ids < <(
-    docker ps -a --filter "label=com.docker.compose.project=${project}" --format '{{.ID}}'
-  )
+  mapfile -t ids < <(docker_compose_project_container_ids "${project}")
 
   if (("${#ids[@]}" == 0)); then
     printf 'containers=<none> project=%s\n' "${project}"
   fi
 
   for id in "${ids[@]}"; do
-    inspect="$(docker inspect "${id}")"
-    name="$(jq -r '.[0].Name | ltrimstr("/")' <<<"${inspect}")"
-    service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // "unknown"' <<<"${inspect}")"
-    status="$(jq -r '.[0].State.Status // "unknown"' <<<"${inspect}")"
-    health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
-    exit_code="$(jq -r '.[0].State.ExitCode // 0' <<<"${inspect}")"
-    restarts="$(jq -r '.[0].RestartCount // 0' <<<"${inspect}")"
+    IFS="$(printf '\t')" read -r name service status health pid exit_code restarts < <(
+      docker_container_runtime_summary "${id}"
+    )
 
-    printf 'container=%s service=%s status=%s health=%s exit=%s restarts=%s\n' \
-      "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
+    printf 'container=%s service=%s status=%s health=%s pid=%s exit=%s restarts=%s\n' \
+      "${name}" "${service}" "${status}" "${health}" "${pid}" "${exit_code}" "${restarts}"
 
     if [[ "${status}" == "restarting" || "${health}" == "unhealthy" || "${exit_code}" -ne 0 ]]; then
       printf '%s\n' '  recent logs:'
