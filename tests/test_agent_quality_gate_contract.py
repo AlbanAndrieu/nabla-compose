@@ -158,6 +158,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         for hook_id in (
             "dsomm-contract",
+            "dotenv-source-compare-contract",
             "runtime-primitive-duplication",
             "service-topology-sync",
             "service-consumer-contract",
@@ -223,6 +224,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
             hook
             for hook in local_hooks
             if hook.get("id") == "catalog-v2-preparation-contract"
+        )
+        dotenv_compare_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "dotenv-source-compare-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(dotenv_compare_hook["files"]),
+                "scripts/secrets/compare_dotenv_sources.py",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(dotenv_compare_hook["files"]),
+                "tests/test_compare_dotenv_sources.py",
+            )
         )
         p0_bundle_hook = next(
             hook
