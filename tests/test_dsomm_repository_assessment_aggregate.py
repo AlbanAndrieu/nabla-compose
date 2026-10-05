@@ -15,6 +15,9 @@ SPEC.loader.exec_module(aggregate_module)
 
 ACTIVITY_UUID = "f6f7737f-25a9-4317-8de2-09bf59f29b5b"
 MODEL_COMMIT = "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a"
+MODEL_ACTIVITIES = {
+    ACTIVITY_UUID: ("Defined build process", 1),
+}
 
 
 def assessment(
@@ -105,6 +108,7 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             expected_repository="AlbanAndrieu/nabla-site-alban",
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
+            model_activities=MODEL_ACTIVITIES,
         )
 
         portfolio = aggregate_module.aggregate(
@@ -112,6 +116,7 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments={"AlbanAndrieu/nabla-site-alban": site},
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
+            model_activities=MODEL_ACTIVITIES,
         )
         activity = portfolio["contexts"]["Nabla Applications"]["activities"][0]
 
@@ -150,6 +155,7 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments=assessments,
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
+            model_activities=MODEL_ACTIVITIES,
         )
         activity = portfolio["contexts"]["Nabla Applications"]["activities"][0]
 
@@ -177,6 +183,43 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
                 model_source_commit=MODEL_COMMIT,
             )
 
+    def test_import_rejects_activity_outside_reviewed_seed(self) -> None:
+        site = assessment("AlbanAndrieu/nabla-site-alban")
+        site["claims"][0]["activityUuid"] = "11111111-1111-4111-8111-111111111111"
+
+        with self.assertRaisesRegex(
+            aggregate_module.AssessmentError,
+            "not in the reviewed portfolio seed",
+        ):
+            aggregate_module.validate_assessment(
+                site,
+                expected_repository="AlbanAndrieu/nabla-site-alban",
+                model_version="5.0.2",
+                model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
+            )
+
+    def test_import_rejects_canonical_name_or_level_drift(self) -> None:
+        repository = "AlbanAndrieu/nabla-site-alban"
+        for field, value, expected in (
+            ("activityName", "Invented build process", "activityName"),
+            ("level", 5, "level"),
+        ):
+            with self.subTest(field=field):
+                site = assessment(repository)
+                site["claims"][0][field] = value
+                with self.assertRaisesRegex(
+                    aggregate_module.AssessmentError,
+                    expected,
+                ):
+                    aggregate_module.validate_assessment(
+                        site,
+                        expected_repository=repository,
+                        model_version="5.0.2",
+                        model_source_commit=MODEL_COMMIT,
+                        model_activities=MODEL_ACTIVITIES,
+                    )
+
     def test_repository_evidence_is_preserved_with_producer_reference(self) -> None:
         repository = "AlbanAndrieu/nabla-site-alban"
         portfolio = aggregate_module.aggregate(
@@ -184,6 +227,7 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments={repository: assessment(repository)},
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
+            model_activities=MODEL_ACTIVITIES,
         )
         evidence = portfolio["contexts"]["Nabla Applications"]["activities"][0][
             "repositories"
