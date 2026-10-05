@@ -110,7 +110,8 @@ truenas_wait_app_running() {
     esac
     sleep "${poll_seconds}"
   done
-  printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n'     "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
+  printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n' \
+    "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
   return 1
 }
 
@@ -133,4 +134,9 @@ truenas_nfs_share_count_for_path() {
       ]
       | length
     '
+}
+
+truenas_docker_status() {
+  midclt call docker.status 2>/dev/null |
+    jq -r '.status // "UNKNOWN"'
 }
