@@ -165,3 +165,58 @@ probe_dns_wait() {
   done
   return 1
 }
+
+probe_container_dns_records() {
+  local container="${1:-}" hostname="${2:-}" timeout_seconds="${3:-3}"
+
+  [[ "${container}" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    printf 'invalid container probe name: %s\n' "${container}" >&2
+    return 2
+  }
+  [[ "${hostname}" =~ ^[A-Za-z0-9._-]+$ ]] || {
+    printf 'invalid container DNS hostname: %s\n' "${hostname}" >&2
+    return 2
+  }
+  [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
+    printf 'invalid container DNS timeout: %s\n' "${timeout_seconds}" >&2
+    return 2
+  }
+
+  timeout "${timeout_seconds}" docker exec "${container}" getent hosts "${hostname}" \
+    2>/dev/null
+}
+
+probe_container_dns_success() {
+  local container="${1:-}" hostname="${2:-}" timeout_seconds="${3:-3}"
+  local records
+
+  records="$(probe_container_dns_records "${container}" "${hostname}" "${timeout_seconds}")" ||
+    return $?
+  [[ -n "${records}" ]]
+}
+
+probe_container_tcp_success() {
+  local container="${1:-}" host="${2:-}" port="${3:-}"
+  local timeout_seconds="${4:-3}"
+
+  [[ "${container}" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    printf 'invalid container probe name: %s\n' "${container}" >&2
+    return 2
+  }
+  [[ "${host}" =~ ^[A-Za-z0-9._:-]+$ ]] || {
+    printf 'invalid container TCP host: %s\n' "${host}" >&2
+    return 2
+  }
+  [[ "${port}" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535)) || {
+    printf 'invalid container TCP port: %s\n' "${port}" >&2
+    return 2
+  }
+  [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
+    printf 'invalid container TCP timeout: %s\n' "${timeout_seconds}" >&2
+    return 2
+  }
+
+  timeout "${timeout_seconds}" docker exec "${container}" \
+    bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
+    >/dev/null 2>&1
+}
