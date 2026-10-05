@@ -193,6 +193,9 @@ Remaining work:
 
 1. [ ] Accept the first-wave Scanopy/Joplin/AutoKuma migration one service at a
    time; AutoKuma additionally requires Uptime Kuma restored and RUNNING.
+   Scanopy deployment now fails closed on mutable server/daemon images; select a
+   same-release reviewed digest pair before runtime acceptance. The explicit
+   `SCANOPY_ALLOW_MUTABLE_IMAGE=1` override is PoC-only.
 2. [ ] Convert remaining explicit legacy `env_file` paths to
    `/mnt/cpool/secrets/runtime/<service>/...`; retire compatibility paths only
    after restart/reboot acceptance. Sentry path normalization is now
