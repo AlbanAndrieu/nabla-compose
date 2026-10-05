@@ -160,6 +160,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "dsomm-contract",
             "dotenv-source-compare-contract",
             "runtime-primitive-duplication",
+            "operator-script-refactor-contract",
             "stuck-app-diagnostic-contract",
             "service-topology-sync",
             "service-consumer-contract",
@@ -241,6 +242,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
             re.match(
                 str(dotenv_compare_hook["files"]),
                 "tests/test_compare_dotenv_sources.py",
+            )
+        )
+        operator_refactor_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "operator-script-refactor-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(operator_refactor_hook["files"]),
+                "scripts/lib/docker.sh",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(operator_refactor_hook["files"]),
+                "scripts/truenas/diagnose-stuck-apps.sh",
             )
         )
         stuck_app_hook = next(
