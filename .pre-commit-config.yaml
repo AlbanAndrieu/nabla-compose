@@ -369,7 +369,7 @@ repos:
         entry: python -m unittest tests.test_operator_script_refactor_contract -v
         pass_filenames: false
         files: >-
-          ^(scripts/lib/(?:common|docker|truenas)[.]sh|scripts/truenas/(?:audit-docker-network-migration|diagnose-csi-orphans|diagnose-docker-orphan-shims|diagnose-influxdb|diagnose-platform|diagnose-stuck-apps|diagnose-nginx-proxy-manager|materialize-reboot-bundle|migrate-docker-address-pool|prune-docker-images|reconcile-reboot-resume|reconcile-talos-vm-policy|verify-talos-vm-autostart)[.]sh|tests/test_operator_script_refactor_contract[.]py|docs/(?:README|roadmap)[.]md|scripts/README[.]md)$
+          ^(scripts/lib/(?:common|docker|truenas)[.]sh|scripts/truenas/(?:audit-docker-network-migration|deploy-docling|deploy-joplin|deploy-scanopy|deploy-wazuh|diagnose-csi-orphans|diagnose-docker-orphan-shims|diagnose-influxdb|diagnose-platform|diagnose-stuck-apps|diagnose-nginx-proxy-manager|materialize-reboot-bundle|migrate-docker-address-pool|prune-docker-images|reconcile-reboot-resume|reconcile-talos-vm-policy|verify-talos-vm-autostart)[.]sh|tests/test_operator_script_refactor_contract[.]py|docs/(?:README|roadmap)[.]md|scripts/README[.]md)$
 
       - id: stuck-app-diagnostic-contract
         name: "🩺 truenas · Validate stuck-app recovery diagnostics"
