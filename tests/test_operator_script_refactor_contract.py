@@ -11,6 +11,12 @@ DOCKER = ROOT / "scripts/lib/docker.sh"
 TRUENAS = ROOT / "scripts/lib/truenas.sh"
 DOCKER_PRUNE = ROOT / "scripts/truenas/prune-docker-images.sh"
 DOCKER_IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
+APP_QUERY_CONSUMERS = (
+    ROOT / "scripts/truenas/deploy-joplin.sh",
+    ROOT / "scripts/truenas/deploy-docling.sh",
+    ROOT / "scripts/truenas/deploy-scanopy.sh",
+    ROOT / "scripts/truenas/deploy-wazuh.sh",
+)
 STUCK_APPS = ROOT / "scripts/truenas/diagnose-stuck-apps.sh"
 NPM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
@@ -90,6 +96,22 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
                 self.assertIn("truenas_docker_status", script)
                 self.assertNotIn(
                     "midclt call docker.status 2>/dev/null | jq -r",
+                    script,
+                )
+
+    def test_shared_truenas_library_owns_filtered_app_query(self) -> None:
+        text = TRUENAS.read_text(encoding="utf-8")
+        self.assertIn("truenas_app_query_by_id()", text)
+        self.assertIn('truenas_app_query_by_id "${app_id}"', text)
+        self.assertEqual(text.count("midclt call app.query"), 1)
+
+        for path in APP_QUERY_CONSUMERS:
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn("lib/truenas.sh", script)
+                self.assertIn("truenas_app_query_by_id", script)
+                self.assertNotIn(
+                    'midclt call app.query "[[\\"id\\",\\"=\\",\\"${APP_ID}\\"]]"',
                     script,
                 )
 
