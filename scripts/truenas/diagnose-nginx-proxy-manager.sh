@@ -8,7 +8,8 @@ source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 # shellcheck source=../lib/docker.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/docker.sh"
-
+# shellcheck source=../lib/truenas.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/truenas.sh"
 # shellcheck source=../lib/probe.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/probe.sh"
 
@@ -61,7 +62,7 @@ docker compose -f "${COMPOSE}" config --quiet --no-interpolate --no-env-resoluti
 printf '✅ Compose syntax is valid\n'
 
 printf '\n==> TrueNAS application state\n'
-app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
+app_json="$(truenas_app_query_by_id "${APP_ID}")"
 if [[ "$(jq 'length' <<<"${app_json}")" -ne 1 ]]; then
   printf '❌ TrueNAS App is missing or ambiguous: %s\n' "${APP_ID}" >&2
   app_state="MISSING"
