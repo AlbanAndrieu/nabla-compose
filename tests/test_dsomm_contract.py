@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import unittest
 
@@ -16,6 +17,7 @@ RUNNER = ROOT / "apps" / "dsomm" / "baseline" / "run-baseline.sh"
 README = ROOT / "apps" / "dsomm" / "README.md"
 INITIAL_REVIEW = ROOT / "apps" / "dsomm" / "INITIAL_REVIEW.md"
 SEED_ACTIVITIES = ROOT / "apps" / "dsomm" / "config" / "seed-activities.yaml"
+MODEL_INDEX = ROOT / "apps" / "dsomm" / "config" / "model-activity-index.json"
 SEED_PROGRESS = ROOT / "apps" / "dsomm" / "config" / "team-progress.seed.yaml"
 SEED_EVIDENCE = ROOT / "apps" / "dsomm" / "config" / "team-evidence.seed.yaml"
 SEED_VALIDATOR = ROOT / "scripts" / "dsomm" / "validate-seed.py"
@@ -179,6 +181,24 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("master as unprotected", evidence_text)
         self.assertTrue(evidence["evidence"])
         self.assertTrue(SEED_VALIDATOR.is_file())
+
+    def test_conservative_seed_matches_full_pinned_model_index(self) -> None:
+        seed = yaml.safe_load(SEED_ACTIVITIES.read_text(encoding="utf-8"))
+        model_index = json.loads(MODEL_INDEX.read_text(encoding="utf-8"))
+
+        self.assertEqual(seed["model"]["version"], model_index["model"]["version"])
+        self.assertEqual(
+            seed["model"]["sourceCommit"],
+            model_index["model"]["sourceCommit"],
+        )
+        self.assertEqual(249, len(model_index["activities"]))
+        self.assertEqual(22, len(seed["activities"]))
+
+        for activity_uuid, activity in seed["activities"].items():
+            with self.subTest(activity_uuid=activity_uuid):
+                canonical = model_index["activities"][activity_uuid]
+                self.assertEqual(activity["name"], canonical["name"])
+                self.assertEqual(activity["level"], canonical["level"])
 
     def test_readme_keeps_baseline_as_supporting_evidence(self) -> None:
         text = README.read_text(encoding="utf-8")
