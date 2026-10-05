@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-04.
+Last updated: 2026-10-05.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -316,12 +316,15 @@ Security-tooling acceptance within this workstream:
     rendu du seed sans écraser un assessment existant.
   - [ ] Exécuter le baseline Tweag pin, puis réconcilier uniquement les preuves
     supportées avec le seed revu; aucun score automatique ne vaut verdict.
-  - [ ] Publier `nabla.dsomm.repository-assessment/v1` dans les repositories
-    Nabla puis importer ces producteurs avec
-    `scripts/dsomm/aggregate-repository-assessments.py`. Le premier producteur
-    est `nabla-site-alban`; conserver la couverture par repository et ne
-    dériver un état DSOMM de contexte que lorsque l'activité est entièrement
-    couverte.
+  - [x] Contrat consommateur `nabla.dsomm.repository-assessment/v1` prêt :
+    schéma v1 vendored, index complet DSOMM 5.0.2 de 249 activités, import HTTPS
+    borné, `--check` non mutatif, provenance conservée et gate optionnelle
+    `--require-complete-sources`. Le producteur de `nabla-site-alban` en PR
+    #211 est compatible sur ses 55 claims.
+  - [ ] Publier/merger le contrat producteur dans les 4 repositories configurés
+    (`nabla-compose`, `fastapi-sample`, `nabla-site-alban`,
+    `nabla-site-bababou`), puis exécuter la gate de couverture complète avant
+    d'utiliser l'agrégat comme aide à la revue DSOMM.
   - [ ] Fermer ou accepter explicitement le gap GitHub (branche `master` non
     protégée, aucun ruleset), puis compléter les activités manuelles
     Security Champions/IAM/Agentic AI/Identity/process.
