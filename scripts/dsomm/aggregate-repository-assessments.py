@@ -75,7 +75,9 @@ def parse_source_arg(value: str) -> tuple[str, str]:
     return repository, locator
 
 
-def load_model_identity(path: Path) -> tuple[str, str]:
+def load_model_contract(
+    path: Path,
+) -> tuple[str, str, dict[str, tuple[str, int]]]:
     payload = load_yaml(path)
     model = payload.get("model")
     if not isinstance(model, dict):
@@ -86,7 +88,26 @@ def load_model_identity(path: Path) -> tuple[str, str]:
         fail(f"{path}: model.version is required")
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
         fail(f"{path}: model.sourceCommit must be a full Git SHA")
-    return version, source_commit
+
+    activities = payload.get("activities")
+    if not isinstance(activities, dict) or not activities:
+        fail(f"{path}: activities mapping is required")
+
+    activity_contract: dict[str, tuple[str, int]] = {}
+    for activity_uuid, activity in activities.items():
+        if not isinstance(activity_uuid, str) or not UUID_RE.fullmatch(activity_uuid):
+            fail(f"{path}: invalid canonical activity UUID {activity_uuid!r}")
+        if not isinstance(activity, dict):
+            fail(f"{path}: activity {activity_uuid} must be a mapping")
+        name = activity.get("name")
+        level = activity.get("level")
+        if not isinstance(name, str) or not name.strip():
+            fail(f"{path}: activity {activity_uuid} name is required")
+        if not isinstance(level, int) or not 1 <= level <= 5:
+            fail(f"{path}: activity {activity_uuid} level must be 1..5")
+        activity_contract[activity_uuid] = (name.strip(), level)
+
+    return version, source_commit, activity_contract
 
 
 def load_contexts(path: Path) -> dict[str, str]:
@@ -110,6 +131,7 @@ def validate_assessment(
     expected_repository: str,
     model_version: str,
     model_source_commit: str,
+    model_activities: dict[str, tuple[str, int]],
 ) -> dict[str, Any]:
     if payload.get("schemaVersion") != 1:
         fail(f"{expected_repository}: schemaVersion must be 1")
@@ -210,6 +232,24 @@ def validate_assessment(
             fail(f"{expected_repository}: duplicate claim {activity_uuid}")
         claim_ids.add(activity_uuid)
 
+        canonical_activity = model_activities.get(activity_uuid)
+        if canonical_activity is None:
+            fail(
+                f"{expected_repository}: activity UUID {activity_uuid} is not "
+                "in the reviewed portfolio seed"
+            )
+        canonical_name, canonical_level = canonical_activity
+        if claim.get("activityName") != canonical_name:
+            fail(
+                f"{expected_repository}/{activity_uuid}: activityName must be "
+                f"{canonical_name!r}"
+            )
+        if claim.get("level") != canonical_level:
+            fail(
+                f"{expected_repository}/{activity_uuid}: level must be "
+                f"{canonical_level}"
+            )
+
         applicability = claim.get("applicability")
         if applicability not in {"applicable", "not-applicable"}:
             fail(
@@ -240,8 +280,6 @@ def validate_assessment(
             fail(
                 f"{expected_repository}/{activity_uuid}: invalid confidence"
             )
-        if not isinstance(claim.get("activityName"), str):
-            fail(f"{expected_repository}/{activity_uuid}: activityName is required")
         if not isinstance(claim.get("dimension"), str):
             fail(f"{expected_repository}/{activity_uuid}: dimension is required")
         if not isinstance(claim.get("level"), int):
@@ -476,7 +514,11 @@ def main() -> int:
 
     try:
         contexts = load_contexts(args.context_map)
-        model_version, model_source_commit = load_model_identity(args.model)
+        (
+            model_version,
+            model_source_commit,
+            model_activities,
+        ) = load_model_contract(args.model)
         assessments: dict[str, dict[str, Any]] = {}
         for repository, locator in args.source:
             if repository in assessments:
@@ -487,6 +529,7 @@ def main() -> int:
                 expected_repository=repository,
                 model_version=model_version,
                 model_source_commit=model_source_commit,
+                model_activities=model_activities,
             )
         portfolio = aggregate(
             contexts=contexts,
