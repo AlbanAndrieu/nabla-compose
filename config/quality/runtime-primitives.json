@@ -44,6 +44,18 @@
     {
       "name": "docker_container_runtime_summary",
       "owner": "scripts/lib/docker.sh"
+    },
+    {
+      "name": "probe_http_code",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_http_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_http_wait",
+      "owner": "scripts/lib/probe.sh"
     }
   ]
 }
