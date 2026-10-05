@@ -92,7 +92,8 @@ probe_tcp_success() {
     return 2
   }
 
-  timeout "${timeout_seconds}" bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}"     >/dev/null 2>&1
+  timeout "${timeout_seconds}" bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
+    >/dev/null 2>&1
 }
 
 probe_tcp_wait() {
