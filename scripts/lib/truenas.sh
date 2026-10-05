@@ -59,7 +59,6 @@ truenas_lifecycle_errors_since() {
   return 1
 }
 
-
 truenas_app_state() {
   local app_id="${1:?TrueNAS app id is required}"
   midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
@@ -114,7 +113,6 @@ truenas_wait_app_running() {
     "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
   return 1
 }
-
 
 truenas_dataset_query_by_id() {
   local dataset_id="${1:?TrueNAS dataset id is required}"
