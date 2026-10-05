@@ -36,6 +36,14 @@
     {
       "name": "truenas_nfs_share_count_for_path",
       "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "docker_compose_project_container_ids",
+      "owner": "scripts/lib/docker.sh"
+    },
+    {
+      "name": "docker_container_runtime_summary",
+      "owner": "scripts/lib/docker.sh"
     }
   ]
 }
