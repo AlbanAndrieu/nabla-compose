@@ -87,6 +87,12 @@ activity UUID, basis commit, confidence and evidence provenance.
 The importer is deliberately separate from the reviewed runtime seed:
 
 ```bash
+# Validate a producer without writing portfolio state
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
+  --check
+
+# Aggregate reviewed producer documents
 python scripts/dsomm/aggregate-repository-assessments.py \
   --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
   --output /mnt/cpool/dsomm/reports/repository-assessment.aggregate.json
