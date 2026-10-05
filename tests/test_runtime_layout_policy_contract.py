@@ -132,6 +132,15 @@ def test_code_runtime_secret_uses_canonical_password_key() -> None:
     assert "/mnt/cpool/code/.env" not in compose
     assert "/mnt/cpool/code/.env.secrets" not in compose
     assert "${CODE_PASSWORD}" not in compose
+    assert (
+        "ghcr.io/linuxserver/code-server:4.140.0@"
+        "sha256:fc6cc21ba06ab0ad02e3695235626bddbef1943f4b8cb874c994cf78619323cd"
+        in compose
+    )
+    assert "platform: linux/amd64" in compose
+    assert "lscr.io/linuxserver/code-server:latest" not in compose
+    assert "DOCKER_MODS=linuxserver/mods:universal-package-install" in compose
+    assert "INSTALL_PACKAGES=" in compose
     assert secret["env"] == "PASSWORD"
     assert secret["importEnv"] == "CODE_PASSWORD"
     assert secret["field"] == "CODE_PASSWORD"
