@@ -59,9 +59,14 @@ truenas_lifecycle_errors_since() {
   return 1
 }
 
+truenas_app_query_by_id() {
+  local app_id="${1:?TrueNAS app id is required}"
+  midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]"
+}
+
 truenas_app_state() {
   local app_id="${1:?TrueNAS app id is required}"
-  midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+  truenas_app_query_by_id "${app_id}" |
     jq -r 'if length == 1 then .[0].state else "MISSING" end'
 }
 
