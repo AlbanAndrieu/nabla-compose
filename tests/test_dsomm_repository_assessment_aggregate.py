@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -180,6 +183,64 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
                 model_version="5.0.2",
                 model_source_commit=MODEL_COMMIT,
                 model_activities=MODEL_ACTIVITIES,
+            )
+
+    def test_source_loader_rejects_downgrade_redirect(self) -> None:
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.geturl.return_value = "http://producer.invalid/assessment.json"
+        response.read.return_value = b"{}"
+
+        with patch.object(aggregate_module, "urlopen", return_value=response):
+            with self.assertRaisesRegex(
+                aggregate_module.AssessmentError,
+                "redirect target must remain HTTPS",
+            ):
+                aggregate_module.load_json_source(
+                    "https://producer.invalid/assessment.json"
+                )
+
+    def test_source_loader_rejects_oversized_remote_and_local_input(self) -> None:
+        oversized = b"x" * (aggregate_module.MAX_SOURCE_BYTES + 1)
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.geturl.return_value = "https://producer.invalid/assessment.json"
+        response.read.return_value = oversized
+
+        with patch.object(aggregate_module, "urlopen", return_value=response):
+            with self.assertRaisesRegex(
+                aggregate_module.AssessmentError,
+                "assessment source exceeds",
+            ):
+                aggregate_module.load_json_source(
+                    "https://producer.invalid/assessment.json"
+                )
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "assessment.json"
+            source.write_bytes(oversized)
+            with self.assertRaisesRegex(
+                aggregate_module.AssessmentError,
+                "assessment source exceeds",
+            ):
+                aggregate_module.load_json_source(str(source))
+
+    def test_source_loader_reports_invalid_utf8_json_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "assessment.json"
+            source.write_bytes(b"\xff\xfe")
+            with self.assertRaisesRegex(
+                aggregate_module.AssessmentError,
+                "invalid UTF-8 JSON assessment",
+            ):
+                aggregate_module.load_json_source(str(source))
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "assessment.json"
+            source.write_text(json.dumps({"valid": True}), encoding="utf-8")
+            self.assertEqual(
+                {"valid": True},
+                aggregate_module.load_json_source(str(source)),
             )
 
     def test_import_rejects_activity_outside_reviewed_seed(self) -> None:
