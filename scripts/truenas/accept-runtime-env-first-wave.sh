@@ -9,6 +9,9 @@ source "${SCRIPT_DIR}/../lib/secrets.sh"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
 
+# shellcheck source=../lib/probe.sh
+source "${SCRIPT_DIR}/../lib/probe.sh"
+
 MODE="${1:---check}"
 APP_FILTER="${2:-all}"
 CANONICAL_ROOT="${NABLA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
@@ -155,8 +158,7 @@ function accept_dependency {
         jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
         fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
       fi
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:31050/ >/dev/null ||
+      probe_http_success http://172.17.0.24:31050/ 3 10 ||
         fail "autokuma: Uptime Kuma API/UI is not reachable on 172.17.0.24:31050"
       ;;
     code)
@@ -187,12 +189,10 @@ function functional_probe {
   local app="$1"
   case "${app}" in
     scanopy)
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:60072/ >/dev/null
+      probe_http_success http://172.17.0.24:60072/ 3 10
       ;;
     joplin)
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:22300/api/ping >/dev/null
+      probe_http_success http://172.17.0.24:22300/api/ping 3 10
       ;;
     autokuma)
       # AutoKuma is a controller without an HTTP surface of its own. Runtime
@@ -200,8 +200,7 @@ function functional_probe {
       return 0
       ;;
     code)
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:8443/healthz >/dev/null
+      probe_http_success http://172.17.0.24:8443/healthz 3 10
       ;;
   esac
 }
