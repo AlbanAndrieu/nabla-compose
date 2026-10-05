@@ -56,6 +56,30 @@
     {
       "name": "probe_http_wait",
       "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_tcp_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_tcp_wait",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_addresses",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_wait",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "truenas_docker_status",
+      "owner": "scripts/lib/truenas.sh"
     }
   ]
 }
