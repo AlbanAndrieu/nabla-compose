@@ -15,6 +15,7 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         "scripts/truenas/diagnose-performance.sh",
         "scripts/truenas/diagnose-pyroscope.sh",
         "scripts/truenas/diagnose-sentry.sh",
+        "scripts/truenas/diagnose-nginx-proxy-manager.sh",
         "scripts/truenas/diagnose-csi-orphans.sh",
         "scripts/truenas/report-app-failures.sh",
         "scripts/truenas/diagnose-wazuh.sh",
