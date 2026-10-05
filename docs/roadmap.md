@@ -475,10 +475,11 @@ malformed regex quoting or duplicated hook IDs fail before publication.
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
-   `scripts/lib/truenas.sh`; dataset-by-ID, NFS-share-by-path and normalized
-   Docker middleware status reads are now shared. Docker IPAM and image-prune
-   gates consume the shared status reader while transaction-specific bounded
-   reboot loops and service-specific forensic logic stay local.
+   `scripts/lib/truenas.sh`; dataset-by-ID, NFS-share-by-path, normalized
+   Docker middleware status and filtered App-by-ID queries are now shared.
+   Joplin/Docling/Scanopy/Wazuh deployers consume the canonical App query while
+   transaction-specific bounded reboot loops and service-specific forensic logic
+   stay local.
 2. [x] Expand `scripts/lib/docker.sh` with shared Compose-project lookup and
    container state/health/PID/exit/restart summaries. Stuck-App and legacy NPM
    diagnostics now consume those read-only primitives; owner-specific mutation
