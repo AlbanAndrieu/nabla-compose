@@ -96,8 +96,11 @@ is capped at 1 MiB before JSON parsing.
 Aggregation rules are fail-closed:
 
 - producer and portfolio DSOMM `version` **and** `sourceCommit` must match;
-- claims join only by upstream `activityUuid`, and that UUID must exist in the
-  reviewed local seed with the same canonical activity name and level;
+- import identity uses the vendored 249-activity index derived from upstream
+  `generated/model.yaml` at the pinned DSOMM 5.0.2 commit; the smaller
+  22-activity runtime seed remains only the conservative Nabla prefill;
+- claims join only by upstream `activityUuid`, with canonical name, dimension
+  and level checked against that full identity index;
 - `not-applicable` is excluded from the average;
 - a missing repository or missing activity claim remains `not-assessed`, never
   zero;
