@@ -60,7 +60,9 @@ while ((SECONDS < deadline)); do
   started_at="$(jq -r '.started' <<<"${sync_state}")"
   recent_logs="$(docker logs --since "${started_at}" "${SYNC_CONTAINER}" 2>&1 || true)"
 
-  if grep -Eq     'api_seats_exceeded|Failed to authenticate|Could not authenticate|no such host|failed to connect to the docker API'     <<<"${recent_logs}"; then
+  if grep -Eq \
+    'api_seats_exceeded|Failed to authenticate|Could not authenticate|no such host|failed to connect to the docker API' \
+    <<<"${recent_logs}"; then
     printf '%s\n' "${recent_logs}" >&2
     fail "${SYNC_CONTAINER}: current-start logs contain DNS/Docker/Pi-hole API failure"
   fi
@@ -77,7 +79,8 @@ if ! grep -Fq 'Initial sync done' <<<"${recent_logs:-}"; then
 fi
 
 actual_sessions="$(
-  docker exec "${PIHOLE_CONTAINER}"     pihole-FTL --config webserver.api.max_sessions 2>/dev/null |
+  docker exec "${PIHOLE_CONTAINER}" \
+    pihole-FTL --config webserver.api.max_sessions 2>/dev/null |
     tail -n1 | tr -d '[:space:]'
 )"
 [[ "${actual_sessions}" == "${EXPECTED_MAX_SESSIONS}" ]] ||
@@ -97,11 +100,13 @@ expected_env="FTLCONF_webserver_api_max_sessions=${EXPECTED_MAX_SESSIONS}"
 
 restarts="$(jq -r '.restarts' <<<"${sync_state}")"
 if [[ "${restarts}" != "0" ]]; then
-  printf 'WARN: %s restart_count=%s; current start is healthy but review previous failures\n'     "${SYNC_CONTAINER}" "${restarts}" >&2
+  printf 'WARN: %s restart_count=%s; current start is healthy but review previous failures\n' \
+    "${SYNC_CONTAINER}" "${restarts}" >&2
 fi
 
 resolved="$(
   probe_container_dns_records "${SYNC_CONTAINER}" "${PROXY_ALIAS}" 3 |
     head -n1
 )"
-printf 'OK: Pi-hole DNS sync healthy; proxy=%s max_sessions=%s\n'   "${resolved}" "${actual_sessions}"
+printf 'OK: Pi-hole DNS sync healthy; proxy=%s max_sessions=%s\n' \
+  "${resolved}" "${actual_sessions}"
