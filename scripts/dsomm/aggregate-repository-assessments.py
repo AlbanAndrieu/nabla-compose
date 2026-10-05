@@ -712,6 +712,11 @@ def main() -> int:
         action="store_true",
         help="Validate producer sources and portfolio coverage without writing output",
     )
+    parser.add_argument(
+        "--require-complete-sources",
+        action="store_true",
+        help="Fail when any repository from the context map lacks a producer source",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if not args.source:
@@ -746,6 +751,12 @@ def main() -> int:
             model_version=model_version,
             model_source_commit=model_source_commit,
         )
+        missing_sources = portfolio["repositories"]["missing"]
+        if args.require_complete_sources and missing_sources:
+            fail(
+                "configured repository assessment sources are missing: "
+                + ", ".join(missing_sources)
+            )
         if not args.check:
             assert args.output is not None
             write_json(args.output, portfolio)
