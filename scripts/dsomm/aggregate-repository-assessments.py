@@ -29,6 +29,20 @@ PROGRESS_SCORES = {
     "fully-implemented": 1.0,
 }
 MAX_SOURCE_BYTES = 1024 * 1024
+SCHEMA_REF = "./nabla-dsomm-assessment.schema.json"
+MODEL_PROJECT = "OWASP DevSecOps Maturity Model (DSOMM)"
+REVIEW_STATUSES = {"self-assessed", "reviewed", "independently-reviewed"}
+CLAIM_SCOPES = {"repository", "development-process", "runtime", "governance"}
+EVIDENCE_TYPES = {
+    "repository",
+    "workflow",
+    "test",
+    "documentation",
+    "policy",
+    "notion",
+}
+EVIDENCE_VISIBILITIES = {"public", "restricted"}
+EVIDENCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
     r"[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:-(?:medium|advanced))?$",
@@ -42,6 +56,21 @@ class AssessmentError(ValueError):
 
 def fail(message: str) -> None:
     raise AssessmentError(message)
+
+
+def require_keys(
+    value: dict[str, Any],
+    *,
+    required: set[str],
+    allowed: set[str],
+    label: str,
+) -> None:
+    missing = sorted(required - set(value))
+    unknown = sorted(set(value) - allowed)
+    if missing:
+        fail(f"{label}: missing required fields {missing}")
+    if unknown:
+        fail(f"{label}: unsupported fields {unknown}")
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -160,23 +189,78 @@ def validate_assessment(
     model_source_commit: str,
     model_activities: dict[str, tuple[str, str, int]],
 ) -> dict[str, Any]:
+    top_level_fields = {
+        "$schema",
+        "schemaVersion",
+        "contract",
+        "subject",
+        "assessment",
+        "model",
+        "progressDefinition",
+        "aggregation",
+        "evidence",
+        "claims",
+    }
+    require_keys(
+        payload,
+        required=top_level_fields,
+        allowed=top_level_fields,
+        label=expected_repository,
+    )
+    if payload.get("$schema") != SCHEMA_REF:
+        fail(f"{expected_repository}: $schema must be {SCHEMA_REF!r}")
     if payload.get("schemaVersion") != 1:
         fail(f"{expected_repository}: schemaVersion must be 1")
     if payload.get("contract") != ASSESSMENT_CONTRACT:
         fail(f"{expected_repository}: unsupported contract")
 
     subject = payload.get("subject")
-    if not isinstance(subject, dict) or subject.get("kind") != "repository":
+    if not isinstance(subject, dict):
+        fail(f"{expected_repository}: subject mapping is required")
+    subject_fields = {"kind", "repository", "defaultBranch", "url"}
+    require_keys(
+        subject,
+        required=subject_fields,
+        allowed=subject_fields,
+        label=f"{expected_repository}: subject",
+    )
+    if subject.get("kind") != "repository":
         fail(f"{expected_repository}: subject.kind must be repository")
     if subject.get("repository") != expected_repository:
         fail(
             f"{expected_repository}: producer subject is "
             f"{subject.get('repository')!r}"
         )
+    for field in ("defaultBranch", "url"):
+        if not isinstance(subject.get(field), str) or not subject[field].strip():
+            fail(f"{expected_repository}: subject.{field} is required")
 
     assessment_info = payload.get("assessment")
     if not isinstance(assessment_info, dict):
         fail(f"{expected_repository}: assessment mapping is required")
+    assessment_fields = {
+        "id",
+        "assessedAt",
+        "basisRevision",
+        "method",
+        "reviewStatus",
+        "scope",
+    }
+    require_keys(
+        assessment_info,
+        required=assessment_fields,
+        allowed=assessment_fields,
+        label=f"{expected_repository}: assessment",
+    )
+    if assessment_info.get("method") != "evidence-based-self-assessment":
+        fail(f"{expected_repository}: unsupported assessment method")
+    if assessment_info.get("reviewStatus") not in REVIEW_STATUSES:
+        fail(f"{expected_repository}: invalid assessment reviewStatus")
+    for field in ("id", "scope"):
+        if not isinstance(assessment_info.get(field), str) or not assessment_info[
+            field
+        ].strip():
+            fail(f"{expected_repository}: assessment.{field} is required")
     assessed_at = assessment_info.get("assessedAt")
     if not isinstance(assessed_at, str):
         fail(f"{expected_repository}: assessment.assessedAt is required")
@@ -198,6 +282,15 @@ def validate_assessment(
     model = payload.get("model")
     if not isinstance(model, dict):
         fail(f"{expected_repository}: model mapping is required")
+    model_fields = {"project", "version", "sourceCommit", "activityIdentity"}
+    require_keys(
+        model,
+        required=model_fields,
+        allowed=model_fields,
+        label=f"{expected_repository}: model",
+    )
+    if model.get("project") != MODEL_PROJECT:
+        fail(f"{expected_repository}: unsupported model project")
     if str(model.get("version")) != model_version:
         fail(
             f"{expected_repository}: model version {model.get('version')!r} "
@@ -221,6 +314,20 @@ def validate_assessment(
     aggregation = payload.get("aggregation")
     if not isinstance(aggregation, dict):
         fail(f"{expected_repository}: aggregation mapping is required")
+    aggregation_fields = {
+        "identity",
+        "excludeApplicability",
+        "missingClaim",
+        "modelCompatibility",
+        "recommendedPortfolioStrategy",
+        "notes",
+    }
+    require_keys(
+        aggregation,
+        required=aggregation_fields,
+        allowed=aggregation_fields,
+        label=f"{expected_repository}: aggregation",
+    )
     if aggregation.get("identity") != "activityUuid":
         fail(f"{expected_repository}: aggregation identity must be activityUuid")
     if aggregation.get("missingClaim") != "not-assessed":
@@ -230,6 +337,18 @@ def validate_assessment(
             f"{expected_repository}: producer must require exact-source-commit "
             "compatibility"
         )
+    if aggregation.get("excludeApplicability") != ["not-applicable"]:
+        fail(
+            f"{expected_repository}: aggregation.excludeApplicability must be "
+            "['not-applicable']"
+        )
+    if (
+        aggregation.get("recommendedPortfolioStrategy")
+        != "mean-of-applicable-repository-scores"
+    ):
+        fail(f"{expected_repository}: unsupported portfolio aggregation strategy")
+    if not isinstance(aggregation.get("notes"), str):
+        fail(f"{expected_repository}: aggregation.notes must be a string")
 
     evidence = payload.get("evidence")
     if not isinstance(evidence, list):
@@ -238,9 +357,36 @@ def validate_assessment(
     for entry in evidence:
         if not isinstance(entry, dict):
             fail(f"{expected_repository}: evidence entries must be objects")
+        evidence_required = {"id", "type", "visibility", "title", "description"}
+        evidence_allowed = evidence_required | {"path", "url"}
+        require_keys(
+            entry,
+            required=evidence_required,
+            allowed=evidence_allowed,
+            label=f"{expected_repository}: evidence",
+        )
         evidence_id = entry.get("id")
-        if not isinstance(evidence_id, str) or not evidence_id:
-            fail(f"{expected_repository}: evidence id is required")
+        if not isinstance(evidence_id, str) or not EVIDENCE_ID_RE.fullmatch(
+            evidence_id
+        ):
+            fail(f"{expected_repository}: invalid evidence id {evidence_id!r}")
+        if entry.get("type") not in EVIDENCE_TYPES:
+            fail(f"{expected_repository}/{evidence_id}: invalid evidence type")
+        if entry.get("visibility") not in EVIDENCE_VISIBILITIES:
+            fail(f"{expected_repository}/{evidence_id}: invalid evidence visibility")
+        for field in ("title", "description"):
+            if not isinstance(entry.get(field), str) or not entry[field].strip():
+                fail(f"{expected_repository}/{evidence_id}: {field} is required")
+        locations = [
+            field
+            for field in ("path", "url")
+            if isinstance(entry.get(field), str) and entry[field].strip()
+        ]
+        if len(locations) != 1:
+            fail(
+                f"{expected_repository}/{evidence_id}: evidence must define "
+                "exactly one of path or url"
+            )
         if evidence_id in evidence_by_id:
             fail(f"{expected_repository}: duplicate evidence id {evidence_id}")
         evidence_by_id[evidence_id] = entry
@@ -252,6 +398,25 @@ def validate_assessment(
     for claim in claims:
         if not isinstance(claim, dict):
             fail(f"{expected_repository}: claim entries must be objects")
+        claim_fields = {
+            "activityUuid",
+            "activityName",
+            "dimension",
+            "level",
+            "applicability",
+            "progress",
+            "score",
+            "scope",
+            "confidence",
+            "rationale",
+            "evidenceRefs",
+        }
+        require_keys(
+            claim,
+            required=claim_fields,
+            allowed=claim_fields,
+            label=f"{expected_repository}: claim",
+        )
         activity_uuid = claim.get("activityUuid")
         if not isinstance(activity_uuid, str) or not UUID_RE.fullmatch(activity_uuid):
             fail(f"{expected_repository}: invalid activity UUID {activity_uuid!r}")
@@ -263,7 +428,7 @@ def validate_assessment(
         if canonical_activity is None:
             fail(
                 f"{expected_repository}: activity UUID {activity_uuid} is not "
-                "in the reviewed portfolio seed"
+                "in the reviewed DSOMM model index"
             )
         canonical_name, canonical_dimension, canonical_level = canonical_activity
         if claim.get("activityName") != canonical_name:
@@ -307,6 +472,9 @@ def validate_assessment(
                     "match progress"
                 )
 
+        scope = claim.get("scope")
+        if scope not in CLAIM_SCOPES:
+            fail(f"{expected_repository}/{activity_uuid}: invalid scope")
         confidence = claim.get("confidence")
         if confidence not in {"low", "medium", "high"}:
             fail(
