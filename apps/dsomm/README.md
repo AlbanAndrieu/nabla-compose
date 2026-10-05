@@ -92,6 +92,14 @@ python scripts/dsomm/aggregate-repository-assessments.py \
   --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
   --check
 
+# Future portfolio acceptance once all configured producers are published
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-compose=/path/to/nabla-compose-assessment.json \
+  --source AlbanAndrieu/fastapi-sample=/path/to/fastapi-assessment.json \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/site-alban-assessment.json \
+  --source AlbanAndrieu/nabla-site-bababou=/path/to/site-bababou-assessment.json \
+  --check --require-complete-sources
+
 # Aggregate reviewed producer documents
 python scripts/dsomm/aggregate-repository-assessments.py \
   --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
