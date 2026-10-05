@@ -116,7 +116,6 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments={"AlbanAndrieu/nabla-site-alban": site},
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
-            model_activities=MODEL_ACTIVITIES,
         )
         activity = portfolio["contexts"]["Nabla Applications"]["activities"][0]
 
@@ -155,7 +154,6 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments=assessments,
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
-            model_activities=MODEL_ACTIVITIES,
         )
         activity = portfolio["contexts"]["Nabla Applications"]["activities"][0]
 
@@ -181,6 +179,7 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
                 expected_repository="AlbanAndrieu/nabla-site-alban",
                 model_version="5.0.2",
                 model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
             )
 
     def test_import_rejects_activity_outside_reviewed_seed(self) -> None:
@@ -227,7 +226,6 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             assessments={repository: assessment(repository)},
             model_version="5.0.2",
             model_source_commit=MODEL_COMMIT,
-            model_activities=MODEL_ACTIVITIES,
         )
         evidence = portfolio["contexts"]["Nabla Applications"]["activities"][0][
             "repositories"
