@@ -80,6 +80,18 @@
     {
       "name": "truenas_docker_status",
       "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "probe_container_dns_records",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_dns_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_tcp_success",
+      "owner": "scripts/lib/probe.sh"
     }
   ]
 }
