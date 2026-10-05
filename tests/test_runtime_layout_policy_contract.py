@@ -153,6 +153,18 @@ def test_homeassistant_does_not_require_missing_dotenv() -> None:
     assert "      - .env" not in compose
 
 
+def test_scanopy_deployer_fails_closed_on_mutable_images() -> None:
+    script = DEPLOY_HELPERS["scanopy"].read_text(encoding="utf-8")
+
+    assert "SCANOPY_ALLOW_MUTABLE_IMAGE" in script
+    assert "config --images" in script
+    assert "@sha256:" in script
+    assert "mutable Scanopy image(s)" in script
+    assert "only for an explicit PoC" in script
+    assert script.index("mutable_images=()") < script.index("midclt call -j app.update")
+    assert script.index("mutable_images=()") < script.index("midclt call -j app.create")
+
+
 def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -> None:
     script = FIRST_WAVE.read_text(encoding="utf-8")
 
