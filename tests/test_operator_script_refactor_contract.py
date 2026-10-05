@@ -8,6 +8,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMMON = ROOT / "scripts/lib/common.sh"
 DOCKER = ROOT / "scripts/lib/docker.sh"
+TRUENAS = ROOT / "scripts/lib/truenas.sh"
+DOCKER_PRUNE = ROOT / "scripts/truenas/prune-docker-images.sh"
+DOCKER_IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 STUCK_APPS = ROOT / "scripts/truenas/diagnose-stuck-apps.sh"
 NPM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
@@ -73,6 +76,23 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
                 self.assertIn("lib/docker.sh", script)
                 self.assertIn("docker_compose_project_container_ids", script)
                 self.assertIn("docker_container_runtime_summary", script)
+
+
+    def test_shared_truenas_library_owns_docker_status_read(self) -> None:
+        text = TRUENAS.read_text(encoding="utf-8")
+        self.assertIn("truenas_docker_status()", text)
+        self.assertIn("midclt call docker.status", text)
+        self.assertIn('.status // "UNKNOWN"', text)
+
+        for path in (DOCKER_PRUNE, DOCKER_IPAM):
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn("lib/truenas.sh", script)
+                self.assertIn("truenas_docker_status", script)
+                self.assertNotIn(
+                    "midclt call docker.status 2>/dev/null | jq -r",
+                    script,
+                )
 
     def test_immutable_reboot_bundle_tracks_shared_dependencies(self) -> None:
         text = MATERIALIZER.read_text(encoding="utf-8")
