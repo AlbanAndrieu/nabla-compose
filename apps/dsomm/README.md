@@ -90,7 +90,8 @@ python scripts/dsomm/aggregate-repository-assessments.py \
 
 An explicit HTTPS URL can be used instead of a local path once a producer is
 published, for example its `/.well-known/nabla/dsomm-assessment.json` mirror.
-HTTP URLs are rejected.
+HTTP URLs are rejected, redirects must remain HTTPS and each imported document
+is capped at 1 MiB before JSON parsing.
 
 Aggregation rules are fail-closed:
 
