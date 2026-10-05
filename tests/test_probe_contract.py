@@ -14,6 +14,9 @@ CSI_PREFLIGHT = ROOT / "scripts/talos/validate-csi-prereqs.sh"
 SAMPLE_EXPOSURE = ROOT / "scripts/ingress/verify-sample-exposure.sh"
 APP_LIFECYCLE = ROOT / "scripts/truenas/audit-app-lifecycle.sh"
 PIHOLE_SYNC = ROOT / "scripts/truenas/verify-pihole-dns-sync.sh"
+SENTRY_SMOKE = ROOT / "scripts/truenas/smoke-sentry-event.sh"
+SENTRY_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-sentry.sh"
+LANGFLOW_BOOTSTRAP = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
 
 
 class ProbeLibraryContractTests(unittest.TestCase):
@@ -92,6 +95,45 @@ class ProbeLibraryContractTests(unittest.TestCase):
         )
 
         for path in (APP_LIFECYCLE, PIHOLE_SYNC):
+            result = subprocess.run(
+                ["bash", "-n", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
+
+    def test_reviewed_simple_http_health_consumers_use_shared_probe(self) -> None:
+        sentry_smoke = SENTRY_SMOKE.read_text(encoding="utf-8")
+        sentry_diagnostic = SENTRY_DIAGNOSTIC.read_text(encoding="utf-8")
+        langflow_bootstrap = LANGFLOW_BOOTSTRAP.read_text(encoding="utf-8")
+
+        self.assertIn("lib/probe.sh", sentry_smoke)
+        self.assertIn('probe_http_success "${SENTRY_URL}/_health/" 3 8', sentry_smoke)
+        self.assertNotIn(
+            'curl --fail --silent --show-error --max-time 8 "${SENTRY_URL}/_health/"',
+            sentry_smoke,
+        )
+
+        self.assertIn("lib/probe.sh", sentry_diagnostic)
+        self.assertIn('probe_http_success "${EDGE_URL}" 3 8', sentry_diagnostic)
+        self.assertNotIn(
+            'curl --fail --silent --show-error --max-time 8 "${EDGE_URL}"',
+            sentry_diagnostic,
+        )
+
+        self.assertIn("lib/probe.sh", langflow_bootstrap)
+        self.assertIn(
+            "probe_http_success http://172.17.0.24:7860/health_check 3 8",
+            langflow_bootstrap,
+        )
+        self.assertNotIn(
+            "curl --fail --silent --show-error --max-time 8   "
+            "http://172.17.0.24:7860/health_check",
+            langflow_bootstrap,
+        )
+
+        for path in (SENTRY_SMOKE, SENTRY_DIAGNOSTIC, LANGFLOW_BOOTSTRAP):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 capture_output=True,
