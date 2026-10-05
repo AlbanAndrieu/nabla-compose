@@ -224,6 +224,17 @@ class AgentQualityGateContractTests(unittest.TestCase):
             for hook in local_hooks
             if hook.get("id") == "catalog-v2-preparation-contract"
         )
+        p0_bundle_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "p0-backstage-migration-bundle-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(p0_bundle_hook["files"]),
+                "apps/code/compose.yml",
+            )
+        )
         self.assertIsNotNone(
             re.match(
                 str(catalog_hook["files"]),
