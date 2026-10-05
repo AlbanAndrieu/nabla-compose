@@ -74,6 +74,10 @@ runtime state with mode `0600`. Existing runtime progress/evidence files are
 
 ## Repository assessment aggregation
 
+Portable producer contract: `config/repository-assessment.schema.json`.
+The consumer test suite locks its enums/constants to the manual fail-closed
+validator so producer and portfolio semantics cannot silently diverge.
+
 `nabla-compose` can ingest repository-owned
 `nabla.dsomm.repository-assessment/v1` documents without turning missing data
 into a negative score. The context mapping remains
