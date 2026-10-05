@@ -80,7 +80,7 @@ truenas_reconcile_custom_app() {
     return 1
   }
 
-  if midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+  if truenas_app_query_by_id "${app_id}" |
     jq -e 'length == 1' >/dev/null; then
     payload="$(jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {include: [$include]}
