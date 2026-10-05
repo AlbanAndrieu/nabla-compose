@@ -2,7 +2,8 @@
 name: code
 services:
   code-server:
-    image: lscr.io/linuxserver/code-server:latest
+    image: ghcr.io/linuxserver/code-server:4.140.0@sha256:fc6cc21ba06ab0ad02e3695235626bddbef1943f4b8cb874c994cf78619323cd
+    platform: linux/amd64
     container_name: code
     x-nabla:
       id: code-server
