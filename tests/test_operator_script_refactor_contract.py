@@ -77,7 +77,6 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
                 self.assertIn("docker_compose_project_container_ids", script)
                 self.assertIn("docker_container_runtime_summary", script)
 
-
     def test_shared_truenas_library_owns_docker_status_read(self) -> None:
         text = TRUENAS.read_text(encoding="utf-8")
         self.assertIn("truenas_docker_status()", text)
