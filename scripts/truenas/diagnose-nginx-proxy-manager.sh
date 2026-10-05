@@ -6,6 +6,8 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/diagnostic.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
+# shellcheck source=../lib/docker.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/docker.sh"
 
 APP_ID="${NPM_APP_ID:-nginx-proxy-manager}"
 PROJECT="${NPM_COMPOSE_PROJECT:-ix-nginx-proxy-manager}"
@@ -98,11 +100,7 @@ midclt call core.get_jobs |
   '
 
 printf '\n==> Docker runtime evidence\n'
-mapfile -t container_ids < <(
-  docker ps -a \
-    --filter "label=com.docker.compose.project=${PROJECT}" \
-    --format '{{.ID}}'
-)
+mapfile -t container_ids < <(docker_compose_project_container_ids "${PROJECT}")
 if [[ "${#container_ids[@]}" -eq 0 ]]; then
   mapfile -t container_ids < <(
     docker ps -a \
@@ -117,15 +115,14 @@ if [[ "${#container_ids[@]}" -eq 0 ]]; then
   runtime_fail=1
 else
   for id in "${container_ids[@]}"; do
+    IFS="$(printf '\t')" read -r name service status health pid exit_code restarts < <(
+      docker_container_runtime_summary "${id}"
+    )
+    printf 'container=%s service=%s status=%s health=%s pid=%s exit=%s restarts=%s\n' \
+      "${name}" "${service}" "${status}" "${health}" "${pid}" "${exit_code}" "${restarts}"
     docker inspect "${id}" |
       jq '.[0] | {
-        name: (.Name | ltrimstr("/")),
         composeProject: .Config.Labels["com.docker.compose.project"],
-        composeService: .Config.Labels["com.docker.compose.service"],
-        state: .State.Status,
-        health: (.State.Health.Status // "none"),
-        exitCode: .State.ExitCode,
-        restartCount: .RestartCount,
         startedAt: .State.StartedAt,
         finishedAt: .State.FinishedAt,
         ports: .NetworkSettings.Ports,
@@ -139,7 +136,6 @@ else
             }
         ]
       }'
-    status="$(docker inspect -f '{{.State.Status}}' "${id}")"
     [[ "${status}" == "running" ]] || runtime_fail=1
   done
 fi
