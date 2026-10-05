@@ -7,6 +7,9 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
+# shellcheck source=scripts/lib/probe.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/probe.sh"
+
 APP_ID="${SENTRY_TRUENAS_APP_ID:-sentry}"
 PROJECT="${SENTRY_COMPOSE_PROJECT:-ix-sentry}"
 EDGE_URL="${SENTRY_EDGE_HEALTH_URL:-http://172.17.0.24:9005/_health/}"
@@ -327,7 +330,7 @@ else
 fi
 
 printf '\n==> Sentry functional edge health\n'
-if curl --fail --silent --show-error --max-time 8 "${EDGE_URL}" >/dev/null; then
+if probe_http_success "${EDGE_URL}" 3 8; then
   printf '✅ Sentry edge healthy: %s\n' "${EDGE_URL}"
 else
   printf '❌ Sentry edge health failed: %s\n' "${EDGE_URL}" >&2
