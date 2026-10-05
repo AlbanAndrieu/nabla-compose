@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/probe.sh
+source "${SCRIPT_DIR}/../lib/probe.sh"
+
 FASTAPI_URL="${FASTAPI_URL:-http://127.0.0.1:8091}"
 FASTAPI_URL="${FASTAPI_URL%/}"
 PYROSCOPE_URL="${PYROSCOPE_URL:-http://127.0.0.1:4040}"
@@ -17,7 +21,7 @@ fail() {
   exit 1
 }
 
-for command in curl docker jq python3 grep date; do
+for command in curl docker jq python3 grep date timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -155,7 +159,7 @@ fi
 printf '✅ Sentry tracing persisted: eap_spans=%s transactions=%s\n' \
   "${EAP_SPANS}" "${TRANSACTIONS}"
 
-if ! curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/" >/dev/null; then
+if ! probe_http_success "${PYROSCOPE_URL}/" 3 5; then
   fail "Pyroscope HTTP root failed at ${PYROSCOPE_URL}/"
 fi
 printf '✅ Pyroscope HTTP root\n'
