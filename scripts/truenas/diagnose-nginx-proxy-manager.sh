@@ -9,6 +9,9 @@ nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 # shellcheck source=../lib/docker.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/docker.sh"
 
+# shellcheck source=../lib/probe.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/probe.sh"
+
 APP_ID="${NPM_APP_ID:-nginx-proxy-manager}"
 PROJECT="${NPM_COMPOSE_PROJECT:-ix-nginx-proxy-manager}"
 ROOT="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
@@ -167,14 +170,7 @@ else
 fi
 
 printf '\n==> application-level UI probe\n'
-http_code="$(
-  curl --silent --show-error \
-    --connect-timeout 3 \
-    --max-time 8 \
-    --output /dev/null \
-    --write-out '%{http_code}' \
-    "${UI_URL}" || true
-)"
+http_code="$(probe_http_code "${UI_URL}" 3 8)"
 case "${http_code}" in
   2?? | 3??)
     printf '✅ Nginx Proxy Manager UI responded HTTP %s at %s\n' "${http_code}" "${UI_URL}"
