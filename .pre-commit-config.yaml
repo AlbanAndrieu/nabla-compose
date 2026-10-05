@@ -355,6 +355,14 @@ repos:
         files: >-
           ^(scripts/(?:lib/diagnostic|run-diagnostic)[.]sh|scripts/(?:infra|observability|security|talos|truenas)/.*[.]sh|tests/(?:test_diagnostic_output_contract|test_truenas_csi_orphan_diagnostic)[.]py|docs/roadmap[.]md)$
 
+      - id: operator-script-refactor-contract
+        name: "🧱 truenas · Validate shared operator primitives"
+        language: python
+        entry: python -m unittest tests.test_operator_script_refactor_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/lib/(?:common|docker|truenas)[.]sh|scripts/truenas/(?:audit-docker-network-migration|diagnose-csi-orphans|diagnose-docker-orphan-shims|diagnose-influxdb|diagnose-platform|diagnose-stuck-apps|diagnose-nginx-proxy-manager|materialize-reboot-bundle|reconcile-reboot-resume|reconcile-talos-vm-policy|verify-talos-vm-autostart)[.]sh|tests/test_operator_script_refactor_contract[.]py|docs/(?:README|roadmap)[.]md|scripts/README[.]md)$
+
       - id: stuck-app-diagnostic-contract
         name: "🩺 truenas · Validate stuck-app recovery diagnostics"
         language: python
