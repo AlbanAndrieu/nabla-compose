@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import sys
 from typing import Any
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 import yaml
@@ -27,6 +28,7 @@ PROGRESS_SCORES = {
     "partly-implemented": 0.5,
     "fully-implemented": 1.0,
 }
+MAX_SOURCE_BYTES = 1024 * 1024
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
     r"[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:-(?:medium|advanced))?$",
@@ -56,11 +58,27 @@ def load_json_source(locator: str, *, timeout_seconds: int = 10) -> dict[str, An
             headers={"User-Agent": "nabla-compose-dsomm-aggregator/1"},
         )
         with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
-            payload = json.loads(response.read().decode("utf-8"))
+            final_url = response.geturl()
+            if urlsplit(final_url).scheme.lower() != "https":
+                fail(f"{locator}: redirect target must remain HTTPS")
+            raw = response.read(MAX_SOURCE_BYTES + 1)
     elif "://" in locator:
         fail(f"{locator}: only HTTPS URLs or local paths are accepted")
     else:
-        payload = json.loads(Path(locator).read_text(encoding="utf-8"))
+        path = Path(locator)
+        if path.stat().st_size > MAX_SOURCE_BYTES:
+            fail(
+                f"{locator}: assessment source exceeds "
+                f"{MAX_SOURCE_BYTES} bytes"
+            )
+        raw = path.read_bytes()
+
+    if len(raw) > MAX_SOURCE_BYTES:
+        fail(f"{locator}: assessment source exceeds {MAX_SOURCE_BYTES} bytes")
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AssessmentError(f"{locator}: invalid UTF-8 JSON assessment") from exc
     if not isinstance(payload, dict):
         fail(f"{locator}: expected a JSON object")
     return payload
