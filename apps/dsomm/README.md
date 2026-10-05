@@ -95,7 +95,8 @@ HTTP URLs are rejected.
 Aggregation rules are fail-closed:
 
 - producer and portfolio DSOMM `version` **and** `sourceCommit` must match;
-- claims join only by upstream `activityUuid`;
+- claims join only by upstream `activityUuid`, and that UUID must exist in the
+  reviewed local seed with the same canonical activity name and level;
 - `not-applicable` is excluded from the average;
 - a missing repository or missing activity claim remains `not-assessed`, never
   zero;
