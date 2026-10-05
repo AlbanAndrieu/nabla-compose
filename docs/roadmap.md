@@ -495,7 +495,7 @@ Remaining reduction:
    ownership; response-body, authenticated and application-semantic probes stay
    local by design.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
-6. [ ] Move code-server packages/extensions into an immutable derived image.
+6. [ ] Move code-server packages/extensions into an immutable derived image. The LinuxServer base is now pinned to reviewed amd64 `4.140.0@sha256:fc6cc21b…`; remove runtime `DOCKER_MODS`/`INSTALL_PACKAGES` and the Open VSX init hook only after the derived image itself is built, versioned and digest-pinned.
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
