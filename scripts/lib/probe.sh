@@ -220,3 +220,26 @@ probe_container_tcp_success() {
     bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1
 }
+
+probe_container_http_success() {
+  local container="${1:-}" url="${2:-}" timeout_seconds="${3:-8}"
+
+  [[ "${container}" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    printf 'invalid container probe name: %s\n' "${container}" >&2
+    return 2
+  }
+  [[ "${url}" =~ ^https?://[^[:space:]]+$ ]] || {
+    printf 'invalid container HTTP URL\n' >&2
+    return 2
+  }
+  [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
+    printf 'invalid container HTTP timeout: %s\n' "${timeout_seconds}" >&2
+    return 2
+  }
+
+  timeout "${timeout_seconds}" docker exec "${container}" \
+    curl --fail --silent --show-error \
+    --max-time "${timeout_seconds}" \
+    --output /dev/null \
+    "${url}" 2>/dev/null
+}
