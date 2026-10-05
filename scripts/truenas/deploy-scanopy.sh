@@ -56,7 +56,7 @@ for image in "${scanopy_images[@]}"; do
   [[ "${image}" == *@sha256:* ]] || mutable_images+=("${image}")
 done
 
-if (("${#mutable_images[@]}")); then
+if ((${#mutable_images[@]})); then
   if [[ "${ALLOW_MUTABLE_IMAGE}" == "1" ]]; then
     printf 'WARNING: explicit PoC override accepts mutable Scanopy image(s): %s\n' \
       "${mutable_images[*]}" >&2
