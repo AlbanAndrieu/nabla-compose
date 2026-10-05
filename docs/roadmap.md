@@ -488,10 +488,10 @@ Remaining reduction:
    while `scripts/run-diagnostic.sh` remains canonical for private detailed
    logs, counters, bounded summaries and exit-code propagation.
 4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
-   `scripts/lib/probe.sh`. HTTP(S) code/success/wait plus bounded TCP
-   success/wait and DNS address/success/wait primitives are now shared. DSOMM,
-   legacy NPM, P0.3 first-wave, CSI NFS TCP/2049 and Sample exposure resolver
-   checks are migrated with a dedicated Pre-commit contract; migrate remaining
+   `scripts/lib/probe.sh`. Host HTTP/TCP/DNS plus bounded container DNS/TCP
+   primitives are shared. DSOMM, legacy NPM, P0.3 first-wave, CSI NFS TCP/2049,
+   Sample exposure, application lifecycle and Pi-hole sync checks are migrated
+   with dedicated Pre-commit/anti-duplication contracts; migrate only remaining
    reviewed callers before closing this item.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
 6. [ ] Move code-server packages/extensions into an immutable derived image.
