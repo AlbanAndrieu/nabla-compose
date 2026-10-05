@@ -16,6 +16,7 @@ APP_QUERY_CONSUMERS = (
     ROOT / "scripts/truenas/deploy-docling.sh",
     ROOT / "scripts/truenas/deploy-scanopy.sh",
     ROOT / "scripts/truenas/deploy-wazuh.sh",
+    ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh",
 )
 STUCK_APPS = ROOT / "scripts/truenas/diagnose-stuck-apps.sh"
 NPM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
