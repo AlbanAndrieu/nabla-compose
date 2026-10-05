@@ -59,18 +59,25 @@ def assessment(
             }
         )
     return {
+        "$schema": "./nabla-dsomm-assessment.schema.json",
         "schemaVersion": 1,
         "contract": "nabla.dsomm.repository-assessment/v1",
         "subject": {
             "kind": "repository",
             "repository": repository,
+            "defaultBranch": "master",
+            "url": f"https://github.com/{repository}",
         },
         "assessment": {
+            "id": "synthetic-test",
             "assessedAt": "2026-10-05",
             "basisRevision": "1" * 40,
+            "method": "evidence-based-self-assessment",
             "reviewStatus": "self-assessed",
+            "scope": "repository contract test",
         },
         "model": {
+            "project": "OWASP DevSecOps Maturity Model (DSOMM)",
             "version": "5.0.2",
             "sourceCommit": MODEL_COMMIT,
             "activityIdentity": "uuid",
@@ -83,8 +90,13 @@ def assessment(
         },
         "aggregation": {
             "identity": "activityUuid",
+            "excludeApplicability": ["not-applicable"],
             "missingClaim": "not-assessed",
             "modelCompatibility": "exact-source-commit",
+            "recommendedPortfolioStrategy": (
+                "mean-of-applicable-repository-scores"
+            ),
+            "notes": "Synthetic aggregation contract.",
         },
         "evidence": [
             {
@@ -267,13 +279,94 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
                 aggregate_module.load_json_source(str(source)),
             )
 
+    def test_import_rejects_schema_metadata_drift(self) -> None:
+        repository = "AlbanAndrieu/nabla-site-alban"
+        mutations = (
+            ("reviewStatus", "unreviewed", "reviewStatus"),
+            ("method", "manual", "assessment method"),
+        )
+        for field, value, expected in mutations:
+            with self.subTest(field=field):
+                site = assessment(repository)
+                site["assessment"][field] = value
+                with self.assertRaisesRegex(
+                    aggregate_module.AssessmentError,
+                    expected,
+                ):
+                    aggregate_module.validate_assessment(
+                        site,
+                        expected_repository=repository,
+                        model_version="5.0.2",
+                        model_source_commit=MODEL_COMMIT,
+                        model_activities=MODEL_ACTIVITIES,
+                    )
+
+        site = assessment(repository)
+        site["unexpected"] = True
+        with self.assertRaisesRegex(
+            aggregate_module.AssessmentError,
+            "unsupported fields",
+        ):
+            aggregate_module.validate_assessment(
+                site,
+                expected_repository=repository,
+                model_version="5.0.2",
+                model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
+            )
+
+    def test_import_rejects_invalid_evidence_and_claim_scope(self) -> None:
+        repository = "AlbanAndrieu/nabla-site-alban"
+
+        site = assessment(repository)
+        site["evidence"][0]["visibility"] = "private"
+        with self.assertRaisesRegex(
+            aggregate_module.AssessmentError,
+            "evidence visibility",
+        ):
+            aggregate_module.validate_assessment(
+                site,
+                expected_repository=repository,
+                model_version="5.0.2",
+                model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
+            )
+
+        site = assessment(repository)
+        site["evidence"][0]["url"] = "https://example.invalid/evidence"
+        with self.assertRaisesRegex(
+            aggregate_module.AssessmentError,
+            "exactly one of path or url",
+        ):
+            aggregate_module.validate_assessment(
+                site,
+                expected_repository=repository,
+                model_version="5.0.2",
+                model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
+            )
+
+        site = assessment(repository)
+        site["claims"][0]["scope"] = "unknown"
+        with self.assertRaisesRegex(
+            aggregate_module.AssessmentError,
+            "invalid scope",
+        ):
+            aggregate_module.validate_assessment(
+                site,
+                expected_repository=repository,
+                model_version="5.0.2",
+                model_source_commit=MODEL_COMMIT,
+                model_activities=MODEL_ACTIVITIES,
+            )
+
     def test_import_rejects_activity_outside_reviewed_seed(self) -> None:
         site = assessment("AlbanAndrieu/nabla-site-alban")
         site["claims"][0]["activityUuid"] = "11111111-1111-4111-8111-111111111111"
 
         with self.assertRaisesRegex(
             aggregate_module.AssessmentError,
-            "not in the reviewed portfolio seed",
+            "not in the reviewed DSOMM model index",
         ):
             aggregate_module.validate_assessment(
                 site,
