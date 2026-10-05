@@ -707,10 +707,19 @@ def main() -> int:
         metavar="OWNER/REPO=PATH_OR_URL",
         help="Repository assessment source; repeat for each producer",
     )
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Validate producer sources and portfolio coverage without writing output",
+    )
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if not args.source:
         parser.error("at least one --source is required")
+    if args.check and args.output is not None:
+        parser.error("--check does not write output; omit --output")
+    if not args.check and args.output is None:
+        parser.error("--output is required unless --check is used")
 
     try:
         contexts = load_contexts(args.context_map)
@@ -737,17 +746,33 @@ def main() -> int:
             model_version=model_version,
             model_source_commit=model_source_commit,
         )
-        write_json(args.output, portfolio)
+        if not args.check:
+            assert args.output is not None
+            write_json(args.output, portfolio)
     except (OSError, json.JSONDecodeError, yaml.YAMLError, AssessmentError) as exc:
         print(f"DSOMM_REPOSITORY_AGGREGATE_INVALID: {exc}", file=sys.stderr)
         return 1
 
-    print(
-        "OK: aggregated "
-        f"{len(portfolio['repositories']['imported'])}/"
-        f"{len(portfolio['repositories']['configured'])} repository "
-        f"assessment source(s) into {args.output}"
-    )
+    imported_count = len(portfolio["repositories"]["imported"])
+    configured_count = len(portfolio["repositories"]["configured"])
+    if args.check:
+        complete_contexts = sum(
+            1
+            for context in portfolio["contexts"].values()
+            if context["sourceCoverage"]["complete"]
+        )
+        print(
+            "OK: validated "
+            f"{imported_count}/{configured_count} repository assessment source(s); "
+            f"{complete_contexts}/{len(portfolio['contexts'])} context(s) have "
+            "complete producer coverage"
+        )
+    else:
+        print(
+            "OK: aggregated "
+            f"{imported_count}/{configured_count} repository "
+            f"assessment source(s) into {args.output}"
+        )
     return 0
 
 
