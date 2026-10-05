@@ -148,6 +148,10 @@ class DsommContractTests(unittest.TestCase):
 
         self.assertEqual("5.0.2", activities["model"]["version"])
         self.assertEqual(
+            "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a",
+            activities["model"]["sourceCommit"],
+        )
+        self.assertEqual(
             {"Nabla Platform", "Nabla Applications"},
             {
                 team

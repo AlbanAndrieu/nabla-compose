@@ -72,6 +72,43 @@ On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
 runtime state with mode `0600`. Existing runtime progress/evidence files are
 **never overwritten** by later deploys.
 
+## Repository assessment aggregation
+
+`nabla-compose` can ingest repository-owned
+`nabla.dsomm.repository-assessment/v1` documents without turning missing data
+into a negative score. The context mapping remains
+`config/repository-contexts.yaml`; repository assessments keep their own
+activity UUID, basis commit, confidence and evidence provenance.
+
+The importer is deliberately separate from the reviewed runtime seed:
+
+```bash
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
+  --output /mnt/cpool/dsomm/reports/repository-assessment.aggregate.json
+```
+
+An explicit HTTPS URL can be used instead of a local path once a producer is
+published, for example its `/.well-known/nabla/dsomm-assessment.json` mirror.
+HTTP URLs are rejected.
+
+Aggregation rules are fail-closed:
+
+- producer and portfolio DSOMM `version` **and** `sourceCommit` must match;
+- claims join only by upstream `activityUuid`;
+- `not-applicable` is excluded from the average;
+- a missing repository or missing activity claim remains `not-assessed`, never
+  zero;
+- a context gets a `recommendedDsommState` only when **every configured
+  repository** has assessed that activity or declared it not applicable;
+- repository evidence is retained with a namespaced `producerRef`.
+
+The generated portfolio JSON is a review/aggregation artifact, not an automatic
+mutation of `team-progress.yaml`. This prevents one well-instrumented repository
+from silently raising the maturity of the whole `Nabla Applications` context.
+Restricted evidence retains its visibility marker; a future public UI must not
+assume that such evidence is publicly readable.
+
 ## Architecture
 
 - `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.

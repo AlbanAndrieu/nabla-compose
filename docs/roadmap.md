@@ -316,6 +316,12 @@ Security-tooling acceptance within this workstream:
     rendu du seed sans écraser un assessment existant.
   - [ ] Exécuter le baseline Tweag pin, puis réconcilier uniquement les preuves
     supportées avec le seed revu; aucun score automatique ne vaut verdict.
+  - [ ] Publier `nabla.dsomm.repository-assessment/v1` dans les repositories
+    Nabla puis importer ces producteurs avec
+    `scripts/dsomm/aggregate-repository-assessments.py`. Le premier producteur
+    est `nabla-site-alban`; conserver la couverture par repository et ne
+    dériver un état DSOMM de contexte que lorsque l'activité est entièrement
+    couverte.
   - [ ] Fermer ou accepter explicitement le gap GitHub (branche `master` non
     protégée, aucun ruleset), puis compléter les activités manuelles
     Security Champions/IAM/Agentic AI/Identity/process.

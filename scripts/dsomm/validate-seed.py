@@ -18,6 +18,7 @@ DEFAULT_ACTIVITIES = ROOT / "apps" / "dsomm" / "config" / "seed-activities.yaml"
 DEFAULT_PROGRESS = ROOT / "apps" / "dsomm" / "config" / "team-progress.seed.yaml"
 DEFAULT_EVIDENCE = ROOT / "apps" / "dsomm" / "config" / "team-evidence.seed.yaml"
 EXPECTED_MODEL_VERSION = "5.0.2"
+EXPECTED_MODEL_SOURCE_COMMIT = "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a"
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -76,8 +77,15 @@ def validate(
     nonzero_states = [state for score, state in states_by_score if score > 0]
 
     model = catalog.get("model")
-    if not isinstance(model, dict) or str(model.get("version")) != EXPECTED_MODEL_VERSION:
+    if not isinstance(model, dict):
+        fail("seed activity catalog must contain model metadata")
+    if str(model.get("version")) != EXPECTED_MODEL_VERSION:
         fail(f"seed activity catalog must target DSOMM {EXPECTED_MODEL_VERSION}")
+    if model.get("sourceCommit") != EXPECTED_MODEL_SOURCE_COMMIT:
+        fail(
+            "seed activity catalog must pin the reviewed DSOMM source commit "
+            f"{EXPECTED_MODEL_SOURCE_COMMIT}"
+        )
 
     activities = catalog.get("activities")
     if not isinstance(activities, dict) or not activities:
