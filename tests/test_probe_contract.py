@@ -12,6 +12,8 @@ NPM = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
 FIRST_WAVE = ROOT / "scripts/truenas/accept-runtime-env-first-wave.sh"
 CSI_PREFLIGHT = ROOT / "scripts/talos/validate-csi-prereqs.sh"
 SAMPLE_EXPOSURE = ROOT / "scripts/ingress/verify-sample-exposure.sh"
+APP_LIFECYCLE = ROOT / "scripts/truenas/audit-app-lifecycle.sh"
+PIHOLE_SYNC = ROOT / "scripts/truenas/verify-pihole-dns-sync.sh"
 
 
 class ProbeLibraryContractTests(unittest.TestCase):
@@ -63,6 +65,40 @@ class ProbeLibraryContractTests(unittest.TestCase):
         self.assertIn('probe_dns_addresses "${PUBLIC_HOST}" 3', exposure)
         self.assertNotIn('getent ahostsv4 "${INTERNAL_HOST}"', exposure)
         self.assertNotIn('getent ahostsv4 "${PUBLIC_HOST}"', exposure)
+
+    def test_container_dns_tcp_primitives_are_bounded_and_shared(self) -> None:
+        probe = PROBE.read_text(encoding="utf-8")
+        lifecycle = APP_LIFECYCLE.read_text(encoding="utf-8")
+        pihole = PIHOLE_SYNC.read_text(encoding="utf-8")
+
+        self.assertIn("probe_container_dns_records()", probe)
+        self.assertIn("probe_container_dns_success()", probe)
+        self.assertIn("probe_container_tcp_success()", probe)
+        self.assertIn('timeout "${timeout_seconds}" docker exec', probe)
+
+        self.assertIn("lib/probe.sh", lifecycle)
+        self.assertIn("probe_http_success", lifecycle)
+        self.assertIn("probe_container_dns_success", lifecycle)
+        self.assertIn("probe_container_tcp_success", lifecycle)
+        self.assertNotIn("docker exec mongo getent hosts", lifecycle)
+        self.assertNotIn("</dev/tcp/${host}/${port}", lifecycle)
+
+        self.assertIn("lib/probe.sh", pihole)
+        self.assertIn("probe_container_dns_success", pihole)
+        self.assertIn("probe_container_dns_records", pihole)
+        self.assertNotIn(
+            'docker exec "${SYNC_CONTAINER}" getent hosts',
+            pihole,
+        )
+
+        for path in (APP_LIFECYCLE, PIHOLE_SYNC):
+            result = subprocess.run(
+                ["bash", "-n", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
     def test_reviewed_http_consumers_use_shared_primitives(self) -> None:
         dsomm = DSOMM.read_text(encoding="utf-8")
