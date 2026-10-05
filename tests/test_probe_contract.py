@@ -42,7 +42,6 @@ class ProbeLibraryContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-
     def test_tcp_and_dns_probe_library_is_bounded(self) -> None:
         text = PROBE.read_text(encoding="utf-8")
 
