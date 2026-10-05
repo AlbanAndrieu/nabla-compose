@@ -487,14 +487,13 @@ Remaining reduction:
    owns compact/full wrapper delegation for the 24 migrated operator scripts,
    while `scripts/run-diagnostic.sh` remains canonical for private detailed
    logs, counters, bounded summaries and exit-code propagation.
-4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
-   `scripts/lib/probe.sh`. Host HTTP/TCP/DNS plus bounded container DNS/TCP
-   primitives are shared. DSOMM, legacy NPM, P0.3 first-wave, CSI NFS TCP/2049,
-   Sample exposure, application lifecycle, Pi-hole sync, Sentry edge smoke/
-   diagnostic, Langflow bootstrap and Pyroscope smoke readiness checks are migrated.
-   Container HTTP readiness is shared for OpenRAG/MinIO paths as well. Dedicated
-   Pre-commit/anti-duplication contracts protect the primitives; response-body,
-   authenticated and application-semantic probes remain local by design.
+4. [x] Centralize bounded HTTP/HTTPS/TCP/DNS readiness semantics in
+   `scripts/lib/probe.sh`: host HTTP/TCP/DNS and container HTTP/TCP/DNS
+   primitives now cover the reviewed plain readiness callers (DSOMM, NPM, P0.3,
+   CSI, Sample exposure, application lifecycle, Pi-hole, Sentry, Langflow,
+   Pyroscope, OpenRAG and MinIO). Pre-commit/anti-duplication contracts protect
+   ownership; response-body, authenticated and application-semantic probes stay
+   local by design.
 5. [ ] Prefer canonical data/metadata over repeated Bash policy.
 6. [ ] Move code-server packages/extensions into an immutable derived image.
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
