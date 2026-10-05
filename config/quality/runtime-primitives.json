@@ -92,6 +92,10 @@
     {
       "name": "probe_container_tcp_success",
       "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_http_success",
+      "owner": "scripts/lib/probe.sh"
     }
   ]
 }
