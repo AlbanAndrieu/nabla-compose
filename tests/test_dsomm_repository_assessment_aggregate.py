@@ -19,6 +19,9 @@ SPEC.loader.exec_module(aggregate_module)
 ACTIVITY_UUID = "f6f7737f-25a9-4317-8de2-09bf59f29b5b"
 MODEL_COMMIT = "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a"
 MODEL_INDEX = ROOT / "apps" / "dsomm" / "config" / "model-activity-index.json"
+ASSESSMENT_SCHEMA = (
+    ROOT / "apps" / "dsomm" / "config" / "repository-assessment.schema.json"
+)
 MODEL_ACTIVITIES = {
     ACTIVITY_UUID: ("Defined build process", "Build and Deployment", 1),
 }
@@ -134,6 +137,46 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
             payload["activities"][
                 "dc62d384-0b9c-47d9-b7a5-9d82e53642ba"
             ]["dimension"],
+        )
+
+    def test_vendored_schema_matches_importer_contract_constants(self) -> None:
+        schema = json.loads(ASSESSMENT_SCHEMA.read_text(encoding="utf-8"))
+        properties = schema["properties"]
+
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(
+            aggregate_module.ASSESSMENT_CONTRACT,
+            properties["contract"]["const"],
+        )
+        self.assertEqual(
+            aggregate_module.SCHEMA_REF,
+            properties["$schema"]["const"],
+        )
+        self.assertEqual(
+            aggregate_module.MODEL_PROJECT,
+            properties["model"]["properties"]["project"]["const"],
+        )
+        self.assertEqual(
+            aggregate_module.REVIEW_STATUSES,
+            set(
+                properties["assessment"]["properties"]["reviewStatus"]["enum"]
+            ),
+        )
+        self.assertEqual(
+            aggregate_module.CLAIM_SCOPES,
+            set(properties["claims"]["items"]["properties"]["scope"]["enum"]),
+        )
+        self.assertEqual(
+            aggregate_module.EVIDENCE_TYPES,
+            set(properties["evidence"]["items"]["properties"]["type"]["enum"]),
+        )
+        self.assertEqual(
+            aggregate_module.EVIDENCE_VISIBILITIES,
+            set(
+                properties["evidence"]["items"]["properties"]["visibility"][
+                    "enum"
+                ]
+            ),
         )
 
     def test_missing_repository_claim_is_not_converted_to_zero(self) -> None:
