@@ -160,6 +160,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "dsomm-contract",
             "dotenv-source-compare-contract",
             "runtime-primitive-duplication",
+            "stuck-app-diagnostic-contract",
             "service-topology-sync",
             "service-consumer-contract",
             "prometheus-config",
@@ -240,6 +241,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
             re.match(
                 str(dotenv_compare_hook["files"]),
                 "tests/test_compare_dotenv_sources.py",
+            )
+        )
+        stuck_app_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "stuck-app-diagnostic-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(stuck_app_hook["files"]),
+                "scripts/truenas/recover-sentry-deploying.sh",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(stuck_app_hook["files"]),
+                "scripts/truenas/diagnose-nginx-proxy-manager.sh",
             )
         )
         p0_bundle_hook = next(
