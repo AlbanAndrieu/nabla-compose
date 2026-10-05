@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/probe.sh
+source "${SCRIPT_DIR}/../lib/probe.sh"
+
 LANGFLOW_CONTAINER="${LANGFLOW_CONTAINER:-langflow}"
 OPENRAG_SECRET_FILE="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
 LANGFLOW_KEY_NAME="${LANGFLOW_KEY_NAME:-openrag-global}"
@@ -29,7 +33,7 @@ docker ps --format '{{.Names}}' |
   grep -Fxq "${LANGFLOW_CONTAINER}" ||
   fail "Langflow container is not running: ${LANGFLOW_CONTAINER}"
 
-curl --fail --silent --show-error --max-time 8   http://172.17.0.24:7860/health_check >/dev/null ||
+probe_http_success http://172.17.0.24:7860/health_check 3 8 ||
   fail "Langflow is not ready; require /health_check HTTP 200 before key bootstrap"
 
 validate_key() {
