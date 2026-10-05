@@ -19,7 +19,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONTEXT_MAP = ROOT / "apps" / "dsomm" / "config" / "repository-contexts.yaml"
-DEFAULT_MODEL = ROOT / "apps" / "dsomm" / "config" / "seed-activities.yaml"
+DEFAULT_MODEL = ROOT / "apps" / "dsomm" / "config" / "model-activity-index.json"
 ASSESSMENT_CONTRACT = "nabla.dsomm.repository-assessment/v1"
 PORTFOLIO_CONTRACT = "nabla.dsomm.portfolio-assessment/v1"
 PROGRESS_SCORES = {
@@ -95,8 +95,10 @@ def parse_source_arg(value: str) -> tuple[str, str]:
 
 def load_model_contract(
     path: Path,
-) -> tuple[str, str, dict[str, tuple[str, int]]]:
-    payload = load_yaml(path)
+) -> tuple[str, str, dict[str, tuple[str, str, int]]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schemaVersion") != 1:
+        fail(f"{path}: schemaVersion must be 1")
     model = payload.get("model")
     if not isinstance(model, dict):
         fail(f"{path}: model mapping is required")
@@ -111,19 +113,26 @@ def load_model_contract(
     if not isinstance(activities, dict) or not activities:
         fail(f"{path}: activities mapping is required")
 
-    activity_contract: dict[str, tuple[str, int]] = {}
+    activity_contract: dict[str, tuple[str, str, int]] = {}
     for activity_uuid, activity in activities.items():
         if not isinstance(activity_uuid, str) or not UUID_RE.fullmatch(activity_uuid):
             fail(f"{path}: invalid canonical activity UUID {activity_uuid!r}")
         if not isinstance(activity, dict):
             fail(f"{path}: activity {activity_uuid} must be a mapping")
         name = activity.get("name")
+        dimension = activity.get("dimension")
         level = activity.get("level")
         if not isinstance(name, str) or not name.strip():
             fail(f"{path}: activity {activity_uuid} name is required")
+        if not isinstance(dimension, str) or not dimension.strip():
+            fail(f"{path}: activity {activity_uuid} dimension is required")
         if not isinstance(level, int) or not 1 <= level <= 5:
             fail(f"{path}: activity {activity_uuid} level must be 1..5")
-        activity_contract[activity_uuid] = (name.strip(), level)
+        activity_contract[activity_uuid] = (
+            name.strip(),
+            dimension.strip(),
+            level,
+        )
 
     return version, source_commit, activity_contract
 
@@ -149,7 +158,7 @@ def validate_assessment(
     expected_repository: str,
     model_version: str,
     model_source_commit: str,
-    model_activities: dict[str, tuple[str, int]],
+    model_activities: dict[str, tuple[str, str, int]],
 ) -> dict[str, Any]:
     if payload.get("schemaVersion") != 1:
         fail(f"{expected_repository}: schemaVersion must be 1")
@@ -256,11 +265,16 @@ def validate_assessment(
                 f"{expected_repository}: activity UUID {activity_uuid} is not "
                 "in the reviewed portfolio seed"
             )
-        canonical_name, canonical_level = canonical_activity
+        canonical_name, canonical_dimension, canonical_level = canonical_activity
         if claim.get("activityName") != canonical_name:
             fail(
                 f"{expected_repository}/{activity_uuid}: activityName must be "
                 f"{canonical_name!r}"
+            )
+        if claim.get("dimension") != canonical_dimension:
+            fail(
+                f"{expected_repository}/{activity_uuid}: dimension must be "
+                f"{canonical_dimension!r}"
             )
         if claim.get("level") != canonical_level:
             fail(
