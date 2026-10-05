@@ -8,13 +8,15 @@ source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
 ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck source=scripts/lib/probe.sh
+source "${ROOT}/scripts/lib/probe.sh"
 
 function fail {
   printf '❌ %s\n' "$*" >&2
   exit 1
 }
 
-for command in curl docker git jq midclt; do
+for command in curl docker git jq midclt timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -177,7 +179,7 @@ function probe_http_if_running {
     return
   fi
 
-  if curl --fail --silent --show-error --max-time 8 "${url}" >/dev/null; then
+  if probe_http_success "${url}" 3 8; then
     functional_ok "${label}"
   else
     functional_fail "${label}: HTTP probe failed (${url})"
@@ -200,12 +202,12 @@ function probe_intranet_tcp_if_running {
     return
   fi
 
-  if ! docker exec mongo getent hosts "${host}" >/dev/null 2>&1; then
+  if ! probe_container_dns_success mongo "${host}" 3; then
     functional_fail "${label}: Docker DNS cannot resolve ${host} on intranet"
     return
   fi
 
-  if docker exec mongo bash -lc "timeout 3 bash -c '</dev/tcp/${host}/${port}'" >/dev/null 2>&1; then
+  if probe_container_tcp_success mongo "${host}" "${port}" 3; then
     functional_ok "${label}: Docker DNS + TCP/${port}"
   else
     functional_fail "${label}: TCP/${port} is unreachable from intranet"
