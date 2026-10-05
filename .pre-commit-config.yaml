@@ -356,7 +356,7 @@ repos:
           ^(scripts/(?:lib/diagnostic|run-diagnostic)[.]sh|scripts/(?:infra|observability|security|talos|truenas)/.*[.]sh|tests/(?:test_diagnostic_output_contract|test_truenas_csi_orphan_diagnostic)[.]py|docs/roadmap[.]md)$
 
       - id: probe-library-contract
-        name: "🌐 probes · Validate bounded HTTP probe library"
+        name: "🌐 probes · Validate bounded network probe library"
         language: python
         entry: python -m unittest tests.test_probe_contract -v
         pass_filenames: false
