@@ -1255,7 +1255,7 @@ function probe_pyroscope_fastapi_profile {
     return
   fi
 
-  if ! curl --fail --silent --show-error --max-time 8     http://172.17.0.24:4040/ready >/dev/null; then
+  if ! probe_http_success http://172.17.0.24:4040/ready 3 8; then
     functional_fail "Pyroscope runtime: /ready is not HTTP 200"
     return
   fi
@@ -1495,8 +1495,7 @@ function probe_langflow_runtime_if_present {
   printf 'INFO: Langflow runtime TrueNAS=%s DockerHealth=%s FailingStreak=%s\n' \
     "${states[langflow]-UNKNOWN}" "${docker_health:-unknown}" "${failing_streak:-0}"
 
-  if curl --fail --silent --show-error --max-time 5 \
-    http://172.17.0.24:7860/health >/dev/null; then
+  if probe_http_success http://172.17.0.24:7860/health 3 5; then
     functional_ok "Langflow liveness: /health HTTP 200"
   else
     functional_fail "Langflow liveness: /health failed; inspect container logs/startup"
@@ -1640,8 +1639,8 @@ urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
     functional_ok "OpenRAG backend: no recent 3-node OpenSearch wait loop"
   fi
 
-  if docker exec "${backend}" getent hosts langflow >/dev/null 2>&1 &&
-    docker exec "${backend}" curl --fail --silent --show-error --max-time 8       http://langflow:7860/health_check >/dev/null; then
+  if probe_container_dns_success "${backend}" langflow 3 &&
+    probe_container_http_success "${backend}" http://langflow:7860/health_check 8; then
     functional_ok "OpenRAG backend -> global Langflow DNS + HTTP/7860"
   else
     functional_fail "OpenRAG backend -> global Langflow DNS or HTTP/7860 failed"
@@ -1673,13 +1672,13 @@ urllib.request.urlopen("http://127.0.0.1:7860/health_check", timeout=5).read()
     functional_fail "OpenRAG frontend: LANGFLOW_HEALTH_PATH must be /health_check"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/health >/dev/null; then
+  if probe_container_http_success "${backend}" http://127.0.0.1:8000/health 8; then
     functional_ok "OpenRAG backend: /health HTTP 200"
   else
     functional_fail "OpenRAG backend: /health failed"
   fi
 
-  if docker exec "${backend}" curl --fail --silent --show-error --max-time 8     http://127.0.0.1:8000/search/health >/dev/null; then
+  if probe_container_http_success "${backend}" http://127.0.0.1:8000/search/health 8; then
     functional_ok "OpenRAG backend: OpenSearch readiness HTTP 200"
   else
     functional_fail "OpenRAG backend: /search/health failed; verify opensearch DNS/TLS/password"
@@ -1826,8 +1825,7 @@ probe_intranet_tcp_if_running opensearch "OpenSearch internal service" opensearc
 if app_is_running minio; then
   if ! app_is_running influxdb; then
     functional_fail "MinIO internal service: InfluxDB probe container is not running"
-  elif docker exec influxdb curl --fail --silent --show-error --max-time 8 \
-    http://minio:9000/minio/health/live >/dev/null 2>&1; then
+  elif probe_container_http_success influxdb http://minio:9000/minio/health/live 8; then
     functional_ok "MinIO internal DNS + HTTP/9000"
   else
     functional_fail "MinIO internal DNS or HTTP/9000 health failed"
