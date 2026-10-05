@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
@@ -178,6 +179,31 @@ class DsommRepositoryAssessmentAggregateTests(unittest.TestCase):
                 ]
             ),
         )
+
+    def test_check_mode_validates_source_without_writing_portfolio(self) -> None:
+        repository = "AlbanAndrieu/nabla-site-alban"
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "assessment.json"
+            source.write_text(
+                json.dumps(assessment(repository)),
+                encoding="utf-8",
+            )
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    str(SCRIPT),
+                    "--source",
+                    f"{repository}={source}",
+                    "--check",
+                ],
+            ):
+                self.assertEqual(0, aggregate_module.main())
+
+            self.assertEqual(
+                ["assessment.json"],
+                sorted(path.name for path in Path(directory).iterdir()),
+            )
 
     def test_missing_repository_claim_is_not_converted_to_zero(self) -> None:
         contexts = {
