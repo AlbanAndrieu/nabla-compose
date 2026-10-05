@@ -96,6 +96,10 @@
     {
       "name": "probe_container_http_success",
       "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "truenas_app_query_by_id",
+      "owner": "scripts/lib/truenas.sh"
     }
   ]
 }
