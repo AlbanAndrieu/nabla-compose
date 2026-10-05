@@ -125,6 +125,11 @@ sudo bash scripts/truenas/deploy-scanopy.sh
 
 The deployment helper refuses to start/update Scanopy when the shared PostgreSQL role/database cannot be authenticated.
 
+The deployment helper also fails closed when either Scanopy image is mutable.
+Both `server` and `daemon` must be pinned to reviewed `@sha256:` digests before
+normal deployment. `SCANOPY_ALLOW_MUTABLE_IMAGE=1` exists only for an explicit
+short-lived PoC and emits a warning; it is not runtime acceptance.
+
 The TrueNAS Custom App uses:
 
 ```yaml
