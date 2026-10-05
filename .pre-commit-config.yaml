@@ -361,7 +361,7 @@ repos:
         entry: python -m unittest tests.test_probe_contract -v
         pass_filenames: false
         files: >-
-          ^(scripts/lib/probe[.]sh|scripts/(?:ingress/verify-sample-exposure|talos/validate-csi-prereqs)[.]sh|scripts/truenas/(?:deploy-dsomm|diagnose-nginx-proxy-manager|accept-runtime-env-first-wave|audit-app-lifecycle|verify-pihole-dns-sync|smoke-sentry-event|diagnose-sentry|bootstrap-openrag-langflow-key)[.]sh|tests/test_probe_contract[.]py)$
+          ^(scripts/lib/probe[.]sh|scripts/(?:ingress/verify-sample-exposure|talos/validate-csi-prereqs)[.]sh|scripts/truenas/(?:deploy-dsomm|diagnose-nginx-proxy-manager|accept-runtime-env-first-wave|audit-app-lifecycle|verify-pihole-dns-sync|smoke-sentry-event|diagnose-sentry|bootstrap-openrag-langflow-key|smoke-fastapi-observability)[.]sh|tests/test_probe_contract[.]py)$
 
       - id: operator-script-refactor-contract
         name: "🧱 truenas · Validate shared operator primitives"
