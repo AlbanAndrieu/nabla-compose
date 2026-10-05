@@ -40,7 +40,13 @@ validate_key() {
   local key="$1"
 
   printf 'header = "x-api-key: %s"\n' "${key}" |
-    curl --config -       --fail       --silent       --show-error       --max-time 8       http://172.17.0.24:7860/api/v1/users/whoami       >/dev/null
+    curl --config - \
+      --fail \
+      --silent \
+      --show-error \
+      --max-time 8 \
+      http://172.17.0.24:7860/api/v1/users/whoami \
+      >/dev/null
 }
 
 existing_key=""
