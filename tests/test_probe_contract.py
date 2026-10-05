@@ -17,6 +17,7 @@ PIHOLE_SYNC = ROOT / "scripts/truenas/verify-pihole-dns-sync.sh"
 SENTRY_SMOKE = ROOT / "scripts/truenas/smoke-sentry-event.sh"
 SENTRY_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-sentry.sh"
 LANGFLOW_BOOTSTRAP = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
+FASTAPI_OBSERVABILITY = ROOT / "scripts/truenas/smoke-fastapi-observability.sh"
 
 
 class ProbeLibraryContractTests(unittest.TestCase):
@@ -95,6 +96,64 @@ class ProbeLibraryContractTests(unittest.TestCase):
         )
 
         for path in (APP_LIFECYCLE, PIHOLE_SYNC):
+            result = subprocess.run(
+                ["bash", "-n", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
+
+    def test_container_http_primitive_and_lifecycle_consumers(self) -> None:
+        probe = PROBE.read_text(encoding="utf-8")
+        lifecycle = APP_LIFECYCLE.read_text(encoding="utf-8")
+        observability = FASTAPI_OBSERVABILITY.read_text(encoding="utf-8")
+
+        self.assertIn("probe_container_http_success()", probe)
+        self.assertIn('timeout "${timeout_seconds}" docker exec', probe)
+        self.assertIn("--output /dev/null", probe)
+
+        self.assertIn("probe_container_http_success", lifecycle)
+        self.assertIn(
+            "probe_container_http_success "
+            '"${backend}" http://langflow:7860/health_check 8',
+            lifecycle,
+        )
+        self.assertIn(
+            "probe_container_http_success "
+            '"${backend}" http://127.0.0.1:8000/health 8',
+            lifecycle,
+        )
+        self.assertIn(
+            "probe_container_http_success "
+            '"${backend}" http://127.0.0.1:8000/search/health 8',
+            lifecycle,
+        )
+        self.assertIn(
+            "probe_container_http_success "
+            "influxdb http://minio:9000/minio/health/live 8",
+            lifecycle,
+        )
+        self.assertIn(
+            "probe_http_success http://172.17.0.24:4040/ready 3 8",
+            lifecycle,
+        )
+        self.assertIn(
+            "probe_http_success http://172.17.0.24:7860/health 3 5",
+            lifecycle,
+        )
+
+        self.assertIn("lib/probe.sh", observability)
+        self.assertIn(
+            'probe_http_success "${PYROSCOPE_URL}/" 3 5',
+            observability,
+        )
+        self.assertNotIn(
+            'curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/"',
+            observability,
+        )
+
+        for path in (APP_LIFECYCLE, FASTAPI_OBSERVABILITY):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
                 capture_output=True,
