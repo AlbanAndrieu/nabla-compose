@@ -72,7 +72,7 @@ class DeveloperToolingContractTests(unittest.TestCase):
             "make-help",
         ):
             with self.subTest(recipe=recipe):
-                self.assertIn(f"\\n{recipe}:\\n", "\\n" + justfile)
+                self.assertRegex(justfile, rf"(?m)^{recipe}:$")
 
         self.assertIn("mise run agent-quality", justfile)
         self.assertIn("mise run agent-fix", justfile)
