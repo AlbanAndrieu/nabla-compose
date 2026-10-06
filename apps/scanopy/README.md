@@ -125,10 +125,18 @@ sudo bash scripts/truenas/deploy-scanopy.sh
 
 The deployment helper refuses to start/update Scanopy when the shared PostgreSQL role/database cannot be authenticated.
 
-The deployment helper also fails closed when either Scanopy image is mutable.
-Both `server` and `daemon` must be pinned to reviewed `@sha256:` digests before
-normal deployment. `SCANOPY_ALLOW_MUTABLE_IMAGE=1` exists only for an explicit
-short-lived PoC and emits a warning; it is not runtime acceptance.
+The deployment helper invokes `check-scanopy-image-lock.sh` before any
+TrueNAS `app.create` / `app.update`. It rejects an empty or failed Docker
+Compose image inventory, additional or missing images, malformed/truncated
+digests and mismatched release tags. Both `server` and `daemon` must have
+reviewed `<same-release>@sha256:<64 lowercase hex>` references before a normal
+deployment. A digest fixes image content, but the release tags must also agree.
+`SCANOPY_ALLOW_MUTABLE_IMAGE=1` permits only an explicit short-lived PoC,
+with a visible warning; it is **not** runtime or security acceptance.
+
+To select the two refs, inspect the upstream multi-architecture manifests for
+the same reviewed release and verify the effective linux/amd64 images; do not
+copy unrelated server/daemon digests from cached registry search results.
 
 The TrueNAS Custom App uses:
 
@@ -153,7 +161,13 @@ sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --check
 
 Expected Scanopy workloads are the server and discovery daemon; there is intentionally no `scanopy-postgres` workload.
 
-The discovery daemon is privileged and host-networked because it performs local network discovery. Keep `/var/run/docker.sock` read-only as declared in the Compose file and expect ARP/port discovery to be visible to Snort/Suricata.
+The discovery daemon currently uses `privileged: true`, host networking and
+the raw Docker socket for discovery. **A `:ro` Unix-socket bind does not make the
+Docker API read-only**: treat the daemon as having host-control privileges.
+Before production acceptance, verify the live image digest, initialization
+state, listener/firewall exposure (especially TCP/60073), authentication and
+the smallest Docker API/packet-capture privileges that preserve discovery.
+ARP/port discovery may also be visible to Snort/Suricata.
 
 Only after runtime acceptance should the historical empty secret placeholder be finalized:
 
