@@ -24,6 +24,11 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
+compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
+[[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
+# Check the immutable image contract before preparing any TrueNAS runtime state.
+bash "${SCRIPT_DIR}/check-scanopy-image-lock.sh" "${compose_path}"
+
 bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
@@ -36,17 +41,12 @@ if ! bash scripts/truenas/bootstrap-scanopy-postgres.sh --check; then
   fail "shared PostgreSQL role/database scanopy is not ready; run: sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --apply"
 fi
 
-compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
-[[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
-
 docker compose \
   -f "${compose_path}" \
   config \
   --quiet \
   --no-interpolate \
   --no-env-resolution
-
-bash "${SCRIPT_DIR}/check-scanopy-image-lock.sh" "${compose_path}"
 
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
