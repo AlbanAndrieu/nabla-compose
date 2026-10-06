@@ -8,7 +8,6 @@ source "${SCRIPT_DIR}/../lib/truenas.sh"
 APP_ID="${SCANOPY_APP_ID:-scanopy}"
 CANONICAL_ROOT="${SCANOPY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/secrets/runtime/scanopy/.env.secrets}"
-ALLOW_MUTABLE_IMAGE="${SCANOPY_ALLOW_MUTABLE_IMAGE:-0}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -47,23 +46,7 @@ docker compose \
   --no-interpolate \
   --no-env-resolution
 
-mapfile -t scanopy_images < <(
-  docker compose -f "${compose_path}" config --images |
-    sort -u
-)
-mutable_images=()
-for image in "${scanopy_images[@]}"; do
-  [[ "${image}" == *@sha256:* ]] || mutable_images+=("${image}")
-done
-
-if ((${#mutable_images[@]})); then
-  if [[ "${ALLOW_MUTABLE_IMAGE}" == "1" ]]; then
-    printf 'WARNING: explicit PoC override accepts mutable Scanopy image(s): %s\n' \
-      "${mutable_images[*]}" >&2
-  else
-    fail "Scanopy image(s) are mutable: ${mutable_images[*]}; pin server and daemon to reviewed @sha256 digests before deployment, or set SCANOPY_ALLOW_MUTABLE_IMAGE=1 only for an explicit PoC"
-  fi
-fi
+bash "${SCRIPT_DIR}/check-scanopy-image-lock.sh" "${compose_path}"
 
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
