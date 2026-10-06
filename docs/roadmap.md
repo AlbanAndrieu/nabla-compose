@@ -478,6 +478,10 @@ The active local secret detector is Betterleaks v1.9.0 (not Gitleaks); it
 temporarily reuses the reviewed `.gitleaks.toml` policy for a no-surprises
 scanner cutover. Historical claims and compatibility comments remain evidence,
 not an additional active Gitleaks gate.
+`justfile` now exposes safe local-first wrappers around the existing mise
+quality/fix/pre-push tasks, plus explicit Betterleaks worktree/staged/history
+scans. The legacy `Makefile` is retained without changing its default target;
+tool versions are pinned in `mise.toml` and `mise.lock`.
 
 Remaining reduction:
 
