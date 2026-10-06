@@ -193,6 +193,14 @@ repos:
         files: >-
           ^(apps/(?:scanopy|joplin|autokuma|code)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime)|deploy-scanopy)[.]sh)|[.]agents/skills/(?:docker-compose-orchestration|homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
 
+      - id: scanopy-image-lock-contract
+        name: "🔒 scanopy · Validate fail-closed image admission"
+        language: python
+        entry: python -m unittest tests.test_scanopy_image_lock -v
+        pass_filenames: false
+        files: >-
+          ^(apps/scanopy/compose[.]yml|scripts/truenas/(?:check-scanopy-image-lock|deploy-scanopy)[.]sh|tests/(?:test_scanopy_image_lock|test_runtime_layout_policy_contract)[.]py)$
+
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
         language: python
