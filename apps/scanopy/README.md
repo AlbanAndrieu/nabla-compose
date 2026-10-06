@@ -125,8 +125,8 @@ sudo bash scripts/truenas/deploy-scanopy.sh
 
 The deployment helper refuses to start/update Scanopy when the shared PostgreSQL role/database cannot be authenticated.
 
-The deployment helper invokes `check-scanopy-image-lock.sh` before any
-TrueNAS `app.create` / `app.update`. It rejects an empty or failed Docker
+The deployment helper invokes `check-scanopy-image-lock.sh` **before any
+runtime bootstrap or TrueNAS `app.create` / `app.update`**. It rejects an empty or failed Docker
 Compose image inventory, additional or missing images, malformed/truncated
 digests and mismatched release tags. Both `server` and `daemon` must have
 reviewed `<same-release>@sha256:<64 lowercase hex>` references before a normal
