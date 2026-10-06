@@ -24,7 +24,7 @@ image_list="$(docker compose -f "${compose_path}" config --no-env-resolution --i
   fail "Scanopy image inventory is empty"
 
 mapfile -t images <<<"${image_list}"
-(("${#images[@]}" == 2)) ||
+((${#images[@]} == 2)) ||
   fail "expected exactly two Scanopy images (server and daemon), got ${#images[@]}"
 
 server_image=""
@@ -61,7 +61,7 @@ else
   mutable_images+=("daemon")
 fi
 
-if (("${#mutable_images[@]}" > 0)); then
+if ((${#mutable_images[@]} > 0)); then
   if [[ "${allow_mutable}" != "1" ]]; then
     fail "mutable or malformed Scanopy image references for: ${mutable_images[*]}; require release-tagged @sha256:64hex digests"
   fi
