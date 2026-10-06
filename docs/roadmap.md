@@ -474,6 +474,10 @@ Compose discovery is also normalized across generator/Pre-commit for dotted and
 hyphenated root variants such as `docker-compose-truenas.yml`.
 Pre-commit configuration parsing/unicity is now an explicit local contract so
 malformed regex quoting or duplicated hook IDs fail before publication.
+The active local secret detector is Betterleaks v1.9.0 (not Gitleaks); it
+temporarily reuses the reviewed `.gitleaks.toml` policy for a no-surprises
+scanner cutover. Historical claims and compatibility comments remain evidence,
+not an additional active Gitleaks gate.
 
 Remaining reduction:
 
