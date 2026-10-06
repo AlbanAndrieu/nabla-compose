@@ -132,6 +132,10 @@ class ScanopyImageLockContractTests(unittest.TestCase):
         self.assertIn(gate, script)
         self.assertLess(script.index(gate), script.index("midclt call -j app.update"))
         self.assertLess(script.index(gate), script.index("midclt call -j app.create"))
+        self.assertLess(
+            script.index(gate),
+            script.index('bootstrap-repository-runtime.sh --apply'),
+        )
 
 
 if __name__ == "__main__":
