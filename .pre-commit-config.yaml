@@ -121,11 +121,13 @@ repos:
       - id: hadolint-docker
         name: "🐳 hadolint · Validate Dockerfile"
 
-  - repo: https://github.com/zricethezav/gitleaks
-    rev: v8.30.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.9.0
     hooks:
-      - id: gitleaks
-        name: "🔒 security · Detect secrets"
+      - id: betterleaks
+        name: "🔒 security · Detect secrets with Betterleaks"
+        # Preserve reviewed suppression rules until a dedicated policy migration.
+        args: [--config=.gitleaks.toml]
 
   - repo: local
     hooks:
