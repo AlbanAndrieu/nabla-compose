@@ -42,7 +42,7 @@ class ScanopyImageLockContractTests(unittest.TestCase):
                 '[[ "$1" == "compose" && "$2" == "-f" && "$4" == "config" '
                 '&& "$5" == "--no-env-resolution" && "$6" == "--images" ]] '
                 "|| exit 22\n"
-                "printf '%s' \"\${SCANOPY_TEST_IMAGES}\"\n"
+                "printf '%s' \"${SCANOPY_TEST_IMAGES}\"\n"
                 'exit "${SCANOPY_TEST_EXIT:-0}"\n',
                 encoding="utf-8",
             )
