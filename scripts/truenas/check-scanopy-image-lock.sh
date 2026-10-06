@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 
 # Fail-closed supply-chain admission for both Scanopy images.
