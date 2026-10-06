@@ -97,6 +97,20 @@ class ScanopyImageLockContractTests(unittest.TestCase):
             with self.subTest(images=images):
                 self.assertNotEqual(0, self.invoke(images).returncode)
 
+    def test_latest_tag_is_not_accepted_even_with_digest(self) -> None:
+        result = self.invoke(image_pair(server_tag="latest"))
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("non-latest release tag", result.stderr)
+
+    def test_helper_parses_as_bash(self) -> None:
+        result = subprocess.run(
+            ["bash", "-n", str(GATE)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_mismatched_release_tags_fail(self) -> None:
         result = self.invoke(image_pair(daemon_tag="v0.17.18"))
         self.assertNotEqual(0, result.returncode)
