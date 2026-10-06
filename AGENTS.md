@@ -31,7 +31,7 @@ The goal is to minimize the context required to reach a reliable result, never t
 - local Git/shell inspection (`git status`, `git diff`, `git ls-files`, `rg`) and targeted repository files;
 - GitHub repository/PR operations and GitHub Actions status, jobs, logs, artifacts, and deployment-related evidence;
 - Docker Compose configuration and the repository Compose validation path;
-- `pre-commit`, `scripts/quality-gate.sh`, repository generators/tests, Gitleaks, Checkov, CodeQL, MegaLinter, and the existing security/quality gates;
+- `pre-commit`, `scripts/quality-gate.sh`, repository generators/tests, Betterleaks, Checkov, CodeQL, MegaLinter, and the existing security/quality gates;
 - TrueNAS runtime/API evidence for the production homelab and FastAPI Sample homelab status/health endpoints when runtime verification is required;
 - Vaultwarden plus the Bitwarden CLI/secret contract for secret inventory, rendering, migration, and deployment work;
 - OpenTofu/Terragrunt for the TrueNAS/Talos infrastructure code and Doco-CD for the deployment flows that explicitly use it.
