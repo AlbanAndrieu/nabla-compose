@@ -68,19 +68,19 @@ if ((${#mutable_images[@]} > 0)); then
   printf 'WARNING: PoC-only mutable image override for: %s\n' "${mutable_images[*]}" >&2
 fi
 
+if [[ "${server_version}" == "latest" || "${daemon_version}" == "latest" ]]; then
+  if [[ "${allow_mutable}" != "1" ]]; then
+    fail "Scanopy image digest must also carry a non-latest release tag"
+  fi
+  printf 'WARNING: PoC-only override for Scanopy latest tag\n' >&2
+fi
+
 if [[ -n "${server_version}" && -n "${daemon_version}" &&
   "${server_version}" != "${daemon_version}" ]]; then
   if [[ "${allow_mutable}" != "1" ]]; then
     fail "Scanopy server/daemon image release tags differ"
   fi
   printf 'WARNING: PoC-only override for mismatched Scanopy releases\n' >&2
-fi
-
-if [[ "${server_version}" == "latest" || "${daemon_version}" == "latest" ]]; then
-  if [[ "${allow_mutable}" != "1" ]]; then
-    fail "Scanopy image digest must also carry a non-latest release tag"
-  fi
-  printf 'WARNING: PoC-only override for Scanopy latest tag\n' >&2
 fi
 
 if [[ "${allow_mutable}" == "1" ]]; then
