@@ -156,13 +156,23 @@ def test_homeassistant_does_not_require_missing_dotenv() -> None:
 def test_scanopy_deployer_fails_closed_on_mutable_images() -> None:
     script = DEPLOY_HELPERS["scanopy"].read_text(encoding="utf-8")
 
-    assert "SCANOPY_ALLOW_MUTABLE_IMAGE" in script
-    assert "config --images" in script
-    assert "@sha256:" in script
-    assert "mutable Scanopy image(s)" in script
-    assert "only for an explicit PoC" in script
-    assert script.index("mutable_images=()") < script.index("midclt call -j app.update")
-    assert script.index("mutable_images=()") < script.index("midclt call -j app.create")
+    gate = (
+        ROOT / "scripts/truenas/check-scanopy-image-lock.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "check-scanopy-image-lock.sh" in script
+    assert "SCANOPY_ALLOW_MUTABLE_IMAGE" in gate
+    assert "config --no-env-resolution --images" in gate
+    assert "unable to enumerate Scanopy images" in gate
+    assert "expected exactly two Scanopy images" in gate
+    assert "server/daemon image release tags differ" in gate
+    assert "not production acceptance" in gate
+    assert script.index("check-scanopy-image-lock.sh") < script.index(
+        "midclt call -j app.update"
+    )
+    assert script.index("check-scanopy-image-lock.sh") < script.index(
+        "midclt call -j app.create"
+    )
 
 
 def test_first_wave_runtime_acceptance_is_bounded_and_finalizes_after_health() -> None:
