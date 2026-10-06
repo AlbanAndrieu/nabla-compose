@@ -131,6 +131,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: developer-tooling-contract
+        name: "🛠️ tooling · Validate Betterleaks and Just compatibility"
+        language: system
+        entry: python -m unittest tests.test_dev_tooling_contract -v
+        pass_filenames: false
+        files: >-
+          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
+
       - id: renovate-config-contract
         name: "🤖 renovate · Validate dependency automation contract"
         language: system
