@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import tomllib
 import unittest
 from pathlib import Path
@@ -51,6 +53,62 @@ class DeveloperToolingContractTests(unittest.TestCase):
                 for rule in legacy_policy["rules"]
             )
         )
+
+    def test_justfile_coexists_with_makefile_and_mise(self) -> None:
+        self.assertTrue((ROOT / "Makefile").is_file())
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        for recipe in (
+            "default",
+            "hooks",
+            "quality",
+            "fix",
+            "pre-push",
+            "publish",
+            "quality-gate",
+            "tooling-test",
+            "secrets",
+            "secrets-staged",
+            "secrets-history",
+            "make-help",
+        ):
+            with self.subTest(recipe=recipe):
+                self.assertIn(f"\\n{recipe}:\\n", "\\n" + justfile)
+
+        self.assertIn("mise run agent-quality", justfile)
+        self.assertIn("mise run agent-fix", justfile)
+        self.assertIn("mise run agent-pre-push", justfile)
+        self.assertIn("mise run agent-publish", justfile)
+        self.assertIn("make help", justfile)
+        self.assertNotIn("make build", justfile)
+        self.assertNotIn("docker system prune", justfile)
+
+        mise = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
+        self.assertEqual(mise["tools"]["just"], "1.58.0")
+        self.assertEqual(mise["tools"]["go"], "1.25.12")
+        self.assertEqual(
+            mise["tools"]["go:github.com/betterleaks/betterleaks"], "v1.9.0"
+        )
+
+        lock = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
+        self.assertEqual(lock["tools"]["just"][0]["version"], "1.58.0")
+        self.assertEqual(lock["tools"]["go"][0]["version"], "1.25.12")
+        self.assertEqual(
+            lock["tools"]["go:github.com/betterleaks/betterleaks"][0]["version"],
+            "v1.9.0",
+        )
+
+    @unittest.skipUnless(shutil.which("just"), "just CLI unavailable")
+    def test_justfile_parses_without_running_a_recipe(self) -> None:
+        result = subprocess.run(
+            ["just", "--list"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("quality", result.stdout)
+        self.assertIn("secrets", result.stdout)
 
     def test_legacy_megalinter_secrets_scanner_remains_disabled(self) -> None:
         config = yaml.safe_load(
