@@ -114,7 +114,9 @@ Task-to-skill routing:
 - explicit security audit, vulnerability review or source-first pen-test request:
   load `security-audit`; use its full six-phase/report workflow only when the
   request explicitly asks for an audit/report, and preserve its sandbox,
-  independent-validation and incomplete-run rules.
+  independent-validation and incomplete-run rules;
+- quality/CI failures, PR continuation or local validation workflow changes:
+  load `local-first-quality`.
 
 For **P0.3**, runtime env normalization and Backstage v2 preparation are one
 service migration bundle. A touched service must have a canonical
@@ -140,13 +142,20 @@ All agent-authored changes must use a branch and pull request. Leave the merge t
 
 ## Local-first validation
 
-For a focused change, run the closest relevant formatter/linter first. After the editing batch, the normal workflow is:
+For a focused change, run the closest relevant formatter/linter first. During
+the editing batch, use the targeted local loop; reserve the full suite for the
+publication boundary:
 
 ```bash
-mise run agent-fix
+mise run agent-loop
 # review only the deterministic diff, then stage/commit it
 mise run agent-pre-push
 ```
+
+`agent-loop` converges deterministic generators/formatters and executes the
+changed-file contracts while deliberately deferring the complete repository
+pytest suite. `agent-fix` remains available when an explicit full convergence
+run is wanted before commit.
 
 `agent-fix` is a bounded convergence loop. When a generator, formatter or safe autofixer changes files, it reruns the complete changed-file pass until the final pass is clean. It stops immediately when a failing pass makes no deterministic change and fails closed if fixes do not converge within the configured pass limit.
 
@@ -155,7 +164,7 @@ mise run agent-pre-push
 The pre-push Git hook invokes `scripts/agent-pre-push.sh` automatically. Agents must not bypass it. The intended loop is therefore:
 
 ```text
-edit batch -> local autofix convergence -> commit -> local pre-push/full tests -> one push -> remote check-only CI
+edit batch -> targeted local loop -> commit -> local pre-push/full tests -> one push -> remote check-only CI
 ```
 
 Do not use remote CI as the edit/format/lint feedback loop.
