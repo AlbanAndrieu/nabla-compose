@@ -55,22 +55,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("QG_FIX_STALLED", text)
         self.assertIn("QG_FIX_NON_CONVERGENT", text)
         self.assertIn("deterministic formatter/linter fixes converged", text)
-        self.assertIn("AUTOFIX_HOOKS", text)
-        for hook in (
-            "trailing-whitespace",
-            "fix-byte-order-marker",
-            "mixed-line-ending",
-            "end-of-file-fixer",
-            "shfmt",
-            "biome-check",
-            "prettier",
-        ):
-            self.assertIn(hook, text)
-        self.assertIn("run_autofix_hook", text)
-        self.assertIn("strict pre-commit check after deterministic autofix batch", text)
-        self.assertIn("pre-commit run shfmt", text)
-        self.assertIn("pre-commit run shell-lint", text)
-        self.assertIn("pre-commit run bashate", text)
+        self.assertNotIn("AUTOFIX_HOOKS", text)
+        self.assertNotIn("run_autofix_hook", text)
+        self.assertIn("before_fingerprint", text)
+        self.assertIn("after_fingerprint", text)
+        self.assertIn("pre-commit run --hook-stage pre-commit", text)
+        self.assertIn(
+            "Pre-commit changed files; rerunning the changed-file gate",
+            text,
+        )
+        self.assertIn("failed without changing files", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("PYTHON_CMD=(python3)", text)
