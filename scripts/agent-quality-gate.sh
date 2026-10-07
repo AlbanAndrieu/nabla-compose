@@ -177,7 +177,8 @@ run_compact() {
 
 collect_changed_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD" ]] &&
+      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=ACMR "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=ACMR
@@ -193,7 +194,8 @@ collect_changed_files() {
 
 collect_deleted_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD" ]] &&
+      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=D "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=D
@@ -333,12 +335,29 @@ check_exec_bits() {
     exit 1
   }
 
+  if (("${#CHANGED_FILES[@]}" == 0)); then
+    printf '✅ no local changes require formatter/linter fixes\n'
+    exit 0
+  fi
+
+  generator_scope_changed=false
+  for file in "${CHANGED_FILES[@]}"; do
+    case "${file}" in
+      catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|catalog/service-consumers.static.yml|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|scripts/nabla_ops/compose_paths.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+        generator_scope_changed=true
+        break
+        ;;
+    esac
+  done
+
   for ((pass = 1; pass <= FIX_MAX_PASSES; pass++)); do
     printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
-    run_compact "regenerate declared service topology" \
-      "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
-    run_compact "regenerate service consumers" \
-      "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
+    if [[ "${generator_scope_changed}" == true ]]; then
+      run_compact "regenerate declared service topology" \
+        "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
+      run_compact "regenerate service consumers" \
+        "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
+    fi
 
     mapfile -t CHANGED_FILES < <(collect_changed_files)
     if (("${#CHANGED_FILES[@]}" == 0)); then
