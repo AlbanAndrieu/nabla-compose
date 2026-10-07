@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${ROOT}"
 
 OUTPUTS=(
@@ -14,7 +15,7 @@ hash_outputs() {
   local file
   for file in "${OUTPUTS[@]}"; do
     if [[ -f "${file}" ]]; then
-      printf '%s  %s\n' "$(git hash-object "${file}")" "${file}"
+      printf '%s  %s\n' "$(sha256sum "${file}" | awk '{print $1}')" "${file}"
     else
       printf 'MISSING  %s\n' "${file}"
     fi
