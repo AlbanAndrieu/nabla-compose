@@ -382,6 +382,25 @@ class AgentQualityGateContractTests(unittest.TestCase):
                 self.assertRegex(source, testcase_pattern)
 
 
+    def test_local_first_quality_skill_routes_fast_loop_and_full_publication(self) -> None:
+        skill = (
+            ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("mise run agent-loop", skill)
+        self.assertIn("just loop", skill)
+        self.assertIn("mise run agent-pre-push", skill)
+        self.assertIn("Remote checks are evidence, not an editor", skill)
+        self.assertIn("API-only fallback", skill)
+
+        context = (ROOT / "scripts" / "agent-task-context.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('skills.add("local-first-quality")', context)
+
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("load `local-first-quality`", agents)
+        self.assertIn("mise run agent-loop", agents)
+
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))
         self.assertEqual(
