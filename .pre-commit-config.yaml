@@ -192,7 +192,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1"]
         pass_filenames: false
         files: >-
-          ^(scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/manifest[.]json|tests/test_compare_dotenv_sources[.]py)$
+          ^(apps/scrutiny/compose[.]yml|scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|scripts/truenas/(?:bootstrap-scrutiny-influxdb|deploy-scrutiny)[.]sh|config/secrets/manifest[.]json|tests/test_compare_dotenv_sources[.]py)$
 
       - id: p0-backstage-migration-bundle-contract
         name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
