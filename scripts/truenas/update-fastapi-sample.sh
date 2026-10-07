@@ -141,7 +141,8 @@ verify_prometheus_observer_contract() {
     local service_samples
 
     prometheus_url="$(
-        run_docker exec "${CONTAINER}" sh -lc             'printf "%s" "${HOMELAB_PROMETHEUS_URL:-}"' 2>/dev/null || true
+        run_docker exec "${CONTAINER}" sh -lc \
+            'printf "%s" "${HOMELAB_PROMETHEUS_URL:-}"' 2>/dev/null || true
     )"
     if [[ -z "${prometheus_url}" ]]; then
         printf 'WARN: HOMELAB_PROMETHEUS_URL is unset in the FastAPI runtime; Gatus synthetic evidence cannot be accepted yet.\n' >&2
@@ -149,27 +150,52 @@ verify_prometheus_observer_contract() {
     fi
 
     if ! payload="$(
-        run_docker exec "${CONTAINER}" curl             --fail             --silent             --show-error             --max-time 5             --get             --data-urlencode             'query=nabla:telemetry:gatus_up or nabla:service:synthetic_probe_success'             "${prometheus_url%/}/api/v1/query" 2>/dev/null
+        run_docker exec "${CONTAINER}" curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 5 \
+            --get \
+            --data-urlencode \
+            'query=nabla:telemetry:gatus_up or nabla:service:synthetic_probe_success' \
+            "${prometheus_url%/}/api/v1/query" 2>/dev/null
     )"; then
         printf 'WARN: FastAPI runtime cannot query the configured Prometheus endpoint; keeping Gatus evidence shadow-only.\n' >&2
         return 1
     fi
 
-    if ! jq -e         '.status == "success" and .data.resultType == "vector" and (.data.result | length) > 0'         >/dev/null <<<"${payload}"; then
-        printf 'WARN: Prometheus query returned no usable Gatus recording-rule evidence; keeping Gatus evidence shadow-only.\n' >&2
+    if ! jq -e \
+        '.status == "success" and .data.resultType == "vector"' \
+        >/dev/null <<<"${payload}"; then
+        printf 'WARN: Prometheus returned an invalid instant-vector response; keeping Gatus evidence shadow-only.\n' >&2
         return 1
     fi
 
     gatus_up="$(
-        jq -r             '[.data.result[] | select(.metric.__name__ == "nabla:telemetry:gatus_up") | .value[1]] | first // "missing"'             <<<"${payload}"
+        jq -r \
+            '[.data.result[] | select(.metric.__name__ == "nabla:telemetry:gatus_up") | .value[1]] | first // "missing"' \
+            <<<"${payload}"
     )"
     service_samples="$(
-        jq -r             '[.data.result[] | select(.metric.__name__ == "nabla:service:synthetic_probe_success")] | length'             <<<"${payload}"
+        jq -r \
+            '[.data.result[] | select(.metric.__name__ == "nabla:service:synthetic_probe_success")] | length' \
+            <<<"${payload}"
     )"
 
-    printf 'OK: Prometheus/Gatus observer contract reachable from FastAPI runtime (gatus_up=%s synthetic_samples=%s).\n'         "${gatus_up}" "${service_samples}"
-}
+    if ! jq -e \
+        '[.data.result[]
+          | select(.metric.__name__ == "nabla:telemetry:gatus_up")
+          | .value[1]
+          | tonumber] | any(. >= 1)' \
+        >/dev/null <<<"${payload}" ||
+        [[ "${service_samples}" -lt 1 ]]; then
+        printf 'WARN: Prometheus is reachable but Gatus is not UP or no service samples exist; keeping Gatus evidence shadow-only.\n' >&2
+        return 1
+    fi
 
+    printf 'OK: Prometheus/Gatus observer contract reachable from FastAPI runtime (gatus_up=%s synthetic_samples=%s).\n' \
+        "${gatus_up}" "${service_samples}"
+}
 
 build_fastapi_sample() {
     local log
