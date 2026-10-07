@@ -10,6 +10,14 @@ default:
 hooks:
     mise run hooks
 
+# Show bounded branch/change context and suggested repository skills.
+context:
+    mise run agent-context
+
+# Cheap Git-only safety gate before dependency/setup work.
+preflight:
+    mise run agent-preflight
+
 # Fast iterative local-first loop: autofix + changed-file contracts only.
 loop:
     mise run agent-loop
