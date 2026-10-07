@@ -22,7 +22,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("NABLA_TRUENAS_DEV_VENV", text)
         self.assertIn(".cache/nabla-compose/dev-venv", text)
         self.assertIn('export PATH="${DEV_VENV}/bin:${PATH}"', text)
+        self.assertIn("--loop", text)
         self.assertIn("--ci", text)
+        self.assertIn("TARGETED_ONLY", text)
+        self.assertIn('TARGETED_LABEL="Local loop"', text)
+        self.assertIn("full repository unit/contract suite is deferred", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
@@ -115,11 +119,17 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("[tasks.agent-context]", config)
         self.assertIn("python scripts/agent-task-context.py", config)
         self.assertIn("[tasks.agent-fix]", config)
+        self.assertIn("[tasks.agent-loop]", config)
+        self.assertIn('bash scripts/agent-quality-gate.sh --loop', config)
         self.assertIn("[tasks.agent-quality]", config)
         self.assertIn("[tasks.agent-publish]", config)
         self.assertIn("[tasks.agent-pre-push]", config)
         self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
         self.assertIn("bash scripts/agent-pre-push.sh", config)
+
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertIn("\nloop:\n    mise run agent-loop\n", justfile)
+        self.assertIn("\npre-push:\n    mise run agent-pre-push\n", justfile)
 
         bootstrap = (ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh").read_text(
             encoding="utf-8"
