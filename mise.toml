@@ -58,6 +58,10 @@ run = "python scripts/agent-task-context.py"
 description = "Run the repo-specific agent-first gate before publication"
 run = "bash scripts/agent-quality-gate.sh"
 
+[tasks.agent-loop]
+description = "Converge deterministic fixes and run targeted changed-file contracts during edit iterations"
+run = "bash scripts/agent-quality-gate.sh --loop"
+
 [tasks.agent-fix]
 description = "Regenerate deterministic artifacts and converge local pre-commit fixes"
 run = "bash scripts/agent-quality-gate.sh --fix"
