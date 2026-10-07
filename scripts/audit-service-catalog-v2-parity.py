@@ -189,8 +189,11 @@ def _compose_relation_bindings() -> list[dict]:
 
 def _compose_exposure_bindings() -> list[dict]:
     result: list[dict] = []
-    paths = sorted((ROOT / "apps").glob("*/compose*.yml"))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = [
+        path
+        for path in _tracked_compose_paths()
+        if path.relative_to(ROOT).parts[:1] == ("apps",)
+    ]
     for path in paths:
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
