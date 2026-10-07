@@ -7,6 +7,9 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
+# shellcheck source=scripts/lib/probe.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/probe.sh"
+
 SENTRY_URL="${SENTRY_URL:-http://172.17.0.24:9005}"
 SENTRY_URL="${SENTRY_URL%/}"
 PROJECT_ID="${SENTRY_PROJECT_ID:-1}"
@@ -146,7 +149,7 @@ if ! docker exec "${KAFKA_CONTAINER}" kafka-topics \
 fi
 printf '✅ Kafka broker metadata readiness\n'
 
-if ! curl --fail --silent --show-error --max-time 8 "${SENTRY_URL}/_health/" >/dev/null; then
+if ! probe_http_success "${SENTRY_URL}/_health/" 3 8; then
   fail "Sentry edge health failed at ${SENTRY_URL}/_health/"
 fi
 printf '✅ Sentry edge health\n'

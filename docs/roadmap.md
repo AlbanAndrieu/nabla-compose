@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-04.
+Last updated: 2026-10-05.
 
 This is the **concise execution index**. Detailed procedures, architecture and
 historical evidence live in their canonical documents; see
@@ -112,8 +112,12 @@ Active platform debt:
 - [ ] Prove downstream consumption of Suricata `eve.json`.
 - [ ] Restore pfSense NetFlow → Cloudflare Network Analytics end to end.
 - [ ] Restore repository-owned Uptime Kuma before enabling AutoKuma.
-- [ ] Continue staged TrueNAS runtime-env migration; do not bulk-finalize paths
-  or recreate non-empty datasets.
+- [ ] Continue staged TrueNAS runtime-env migration; Sentry now has a bounded
+  recovery/restage/finalize transaction, but runtime `--finalize` acceptance
+  still has to be executed on TrueNAS. Code Server now consumes canonical
+  runtime paths and maps legacy `CODE_PASSWORD` to runtime `PASSWORD`; run
+  its staged Vaultwarden + `/healthz` acceptance before finalizing the legacy
+  files. Do not bulk-finalize paths or recreate non-empty datasets.
 - [ ] Resolve Vaultwarden exposure/TLS policy with verified HTTPS, least
   exposure and stricter `/admin` protection.
 - [ ] Keep the TrueNAS LXC GitHub Actions runner planned/dormant until needed.
@@ -189,9 +193,16 @@ Remaining work:
 
 1. [ ] Accept the first-wave Scanopy/Joplin/AutoKuma migration one service at a
    time; AutoKuma additionally requires Uptime Kuma restored and RUNNING.
+   Scanopy deployment now fails closed on mutable server/daemon images; select a
+   same-release reviewed digest pair before runtime acceptance. The explicit
+   `SCANOPY_ALLOW_MUTABLE_IMAGE=1` override is PoC-only.
 2. [ ] Convert remaining explicit legacy `env_file` paths to
    `/mnt/cpool/secrets/runtime/<service>/...`; retire compatibility paths only
-   after restart/reboot acceptance.
+   after restart/reboot acceptance. Sentry path normalization is now
+   acceptance-gated: `recover-sentry-deploying.sh --apply` refreshes both
+   canonical files after E2E ingestion, and `--finalize` requires another
+   current diagnostic + ingestion smoke before replacing its two legacy files
+   with compatibility symlinks.
 3. [ ] Classify ignored repository-local `.env` files: secrets to Vaultwarden,
    non-secret settings to tracked config, and remove implicit project-env debt.
 4. [ ] Review Apps-preset drift without recreating non-empty datasets merely to
@@ -218,7 +229,7 @@ Remaining work:
    prove read-only `VM_READ` evidence for the three Talos VMs.
 6. [ ] Normalize Sample PostgreSQL ownership to dedicated database/role
    `sample`; never reuse the PostgreSQL superuser.
-7. [ ] Resolve the Scrutiny dotenv source conflict value-blind before restaging.
+7. [ ] Complete Scrutiny runtime-env acceptance: canonical Compose/bootstrap paths and the Vaultwarden mapping are prepared; compare any legacy/repository-local sources value-blind, preserve the token plus `scope/version` and authorization-id metadata, stage/import the exact accepted set, then redeploy before finalizing the legacy path.
 8. [ ] Create currently missing declared datasets only with the corresponding
    service rollout: cyberbro, defectdojo, dependency-track, neo4j and netbox.
 9. [ ] Reconcile the live TrueNAS Doco-CD container against the canonical
@@ -308,6 +319,15 @@ Security-tooling acceptance within this workstream:
     rendu du seed sans écraser un assessment existant.
   - [ ] Exécuter le baseline Tweag pin, puis réconcilier uniquement les preuves
     supportées avec le seed revu; aucun score automatique ne vaut verdict.
+  - [x] Contrat consommateur `nabla.dsomm.repository-assessment/v1` prêt :
+    schéma v1 vendored, index complet DSOMM 5.0.2 de 249 activités, import HTTPS
+    borné, `--check` non mutatif, provenance conservée et gate optionnelle
+    `--require-complete-sources`. Le producteur de `nabla-site-alban` en PR
+    #211 est compatible sur ses 55 claims.
+  - [ ] Publier/merger le contrat producteur dans les 4 repositories configurés
+    (`nabla-compose`, `fastapi-sample`, `nabla-site-alban`,
+    `nabla-site-bababou`), puis exécuter la gate de couverture complète avant
+    d'utiliser l'agrégat comme aide à la revue DSOMM.
   - [ ] Fermer ou accepter explicitement le gap GitHub (branche `master` non
     protégée, aucun ruleset), puis compléter les activités manuelles
     Security Champions/IAM/Agentic AI/Identity/process.
@@ -399,9 +419,9 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy from `apps/graf
 - [ ] **Uptime Kuma + AutoKuma Compose** — add repository-owned Uptime Kuma on host port `31050`; AutoKuma remains only the declarative reconciler and stays stopped while Kuma is absent.
 - [ ] **Homarr bootstrap** — make first-run initialization idempotent and secret-backed, then apply generated topology through `homarr-sync`.
 - [ ] **Native TrueNAS → Compose migration** — PostgreSQL and AdGuard Home remain native TrueNAS Apps until backup/rollback/consumer validation is designed.
-- [ ] **Deferred: nginx-proxy-manager** — investigate persistent `DEPLOYING` / unhealthy state.
-- [ ] **Deferred: OpenArchiver** — restore saved App or formally remove from runtime intent after review.
-- [ ] **Deferred: Paperless-ngx** — restore health, then refactor dedicated PostgreSQL/Redis toward shared services with migration/rollback.
+- [ ] **Deferred: nginx-proxy-manager** — read-only specialist diagnosis is now versioned; run `diagnose-nginx-proxy-manager.sh --check` to distinguish stale middleware `DEPLOYING` from Docker/storage/UI failure. Keep the legacy proxy recoverable until the independent NPMplus functional + restart gate is green.
+- [ ] **Deferred: OpenArchiver** — no repository-owned Compose exists yet; preserve the saved TrueNAS App/data and inventory its runtime/database/Tika contract before either restoring it or removing runtime intent.
+- [ ] **Deferred: Paperless-ngx** — no repository-owned Compose exists yet; preserve the saved TrueNAS App/data and inventory PostgreSQL/Redis/Tika dependencies before restore/refactor with rollback.
 - [ ] Akvorado ingestion/query acceptance.
 - [ ] ntopng reconciliation after Suricata.
 - [ ] Pi-hole post-reboot functional acceptance: DNS, UI/API, `pihole-dns-sync`, exporter, no restart loop.
@@ -454,22 +474,40 @@ Compose discovery is also normalized across generator/Pre-commit for dotted and
 hyphenated root variants such as `docker-compose-truenas.yml`.
 Pre-commit configuration parsing/unicity is now an explicit local contract so
 malformed regex quoting or duplicated hook IDs fail before publication.
+The active local secret detector is Betterleaks v1.9.0 (not Gitleaks); it
+temporarily reuses the reviewed `.gitleaks.toml` policy for a no-surprises
+scanner cutover. Historical claims and compatibility comments remain evidence,
+not an additional active Gitleaks gate.
+`justfile` now exposes safe local-first wrappers around the existing mise
+quality/fix/pre-push tasks, plus explicit Betterleaks worktree/staged/history
+scans. The legacy `Makefile` is retained without changing its default target;
+tool versions are pinned in `mise.toml` and `mise.lock`.
 
 Remaining reduction:
 
 1. [ ] Continue centralizing bounded TrueNAS middleware/readiness helpers in
-   `scripts/lib/truenas.sh`; dataset-by-ID and NFS-share-by-path reads are now
-   shared by CSI preflight/reclaim while service-specific forensic loops stay local.
-2. [ ] Expand `scripts/lib/docker.sh` with shared container state/health/PID
-   and Compose-project correlation.
+   `scripts/lib/truenas.sh`; dataset-by-ID, NFS-share-by-path, normalized
+   Docker middleware status and filtered App-by-ID queries are now shared.
+   Joplin/Docling/Scanopy/Wazuh deployers plus the legacy NPM diagnostic consume
+   the canonical App query while transaction-specific bounded reboot loops,
+   retrieve-config reads and service-specific forensic logic stay local.
+2. [x] Expand `scripts/lib/docker.sh` with shared Compose-project lookup and
+   container state/health/PID/exit/restart summaries. Stuck-App and legacy NPM
+   diagnostics now consume those read-only primitives; owner-specific mutation
+   remains outside the library and the contract is enforced by Pre-commit.
 3. [x] Centralize diagnostic output plumbing: `scripts/lib/diagnostic.sh`
-   owns compact/full wrapper delegation for the 23 migrated operator scripts,
+   owns compact/full wrapper delegation for the 24 migrated operator scripts,
    while `scripts/run-diagnostic.sh` remains canonical for private detailed
    logs, counters, bounded summaries and exit-code propagation.
-4. [ ] Centralize bounded HTTP/HTTPS/TCP/DNS retry semantics in
-   `scripts/lib/probe.sh`.
-5. [ ] Prefer canonical data/metadata over repeated Bash policy.
-6. [ ] Move code-server packages/extensions into an immutable derived image.
+4. [x] Centralize bounded HTTP/HTTPS/TCP/DNS readiness semantics in
+   `scripts/lib/probe.sh`: host HTTP/TCP/DNS and container HTTP/TCP/DNS
+   primitives now cover the reviewed plain readiness callers (DSOMM, NPM, P0.3,
+   CSI, Sample exposure, application lifecycle, Pi-hole, Sentry, Langflow,
+   Pyroscope, OpenRAG and MinIO). Pre-commit/anti-duplication contracts protect
+   ownership; response-body, authenticated and application-semantic probes stay
+   local by design.
+5. [ ] Prefer canonical data/metadata and mature OSS libraries over repeated Bash/Python policy. Dotenv parsing delegates to `python-dotenv`; secret-manifest structure is Draft 2020-12 JSON Schema checked by `jsonschema`/`check-jsonschema`; Compose discovery is shared through `nabla_ops.compose_paths`. The local quality loop now lets Pre-commit drive convergence, scopes iteration to working-tree/index changes after a branch-wide preflight, and defers the complete suite to pre-push. Continue only with refactors that measurably remove custom policy/code; evaluate Typer for repetitive Python CLI boilerplate without adding appliance-runtime coupling.
+6. [ ] Move code-server packages/extensions into an immutable derived image. The LinuxServer base is now pinned to reviewed amd64 `4.140.0@sha256:fc6cc21b…`; remove runtime `DOCKER_MODS`/`INSTALL_PACKAGES` and the Open VSX init hook only after the derived image itself is built, versioned and digest-pinned.
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
    diagnostic, rollback and acceptance evidence remains in canonical documents.
@@ -528,7 +566,7 @@ TrueNAS storage + runtime secret normalization (preview -> stage -> per-service 
   -> persistent security Apps acceptance (Plumber + NetBox + Dependency-Track + DefectDojo + Neo4j)
   -> controlled reboot/resume health acceptance for the new Apps
   -> security inventory baseline (NetBox + OCS Inventory + Dependency-Track + DefectDojo + OpenSSF Scorecard)
-  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (protected DSOMM state, reviewed evidence, immutable OpenCRE image, persistence/reboot proof)
+  -> DSOMM maturity assessment + OpenCRE standards correlation acceptance (DSOMM seed syntax/structure is validated; next runtime gate is deploy-dsomm.sh --apply + HTTP/persistence acceptance, then immutable OpenCRE image and correlation/reboot proof)
   -> Dependency-Check SCA feed into the findings workflow; bounded ArcherySec + Faraday Community PoCs with an explicit keep/complement/drop decision before any always-on deployment
   -> Cartography + Neo4j attack-graph PoC after asset identities and provenance are stable
   -> Kubernetes ingress + test.int.albandrieu.com

@@ -59,10 +59,14 @@ truenas_lifecycle_errors_since() {
   return 1
 }
 
+truenas_app_query_by_id() {
+  local app_id="${1:?TrueNAS app id is required}"
+  midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]"
+}
 
 truenas_app_state() {
   local app_id="${1:?TrueNAS app id is required}"
-  midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+  truenas_app_query_by_id "${app_id}" |
     jq -r 'if length == 1 then .[0].state else "MISSING" end'
 }
 
@@ -76,7 +80,7 @@ truenas_reconcile_custom_app() {
     return 1
   }
 
-  if midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
+  if truenas_app_query_by_id "${app_id}" |
     jq -e 'length == 1' >/dev/null; then
     payload="$(jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {include: [$include]}
@@ -110,10 +114,10 @@ truenas_wait_app_running() {
     esac
     sleep "${poll_seconds}"
   done
-  printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n'     "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
+  printf 'ERROR: %s did not reach RUNNING within %ss (state=%s)\n' \
+    "${app_id}" "${timeout_seconds}" "$(truenas_app_state "${app_id}")" >&2
   return 1
 }
-
 
 truenas_dataset_query_by_id() {
   local dataset_id="${1:?TrueNAS dataset id is required}"
@@ -133,4 +137,9 @@ truenas_nfs_share_count_for_path() {
       ]
       | length
     '
+}
+
+truenas_docker_status() {
+  midclt call docker.status 2>/dev/null |
+    jq -r '.status // "UNKNOWN"'
 }

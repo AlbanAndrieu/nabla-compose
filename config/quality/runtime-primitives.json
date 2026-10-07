@@ -36,6 +36,70 @@
     {
       "name": "truenas_nfs_share_count_for_path",
       "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "docker_compose_project_container_ids",
+      "owner": "scripts/lib/docker.sh"
+    },
+    {
+      "name": "docker_container_runtime_summary",
+      "owner": "scripts/lib/docker.sh"
+    },
+    {
+      "name": "probe_http_code",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_http_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_http_wait",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_tcp_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_tcp_wait",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_addresses",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_dns_wait",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "truenas_docker_status",
+      "owner": "scripts/lib/truenas.sh"
+    },
+    {
+      "name": "probe_container_dns_records",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_dns_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_tcp_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "probe_container_http_success",
+      "owner": "scripts/lib/probe.sh"
+    },
+    {
+      "name": "truenas_app_query_by_id",
+      "owner": "scripts/lib/truenas.sh"
     }
   ]
 }

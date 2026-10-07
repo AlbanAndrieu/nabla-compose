@@ -24,6 +24,29 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
         self.assertIn("docker-compose.prod.yml", tracked)
         self.assertIn("compose.ai.yml", tracked)
 
+    def test_shared_compose_discovery_supports_source_archives(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "demo").mkdir(parents=True)
+            (root / "apps" / "demo" / "compose.yml").write_text(
+                "services: {}\n",
+                encoding="utf-8",
+            )
+            (root / "docker-compose.prod.yaml").write_text(
+                "services: {}\n",
+                encoding="utf-8",
+            )
+            (root / "not-compose.yml").write_text("value: true\n", encoding="utf-8")
+
+            tracked = {
+                path.as_posix() for path in MODULE.discover_compose_paths(root)
+            }
+
+        self.assertEqual(
+            tracked,
+            {"apps/demo/compose.yml", "docker-compose.prod.yaml"},
+        )
+
     def test_hosted_by_is_a_supported_relation_type(self) -> None:
         relation = MODULE.topology_relation(
             {

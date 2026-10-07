@@ -12,6 +12,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 # shellcheck source=scripts/lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# shellcheck source=scripts/lib/probe.sh
+source "${ROOT}/scripts/lib/probe.sh"
 # Shared TrueNAS helper owns the pool.dataset.query call used by this preflight.
 nabla_resolve_talos_client_config "${ROOT}"
 TRUENAS_HOST="${TRUENAS_CSI_HOST:-172.17.0.24}"
@@ -125,7 +127,7 @@ worker_count="$(
   fail "expected at least ${EXPECTED_WORKERS} worker nodes, found ${worker_count}"
 ok "${worker_count} worker nodes available for cross-node persistence smoke"
 
-if timeout 3 bash -c "</dev/tcp/${TRUENAS_HOST}/2049" 2>/dev/null; then
+if probe_tcp_success "${TRUENAS_HOST}" 2049 3; then
   ok "TrueNAS NFS TCP/2049 reachable at ${TRUENAS_HOST}"
 else
   fail "TrueNAS NFS TCP/2049 is not reachable at ${TRUENAS_HOST}"

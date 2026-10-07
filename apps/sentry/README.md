@@ -37,8 +37,22 @@ Sentry is started or migrated.
 
 ## Secrets
 
-Create `/mnt/cpool/sentry/.env.secrets` with mode `0600`. The file must not
-be committed.
+The runtime transition keeps the historical paths only as compatibility
+entrypoints. Canonical staged material lives under:
+
+```text
+/mnt/cpool/secrets/runtime/sentry/.env.secrets
+/mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets
+```
+
+Until finalization, Compose may still reference
+`/mnt/cpool/sentry/.env.secrets` and
+`/mnt/cpool/sentry/.env.migrator.secrets`. After functional acceptance,
+`bootstrap-repository-env-files.sh --finalize sentry` replaces those legacy
+regular files with compatibility symlinks to the canonical copies; it never
+merges differing values.
+
+The active `.env.secrets` must be mode `0600` and must not be committed.
 
 Required names:
 
@@ -79,8 +93,30 @@ must be copied into the runtime `.env.secrets` file.
 not print this URL in diagnostics because it contains the Redis password.
 
 Relay 26.8 accepts `RELAY_ID`, `RELAY_PUBLIC_KEY`, and `RELAY_SECRET_KEY`
-directly. Generate them once and keep them in the secret file; do not depend on
-the repository `sentry/` submodule or an ephemeral Relay credentials file.
+directly. `reconcile-sentry-system-secret.sh --apply` preserves a complete
+existing set, restores a matching canonical set when available, and only
+generates a new set with the pinned Relay 26.8 image when neither accepted copy
+contains credentials. Partial/conflicting sets fail closed and values are never
+printed.
+
+For a Sentry App stuck in `DEPLOYING`, use the bounded recovery flow:
+
+```bash
+sudo bash scripts/truenas/recover-sentry-deploying.sh --check
+sudo bash scripts/truenas/recover-sentry-deploying.sh --apply
+```
+
+The apply path repairs only missing credential prerequisites, redeploys only
+Sentry, requires `RUNNING`, the full diagnostic, and the end-to-end ingestion
+smoke, then restages canonical runtime files. After an observation window,
+finalize only if current diagnostic and E2E ingestion are still green:
+
+```bash
+sudo bash scripts/truenas/recover-sentry-deploying.sh --finalize
+```
+
+Do not depend on the repository `sentry/` submodule or an ephemeral Relay
+credentials file.
 
 ## ClickHouse identities
 

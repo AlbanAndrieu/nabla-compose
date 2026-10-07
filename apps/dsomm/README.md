@@ -72,6 +72,66 @@ On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
 runtime state with mode `0600`. Existing runtime progress/evidence files are
 **never overwritten** by later deploys.
 
+## Repository assessment aggregation
+
+Portable producer contract: `config/repository-assessment.schema.json`.
+The consumer test suite locks its enums/constants to the manual fail-closed
+validator so producer and portfolio semantics cannot silently diverge.
+
+`nabla-compose` can ingest repository-owned
+`nabla.dsomm.repository-assessment/v1` documents without turning missing data
+into a negative score. The context mapping remains
+`config/repository-contexts.yaml`; repository assessments keep their own
+activity UUID, basis commit, confidence and evidence provenance.
+
+The importer is deliberately separate from the reviewed runtime seed:
+
+```bash
+# Validate a producer without writing portfolio state
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
+  --check
+
+# Future portfolio acceptance once all configured producers are published
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-compose=/path/to/nabla-compose-assessment.json \
+  --source AlbanAndrieu/fastapi-sample=/path/to/fastapi-assessment.json \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/site-alban-assessment.json \
+  --source AlbanAndrieu/nabla-site-bababou=/path/to/site-bababou-assessment.json \
+  --check --require-complete-sources
+
+# Aggregate reviewed producer documents
+python scripts/dsomm/aggregate-repository-assessments.py \
+  --source AlbanAndrieu/nabla-site-alban=/path/to/nabla-dsomm-assessment.json \
+  --output /mnt/cpool/dsomm/reports/repository-assessment.aggregate.json
+```
+
+An explicit HTTPS URL can be used instead of a local path once a producer is
+published, for example its `/.well-known/nabla/dsomm-assessment.json` mirror.
+HTTP URLs are rejected, redirects must remain HTTPS and each imported document
+is capped at 1 MiB before JSON parsing.
+
+Aggregation rules are fail-closed:
+
+- producer and portfolio DSOMM `version` **and** `sourceCommit` must match;
+- import identity uses the vendored 249-activity index derived from upstream
+  `generated/model.yaml` at the pinned DSOMM 5.0.2 commit; the smaller
+  22-activity runtime seed remains only the conservative Nabla prefill;
+- claims join only by upstream `activityUuid`, with canonical name, dimension
+  and level checked against that full identity index;
+- `not-applicable` is excluded from the average;
+- a missing repository or missing activity claim remains `not-assessed`, never
+  zero;
+- a context gets a `recommendedDsommState` only when **every configured
+  repository** has assessed that activity or declared it not applicable;
+- repository evidence is retained with a namespaced `producerRef`.
+
+The generated portfolio JSON is a review/aggregation artifact, not an automatic
+mutation of `team-progress.yaml`. This prevents one well-instrumented repository
+from silently raising the maturity of the whole `Nabla Applications` context.
+Restricted evidence retains its visibility marker; a future public UI must not
+assume that such evidence is publicly readable.
+
 ## Architecture
 
 - `dsomm`: frontend-only OWASP DSOMM UI on `172.17.0.24:31088`.

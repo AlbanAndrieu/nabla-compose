@@ -3,6 +3,7 @@ model:
   version: "5.0.2"
   released: "2026-09-17"
   reviewedAt: "2026-10-04"
+  sourceCommit: "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a"
   source: https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data
 activities:
   066084c6-1135-4635-9cc5-9e75c7c5459f:

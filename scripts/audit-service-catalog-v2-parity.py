@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
-import subprocess
 import sys
 
 import yaml
@@ -29,28 +27,17 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     desired_exposure_errors,
     preparation_errors,
 )
+from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
 
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
 BUSINESS_CRITICALITY_POLICY = ROOT / "catalog" / "business-criticality-policy.yaml"
-COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml$")
 
 
 def _tracked_compose_paths() -> list[Path]:
-    """Use the same tracked Compose path shape as the topology generator."""
-    result = subprocess.run(
-        ["git", "ls-files", "*.yml", "*.yaml"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return sorted(
-        ROOT / line
-        for line in result.stdout.splitlines()
-        if COMPOSE_PATH_RE.search(line) and (ROOT / line).is_file()
-    )
+    """Return absolute Compose paths from the shared archive-aware discovery."""
+    return [ROOT / path for path in discover_compose_paths(ROOT)]
 
 
 def _backstage_entities() -> list[dict]:
@@ -202,8 +189,11 @@ def _compose_relation_bindings() -> list[dict]:
 
 def _compose_exposure_bindings() -> list[dict]:
     result: list[dict] = []
-    paths = sorted((ROOT / "apps").glob("*/compose*.yml"))
-    paths.extend(sorted((ROOT / "apps").glob("*/compose*.yaml")))
+    paths = [
+        path
+        for path in _tracked_compose_paths()
+        if path.relative_to(ROOT).parts[:1] == ("apps",)
+    ]
     for path in paths:
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):

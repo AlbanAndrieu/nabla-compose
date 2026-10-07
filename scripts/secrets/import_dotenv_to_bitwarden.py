@@ -10,7 +10,7 @@ argv, logs, or the process environment.
 from __future__ import annotations
 
 import argparse
-import json
+from io import StringIO
 import os
 from pathlib import Path
 import subprocess
@@ -18,6 +18,7 @@ import sys
 from typing import Any
 
 import audit_consumers
+from dotenv.parser import parse_stream
 import import_env_to_bitwarden as importer
 from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
 
@@ -138,53 +139,28 @@ def read_root_bounded(path: Path) -> str:
     return result.stdout
 
 
-def decode_dotenv_value(raw: str) -> str:
-    value = raw.strip()
-    if len(value) >= 2 and value[0] == value[-1] == "'":
-        body = value[1:-1]
-        out: list[str] = []
-        index = 0
-        while index < len(body):
-            if body[index] == "\\" and index + 1 < len(body):
-                out.append(body[index + 1])
-                index += 2
-                continue
-            out.append(body[index])
-            index += 1
-        return "".join(out)
-    if len(value) >= 2 and value[0] == value[-1] == '"':
-        try:
-            decoded = json.loads(value)
-        except json.JSONDecodeError:
-            decoded = value[1:-1]
-        if not isinstance(decoded, str):
-            raise SecretsError("quoted dotenv value did not decode to a string")
-        return decoded
-    return value
-
-
 def parse_dotenv(text: str) -> dict[str, str]:
+    """Parse dotenv without interpolation or environment mutation, failing closed."""
     result: dict[str, str] = {}
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
+    for binding in parse_stream(StringIO(text)):
+        if binding.error:
+            raise SecretsError(
+                f"invalid dotenv syntax at line {binding.original.line}"
+            )
+        key = binding.key
+        if key is None:
             continue
-        if line.startswith("export "):
-            line = line[7:].lstrip()
-        if "=" not in line:
-            raise SecretsError("legacy dotenv contains a non-assignment line")
-        key, raw_value = line.split("=", 1)
-        key = key.strip()
-        if not key or not key.replace("_", "").isalnum():
+        if not key.replace("_", "").isalnum():
             raise SecretsError(f"invalid dotenv key: {key!r}")
-        value = decode_dotenv_value(raw_value)
+        value = binding.value
+        if value is None:
+            raise SecretsError("legacy dotenv contains a non-assignment line")
         if "\x00" in value or "\n" in value or "\r" in value:
             raise SecretsError(f"{key}: multiline/NUL secret is unsupported")
         if key in result and result[key] != value:
             raise SecretsError(f"duplicate dotenv key with conflicting values: {key}")
         result[key] = value
     return result
-
 
 def collect_values(
     spec: dict[str, Any],

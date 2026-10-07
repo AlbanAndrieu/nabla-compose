@@ -64,6 +64,47 @@ class SecretsRendererTests(TestCase):
         self.assertNotIn('"value"', serialized)
         self.assertNotIn('"secretValue"', serialized)
 
+    def test_manifest_json_schema_preserves_secret_source_contract(self) -> None:
+        schema = json.loads(renderer.MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+        renderer.Draft202012Validator.check_schema(schema)
+
+        manifest = {
+            "schemaVersion": 1,
+            "server": "https://vaultwarden.example.test",
+            "folder": {"name": "TrueNAS", "id": "folder-id"},
+            "items": [
+                {
+                    "app": "demo",
+                    "item": "nabla/prod/demo",
+                    "secrets": [
+                        {"env": "LOGIN_TOKEN", "source": "login.password"},
+                    ],
+                }
+            ],
+        }
+        renderer.validate_manifest(manifest)
+
+        manifest["items"][0]["secrets"][0]["value"] = "must-never-live-here"
+        with self.assertRaises(renderer.SecretsError):
+            renderer.validate_manifest(manifest)
+
+    def test_manifest_json_schema_rejects_non_https_server(self) -> None:
+        manifest = {
+            "schemaVersion": 1,
+            "server": "http://vaultwarden.example.test",
+            "folder": {"name": "TrueNAS", "id": "folder-id"},
+            "items": [
+                {
+                    "app": "demo",
+                    "item": "nabla/prod/demo",
+                    "secrets": [{"env": "TOKEN", "field": "TOKEN"}],
+                }
+            ],
+        }
+
+        with self.assertRaises(renderer.SecretsError):
+            renderer.validate_manifest(manifest)
+
     def test_infrastructure_truenas_key_is_namespaced(self) -> None:
         manifest = renderer.load_manifest(ROOT / "config" / "secrets" / "manifest.json")
         infra = next(

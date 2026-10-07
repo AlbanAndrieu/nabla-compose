@@ -9,6 +9,13 @@ fi
 # shellcheck source=../lib/common.sh
 source "${COMMON_LIB}"
 
+DOCKER_LIB="${SCRIPT_DIR}/../lib/docker.sh"
+if [[ ! -r "${DOCKER_LIB}" ]]; then
+  DOCKER_LIB="${NABLA_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}/scripts/lib/docker.sh"
+fi
+# shellcheck source=../lib/docker.sh
+source "${DOCKER_LIB}"
+
 MODE="${1:---check}"
 shift || true
 
@@ -246,25 +253,19 @@ while IFS= read -r app; do
   ' "${jobs_json}" || true
 
   project="ix-${app}"
-  mapfile -t ids < <(
-    docker ps -a --filter "label=com.docker.compose.project=${project}" --format '{{.ID}}'
-  )
+  mapfile -t ids < <(docker_compose_project_container_ids "${project}")
 
   if (("${#ids[@]}" == 0)); then
     printf 'containers=<none> project=%s\n' "${project}"
   fi
 
   for id in "${ids[@]}"; do
-    inspect="$(docker inspect "${id}")"
-    name="$(jq -r '.[0].Name | ltrimstr("/")' <<<"${inspect}")"
-    service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // "unknown"' <<<"${inspect}")"
-    status="$(jq -r '.[0].State.Status // "unknown"' <<<"${inspect}")"
-    health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
-    exit_code="$(jq -r '.[0].State.ExitCode // 0' <<<"${inspect}")"
-    restarts="$(jq -r '.[0].RestartCount // 0' <<<"${inspect}")"
+    IFS="$(printf '\t')" read -r name service status health pid exit_code restarts < <(
+      docker_container_runtime_summary "${id}"
+    )
 
-    printf 'container=%s service=%s status=%s health=%s exit=%s restarts=%s\n' \
-      "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
+    printf 'container=%s service=%s status=%s health=%s pid=%s exit=%s restarts=%s\n' \
+      "${name}" "${service}" "${status}" "${health}" "${pid}" "${exit_code}" "${restarts}"
 
     if [[ "${status}" == "restarting" || "${health}" == "unhealthy" || "${exit_code}" -ne 0 ]]; then
       printf '%s\n' '  recent logs:'
@@ -276,20 +277,31 @@ while IFS= read -r app; do
 
   case "${app}" in
     sentry)
-      printf 'NEXT: sudo bash scripts/truenas/diagnose-sentry.sh --check\n'
+      printf 'NEXT: sudo bash scripts/truenas/recover-sentry-deploying.sh --check\n'
+      printf '      If the secret prerequisites fail or Sentry remains DEPLOYING: sudo bash scripts/truenas/recover-sentry-deploying.sh --apply\n'
       ;;
     wazuh)
       printf 'NEXT: sudo bash scripts/truenas/diagnose-wazuh.sh --check\n'
       printf '      If prerequisites are valid and state stays STOPPED: sudo bash scripts/truenas/deploy-wazuh.sh\n'
       ;;
     langflow)
-      printf 'NEXT: verify /mnt/cpool/langflow/.env.secrets contains a non-empty LANGFLOW_SUPERUSER_PASSWORD before restart.\n'
+      printf 'NEXT: verify the active Langflow secret path resolves to a non-empty LANGFLOW_SUPERUSER_PASSWORD; prefer the canonical /mnt/cpool/secrets/runtime/langflow/.env.secrets materialization before restart.\n'
       ;;
     grafana)
       printf 'NEXT: Loki/Tempo permission failures require bind-root ownership repair before restarting Grafana.\n'
       ;;
     i2p)
       printf 'NEXT: the I2P router healthcheck must listen on 7657; if I2P is intentionally deferred, keep the App STOPPED instead of forcing convergence.\n'
+      ;;
+    nginx-proxy-manager)
+      printf 'NEXT: sudo bash scripts/truenas/diagnose-nginx-proxy-manager.sh --check\n'
+      printf '      Keep the legacy App recoverable until the independent NPMplus functional/restart gate is green.\n'
+      ;;
+    openarchiver)
+      printf 'NEXT: no repository-owned OpenArchiver Compose exists; preserve the saved TrueNAS App/data and inventory its runtime contract before mutation.\n'
+      ;;
+    paperless-ngx)
+      printf 'NEXT: no repository-owned Paperless-ngx Compose exists; preserve the saved TrueNAS App/data and inventory PostgreSQL/Redis/Tika dependencies before mutation.\n'
       ;;
     openrag)
       printf 'NEXT: require Langflow and OpenSearch healthy, then run reconcile-openrag-opensearch-secret.sh --check before restarting OpenRAG.\n'

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/truenas.sh
+source "${SCRIPT_DIR}/../lib/truenas.sh"
+
 MODE="${1:---check}"
 TARGET_IPV4_BASE="${TRUENAS_DOCKER_IPV4_BASE:-10.200.0.0/16}"
 TARGET_IPV4_SIZE="${TRUENAS_DOCKER_IPV4_SIZE:-24}"
@@ -43,7 +47,7 @@ cleanup() {
 runtime_snapshot() {
   local service_state status
   service_state="$(systemctl is-active docker 2>/dev/null || true)"
-  status="$(midclt call docker.status 2>/dev/null | jq -r '.status // "UNKNOWN"' || true)"
+  status="$(truenas_docker_status || true)"
   printf '%s %s\n' "${service_state:-unknown}" "${status:-UNKNOWN}"
 }
 
@@ -281,7 +285,7 @@ verify_target_config() {
 verify_runtime_ready() {
   local service_state status
   service_state="$(systemctl is-active docker 2>/dev/null || true)"
-  status="$(midclt call docker.status 2>/dev/null | jq -r '.status // "UNKNOWN"' || true)"
+  status="$(truenas_docker_status || true)"
   [[ "${service_state}" == "active" ]] ||
     fail "docker.service is ${service_state:-unknown}, expected active"
   [[ "${status}" == "RUNNING" ]] ||

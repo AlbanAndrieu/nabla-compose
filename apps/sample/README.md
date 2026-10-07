@@ -150,12 +150,17 @@ For self-hosted Sentry, keep the project DSN in `/mnt/cpool/secrets/runtime/samp
 FastAPI Sample can optionally enrich the service-first health board from the
 existing Prometheus recording-rule contract without exposing arbitrary PromQL.
 
-Put the non-secret Prometheus endpoint in `/mnt/cpool/secrets/runtime/sample/.env`:
+The reviewed non-secret LAN endpoint is now explicit in
+`apps/sample/compose.yml`:
 
 ```dotenv
 HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090
 HOMELAB_PROMETHEUS_TIMEOUT_SECONDS=1.5
 ```
+
+Compose values override stale copies in the runtime env files. Operators may
+override the defaults deliberately through the matching Compose interpolation
+variables when testing another trusted Prometheus endpoint.
 
 The application only reads the fixed `nabla:*` recording rules maintained in
 `apps/prometheus/rules/nabla-core.rules.yml`. The current summary covers
@@ -169,6 +174,12 @@ platform down.
 
 Keep this endpoint on the trusted LAN. Do not publish Prometheus merely to make
 the FastAPI Cloud health board richer.
+
+`scripts/truenas/update-fastapi-sample.sh` performs a non-blocking
+Prometheus/Gatus observer contract check after deployment. It requires a
+successful instant query returning `nabla:telemetry:gatus_up` and/or
+`nabla:service:synthetic_probe_success` samples. Until that acceptance is
+observed on TrueNAS, FastAPI keeps Gatus-derived service evidence shadow-only.
 
 ## Supabase
 

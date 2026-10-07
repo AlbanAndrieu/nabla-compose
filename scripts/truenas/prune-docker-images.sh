@@ -7,6 +7,8 @@ REBOOT_STATE_ROOT="${NABLA_REBOOT_STATE_ROOT:-/mnt/cpool/var/nabla/reboot}"
 LOCK_FILE="${NABLA_DOCKER_IMAGE_PRUNE_LOCK_FILE:-/tmp/nabla-docker-image-prune.lock}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
+# shellcheck source=../lib/truenas.sh
+source "${SCRIPT_DIR}/../lib/truenas.sh"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -46,7 +48,7 @@ if [[ -f "${REBOOT_STATE_ROOT}/latest" ]]; then
 fi
 
 service_state="$(systemctl is-active docker 2>/dev/null || true)"
-middleware_state="$(midclt call docker.status 2>/dev/null | jq -r '.status // "UNKNOWN"' || true)"
+middleware_state="$(truenas_docker_status || true)"
 [[ "${service_state}" == "active" && "${middleware_state}" == "RUNNING" ]] ||
   skip "Docker is not fully converged (service=${service_state:-unknown} middleware=${middleware_state:-UNKNOWN})"
 

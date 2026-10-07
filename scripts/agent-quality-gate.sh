@@ -18,7 +18,9 @@ fi
 
 MODE="check"
 PUBLISH=false
-CI_FAST=false
+LOCAL_LOOP=false
+TARGETED_ONLY=false
+TARGETED_LABEL=""
 case "${1:-}" in
   --fix)
     MODE="fix"
@@ -28,9 +30,17 @@ case "${1:-}" in
     MODE="preflight"
     shift
     ;;
+  --loop)
+    MODE="fix"
+    LOCAL_LOOP=true
+    TARGETED_ONLY=true
+    TARGETED_LABEL="Local loop"
+    shift
+    ;;
   --ci)
     MODE="ci"
-    CI_FAST=true
+    TARGETED_ONLY=true
+    TARGETED_LABEL="CI fast"
     shift
     ;;
   --publish)
@@ -40,11 +50,12 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Usage:
-  bash scripts/agent-quality-gate.sh [--fix|--preflight|--ci|--publish]
+  bash scripts/agent-quality-gate.sh [--fix|--loop|--preflight|--ci|--publish]
 
 Modes:
   default      strict local validation gate
   --fix        regenerate/fix deterministic artifacts, then run the full local gate
+  --loop       regenerate/fix and run changed-file contracts only; use during edit iterations
   --preflight  Git-only safety gate before dependency installation/build work
   --ci         check-only changed-file gate; skips the full unit suite already required locally before push
   --publish    strict local gate plus canonical clean-tree publication check
@@ -166,7 +177,8 @@ run_compact() {
 
 collect_changed_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD" ]] &&
+      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=ACMR "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=ACMR
@@ -182,7 +194,8 @@ collect_changed_files() {
 
 collect_deleted_files() {
   {
-    if [[ "${BASE_REF}" != "HEAD" ]] && git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    if [[ "${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD" ]] &&
+      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
       git diff --name-only --diff-filter=D "${BASE_REF}...HEAD"
     fi
     git diff --name-only --diff-filter=D
@@ -316,134 +329,35 @@ check_exec_bits() {
       mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
       if [[ "${mode}" != "100755" ]]; then
         if [[ "${MODE}" == "fix" ]]; then
-          git add --chmod=+x -- "${file}"
-          printf '🛠️  executable bit restored for %s\n' "${file}"
-        else
-          printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
-            "${file}" "${mode:-unknown}" "${file}" >&2
-          exec_bit_failed=1
-        fi
-      fi
-    elif [[ ! -x "${file}" ]]; then
-      if [[ "${MODE}" == "fix" ]]; then
-        chmod +x -- "${file}"
-        printf '🛠️  executable bit restored for untracked %s\n' "${file}"
-      else
-        printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
-        exec_bit_failed=1
-      fi
-    fi
+  command -v pre-commit >/dev/null 2>&1 || {
+    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+    exit 1
+  }
+
+  if (("${#CHANGED_FILES[@]}" == 0)); then
+    printf '✅ no local changes require formatter/linter fixes\n'
+    exit 0
+  fi
+
+  generator_scope_changed=false
+  for file in "${CHANGED_FILES[@]}"; do
+    case "${file}" in
+      catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|catalog/service-consumers.static.yml|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|scripts/nabla_ops/compose_paths.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+        generator_scope_changed=true
+        break
+        ;;
+    esac
   done
-  if ((exec_bit_failed != 0)); then
-    exit 1
-  fi
-  printf '✅ executable-script contract\n'
-}
-
-check_base_freshness
-check_destructive_diff
-check_exec_bits
-
-if [[ "${MODE}" == "preflight" ]]; then
-  printf '✅ Git-only agent preflight passed before dependency installation/build work\n'
-  exit 0
-fi
-
-(("${#PYTHON_CMD[@]}" > 0)) || {
-  echo "❌ QG_PYTHON_MISSING: python or python3 is required" >&2
-  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
-  exit 1
-}
-
-if ! "${PYTHON_CMD[@]}" -c 'import pytest, yaml' >/dev/null 2>&1; then
-  echo "❌ QG_PYTHON_DEPS_MISSING: pytest and PyYAML are required by local contract hooks" >&2
-  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
-  exit 1
-fi
-
-agent_gate_changed=false
-for file in "${CHANGED_FILES[@]}"; do
-  if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
-    agent_gate_changed=true
-    break
-  fi
-done
-
-if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
-  command -v pre-commit >/dev/null 2>&1 || {
-    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
-    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
-    exit 1
-  }
-  run_compact "agent gate shell formatting" \
-    pre-commit run shfmt --files scripts/agent-quality-gate.sh
-  run_compact "agent gate shell lint" \
-    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
-  run_compact "agent gate shell style" \
-    pre-commit run bashate --files scripts/agent-quality-gate.sh
-fi
-
-worktree_fingerprint() {
-  {
-    git status --porcelain=v1
-    for file in "${CHANGED_FILES[@]}"; do
-      [[ -f "${file}" ]] || continue
-      printf '%s %s\n' "$(git hash-object -- "${file}")" "${file}"
-    done
-  } | git hash-object --stdin
-}
-
-run_autofix_hook() {
-  local hook="$1"
-  local log
-  local before
-  local after
-  local rc=0
-
-  before="$(worktree_fingerprint)"
-  log="$(mktemp)"
-  pre-commit run "${hook}" --hook-stage pre-commit \
-    --files "${CHANGED_FILES[@]}" --show-diff-on-failure >"${log}" 2>&1 || rc=$?
-  mapfile -t CHANGED_FILES < <(collect_changed_files)
-  after="$(worktree_fingerprint)"
-
-  if [[ "${after}" != "${before}" ]]; then
-    printf '🛠️  %s applied deterministic fixes\n' "${hook}"
-    rm -f "${log}"
-    return 0
-  fi
-  if ((rc != 0)); then
-    printf '❌ autofix hook %s failed without changing files\n' "${hook}" >&2
-    print_compact_log "${log}"
-    rm -f "${log}"
-    return "${rc}"
-  fi
-  rm -f "${log}"
-}
-
-if [[ "${MODE}" == "fix" ]]; then
-  command -v pre-commit >/dev/null 2>&1 || {
-    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
-    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
-    exit 1
-  }
-
-  AUTOFIX_HOOKS=(
-    trailing-whitespace
-    fix-byte-order-marker
-    mixed-line-ending
-    end-of-file-fixer
-    shfmt
-    biome-check
-    prettier
-  )
 
   for ((pass = 1; pass <= FIX_MAX_PASSES; pass++)); do
     printf '🔁 deterministic fix pass %d/%d\n' "${pass}" "${FIX_MAX_PASSES}"
-    run_compact "regenerate declared service topology" \
-      "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
-    run_compact "regenerate service consumers" \
-      "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
+    if [[ "${generator_scope_changed}" == true ]]; then
+      run_compact "regenerate declared service topology" \
+        "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
+      run_compact "regenerate service consumers" \
+        "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
+    fi
 
     mapfile -t CHANGED_FILES < <(collect_changed_files)
     if (("${#CHANGED_FILES[@]}" == 0)); then
@@ -452,31 +366,46 @@ if [[ "${MODE}" == "fix" ]]; then
     fi
 
     before_fingerprint="$(worktree_fingerprint)"
-    for hook in "${AUTOFIX_HOOKS[@]}"; do
-      run_autofix_hook "${hook}"
-    done
-
+    log="$(mktemp)"
+    rc=0
+    pre-commit run --hook-stage pre-commit \
+      --files "${CHANGED_FILES[@]}" --show-diff-on-failure >"${log}" 2>&1 || rc=$?
     mapfile -t CHANGED_FILES < <(collect_changed_files)
-    if run_compact "strict pre-commit check after deterministic autofix batch" \
-      pre-commit run --hook-stage pre-commit \
-      --files "${CHANGED_FILES[@]}" --show-diff-on-failure; then
+    after_fingerprint="$(worktree_fingerprint)"
+
+    if ((rc == 0)) && [[ "${after_fingerprint}" == "${before_fingerprint}" ]]; then
+      rm -f "${log}"
       printf '✅ deterministic formatter/linter fixes converged in %d pass(es)\n' "${pass}"
-      printf 'ℹ️  continuing with the full local unit/contract and canonical quality gates\n'
+      if [[ "${TARGETED_ONLY}" == true ]]; then
+        printf 'ℹ️  continuing with %s changed-file contracts and canonical changed-file gate\n' "${TARGETED_LABEL}"
+      else
+        printf 'ℹ️  continuing with the full local unit/contract and canonical quality gates\n'
+      fi
       break
     fi
 
-    mapfile -t CHANGED_FILES < <(collect_changed_files)
-    after_fingerprint="$(worktree_fingerprint)"
-    if [[ "${after_fingerprint}" == "${before_fingerprint}" ]]; then
-      printf '❌ QG_FIX_STALLED: formatter/linter failed without changing files; fix the reported error instead of repeating identical passes\n' >&2
-      exit 1
+    if [[ "${after_fingerprint}" != "${before_fingerprint}" ]]; then
+      rm -f "${log}"
+      if ((pass == FIX_MAX_PASSES)); then
+        printf '❌ QG_FIX_NON_CONVERGENT: deterministic fixes did not converge after %d passes\n' "${FIX_MAX_PASSES}" >&2
+        exit 1
+      fi
+      printf '🛠️  Pre-commit changed files; rerunning the changed-file gate\n'
+      continue
     fi
-    if ((pass == FIX_MAX_PASSES)); then
-      printf '❌ QG_FIX_NON_CONVERGENT: deterministic fixes did not converge after %d passes\n' "${FIX_MAX_PASSES}" >&2
-      exit 1
-    fi
-    printf 'ℹ️  deterministic fixes changed files; rerunning the complete changed-file gate before build\n'
+
+    printf '❌ QG_FIX_STALLED: Pre-commit failed without changing files; fix the reported error instead of repeating identical passes\n' >&2
+    print_compact_log "${log}"
+    rm -f "${log}"
+    exit "${rc}"
   done
+fi
+
+if [[ "${LOCAL_LOOP}" == true ]]; then
+  git diff --check
+  git diff --cached --check
+  printf '✅ Agent local loop passed: deterministic fixes and changed-file contracts converged; full suite deferred to pre-push.\n'
+  exit 0
 fi
 
 runtime_primitive_scope_changed=false
@@ -489,11 +418,11 @@ for file in "${CHANGED_FILES[@]}"; do
   esac
 done
 
-if [[ "${CI_FAST}" != true || "${runtime_primitive_scope_changed}" == true ]]; then
+if [[ "${TARGETED_ONLY}" != true || "${runtime_primitive_scope_changed}" == true ]]; then
   run_compact "migrated runtime primitive ownership is unique" \
     "${PYTHON_CMD[@]}" scripts/quality/check-runtime-primitive-duplication.py
 else
-  printf 'ℹ️  CI fast mode: runtime primitive ownership check skipped because no shell primitive input changed\n'
+  printf 'ℹ️  %s mode: runtime primitive ownership check skipped because no shell primitive input changed\n' "${TARGETED_LABEL}"
 fi
 
 generated_contract_scope_changed=false
@@ -506,17 +435,17 @@ for file in "${CHANGED_FILES[@]}"; do
   esac
 done
 
-if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]; then
+if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == true ]]; then
   run_compact "declared service topology is synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
   run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
 else
-  printf 'ℹ️  CI fast mode: generated topology/consumer checks skipped because no generator input changed\n'
+  printf 'ℹ️  %s mode: generated topology/consumer checks skipped because no generator input changed\n' "${TARGETED_LABEL}"
 fi
 
-if [[ "${CI_FAST}" == true ]]; then
-  printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
+if [[ "${TARGETED_ONLY}" == true ]]; then
+  printf 'ℹ️  %s mode: full repository unit/contract suite is deferred to the local pre-push publication gate\n' "${TARGETED_LABEL}"
 else
   run_compact "repository unit/contract tests" \
     "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \

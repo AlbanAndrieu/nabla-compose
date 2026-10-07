@@ -136,6 +136,16 @@
   },
   {
     "type": "port",
+    "name": "Doco-CD",
+    "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9120
+  },
+  {
+    "type": "port",
     "name": "Dozzle",
     "description": "Live Docker log viewer and MCP-enabled operations UI.",
     "interval": 60,

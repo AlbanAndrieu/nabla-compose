@@ -7,6 +7,9 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
+# shellcheck source=scripts/lib/probe.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/probe.sh"
+
 APP_ID="${SENTRY_TRUENAS_APP_ID:-sentry}"
 PROJECT="${SENTRY_COMPOSE_PROJECT:-ix-sentry}"
 EDGE_URL="${SENTRY_EDGE_HEALTH_URL:-http://172.17.0.24:9005/_health/}"
@@ -141,7 +144,8 @@ for id in "${container_ids[@]}"; do
   started_at="$(jq -r '.[0].State.StartedAt // ""' <<<"${inspect}")"
   finished_at="$(jq -r '.[0].State.FinishedAt // ""' <<<"${inspect}")"
 
-  printf '%-42s service=%-38s state=%-10s health=%-10s exit=%-3s restarts=%s\n'     "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restart_count}"
+  printf '%-42s service=%-38s state=%-10s health=%-10s exit=%-3s restarts=%s\n' \
+    "${name}" "${service}" "${status}" "${health}" "${exit_code}" "${restart_count}"
   printf '  started=%s finished=%s\n' "${started_at}" "${finished_at}"
 
   if [[ "${health}" != "none" ]]; then
@@ -187,7 +191,9 @@ sock.close()
     done
     printf '  recent_diagnostic_logs:\n'
     diagnostic_logs="$(docker logs --since 24h "${id}" 2>&1 | tail -200 || true)"
-    grep -Ei 'error|exception|traceback|kafka|clickhouse|redis|timeout|health|stuck|rebalance|partition|topic|coordinator'       <<<"${diagnostic_logs}" |
+    grep -Ei \
+      'error|exception|traceback|kafka|clickhouse|redis|timeout|health|stuck|rebalance|partition|topic|coordinator' \
+      <<<"${diagnostic_logs}" |
       tail -80 || true
     if grep -Eqi 'SESSTMOUT|session timed out|group coordinator' <<<"${diagnostic_logs}"; then
       session_timeout_detected=1
@@ -280,7 +286,10 @@ if [[ "${kafka_topic_probe_available}" -eq 1 ]]; then
       inspect="$(docker inspect "${id}")"
       service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // ""' <<<"${inspect}")"
       health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
-      if [[ "${health}" == "unhealthy" && ( "${service}" == snuba-* || "${service}" == "sentry-events-consumer" || "${service}" == "sentry-attachments-consumer" ) ]]; then
+      if [[ "${health}" == "unhealthy" &&
+        ("${service}" == snuba-* ||
+          "${service}" == "sentry-events-consumer" ||
+          "${service}" == "sentry-attachments-consumer") ]]; then
         printf '%s\n' "${service}"
       fi
     done
@@ -327,7 +336,7 @@ else
 fi
 
 printf '\n==> Sentry functional edge health\n'
-if curl --fail --silent --show-error --max-time 8 "${EDGE_URL}" >/dev/null; then
+if probe_http_success "${EDGE_URL}" 3 8; then
   printf '✅ Sentry edge healthy: %s\n' "${EDGE_URL}"
 else
   printf '❌ Sentry edge health failed: %s\n' "${EDGE_URL}" >&2
@@ -336,7 +345,10 @@ fi
 
 printf '\n==> Snuba API health\n'
 snuba_id="$(
-  docker ps     --filter "label=com.docker.compose.project=${PROJECT}"     --filter 'label=com.docker.compose.service=snuba-api'     --format '{{.ID}}' |
+  docker ps \
+    --filter "label=com.docker.compose.project=${PROJECT}" \
+    --filter 'label=com.docker.compose.service=snuba-api' \
+    --format '{{.ID}}' |
   head -n 1
 )"
 if [[ -n "${snuba_id}" ]]; then

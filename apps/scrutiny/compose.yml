@@ -49,7 +49,7 @@ services:
         protocol: tcp
         app_protocol: http
     env_file:
-      - /mnt/cpool/scrutiny/.env.secrets
+      - /mnt/cpool/secrets/runtime/scrutiny/.env.secrets
     environment:
       SCRUTINY_WEB_INFLUXDB_HOST: influxdb
       SCRUTINY_WEB_INFLUXDB_PORT: "8086"

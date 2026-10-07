@@ -120,6 +120,22 @@ def suggested_skills(paths: list[str]) -> list[str]:
     ):
         skills.add("homelab-runtime-status")
 
+    if any(
+        path in {
+            "justfile",
+            "mise.toml",
+            "AGENTS.md",
+            "agent.md",
+            ".pre-commit-config.yaml",
+            ".pre-commit-pre-push.yaml",
+        }
+        or path.startswith("scripts/agent-")
+        or path.startswith(".github/workflows/")
+        or path.startswith(".opencode/")
+        for path in paths
+    ):
+        skills.add("local-first-quality")
+
     return sorted(skills)
 
 

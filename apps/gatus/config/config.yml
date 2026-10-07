@@ -131,6 +131,15 @@ endpoints:
   url: http://172.17.0.24:5001/ready
   conditions:
   - '[STATUS] == 200'
+- name: Doco-CD
+  group: operations
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: doco-cd
+    nabla_service_id: doco-cd
+  url: tcp://172.17.0.24:9120
+  conditions:
+  - '[CONNECTED] == true'
 - name: Dozzle
   group: observability
   interval: 60s

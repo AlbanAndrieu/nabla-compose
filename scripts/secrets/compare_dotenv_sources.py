@@ -7,7 +7,12 @@ import argparse
 from pathlib import Path
 
 import import_dotenv_to_bitwarden as legacy
-from render_from_bitwarden import SecretsError
+from render_from_bitwarden import SecretsError, load_manifest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MANIFEST = ROOT / "config" / "secrets" / "manifest.json"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -15,6 +20,41 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--left", type=Path, required=True)
     parser.add_argument("--right", type=Path, required=True)
     return parser.parse_args()
+
+
+def app_key_aliases(
+    app: str,
+    manifest_path: Path = DEFAULT_MANIFEST,
+) -> dict[str, str]:
+    manifest = load_manifest(manifest_path)
+    matches = [item for item in manifest["items"] if item["app"] == app]
+    if not matches:
+        return {}
+    if len(matches) != 1:
+        raise SecretsError(f"{app}: expected exactly one manifest item")
+
+    aliases: dict[str, str] = {}
+    for secret in matches[0]["secrets"]:
+        target = secret["env"]
+        source = secret.get("importEnv", target)
+        if source != target:
+            aliases[source] = target
+    return aliases
+
+
+def normalize_keys(
+    values: dict[str, str],
+    aliases: dict[str, str],
+) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for key, value in values.items():
+        target = aliases.get(key, key)
+        if target in normalized and normalized[target] != value:
+            raise SecretsError(
+                f"dotenv aliases disagree for normalized key {target}"
+            )
+        normalized[target] = value
+    return normalized
 
 
 def compare_values(
@@ -39,13 +79,21 @@ def main() -> int:
     if not legacy.approved_app_env_path(args.app, args.right):
         raise SecretsError(f"right path is outside approved app dotenv roots: {args.right}")
 
-    left = legacy.parse_dotenv(legacy.read_root_bounded(args.left))
-    right = legacy.parse_dotenv(legacy.read_root_bounded(args.right))
+    aliases = app_key_aliases(args.app)
+    left = normalize_keys(
+        legacy.parse_dotenv(legacy.read_root_bounded(args.left)),
+        aliases,
+    )
+    right = normalize_keys(
+        legacy.parse_dotenv(legacy.read_root_bounded(args.right)),
+        aliases,
+    )
     result = compare_values(left, right)
 
     print(f"app={args.app}")
-    print(f"left={args.left} keys={len(left)}")
-    print(f"right={args.right} keys={len(right)}")
+    print(f"aliases={len(aliases)}")
+    print(f"left={args.left} normalized_keys={len(left)}")
+    print(f"right={args.right} normalized_keys={len(right)}")
     for label in ("onlyLeft", "onlyRight", "differentValue", "sameValue"):
         values = result[label]
         print(f"{label}={len(values)}")

@@ -31,7 +31,7 @@ The goal is to minimize the context required to reach a reliable result, never t
 - local Git/shell inspection (`git status`, `git diff`, `git ls-files`, `rg`) and targeted repository files;
 - GitHub repository/PR operations and GitHub Actions status, jobs, logs, artifacts, and deployment-related evidence;
 - Docker Compose configuration and the repository Compose validation path;
-- `pre-commit`, `scripts/quality-gate.sh`, repository generators/tests, Gitleaks, Checkov, CodeQL, MegaLinter, and the existing security/quality gates;
+- `pre-commit`, `scripts/quality-gate.sh`, repository generators/tests, Betterleaks, Checkov, CodeQL, MegaLinter, and the existing security/quality gates;
 - TrueNAS runtime/API evidence for the production homelab and FastAPI Sample homelab status/health endpoints when runtime verification is required;
 - Vaultwarden plus the Bitwarden CLI/secret contract for secret inventory, rendering, migration, and deployment work;
 - OpenTofu/Terragrunt for the TrueNAS/Talos infrastructure code and Doco-CD for the deployment flows that explicitly use it.
@@ -114,7 +114,9 @@ Task-to-skill routing:
 - explicit security audit, vulnerability review or source-first pen-test request:
   load `security-audit`; use its full six-phase/report workflow only when the
   request explicitly asks for an audit/report, and preserve its sandbox,
-  independent-validation and incomplete-run rules.
+  independent-validation and incomplete-run rules;
+- quality/CI failures, PR continuation or local validation workflow changes:
+  load `local-first-quality`.
 
 For **P0.3**, runtime env normalization and Backstage v2 preparation are one
 service migration bundle. A touched service must have a canonical
@@ -140,37 +142,26 @@ All agent-authored changes must use a branch and pull request. Leave the merge t
 
 ## Local-first validation
 
-For a focused change, run the closest relevant formatter/linter first. After the editing batch, the normal workflow is:
+For quality/CI work and PR continuation, load
+`.agents/skills/local-first-quality/SKILL.md`. Keep `AGENTS.md` limited to the
+cross-agent invariants; the skill owns the detailed execution loop.
 
 ```bash
-mise run agent-fix
-# review only the deterministic diff, then stage/commit it
+mise run agent-loop
+# review deterministic changes, then commit
 mise run agent-pre-push
 ```
 
-`agent-fix` is a bounded convergence loop. When a generator, formatter or safe autofixer changes files, it reruns the complete changed-file pass until the final pass is clean. It stops immediately when a failing pass makes no deterministic change and fails closed if fixes do not converge within the configured pass limit.
+`agent-loop` is the iterative changed-file gate. `agent-pre-push` is the
+authoritative complete local publication gate and is also enforced by the
+pre-push hook. Never bypass it. Do not use remote CI as the edit/format/lint feedback loop.
 
-`agent-pre-push` requires a clean committed worktree, reruns `agent-fix`, and then executes the complete local publication gate. If deterministic tools change committed files, it exits with `QG_AUTOFIX_APPLIED` **before any network push**. The agent must review that compact deterministic diff, amend or commit it, and invoke `agent-pre-push` again. This case does not require GitHub Actions log analysis.
-
-The pre-push Git hook invokes `scripts/agent-pre-push.sh` automatically. Agents must not bypass it. The intended loop is therefore:
-
-```text
-edit batch -> local autofix convergence -> commit -> local pre-push/full tests -> one push -> remote check-only CI
-```
-
-Do not use remote CI as the edit/format/lint feedback loop.
-
-The strict local gate checks branch freshness, suspicious large truncations, executable bits for shebang scripts, generated topology/consumer synchronization, the complete unit/contract suite, and the canonical formatter/linter/security gate. PR CI runs the cheap Git-only `--preflight` before dependencies, then `agent-quality-gate.sh --ci`: a check-only changed-file validation that relies on targeted pre-commit contract hooks instead of rerunning the complete repository test suite. Independent remote security jobs remain authoritative for their own coverage.
-
-`scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/security gate. Publication mode is `scripts/quality-gate.sh --publish`, reached through the local agent publication/pre-push workflow.
-
-Compose files remain validated with:
+`scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/
+security gate. Validate Compose without starting services:
 
 ```bash
 docker compose config --quiet --no-interpolate --no-env-resolution
 ```
-
-Do not start the homelab stack merely to validate configuration. Do not run MegaLinter locally unless diagnosing a MegaLinter-specific failure. Keep validation output compact: fix the first deterministic failure, rerun locally until the final pass is clean, and publish one validated batch rather than using CI as an edit/test loop.
 
 ## Mandatory agent publish policy
 

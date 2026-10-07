@@ -30,6 +30,9 @@ cd "${CANONICAL_ROOT}"
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
 
+# shellcheck source=../lib/probe.sh
+source "${CANONICAL_ROOT}/scripts/lib/probe.sh"
+
 compose_path="${CANONICAL_ROOT}/apps/dsomm/compose.yml"
 progress_seed="${CANONICAL_ROOT}/apps/dsomm/config/team-progress.seed.yaml"
 evidence_seed="${CANONICAL_ROOT}/apps/dsomm/config/team-evidence.seed.yaml"
@@ -91,6 +94,12 @@ done
 if [[ "${MODE}" == "--apply" ]]; then
   printf '\n==> TrueNAS Custom App reconciliation\n'
   truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+
+  state="$(truenas_app_state "${APP_ID}")"
+  if [[ "${state}" == "STOPPED" ]]; then
+    printf 'Starting DSOMM Custom App after configuration reconciliation...\n'
+    midclt call -j app.start "${APP_ID}"
+  fi
 fi
 
 state="$(truenas_app_state "${APP_ID}")"
@@ -100,16 +109,12 @@ state="$(truenas_app_state "${APP_ID}")"
 printf '\n==> wait for DSOMM runtime\n'
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
 
-deadline=$((SECONDS + WAIT_SECONDS))
-while ((SECONDS < deadline)); do
-  if curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${DSOMM_URL}"; then
-    printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"
-    printf '%s%s\n' \
-      'INFO: x-nabla.status remains planned until runtime acceptance is reviewed ' \
-      'and committed as active.'
-    exit 0
-  fi
-  sleep 4
-done
+if probe_http_wait "${DSOMM_URL}" "${WAIT_SECONDS}" 4 3 8; then
+  printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"
+  printf '%s%s\n' \
+    'INFO: x-nabla.status remains planned until runtime acceptance is reviewed ' \
+    'and committed as active.'
+  exit 0
+fi
 
 fail "DSOMM HTTP endpoint did not become ready within ${WAIT_SECONDS}s: ${DSOMM_URL}"

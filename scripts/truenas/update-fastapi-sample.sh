@@ -134,6 +134,69 @@ wait_for_json_endpoint() {
     return 1
 }
 
+verify_prometheus_observer_contract() {
+    local prometheus_url
+    local payload
+    local gatus_up
+    local service_samples
+
+    prometheus_url="$(
+        run_docker exec "${CONTAINER}" sh -lc \
+            'printf "%s" "${HOMELAB_PROMETHEUS_URL:-}"' 2>/dev/null || true
+    )"
+    if [[ -z "${prometheus_url}" ]]; then
+        printf 'WARN: HOMELAB_PROMETHEUS_URL is unset in the FastAPI runtime; Gatus synthetic evidence cannot be accepted yet.\n' >&2
+        return 1
+    fi
+
+    if ! payload="$(
+        run_docker exec "${CONTAINER}" curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 5 \
+            --get \
+            --data-urlencode \
+            'query=nabla:telemetry:gatus_up or nabla:service:synthetic_probe_success' \
+            "${prometheus_url%/}/api/v1/query" 2>/dev/null
+    )"; then
+        printf 'WARN: FastAPI runtime cannot query the configured Prometheus endpoint; keeping Gatus evidence shadow-only.\n' >&2
+        return 1
+    fi
+
+    if ! jq -e \
+        '.status == "success" and .data.resultType == "vector"' \
+        >/dev/null <<<"${payload}"; then
+        printf 'WARN: Prometheus returned an invalid instant-vector response; keeping Gatus evidence shadow-only.\n' >&2
+        return 1
+    fi
+
+    gatus_up="$(
+        jq -r \
+            '[.data.result[] | select(.metric.__name__ == "nabla:telemetry:gatus_up") | .value[1]] | first // "missing"' \
+            <<<"${payload}"
+    )"
+    service_samples="$(
+        jq -r \
+            '[.data.result[] | select(.metric.__name__ == "nabla:service:synthetic_probe_success")] | length' \
+            <<<"${payload}"
+    )"
+
+    if ! jq -e \
+        '[.data.result[]
+          | select(.metric.__name__ == "nabla:telemetry:gatus_up")
+          | .value[1]
+          | tonumber] | any(. >= 1)' \
+        >/dev/null <<<"${payload}" ||
+        [[ "${service_samples}" -lt 1 ]]; then
+        printf 'WARN: Prometheus is reachable but Gatus is not UP or no service samples exist; keeping Gatus evidence shadow-only.\n' >&2
+        return 1
+    fi
+
+    printf 'OK: Prometheus/Gatus observer contract reachable from FastAPI runtime (gatus_up=%s synthetic_samples=%s).\n' \
+        "${gatus_up}" "${service_samples}"
+}
+
 build_fastapi_sample() {
     local log
     local rc=1
@@ -299,6 +362,9 @@ version_payload="$(
 jq . <<<"${version_payload}"
 
 sudo bash scripts/security/verify-truenas-observer-access.sh
+
+printf 'Checking Prometheus/Gatus synthetic observer contract...\n'
+verify_prometheus_observer_contract || true
 
 printf 'Checking optional pfSense split-identity observer...\n'
 if run_docker exec "${CONTAINER}" /code/.venv/bin/python -c     'import nabla.api.pfsense_auth_smoke' >/dev/null 2>&1; then

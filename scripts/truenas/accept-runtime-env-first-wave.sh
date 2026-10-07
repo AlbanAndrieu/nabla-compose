@@ -6,6 +6,11 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
 # shellcheck source=../lib/secrets.sh
 source "${SCRIPT_DIR}/../lib/secrets.sh"
+# shellcheck source=../lib/truenas.sh
+source "${SCRIPT_DIR}/../lib/truenas.sh"
+
+# shellcheck source=../lib/probe.sh
+source "${SCRIPT_DIR}/../lib/probe.sh"
 
 MODE="${1:---check}"
 APP_FILTER="${2:-all}"
@@ -14,14 +19,14 @@ RUNTIME_ROOT="${NABLA_RUNTIME_ENV_ROOT:-/mnt/cpool/secrets/runtime}"
 HEALTH_SCRIPT="${SCRIPT_DIR}/verify-app-runtime-health.sh"
 BUNDLE_CHECK="${CANONICAL_ROOT}/scripts/check-service-migration-bundle.py"
 
-SERVICES=(scanopy joplin autokuma)
+SERVICES=(scanopy joplin autokuma code)
 
 function usage {
   cat <<'EOF'
 usage:
-  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check [scanopy|joplin|autokuma|all]
-  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage [scanopy|joplin|autokuma|all]
-  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept <scanopy|joplin|autokuma>
+  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check [scanopy|joplin|autokuma|code|all]
+  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --stage [scanopy|joplin|autokuma|code|all]
+  sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --accept <scanopy|joplin|autokuma|code>
 
 --check   read-only canonical runtime/env contract check
 --stage   create/stage canonical runtime materialization; keep legacy sources intact
@@ -42,7 +47,7 @@ case "${MODE}" in
 esac
 
 case "${APP_FILTER}" in
-  scanopy | joplin | autokuma | all) ;;
+  scanopy | joplin | autokuma | code | all) ;;
   *)
     fail "unsupported first-wave service: ${APP_FILTER}"
     ;;
@@ -89,6 +94,9 @@ function check_secret_contract {
     autokuma)
       secrets_assert_file "${file}" AUTOKUMA__KUMA__AUTH_TOKEN
       ;;
+    code)
+      secrets_assert_file "${file}" PASSWORD
+      ;;
   esac
 }
 
@@ -124,6 +132,15 @@ function stage_service {
   local app="$1"
   printf '\n== P0.3 stage: %s ==\n' "${app}"
   bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${app}"
+  if [[ "${app}" == "code" ]]; then
+    # Code renames the historical CODE_PASSWORD key to the LinuxServer runtime
+    # key PASSWORD. Staging may therefore still contain the legacy key until
+    # Vaultwarden materialization replaces the canonical .env.secrets file.
+    bash scripts/truenas/bootstrap-repository-runtime.sh --check "${app}"
+    check_compose_contract "${app}"
+    ok "${app}: legacy runtime files staged; Vaultwarden materialization is the next gate"
+    return 0
+  fi
   check_service "${app}"
 }
 
@@ -141,19 +158,29 @@ function accept_dependency {
         jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
         fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
       fi
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:31050/ >/dev/null ||
+      probe_http_success http://172.17.0.24:31050/ 3 10 ||
         fail "autokuma: Uptime Kuma API/UI is not reachable on 172.17.0.24:31050"
+      ;;
+    code)
+      return 0
       ;;
   esac
 }
 
 function deploy_service {
-  local app="$1"
+  local app="$1" state
   case "${app}" in
     scanopy) bash scripts/truenas/deploy-scanopy.sh ;;
     joplin) bash scripts/truenas/deploy-joplin.sh ;;
     autokuma) bash scripts/truenas/deploy-autokuma.sh ;;
+    code)
+      truenas_reconcile_custom_app "${app}" "${CANONICAL_ROOT}/apps/${app}/compose.yml"
+      state="$(truenas_app_state "${app}")"
+      if [[ "${state}" == "STOPPED" ]]; then
+        midclt call -j app.start "${app}"
+      fi
+      truenas_wait_app_running "${app}" 600 5
+      ;;
   esac
   bash "${HEALTH_SCRIPT}" "${app}"
 }
@@ -162,17 +189,18 @@ function functional_probe {
   local app="$1"
   case "${app}" in
     scanopy)
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:60072/ >/dev/null
+      probe_http_success http://172.17.0.24:60072/ 3 10
       ;;
     joplin)
-      curl --fail --silent --show-error --max-time 10 \
-        http://172.17.0.24:22300/api/ping >/dev/null
+      probe_http_success http://172.17.0.24:22300/api/ping 3 10
       ;;
     autokuma)
       # AutoKuma is a controller without an HTTP surface of its own. Runtime
       # stability plus the explicit Uptime Kuma dependency probe is its gate.
       return 0
+      ;;
+    code)
+      probe_http_success http://172.17.0.24:8443/healthz 3 10
       ;;
   esac
 }
@@ -181,6 +209,7 @@ function accept_service {
   local app="$1"
   stage_service "${app}"
   check_vaultwarden_materialization "${app}"
+  check_secret_contract "${app}"
   accept_dependency "${app}"
   deploy_service "${app}"
   functional_probe "${app}" ||

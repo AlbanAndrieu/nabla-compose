@@ -7,20 +7,23 @@ import argparse
 import hashlib
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
+
+ROOT = SCRIPTS_DIR.parent
 STATIC_TOPOLOGY = ROOT / "catalog" / "service-topology.static.json"
 ICON_CATALOG = ROOT / "catalog" / "service-icons.json"
 OUTPUT_TOPOLOGY = ROOT / "catalog" / "service-topology.json"
 OUTPUT_SERVICES = ROOT / "catalog" / "services.json"
 IDENTIFIER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-COMPOSE_PATH_RE = re.compile(r"(^|/)(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml$")
 RUNTIME_PROVIDERS = {"truenas-app", "truenas-vm", "logical", "external", "host"}
 PRESENTATION_ROLES = {"service", "core", "support"}
 CRITICALITIES = {"critical", "high", "medium", "low"}
@@ -62,19 +65,8 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def tracked_compose_paths() -> list[Path]:
-    """Return existing tracked Compose files; deleted PR paths are ignored."""
-    result = subprocess.run(
-        ["git", "ls-files", "*.yml", "*.yaml"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return sorted(
-        Path(line)
-        for line in result.stdout.splitlines()
-        if COMPOSE_PATH_RE.search(line) and (ROOT / line).is_file()
-    )
+    """Return existing Compose files from a checkout or immutable archive."""
+    return discover_compose_paths(ROOT)
 
 
 def require_identifier(value: object, context: str) -> str:

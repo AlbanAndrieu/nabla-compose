@@ -28,7 +28,7 @@ with Git/search before assuming that a file, script, service or test exists.
 | Backstage/catalog/security graph | `nabla-service-catalog` | `scripts/audit-service-catalog-v2-parity.py`, `scripts/generate-catalog-v2-artifacts.py` |
 | TrueNAS runtime acceptance | matching service skills + `homelab-runtime-status` | repository `scripts/truenas/*` helpers |
 | pfSense / HAProxy / PF / Snort / pfBlockerNG | `pfsense-api-debugging` | repository diagnostic scripts before appliance mutation |
-| Quality/CI failure | no broad skill preload | failing local test/hook first, then `mise run agent-fix` |
+| Quality/CI failure or PR continuation | `local-first-quality` | failing local test/hook first, then `mise run agent-loop`, final `mise run agent-pre-push` |
 
 If several rows match, load the union of the named skills but do not preload
 unrelated skills.
@@ -43,11 +43,11 @@ unrelated skills.
 4. **Edit minimally** — preserve existing patterns; do not refactor unrelated
    code.
 5. **Validate narrowly** — run the closest unit/contract/config test first.
-6. **Converge locally** — run `mise run agent-fix`.
+6. **Converge locally** — run `mise run agent-loop` for changed-file feedback.
 7. **Review the deterministic diff** — do not blindly accept generated changes.
 8. **Commit only the logical batch**.
-9. **Publication gate** — run `mise run agent-pre-push`; push only after it is
-   green and the branch is not `master`.
+9. **Publication gate** — run `mise run agent-pre-push`; this is where the full
+   repository suite must pass before push.
 
 If a check fails without producing a deterministic change, inspect and fix the
 first concrete error. Do not repeat the same command hoping for a different

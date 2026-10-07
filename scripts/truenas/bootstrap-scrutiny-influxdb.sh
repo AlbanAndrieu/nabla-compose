@@ -5,7 +5,8 @@ MODE="${1:---check}"
 INFLUX_HOST="${SCRUTINY_INFLUX_HOST:-http://127.0.0.1:31055}"
 INFLUX_ORG="${SCRUTINY_INFLUX_ORG:-nabla}"
 BASE_BUCKET="${SCRUTINY_INFLUX_BUCKET:-scrutiny}"
-SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
+SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/secrets/runtime/scrutiny/.env.secrets}"
+LEGACY_SECRET_FILE="${SCRUTINY_LEGACY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
 ROTATE="${SCRUTINY_TOKEN_ROTATE:-0}"
 TOKEN_SCOPE_VERSION="2"
 AUTH_DESCRIPTION="scrutiny - runtime token v2"
@@ -133,7 +134,7 @@ scrutiny_authorization_ids() {
 
 if [[ "${MODE}" == "--check" ]]; then
   [[ -s "${SECRET_FILE}" ]] ||
-    fail "missing Scrutiny secret file: ${SECRET_FILE}; run --apply with INFLUXDB_ADMIN_TOKEN"
+    fail "missing Scrutiny canonical secret file: ${SECRET_FILE}; preserve/stage the legacy dotenv first, or use --apply only for an intentional new token"
   [[ "$(stat -c '%a' "${SECRET_FILE}")" == "600" ]] ||
     fail "${SECRET_FILE} must be mode 0600"
   token="$(sed -n 's/^SCRUTINY_WEB_INFLUXDB_TOKEN=//p' "${SECRET_FILE}" | head -n1)"
@@ -144,6 +145,10 @@ if [[ "${MODE}" == "--check" ]]; then
   validate_restricted_token "${token}"
   printf '✅ Scrutiny InfluxDB bootstrap: org=%s bucket=%s token=VALID scope=v%s\n'     "${INFLUX_ORG}" "${BASE_BUCKET}" "${TOKEN_SCOPE_VERSION}"
   exit 0
+fi
+
+if [[ ! -s "${SECRET_FILE}" && -s "${LEGACY_SECRET_FILE}" && "${ROTATE}" != "1" ]]; then
+  fail "legacy Scrutiny secret exists at ${LEGACY_SECRET_FILE}; stage/import it to ${SECRET_FILE} before --apply, or set SCRUTINY_TOKEN_ROTATE=1 only for an intentional rotation"
 fi
 
 [[ -n "${INFLUXDB_ADMIN_TOKEN:-}" ]] ||
@@ -262,7 +267,7 @@ validate_authorization_scope "${authorization}" "${org_id}"
 # token that cannot even read the expected Scrutiny resources.
 validate_restricted_token "${restricted_token}"
 
-install -d -m 0750 "$(dirname "${SECRET_FILE}")"
+install -d -o root -g root -m 0700 "$(dirname "${SECRET_FILE}")"
 secret_tmp="$(mktemp "$(dirname "${SECRET_FILE}")/.env.secrets.XXXXXX")"
 umask 077
 {

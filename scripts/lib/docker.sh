@@ -43,3 +43,43 @@ docker_orphan_shim_recovery_guard() {
     return 1
   }
 }
+
+
+# List container IDs owned by one Docker Compose project. Read-only.
+docker_compose_project_container_ids() {
+  local project="${1:-}"
+
+  [[ -n "${project}" ]] || {
+    printf 'Docker Compose project is required\n' >&2
+    return 2
+  }
+
+  docker ps -aq \
+    --filter "label=com.docker.compose.project=${project}"
+}
+
+# Emit one tab-delimited runtime summary:
+# name, compose service, status, health, pid, exit code, restart count.
+docker_container_runtime_summary() {
+  local container_id="${1:-}"
+
+  [[ -n "${container_id}" ]] || {
+    printf 'Docker container id is required\n' >&2
+    return 2
+  }
+
+  docker inspect "${container_id}" |
+    jq -r '
+      .[0]
+      | [
+          (.Name | ltrimstr("/")),
+          (.Config.Labels["com.docker.compose.service"] // "unknown"),
+          (.State.Status // "unknown"),
+          (.State.Health.Status // "none"),
+          (.State.Pid // 0),
+          (.State.ExitCode // 0),
+          (.RestartCount // 0)
+        ]
+      | @tsv
+    '
+}

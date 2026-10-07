@@ -130,10 +130,10 @@ accountability intent, not a mandatory organization chart.
 
 | Tool | Priority | Three Lines | Status | Repository evidence / decision |
 | --- | --- | --- | --- | --- |
-| Gitleaks | P0 | L1 | **USED** | `.gitleaks.toml` exists in all three repos; FastAPI roadmap records native pre-commit execution and `nabla-site-alban` MegaLinter fails on Gitleaks findings. |
-| BetterLeaks | P0 | L1 | **USED (FastAPI)** | FastAPI MegaLinter uses `.gitleaks.toml`, redacts findings and fails the job on detections. |
+| Gitleaks | P3 | L1 | **LEGACY (Compose)** | Superseded by Betterleaks in `nabla-compose` Pre-commit; the MegaLinter Gitleaks integration stays disabled. Other repositories retain their independently verified state. |
+| Betterleaks | P0 | L1 | **USED (Compose + FastAPI)** | `nabla-compose` uses the upstream pinned Pre-commit v1.9.0 hook with redacted staged-diff detection; it explicitly loads the reviewed `.gitleaks.toml` in compatibility mode. A separate full directory/history scan is an operator action, not inferred from a staged-only CI hook. FastAPI's separately configured scanner is unchanged. |
 | Secretlint | P0 | L1 | **USED (FastAPI/site)** | Enabled/blocking in FastAPI and site MegaLinter; disabled in `nabla-compose` MegaLinter where canonical local/pre-commit controls should remain authoritative. |
-| TruffleHog | P3 | L1/L2 | **REFERENCE / DISABLED(MegaLinter)** | Present in security resources but disabled in current Compose/FastAPI MegaLinter. Prefer the standardized Gitleaks/BetterLeaks path unless a coverage gap is demonstrated. |
+| TruffleHog | P3 | L1/L2 | **REFERENCE / DISABLED(MegaLinter)** | Present in security resources but disabled in current Compose/FastAPI MegaLinter. Prefer Betterleaks as the repository scanner; add a second engine only for a demonstrated coverage gap. |
 | GitGuardian | P3/external | L2 | **EXTERNAL / evidence integration** | FastAPI release documentation references GitGuardian; `nabla-site-alban` catalogs it. Treat as external capability, not repo-hosted tooling. |
 
 ### 5. IaC, container and CI/CD configuration security
@@ -258,7 +258,7 @@ justifies a PoC**.
 1. Keep `x-nabla` canonical for services and reconcile Scanopy/NetBox observations
    instead of creating competing identities.
 2. Standardize code/security gates by repository: CodeQL/Semgrep/Bandit where
-   relevant, Gitleaks/BetterLeaks/Secretlint, Checkov/Zizmor and Trivy.
+   relevant, Betterleaks/Secretlint, Checkov/Zizmor and Trivy.
 3. Emit a normalized CycloneDX SBOM for Tier 0/1 software and ingest it into
    Dependency-Track.
 4. Attach findings to an owner, service ID and tier; avoid scanner-only metrics.

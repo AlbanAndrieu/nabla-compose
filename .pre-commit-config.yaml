@@ -114,6 +114,13 @@ repos:
         args: ["--verbose"]
       - id: check-taskfile
         name: "✅ taskfile · Validate Task configuration"
+      - id: check-metaschema
+        name: "🔐 secrets · Validate secret manifest JSON Schema"
+        files: '^config/secrets/manifest[.]schema[.]json$'
+      - id: check-jsonschema
+        name: "🔐 secrets · Validate manifest against JSON Schema"
+        args: ["--schemafile", "config/secrets/manifest.schema.json"]
+        files: '^config/secrets/manifest[.]json$'
 
   - repo: https://github.com/hadolint/hadolint
     rev: v2.15.1
@@ -121,14 +128,24 @@ repos:
       - id: hadolint-docker
         name: "🐳 hadolint · Validate Dockerfile"
 
-  - repo: https://github.com/zricethezav/gitleaks
-    rev: v8.30.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.9.0
     hooks:
-      - id: gitleaks
-        name: "🔒 security · Detect secrets"
+      - id: betterleaks
+        name: "🔒 security · Detect secrets with Betterleaks"
+        # Preserve reviewed suppression rules until a dedicated policy migration.
+        args: [--config=.gitleaks.toml]
 
   - repo: local
     hooks:
+      - id: developer-tooling-contract
+        name: "🛠️ tooling · Validate Betterleaks and Just compatibility"
+        language: system
+        entry: python -m unittest tests.test_dev_tooling_contract -v
+        pass_filenames: false
+        files: >-
+          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
+
       - id: renovate-config-contract
         name: "🤖 renovate · Validate dependency automation contract"
         language: system
@@ -139,17 +156,19 @@ repos:
 
       - id: secret-manifest
         name: "🔐 secrets · Validate metadata-only manifest"
-        language: system
+        language: python
         entry: python scripts/secrets/render_from_bitwarden.py --check
+        additional_dependencies: ["jsonschema==4.22.0"]
         pass_filenames: false
-        files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
+        files: '^(config/secrets/manifest(?:[.]schema)?\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
 
       - id: secret-renderer-tests
         name: "🔐 secrets · Test Bitwarden renderer"
-        language: system
+        language: python
         entry: python -m unittest discover -s tests -p test_secrets_renderer.py -v
+        additional_dependencies: ["jsonschema==4.22.0"]
         pass_filenames: false
-        files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
+        files: '^(config/secrets/manifest(?:[.]schema)?\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
 
       - id: secret-consumer-audit
         name: "🔐 secrets · Prevent new unmanaged secret debt"
@@ -169,11 +188,21 @@ repos:
 
       - id: legacy-secret-import-contract
         name: "🔐 secrets · Validate bounded legacy dotenv migration"
-        language: system
+        language: python
         entry: python -m unittest tests.test_legacy_secret_import -v
+        additional_dependencies: ["python-dotenv==1.2.4", "jsonschema==4.22.0"]
         pass_filenames: false
         files: >-
-          ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
+          ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest(?:[.]schema)?|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
+
+      - id: dotenv-source-compare-contract
+        name: "🔐 secrets · Validate dotenv alias comparison"
+        language: python
+        entry: python -m pytest -q tests/test_compare_dotenv_sources.py
+        additional_dependencies: ["pytest==9.1.1", "python-dotenv==1.2.4", "jsonschema==4.22.0"]
+        pass_filenames: false
+        files: >-
+          ^(apps/scrutiny/compose[.]yml|scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|scripts/truenas/(?:bootstrap-scrutiny-influxdb|deploy-scrutiny)[.]sh|config/secrets/manifest(?:[.]schema)?[.]json|tests/test_compare_dotenv_sources[.]py)$
 
       - id: p0-backstage-migration-bundle-contract
         name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
@@ -182,7 +211,15 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/(?:scanopy|joplin|autokuma)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime))[.]sh)|[.]agents/skills/(?:docker-compose-orchestration|homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
+          ^(apps/(?:scanopy|joplin|autokuma|code)/(?:catalog-info[.]yaml|compose[.]yml)|config/secrets/manifest[.]json|scripts/(?:check-service-migration-bundle[.]py|truenas/(?:accept-runtime-env-first-wave|bootstrap-repository-(?:env-files|runtime)|deploy-scanopy)[.]sh)|[.]agents/skills/(?:docker-compose-orchestration|homelab-secrets|nabla-service-catalog)/SKILL[.]md|docs/(?:roadmap|secrets-migration-roadmap|truenas-runtime-layout)[.]md|tests/test_runtime_layout_policy_contract[.]py)$
+
+      - id: scanopy-image-lock-contract
+        name: "🔒 scanopy · Validate fail-closed image admission"
+        language: python
+        entry: python -m unittest tests.test_scanopy_image_lock -v
+        pass_filenames: false
+        files: >-
+          ^(apps/scanopy/compose[.]yml|scripts/truenas/(?:check-scanopy-image-lock|deploy-scanopy)[.]sh|tests/(?:test_scanopy_image_lock|test_runtime_layout_policy_contract)[.]py)$
 
       - id: service-initialization-audit-contract
         name: "🧰 truenas · Validate initialization and local ops classifier"
@@ -202,7 +239,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2|compose_paths)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
@@ -244,7 +281,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(scripts/(?:agent-(?:quality-gate|pre-push|task-context)[.](?:sh|py)|truenas/bootstrap-dev-tools[.]sh)|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|[.]opencode/.*|opencode[.]json|AGENTS[.]md|agent[.]md|mise[.]toml)$
+          ^(scripts/(?:agent-(?:quality-gate|pre-push|task-context)[.](?:sh|py)|truenas/bootstrap-dev-tools[.]sh)|tests/test_agent_quality_gate_contract[.]py|[.]pre-commit-(?:config|pre-push)[.]yaml|[.]mega-linter[.]yml|[.]github/workflows/(?:pre-commit|mega-linter|compose-validate|observability-ci|secret-contract|service-consumers|terragrunt-ci)[.]ya?ml|[.]agents/skills/local-first-quality/SKILL[.]md|[.]opencode/.*|opencode[.]json|AGENTS[.]md|agent[.]md|justfile|mise[.]toml)$
 
       - id: security-ci-contract
         name: "🛡️ security · Validate SAST/runtime production gate contract"
@@ -315,11 +352,11 @@ repos:
       - id: dsomm-contract
         name: "🧭 dsomm · Validate maturity UI and baseline evidence contract"
         language: python
-        entry: bash -c 'python scripts/dsomm/validate-seed.py && python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary -v'
+        entry: bash -c 'python scripts/dsomm/validate-seed.py && python -m unittest tests.test_dsomm_contract tests.test_dsomm_baseline_summary tests.test_dsomm_repository_assessment_aggregate -v'
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/dsomm/validate-seed[.]py|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_secrets_renderer)[.]py)$
+          ^(apps/dsomm/|config/secrets/manifest[.]json|scripts/dsomm/(?:validate-seed|aggregate-repository-assessments)[.]py|scripts/truenas/(?:deploy-dsomm|prepare-security-tooling-secrets)[.]sh|docs/(?:roadmap|security-tooling-control-architecture)[.]md|tests/(?:test_dsomm_contract|test_dsomm_baseline_summary|test_dsomm_repository_assessment_aggregate|test_secrets_renderer)[.]py)$
 
       - id: security-audit-skill-contract
         name: "🛡️ security · Validate vendored audit/report contract"
@@ -346,6 +383,31 @@ repos:
         files: >-
           ^(scripts/(?:lib/diagnostic|run-diagnostic)[.]sh|scripts/(?:infra|observability|security|talos|truenas)/.*[.]sh|tests/(?:test_diagnostic_output_contract|test_truenas_csi_orphan_diagnostic)[.]py|docs/roadmap[.]md)$
 
+      - id: probe-library-contract
+        name: "🌐 probes · Validate bounded network probe library"
+        language: python
+        entry: python -m unittest tests.test_probe_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/lib/probe[.]sh|scripts/(?:ingress/verify-sample-exposure|talos/validate-csi-prereqs)[.]sh|scripts/truenas/(?:deploy-dsomm|diagnose-nginx-proxy-manager|accept-runtime-env-first-wave|audit-app-lifecycle|verify-pihole-dns-sync|smoke-sentry-event|diagnose-sentry|bootstrap-openrag-langflow-key|smoke-fastapi-observability)[.]sh|tests/test_probe_contract[.]py)$
+
+      - id: operator-script-refactor-contract
+        name: "🧱 truenas · Validate shared operator primitives"
+        language: python
+        entry: python -m unittest tests.test_operator_script_refactor_contract -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/lib/(?:common|docker|truenas)[.]sh|scripts/truenas/(?:audit-docker-network-migration|deploy-docling|deploy-joplin|deploy-scanopy|deploy-wazuh|diagnose-csi-orphans|diagnose-docker-orphan-shims|diagnose-influxdb|diagnose-platform|diagnose-stuck-apps|diagnose-nginx-proxy-manager|materialize-reboot-bundle|migrate-docker-address-pool|prune-docker-images|reconcile-reboot-resume|reconcile-talos-vm-policy|verify-talos-vm-autostart)[.]sh|tests/test_operator_script_refactor_contract[.]py|docs/(?:README|roadmap)[.]md|scripts/README[.]md)$
+
+      - id: stuck-app-diagnostic-contract
+        name: "🩺 truenas · Validate stuck-app recovery diagnostics"
+        language: python
+        entry: python -m pytest -q tests/test_stuck_app_diagnostic_contract.py
+        additional_dependencies: ["pytest==9.1.1"]
+        pass_filenames: false
+        files: >-
+          ^(apps/vaultwarden/compose[.]yml|scripts/truenas/(?:diagnose-stuck-apps|diagnose-nginx-proxy-manager|repair-grafana-storage-permissions|diagnose-sentry-migrator-credential|reconcile-sentry-migrator-credential|reconcile-openrag-opensearch-secret|reconcile-sentry-system-secret|recover-sentry-deploying)[.]sh|tests/test_stuck_app_diagnostic_contract[.]py)$
+
       - id: runtime-primitive-duplication
         name: "🧱 runtime · Reject duplicate migrated shell primitives"
         language: system
@@ -360,7 +422,7 @@ repos:
         entry: python scripts/generate-service-topology.py --check
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)$'
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/(?:generate-service-topology|nabla_ops/compose_paths)\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)$'
 
       - id: service-consumer-contract
         name: "🧩 catalog · Validate service consumers and unit tests"
@@ -369,7 +431,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_consumers_status_contract|test_service_topology_generator)[.]py)$
+          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|nabla_ops/compose_paths[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_consumers_status_contract|test_service_topology_generator)[.]py)$
 
       - id: prometheus-config
         name: "📈 prometheus · Validate runtime config with promtool"

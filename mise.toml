@@ -12,6 +12,9 @@ argocd = "latest"
 trivy = "latest"
 pre-commit = "latest"
 task = "latest"
+just = "1.58.0"
+go = "1.25.12"
+"go:github.com/betterleaks/betterleaks" = "v1.9.0"
 yamlfmt = "latest"
 actionlint = "latest"
 opentofu = "latest"
@@ -51,9 +54,17 @@ run = "bash scripts/quality-gate.sh"
 description = "Show bounded branch, changed-path and skill-routing context for local agents"
 run = "python scripts/agent-task-context.py"
 
+[tasks.agent-preflight]
+description = "Run the cheap Git-only safety gate before dependency/setup work"
+run = "bash scripts/agent-quality-gate.sh --preflight"
+
 [tasks.agent-quality]
 description = "Run the repo-specific agent-first gate before publication"
 run = "bash scripts/agent-quality-gate.sh"
+
+[tasks.agent-loop]
+description = "Converge deterministic fixes and run targeted changed-file contracts during edit iterations"
+run = "bash scripts/agent-quality-gate.sh --loop"
 
 [tasks.agent-fix]
 description = "Regenerate deterministic artifacts and converge local pre-commit fixes"

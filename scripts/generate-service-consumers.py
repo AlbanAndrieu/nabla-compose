@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,12 @@ from urllib.parse import urlparse
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
+
+ROOT = SCRIPTS_DIR.parent
 STATIC_CONFIG = ROOT / "catalog" / "service-consumers.static.yml"
 HOMARR_OUTPUT = ROOT / "apps" / "homarr" / "generated" / "apps.json"
 GATUS_OUTPUT = ROOT / "apps" / "gatus" / "config" / "config.yml"
@@ -101,21 +105,8 @@ def title(value: str) -> str:
 
 
 def tracked_compose_paths() -> list[Path]:
-    result = subprocess.run(
-        [
-            "git",
-            "ls-files",
-            "apps/*/compose*.yml",
-            "apps/*/compose*.yaml",
-            "apps/*/docker-compose*.yml",
-            "apps/*/docker-compose*.yaml",
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return sorted(Path(line) for line in result.stdout.splitlines() if line.strip())
+    """Discover Compose inputs in a checkout or immutable source archive."""
+    return discover_compose_paths(ROOT)
 
 
 def load_static() -> dict[str, Any]:
@@ -484,13 +475,18 @@ def collect_services(
         services = document.get("services", {})
         if not isinstance(services, dict):
             continue
-        app_name = relative_path.parts[1]
+        is_app_compose = bool(
+            relative_path.parts and relative_path.parts[0] == "apps"
+        )
+        app_name = relative_path.parts[1] if is_app_compose else relative_path.stem
 
         for raw_service_name, raw_service in services.items():
             if not isinstance(raw_service, dict):
                 continue
             service_name = str(raw_service_name)
             raw_metadata = raw_service.get("x-nabla")
+            if not is_app_compose and not isinstance(raw_metadata, dict):
+                continue
             metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
             service_id = app_service_id(app_name, service_name, metadata)
             if isinstance(raw_metadata, dict):
@@ -533,7 +529,7 @@ def collect_services(
                     metadata.get("monitoring"),
                     default_interval,
                 )
-                if monitor is None:
+                if monitor is None and is_app_compose:
                     monitor = fallback_monitor(
                         service_id,
                         name,

@@ -22,7 +22,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("NABLA_TRUENAS_DEV_VENV", text)
         self.assertIn(".cache/nabla-compose/dev-venv", text)
         self.assertIn('export PATH="${DEV_VENV}/bin:${PATH}"', text)
+        self.assertIn("--loop", text)
         self.assertIn("--ci", text)
+        self.assertIn("TARGETED_ONLY", text)
+        self.assertIn("LOCAL_LOOP", text)
+        self.assertIn('TARGETED_LABEL="Local loop"', text)
+        self.assertIn("Agent local loop passed", text)
+        self.assertIn("full repository unit/contract suite is deferred", text)
+        self.assertGreaterEqual(
+            text.count('"${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD"'),
+            2,
+        )
+        self.assertIn("generator_scope_changed=false", text)
+        self.assertIn(
+            'if [[ "${generator_scope_changed}" == true ]]',
+            text,
+        )
+        self.assertIn("no local changes require formatter/linter fixes", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
@@ -49,22 +65,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("QG_FIX_STALLED", text)
         self.assertIn("QG_FIX_NON_CONVERGENT", text)
         self.assertIn("deterministic formatter/linter fixes converged", text)
-        self.assertIn("AUTOFIX_HOOKS", text)
-        for hook in (
-            "trailing-whitespace",
-            "fix-byte-order-marker",
-            "mixed-line-ending",
-            "end-of-file-fixer",
-            "shfmt",
-            "biome-check",
-            "prettier",
-        ):
-            self.assertIn(hook, text)
-        self.assertIn("run_autofix_hook", text)
-        self.assertIn("strict pre-commit check after deterministic autofix batch", text)
-        self.assertIn("pre-commit run shfmt", text)
-        self.assertIn("pre-commit run shell-lint", text)
-        self.assertIn("pre-commit run bashate", text)
+        self.assertNotIn("AUTOFIX_HOOKS", text)
+        self.assertNotIn("run_autofix_hook", text)
+        self.assertIn("before_fingerprint", text)
+        self.assertIn("after_fingerprint", text)
+        self.assertIn("pre-commit run --hook-stage pre-commit", text)
+        self.assertIn(
+            "Pre-commit changed files; rerunning the changed-file gate",
+            text,
+        )
+        self.assertIn("failed without changing files", text)
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("PYTHON_CMD=(python3)", text)
@@ -74,12 +84,12 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         self.assertIn("--tb=short --show-capture=no tests", text)
         self.assertNotIn("-m unittest discover -s tests", text)
-        self.assertIn("CI fast mode", text)
+        self.assertIn('TARGETED_LABEL="CI fast"', text)
         self.assertIn("generated_contract_scope_changed", text)
         self.assertIn("runtime_primitive_scope_changed", text)
         self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
-        self.assertIn('if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]', text)
+        self.assertIn('if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == true ]]', text)
         self.assertIn("bash scripts/quality-gate.sh --publish", text)
         self.assertIn("service-topology-sync,service-consumer-contract", text)
         self.assertIn('env SKIP="${CANONICAL_SKIP}"', text)
@@ -114,12 +124,22 @@ class AgentQualityGateContractTests(unittest.TestCase):
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
         self.assertIn("[tasks.agent-context]", config)
         self.assertIn("python scripts/agent-task-context.py", config)
+        self.assertIn("[tasks.agent-preflight]", config)
+        self.assertIn('bash scripts/agent-quality-gate.sh --preflight', config)
         self.assertIn("[tasks.agent-fix]", config)
+        self.assertIn("[tasks.agent-loop]", config)
+        self.assertIn('bash scripts/agent-quality-gate.sh --loop', config)
         self.assertIn("[tasks.agent-quality]", config)
         self.assertIn("[tasks.agent-publish]", config)
         self.assertIn("[tasks.agent-pre-push]", config)
         self.assertIn("bash scripts/agent-quality-gate.sh --publish", config)
         self.assertIn("bash scripts/agent-pre-push.sh", config)
+
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertIn("\ncontext:\n    mise run agent-context\n", justfile)
+        self.assertIn("\npreflight:\n    mise run agent-preflight\n", justfile)
+        self.assertIn("\nloop:\n    mise run agent-loop\n", justfile)
+        self.assertIn("\npre-push:\n    mise run agent-pre-push\n", justfile)
 
         bootstrap = (ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh").read_text(
             encoding="utf-8"
@@ -158,7 +178,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         for hook_id in (
             "dsomm-contract",
+            "dotenv-source-compare-contract",
             "runtime-primitive-duplication",
+            "operator-script-refactor-contract",
+            "probe-library-contract",
+            "stuck-app-diagnostic-contract",
             "service-topology-sync",
             "service-consumer-contract",
             "prometheus-config",
@@ -224,6 +248,85 @@ class AgentQualityGateContractTests(unittest.TestCase):
             for hook in local_hooks
             if hook.get("id") == "catalog-v2-preparation-contract"
         )
+        dotenv_compare_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "dotenv-source-compare-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(dotenv_compare_hook["files"]),
+                "scripts/secrets/compare_dotenv_sources.py",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(dotenv_compare_hook["files"]),
+                "tests/test_compare_dotenv_sources.py",
+            )
+        )
+        probe_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "probe-library-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(probe_hook["files"]),
+                "scripts/lib/probe.sh",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(probe_hook["files"]),
+                "scripts/truenas/deploy-dsomm.sh",
+            )
+        )
+        operator_refactor_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "operator-script-refactor-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(operator_refactor_hook["files"]),
+                "scripts/lib/docker.sh",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(operator_refactor_hook["files"]),
+                "scripts/truenas/diagnose-stuck-apps.sh",
+            )
+        )
+        stuck_app_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "stuck-app-diagnostic-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(stuck_app_hook["files"]),
+                "scripts/truenas/recover-sentry-deploying.sh",
+            )
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(stuck_app_hook["files"]),
+                "scripts/truenas/diagnose-nginx-proxy-manager.sh",
+            )
+        )
+        p0_bundle_hook = next(
+            hook
+            for hook in local_hooks
+            if hook.get("id") == "p0-backstage-migration-bundle-contract"
+        )
+        self.assertIsNotNone(
+            re.match(
+                str(p0_bundle_hook["files"]),
+                "apps/code/compose.yml",
+            )
+        )
         self.assertIsNotNone(
             re.match(
                 str(catalog_hook["files"]),
@@ -239,6 +342,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
             config,
         )
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
+        consumer_gate = (
+            ROOT / "scripts" / "quality" / "check-service-consumers.sh"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("unittest discover", consumer_gate)
+        for module in (
+            "tests.test_homarr_sync",
+            "tests.test_service_consumers_status_contract",
+            "tests.test_service_topology_generator",
+        ):
+            self.assertIn(module, consumer_gate)
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
         self.assertIn(
@@ -288,6 +401,30 @@ class AgentQualityGateContractTests(unittest.TestCase):
                 source = path.read_text(encoding="utf-8")
                 self.assertRegex(source, testcase_pattern)
 
+
+    def test_local_first_quality_skill_routes_fast_loop_and_full_publication(self) -> None:
+        skill = (
+            ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("just context", skill)
+        self.assertIn("just preflight", skill)
+        self.assertIn("mise run agent-loop", skill)
+        self.assertIn("just loop", skill)
+        self.assertIn("mise run agent-pre-push", skill)
+        self.assertIn("**L0 · static**", skill)
+        self.assertIn("**L3 · publication**", skill)
+        self.assertIn("Remote checks are evidence, not an editor", skill)
+        self.assertIn("API-only fallback", skill)
+        self.assertIn("optimistic file", skill)
+
+        context = (ROOT / "scripts" / "agent-task-context.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('skills.add("local-first-quality")', context)
+
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("load `local-first-quality`", agents)
+        self.assertIn("mise run agent-loop", agents)
 
     def test_megalinter_only_keeps_non_duplicate_coverage(self) -> None:
         config = yaml.safe_load((ROOT / ".mega-linter.yml").read_text(encoding="utf-8"))

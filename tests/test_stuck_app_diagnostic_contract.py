@@ -1,4 +1,5 @@
 from pathlib import Path
+import stat
 import subprocess
 
 
@@ -12,11 +13,16 @@ def test_stuck_app_diagnostic_is_read_only_and_bounded() -> None:
     assert "--check" in text
     assert "NABLA_STUCK_APP_QUERY_TIMEOUT_SECONDS" in text
     assert "core.get_jobs" in text
-    assert "docker ps -a" in text
-    assert "docker inspect" in text
+    assert "lib/docker.sh" in text
+    assert "docker_compose_project_container_ids" in text
+    assert "docker_container_runtime_summary" in text
+    assert "pid=%s" in text
     assert "docker logs --tail" in text
-    assert "diagnose-sentry.sh --check" in text
+    assert "recover-sentry-deploying.sh --check" in text
     assert "diagnose-wazuh.sh --check" in text
+    assert "diagnose-nginx-proxy-manager.sh --check" in text
+    assert "no repository-owned OpenArchiver Compose exists" in text
+    assert "no repository-owned Paperless-ngx Compose exists" in text
     assert "required catalog dependencies" in text
     assert "service-topology.json" in text
     assert "NABLA_REBOOT_STATE_ROOT" in text
@@ -46,6 +52,38 @@ def test_stuck_app_diagnostic_is_read_only_and_bounded() -> None:
 
     syntax = subprocess.run(
         ["bash", "-n", str(SCRIPT)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
+
+
+def test_nginx_proxy_manager_diagnostic_is_read_only_and_value_blind() -> None:
+    path = ROOT / "scripts" / "truenas" / "diagnose-nginx-proxy-manager.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "--check" in script
+    assert "jc21/nginx-proxy-manager:2.15.0" in script
+    assert "30020|30021|30022" in script
+    assert "/mnt/cpool/npm" in script
+    assert "database.sqlite" in script
+    assert "recent lifecycle jobs (arguments intentionally omitted)" in script
+    assert ".Config.Env" not in script
+    assert "app.start" not in script
+    assert "app.stop" not in script
+    assert "app.update" not in script
+    assert "app.redeploy" not in script
+    assert "docker restart" not in script
+    assert "docker rm" not in script
+
+    mode = path.stat().st_mode
+    assert mode & stat.S_IXUSR
+    assert mode & stat.S_IXGRP
+    assert mode & stat.S_IXOTH
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
         capture_output=True,
         text=True,
         check=False,
@@ -167,12 +205,52 @@ def test_sentry_system_secret_reconcile_is_bounded() -> None:
     assert "/mnt/cpool/secrets/runtime/sentry/.env.secrets" in script
     assert "SENTRY_SECRET_KEY" in script
     assert "SENTRY_SYSTEM_SECRET_KEY" in script
+    assert "RELAY_ID" in script
+    assert "RELAY_PUBLIC_KEY" in script
+    assert "RELAY_SECRET_KEY" in script
+    assert "ghcr.io/getsentry/relay:26.8.0" in script
+    assert "credentials generate --stdout" in script
+    assert "--network none" in script
     assert "openssl rand -hex 32" in script
-    assert "--restage sentry" in script
+    assert "recover-sentry-deploying.sh --apply" in script
     assert "value not printed" in script
+    assert "values not printed" in script
     assert "docker restart" not in script
     assert "app.redeploy" not in script
     assert "cat " not in script
+
+    syntax = subprocess.run(
+        ["bash", "-n", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
+
+
+def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
+    path = ROOT / "scripts" / "truenas" / "recover-sentry-deploying.sh"
+    script = path.read_text(encoding="utf-8")
+
+    assert "--check" in script
+    assert "--apply" in script
+    assert "--finalize" in script
+    assert "reconcile-sentry-system-secret.sh" in script
+    assert "reconcile-sentry-migrator-credential.sh" in script
+    assert 'midclt call -j app.redeploy "${APP_ID}"' in script
+    assert "truenas_wait_app_running" in script
+    assert "diagnose-sentry.sh" in script
+    assert "smoke-sentry-event.sh" in script
+    assert "--restage sentry" in script
+    assert "--finalize sentry" in script
+    assert "pre-finalization end-to-end ingestion smoke" in script
+    assert "--reset-offsets" not in script
+    assert "docker restart" not in script
+    assert "DROP DATABASE" not in script
+    assert "kafka-topics --delete" not in script
+    assert path.stat().st_mode & stat.S_IXUSR
+    assert path.stat().st_mode & stat.S_IXGRP
+    assert path.stat().st_mode & stat.S_IXOTH
 
     syntax = subprocess.run(
         ["bash", "-n", str(path)],

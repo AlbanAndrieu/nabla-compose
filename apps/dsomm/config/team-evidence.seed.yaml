@@ -65,13 +65,16 @@ evidence:
         - Nabla Platform
         - Nabla Applications
       title: Secret scanning is repository-integrated
-      evidenceRecorded: '2026-10-04'
+      evidenceRecorded: '2026-10-06'
       description: >-
-        Gitleaks is configured in the reviewed repositories and nabla-compose
-        includes secret-manifest, renderer and unmanaged-secret-debt contracts.
-        This proves active scanning/configuration but not an exhaustive scan of
-        every historical revision.
+        The nabla-compose PR configures Betterleaks v1.9.0 as the only active
+        pre-commit secrets detector, using the reviewed Gitleaks-format policy
+        in compatibility mode; secret-manifest and renderer contracts remain.
+        This is configuration evidence, not proof of successful full-history
+        scanning or runtime execution on the current commit.
       attachment:
+        - type: link
+          externalLink: https://github.com/AlbanAndrieu/nabla-compose/pull/240/files
         - type: link
           externalLink: https://github.com/AlbanAndrieu/nabla-compose/blob/master/.gitleaks.toml
         - type: link

@@ -7,6 +7,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMMON = ROOT / "scripts/lib/common.sh"
+DOCKER = ROOT / "scripts/lib/docker.sh"
+TRUENAS = ROOT / "scripts/lib/truenas.sh"
+DOCKER_PRUNE = ROOT / "scripts/truenas/prune-docker-images.sh"
+DOCKER_IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
+APP_QUERY_CONSUMERS = (
+    ROOT / "scripts/truenas/deploy-joplin.sh",
+    ROOT / "scripts/truenas/deploy-docling.sh",
+    ROOT / "scripts/truenas/deploy-scanopy.sh",
+    ROOT / "scripts/truenas/deploy-wazuh.sh",
+    ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh",
+)
+STUCK_APPS = ROOT / "scripts/truenas/diagnose-stuck-apps.sh"
+NPM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
 MATERIALIZER = ROOT / "scripts/truenas/materialize-reboot-bundle.sh"
 RESUME_RECONCILER = ROOT / "scripts/truenas/reconcile-reboot-resume.sh"
 PLATFORM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-platform.sh"
@@ -46,6 +59,62 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
+
+    def test_shared_docker_library_owns_runtime_correlation(self) -> None:
+        text = DOCKER.read_text(encoding="utf-8")
+        self.assertIn("docker_compose_project_container_ids()", text)
+        self.assertIn("docker_container_runtime_summary()", text)
+        self.assertIn(".State.Health.Status", text)
+        self.assertIn(".State.Pid", text)
+        self.assertNotIn("docker restart", text)
+        self.assertNotIn("docker rm", text)
+
+        syntax = subprocess.run(
+            ["bash", "-n", str(DOCKER)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+
+        for path in (STUCK_APPS, NPM_DIAGNOSTIC):
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn("lib/docker.sh", script)
+                self.assertIn("docker_compose_project_container_ids", script)
+                self.assertIn("docker_container_runtime_summary", script)
+
+    def test_shared_truenas_library_owns_docker_status_read(self) -> None:
+        text = TRUENAS.read_text(encoding="utf-8")
+        self.assertIn("truenas_docker_status()", text)
+        self.assertIn("midclt call docker.status", text)
+        self.assertIn('.status // "UNKNOWN"', text)
+
+        for path in (DOCKER_PRUNE, DOCKER_IPAM):
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn("lib/truenas.sh", script)
+                self.assertIn("truenas_docker_status", script)
+                self.assertNotIn(
+                    "midclt call docker.status 2>/dev/null | jq -r",
+                    script,
+                )
+
+    def test_shared_truenas_library_owns_filtered_app_query(self) -> None:
+        text = TRUENAS.read_text(encoding="utf-8")
+        self.assertIn("truenas_app_query_by_id()", text)
+        self.assertIn('truenas_app_query_by_id "${app_id}"', text)
+        self.assertEqual(text.count("midclt call app.query"), 1)
+
+        for path in APP_QUERY_CONSUMERS:
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn("lib/truenas.sh", script)
+                self.assertIn("truenas_app_query_by_id", script)
+                self.assertNotIn(
+                    'midclt call app.query "[[\\"id\\",\\"=\\",\\"${APP_ID}\\"]]"',
+                    script,
+                )
 
     def test_immutable_reboot_bundle_tracks_shared_dependencies(self) -> None:
         text = MATERIALIZER.read_text(encoding="utf-8")

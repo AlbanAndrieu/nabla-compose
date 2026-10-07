@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${ROOT}"
 
 OUTPUTS=(
@@ -14,7 +15,7 @@ hash_outputs() {
   local file
   for file in "${OUTPUTS[@]}"; do
     if [[ -f "${file}" ]]; then
-      printf '%s  %s\n' "$(git hash-object "${file}")" "${file}"
+      printf '%s  %s\n' "$(sha256sum "${file}" | awk '{print $1}')" "${file}"
     else
       printf 'MISSING  %s\n' "${file}"
     fi
@@ -33,7 +34,10 @@ if [[ "${BEFORE}" != "${AFTER}" ]]; then
 fi
 
 TESTS_FAILED=false
-if ! python -m unittest discover -s tests -p 'test_*.py'; then
+if ! python -m unittest -v \
+  tests.test_homarr_sync \
+  tests.test_service_consumers_status_contract \
+  tests.test_service_topology_generator; then
   TESTS_FAILED=true
 fi
 

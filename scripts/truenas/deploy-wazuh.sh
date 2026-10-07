@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/truenas.sh
+source "${SCRIPT_DIR}/../lib/truenas.sh"
+
 APP_ID="${WAZUH_APP_ID:-wazuh}"
 WAIT_ATTEMPTS="${WAZUH_WAIT_ATTEMPTS:-240}"
 WAIT_DELAY="${WAZUH_WAIT_DELAY_SECONDS:-5}"
@@ -39,7 +43,7 @@ docker compose \
 
 compose_path="${ROOT}/apps/wazuh/compose.yml"
 
-if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
   midclt call -j app.update "${APP_ID}" "$(
@@ -65,7 +69,7 @@ else
 fi
 
 app_state="$(
-  midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+  truenas_app_query_by_id "${APP_ID}" |
     jq -r '.[0].state // "MISSING"'
 )"
 case "${app_state}" in
@@ -102,7 +106,7 @@ for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
 
   if ((attempt == 1 || attempt % 10 == 0)); then
     state="$(
-      midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+      truenas_app_query_by_id "${APP_ID}" |
         jq -r '.[0].state // "UNKNOWN"'
     )"
     printf 'Wazuh not converged yet (%d/%d, TrueNAS=%s; first startup may initialize persistent volumes/indexes)\n' \
@@ -112,7 +116,7 @@ for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
 done
 
 printf '%s\n' "${last_diagnostic}" >&2
-midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+truenas_app_query_by_id "${APP_ID}" |
   jq '.[0] | {id,state,active_workloads}' >&2 || true
 
 docker ps -a \

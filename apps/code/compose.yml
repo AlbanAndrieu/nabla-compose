@@ -2,7 +2,8 @@
 name: code
 services:
   code-server:
-    image: lscr.io/linuxserver/code-server:latest
+    image: ghcr.io/linuxserver/code-server:4.140.0@sha256:fc6cc21ba06ab0ad02e3695235626bddbef1943f4b8cb874c994cf78619323cd
+    platform: linux/amd64
     container_name: code
     x-nabla:
       id: code-server
@@ -26,13 +27,12 @@ services:
       start_period: 180s
     restart: unless-stopped
     env_file:
-      - /mnt/cpool/code/.env
-      - /mnt/cpool/code/.env.secrets
+      - /mnt/cpool/secrets/runtime/code/.env
+      - /mnt/cpool/secrets/runtime/code/.env.secrets
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-568}
       - TZ=Europe/Paris
-      - PASSWORD=${CODE_PASSWORD}
       - DEFAULT_WORKSPACE=/config/workspace
       - DOCKER_MODS=linuxserver/mods:universal-package-install
       - INSTALL_PACKAGES=build-essential|git|curl|jq|openssh-client|python3|python3-venv

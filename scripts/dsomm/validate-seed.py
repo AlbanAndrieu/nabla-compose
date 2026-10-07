@@ -18,6 +18,7 @@ DEFAULT_ACTIVITIES = ROOT / "apps" / "dsomm" / "config" / "seed-activities.yaml"
 DEFAULT_PROGRESS = ROOT / "apps" / "dsomm" / "config" / "team-progress.seed.yaml"
 DEFAULT_EVIDENCE = ROOT / "apps" / "dsomm" / "config" / "team-evidence.seed.yaml"
 EXPECTED_MODEL_VERSION = "5.0.2"
+EXPECTED_MODEL_SOURCE_COMMIT = "a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a"
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -76,8 +77,15 @@ def validate(
     nonzero_states = [state for score, state in states_by_score if score > 0]
 
     model = catalog.get("model")
-    if not isinstance(model, dict) or str(model.get("version")) != EXPECTED_MODEL_VERSION:
+    if not isinstance(model, dict):
+        fail("seed activity catalog must contain model metadata")
+    if str(model.get("version")) != EXPECTED_MODEL_VERSION:
         fail(f"seed activity catalog must target DSOMM {EXPECTED_MODEL_VERSION}")
+    if model.get("sourceCommit") != EXPECTED_MODEL_SOURCE_COMMIT:
+        fail(
+            "seed activity catalog must pin the reviewed DSOMM source commit "
+            f"{EXPECTED_MODEL_SOURCE_COMMIT}"
+        )
 
     activities = catalog.get("activities")
     if not isinstance(activities, dict) or not activities:
@@ -86,7 +94,7 @@ def validate(
         try:
             uuid.UUID(str(activity_uuid))
         except ValueError as exc:
-            fail(f"invalid DSOMM activity UUID: {activity_uuid}") from exc
+            raise ValueError(f"invalid DSOMM activity UUID: {activity_uuid}") from exc
         if not isinstance(activity, dict) or not str(activity.get("name", "")).strip():
             fail(f"{activity_uuid}: activity name is required")
         level = activity.get("level")
@@ -144,7 +152,9 @@ def validate(
             try:
                 uuid.UUID(evidence_id)
             except ValueError as exc:
-                fail(f"{activity_uuid}: invalid evidence UUID {evidence_id}") from exc
+                raise ValueError(
+                    f"{activity_uuid}: invalid evidence UUID {evidence_id}"
+                ) from exc
             if evidence_id in seen_ids:
                 fail(f"duplicate evidence UUID {evidence_id}")
             seen_ids.add(evidence_id)

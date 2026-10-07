@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=scripts/lib/probe.sh
+source "${ROOT}/scripts/lib/probe.sh"
+
 TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
 PUBLIC_HOST="${PUBLIC_HOST:-sample.albandrieu.com}"
 INTERNAL_HOST="${INTERNAL_HOST:-sample.int.albandrieu.com}"
@@ -75,7 +80,7 @@ pfsense_ips="$(resolve_a_with_server "${PFSENSE_DNS}" "${INTERNAL_HOST}")"
 require_truenas_answer "pfSense/Unbound split DNS" "${pfsense_ips}"
 
 printf '==> system resolver view (non-blocking warning; prefer pfSense/Unbound)\n'
-system_ips="$(getent ahostsv4 "${INTERNAL_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
+system_ips="$(probe_dns_addresses "${INTERNAL_HOST}" 3 || true)"
 if [[ -n "${system_ips}" ]] && grep -Fxq "${TRUENAS_HOST}" <<<"${system_ips}"; then
   printf 'OK: system resolver view resolves %s to TrueNAS %s\n' "${INTERNAL_HOST}" "${TRUENAS_HOST}"
 else
@@ -101,7 +106,7 @@ else
 fi
 
 printf '==> public Cloudflare DNS\n'
-public_ips="$(getent ahostsv4 "${PUBLIC_HOST}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
+public_ips="$(probe_dns_addresses "${PUBLIC_HOST}" 3 || true)"
 [[ -n "${public_ips}" ]] || fail "${PUBLIC_HOST} does not resolve"
 printf '%s\n' "${public_ips}"
 

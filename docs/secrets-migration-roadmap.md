@@ -321,7 +321,7 @@ Exit criteria for each:
 
 Convert services still declaring `/mnt/cpool/<service>/.env*` to `/mnt/cpool/secrets/runtime/<service>/...`.
 
-Prioritize critical platform/data services with tested rollback: PostgreSQL, Pi-hole, Graylog, Mongo, ClickHouse, Sentry, Traefik, Wazuh, then remaining services.
+Prioritize critical platform/data services with tested rollback: PostgreSQL, Pi-hole, Graylog, Mongo, ClickHouse, Sentry, Scrutiny, Traefik, Wazuh, then remaining services. Scrutiny is statically prepared for the canonical path; its existing token, scope-version marker and authorization ID must be imported/staged as one value-blind set before runtime acceptance.
 
 For every service:
 
