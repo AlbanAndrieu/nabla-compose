@@ -50,7 +50,8 @@ just preflight
 ```
 
 This catches protected-branch, stale-base, destructive-diff and executable-bit
-problems before spending time on Python/tool installation.
+problems before spending time on Python/tool installation. Preflight is
+branch-wide; it sees the complete PR delta against the comparison base.
 
 After one bounded edit batch, run:
 
@@ -60,9 +61,13 @@ mise run agent-loop
 just loop
 ```
 
-`agent-loop` runs `scripts/agent-quality-gate.sh --loop`. It:
+`agent-loop` runs `scripts/agent-quality-gate.sh --loop`. Its validation
+scope is deliberately limited to the uncommitted working tree, staged files and
+untracked files; already-committed PR history is revalidated by preflight and
+the final publication gate. It:
 
-- preserves the branch/base/destructive-diff/executable-bit guards;
+- preserves the branch/base guard and checks destructive/executable-bit changes
+  in the current edit batch;
 - regenerates deterministic service artifacts;
 - converges safe formatter/autofixer hooks on changed files;
 - executes pre-commit contracts selected by the changed paths;
