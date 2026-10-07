@@ -55,5 +55,34 @@ class ServiceConsumerStatusContractTests(unittest.TestCase):
                 self.assertNotIn(name, autokuma_names)
 
 
+    def test_active_root_monitoring_is_exported_to_consumers(self) -> None:
+        catalog = json.loads(
+            (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
+        )
+        doco = next(item for item in catalog["services"] if item["id"] == "doco-cd")
+        self.assertEqual(doco.get("status", "active"), "active")
+        self.assertEqual(
+            doco["monitoring"],
+            {"type": "port", "host": "172.17.0.24", "port": 9120},
+        )
+
+        gatus = yaml.safe_load(GATUS.read_text(encoding="utf-8"))
+        endpoints = {
+            endpoint.get("extra-labels", {}).get("nabla_service_id"): endpoint
+            for endpoint in gatus.get("endpoints", [])
+        }
+        self.assertEqual(
+            endpoints["doco-cd"]["url"],
+            "tcp://172.17.0.24:9120",
+        )
+
+        autokuma = json.loads(AUTOKUMA.read_text(encoding="utf-8"))
+        generated = next(item for item in autokuma if item["name"] == "Doco-CD")
+        self.assertEqual(
+            (generated["type"], generated["hostname"], generated["port"]),
+            ("port", "172.17.0.24", 9120),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
