@@ -26,6 +26,20 @@ class LegacySecretImportTests(unittest.TestCase):
         self.assertEqual(parsed["TOKEN"], "literal$(whoami)")
         self.assertEqual(parsed["PASSWORD"], "plain-value")
 
+    def test_dotenv_parser_keeps_variable_references_literal(self) -> None:
+        parsed = legacy.parse_dotenv("TOKEN=${HOME}/secret\n")
+        self.assertEqual(parsed["TOKEN"], "${HOME}/secret")
+
+    def test_dotenv_parser_fails_closed_on_invalid_or_ambiguous_input(self) -> None:
+        for payload in (
+            "TOKEN=ok\nnot an assignment\n",
+            "TOKEN=first\nTOKEN=second\n",
+            'TOKEN="first\\nsecond"\n',
+        ):
+            with self.subTest(payload=payload):
+                with self.assertRaises(legacy.SecretsError):
+                    legacy.parse_dotenv(payload)
+
     def test_collect_values_uses_manifest_keys_without_process_env(self) -> None:
         spec = {
             "app": "demo",
