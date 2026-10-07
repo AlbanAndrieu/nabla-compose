@@ -334,6 +334,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
             config,
         )
         self.assertIn("entry: bash scripts/quality/check-service-consumers.sh", config)
+        consumer_gate = (
+            ROOT / "scripts" / "quality" / "check-service-consumers.sh"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("unittest discover", consumer_gate)
+        for module in (
+            "tests.test_homarr_sync",
+            "tests.test_service_consumers_status_contract",
+            "tests.test_service_topology_generator",
+        ):
+            self.assertIn(module, consumer_gate)
         self.assertIn("homelab-platform-migration-roadmap", config)
         self.assertIn("agent-quality-gate-contract", config)
         self.assertIn(
