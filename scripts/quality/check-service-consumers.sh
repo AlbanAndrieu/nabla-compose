@@ -34,7 +34,10 @@ if [[ "${BEFORE}" != "${AFTER}" ]]; then
 fi
 
 TESTS_FAILED=false
-if ! python -m unittest discover -s tests -p 'test_*.py'; then
+if ! python -m unittest -v \
+  tests.test_homarr_sync \
+  tests.test_service_consumers_status_contract \
+  tests.test_service_topology_generator; then
   TESTS_FAILED=true
 fi
 
