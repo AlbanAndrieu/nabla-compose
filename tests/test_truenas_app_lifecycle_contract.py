@@ -1024,6 +1024,26 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("TrueNAS=%s", script)
         self.assertIn("run_docker logs --tail 80", script)
         self.assertNotIn("--retry-connrefused", script)
+        self.assertIn("verify_prometheus_observer_contract", script)
+        self.assertIn(
+            "nabla:telemetry:gatus_up or "
+            "nabla:service:synthetic_probe_success",
+            script,
+        )
+        self.assertIn("keeping Gatus evidence shadow-only", script)
+        self.assertIn("verify_prometheus_observer_contract || true", script)
+
+        compose = self.read("apps/sample/compose.yml")
+        self.assertIn(
+            "HOMELAB_PROMETHEUS_URL: "
+            "${HOMELAB_PROMETHEUS_URL:-http://172.17.0.24:9090}",
+            compose,
+        )
+        self.assertIn(
+            'HOMELAB_PROMETHEUS_TIMEOUT_SECONDS: '
+            '"${HOMELAB_PROMETHEUS_TIMEOUT_SECONDS:-1.5}"',
+            compose,
+        )
 
     def test_autokuma_token_bootstrap_is_safe_and_executable(self) -> None:
         path = ROOT / "scripts/truenas/bootstrap-autokuma-token.sh"
