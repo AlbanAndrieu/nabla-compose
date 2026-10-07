@@ -120,6 +120,9 @@ def test_scrutiny_manifest_and_runtime_path_preserve_token_metadata() -> None:
     assert canonical in bootstrap
     assert "SCRUTINY_LEGACY_SECRET_FILE" in bootstrap
     assert "SCRUTINY_TOKEN_ROTATE=1 only for an intentional rotation" in bootstrap
+    assert bootstrap.index("legacy Scrutiny secret exists") < bootstrap.index(
+        'create_bucket_if_missing "${BASE_BUCKET}"'
+    )
     assert 'install -d -o root -g root -m 0700' in bootstrap
     assert canonical in deploy
 
