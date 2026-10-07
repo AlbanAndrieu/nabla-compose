@@ -54,6 +54,10 @@ run = "bash scripts/quality-gate.sh"
 description = "Show bounded branch, changed-path and skill-routing context for local agents"
 run = "python scripts/agent-task-context.py"
 
+[tasks.agent-preflight]
+description = "Run the cheap Git-only safety gate before dependency/setup work"
+run = "bash scripts/agent-quality-gate.sh --preflight"
+
 [tasks.agent-quality]
 description = "Run the repo-specific agent-first gate before publication"
 run = "bash scripts/agent-quality-gate.sh"
