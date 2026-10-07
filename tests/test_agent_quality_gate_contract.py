@@ -402,11 +402,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         skill = (
             ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
         ).read_text(encoding="utf-8")
+        self.assertIn("just context", skill)
+        self.assertIn("just preflight", skill)
         self.assertIn("mise run agent-loop", skill)
         self.assertIn("just loop", skill)
         self.assertIn("mise run agent-pre-push", skill)
+        self.assertIn("**L0 · static**", skill)
+        self.assertIn("**L3 · publication**", skill)
         self.assertIn("Remote checks are evidence, not an editor", skill)
         self.assertIn("API-only fallback", skill)
+        self.assertIn("optimistic file", skill)
 
         context = (ROOT / "scripts" / "agent-task-context.py").read_text(
             encoding="utf-8"
