@@ -236,7 +236,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2|compose_paths)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
@@ -419,7 +419,7 @@ repos:
         entry: python scripts/generate-service-topology.py --check
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
-        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/generate-service-topology\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)$'
+        files: '^(catalog/(?:service-topology(?:\.static)?|service-icons|services)(?:\.schema)?\.json|scripts/(?:generate-service-topology|nabla_ops/compose_paths)\.py|(?:apps/[^/]+/)?(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml)$'
 
       - id: service-consumer-contract
         name: "🧩 catalog · Validate service consumers and unit tests"
@@ -428,7 +428,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_consumers_status_contract|test_service_topology_generator)[.]py)$
+          ^(catalog/(?:service-consumers[.]static[.]yml|service-icons[.]json|service-topology(?:[.]static)?[.]json|service-topology[.]schema[.]json|services(?:[.]schema)?[.]json)|scripts/(?:generate-service-(?:consumers|topology)[.]py|nabla_ops/compose_paths[.]py|quality/check-service-consumers[.]sh)|(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml|apps/(?:homarr/sync[.]py|homarr/generated/apps[.]json|gatus/config/config[.]yml|autokuma/static/generated-monitors[.]json)|tests/(?:test_homarr_sync|test_service_consumers_status_contract|test_service_topology_generator)[.]py)$
 
       - id: prometheus-config
         name: "📈 prometheus · Validate runtime config with promtool"
