@@ -10,7 +10,11 @@ default:
 hooks:
     mise run hooks
 
-# Fast developer quality gate (no GitHub Actions rerun).
+# Fast iterative local-first loop: autofix + changed-file contracts only.
+loop:
+    mise run agent-loop
+
+# Full local quality gate without publishing.
 quality:
     mise run agent-quality
 
