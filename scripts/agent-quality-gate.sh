@@ -470,7 +470,11 @@ if [[ "${MODE}" == "fix" ]]; then
       pre-commit run --hook-stage pre-commit \
       --files "${CHANGED_FILES[@]}" --show-diff-on-failure; then
       printf '✅ deterministic formatter/linter fixes converged in %d pass(es)\n' "${pass}"
-      printf 'ℹ️  continuing with the full local unit/contract and canonical quality gates\n'
+      if [[ "${TARGETED_ONLY}" == true ]]; then
+        printf 'ℹ️  continuing with %s changed-file contracts and canonical changed-file gate\n' "${TARGETED_LABEL}"
+      else
+        printf 'ℹ️  continuing with the full local unit/contract and canonical quality gates\n'
+      fi
       break
     fi
 
@@ -502,7 +506,7 @@ if [[ "${TARGETED_ONLY}" != true || "${runtime_primitive_scope_changed}" == true
   run_compact "migrated runtime primitive ownership is unique" \
     "${PYTHON_CMD[@]}" scripts/quality/check-runtime-primitive-duplication.py
 else
-  printf 'ℹ️  ${TARGETED_LABEL} mode: runtime primitive ownership check skipped because no shell primitive input changed\n'
+  printf 'ℹ️  %s mode: runtime primitive ownership check skipped because no shell primitive input changed\n' "${TARGETED_LABEL}"
 fi
 
 generated_contract_scope_changed=false
@@ -521,11 +525,11 @@ if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == tru
   run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
 else
-  printf 'ℹ️  ${TARGETED_LABEL} mode: generated topology/consumer checks skipped because no generator input changed\n'
+  printf 'ℹ️  %s mode: generated topology/consumer checks skipped because no generator input changed\n' "${TARGETED_LABEL}"
 fi
 
 if [[ "${TARGETED_ONLY}" == true ]]; then
-  printf 'ℹ️  ${TARGETED_LABEL} mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
+  printf 'ℹ️  %s mode: full repository unit/contract suite is deferred to the local pre-push publication gate\n' "${TARGETED_LABEL}"
 else
   run_compact "repository unit/contract tests" \
     "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
