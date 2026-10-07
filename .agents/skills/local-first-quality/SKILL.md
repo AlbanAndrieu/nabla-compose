@@ -15,8 +15,10 @@ Use the cheapest deterministic evidence that can falsify the current patch, then
 widen only after it is green:
 
 ```text
-targeted test/config check
-  -> mise run agent-loop
+just context
+  -> just preflight
+  -> targeted test/config check
+  -> just loop
   -> review deterministic diff
   -> commit logical batch
   -> mise run agent-pre-push
@@ -27,7 +29,28 @@ targeted test/config check
 Never claim the complete local gate is green unless `agent-pre-push` (or the
 equivalent complete gate) actually passed on the exact published HEAD.
 
+Use explicit evidence levels in reports:
+
+- **L0 · static**: exact-HEAD file/config inspection only;
+- **L1 · targeted**: narrow unit/contract/config checks executed;
+- **L2 · loop**: deterministic fixes plus changed-file Pre-commit contracts converged;
+- **L3 · publication**: full local `agent-pre-push` passed on the exact HEAD.
+
+Only L3 may be summarized as the complete local quality gate being green.
+
 ## Iteration loop
+
+Before installing dependencies or widening the test scope, get bounded context
+and run the Git-only safety gate:
+
+```bash
+just context
+just preflight
+# equivalent: mise run agent-context && mise run agent-preflight
+```
+
+This catches protected-branch, stale-base, destructive-diff and executable-bit
+problems before spending time on Python/tool installation.
 
 After one bounded edit batch, run:
 
@@ -83,16 +106,26 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
-## API-only fallback
+## API-only / source-archive fallback
 
-When the execution environment cannot obtain a complete checkout:
+When the execution environment cannot obtain a complete Git checkout:
 
-1. batch the smallest logical patch on a dedicated branch;
-2. reproduce the narrowest deterministic checks possible against exact HEAD
-   content;
-3. compare branch freshness and existing workflow/check state without rerunning CI;
-4. disclose which complete local gates could not be executed;
-5. never label the PR locally green from static inspection alone.
+1. pin every read/write to the exact PR branch/HEAD SHA and use optimistic file
+   SHA updates so concurrent edits cannot be overwritten silently;
+2. batch the smallest logical patch on the dedicated branch;
+3. run source-tree-safe contracts when available. Generators should reuse
+   archive-aware discovery such as `nabla_ops.compose_paths` instead of
+   requiring `.git` merely to enumerate Compose files;
+4. reproduce the narrowest deterministic checks possible and classify the
+   evidence as L0 or L1, never L2/L3;
+5. compare branch freshness and inspect existing workflow/check state without
+   rerunning CI;
+6. if the HEAD moves while working, refetch the touched file and reconcile
+   instead of retrying a stale write;
+7. disclose which complete local gates could not be executed and never label
+   the PR locally green from static inspection alone.
+
+This fallback is for continuity, not a substitute for the publication gate.
 
 ## Tooling choice
 
