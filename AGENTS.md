@@ -154,7 +154,7 @@ mise run agent-pre-push
 
 `agent-loop` is the iterative changed-file gate. `agent-pre-push` is the
 authoritative complete local publication gate and is also enforced by the
-pre-push hook. Never bypass it or use remote CI as the edit/format/lint loop.
+pre-push hook. Never bypass it. Do not use remote CI as the edit/format/lint feedback loop.
 
 `scripts/quality-gate.sh` remains the canonical cross-Nabla formatter/linter/
 security gate. Validate Compose without starting services:
