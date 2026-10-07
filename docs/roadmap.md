@@ -229,7 +229,7 @@ Remaining work:
    prove read-only `VM_READ` evidence for the three Talos VMs.
 6. [ ] Normalize Sample PostgreSQL ownership to dedicated database/role
    `sample`; never reuse the PostgreSQL superuser.
-7. [ ] Resolve the Scrutiny dotenv source conflict value-blind before restaging.
+7. [ ] Complete Scrutiny runtime-env acceptance: canonical Compose/bootstrap paths and the Vaultwarden mapping are prepared; compare any legacy/repository-local sources value-blind, preserve the token plus `scope/version` and authorization-id metadata, stage/import the exact accepted set, then redeploy before finalizing the legacy path.
 8. [ ] Create currently missing declared datasets only with the corresponding
    service rollout: cyberbro, defectdojo, dependency-track, neo4j and netbox.
 9. [ ] Reconcile the live TrueNAS Doco-CD container against the canonical
