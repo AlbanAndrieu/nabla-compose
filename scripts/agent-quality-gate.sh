@@ -18,7 +18,8 @@ fi
 
 MODE="check"
 PUBLISH=false
-CI_FAST=false
+TARGETED_ONLY=false
+TARGETED_LABEL=""
 case "${1:-}" in
   --fix)
     MODE="fix"
@@ -28,9 +29,16 @@ case "${1:-}" in
     MODE="preflight"
     shift
     ;;
+  --loop)
+    MODE="fix"
+    TARGETED_ONLY=true
+    TARGETED_LABEL="Local loop"
+    shift
+    ;;
   --ci)
     MODE="ci"
-    CI_FAST=true
+    TARGETED_ONLY=true
+    TARGETED_LABEL="CI fast"
     shift
     ;;
   --publish)
@@ -40,11 +48,12 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Usage:
-  bash scripts/agent-quality-gate.sh [--fix|--preflight|--ci|--publish]
+  bash scripts/agent-quality-gate.sh [--fix|--loop|--preflight|--ci|--publish]
 
 Modes:
   default      strict local validation gate
   --fix        regenerate/fix deterministic artifacts, then run the full local gate
+  --loop       regenerate/fix and run changed-file contracts only; use during edit iterations
   --preflight  Git-only safety gate before dependency installation/build work
   --ci         check-only changed-file gate; skips the full unit suite already required locally before push
   --publish    strict local gate plus canonical clean-tree publication check
@@ -489,11 +498,11 @@ for file in "${CHANGED_FILES[@]}"; do
   esac
 done
 
-if [[ "${CI_FAST}" != true || "${runtime_primitive_scope_changed}" == true ]]; then
+if [[ "${TARGETED_ONLY}" != true || "${runtime_primitive_scope_changed}" == true ]]; then
   run_compact "migrated runtime primitive ownership is unique" \
     "${PYTHON_CMD[@]}" scripts/quality/check-runtime-primitive-duplication.py
 else
-  printf 'ℹ️  CI fast mode: runtime primitive ownership check skipped because no shell primitive input changed\n'
+  printf 'ℹ️  ${TARGETED_LABEL} mode: runtime primitive ownership check skipped because no shell primitive input changed\n'
 fi
 
 generated_contract_scope_changed=false
@@ -506,17 +515,17 @@ for file in "${CHANGED_FILES[@]}"; do
   esac
 done
 
-if [[ "${CI_FAST}" != true || "${generated_contract_scope_changed}" == true ]]; then
+if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == true ]]; then
   run_compact "declared service topology is synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
   run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
 else
-  printf 'ℹ️  CI fast mode: generated topology/consumer checks skipped because no generator input changed\n'
+  printf 'ℹ️  ${TARGETED_LABEL} mode: generated topology/consumer checks skipped because no generator input changed\n'
 fi
 
-if [[ "${CI_FAST}" == true ]]; then
-  printf 'ℹ️  CI fast mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
+if [[ "${TARGETED_ONLY}" == true ]]; then
+  printf 'ℹ️  ${TARGETED_LABEL} mode: full repository unit/contract suite is enforced locally by the pre-push publication gate; PR CI keeps targeted pre-commit contracts only\n'
 else
   run_compact "repository unit/contract tests" \
     "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
