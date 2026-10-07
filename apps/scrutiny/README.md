@@ -158,6 +158,53 @@ Scrutiny web container health/logs, `influxdb:8086` reachability from the web
 container, config-directory writability, local and published `/api/health`,
 collector API target and SMART visibility.
 
+## Canonical runtime secret path
+
+Repository Compose and the Scrutiny deployment/bootstrap helpers now consume:
+
+```text
+/mnt/cpool/secrets/runtime/scrutiny/.env.secrets
+```
+
+The historical `/mnt/cpool/scrutiny/.env.secrets` remains a migration source only.
+Its three-field set is intentionally preserved together during the cutover:
+`SCRUTINY_WEB_INFLUXDB_TOKEN`,
+`SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION`, and
+`SCRUTINY_INFLUXDB_AUTH_ID`. The latter two are migration/audit metadata, not
+additional credentials, but dropping them would make the accepted v2 scope
+ambiguous.
+
+Before redeploying, compare any live legacy/repository-local candidates without
+printing values:
+
+```bash
+sudo python3 scripts/secrets/compare_dotenv_sources.py \
+  --app scrutiny \
+  --left /mnt/cpool/scrutiny/.env.secrets \
+  --right /mnt/cpool/compose/nabla-compose/apps/scrutiny/.env.secrets
+```
+
+When the accepted source set is coherent, import the exact preserved fields to
+Vaultwarden, materialize the canonical file, and verify it before deployment:
+
+```bash
+python scripts/secrets/import_dotenv_to_bitwarden.py \
+  --app scrutiny \
+  --input /mnt/cpool/scrutiny/.env.secrets
+python scripts/secrets/import_dotenv_to_bitwarden.py \
+  --app scrutiny \
+  --input /mnt/cpool/scrutiny/.env.secrets \
+  --apply
+python scripts/secrets/materialize_runtime.py --app scrutiny --install
+python scripts/secrets/materialize_runtime.py --app scrutiny --verify
+sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
+sudo bash scripts/truenas/deploy-scrutiny.sh --check
+```
+
+Do not run `bootstrap-scrutiny-influxdb.sh --apply` merely because the canonical
+file is missing: when a non-empty legacy file exists, the helper now fails
+closed unless an intentional rotation is explicitly requested.
+
 ## Migration sequence
 
 1. Keep the stopped native Scrutiny dataset untouched until the replacement is accepted.
