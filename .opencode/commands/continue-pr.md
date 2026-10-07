@@ -14,6 +14,8 @@ Resume the current pull-request work without broad repository exploration.
    current PR scope.
 6. State the exact files and validation command you intend to touch/run.
 7. Implement the smallest safe patch.
-8. Run the narrowest contract first, then `mise run agent-fix`.
-9. Do not use remote CI as the edit loop and do not broaden the PR merely because
-   another roadmap item exists.
+8. Load `local-first-quality`, run the narrowest contract first, then
+   `mise run agent-loop`.
+9. Run `mise run agent-pre-push` only at the publication boundary; do not use
+   remote CI as the edit loop and do not broaden the PR merely because another
+   roadmap item exists.
