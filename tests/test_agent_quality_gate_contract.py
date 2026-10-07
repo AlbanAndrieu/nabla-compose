@@ -120,6 +120,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
         self.assertIn("[tasks.agent-context]", config)
         self.assertIn("python scripts/agent-task-context.py", config)
+        self.assertIn("[tasks.agent-preflight]", config)
+        self.assertIn('bash scripts/agent-quality-gate.sh --preflight', config)
         self.assertIn("[tasks.agent-fix]", config)
         self.assertIn("[tasks.agent-loop]", config)
         self.assertIn('bash scripts/agent-quality-gate.sh --loop', config)
@@ -130,6 +132,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("bash scripts/agent-pre-push.sh", config)
 
         justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertIn("\ncontext:\n    mise run agent-context\n", justfile)
+        self.assertIn("\npreflight:\n    mise run agent-preflight\n", justfile)
         self.assertIn("\nloop:\n    mise run agent-loop\n", justfile)
         self.assertIn("\npre-push:\n    mise run agent-pre-push\n", justfile)
 
