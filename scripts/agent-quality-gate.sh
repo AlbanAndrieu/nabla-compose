@@ -18,6 +18,7 @@ fi
 
 MODE="check"
 PUBLISH=false
+LOCAL_LOOP=false
 TARGETED_ONLY=false
 TARGETED_LABEL=""
 case "${1:-}" in
@@ -31,6 +32,7 @@ case "${1:-}" in
     ;;
   --loop)
     MODE="fix"
+    LOCAL_LOOP=true
     TARGETED_ONLY=true
     TARGETED_LABEL="Local loop"
     shift
@@ -490,6 +492,13 @@ if [[ "${MODE}" == "fix" ]]; then
     fi
     printf 'ℹ️  deterministic fixes changed files; rerunning the complete changed-file gate before build\n'
   done
+fi
+
+if [[ "${LOCAL_LOOP}" == true ]]; then
+  git diff --check
+  git diff --cached --check
+  printf '✅ Agent local loop passed: deterministic fixes and changed-file contracts converged; full suite deferred to pre-push.\n'
+  exit 0
 fi
 
 runtime_primitive_scope_changed=false
