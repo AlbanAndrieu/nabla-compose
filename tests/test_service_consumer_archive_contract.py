@@ -23,7 +23,6 @@ def load_module(name: str, path: Path):
 
 
 COMPOSE_PATHS = load_module("compose_paths_contract", HELPER)
-CONSUMERS = load_module("service_consumers_contract", CONSUMER)
 
 
 class ServiceConsumerArchiveContractTests(unittest.TestCase):
@@ -59,6 +58,7 @@ class ServiceConsumerArchiveContractTests(unittest.TestCase):
         )
 
     def test_root_compose_requires_explicit_metadata_and_respects_status(self) -> None:
+        consumers = load_module("service_consumers_contract", CONSUMER)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "docker-compose-truenas.yml").write_text(
@@ -99,8 +99,8 @@ class ServiceConsumerArchiveContractTests(unittest.TestCase):
             static = {
                 "defaults": {"host": "172.17.0.24", "interval": "60s"},
             }
-            with patch.object(CONSUMERS, "ROOT", root):
-                apps, monitors = CONSUMERS.collect_services(static)
+            with patch.object(consumers, "ROOT", root):
+                apps, monitors = consumers.collect_services(static)
 
         apps_by_id = {item["id"]: item for item in apps}
         monitors_by_id = {item["id"]: item for item in monitors}
