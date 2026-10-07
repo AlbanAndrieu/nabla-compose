@@ -106,7 +106,7 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
-## API-only / source-archive fallback
+## API-only fallback / source archives
 
 When the execution environment cannot obtain a complete Git checkout:
 
