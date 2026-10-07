@@ -156,17 +156,19 @@ repos:
 
       - id: secret-manifest
         name: "🔐 secrets · Validate metadata-only manifest"
-        language: system
+        language: python
         entry: python scripts/secrets/render_from_bitwarden.py --check
+        additional_dependencies: ["jsonschema==4.22.0"]
         pass_filenames: false
         files: '^(config/secrets/manifest(?:[.]schema)?\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
 
       - id: secret-renderer-tests
         name: "🔐 secrets · Test Bitwarden renderer"
-        language: system
+        language: python
         entry: python -m unittest discover -s tests -p test_secrets_renderer.py -v
+        additional_dependencies: ["jsonschema==4.22.0"]
         pass_filenames: false
-        files: '^(config/secrets/manifest\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
+        files: '^(config/secrets/manifest(?:[.]schema)?\.json|scripts/secrets/render_from_bitwarden\.py|tests/test_secrets_renderer\.py)$'
 
       - id: secret-consumer-audit
         name: "🔐 secrets · Prevent new unmanaged secret debt"
@@ -186,8 +188,9 @@ repos:
 
       - id: legacy-secret-import-contract
         name: "🔐 secrets · Validate bounded legacy dotenv migration"
-        language: system
+        language: python
         entry: python -m unittest tests.test_legacy_secret_import -v
+        additional_dependencies: ["python-dotenv==1.2.4", "jsonschema==4.22.0"]
         pass_filenames: false
         files: >-
           ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest(?:[.]schema)?|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
@@ -196,10 +199,10 @@ repos:
         name: "🔐 secrets · Validate dotenv alias comparison"
         language: python
         entry: python -m pytest -q tests/test_compare_dotenv_sources.py
-        additional_dependencies: ["pytest==9.1.1"]
+        additional_dependencies: ["pytest==9.1.1", "python-dotenv==1.2.4", "jsonschema==4.22.0"]
         pass_filenames: false
         files: >-
-          ^(apps/scrutiny/compose[.]yml|scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|scripts/truenas/(?:bootstrap-scrutiny-influxdb|deploy-scrutiny)[.]sh|config/secrets/manifest[.]json|tests/test_compare_dotenv_sources[.]py)$
+          ^(apps/scrutiny/compose[.]yml|scripts/secrets/(?:compare_dotenv_sources|import_dotenv_to_bitwarden|render_from_bitwarden)[.]py|scripts/truenas/(?:bootstrap-scrutiny-influxdb|deploy-scrutiny)[.]sh|config/secrets/manifest(?:[.]schema)?[.]json|tests/test_compare_dotenv_sources[.]py)$
 
       - id: p0-backstage-migration-bundle-contract
         name: "🔐🕸️ migration · Validate P0.3 + Backstage service bundle"
