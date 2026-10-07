@@ -161,8 +161,9 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert 'trust "${ROOT}/mise.toml"' not in script
     assert 'PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"' in script
     assert 'PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"' in script
+    assert 'JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"' in script
     assert '"pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}"' in script
-    assert '"python-dotenv==${PYTHON_DOTENV_VERSION}" PyYAML' in script
+    assert '"python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}" PyYAML' in script
     assert 'if [[ -x "${DEV_VENV}/bin/python" ]]' in script
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
