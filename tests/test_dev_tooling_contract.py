@@ -60,6 +60,9 @@ class DeveloperToolingContractTests(unittest.TestCase):
         for recipe in (
             "default",
             "hooks",
+            "context",
+            "preflight",
+            "loop",
             "quality",
             "fix",
             "pre-push",
@@ -74,6 +77,9 @@ class DeveloperToolingContractTests(unittest.TestCase):
             with self.subTest(recipe=recipe):
                 self.assertRegex(justfile, rf"(?m)^{recipe}:$")
 
+        self.assertIn("mise run agent-context", justfile)
+        self.assertIn("mise run agent-preflight", justfile)
+        self.assertIn("mise run agent-loop", justfile)
         self.assertIn("mise run agent-quality", justfile)
         self.assertIn("mise run agent-fix", justfile)
         self.assertIn("mise run agent-pre-push", justfile)
