@@ -7,14 +7,17 @@ import argparse
 from contextlib import suppress
 import json
 import os
-import re
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
 
-ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
-ALLOWED_ROTATION = {"preserve", "rotatable"}
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
+
+MANIFEST_SCHEMA = (
+    Path(__file__).resolve().parents[2] / "config" / "secrets" / "manifest.schema.json"
+)
 
 
 class SecretsError(RuntimeError):
@@ -28,75 +31,30 @@ def load_manifest(path: Path) -> dict[str, Any]:
 
 
 def validate_manifest(data: dict[str, Any]) -> None:
-    if data.get("schemaVersion") != 1:
-        raise SecretsError("manifest schemaVersion must be 1")
-
-    server = data.get("server")
-    if not isinstance(server, str) or not server.startswith("https://"):
-        raise SecretsError("manifest server must be an https URL")
-
-    folder = data.get("folder")
-    if not isinstance(folder, dict):
-        raise SecretsError("manifest folder must be an object")
-    folder_name = folder.get("name")
-    folder_id = folder.get("id")
-    if not isinstance(folder_name, str) or not folder_name.strip():
-        raise SecretsError("manifest folder.name must be a non-empty string")
-    if not isinstance(folder_id, str) or not folder_id.strip():
-        raise SecretsError("manifest folder.id must be a non-empty string")
-
-    items = data.get("items")
-    if not isinstance(items, list) or not items:
-        raise SecretsError("manifest items must be a non-empty list")
+    schema = json.loads(MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+    try:
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(data)
+    except SchemaError as exc:
+        raise SecretsError(f"invalid manifest schema: {exc.message}") from exc
+    except ValidationError as exc:
+        location = ".".join(str(part) for part in exc.absolute_path) or "<root>"
+        raise SecretsError(
+            f"manifest schema violation at {location}: {exc.message}"
+        ) from exc
 
     apps: set[str] = set()
     import_env_names: set[str] = set()
-    forbidden_keys = {"value", "password", "token", "secretValue"}
-
-    for item in items:
-        if not isinstance(item, dict):
-            raise SecretsError("manifest item entries must be objects")
-        if forbidden_keys.intersection(item):
-            raise SecretsError("manifest item contains a forbidden value-bearing key")
-
-        app = item.get("app")
-        item_name = item.get("item")
-        secrets = item.get("secrets")
-
-        if not isinstance(app, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", app):
-            raise SecretsError(f"invalid app identifier: {app!r}")
+    for item in data["items"]:
+        app = item["app"]
         if app in apps:
             raise SecretsError(f"duplicate app identifier: {app}")
         apps.add(app)
 
-        if not isinstance(item_name, str) or not item_name.strip():
-            raise SecretsError(f"{app}: item must be a non-empty Vaultwarden item name")
-        if not isinstance(secrets, list) or not secrets:
-            raise SecretsError(f"{app}: secrets must be a non-empty list")
-
         app_env_names: set[str] = set()
-        for secret in secrets:
-            if not isinstance(secret, dict):
-                raise SecretsError(f"{app}: secret entries must be objects")
-            if forbidden_keys.intersection(secret):
-                raise SecretsError(
-                    f"{app}: secret metadata contains a forbidden value-bearing key"
-                )
-
-            env_name = secret.get("env")
+        for secret in item["secrets"]:
+            env_name = secret["env"]
             import_env = secret.get("importEnv", env_name)
-            field = secret.get("field")
-            source = secret.get("source", "field")
-            rotation = secret.get("rotation", "rotatable")
-
-            if not isinstance(env_name, str) or not ENV_NAME_RE.fullmatch(env_name):
-                raise SecretsError(
-                    f"{app}: invalid environment variable name: {env_name!r}"
-                )
-            if not isinstance(import_env, str) or not ENV_NAME_RE.fullmatch(import_env):
-                raise SecretsError(
-                    f"{app}/{env_name}: invalid importEnv name: {import_env!r}"
-                )
             if env_name in app_env_names:
                 raise SecretsError(f"{app}: duplicate environment variable: {env_name}")
             if import_env in import_env_names:
@@ -105,15 +63,6 @@ def validate_manifest(data: dict[str, Any]) -> None:
                 )
             app_env_names.add(env_name)
             import_env_names.add(import_env)
-
-            if source not in {"field", "login.password", "login.username"}:
-                raise SecretsError(f"{app}/{env_name}: unsupported source: {source}")
-            if source == "field" and (not isinstance(field, str) or not field):
-                raise SecretsError(f"{app}/{env_name}: field is required")
-            if rotation not in ALLOWED_ROTATION:
-                raise SecretsError(
-                    f"{app}/{env_name}: invalid rotation policy: {rotation}"
-                )
 
 
 class BitwardenClient:
