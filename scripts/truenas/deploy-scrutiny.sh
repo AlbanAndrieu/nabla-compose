@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:---check}"
 INFLUX_APP_ID="${INFLUXDB_APP_ID:-influxdb}"
 SCRUTINY_APP_ID="${SCRUTINY_APP_ID:-scrutiny}"
-SCRUTINY_SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/scrutiny/.env.secrets}"
+SCRUTINY_SECRET_FILE="${SCRUTINY_SECRET_FILE:-/mnt/cpool/secrets/runtime/scrutiny/.env.secrets}"
 WAIT_ATTEMPTS="${SCRUTINY_WAIT_ATTEMPTS:-60}"
 WAIT_DELAY="${SCRUTINY_WAIT_DELAY_SECONDS:-2}"
 RECONCILE_INFLUXDB="${SCRUTINY_RECONCILE_INFLUXDB:-0}"
@@ -51,7 +51,7 @@ for path in \
 done
 
 [[ -f "${SCRUTINY_SECRET_FILE}" && -s "${SCRUTINY_SECRET_FILE}" ]] ||
-  fail "missing Scrutiny secret file: ${SCRUTINY_SECRET_FILE}; run scripts/truenas/bootstrap-scrutiny-influxdb.sh --apply first"
+  fail "missing Scrutiny canonical secret file: ${SCRUTINY_SECRET_FILE}; stage/import the preserved legacy dotenv before deployment"
 
 secret_mode="$(stat -c '%a' "${SCRUTINY_SECRET_FILE}")"
 [[ "${secret_mode}" == "600" ]] ||
