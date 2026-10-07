@@ -29,6 +29,16 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('TARGETED_LABEL="Local loop"', text)
         self.assertIn("Agent local loop passed", text)
         self.assertIn("full repository unit/contract suite is deferred", text)
+        self.assertGreaterEqual(
+            text.count('"${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD"'),
+            2,
+        )
+        self.assertIn("generator_scope_changed=false", text)
+        self.assertIn(
+            'if [[ "${generator_scope_changed}" == true ]]',
+            text,
+        )
+        self.assertIn("no local changes require formatter/linter fixes", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
