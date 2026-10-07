@@ -506,7 +506,7 @@ Remaining reduction:
    Pyroscope, OpenRAG and MinIO). Pre-commit/anti-duplication contracts protect
    ownership; response-body, authenticated and application-semantic probes stay
    local by design.
-5. [ ] Prefer canonical data/metadata over repeated Bash policy.
+5. [ ] Prefer canonical data/metadata and mature OSS libraries over repeated Bash/Python policy. Dotenv parsing now delegates to `python-dotenv`; the deprecated `dotenv` compatibility package is removed and the TrueNAS dev venv pins the same supported parser. Next candidates are declarative manifest validation (`jsonschema`, already present) and consolidation of Python CLI boilerplate where Typer materially reduces code without adding appliance-runtime coupling.
 6. [ ] Move code-server packages/extensions into an immutable derived image. The LinuxServer base is now pinned to reviewed amd64 `4.140.0@sha256:fc6cc21b…`; remove runtime `DOCKER_MODS`/`INSTALL_PACKAGES` and the Open VSX init hook only after the derived image itself is built, versioned and digest-pinned.
 7. [x] Keep roadmap concise: roadmap=status/next action; runbooks=procedure;
    incidents=evidence. Historical/duplicate planning has been consolidated while
