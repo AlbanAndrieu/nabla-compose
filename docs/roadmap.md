@@ -288,15 +288,17 @@ The canonical publication evidence remains `agent-pre-push`.
 - [x] Pin Dagger `0.21.10` in Mise/mise.lock and select
   `v1.0.0-beta.15` explicitly for the workspace/check surface.
 - [x] Make Biome reproducible before benchmarking:
-  `@biomejs/biome=2.4.12` is exact in package.json/package-lock and the
-  Dagger module uses a digest-pinned Node image.
+  `@biomejs/biome=2.4.12` is exact in package.json/package-lock; the Dagger
+  module is pinned to official commit
+  `03db7bbf81087918657205c1eace20dfff7e29b3`, uses a digest-pinned Node
+  image, forces npm and installs with `--ignore-scripts`.
 - [x] Replace the legacy `detailyang/pre-commit-shell` wrapper with the
   official `koalaman/shellcheck-precommit@v0.11.0`; the native reference no
   longer depends on an unpinned system ShellCheck binary.
 - [x] Align the relevant ShellCheck exclusion set with the native Pre-commit
   contract, including `biscuitcutter.sh`.
 - [x] Make native Biome parity non-mutating: use the exact local
-  `node_modules/.bin/biome check` after `npm ci`, not the Pre-commit
+  `node_modules/.bin/biome check` after `npm ci --ignore-scripts`, not the Pre-commit
   `biome-check` hook because that hook runs with `--write`.
 - [x] Fail closed: `dagger-list`, `dagger-poc` and `dagger-bench` refuse
   execution until a reviewed `dagger.lock` exists.
