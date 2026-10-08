@@ -61,6 +61,10 @@ def test_dagger_cli_and_beta_workspace_are_explicitly_pinned() -> None:
     lock = tomllib.loads(MISE_LOCK.read_text(encoding="utf-8"))
 
     assert f'dagger = "{DAGGER_STABLE}"' in mise
+    assert (
+        f"dagger --x-release={DAGGER_BETA} workspace update --no-generate"
+        in mise
+    )
     assert f"dagger --x-release={DAGGER_BETA} check -l" in mise
     assert f"dagger --x-release={DAGGER_BETA} check --no-generate" in mise
 
@@ -73,6 +77,7 @@ def test_dagger_cli_and_beta_workspace_are_explicitly_pinned() -> None:
 def test_just_keeps_dagger_poc_separate_from_publication_gate() -> None:
     just = JUST.read_text(encoding="utf-8")
 
+    assert "\ndagger-sync:\n    mise run dagger-sync\n" in just
     assert "\ndagger-list:\n    mise run dagger-list\n" in just
     assert "\ndagger-poc:\n    mise run dagger-poc\n" in just
     assert "\npre-push:\n    mise run agent-pre-push\n" in just
@@ -87,6 +92,7 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
         "ShellCheck + Biome",
         "Pytest",
         "root Python project marker",
+        "just dagger-sync",
         "just dagger-list",
         "just dagger-poc",
         "agent-pre-push",
@@ -95,6 +101,7 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
         assert expected in roadmap
 
     assert "Experimental Dagger PoC" in skill
+    assert "just dagger-sync" in skill
     assert "just dagger-list" in skill
     assert "just dagger-poc" in skill
     assert "does not replace the canonical publication gate" in skill
