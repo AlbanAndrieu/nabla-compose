@@ -138,6 +138,12 @@ def suggested_skills(paths: list[str]) -> list[str]:
     ):
         skills.add("local-first-quality")
 
+    if any(
+        path == "dagger.toml" or path.startswith(".dagger/")
+        for path in paths
+    ):
+        skills.add("context7-docs")
+
     return sorted(skills)
 
 
