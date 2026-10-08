@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-07.
+Last updated: 2026-10-08.
 
 This file is the **concise execution index and conversation restart point**.
 Detailed procedures, rollback instructions and historical evidence stay in their
@@ -121,7 +121,8 @@ datasets just to change presets.
 
 ## Current execution order
 
-1. **P0 runtime closure:** complete the TrueNAS acceptance queue above.
+1. **P0 runtime closure:** stabilize the pfSense edge-memory/DNS regression,
+   then complete the TrueNAS acceptance queue above.
 2. **P0 agent engineering:** improve the local-first agent loop, evaluate Dagger
    as portable execution and add Context7 for current version-specific external
    documentation.
@@ -165,9 +166,40 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   it removes duplicated policy.
 - [ ] Keep current + previous known-good reboot bundles until another normal
   reboot cycle passes.
-- [ ] DNS maintenance acceptance: stop Pi-hole during a controlled window,
-  rerun pfSense posture + Talos ResolverStatus/DNSUpstream checks and prove
-  public registry resolution through pfSense/Unbound.
+- [ ] **pfSense edge-memory / DNS resilience regression:** repeated FreeBSD
+  reclaim/OOM kills on 2026-10-08 removed Unbound at 02:10 and 11:03 and killed
+  `php_pfb` at 19:00. Current evidence points to combined edge-capacity pressure
+  rather than native Unbound caches alone: Unbound Python DNSBL, Snort, the
+  generated PHP-FPM pool and a broken CrowdSec event path can overlap on the
+  memory-constrained Netgate 1100.
+  - [x] Set pfBlockerNG `ASN Reporting=disabled` while `asn.mmdb`/`asn.csv`
+    are absent and no IPinfo token is configured; verify the repeated IPinfo
+    download attempts stop.
+  - [x] Stop the CrowdSec engine after `firewallservices/pf-scan-multi_ports`
+    accumulated millions of failed event-send attempts; keep the firewall
+    bouncer independent while the engine is isolated.
+  - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
+    restarting the engine.
+  - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
+    changing its schedule; keep optional restart/reload churn bounded meanwhile.
+  - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
+    traffic before any supported persistent tuning; do not hand-edit generated
+    runtime config. Keep detailed tuning in
+    [`pfsense-php-fpm-hardening.md`](./pfsense-php-fpm-hardening.md).
+  - [ ] Reduce untrusted WebConfigurator/API ingress according to
+    [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md) so
+    Internet authentication scans do not consume scarce PHP-FPM capacity.
+  - [ ] Keep Unbound out of Service Watchdog during OOM remediation; reassess
+    guarded recovery only after the memory policy is stable, rather than hiding
+    a kill/restart loop.
+  - [ ] Exit gate: sustained observation with no new allocation/reclaim kills,
+    stable Unbound/Kea DNS/DHCP, no ASN retry spam, and bounded
+    Unbound/Snort/PHP-FPM/CrowdSec RSS plus free-memory headroom under normal
+    WebGUI/API traffic.
+- [ ] DNS maintenance acceptance: only after the edge-memory exit gate, stop
+  Pi-hole during a controlled window, rerun pfSense posture + Talos
+  ResolverStatus/DNSUpstream checks and prove public registry resolution through
+  pfSense/Unbound.
 - [ ] Keep the TrueNAS LXC GitHub Actions runner dormant until a concrete need
   justifies operating it.
 
