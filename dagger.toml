@@ -4,7 +4,11 @@ defaults_from_dotenv = false
 check-generated = false
 
 ignore = [
+  ".env",
+  ".env.*",
   ".git/",
+  ".ssh/",
+  ".talos/",
   ".direnv/",
   ".venv/",
   "anything-llm/",
