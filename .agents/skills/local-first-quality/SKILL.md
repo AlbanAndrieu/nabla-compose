@@ -151,7 +151,9 @@ Reproducibility comes before performance:
 
 - `@biomejs/biome` is an exact `2.4.12` dev dependency and package-lock
   entry, matching the existing Pre-commit Biome toolchain;
-- the Dagger Biome module uses an explicit digest-pinned Node image;
+- the Dagger Biome module is pinned to an official 2026-10-05 commit, uses an
+  explicit digest-pinned Node image, forces npm and installs with
+  `--ignore-scripts`;
 - the native ShellCheck reference uses the official
   `koalaman/shellcheck-precommit` hook at `v0.11.0`, replacing the legacy
   wrapper that depended on an unpinned system binary;
@@ -165,7 +167,7 @@ Reproducibility comes before performance:
 
 The native Biome reference is `node_modules/.bin/biome check`, never the
 Pre-commit `biome-check` hook because that hook uses `--write`. Run
-`npm ci` before parity work; the task fails closed when the pinned local
+`npm ci --ignore-scripts` before parity work; the task fails closed when the pinned local
 Biome binary is absent.
 
 Hyperfine is the benchmark runner; do not add a repository-specific timer.
