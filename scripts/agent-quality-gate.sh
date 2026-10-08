@@ -322,6 +322,7 @@ check_destructive_diff() {
 check_exec_bits() {
   local exec_bit_failed=0
   for file in "${CHANGED_FILES[@]}"; do
+    [[ -f "${file}" ]] || continue
     IFS= read -r first_line <"${file}" || true
     [[ "${first_line:-}" == '#!'* ]] || continue
 
@@ -329,16 +330,90 @@ check_exec_bits() {
       mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
       if [[ "${mode}" != "100755" ]]; then
         if [[ "${MODE}" == "fix" ]]; then
+          git add --chmod=+x -- "${file}"
+          printf '🛠️  executable bit restored for %s\n' "${file}"
+        else
+          printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
+            "${file}" "${mode:-unknown}" "${file}" >&2
+          exec_bit_failed=1
+        fi
+      fi
+    elif [[ ! -x "${file}" ]]; then
+      if [[ "${MODE}" == "fix" ]]; then
+        chmod +x -- "${file}"
+        printf '🛠️  executable bit restored for untracked %s\n' "${file}"
+      else
+        printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
+        exec_bit_failed=1
+      fi
+    fi
+  done
+
+  if ((exec_bit_failed != 0)); then
+    exit 1
+  fi
+  printf '✅ executable-script contract\n'
+}
+
+check_base_freshness
+check_destructive_diff
+check_exec_bits
+
+if [[ "${MODE}" == "preflight" ]]; then
+  printf '✅ Git-only agent preflight passed before dependency installation/build work\n'
+  exit 0
+fi
+
+(("${#PYTHON_CMD[@]}" > 0)) || {
+  echo "❌ QG_PYTHON_MISSING: python or python3 is required" >&2
+  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+  exit 1
+}
+
+if ! "${PYTHON_CMD[@]}" -c 'import pytest, yaml' >/dev/null 2>&1; then
+  echo "❌ QG_PYTHON_DEPS_MISSING: pytest and PyYAML are required by local contract hooks" >&2
+  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+  exit 1
+fi
+
+agent_gate_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  if [[ "${file}" == "scripts/agent-quality-gate.sh" ]]; then
+    agent_gate_changed=true
+    break
+  fi
+done
+
+if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
   command -v pre-commit >/dev/null 2>&1 || {
     echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
     echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
     exit 1
   }
+  run_compact "agent gate shell formatting" \
+    pre-commit run shfmt --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell lint" \
+    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
+  run_compact "agent gate shell style" \
+    pre-commit run bashate --files scripts/agent-quality-gate.sh
+fi
 
-  if (("${#CHANGED_FILES[@]}" == 0)); then
-    printf '✅ no local changes require formatter/linter fixes\n'
-    exit 0
-  fi
+worktree_fingerprint() {
+  {
+    git status --porcelain=v1
+    for file in "${CHANGED_FILES[@]}"; do
+      [[ -f "${file}" ]] || continue
+      printf '%s %s\n' "$(git hash-object -- "${file}")" "${file}"
+    done
+  } | git hash-object --stdin
+}
+
+if [[ "${MODE}" == "fix" ]]; then
+  command -v pre-commit >/dev/null 2>&1 || {
+    echo "❌ pre-commit is required; run 'mise run hooks' first" >&2
+    echo "   TrueNAS without mise: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+    exit 1
+  }
 
   generator_scope_changed=false
   for file in "${CHANGED_FILES[@]}"; do
