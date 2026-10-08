@@ -82,9 +82,12 @@ triplets_match() {
 }
 
 write_triplet() {
-  local file="$1" password="$2" tmp
-  install -d -o root -g root -m 0700 "$(dirname "${file}")"
-  tmp="$(mktemp "$(dirname "${file}")/.sentry-clickhouse-secret.tmp.XXXXXX")"
+  local file="$1" password="$2" tmp parent
+  parent="$(dirname "${file}")"
+  if [[ ! -d "${parent}" ]]; then
+    install -d -o root -g root -m 0700 "${parent}"
+  fi
+  tmp="$(mktemp "${parent}/.sentry-clickhouse-secret.tmp.XXXXXX")"
   trap 'rm -f "${tmp:-}"' RETURN
 
   if [[ -f "${file}" ]]; then
