@@ -143,6 +143,7 @@ Prefer existing widely adopted tooling over new repository-specific code:
 - JSON Schema/check-jsonschema for declarative JSON/YAML structure where it
   replaces repetitive validation code;
 - Just/Mise as thin command entry points.
+- Context7 via `context7-docs` for current external-library documentation only; use anonymous/free access first and keep repository/runtime evidence authoritative.
 
 Do not add another task runner, formatter or test selector if the existing stack
 already expresses the required contract.
