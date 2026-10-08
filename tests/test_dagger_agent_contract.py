@@ -108,8 +108,9 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     assert "L1" in skill
 
 
-def test_dagger_changes_route_to_local_first_skill() -> None:
+def test_dagger_changes_route_to_local_first_and_current_docs_skills() -> None:
     context = TASK_CONTEXT.read_text(encoding="utf-8")
 
     assert '"dagger.toml"' in context
     assert 'skills.add("local-first-quality")' in context
+    assert 'skills.add("context7-docs")' in context
