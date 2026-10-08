@@ -148,6 +148,19 @@ GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry;
 GRANT SELECT ON system.tables TO sentry;
 ```
 
+If long-running Snuba consumers report ClickHouse `Code: 516` for user
+`sentry`, do not rotate the runtime secret. Reconcile the ClickHouse identity
+to the already-staged canonical runtime value:
+
+```bash
+sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --check
+sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --apply
+```
+
+The apply mode fails closed on an inconsistent password triplet, authenticates
+through the dedicated ClickHouse admin identity, never prints the runtime
+password, and restores only the documented runtime grants above.
+
 Bootstrap compatibility contract:
 
 ```sql
