@@ -327,8 +327,11 @@ References: <https://docs.dagger.io/reference/config-files/dagger-toml/>,
 Context7 is documentation-only: it improves version/API accuracy for external
 libraries but never replaces repository/runtime evidence.
 
-- [x] Register the hosted Context7 MCP endpoint in `.mcp.json` **without
-  credentials or headers** so normal operation uses the anonymous/free quota.
+- [x] Register the hosted Context7 MCP endpoint without credentials/headers in
+  `.mcp.json`, `.cursor/mcp.json` and OpenCode V2
+  `opencode.json -> mcp.servers.context7`. OpenCode keeps
+  `codemode=true` so the server stays grouped rather than expanding every MCP
+  tool directly into the native tool list.
 - [x] Add `context7-docs` as an on-demand skill with an anonymous CLI fallback
   (`ctx7 library` → versioned library ID → `ctx7 docs`) and telemetry disabled
   in the documented CLI path.
@@ -338,15 +341,17 @@ libraries but never replaces repository/runtime evidence.
 - [x] Add a Pre-commit contract that rejects a required
   `CONTEXT7_API_KEY` in the project MCP configuration and verifies the
   free-first/on-demand boundaries.
-- [ ] Runtime-smoke the anonymous endpoint from the primary OpenCode client and
-  execute one version-specific lookup. If the anonymous quota is insufficient,
-  prefer free login/OAuth before any paid tier.
+- [ ] Runtime-smoke the anonymous endpoint from the primary OpenCode client
+  (`opencode mcp list` + one version-specific lookup). If the anonymous quota
+  is insufficient, prefer OpenCode OAuth/free login before any paid tier.
 - [ ] Keep `CONTEXT7_API_KEY` optional and outside Git; reserve it for
   non-interactive automation or higher free-plan limits only.
 - [ ] Use Context7 during the Dagger PoC to resolve the current Dagger workspace,
   module and Check APIs before generating repository configuration.
-- [ ] Record an official-doc/web fallback when Context7 lacks the required
-  library/version or is rate-limited.
+- [x] Keep an official-doc/web fallback for environments where Context7 is not
+  connected, lacks the required library/version or is rate-limited. The current
+  API-only agent used that fallback to validate the Dagger/OpenCode contracts
+  without pretending the Context7 runtime smoke had passed.
 
 Reference: <https://context7.com/docs/overview> and
 <https://context7.com/docs/clients/cli>.
