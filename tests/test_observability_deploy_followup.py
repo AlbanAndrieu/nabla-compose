@@ -31,6 +31,11 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
     )
 
     assert "build_fastapi_sample" in script
+    assert "FASTAPI_SAMPLE_VERBOSE_LOGS" in script
+    assert "FASTAPI_SAMPLE_BUILD_LOG_TAIL" in script
+    assert "FASTAPI_SAMPLE_DEPLOY_LOG_TAIL" in script
+    assert "detailed Docker build output suppressed" in script
+    assert "run_midclt_job_quiet" in script
     assert "frontend grpc server closed unexpectedly" in script
     assert "retrying the same cache-preserving build once" in script
     assert "existing runtime was not replaced" in script

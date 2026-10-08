@@ -11,16 +11,62 @@ from __future__ import annotations
 
 import argparse
 from io import StringIO
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
 import sys
 from typing import Any
 
-import audit_consumers
-from dotenv.parser import parse_stream
-import import_env_to_bitwarden as importer
-from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
+def _reuse_truenas_dev_venv_if_needed() -> None:
+    """Re-exec in the supported TrueNAS user-space venv when deps are absent."""
+    required_modules = ("dotenv", "jsonschema")
+    missing = [
+        module
+        for module in required_modules
+        if importlib.util.find_spec(module) is None
+    ]
+    if not missing:
+        return
+
+    dev_venv = Path(
+        os.environ.get(
+            "NABLA_TRUENAS_DEV_VENV",
+            str(Path.home() / ".cache" / "nabla-compose" / "dev-venv"),
+        )
+    )
+    dev_python = dev_venv / "bin" / "python"
+    try:
+        same_python = dev_python.resolve() == Path(sys.executable).resolve()
+    except OSError:
+        same_python = False
+
+    if not same_python and dev_python.is_file() and os.access(dev_python, os.X_OK):
+        os.execv(
+            str(dev_python),
+            [str(dev_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
+
+    missing_text = ", ".join(missing)
+    raise SystemExit(
+        "missing Python dependencies: "
+        f"{missing_text}; run "
+        "bash scripts/truenas/bootstrap-dev-tools.sh --persist-shell-path "
+        "or invoke the importer with "
+        "~/.cache/nabla-compose/dev-venv/bin/python"
+    )
+
+
+_reuse_truenas_dev_venv_if_needed()
+
+import audit_consumers  # noqa: E402
+from dotenv.parser import parse_stream  # noqa: E402
+import import_env_to_bitwarden as importer  # noqa: E402
+from render_from_bitwarden import (  # noqa: E402
+    BitwardenClient,
+    SecretsError,
+    load_manifest,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "config" / "secrets" / "manifest.json"

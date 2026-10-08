@@ -9,6 +9,9 @@ OBSERVER_NETWORK="${FASTAPI_SAMPLE_OBSERVER_NETWORK:-sample-observer}"
 DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"
 IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"
 REFRESH_BASE_IMAGES="${FASTAPI_SAMPLE_REFRESH_BASE_IMAGES:-false}"
+VERBOSE_LOGS="${FASTAPI_SAMPLE_VERBOSE_LOGS:-false}"
+BUILD_LOG_TAIL="${FASTAPI_SAMPLE_BUILD_LOG_TAIL:-80}"
+DEPLOY_LOG_TAIL="${FASTAPI_SAMPLE_DEPLOY_LOG_TAIL:-40}"
 CANONICAL_ENV_ROOT="${FASTAPI_SAMPLE_ENV_ROOT:-/mnt/cpool/secrets/runtime/sample}"
 LEGACY_ENV_ROOT="${FASTAPI_SAMPLE_LEGACY_ENV_ROOT:-/mnt/cpool/sample}"
 
@@ -54,6 +57,16 @@ case "${REFRESH_BASE_IMAGES}" in
     true | false) ;;
     *) fail "FASTAPI_SAMPLE_REFRESH_BASE_IMAGES must be true or false" ;;
 esac
+
+case "${VERBOSE_LOGS}" in
+    true | false) ;;
+    *) fail "FASTAPI_SAMPLE_VERBOSE_LOGS must be true or false" ;;
+esac
+
+[[ "${BUILD_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "FASTAPI_SAMPLE_BUILD_LOG_TAIL must be a positive integer"
+[[ "${DEPLOY_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "FASTAPI_SAMPLE_DEPLOY_LOG_TAIL must be a positive integer"
 
 verify_runtime_env_file() {
     local path="$1"
@@ -197,32 +210,78 @@ verify_prometheus_observer_contract() {
         "${gatus_up}" "${service_samples}"
 }
 
+run_build_attempt() {
+    local log="$1"
+
+    : >"${log}"
+    if [[ "${VERBOSE_LOGS}" == "true" ]]; then
+        run_docker "${build_args[@]}" 2>&1 | tee "${log}"
+    else
+        run_docker "${build_args[@]}" >"${log}" 2>&1
+    fi
+}
+
 build_fastapi_sample() {
     local log
     local rc=1
 
     log="$(mktemp)"
-    if run_docker "${build_args[@]}" 2>&1 | tee "${log}"; then
+    if run_build_attempt "${log}"; then
+        if [[ "${VERBOSE_LOGS}" != "true" ]]; then
+            printf 'OK: FastAPI Sample image build completed; detailed Docker build output suppressed.\n'
+        fi
         rm -f "${log}"
         return 0
     else
-        rc="${PIPESTATUS[0]}"
+        rc="$?"
     fi
 
     if grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
         printf 'WARN: Docker BuildKit frontend closed unexpectedly; retrying the same cache-preserving build once.\n' >&2
         sleep 2
-        : >"${log}"
-        if run_docker "${build_args[@]}" 2>&1 | tee "${log}"; then
+        if run_build_attempt "${log}"; then
+            if [[ "${VERBOSE_LOGS}" != "true" ]]; then
+                printf 'OK: FastAPI Sample image build completed after one BuildKit retry; detailed output suppressed.\n'
+            fi
             rm -f "${log}"
             return 0
         else
-            rc="${PIPESTATUS[0]}"
+            rc="$?"
         fi
     fi
 
     printf 'ERROR: FastAPI Sample image build failed; existing runtime was not replaced.\n' >&2
+    printf '%s\n' "--- last ${BUILD_LOG_TAIL} Docker build log lines ---" >&2
+    tail -n "${BUILD_LOG_TAIL}" "${log}" >&2 || true
     run_docker version >&2 2>/dev/null || true
+    rm -f "${log}"
+    return "${rc}"
+}
+
+run_midclt_job_quiet() {
+    local label="$1"
+    shift
+    local log
+    local rc=1
+
+    log="$(mktemp)"
+    if [[ "${VERBOSE_LOGS}" == "true" ]]; then
+        if sudo midclt call -j "$@" 2>&1 | tee "${log}"; then
+            rm -f "${log}"
+            return 0
+        else
+            rc="$?"
+        fi
+    elif sudo midclt call -j "$@" >"${log}" 2>&1; then
+        printf 'OK: %s\n' "${label}"
+        rm -f "${log}"
+        return 0
+    else
+        rc="$?"
+    fi
+
+    printf 'ERROR: %s failed.\n' "${label}" >&2
+    tail -n "${DEPLOY_LOG_TAIL}" "${log}" >&2 || true
     rm -f "${log}"
     return "${rc}"
 }
@@ -331,15 +390,17 @@ run_docker rm -f "${CONTAINER}" 2>/dev/null || true
 
 compose_path="${ROOT}/apps/sample/compose.yml"
 
-sudo midclt call -j app.update "${APP_ID}" "$(
-    jq -cn --arg include "${compose_path}" '{
-      custom_compose_config: {
-        include: [$include]
-      }
-    }'
-)"
+run_midclt_job_quiet "FastAPI Sample app.update completed" \
+    app.update "${APP_ID}" "$(
+        jq -cn --arg include "${compose_path}" '{
+          custom_compose_config: {
+            include: [$include]
+          }
+        }'
+    )"
 
-sudo midclt call -j app.redeploy "${APP_ID}"
+run_midclt_job_quiet "FastAPI Sample app.redeploy completed" \
+    app.redeploy "${APP_ID}"
 
 printf 'Waiting for FastAPI Sample health on :8091...\n'
 health_payload="$(

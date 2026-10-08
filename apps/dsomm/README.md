@@ -200,10 +200,24 @@ reviewed. After acceptance, change the UI service to `status: active`, regenerat
 catalog/consumers and rerun the local quality gate. This prevents Gatus/AutoKuma
 from reporting a service as DOWN before it is actually deployed.
 
-The upstream release workflow publishes both `wurstbrot/dsomm:<version>` and
-`latest`. This deployment defaults to `wurstbrot/dsomm:5.0.0` (GitHub release
-`v5.0.0`, published 2026-08-21) rather than following `latest`. Override
-`DSOMM_IMAGE` with a reviewed immutable digest when one is selected.
+The frontend image and the assessment model are pinned independently.
+
+The repository previously referenced `wurstbrot/dsomm:5.0.0`, but that tag is
+not published by the Docker Hub repository used by the upstream installation
+instructions. The deployment therefore uses the published versioned frontend
+tag `wurstbrot/dsomm:4.4.1` instead of following mutable `latest`.
+
+The assessment content remains DSOMM **5.0.2**: `deploy-dsomm.sh --apply`
+downloads `generated/model.yaml` from the already-reviewed upstream commit
+`a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a`, validates its declared version
+and activity UUID presence, stores it under
+`/mnt/cpool/dsomm/state/model.yaml`, and mounts that exact file as
+`/srv/assets/YAML/default/model.yaml`. Existing assessment progress/evidence
+remain separate and are never overwritten.
+
+`deploy-dsomm.sh` also verifies that the configured frontend image is either
+already local or resolvable by the Docker registry before mutating/starting the
+TrueNAS App. Override `DSOMM_IMAGE` only with another reviewed version/digest.
 
 ## Run the GitHub baseline
 

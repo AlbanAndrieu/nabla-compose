@@ -3,7 +3,7 @@ name: dsomm
 
 services:
   dsomm:
-    image: ${DSOMM_IMAGE:-wurstbrot/dsomm:5.0.0}
+    image: ${DSOMM_IMAGE:-wurstbrot/dsomm:4.4.1}
     container_name: dsomm
     restart: unless-stopped
     security_opt:
@@ -25,6 +25,7 @@ services:
         app_protocol: http
     volumes:
       - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/meta.yaml:/srv/assets/YAML/meta.yaml:ro
+      - /mnt/cpool/dsomm/state/model.yaml:/srv/assets/YAML/default/model.yaml:ro
       - /mnt/cpool/dsomm/state/team-progress.yaml:/srv/assets/YAML/team-progress.yaml:ro
       - /mnt/cpool/dsomm/state/team-evidence.yaml:/srv/assets/YAML/team-evidence.yaml:ro
     networks:

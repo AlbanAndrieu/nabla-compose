@@ -543,7 +543,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("CLICKHOUSE_HOST: clickhouse\n", compose)
         self.assertIn("SENTRY_DB_USER: sentry", compose)
         self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
-        self.assertIn("/mnt/cpool/sentry/.env.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.secrets", compose)
         self.assertIn("CLICKHOUSE_USER: sentry_migrator", compose)
         self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", compose)
         self.assertIn('command: ["bootstrap", "--force"]', compose)
@@ -753,10 +753,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
 
         migrator = compose.split("\n  snuba-migrate:\n", 1)[1].split("\n  snuba-api:\n", 1)[0]
-        self.assertIn("/mnt/cpool/sentry/.env.secrets", migrator)
+        self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.secrets", migrator)
         self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", migrator)
         self.assertLess(
-            migrator.index("/mnt/cpool/sentry/.env.secrets"),
+            migrator.index("/mnt/cpool/secrets/runtime/sentry/.env.secrets"),
             migrator.index("/mnt/cpool/sentry/.env.migrator.secrets"),
         )
         self.assertIn("shared `REDIS_PASSWORD` is reused", readme)

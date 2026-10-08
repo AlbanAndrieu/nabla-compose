@@ -160,6 +160,8 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert "export MISE_LOCKFILE=false" in script
     assert 'trust "${ROOT}/mise.toml"' not in script
     assert 'PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"' in script
+    assert 'JUST_VERSION="${NABLA_JUST_VERSION:-1.58.0}"' in script
+    assert '"just@${JUST_VERSION}"' in script
     assert 'PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"' in script
     assert 'JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"' in script
     assert '"pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}"' in script
@@ -167,6 +169,7 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert 'if [[ -x "${DEV_VENV}/bin/python" ]]' in script
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script
+    assert 'ln -sfn "${JUST_BIN}" "${DEV_VENV}/bin/just"' in script
     assert 'ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"' in script
     assert "The agent quality gate automatically prepends this venv when it exists" in script
     agent_gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(

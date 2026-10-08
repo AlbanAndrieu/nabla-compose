@@ -101,17 +101,17 @@ count_matches() {
   grep -Ec "${pattern}" "${log_file}" 2>/dev/null || true
 }
 
-ok_count="$(count_matches '^(✅|OK:|PASS:)')"
-fail_count="$(count_matches '^(❌|ERROR:|FAIL:)')"
-warn_count="$(count_matches '^(⚠️|WARN:|WARNING:)')"
-skip_count="$(count_matches '^(SKIP:|⏭️)')"
+ok_count="$(count_matches '^[[:space:]]*(✅|OK:|PASS:)')"
+fail_count="$(count_matches '^[[:space:]]*(❌|ERROR:|FAIL:)')"
+warn_count="$(count_matches '^[[:space:]]*(⚠️|WARN:|WARNING:)')"
+skip_count="$(count_matches '^[[:space:]]*(SKIP:|⏭️)')"
 
 printf '📋 %s: exit=%d ok=%s failed=%s warnings=%s skipped=%s\n' \
   "${name}" "${status}" "${ok_count}" "${fail_count}" "${warn_count}" "${skip_count}"
 
 if ((status != 0 || fail_count > 0 || warn_count > 0)); then
   printf '%s\n' 'Key findings:'
-  grep -E '^(❌|ERROR:|FAIL:|⚠️|WARN:|WARNING:)' "${log_file}" 2>/dev/null |
+  grep -E '^[[:space:]]*(❌|ERROR:|FAIL:|⚠️|WARN:|WARNING:)' "${log_file}" 2>/dev/null |
     tail -n "${summary_lines}" |
     sed 's/^/  /' || true
 fi

@@ -48,6 +48,9 @@ if not match:
 
 key = match.group(1).strip()
 placeholder = "REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY"
+if not key or key == placeholder:
+    raise SystemExit("runtime config still contains an empty/placeholder API key")
+
 reviewed = template.read_text(encoding="utf-8")
 if reviewed.count(placeholder) != 1:
     raise SystemExit("reviewed template must contain exactly one API-key placeholder")

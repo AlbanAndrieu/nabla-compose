@@ -46,37 +46,60 @@ jq -e '
 ' >/dev/null <<<"${local_config}" ||
   fail "native /api/config response is not a compatible Vaultwarden server config"
 
-public_code="$(
-  curl --silent --show-error --max-time 10 \
-    --output /dev/null --write-out '%{http_code}' \
-    "${PUBLIC_BASE}/api/config" || true
-)"
-if [[ "${public_code}" != "200" ]]; then
-  printf 'WARN: canonical HTTPS Vaultwarden client API returned HTTP %s: %s/api/config\n' \
-    "${public_code:-000}" "${PUBLIC_BASE}" >&2
-  fail "official Bitwarden CLI requires a working HTTPS client endpoint; do not use the HTTP loopback origin as an API override"
-fi
-
-printf 'OK: canonical HTTPS Vaultwarden client API is reachable: %s/api/config\n' "${PUBLIC_BASE}"
+check_public_api() {
+  local public_code
+  public_code="$(
+    curl --silent --show-error --max-time 10 \
+      --output /dev/null --write-out '%{http_code}' \
+      "${PUBLIC_BASE}/api/config" || true
+  )"
+  if [[ "${public_code}" != "200" ]]; then
+    printf 'WARN: canonical HTTPS Vaultwarden client API returned HTTP %s: %s/api/config\n' \
+      "${public_code:-000}" "${PUBLIC_BASE}" >&2
+    return 1
+  fi
+  printf 'OK: canonical HTTPS Vaultwarden client API is reachable: %s/api/config\n' "${PUBLIC_BASE}"
+}
 
 if [[ "${MODE}" == "--check" ]]; then
+  check_public_api ||
+    fail "canonical HTTPS Vaultwarden ingress is incomplete; fix /api and /identity routing before CLI login"
   printf 'OK: local origin and HTTPS client endpoint are ready.\n'
   exit 0
 fi
 
+configured_before="$(bw config server 2>/dev/null | tr -d '\r\n' || true)"
 status="$(
   bw status 2>/dev/null | jq -r '.status // "unknown"' 2>/dev/null || printf 'unknown'
 )"
-if [[ "${status}" != "unauthenticated" ]]; then
-  fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
-fi
 
-# A plain server assignment clears stale per-service overrides. Never point the
-# official CLI at LOCAL_ORIGIN because it is intentionally HTTP-only.
-bw config server "${PUBLIC_BASE}"
+case "${status}" in
+  unauthenticated)
+    ;;
+  locked | unlocked)
+    fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
+    ;;
+  unknown)
+    printf 'WARN: Bitwarden CLI status is unavailable before endpoint reset; base=%s. Resetting all per-service endpoints because --apply was explicitly requested.\n' \
+      "${configured_before:-<unset>}" >&2
+    ;;
+  *)
+    fail "unexpected Bitwarden CLI status: ${status}"
+    ;;
+esac
 
-configured_base="$(bw config server | tr -d '\r\n')"
-[[ "${configured_base%/}" == "${PUBLIC_BASE%/}" ]] ||
-  fail "Bitwarden CLI base mismatch after configuration: ${configured_base:-<unset>}"
+# Bitwarden CLI supports per-service endpoint overrides. Configure the complete
+# set in one command so stale api/identity loopback overrides cannot survive
+# even when `bw config server` prints the canonical base URL.
+bw config server \
+  --web-vault "${PUBLIC_BASE}" \
+  --api "${PUBLIC_BASE}/api" \
+  --identity "${PUBLIC_BASE}/identity" \
+  --icons "${PUBLIC_BASE}/icons" \
+  --notifications "${PUBLIC_BASE}/notifications" \
+  --events "${PUBLIC_BASE}/events"
 
-printf 'OK: Bitwarden CLI configured for canonical HTTPS server %s\n' "${PUBLIC_BASE}"
+printf 'OK: Bitwarden CLI per-service endpoints reset to canonical HTTPS origin %s\n' "${PUBLIC_BASE}"
+
+check_public_api ||
+  fail "CLI overrides are now HTTPS-only, but canonical Vaultwarden ingress still returns a non-200 /api/config; fix the tunnel/origin route before login"

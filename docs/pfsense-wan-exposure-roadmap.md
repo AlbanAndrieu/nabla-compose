@@ -2,40 +2,82 @@
 
 This roadmap tracks the remaining pfSense WAN-policy work that affects the `nabla-compose` homelab and the FastAPI Sample external observability path.
 
-## P0 — replace the broad WAN Easy Rule
+## P0 — protect the WAN administration listener
 
-The current broad pfSense Easy Rule must be removed and replaced with explicit listener/source policy. Evidence collected on 2026-09-02 showed observed FastAPI Cloud sources establishing states to both the intended TrueNAS HAProxy listener on `82.66.4.247:7000` and the pfSense administration/API listener on `82.66.4.247:10443`.
+Runtime evidence from 2026-10-08 supersedes the earlier assumption that
+FastAPI Cloud should reach the pfSense WebConfigurator/API listener directly.
+The detailed incident evidence is retained in
+[`incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md`](./incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md).
 
-FastAPI Cloud currently requires both listeners and the deployment does not provide a user-controlled static egress gateway or outbound tunnel. The target is therefore **source-aware**, not a global public/private boolean:
+The accepted TCP/10443 policy is now:
 
-- `7000/tcp` — TrueNAS via pfSense HAProxy must remain reachable from the FastAPI Cloud production runtime and any explicitly approved administration source. Generic untrusted Internet origins must remain denied.
-- `10443/tcp` — pfSense REST API/administration must remain reachable from the FastAPI Cloud production runtime and explicitly approved administration sources because FastAPI Sample needs read-only posture and security telemetry. Generic untrusted Internet origins must remain denied.
+```text
+PASS   PFSENSE_ADMIN_WAN -> WAN address:10443
+BLOCK  any               -> WAN address:10443
+```
+
+Current `PFSENSE_ADMIN_WAN` contains only the reviewed public administration
+source `80.15.4.233`. The former `ExternalOffice` host alias was deleted
+after its dependent rules were repointed/removed. It was not a valid WAN trust
+boundary: it contained the office address plus every address from
+`172.17.0.0` through `172.17.0.255`, producing the observed
+`<ExternalOffice:257>` PF table.
+
+Do not put `https://fastapi-sample.fastapicloud.dev/` in a pfSense source
+alias. A URL is not a source identity, and even the hostname identifies ingress
+to the cloud application rather than proving a stable outbound/egress address.
+Observed FastAPI Cloud egress IPs are evidence from a point in time, not a
+contract. If a future platform feature provides a reviewed stable egress
+identity, model it in a separate machine-observer alias rather than mixing it
+with human administration.
+
+Listener ownership:
+
+- `10443/tcp` — pfSense WebConfigurator/REST API; WAN source is restricted to
+  `PFSENSE_ADMIN_WAN`, with an explicit deny for all other WAN sources;
+- `7000/tcp` — TrueNAS through pfSense HAProxy; keep its publication and source
+  policy separate from pfSense administration and revalidate it after removal
+  of the legacy `ExternalOffice` alias;
+- `443/tcp` — HAProxy public services; it is not a path to the WebConfigurator;
 - `9922/tcp` and `22/tcp` — external SSH reachability remains forbidden.
-- `443/tcp` and every other intentional public listener must have an explicit service/rule owner rather than inheriting a generic WAN pass.
-- Prefer named pfSense aliases for stable office/VPN/DDNS administration sources. Do **not** automatically populate an alias from the currently observed FastAPI Cloud egress IP, and do not allow an entire AWS allocation as a shortcut.
 
-FastAPI Cloud egress addresses observed during the investigation included `52.1.10.241`, `54.164.107.133`, and `34.200.20.162`. These observations prove only where a particular request originated; they are not a stable FastAPI Cloud egress contract.
+Validated 2026-10-08 evidence:
 
-Until the platform offers a user-controlled stable network identity, direct WAN access from FastAPI Cloud to `7000` and `10443` remains an explicitly tracked security exception. Compensating controls are mandatory: verified TLS, dedicated least-privilege API identities, global pfSense REST API read-only mode during steady state, Snort/PF monitoring, and independent negative reachability tests.
+- no NAT/RDR rule forwards TCP/10443;
+- HAProxy has no 10443 backend/reference;
+- nginx listens directly on `*:10443`;
+- the allow rule compiled as `<PFSENSE_ADMIN_WAN:1>`;
+- the explicit WAN deny immediately matched untrusted traffic (58 packets in
+  the first observed sample);
+- public `root`/`admin` WebConfigurator authentication attempts stopped
+  after the block was installed in the sampled log window;
+- subsequent sampled authentication failures came only from internal
+  `172.17.0.24` API calls and are a separate observer-authentication defect.
 
-Acceptance tests after the Easy Rule is replaced:
+Acceptance / remaining checks:
 
-1. FastAPI Cloud can still reach the intentional TrueNAS `:7000` endpoint and complete the required TLS/HTTPS/WebSocket/API path.
-2. FastAPI Cloud can still reach pfSense `:10443` and authenticate with the dedicated GET-only posture/security identities.
-3. An independent untrusted Internet vantage point cannot establish the intended application path to `:7000` or `:10443`; an HTTP `401`/`403` from that vantage still proves the listener is network-reachable and does not satisfy an L3/L4 source-restriction requirement.
-4. `/sickz` reports both `7000` and `10443` as `trusted_sources_only`, expected reachable from the FastAPI Cloud vantage, with a default-deny/negative-probe requirement for other origins.
-5. The HAProxy TrueNAS backend remains `UP`, `L7OK`, and HTTP `200`.
-6. No broad WAN pass remains that makes the explicit listener/source rules ineffective.
-
+1. [x] Restrict WAN 10443 to `PFSENSE_ADMIN_WAN` and place an explicit
+   `any -> WAN address:10443` block immediately below it.
+2. [x] Remove the malformed `ExternalOffice` alias after resolving every rule
+   reference.
+3. [x] Preserve LAN anti-lockout/default-LAN access independently from the WAN
+   administration alias.
+4. [ ] Prove a fresh independent external negative probe cannot reach 10443.
+5. [ ] Repair the repeated `172.17.0.24` GET-only pfSense API authentication
+   failures without widening the WAN rule.
+6. [ ] Revalidate TCP/7000 source policy and FastAPI Cloud external exposure
+   separately; do not reuse the human-admin alias as a shortcut.
+7. [ ] Keep every intentional public listener owned by an explicit service/rule
+   contract rather than a generic broad WAN pass.
 
 
 ## P0/P1 — target local FastAPI out-of-band observer
 
-The long-term target is to remove FastAPI Cloud's dependency on direct WAN access to
-the pfSense administration/API listener on `10443/tcp`. The TrueNAS-hosted FastAPI
-Sample is the preferred local observer because it already has trusted-LAN reachability
-to both appliances and can preserve their TLS hostnames through split DNS / explicit
-host mappings.
+The WAN side of this target is now enforced: FastAPI Cloud no longer receives a
+generic/direct exception to pfSense TCP/10443. The remaining work is to make the
+TrueNAS-hosted FastAPI Sample the reliable local observer because it already has
+trusted-LAN reachability to both appliances and can preserve their TLS hostnames
+through split DNS / explicit host mappings.
 
 Target architecture:
 
@@ -82,17 +124,20 @@ Security constraints:
 
 Migration sequence:
 
-1. Replace the broad WAN Easy Rule with explicit per-listener rules.
-2. Keep `7000/tcp` as the intentional HAProxy publication and log accepted traffic.
-3. Keep `10443/tcp` reachable only from explicitly approved stable administration
-   sources while the local observer is being prepared.
-4. Implement the bounded local observer API on the TrueNAS FastAPI Sample.
-5. Add application-level service authentication/authorization in addition to
+1. [x] Replace generic WAN reachability to 10443 with explicit
+   `PFSENSE_ADMIN_WAN` allow + untrusted-source block.
+2. [ ] Keep `7000/tcp` as the intentional HAProxy publication, revalidate its
+   source policy after legacy-alias removal and log accepted traffic.
+3. [x] Keep `10443/tcp` reachable on WAN only from explicitly approved stable
+   human-administration sources.
+4. [ ] Repair the current TrueNAS observer authentication from `172.17.0.24`
+   and implement only bounded local observer endpoints required by FastAPI Cloud.
+5. [ ] Add application-level service authentication/authorization in addition to
    Cloudflare Access before exposing relay endpoints to FastAPI Cloud.
-6. Move posture/Snort/PF telemetry from direct FastAPI Cloud -> pfSense WAN access
-   to FastAPI Cloud -> local observer -> pfSense LAN.
-7. Remove any remaining FastAPI Cloud exception for WAN `10443/tcp` and keep the
-   canonical external probe negative.
+6. [ ] Move posture/Snort/PF telemetry fully to
+   FastAPI Cloud -> local observer -> pfSense LAN.
+7. [ ] Keep the canonical external 10443 probe negative and reject any future
+   direct-cloud exception unless it has a stable, reviewed network identity.
 
 ## P1 — flow telemetry and Netgate 1100 memory budget
 

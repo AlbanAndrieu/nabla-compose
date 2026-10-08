@@ -8,6 +8,7 @@ MISE_BIN="${MISE_BIN:-${HOME}/.local/bin/mise}"
 DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
 PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"
 PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"
+JUST_VERSION="${NABLA_JUST_VERSION:-1.58.0}"
 PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"
 JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"
 SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
@@ -55,6 +56,7 @@ fi
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
 "${MISE_BIN}" --no-config install uv@latest
+"${MISE_BIN}" --no-config install "just@${JUST_VERSION}"
 "${MISE_BIN}" --no-config install "shellcheck@${SHELLCHECK_VERSION}"
 
 printf 'Preparing a minimal user-space development environment: %s\n' "${DEV_VENV}"
@@ -69,6 +71,13 @@ fi
   uv pip install --python "${DEV_VENV}/bin/python" \
   "pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}" \
   "python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}" PyYAML
+
+JUST_BIN="$(
+  "${MISE_BIN}" --no-config which \
+    --tool "just@${JUST_VERSION}" just
+)"
+[[ -x "${JUST_BIN}" ]] || fail "mise-installed just is not executable: ${JUST_BIN}"
+ln -sfn "${JUST_BIN}" "${DEV_VENV}/bin/just"
 
 SHELLCHECK_BIN="$(
   "${MISE_BIN}" --no-config which \
@@ -117,9 +126,10 @@ The agent quality gate automatically prepends this venv when it exists:
   bash scripts/agent-quality-gate.sh --fix
   bash scripts/agent-quality-gate.sh
 
-Optional persistent interactive PATH:
+Optional persistent interactive PATH (also exposes just):
   bash scripts/truenas/bootstrap-dev-tools.sh --persist-shell-path
   source ~/.bashrc
+  just preflight
 
 Existing Kubernetes/Talos operator tools stay separate and root-managed:
   bash scripts/truenas/install-operator-tools.sh --check

@@ -179,6 +179,35 @@ class DiagnosticOutputContractTest(unittest.TestCase):
             self.assertEqual(0o600, stat.S_IMODE(reports[0].stat().st_mode))
 
 
+    def test_wrapper_counts_indented_findings(self) -> None:
+        wrapper = ROOT / "scripts/run-diagnostic.sh"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            target = tmp_path / "indented-diagnostic.sh"
+            target.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf '  ❌ steady-state service is exited\\n'\n"
+                "printf '  ⚠️ health is still starting\\n'\n"
+                "exit 1\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["DIAGNOSTIC_LOG_DIR"] = tmp
+
+            result = subprocess.run(
+                ["bash", str(wrapper), str(target)],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("failed=1", result.stdout)
+        self.assertIn("warnings=1", result.stdout)
+        self.assertIn("steady-state service is exited", result.stdout)
+
     def test_wrapper_preserves_exit_code_and_prints_only_summary(self) -> None:
         wrapper = ROOT / "scripts/run-diagnostic.sh"
 

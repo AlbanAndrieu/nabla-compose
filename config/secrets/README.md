@@ -132,9 +132,15 @@ bw config server
 The helper proves the native loopback origin through
 `http://127.0.0.1:30032/api/config`, but never configures that HTTP URL in the
 official Bitwarden CLI. Bitwarden CLI 2026.x rejects insecure API/identity
-endpoints even on loopback. The helper therefore also requires the canonical
-`https://vaultwarden.albandrieu.com/api/config` endpoint to work and resets
-any stale per-service HTTP override by applying the canonical HTTPS server.
+endpoints even on loopback. Because Bitwarden CLI can persist per-service
+`api`, `identity`, `notifications`, `events`, `icons` and web-vault
+overrides independently, `--apply` resets the complete set to the canonical
+HTTPS origin in one command before probing public ingress.
+
+The canonical `https://vaultwarden.albandrieu.com/api/config` endpoint must
+return HTTP 200 before login is accepted. A public 404 with a healthy native
+loopback `/api/config` is treated as a Cloudflare Tunnel/origin-routing defect,
+not as a reason to point Bitwarden CLI back to insecure loopback HTTP.
 
 After that preflight, authenticate/unlock normally from the unprivileged
 operator shell. If Vaultwarden later becomes private-only, provide a

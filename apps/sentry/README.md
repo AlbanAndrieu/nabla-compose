@@ -45,12 +45,13 @@ entrypoints. Canonical staged material lives under:
 /mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets
 ```
 
-Until finalization, Compose may still reference
+Compose now consumes the canonical runtime files directly. The historical
 `/mnt/cpool/sentry/.env.secrets` and
-`/mnt/cpool/sentry/.env.migrator.secrets`. After functional acceptance,
+`/mnt/cpool/sentry/.env.migrator.secrets` paths remain only as migration
+sources until functional acceptance. Then
 `bootstrap-repository-env-files.sh --finalize sentry` replaces those legacy
-regular files with compatibility symlinks to the canonical copies; it never
-merges differing values.
+regular files with compatibility symlinks to the accepted canonical copies; it
+never merges differing values.
 
 The active `.env.secrets` must be mode `0600` and must not be committed.
 
@@ -106,9 +107,10 @@ sudo bash scripts/truenas/recover-sentry-deploying.sh --check
 sudo bash scripts/truenas/recover-sentry-deploying.sh --apply
 ```
 
-The apply path repairs only missing credential prerequisites, redeploys only
-Sentry, requires `RUNNING`, the full diagnostic, and the end-to-end ingestion
-smoke, then restages canonical runtime files. After an observation window,
+The apply path repairs only missing credential prerequisites, restages both
+canonical runtime files, verifies them, redeploys only Sentry against those
+canonical paths, then requires `RUNNING`, the full diagnostic, and the
+end-to-end ingestion smoke. After an observation window,
 finalize only if current diagnostic and E2E ingestion are still green:
 
 ```bash
@@ -145,6 +147,25 @@ Initial runtime contract:
 GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry;
 GRANT SELECT ON system.tables TO sentry;
 ```
+
+If long-running Snuba consumers report ClickHouse `Code: 516` for user
+`sentry`, reconcile the ClickHouse identity with the runtime material:
+
+```bash
+sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --check
+sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --apply
+```
+
+If a complete runtime ClickHouse password triplet already exists in either the
+legacy or canonical Sentry file, the helper preserves it and refuses conflicts.
+If all three keys are absent from both locations, the helper performs a
+one-time initialization with a 64-hex credential, writes the same value to
+legacy and canonical materializations, and then configures the ClickHouse
+runtime user. Partial triplets fail closed. Values are never printed.
+
+The apply mode fails closed on an inconsistent password triplet, authenticates
+through the dedicated ClickHouse admin identity, never prints the runtime
+password, and restores only the documented runtime grants above.
 
 Bootstrap compatibility contract:
 

@@ -127,6 +127,28 @@ cd /mnt/cpool/compose/nabla-compose
 sudo bash scripts/truenas/harden-pfsense-exporter-config.sh
 ```
 
+Before triggering a full supervised `/metrics` scrape, validate the runtime
+credential with one fail-fast request:
+
+```bash
+sudo bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+```
+
+The helper reads the root-owned structured runtime file without printing its key,
+writes the `X-API-Key` header to a mode-0600 temporary file, sends exactly one
+request to `/api/v2/status/services`, suppresses the response body and never
+retries:
+
+- HTTP 200: the runtime key is accepted and authorized for the service collector;
+- HTTP 401: the runtime key is rejected/stale; stop repeated exporter scrapes and
+  reconcile or rotate the dedicated exporter key before retrying;
+- HTTP 403: the key authenticated but lacks the required endpoint privilege.
+
+Do not loop the auth diagnostic: failed REST API authentication participates in
+pfSense Login Protection. The hardener also refuses the literal
+`REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY` placeholder instead of
+preserving it as if it were a usable credential.
+
 Then reconcile/redeploy Prometheus so the 300-second scrape interval takes
 effect. Reconcile Gatus so its old HTTP metrics monitor is replaced by a
 lightweight TCP check. If AutoKuma is not registered as a TrueNAS application,
