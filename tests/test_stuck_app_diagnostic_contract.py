@@ -114,6 +114,50 @@ def test_grafana_storage_repair_is_bounded() -> None:
     )
     assert syntax.returncode == 0, syntax.stderr
 
+def test_sentry_runtime_clickhouse_credential_reconcile_is_bounded() -> None:
+    diagnostic = (
+        ROOT
+        / "scripts"
+        / "truenas"
+        / "diagnose-sentry-runtime-clickhouse-credential.sh"
+    )
+    reconcile = (
+        ROOT
+        / "scripts"
+        / "truenas"
+        / "reconcile-sentry-runtime-clickhouse-credential.sh"
+    )
+    diagnostic_text = diagnostic.read_text(encoding="utf-8")
+    reconcile_text = reconcile.read_text(encoding="utf-8")
+
+    assert "/mnt/cpool/secrets/runtime/sentry/.env.secrets" in diagnostic_text
+    assert "CLICKHOUSE_READONLY_PASSWORD" in diagnostic_text
+    assert "CLICKHOUSE_TRACE_PASSWORD" in diagnostic_text
+    assert "system.users" in diagnostic_text
+    assert "NABLA_SENTRY_CLICKHOUSE_PASSWORD" in diagnostic_text
+    assert 'cat "${SECRET_FILE}"' not in diagnostic_text
+    assert 'echo "${password}"' not in diagnostic_text
+
+    assert "CREATE USER IF NOT EXISTS sentry" in reconcile_text
+    assert "ALTER USER sentry" in reconcile_text
+    assert "GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry" in reconcile_text
+    assert "GRANT SELECT ON system.tables TO sentry" in reconcile_text
+    assert "openssl rand" not in reconcile_text
+    assert "docker restart" not in reconcile_text
+    assert "app.redeploy" not in reconcile_text
+    assert "DROP DATABASE" not in reconcile_text
+    assert "DROP USER" not in reconcile_text
+
+    for path in (diagnostic, reconcile):
+        syntax = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert syntax.returncode == 0, syntax.stderr
+
+
 def test_sentry_migrator_credential_diagnostic_is_bounded_and_secret_safe() -> None:
     path = ROOT / "scripts" / "truenas" / "diagnose-sentry-migrator-credential.sh"
     script = path.read_text(encoding="utf-8")
@@ -236,6 +280,7 @@ def test_sentry_deploying_recovery_is_targeted_and_acceptance_gated() -> None:
     assert "--apply" in script
     assert "--finalize" in script
     assert "reconcile-sentry-system-secret.sh" in script
+    assert "reconcile-sentry-runtime-clickhouse-credential.sh" in script
     assert "reconcile-sentry-migrator-credential.sh" in script
     assert 'midclt call -j app.redeploy "${APP_ID}"' in script
     assert "truenas_wait_app_running" in script
