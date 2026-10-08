@@ -142,6 +142,7 @@ def test_sentry_runtime_clickhouse_credential_reconcile_is_bounded() -> None:
     assert "ALTER USER sentry" in reconcile_text
     assert "GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry" in reconcile_text
     assert "GRANT SELECT ON system.tables TO sentry" in reconcile_text
+    assert "SENTRY_RUNTIME_CLICKHOUSE_RECONCILE_TIMEOUT_SECONDS" in reconcile_text
     assert "openssl rand" not in reconcile_text
     assert "docker restart" not in reconcile_text
     assert "app.redeploy" not in reconcile_text
