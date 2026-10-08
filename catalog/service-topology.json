@@ -4986,7 +4986,7 @@
       "strength": "required",
       "description": "Relay uses the shared Redis service.",
       "evidence": [
-        "/mnt/cpool/sentry/.env.secrets:RELAY_REDIS_URL"
+        "/mnt/cpool/secrets/runtime/sentry/.env.secrets:RELAY_REDIS_URL"
       ]
     },
     {
