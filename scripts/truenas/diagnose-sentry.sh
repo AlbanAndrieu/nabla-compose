@@ -72,6 +72,27 @@ else
   printf '   NEXT: sudo bash scripts/truenas/reconcile-sentry-system-secret.sh --check\n' >&2
 fi
 
+printf '\n==> Sentry Relay credential preflight\n'
+relay_required_keys=(RELAY_ID RELAY_PUBLIC_KEY RELAY_SECRET_KEY)
+relay_missing_keys=()
+for relay_key in "${relay_required_keys[@]}"; do
+  if ! [[ -r "${sentry_secret_file}" ]] ||
+    ! awk -F= -v key="${relay_key}" '
+      $1 == key && length($0) > length($1) + 1 { found = 1 }
+      END { exit(found ? 0 : 1) }
+    ' "${sentry_secret_file}"; then
+    relay_missing_keys+=("${relay_key}")
+  fi
+done
+
+if (("${#relay_missing_keys[@]}" == 0)); then
+  printf '✅ Relay identity is complete without printing credential values\n'
+else
+  printf '❌ Relay identity is incomplete; missing key names: %s\n' "${relay_missing_keys[*]}" >&2
+  printf '   Relay 26.8 can consume RELAY_ID, RELAY_PUBLIC_KEY and RELAY_SECRET_KEY directly.\n' >&2
+  printf '   Repair the runtime secret material before redeploying Sentry.\n' >&2
+fi
+
 printf '\n==> TrueNAS Sentry application state\n'
 app_json="$(
   midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" '{"extra":{"retrieve_config":true}}'
