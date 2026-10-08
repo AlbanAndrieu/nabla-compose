@@ -306,26 +306,29 @@ Reference: <https://docs.dagger.io/getting-started/introduction/> and
 
 ### Context7 — current documentation for coding agents
 
-Context7 is a candidate documentation context provider for **external APIs and
-libraries**, not a replacement for repository source, runtime evidence or
-official application state. It provides current/version-specific documentation
-through MCP/CLI.
+Context7 is documentation-only: it improves version/API accuracy for external
+libraries but never replaces repository/runtime evidence.
 
-- [ ] Configure Context7 MCP or `ctx7` CLI for the primary coding-agent path
-  (OpenCode first; Cursor/other adapters may reuse the same policy).
-- [ ] Keep `CONTEXT7_API_KEY` outside Git; use local environment/approved secret
-  handling and prefer local stdio MCP rather than exposing another public service.
-- [ ] Route rapidly evolving external-library questions through Context7 before
-  implementation when available: Dagger, Docker/Compose, Kubernetes/Talos,
-  Python/JS libraries and other indexed dependencies.
-- [ ] Request the exact library/version whenever practical; record a normal
-  official-doc/web fallback when Context7 has no suitable library/version.
-- [ ] Never use Context7 as evidence for repository state, TrueNAS runtime state,
-  secret values or deployed versions; those remain source/runtime queries.
-- [ ] Add a small agent contract/test proving that Context7 is **on-demand**,
-  does not bloat every prompt, and that repository instructions still win.
-- [ ] After acceptance, add the routing rule to `AGENTS.md`,
-  `local-first-quality` and the relevant specialized skills.
+- [x] Register the hosted Context7 MCP endpoint in `.mcp.json` **without
+  credentials or headers** so normal operation uses the anonymous/free quota.
+- [x] Add `context7-docs` as an on-demand skill with an anonymous CLI fallback
+  (`ctx7 library` → versioned library ID → `ctx7 docs`) and telemetry disabled
+  in the documented CLI path.
+- [x] Route external/version-specific library questions through Context7 from
+  `AGENTS.md` and `local-first-quality`, while keeping repository files,
+  lockfiles and runtime diagnostics authoritative.
+- [x] Add a Pre-commit contract that rejects a required
+  `CONTEXT7_API_KEY` in the project MCP configuration and verifies the
+  free-first/on-demand boundaries.
+- [ ] Runtime-smoke the anonymous endpoint from the primary OpenCode client and
+  execute one version-specific lookup. If the anonymous quota is insufficient,
+  prefer free login/OAuth before any paid tier.
+- [ ] Keep `CONTEXT7_API_KEY` optional and outside Git; reserve it for
+  non-interactive automation or higher free-plan limits only.
+- [ ] Use Context7 during the Dagger PoC to resolve the current Dagger workspace,
+  module and Check APIs before generating repository configuration.
+- [ ] Record an official-doc/web fallback when Context7 lacks the required
+  library/version or is rate-limited.
 
 Reference: <https://context7.com/docs/overview> and
 <https://context7.com/docs/clients/cli>.
