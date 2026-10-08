@@ -132,9 +132,12 @@ def test_dagger_requires_reviewed_lock_before_execution() -> None:
     assert mise.count('test -f dagger.lock || { echo "dagger.lock missing; run: just dagger-sync"; exit 2; }') >= 3
     assert "dagger workspace update did not create dagger.lock" in mise
     assert "git diff -- dagger.lock" in mise
-    assert "pre-commit run shell-lint --all-files" in mise
-    assert "pre-commit run biome-check --all-files" in mise
+    assert "pre-commit run shellcheck --all-files" in mise
+    assert "node_modules/.bin/biome check" in mise
+    assert "pinned Biome missing; run: npm ci" in mise
     assert "hyperfine --warmup 1 --runs 3" in mise
+    assert "'just dagger-native-parity'" in mise
+    assert "'just dagger-poc'" in mise
     assert "dagger cache" not in mise
     assert "docker system prune" not in mise
 
