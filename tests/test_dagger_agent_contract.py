@@ -43,7 +43,24 @@ def test_dagger_workspace_is_bounded_and_secret_safe() -> None:
     assert config["check-generated"] is False
     assert config["modules"]["shellcheck"]["source"] == SHELLCHECK_SOURCE
     assert config["modules"]["biomejs"]["source"] == BIOME_SOURCE
-    assert "biscuitcutter.sh" in config["modules"]["shellcheck"]["settings"]["exclude"]
+    shellcheck_exclude = set(
+        config["modules"]["shellcheck"]["settings"]["exclude"]
+    )
+    assert shellcheck_exclude == {
+        "biscuitcutter.sh",
+        "build.sh",
+        "scripts/run-wicked.sh",
+        "tests/",
+    }
+
+    precommit = PRECOMMIT.read_text(encoding="utf-8")
+    for native_exclusion in (
+        r"biscuitcutter\.sh",
+        r"build\.sh",
+        r"scripts/run-wicked\.sh",
+        r"tests/.*",
+    ):
+        assert native_exclusion in precommit
     assert (
         config["modules"]["biomejs"]["settings"]["baseImageAddress"]
         == BIOME_BASE_IMAGE
