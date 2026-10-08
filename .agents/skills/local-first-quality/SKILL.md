@@ -139,6 +139,7 @@ Dagger is currently an optional parity experiment. It does not replace the canon
 The bounded workspace currently exposes only ShellCheck and Biome checks:
 
 ```bash
+just dagger-sync   # refresh/review dagger.lock explicitly
 just dagger-list
 just dagger-poc
 ```
