@@ -106,7 +106,7 @@ dagger --x-release=v1.0.0-beta.15 check -l
 [tasks.dagger-native-parity]
 description = "Run non-mutating native ShellCheck and pinned Biome parity controls"
 run = '''
-test -x node_modules/.bin/biome || { echo "pinned Biome missing; run: npm ci"; exit 2; }
+test -x node_modules/.bin/biome || { echo "pinned Biome missing; run: npm ci --ignore-scripts"; exit 2; }
 pre-commit run shellcheck --all-files
 node_modules/.bin/biome check
 '''
