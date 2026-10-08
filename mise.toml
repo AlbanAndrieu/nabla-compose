@@ -22,6 +22,7 @@ op = "latest"
 terragrunt = "0.97.0"
 sops = "latest"
 docker-compose = "latest"
+dagger = "0.21.10"
 # 1password = "latest"
 
 [settings]
@@ -85,3 +86,11 @@ echo "Project: $PROJECT_NAME"
 echo "Python: $(python --version 2>&1)"
 echo "Pre-commit: $(pre-commit --version 2>&1)"
 '''
+
+[tasks.dagger-list]
+description = "List experimental Dagger 1.0-beta checks without changing the canonical gate"
+run = "dagger --x-release=v1.0.0-beta.15 check -l"
+
+[tasks.dagger-poc]
+description = "Run the bounded experimental Dagger checks; agent-pre-push remains authoritative"
+run = "dagger --x-release=v1.0.0-beta.15 check --no-generate"
