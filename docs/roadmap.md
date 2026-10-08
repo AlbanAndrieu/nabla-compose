@@ -277,32 +277,47 @@ L3 full local publication. Only L3 means the complete local gate is green.
 
 ### Dagger — portable local/CI execution
 
-Dagger is a candidate **execution layer**, not a second source of quality policy.
-Its documented model lets the same typed checks run locally and in CI with
-containerized DAG execution, caching and reusable modules. Official modules
-already cover tools such as Pytest and ShellCheck.
+Dagger remains a **beta parity PoC**, not a second source of quality policy.
+The repository installs the stable CLI `0.21.10`, while the new workspace/check
+surface is selected explicitly with `--x-release=v1.0.0-beta.15`. The
+canonical publication evidence remains `agent-pre-push`.
 
-- [ ] Add a bounded Dagger PoC workspace (`dagger.toml`) on a dedicated PR.
-- [ ] Start with 2–3 deterministic checks already owned by the repository
-  (for example Pytest contracts + ShellCheck + one generated/config contract).
-- [ ] Prefer official Dagger modules when they exactly fit; create a local Dagger
-  module only when it represents a durable Nabla workflow rather than wrapping
-  one command ceremonially.
-- [ ] Prove identical results locally and from a CI runner before moving any
-  required check behind Dagger.
-- [ ] Measure cold/warm execution, cache reuse and failure readability against
-  `just loop` / `just pre-push`.
-- [ ] Keep Pre-commit/Just/Mise and `scripts/agent-quality-gate.sh` authoritative
-  until parity is proven; Dagger must reduce CI glue/custom orchestration rather
-  than duplicate it.
-- [ ] If accepted, expose a small stable interface such as
-  `dagger check` / named checks and let GitHub Actions become a thin trigger.
-  Local execution must remain possible when Actions credits are unavailable.
-- [ ] Add Dagger usage/routing to the `local-first-quality` skill only after the
-  PoC is reproducible.
+- [x] Add a bounded `dagger.toml` workspace with
+  `defaults_from_dotenv=false`, generated checks disabled for the PoC and heavy/
+  sensitive source trees excluded.
+- [x] Start with two existing deterministic concerns that already have native
+  repository coverage: **ShellCheck + Biome**. Their Dagger module sources are
+  pinned to reviewed Git commits instead of floating module names.
+- [x] Pin Dagger `0.21.10` in Mise/mise.lock and expose
+  `just dagger-list` plus `just dagger-poc`; the tasks explicitly select
+  `v1.0.0-beta.15`.
+- [x] Add a Pre-commit contract for the Dagger configuration/tool pins and keep
+  the PoC separate from `just pre-push`.
+- [ ] Run `just dagger-list` then `just dagger-poc` on a checkout with a
+  supported container runtime; review any generated `dagger.lock` rather than
+  hand-crafting it.
+- [ ] Prove parity against the native ShellCheck/Biome contracts on the same
+  exact HEAD and compare failure readability.
+- [ ] Measure cold/warm execution and cache reuse against the corresponding
+  `just loop` work before deciding whether Dagger removes enough CI glue to
+  justify promotion.
+- [ ] **Pytest deferred:** the official Dagger Pytest discovery expects a clean
+  root Python project marker; this repository currently has no root
+  `pyproject.toml`/`tox.ini`. Do not invent a project marker solely for
+  Dagger. Add Pytest only after native project metadata is intentionally
+  normalized or a durable local Dagger module clearly reduces code.
+- [ ] **Ruff deferred:** `.ruff.toml` currently extends a missing root
+  `pyproject.toml`; repair that native configuration debt before adding a
+  second Ruff execution path.
+- [ ] Keep GitHub Actions unchanged during the PoC. Only after local parity is
+  proven may a later PR make Actions a thin `dagger check` trigger.
+- [ ] Promote Dagger from the experimental section of `local-first-quality`
+  only after the runtime/parity evidence above is green.
 
-Reference: <https://docs.dagger.io/getting-started/introduction/> and
-<https://docs.dagger.io/reference/modules/>.
+References: <https://docs.dagger.io/reference/config-files/dagger-toml/>,
+<https://docs.dagger.io/cli/checking/>,
+<https://docs.dagger.io/reference/modules/shellcheck/> and
+<https://docs.dagger.io/reference/modules/js/biome/>.
 
 ### Context7 — current documentation for coding agents
 
