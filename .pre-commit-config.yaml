@@ -56,11 +56,11 @@ repos:
         exclude: '^build\.sh$'
         args: ['-ln=bash', '-i=2']
 
-  - repo: https://github.com/detailyang/pre-commit-shell
-    rev: v1.0.6
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
     hooks:
-      - id: shell-lint
-        name: "🐚 shell · Lint shell scripts"
+      - id: shellcheck
+        name: "🐚 shell · ShellCheck v0.11.0"
         # Resolve source=../... directives relative to each script, not repo root.
         args: [-x, -P, SCRIPTDIR]
         exclude: >-
@@ -71,7 +71,7 @@ repos:
     hooks:
       - id: bashate
         name: "🐚 shell · Check shell style"
-        # shfmt owns formatting and shell-lint/ShellCheck owns semantic shell lint.
+        # shfmt owns formatting and ShellCheck owns semantic shell lint.
         # These Bashate rules duplicate those checks or false-positive on jq text.
         args: [-i, "E003,E006,E011,E042,E043"]
         exclude: '^(trunk|scripts/run-python\.sh|scripts/run-wicked\.sh|\.envrc)$'
