@@ -134,23 +134,50 @@ This fallback is for continuity, not a substitute for the publication gate.
 
 ## Experimental Dagger PoC
 
-Dagger is currently an optional parity experiment. It does not replace the canonical publication gate and must never be used to bypass Pre-commit or `agent-pre-push`.
+Dagger remains an optional parity experiment. It does not replace the canonical
+publication gate and must never bypass Pre-commit or `agent-pre-push`.
 
-The bounded workspace currently exposes only ShellCheck and Biome checks:
+Use this sequence:
 
 ```bash
-just dagger-sync   # refresh/review dagger.lock explicitly
-just dagger-list
-just dagger-poc
+just dagger-sync            # resolve/refresh dagger.lock, then review it
+just dagger-list            # refuses to run without dagger.lock
+just dagger-native-parity   # native ShellCheck + Biome reference
+just dagger-poc             # refuses to run without dagger.lock
+just dagger-bench           # warm-cache comparison with Hyperfine
 ```
 
-The repository pins the installed stable CLI separately from the Dagger 1.0 beta workspace engine. The Mise tasks use `--x-release=v1.0.0-beta.15` explicitly so ordinary Dagger usage does not silently opt into beta behavior.
+Reproducibility comes before performance:
 
-Treat a successful `just dagger-poc` as **L1 targeted evidence** until parity with the native checks is measured and the full `agent-pre-push` gate still passes on the exact HEAD. Do not call the PR locally green from Dagger alone.
+- `@biomejs/biome` is an exact `2.4.12` dev dependency and package-lock
+  entry, matching the existing Pre-commit Biome toolchain;
+- the Dagger Biome module uses an explicit digest-pinned Node image;
+- ShellCheck exclusions mirror the relevant native `.sh` exclusions;
+- the official ShellCheck module currently references a mutable
+  `koalaman/shellcheck-alpine` image internally, so the generated
+  `dagger.lock` must prove that Dagger resolved that image to immutable state
+  before ShellCheck parity can be accepted;
+- `dagger-list`, `dagger-poc` and `dagger-bench` fail closed when the
+  reviewed lockfile is absent.
 
-The PoC intentionally excludes Pytest until the repository has a clean root Python project marker compatible with the official Dagger Pytest discovery contract. Native Ruff configuration is now standalone; Ruff still stays outside Dagger because the current official Dagger module catalog does not provide a Ruff module and a local wrapper would duplicate an already-working native tool.
+Hyperfine is the benchmark runner; do not add a repository-specific timer.
+`just dagger-bench` measures warm-cache behavior with three runs and one
+warmup. Do not delete Docker/Dagger/shared caches merely to manufacture a
+"cold" number. Record cold-start behavior only from a naturally cold/fresh
+environment and label it separately.
 
-Keep secrets and live homelab mutation out of this workspace: `defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no appliance deployment/recovery checks.
+Treat successful Dagger checks as **L1 targeted evidence** until native parity is
+demonstrated and the full `agent-pre-push` gate passes on the exact HEAD.
+Dagger benchmark success is performance evidence, not publication evidence.
+
+The PoC intentionally excludes Pytest until the repository has a clean root
+Python project marker compatible with the official Dagger Pytest discovery
+contract. Ruff remains native because adding a local Dagger wrapper would
+duplicate an already-working tool.
+
+Keep secrets and live homelab mutation out of this workspace:
+`defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no
+appliance deployment/recovery checks.
 
 ## Tooling choice
 
