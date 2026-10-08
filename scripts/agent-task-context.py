@@ -128,6 +128,7 @@ def suggested_skills(paths: list[str]) -> list[str]:
             "agent.md",
             ".pre-commit-config.yaml",
             ".pre-commit-pre-push.yaml",
+            "dagger.toml",
         }
         or path.startswith("scripts/agent-")
         or path.startswith(".github/workflows/")
