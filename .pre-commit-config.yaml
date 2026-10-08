@@ -162,7 +162,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1"]
         pass_filenames: false
         files: >-
-          ^(dagger[.]toml|mise[.]toml|mise[.]lock|justfile|[.]agents/skills/local-first-quality/SKILL[.]md|docs/roadmap[.]md|tests/test_dagger_agent_contract[.]py)$
+          ^(dagger[.]toml|mise[.]toml|mise[.]lock|justfile|scripts/agent-task-context[.]py|[.]agents/skills/local-first-quality/SKILL[.]md|docs/roadmap[.]md|tests/test_dagger_agent_contract[.]py)$
 
       - id: renovate-config-contract
         name: "🤖 renovate · Validate dependency automation contract"
