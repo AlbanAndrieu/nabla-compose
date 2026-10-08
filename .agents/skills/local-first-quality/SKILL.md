@@ -142,7 +142,7 @@ Use this sequence:
 ```bash
 just dagger-sync            # resolve/refresh dagger.lock, then review it
 just dagger-list            # refuses to run without dagger.lock
-just dagger-native-parity   # native ShellCheck + Biome reference
+just dagger-native-parity   # official ShellCheck + pinned non-mutating Biome
 just dagger-poc             # refuses to run without dagger.lock
 just dagger-bench           # warm-cache comparison with Hyperfine
 ```
@@ -152,6 +152,9 @@ Reproducibility comes before performance:
 - `@biomejs/biome` is an exact `2.4.12` dev dependency and package-lock
   entry, matching the existing Pre-commit Biome toolchain;
 - the Dagger Biome module uses an explicit digest-pinned Node image;
+- the native ShellCheck reference uses the official
+  `koalaman/shellcheck-precommit` hook at `v0.11.0`, replacing the legacy
+  wrapper that depended on an unpinned system binary;
 - ShellCheck exclusions mirror the relevant native `.sh` exclusions;
 - the official ShellCheck module currently references a mutable
   `koalaman/shellcheck-alpine` image internally, so the generated
@@ -160,9 +163,14 @@ Reproducibility comes before performance:
 - `dagger-list`, `dagger-poc` and `dagger-bench` fail closed when the
   reviewed lockfile is absent.
 
+The native Biome reference is `node_modules/.bin/biome check`, never the
+Pre-commit `biome-check` hook because that hook uses `--write`. Run
+`npm ci` before parity work; the task fails closed when the pinned local
+Biome binary is absent.
+
 Hyperfine is the benchmark runner; do not add a repository-specific timer.
-`just dagger-bench` measures warm-cache behavior with three runs and one
-warmup. Do not delete Docker/Dagger/shared caches merely to manufacture a
+`just dagger-bench` benchmarks `just dagger-native-parity` against
+`just dagger-poc` with three runs and one warmup. Do not delete Docker/Dagger/shared caches merely to manufacture a
 "cold" number. Record cold-start behavior only from a naturally cold/fresh
 environment and label it separately.
 
