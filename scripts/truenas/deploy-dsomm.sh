@@ -121,13 +121,47 @@ for state_file in "${model_file}" "${progress_file}" "${evidence_file}"; do
 done
 
 if [[ "${MODE}" == "--apply" ]]; then
+  printf '\n==> DSOMM frontend image pull\n'
+  docker pull "${DSOMM_IMAGE}" >/dev/null
+  printf 'OK: DSOMM frontend image is local: %s\n' "${DSOMM_IMAGE}"
+
   printf '\n==> TrueNAS Custom App reconciliation\n'
+  lifecycle_mark="$(truenas_lifecycle_mark)"
   DSOMM_IMAGE="${DSOMM_IMAGE}" truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
 
   state="$(truenas_app_state "${APP_ID}")"
   if [[ "${state}" == "STOPPED" ]]; then
     printf 'Starting DSOMM Custom App after configuration reconciliation...\n'
     midclt call -j app.start "${APP_ID}"
+    state="$(truenas_app_state "${APP_ID}")"
+    if [[ "${state}" == "STOPPED" ]]; then
+      printf 'ERROR: DSOMM app.start completed but the App returned to STOPPED.\n' >&2
+      truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 40 || true
+      printf '%s\n' 'Recent DSOMM lifecycle jobs (arguments intentionally omitted):' >&2
+      midclt call core.get_jobs |
+        jq --arg app "${APP_ID}" '
+          [
+            .[]
+            | select(.method == "app.create" or .method == "app.update" or .method == "app.start")
+            | select(
+                (.arguments[0]? == $app)
+                or ((.arguments[0]? | type) == "object" and .arguments[0].app_name? == $app)
+              )
+            | {
+                id,
+                method,
+                state,
+                error,
+                description,
+                logs_excerpt
+              }
+          ]
+          | sort_by(.id)
+          | reverse
+          | .[:5]
+        ' >&2 || true
+      fail "DSOMM returned to STOPPED immediately after app.start; inspect bounded lifecycle evidence above"
+    fi
   fi
 fi
 
