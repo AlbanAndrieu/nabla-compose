@@ -28,7 +28,7 @@ class DsommContractTests(unittest.TestCase):
     def test_ui_service_is_internal_repository_owned_dsomm(self) -> None:
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm"]
-        self.assertIn("wurstbrot/dsomm:5.0.0", service["image"])
+        self.assertIn("wurstbrot/dsomm:4.4.1", service["image"])
         port = service["ports"][0]
         self.assertEqual(8080, port["target"])
         self.assertEqual("31088", port["published"])
@@ -52,6 +52,12 @@ class DsommContractTests(unittest.TestCase):
         self.assertTrue(
             any(
                 "team-evidence.yaml:/srv/assets/YAML/team-evidence.yaml:ro" in volume
+                for volume in service["volumes"]
+            )
+        )
+        self.assertTrue(
+            any(
+                "model.yaml:/srv/assets/YAML/default/model.yaml:ro" in volume
                 for volume in service["volumes"]
             )
         )
@@ -131,6 +137,11 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("team-evidence.yaml", text)
         self.assertIn("team-progress.seed.yaml", text)
         self.assertIn("team-evidence.seed.yaml", text)
+        self.assertIn("wurstbrot/dsomm:4.4.1", text)
+        self.assertIn("docker manifest inspect", text)
+        self.assertIn("a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a", text)
+        self.assertIn("/mnt/cpool/dsomm/state/model.yaml", text)
+        self.assertIn("version: ${DSOMM_MODEL_VERSION}", text)
         self.assertIn("python3 scripts/dsomm/validate-seed.py", text)
         self.assertIn('install -m 0600 "${state_seed}" "${state_file}"', text)
         self.assertNotIn("printf '%s:\\n' \"${state_key}\"", text)
