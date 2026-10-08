@@ -32,7 +32,7 @@ SHELLCHECK_SOURCE = (
 )
 BIOME_SOURCE = (
     "github.com/dagger/biomejs@"
-    "76dea6c9e0567da66fe2f2757d0d4204428b760f"
+    "03db7bbf81087918657205c1eace20dfff7e29b3"
 )
 
 
@@ -48,6 +48,10 @@ def test_dagger_workspace_is_bounded_and_secret_safe() -> None:
         config["modules"]["biomejs"]["settings"]["baseImageAddress"]
         == BIOME_BASE_IMAGE
     )
+    assert config["modules"]["biomejs"]["settings"]["packageManager"] == "npm"
+    assert config["modules"]["biomejs"]["settings"]["installFlags"] == [
+        "--ignore-scripts"
+    ]
 
     sources = [module["source"] for module in config["modules"].values()]
     assert all(re.search(r"@[0-9a-f]{40}$", source) for source in sources)
@@ -137,7 +141,7 @@ def test_dagger_requires_reviewed_lock_before_execution() -> None:
     assert "git diff -- dagger.lock" in mise
     assert "pre-commit run shellcheck --all-files" in mise
     assert "node_modules/.bin/biome check" in mise
-    assert "pinned Biome missing; run: npm ci" in mise
+    assert "pinned Biome missing; run: npm ci --ignore-scripts" in mise
     assert "hyperfine --warmup 1 --runs 3" in mise
     assert "'just dagger-native-parity'" in mise
     assert "'just dagger-poc'" in mise
