@@ -22,7 +22,7 @@ case "${MODE}" in
 esac
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo on TrueNAS"
-for command in curl docker git install jq midclt python3; do
+for command in curl docker git grep install jq midclt mktemp python3; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
