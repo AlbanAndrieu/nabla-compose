@@ -22,6 +22,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("NABLA_TRUENAS_DEV_VENV", text)
         self.assertIn(".cache/nabla-compose/dev-venv", text)
         self.assertIn('export PATH="${DEV_VENV}/bin:${PATH}"', text)
+        self.assertIn('PYTHON_CMD=("${DEV_VENV}/bin/python")', text)
         self.assertIn("--loop", text)
         self.assertIn("--ci", text)
         self.assertIn("TARGETED_ONLY", text)
