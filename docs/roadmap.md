@@ -285,8 +285,10 @@ The canonical publication evidence remains `agent-pre-push`.
   sensitive/heavy source trees excluded.
 - [x] Start with native concerns already owned by the repository:
   **ShellCheck + Biome**; module sources are commit-pinned.
-- [x] Pin Dagger `0.21.10` in Mise/mise.lock and select
-  `v1.0.0-beta.15` explicitly for the workspace/check surface.
+- [x] Pin Dagger `0.21.10` in Mise/mise.lock and centralize the
+  workspace/check surface in one non-secret Mise value,
+  `DAGGER_WORKSPACE_RELEASE=v1.0.0-beta.15`; task commands reference only
+  that value.
 - [x] Make Biome reproducible before benchmarking:
   `@biomejs/biome=2.4.12` is exact in package.json/package-lock; the Dagger
   module is pinned to official commit
@@ -300,6 +302,10 @@ The canonical publication evidence remains `agent-pre-push`.
 - [x] Make native Biome parity non-mutating: use the exact local
   `node_modules/.bin/biome check` after `npm ci --ignore-scripts`, not the Pre-commit
   `biome-check` hook because that hook runs with `--write`.
+- [x] Keep the PoC credential-free:
+  `defaults_from_dotenv=false`; Mise-loaded operator `.env*` values are not
+  Dagger module settings/defaults. Any future credential must use an explicit
+  Dagger `Secret` input and receive a separate security review.
 - [x] Fail closed: `dagger-list`, `dagger-poc` and `dagger-bench` refuse
   execution until a reviewed `dagger.lock` exists.
 - [x] Add mature OSS benchmark tooling instead of custom timing code:
