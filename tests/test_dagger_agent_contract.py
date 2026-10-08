@@ -130,6 +130,8 @@ def test_dagger_requires_reviewed_lock_before_execution() -> None:
     mise = MISE.read_text(encoding="utf-8")
 
     assert mise.count('test -f dagger.lock || { echo "dagger.lock missing; run: just dagger-sync"; exit 2; }') >= 3
+    assert "dagger workspace update did not create dagger.lock" in mise
+    assert "git diff -- dagger.lock" in mise
     assert "pre-commit run shell-lint --all-files" in mise
     assert "pre-commit run biome-check --all-files" in mise
     assert "hyperfine --warmup 1 --runs 3" in mise
