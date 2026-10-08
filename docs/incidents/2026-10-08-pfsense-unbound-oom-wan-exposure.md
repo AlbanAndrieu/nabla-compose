@@ -145,6 +145,42 @@ Internet scanners from reaching PHP-FPM. The remaining `172.17.0.24`
 authentication failures are a separate local observer credential/configuration
 problem and must not be treated as proof that WAN TCP/10443 is still exposed.
 
+## Internal observer attribution
+
+Repository/runtime policy identifies `pfsense-exporter` as the source of the
+remaining five-minute authentication failures:
+
+- Prometheus scrapes the exporter exactly every `300s`;
+- the steady-state exporter configuration enables exactly three serialized
+  collectors: `system`, `gateways` and `service`;
+- those collectors match the three pfSense endpoints observed in the logs:
+  `/api/v2/status/system`, `/api/v2/status/gateways` and
+  `/api/v2/status/services`;
+- the exporter runs on TrueNAS and pfSense therefore observes the host-side
+  source `172.17.0.24`.
+
+This proves emitter attribution but not yet the exact credential defect. The
+runtime file `/mnt/cpool/prometheus/secrets/pfsense-exporter.yml` can still
+contain a stale/revoked key or a key whose owning user lacks an exporter endpoint
+privilege.
+
+A dedicated fail-fast diagnostic now performs exactly one authenticated request
+to `/api/v2/status/services` without printing the key or response body:
+
+```bash
+sudo bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+```
+
+Interpretation is deliberately narrow: HTTP 401 means the runtime key was
+rejected, HTTP 403 means authentication succeeded but authorization is
+insufficient, and HTTP 200 proves the service collector credential path. Do not
+loop the diagnostic because rejected REST API credentials participate in pfSense
+Login Protection.
+
+The existing exporter hardener now also rejects the literal
+`REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY` placeholder instead of
+preserving it as a non-empty credential.
+
 ## Remaining actions
 
 - keep CrowdSec engine stopped until its failed-send loop is diagnosed;
