@@ -147,7 +147,7 @@ The repository pins the installed stable CLI separately from the Dagger 1.0 beta
 
 Treat a successful `just dagger-poc` as **L1 targeted evidence** until parity with the native checks is measured and the full `agent-pre-push` gate still passes on the exact HEAD. Do not call the PR locally green from Dagger alone.
 
-The PoC intentionally excludes Pytest until the repository has a clean root Python project marker compatible with the official Dagger Pytest discovery contract. Ruff is also excluded while the root Ruff configuration extends a missing root `pyproject.toml`; fix that native configuration debt before adding another Ruff execution path.
+The PoC intentionally excludes Pytest until the repository has a clean root Python project marker compatible with the official Dagger Pytest discovery contract. Native Ruff configuration is now standalone; Ruff still stays outside Dagger because the current official Dagger module catalog does not provide a Ruff module and a local wrapper would duplicate an already-working native tool.
 
 Keep secrets and live homelab mutation out of this workspace: `defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no appliance deployment/recovery checks.
 
