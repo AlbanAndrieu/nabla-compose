@@ -130,7 +130,7 @@ class DsommContractTests(unittest.TestCase):
 
     def test_deployer_uses_supported_truenas_custom_app_path(self) -> None:
         text = DEPLOY.read_text(encoding="utf-8")
-        self.assertFalse(text.startswith("#!"))
+        self.assertTrue(text.startswith("#!/usr/bin/env bash"))
         self.assertIn('MODE="${1:---check}"', text)
         self.assertIn("bootstrap-repository-storage.sh", text)
         self.assertIn("team-progress.yaml", text)
