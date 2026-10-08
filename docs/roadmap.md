@@ -195,9 +195,13 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     rule references. It contained one office address plus all 256 LAN /24
     addresses expanded individually; the replacement admin alias resolves only
     to `80.15.4.233`.
-  - [ ] Repair the repeated GET-only pfSense API authentication failures from
-    internal observer `172.17.0.24` (`user unknown`) without reopening WAN
-    10443 or broadening the human-administration alias.
+  - [ ] Repair the repeated pfSense exporter authentication failures from
+    `172.17.0.24`: the 300-second cadence and exact
+    `system/gateways/service` endpoint set now attribute them to
+    `pfsense-exporter`. Run the single-request
+    `diagnose-pfsense-exporter-auth.sh` preflight, then reconcile/rotate only
+    the dedicated exporter credential according to 401 vs 403 evidence; do not
+    reopen WAN 10443 or broaden the human-administration alias.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
