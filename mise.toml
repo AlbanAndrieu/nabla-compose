@@ -104,8 +104,12 @@ dagger --x-release=v1.0.0-beta.15 check -l
 '''
 
 [tasks.dagger-native-parity]
-description = "Run the native ShellCheck and Biome controls used as Dagger parity reference"
-run = "pre-commit run shell-lint --all-files && pre-commit run biome-check --all-files"
+description = "Run non-mutating native ShellCheck and pinned Biome parity controls"
+run = '''
+test -x node_modules/.bin/biome || { echo "pinned Biome missing; run: npm ci"; exit 2; }
+pre-commit run shellcheck --all-files
+node_modules/.bin/biome check
+'''
 
 [tasks.dagger-poc]
 description = "Run bounded Dagger checks only from a reviewed lock; agent-pre-push remains authoritative"
@@ -118,5 +122,5 @@ dagger --x-release=v1.0.0-beta.15 check --no-generate
 description = "Benchmark warm native-vs-Dagger parity paths without deleting caches"
 run = '''
 test -f dagger.lock || { echo "dagger.lock missing; run: just dagger-sync"; exit 2; }
-hyperfine --warmup 1 --runs 3   'pre-commit run shell-lint --all-files && pre-commit run biome-check --all-files'   'dagger --x-release=v1.0.0-beta.15 check --no-generate'
+hyperfine --warmup 1 --runs 3 'just dagger-native-parity' 'just dagger-poc'
 '''
