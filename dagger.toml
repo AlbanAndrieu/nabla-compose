@@ -1,0 +1,34 @@
+# Experimental Dagger 1.0 workspace for local-first parity evaluation.
+# The canonical publication gate remains scripts/agent-pre-push.sh.
+defaults_from_dotenv = false
+check-generated = false
+
+ignore = [
+  ".git/",
+  ".direnv/",
+  ".venv/",
+  "anything-llm/",
+  "langfuse/",
+  "litellm/",
+  "n8n/",
+  "node_modules/",
+  "pgwatch/",
+  "plumber-platform/",
+  "reactive/",
+  "reports/",
+  "sentry/",
+  "temporal/",
+]
+
+[modules.shellcheck]
+source = "github.com/dagger/shellcheck@756497171e9185db48dc7961649f466b4003cfa9"
+
+[modules.shellcheck.settings]
+exclude = [
+  "build.sh",
+  "scripts/run-wicked.sh",
+  "tests/",
+]
+
+[modules.biomejs]
+source = "github.com/dagger/biomejs@76dea6c9e0567da66fe2f2757d0d4204428b760f"
