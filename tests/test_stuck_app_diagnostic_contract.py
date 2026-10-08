@@ -273,6 +273,9 @@ def test_sentry_diagnostic_surfaces_system_secret_and_migration_errors() -> None
     assert "recent_migration_error_evidence" in script
     assert "SENTRY_MIGRATION_LOG_TAIL" in script
     assert "steady-state service is exited: service=%s container=%s exit=%s" in script
+    assert "steady-state service is restarting: service=%s container=%s exit=%s restarts=%s" in script
+    assert "outcomes-billing" in script
+    assert "SENTRY_RESTART_LOG_TAIL" in script
     assert "Sentry Relay credential preflight" in script
     assert "RELAY_ID" in script
     assert "RELAY_PUBLIC_KEY" in script
