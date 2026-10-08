@@ -37,7 +37,7 @@ x-sentry-service: &sentry-service
   image: ghcr.io/getsentry/sentry:26.8.0
   restart: unless-stopped
   env_file:
-    - /mnt/cpool/sentry/.env.secrets
+    - /mnt/cpool/secrets/runtime/sentry/.env.secrets
   environment:
     <<: *sentry-env
   volumes:
@@ -52,7 +52,7 @@ x-snuba-service: &snuba-service
   image: ghcr.io/getsentry/snuba:26.8.0
   restart: unless-stopped
   env_file:
-    - /mnt/cpool/sentry/.env.secrets
+    - /mnt/cpool/secrets/runtime/sentry/.env.secrets
   environment:
     <<: *snuba-env
   networks:
@@ -91,8 +91,8 @@ services:
     <<: *snuba-service
     restart: "no"
     env_file:
-      - /mnt/cpool/sentry/.env.secrets
-      - /mnt/cpool/sentry/.env.migrator.secrets
+      - /mnt/cpool/secrets/runtime/sentry/.env.secrets
+      - /mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets
     environment:
       <<: *snuba-env
       CLICKHOUSE_USER: sentry_migrator
@@ -543,10 +543,10 @@ services:
           strength: required
           description: Relay uses the shared Redis service.
           evidence:
-            - /mnt/cpool/sentry/.env.secrets:RELAY_REDIS_URL
+            - /mnt/cpool/secrets/runtime/sentry/.env.secrets:RELAY_REDIS_URL
     restart: unless-stopped
     env_file:
-      - /mnt/cpool/sentry/.env.secrets
+      - /mnt/cpool/secrets/runtime/sentry/.env.secrets
     environment:
       RELAY_UPSTREAM_URL: http://sentry-web:9000/
       RELAY_HOST: 0.0.0.0
