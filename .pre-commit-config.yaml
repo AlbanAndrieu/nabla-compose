@@ -153,7 +153,7 @@ repos:
         additional_dependencies: ["pytest==9.1.1"]
         pass_filenames: false
         files: >-
-          ^([.]mcp[.]json|AGENTS[.]md|[.]agents/skills/(?:context7-docs|local-first-quality)/SKILL[.]md|docs/roadmap[.]md|tests/test_context7_agent_contract[.]py)$
+          ^([.]mcp[.]json|[.]cursor/mcp[.]json|AGENTS[.]md|[.]agents/skills/(?:context7-docs|local-first-quality)/SKILL[.]md|docs/roadmap[.]md|tests/test_context7_agent_contract[.]py)$
 
       - id: renovate-config-contract
         name: "🤖 renovate · Validate dependency automation contract"
