@@ -33,6 +33,7 @@ lockfile = true
 _.file = [".env.secrets", ".env.local"]
 
 ENV = "dev"
+DAGGER_WORKSPACE_RELEASE = "v1.0.0-beta.15"
 
 # Keep repository-wide mise environment value-free. Runtime credentials belong
 # in the shell, mise.local.toml, or the repository secret rendering contract.
@@ -91,7 +92,7 @@ echo "Pre-commit: $(pre-commit --version 2>&1)"
 [tasks.dagger-sync]
 description = "Refresh the Dagger lock, require it, and show the review diff without generating SDK files"
 run = '''
-dagger --x-release=v1.0.0-beta.15 workspace update --no-generate
+dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" workspace update --no-generate
 test -f dagger.lock || { echo "dagger workspace update did not create dagger.lock"; exit 2; }
 git diff -- dagger.lock
 '''
@@ -100,7 +101,7 @@ git diff -- dagger.lock
 description = "List experimental Dagger checks only after the reviewed workspace lock exists"
 run = '''
 test -f dagger.lock || { echo "dagger.lock missing; run: just dagger-sync"; exit 2; }
-dagger --x-release=v1.0.0-beta.15 check -l
+dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" check -l
 '''
 
 [tasks.dagger-native-parity]
@@ -115,7 +116,7 @@ node_modules/.bin/biome check
 description = "Run bounded Dagger checks only from a reviewed lock; agent-pre-push remains authoritative"
 run = '''
 test -f dagger.lock || { echo "dagger.lock missing; run: just dagger-sync"; exit 2; }
-dagger --x-release=v1.0.0-beta.15 check --no-generate
+dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" check --no-generate
 '''
 
 [tasks.dagger-bench]
