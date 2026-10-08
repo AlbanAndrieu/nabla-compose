@@ -170,6 +170,7 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
         "just dagger-bench",
         "agent-pre-push",
         "v1.0.0-beta.15",
+        "DAGGER_WORKSPACE_RELEASE",
     ):
         assert expected in roadmap
 
@@ -179,6 +180,8 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     assert "just dagger-poc" in skill
     assert "does not replace the canonical publication gate" in skill
     assert "L1" in skill
+    assert "explicit Dagger `Secret` input" in skill
+    assert "this PoC never uses them as Dagger module" in skill
 
 
 def test_dagger_changes_route_to_local_first_and_current_docs_skills() -> None:
