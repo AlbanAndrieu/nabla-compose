@@ -149,13 +149,19 @@ GRANT SELECT ON system.tables TO sentry;
 ```
 
 If long-running Snuba consumers report ClickHouse `Code: 516` for user
-`sentry`, do not rotate the runtime secret. Reconcile the ClickHouse identity
-to the already-staged canonical runtime value:
+`sentry`, reconcile the ClickHouse identity with the runtime material:
 
 ```bash
 sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --check
 sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --apply
 ```
+
+If a complete runtime ClickHouse password triplet already exists in either the
+legacy or canonical Sentry file, the helper preserves it and refuses conflicts.
+If all three keys are absent from both locations, the helper performs a
+one-time initialization with a 64-hex credential, writes the same value to
+legacy and canonical materializations, and then configures the ClickHouse
+runtime user. Partial triplets fail closed. Values are never printed.
 
 The apply mode fails closed on an inconsistent password triplet, authenticates
 through the dedicated ClickHouse admin identity, never prints the runtime
