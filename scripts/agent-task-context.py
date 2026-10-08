@@ -126,8 +126,10 @@ def suggested_skills(paths: list[str]) -> list[str]:
             "mise.toml",
             "AGENTS.md",
             "agent.md",
+            "opencode.json",
             ".pre-commit-config.yaml",
             ".pre-commit-pre-push.yaml",
+            "dagger.toml",
         }
         or path.startswith("scripts/agent-")
         or path.startswith(".github/workflows/")
@@ -135,6 +137,12 @@ def suggested_skills(paths: list[str]) -> list[str]:
         for path in paths
     ):
         skills.add("local-first-quality")
+
+    if any(
+        path == "dagger.toml" or path.startswith(".dagger/")
+        for path in paths
+    ):
+        skills.add("context7-docs")
 
     return sorted(skills)
 

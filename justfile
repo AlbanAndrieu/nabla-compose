@@ -42,6 +42,18 @@ publish:
 quality-gate:
     mise run quality
 
+# Refresh/review dagger.lock explicitly before running the PoC.
+dagger-sync:
+    mise run dagger-sync
+
+# List the bounded experimental Dagger checks; this is not the publication gate.
+dagger-list:
+    mise run dagger-list
+
+# Run the experimental ShellCheck + Biome Dagger PoC.
+dagger-poc:
+    mise run dagger-poc
+
 # Test this justfile and the Betterleaks toolchain contracts.
 tooling-test:
     python -m unittest tests.test_dev_tooling_contract -v

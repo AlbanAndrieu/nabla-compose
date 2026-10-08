@@ -132,6 +132,26 @@ When the execution environment cannot obtain a complete Git checkout:
 
 This fallback is for continuity, not a substitute for the publication gate.
 
+## Experimental Dagger PoC
+
+Dagger is currently an optional parity experiment. It does not replace the canonical publication gate and must never be used to bypass Pre-commit or `agent-pre-push`.
+
+The bounded workspace currently exposes only ShellCheck and Biome checks:
+
+```bash
+just dagger-sync   # refresh/review dagger.lock explicitly
+just dagger-list
+just dagger-poc
+```
+
+The repository pins the installed stable CLI separately from the Dagger 1.0 beta workspace engine. The Mise tasks use `--x-release=v1.0.0-beta.15` explicitly so ordinary Dagger usage does not silently opt into beta behavior.
+
+Treat a successful `just dagger-poc` as **L1 targeted evidence** until parity with the native checks is measured and the full `agent-pre-push` gate still passes on the exact HEAD. Do not call the PR locally green from Dagger alone.
+
+The PoC intentionally excludes Pytest until the repository has a clean root Python project marker compatible with the official Dagger Pytest discovery contract. Native Ruff configuration is now standalone; Ruff still stays outside Dagger because the current official Dagger module catalog does not provide a Ruff module and a local wrapper would duplicate an already-working native tool.
+
+Keep secrets and live homelab mutation out of this workspace: `defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no appliance deployment/recovery checks.
+
 ## Tooling choice
 
 Prefer existing widely adopted tooling over new repository-specific code:

@@ -422,6 +422,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('skills.add("local-first-quality")', context)
+        self.assertIn('"opencode.json"', context)
 
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("load `local-first-quality`", agents)

@@ -103,6 +103,14 @@ class DeveloperToolingContractTests(unittest.TestCase):
             "v1.9.0",
         )
 
+    def test_ruff_config_is_standalone(self) -> None:
+        config = tomllib.loads((ROOT / ".ruff.toml").read_text(encoding="utf-8"))
+
+        self.assertNotIn("extend", config)
+        self.assertEqual(config["line-length"], 180)
+        self.assertIn("F", config["lint"]["select"])
+        self.assertIn("S101", config["lint"]["per-file-ignores"]["tests/*"])
+
     @unittest.skipUnless(shutil.which("just"), "just CLI unavailable")
     def test_justfile_parses_without_running_a_recipe(self) -> None:
         result = subprocess.run(

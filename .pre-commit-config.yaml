@@ -144,7 +144,7 @@ repos:
         entry: python -m unittest tests.test_dev_tooling_contract -v
         pass_filenames: false
         files: >-
-          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
+          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|[.]ruff[.]toml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
 
       - id: context7-agent-contract
         name: "📚 agent · Validate Context7 free-first routing"
@@ -153,7 +153,16 @@ repos:
         additional_dependencies: ["pytest==9.1.1"]
         pass_filenames: false
         files: >-
-          ^([.]mcp[.]json|[.]cursor/mcp[.]json|AGENTS[.]md|[.]agents/skills/(?:context7-docs|local-first-quality)/SKILL[.]md|docs/roadmap[.]md|tests/test_context7_agent_contract[.]py)$
+          ^(opencode[.]json|[.]mcp[.]json|[.]cursor/mcp[.]json|AGENTS[.]md|[.]agents/skills/(?:context7-docs|local-first-quality)/SKILL[.]md|docs/roadmap[.]md|tests/test_context7_agent_contract[.]py)$
+
+      - id: dagger-agent-contract
+        name: "🗡️ agent · Validate bounded Dagger local-first PoC"
+        language: python
+        entry: python -m pytest -q tests/test_dagger_agent_contract.py
+        additional_dependencies: ["pytest==9.1.1"]
+        pass_filenames: false
+        files: >-
+          ^(dagger[.]toml|mise[.]toml|mise[.]lock|justfile|scripts/agent-task-context[.]py|[.]agents/skills/local-first-quality/SKILL[.]md|docs/roadmap[.]md|tests/test_dagger_agent_contract[.]py)$
 
       - id: renovate-config-contract
         name: "🤖 renovate · Validate dependency automation contract"
