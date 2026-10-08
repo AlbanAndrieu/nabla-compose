@@ -80,12 +80,8 @@ case "${status}" in
     fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
     ;;
   unknown)
-    if [[ "${configured_before%/}" == "${LOCAL_ORIGIN%/}" ]]; then
-      printf 'WARN: recovering stale insecure loopback Bitwarden CLI server: %s\n' \
-        "${configured_before}" >&2
-    else
-      fail "Bitwarden CLI status is unknown and current server is not the known stale loopback endpoint: ${configured_before:-<unset>}"
-    fi
+    printf 'WARN: Bitwarden CLI status is unavailable before endpoint reset; base=%s. Resetting all per-service endpoints because --apply was explicitly requested.\n' \
+      "${configured_before:-<unset>}" >&2
     ;;
   *)
     fail "unexpected Bitwarden CLI status: ${status}"
