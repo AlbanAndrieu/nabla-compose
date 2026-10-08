@@ -145,6 +145,7 @@ fi
 
 starting_count=0
 unhealthy_count=0
+restarting_count=0
 unexpected_exit_count=0
 one_shot_failure_count=0
 kafka_topic_failure_count=0
@@ -221,6 +222,16 @@ sock.close()
     fi
   fi
 
+  if [[ "${status}" == "restarting" ]]; then
+    printf '  ❌ steady-state service is restarting: service=%s container=%s exit=%s restarts=%s\n' \
+      "${service}" "${name}" "${exit_code}" "${restart_count}"
+    printf '  recent_restart_error_evidence:\n'
+    docker logs --tail "${SENTRY_RESTART_LOG_TAIL:-80}" "${id}" 2>&1 |
+      grep -Ei 'traceback|runtimeerror|error|exception|fatal|kafka|topic|partition|offset|clickhouse|redis|timeout|coordinator|consumer' |
+      tail -40 || true
+    restarting_count=$((restarting_count + 1))
+  fi
+
   case "${service}" in
     snuba-migrate|sentry-migrate)
       if [[ "${status}" == "exited" && "${exit_code}" -eq 0 ]]; then
@@ -259,6 +270,8 @@ printf '\n==> Kafka topic contract\n'
 required_topics=(
   events
   event-replacements
+  outcomes
+  outcomes-billing
   snuba-commit-log
   scheduled-subscriptions-events
   events-subscription-results
@@ -307,7 +320,8 @@ if [[ "${kafka_topic_probe_available}" -eq 1 ]]; then
       inspect="$(docker inspect "${id}")"
       service="$(jq -r '.[0].Config.Labels["com.docker.compose.service"] // ""' <<<"${inspect}")"
       health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
-      if [[ "${health}" == "unhealthy" &&
+      status="$(jq -r '.[0].State.Status // "unknown"' <<<"${inspect}")"
+      if [[ ("${health}" == "unhealthy" || "${status}" == "restarting") &&
         ("${service}" == snuba-* ||
           "${service}" == "sentry-events-consumer" ||
           "${service}" == "sentry-attachments-consumer") ]]; then
@@ -389,8 +403,8 @@ else
 fi
 
 printf '\n==> lifecycle diagnosis\n'
-printf 'TrueNAS state=%s starting_health=%d unhealthy=%d unexpected_exited=%d one_shot_failures=%d kafka_topic_failures=%d\n' \
-  "${app_state}" "${starting_count}" "${unhealthy_count}" \
+printf 'TrueNAS state=%s starting_health=%d unhealthy=%d restarting=%d unexpected_exited=%d one_shot_failures=%d kafka_topic_failures=%d\n' \
+  "${app_state}" "${starting_count}" "${unhealthy_count}" "${restarting_count}" \
   "${unexpected_exit_count}" "${one_shot_failure_count}" "${kafka_topic_failure_count}"
 if ((kafka_topic_probe_available == 0)); then
   printf '⚠️ Kafka topic verification was unavailable; connectivity checks remain diagnostic evidence only.\n'
@@ -422,6 +436,9 @@ if [[ "${app_state}" != "RUNNING" ]]; then
   exit 1
 fi
 if [[ "${unhealthy_count}" -gt 0 ]]; then
+  exit 1
+fi
+if [[ "${restarting_count}" -gt 0 ]]; then
   exit 1
 fi
 if [[ "${unexpected_exit_count}" -gt 0 ]]; then
