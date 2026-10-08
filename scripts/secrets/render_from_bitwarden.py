@@ -70,7 +70,7 @@ class BitwardenClient:
 
     def __init__(self, *, session: str, server: str) -> None:
         if not session:
-            raise SecretsError("BW_SESSION is required; run `bw unlock` first")
+            raise SecretsError("BW_SESSION is required; configure the canonical HTTPS server first with `bash scripts/truenas/configure-bitwarden-cli-local.sh --apply`, then run `bw login` and `export BW_SESSION=\"$(bw unlock --raw)\"`")
         self.session = session
         self.server = server.rstrip("/")
 
