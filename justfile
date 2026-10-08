@@ -42,6 +42,10 @@ publish:
 quality-gate:
     mise run quality
 
+# Refresh/review dagger.lock explicitly before running the PoC.
+dagger-sync:
+    mise run dagger-sync
+
 # List the bounded experimental Dagger checks; this is not the publication gate.
 dagger-list:
     mise run dagger-list
