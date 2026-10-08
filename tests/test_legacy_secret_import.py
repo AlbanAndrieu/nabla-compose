@@ -19,6 +19,12 @@ SPEC.loader.exec_module(legacy)
 
 
 class LegacySecretImportTests(unittest.TestCase):
+    def test_importer_documents_truenas_user_space_dependency_fallback(self) -> None:
+        script = MODULE.read_text(encoding="utf-8")
+        self.assertIn("NABLA_TRUENAS_DEV_VENV", script)
+        self.assertIn("os.execv(", script)
+        self.assertIn("bootstrap-dev-tools.sh --persist-shell-path", script)
+
     def test_dotenv_parser_does_not_execute_shell_syntax(self) -> None:
         parsed = legacy.parse_dotenv(
             "TOKEN='literal$(whoami)'\nPASSWORD=plain-value\n"
