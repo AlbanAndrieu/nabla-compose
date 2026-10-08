@@ -191,8 +191,7 @@ Keep secrets and live homelab mutation out of this workspace:
 `defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no
 appliance deployment/recovery checks. Mise may load repository operator
 `.env*` files for other tasks, but this PoC never uses them as Dagger module
-settings or constructor defaults; any future credential must be an explicit
-Dagger `Secret` input and must trigger a separate security review.
+settings or constructor defaults; any future credential must be an explicit Dagger `Secret` input and must trigger a separate security review.
 
 ## Tooling choice
 
