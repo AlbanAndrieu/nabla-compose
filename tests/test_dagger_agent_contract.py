@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DAGGER = ROOT / "dagger.toml"
 PACKAGE = ROOT / "package.json"
 PACKAGE_LOCK = ROOT / "package-lock.json"
+PRECOMMIT = ROOT / ".pre-commit-config.yaml"
 MISE = ROOT / "mise.toml"
 MISE_LOCK = ROOT / "mise.lock"
 JUST = ROOT / "justfile"
@@ -74,6 +75,8 @@ def test_biome_dependency_matches_native_and_dagger_paths() -> None:
     lock = json.loads(PACKAGE_LOCK.read_text(encoding="utf-8"))
 
     assert package["devDependencies"]["@biomejs/biome"] == BIOME_VERSION
+    precommit = PRECOMMIT.read_text(encoding="utf-8")
+    assert f'additional_dependencies: ["@biomejs/biome@{BIOME_VERSION}"]' in precommit
     assert lock["packages"][""]["devDependencies"]["@biomejs/biome"] == BIOME_VERSION
 
     biome = lock["packages"]["node_modules/@biomejs/biome"]
