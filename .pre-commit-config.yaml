@@ -144,7 +144,7 @@ repos:
         entry: python -m unittest tests.test_dev_tooling_contract -v
         pass_filenames: false
         files: >-
-          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
+          ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|[.]ruff[.]toml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
 
       - id: context7-agent-contract
         name: "📚 agent · Validate Context7 free-first routing"
