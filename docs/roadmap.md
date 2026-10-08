@@ -289,13 +289,13 @@ canonical publication evidence remains `agent-pre-push`.
   repository coverage: **ShellCheck + Biome**. Their Dagger module sources are
   pinned to reviewed Git commits instead of floating module names.
 - [x] Pin Dagger `0.21.10` in Mise/mise.lock and expose
-  `just dagger-list` plus `just dagger-poc`; the tasks explicitly select
-  `v1.0.0-beta.15`.
+  `just dagger-sync`, `just dagger-list` plus `just dagger-poc`; the tasks
+  explicitly select `v1.0.0-beta.15`.
 - [x] Add a Pre-commit contract for the Dagger configuration/tool pins and keep
   the PoC separate from `just pre-push`.
-- [ ] Run `just dagger-list` then `just dagger-poc` on a checkout with a
-  supported container runtime; review any generated `dagger.lock` rather than
-  hand-crafting it.
+- [ ] Run `just dagger-sync` first on a checkout with a supported container
+  runtime, review/commit the generated `dagger.lock`, then run
+  `just dagger-list` and `just dagger-poc`.
 - [ ] Prove parity against the native ShellCheck/Biome contracts on the same
   exact HEAD and compare failure readability.
 - [ ] Measure cold/warm execution and cache reuse against the corresponding
