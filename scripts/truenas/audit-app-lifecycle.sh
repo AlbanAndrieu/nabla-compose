@@ -1764,17 +1764,17 @@ probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.sec
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_SECRET_KEY
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_DB_PASSWORD
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets SENTRY_REDIS_PASSWORD
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets REDIS_PASSWORD
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_REDIS_URL
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_ID
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_PUBLIC_KEY
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets RELAY_SECRET_KEY
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_PASSWORD
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
-probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_DB_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets REDIS_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets RELAY_REDIS_URL
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets RELAY_ID
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets RELAY_PUBLIC_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets RELAY_SECRET_KEY
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets CLICKHOUSE_READONLY_PASSWORD
+probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets CLICKHOUSE_TRACE_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
