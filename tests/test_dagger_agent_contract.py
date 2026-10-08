@@ -12,6 +12,7 @@ MISE_LOCK = ROOT / "mise.lock"
 JUST = ROOT / "justfile"
 ROADMAP = ROOT / "docs" / "roadmap.md"
 SKILL = ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+TASK_CONTEXT = ROOT / "scripts" / "agent-task-context.py"
 
 DAGGER_STABLE = "0.21.10"
 DAGGER_BETA = "v1.0.0-beta.15"
@@ -41,7 +42,11 @@ def test_dagger_workspace_is_bounded_and_secret_safe() -> None:
 
     ignored = set(config["ignore"])
     for sensitive_or_heavy in (
+        ".env",
+        ".env.*",
         ".git/",
+        ".ssh/",
+        ".talos/",
         ".direnv/",
         ".venv/",
         "node_modules/",
@@ -94,3 +99,10 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     assert "just dagger-poc" in skill
     assert "does not replace the canonical publication gate" in skill
     assert "L1" in skill
+
+
+def test_dagger_changes_route_to_local_first_skill() -> None:
+    context = TASK_CONTEXT.read_text(encoding="utf-8")
+
+    assert '"dagger.toml"' in context
+    assert 'skills.add("local-first-quality")' in context
