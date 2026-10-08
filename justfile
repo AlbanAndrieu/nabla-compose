@@ -42,6 +42,14 @@ publish:
 quality-gate:
     mise run quality
 
+# List the bounded experimental Dagger checks; this is not the publication gate.
+dagger-list:
+    mise run dagger-list
+
+# Run the experimental ShellCheck + Biome Dagger PoC.
+dagger-poc:
+    mise run dagger-poc
+
 # Test this justfile and the Betterleaks toolchain contracts.
 tooling-test:
     python -m unittest tests.test_dev_tooling_contract -v
