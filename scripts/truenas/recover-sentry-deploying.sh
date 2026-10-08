@@ -44,11 +44,12 @@ require_root "run as root on TrueNAS"
 require_commands bash midclt jq docker curl
 
 system_secret="${SCRIPT_DIR}/reconcile-sentry-system-secret.sh"
+runtime_clickhouse="${SCRIPT_DIR}/reconcile-sentry-runtime-clickhouse-credential.sh"
 migrator_secret="${SCRIPT_DIR}/reconcile-sentry-migrator-credential.sh"
 diagnostic="${SCRIPT_DIR}/diagnose-sentry.sh"
 smoke="${SCRIPT_DIR}/smoke-sentry-event.sh"
 
-for helper in "${system_secret}" "${migrator_secret}" "${diagnostic}" "${smoke}"; do
+for helper in "${system_secret}" "${runtime_clickhouse}" "${migrator_secret}" "${diagnostic}" "${smoke}"; do
   [[ -f "${helper}" ]] || fail "missing Sentry helper: ${helper}"
 done
 
@@ -57,11 +58,15 @@ if [[ "${MODE}" == "--apply" ]]; then
   if ! bash "${system_secret}" --check; then
     bash "${system_secret}" --apply
   fi
+  if ! bash "${runtime_clickhouse}" --check; then
+    bash "${runtime_clickhouse}" --apply
+  fi
   if ! bash "${migrator_secret}" --check; then
     bash "${migrator_secret}" --apply
   fi
 else
   bash "${system_secret}" --check
+  bash "${runtime_clickhouse}" --check
   bash "${migrator_secret}" --check
 fi
 
