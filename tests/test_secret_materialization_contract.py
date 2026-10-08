@@ -58,6 +58,8 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("/api/config", helper)
         self.assertIn("requires a working HTTPS client endpoint", helper)
         self.assertIn('bw config server "${PUBLIC_BASE}"', helper)
+        self.assertIn("recovering stale insecure loopback Bitwarden CLI server", helper)
+        self.assertIn('configured_before="$(bw config server', helper)
         self.assertNotIn('--api "${LOCAL_ORIGIN}/api"', helper)
         self.assertNotIn('--identity "${LOCAL_ORIGIN}/identity"', helper)
         self.assertIn("bw logout", helper)
