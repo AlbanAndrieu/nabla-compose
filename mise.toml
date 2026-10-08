@@ -89,8 +89,12 @@ echo "Pre-commit: $(pre-commit --version 2>&1)"
 '''
 
 [tasks.dagger-sync]
-description = "Refresh the experimental Dagger workspace lock without generating SDK files"
-run = "dagger --x-release=v1.0.0-beta.15 workspace update --no-generate"
+description = "Refresh the Dagger lock, require it, and show the review diff without generating SDK files"
+run = '''
+dagger --x-release=v1.0.0-beta.15 workspace update --no-generate
+test -f dagger.lock || { echo "dagger workspace update did not create dagger.lock"; exit 2; }
+git diff -- dagger.lock
+'''
 
 [tasks.dagger-list]
 description = "List experimental Dagger checks only after the reviewed workspace lock exists"
