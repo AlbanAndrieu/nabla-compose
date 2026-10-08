@@ -61,3 +61,11 @@ secrets-history:
 # Legacy Makefile is deliberately retained.
 make-help:
     make help
+
+# Generate outside-in Synthetic Open Schema YAML from the exposure catalog.
+sos-generate:
+    python scripts/generate-synthetic-open-schema.py
+
+# Validate the deterministic SOS generator contract without network probes.
+sos-test:
+    python -m pytest -q tests/test_synthetic_open_schema_generation.py
