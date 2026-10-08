@@ -306,9 +306,12 @@ canonical publication evidence remains `agent-pre-push`.
   `pyproject.toml`/`tox.ini`. Do not invent a project marker solely for
   Dagger. Add Pytest only after native project metadata is intentionally
   normalized or a durable local Dagger module clearly reduces code.
-- [ ] **Ruff deferred:** `.ruff.toml` currently extends a missing root
-  `pyproject.toml`; repair that native configuration debt before adding a
-  second Ruff execution path.
+- [x] Repair the native Ruff configuration debt: `.ruff.toml` is now
+  standalone and no longer extends the missing root `pyproject.toml`.
+- [ ] **Ruff in Dagger deferred:** the current official Dagger module catalog
+  does not expose a Ruff module. Do not create a repository-local wrapper merely
+  to duplicate the native Ruff path; revisit only if an official module appears
+  or a broader local module removes measurable orchestration code.
 - [ ] Keep GitHub Actions unchanged during the PoC. Only after local parity is
   proven may a later PR make Actions a thin `dagger check` trigger.
 - [ ] Promote Dagger from the experimental section of `local-first-quality`
