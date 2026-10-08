@@ -64,12 +64,29 @@ if [[ "${MODE}" == "--check" ]]; then
   exit 0
 fi
 
+configured_before="$(bw config server 2>/dev/null | tr -d '\r\n' || true)"
 status="$(
   bw status 2>/dev/null | jq -r '.status // "unknown"' 2>/dev/null || printf 'unknown'
 )"
-if [[ "${status}" != "unauthenticated" ]]; then
-  fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
-fi
+
+case "${status}" in
+  unauthenticated)
+    ;;
+  locked | unlocked)
+    fail "Bitwarden CLI status is ${status}; run 'bw logout' before changing server configuration"
+    ;;
+  unknown)
+    if [[ "${configured_before%/}" == "${LOCAL_ORIGIN%/}" ]]; then
+      printf 'WARN: recovering stale insecure loopback Bitwarden CLI server: %s\n' \
+        "${configured_before}" >&2
+    else
+      fail "Bitwarden CLI status is unknown and current server is not the known stale loopback endpoint: ${configured_before:-<unset>}"
+    fi
+    ;;
+  *)
+    fail "unexpected Bitwarden CLI status: ${status}"
+    ;;
+esac
 
 # A plain server assignment clears stale per-service overrides. Never point the
 # official CLI at LOCAL_ORIGIN because it is intentionally HTTP-only.
