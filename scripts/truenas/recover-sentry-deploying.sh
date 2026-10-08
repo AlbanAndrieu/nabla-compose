@@ -81,6 +81,10 @@ if [[ "${MODE}" == "--finalize" ]]; then
   exit 0
 fi
 
+printf '\n==> stage repaired Sentry runtime secrets to canonical paths\n'
+bash "${SCRIPT_DIR}/bootstrap-repository-env-files.sh" --restage sentry
+bash "${SCRIPT_DIR}/bootstrap-repository-env-files.sh" --check sentry
+
 printf '\n==> targeted Sentry redeploy\n'
 state="$(truenas_app_state "${APP_ID}")"
 [[ "${state}" != "MISSING" ]] || fail "TrueNAS App is missing: ${APP_ID}"
@@ -96,9 +100,6 @@ bash "${diagnostic}" --check
 printf '\n==> Sentry end-to-end ingestion smoke\n'
 bash "${smoke}"
 
-printf '\n==> canonical runtime-secret staging\n'
-bash "${SCRIPT_DIR}/bootstrap-repository-env-files.sh" --restage sentry
-
-ok "Sentry redeploy converged; canonical runtime secret copies refreshed"
+ok "Sentry redeploy converged on canonical runtime secret paths"
 printf 'NEXT: after the observation window, finalize only Sentry legacy env paths through the acceptance-gated mode:\n'
 printf '  sudo bash scripts/truenas/recover-sentry-deploying.sh --finalize\n'
