@@ -102,12 +102,18 @@ def test_dagger_cli_and_beta_workspace_are_explicitly_pinned() -> None:
     lock = tomllib.loads(MISE_LOCK.read_text(encoding="utf-8"))
 
     assert f'dagger = "{DAGGER_STABLE}"' in mise
+    assert f'DAGGER_WORKSPACE_RELEASE = "{DAGGER_BETA}"' in mise
     assert (
-        f"dagger --x-release={DAGGER_BETA} workspace update --no-generate"
+        'dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" '
+        "workspace update --no-generate"
         in mise
     )
-    assert f"dagger --x-release={DAGGER_BETA} check -l" in mise
-    assert f"dagger --x-release={DAGGER_BETA} check --no-generate" in mise
+    assert 'dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" check -l' in mise
+    assert (
+        'dagger --x-release="${DAGGER_WORKSPACE_RELEASE}" check --no-generate'
+        in mise
+    )
+    assert mise.count(DAGGER_BETA) == 1
 
     dagger_lock = lock["tools"]["dagger"][0]
     assert dagger_lock["version"] == DAGGER_STABLE
