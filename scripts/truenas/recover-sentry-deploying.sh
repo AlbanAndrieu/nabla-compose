@@ -15,8 +15,8 @@ usage() {
   cat <<'EOF'
 usage: sudo bash scripts/truenas/recover-sentry-deploying.sh [--check|--apply|--finalize]
 
---check is read-only and validates the two known secret prerequisites plus the
-current Sentry diagnostic.
+--check is read-only and validates the bounded system, runtime ClickHouse and
+migrator credential prerequisites plus the current Sentry diagnostic.
 --apply repairs only missing bounded credential material, redeploys only the
 Sentry TrueNAS App, waits for RUNNING, then requires diagnostic + E2E ingestion
 success and refreshes canonical runtime-secret copies.
