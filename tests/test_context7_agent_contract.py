@@ -5,21 +5,22 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MCP = ROOT / ".mcp.json"
+MCP_CONFIGS = (ROOT / ".mcp.json", ROOT / ".cursor" / "mcp.json")
 AGENTS = ROOT / "AGENTS.md"
 CONTEXT7_SKILL = ROOT / ".agents" / "skills" / "context7-docs" / "SKILL.md"
 LOCAL_FIRST_SKILL = ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
 
 
 def test_context7_mcp_is_free_anonymous_first() -> None:
-    config = json.loads(MCP.read_text(encoding="utf-8"))
-    context7 = config["mcpServers"]["context7"]
+    for path in MCP_CONFIGS:
+        config = json.loads(path.read_text(encoding="utf-8"))
+        context7 = config["mcpServers"]["context7"]
 
-    assert context7 == {
-        "type": "http",
-        "url": "https://mcp.context7.com/mcp",
-    }
-    assert "CONTEXT7_API_KEY" not in MCP.read_text(encoding="utf-8")
+        assert context7 == {
+            "type": "http",
+            "url": "https://mcp.context7.com/mcp",
+        }
+        assert "CONTEXT7_API_KEY" not in path.read_text(encoding="utf-8")
 
 
 def test_context7_skill_keeps_external_docs_bounded() -> None:
