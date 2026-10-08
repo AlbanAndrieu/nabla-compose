@@ -346,8 +346,10 @@ libraries but never replaces repository/runtime evidence.
   is insufficient, prefer OpenCode OAuth/free login before any paid tier.
 - [ ] Keep `CONTEXT7_API_KEY` optional and outside Git; reserve it for
   non-interactive automation or higher free-plan limits only.
-- [ ] Use Context7 during the Dagger PoC to resolve the current Dagger workspace,
-  module and Check APIs before generating repository configuration.
+- [x] Route every `dagger.toml` change through both `local-first-quality`
+  and `context7-docs`, so future Dagger edits automatically request current
+  external API documentation. Runtime Context7 lookup remains acceptance-gated
+  by the OpenCode smoke above.
 - [x] Keep an official-doc/web fallback for environments where Context7 is not
   connected, lacks the required library/version or is rate-limited. The current
   API-only agent used that fallback to validate the Dagger/OpenCode contracts
