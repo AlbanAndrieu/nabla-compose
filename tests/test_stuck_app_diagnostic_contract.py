@@ -272,6 +272,7 @@ def test_sentry_diagnostic_surfaces_system_secret_and_migration_errors() -> None
     assert "reconcile-sentry-system-secret.sh --check" in script
     assert "recent_migration_error_evidence" in script
     assert "SENTRY_MIGRATION_LOG_TAIL" in script
+    assert "steady-state service is exited: service=%s container=%s exit=%s" in script
     assert "Sentry Relay credential preflight" in script
     assert "RELAY_ID" in script
     assert "RELAY_PUBLIC_KEY" in script
