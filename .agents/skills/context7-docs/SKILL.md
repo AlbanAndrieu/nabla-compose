@@ -14,6 +14,11 @@ Do not use Context7 to infer repository state, deployed versions, TrueNAS state,
 secret values or runtime health. Inspect repository files/lockfiles and runtime
 evidence for those facts.
 
+OpenCode V2 consumes the repository entry from
+`opencode.json -> mcp.servers.context7` with Code Mode enabled. The generic
+`.mcp.json` and Cursor configuration remain adapters for their own clients;
+do not assume they configure OpenCode.
+
 ## Free-first policy
 
 Use the cheapest supported access path:
