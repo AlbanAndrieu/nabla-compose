@@ -162,6 +162,8 @@ Reproducibility comes before performance:
   `koalaman/shellcheck-alpine` image internally, so the generated
   `dagger.lock` must prove that Dagger resolved that image to immutable state
   before ShellCheck parity can be accepted;
+- `DAGGER_WORKSPACE_RELEASE` is the single repository value for the beta
+  workspace surface; do not repeat the beta version in individual task commands;
 - `dagger-list`, `dagger-poc` and `dagger-bench` fail closed when the
   reviewed lockfile is absent.
 
@@ -187,7 +189,10 @@ duplicate an already-working tool.
 
 Keep secrets and live homelab mutation out of this workspace:
 `defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no
-appliance deployment/recovery checks.
+appliance deployment/recovery checks. Mise may load repository operator
+`.env*` files for other tasks, but this PoC never uses them as Dagger module
+settings or constructor defaults; any future credential must be an explicit
+Dagger `Secret` input and must trigger a separate security review.
 
 ## Tooling choice
 
