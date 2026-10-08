@@ -29,6 +29,7 @@ source = "github.com/dagger/shellcheck@756497171e9185db48dc7961649f466b4003cfa9"
 
 [modules.shellcheck.settings]
 exclude = [
+  "biscuitcutter.sh",
   "build.sh",
   "scripts/run-wicked.sh",
   "tests/",
@@ -36,3 +37,6 @@ exclude = [
 
 [modules.biomejs]
 source = "github.com/dagger/biomejs@76dea6c9e0567da66fe2f2757d0d4204428b760f"
+
+[modules.biomejs.settings]
+baseImageAddress = "node:25-alpine@sha256:f4769ca6eeb6ebbd15eb9c8233afed856e437b75f486f7fccaa81d7c8ad56007"
