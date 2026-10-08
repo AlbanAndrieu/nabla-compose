@@ -9,6 +9,7 @@ MCP_CONFIGS = (ROOT / ".mcp.json", ROOT / ".cursor" / "mcp.json")
 AGENTS = ROOT / "AGENTS.md"
 CONTEXT7_SKILL = ROOT / ".agents" / "skills" / "context7-docs" / "SKILL.md"
 LOCAL_FIRST_SKILL = ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+OPENCODE = ROOT / "opencode.json"
 
 
 def test_context7_mcp_is_free_anonymous_first() -> None:
@@ -21,6 +22,22 @@ def test_context7_mcp_is_free_anonymous_first() -> None:
             "url": "https://mcp.context7.com/mcp",
         }
         assert "CONTEXT7_API_KEY" not in path.read_text(encoding="utf-8")
+
+
+def test_opencode_v2_context7_is_free_first_and_codemode_bounded() -> None:
+    raw = OPENCODE.read_text(encoding="utf-8")
+    config = json.loads(raw)
+
+    assert "servers" in config["mcp"]
+    context7 = config["mcp"]["servers"]["context7"]
+    assert context7 == {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "codemode": True,
+    }
+    assert "headers" not in context7
+    assert "oauth" not in context7
+    assert "CONTEXT7_API_KEY" not in raw
 
 
 def test_context7_skill_keeps_external_docs_bounded() -> None:
