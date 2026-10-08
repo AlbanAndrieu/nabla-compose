@@ -9,6 +9,7 @@ MODE="${1:---check}"
 SECRET_FILE="${SENTRY_RUNTIME_SECRET_FILE:-/mnt/cpool/secrets/runtime/sentry/.env.secrets}"
 CLICKHOUSE_CONTAINER="${SENTRY_CLICKHOUSE_CONTAINER:-ix-sentry-clickhouse-sentry-clickhouse-1}"
 DIAG="${SCRIPT_DIR}/diagnose-sentry-runtime-clickhouse-credential.sh"
+TIMEOUT_SECONDS="${SENTRY_RUNTIME_CLICKHOUSE_RECONCILE_TIMEOUT_SECONDS:-20}"
 
 case "${MODE}" in
   --check)
@@ -25,7 +26,7 @@ case "${MODE}" in
 esac
 
 require_root "run as root on TrueNAS"
-require_commands docker awk stat
+require_commands docker awk stat timeout
 [[ -f "${SECRET_FILE}" ]] || fail "missing Sentry runtime secret file: ${SECRET_FILE}"
 [[ "$(stat -c '%a' "${SECRET_FILE}")" == "600" ]] ||
   fail "${SECRET_FILE} must be mode 0600"
@@ -55,7 +56,7 @@ if [[ "${#password}" -lt 16 || "${#password}" -gt 256 ]] ||
   fail "runtime ClickHouse password has an unsafe format/length; refusing identity mutation"
 fi
 
-if ! docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
+if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
   clickhouse-client     --user "$CLICKHOUSE_USER"     --password "$CLICKHOUSE_PASSWORD"     --query "SELECT 1" >/dev/null
 '; then
   fail "ClickHouse admin identity from the dedicated container cannot authenticate; refusing runtime-user mutation"
@@ -70,7 +71,7 @@ sql_password="${sql_password//\'/\\\'}"
   printf "ALTER USER sentry IDENTIFIED WITH sha256_password BY '%s';\n" "${sql_password}"
   printf '%s\n'     'GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry;'     'GRANT SELECT ON system.tables TO sentry;'
 } |
-  docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
+  timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
     set -eu
     clickhouse-client       --user "$CLICKHOUSE_USER"       --password "$CLICKHOUSE_PASSWORD"       --multiquery
   '
