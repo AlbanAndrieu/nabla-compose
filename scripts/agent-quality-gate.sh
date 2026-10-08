@@ -10,10 +10,9 @@ cd "${ROOT}"
 
 DEV_VENV="${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"
 if [[ -d "${DEV_VENV}/bin" ]]; then
-  case ":${PATH}:" in
-    *":${DEV_VENV}/bin:"*) ;;
-    *) export PATH="${DEV_VENV}/bin:${PATH}" ;;
-  esac
+  # Always put the TrueNAS operator venv first. `mise run` may prepend its
+  # project Python ahead of an already-present venv path.
+  export PATH="${DEV_VENV}/bin:${PATH}"
 fi
 
 MODE="check"
@@ -118,7 +117,9 @@ resolve_base_ref() {
 
 BASE_REF="$(resolve_base_ref)"
 
-if command -v python >/dev/null 2>&1; then
+if [[ -x "${DEV_VENV}/bin/python" ]]; then
+  PYTHON_CMD=("${DEV_VENV}/bin/python")
+elif command -v python >/dev/null 2>&1; then
   PYTHON_CMD=(python)
 elif command -v python3 >/dev/null 2>&1; then
   PYTHON_CMD=(python3)
