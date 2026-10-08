@@ -6,6 +6,10 @@ APP_ID="${DSOMM_APP_ID:-dsomm}"
 CANONICAL_ROOT="${DSOMM_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 DSOMM_URL="${DSOMM_URL:-http://172.17.0.24:31088/}"
 WAIT_SECONDS="${DSOMM_WAIT_SECONDS:-240}"
+DSOMM_IMAGE="${DSOMM_IMAGE:-wurstbrot/dsomm:4.4.1}"
+DSOMM_MODEL_VERSION="${DSOMM_MODEL_VERSION:-5.0.2}"
+DSOMM_MODEL_REF="${DSOMM_MODEL_REF:-a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a}"
+DSOMM_MODEL_URL="${DSOMM_MODEL_URL:-https://raw.githubusercontent.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data/${DSOMM_MODEL_REF}/generated/model.yaml}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -45,8 +49,17 @@ done
 printf '==> DSOMM assessment seed contract\n'
 python3 scripts/dsomm/validate-seed.py
 
+printf '\n==> DSOMM frontend image contract\n'
+if docker image inspect "${DSOMM_IMAGE}" >/dev/null 2>&1; then
+  printf 'OK: DSOMM frontend image is already present locally: %s\n' "${DSOMM_IMAGE}"
+elif docker manifest inspect "${DSOMM_IMAGE}" >/dev/null 2>&1; then
+  printf 'OK: DSOMM frontend image exists in registry: %s\n' "${DSOMM_IMAGE}"
+else
+  fail "DSOMM frontend image is unavailable: ${DSOMM_IMAGE}; do not create/start the TrueNAS App with an unresolved tag"
+fi
+
 printf '\n==> DSOMM Compose contract\n'
-docker compose -f "${compose_path}" --profile manual config \
+DSOMM_IMAGE="${DSOMM_IMAGE}" docker compose -f "${compose_path}" --profile manual config \
   --quiet --no-interpolate --no-env-resolution
 
 printf '\n==> generated service contracts\n'
@@ -59,6 +72,7 @@ bash scripts/truenas/bootstrap-repository-storage.sh "${MODE}" "${APP_ID}"
 state_root="/mnt/cpool/dsomm/state"
 progress_file="${state_root}/team-progress.yaml"
 evidence_file="${state_root}/team-evidence.yaml"
+model_file="${state_root}/model.yaml"
 
 if [[ "${MODE}" == "--apply" ]]; then
   [[ ! -L "${state_root}" ]] ||
@@ -67,6 +81,21 @@ if [[ "${MODE}" == "--apply" ]]; then
   [[ -d "${state_root}" && ! -L "${state_root}" ]] ||
     fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
+
+  model_tmp="$(mktemp "${state_root}/model.yaml.tmp.XXXXXX")"
+  trap 'rm -f "${model_tmp:-}"' EXIT
+  curl --fail --location --silent --show-error \
+    --proto '=https' --tlsv1.2 \
+    "${DSOMM_MODEL_URL}" -o "${model_tmp}"
+  grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_tmp}" ||
+    fail "downloaded DSOMM model does not declare expected version ${DSOMM_MODEL_VERSION}"
+  grep -Fq 'uuid:' "${model_tmp}" ||
+    fail "downloaded DSOMM model contains no activity UUIDs"
+  install -o root -g root -m 0600 "${model_tmp}" "${model_file}"
+  rm -f "${model_tmp}"
+  trap - EXIT
+  printf 'Staged pinned DSOMM model %s from commit %s without following latest\n' \
+    "${DSOMM_MODEL_VERSION}" "${DSOMM_MODEL_REF}"
 
   state_specs=(
     "progress|${progress_file}|${progress_seed}"
@@ -86,14 +115,14 @@ if [[ "${MODE}" == "--apply" ]]; then
   done
 fi
 
-for state_file in "${progress_file}" "${evidence_file}"; do
+for state_file in "${model_file}" "${progress_file}" "${evidence_file}"; do
   [[ -f "${state_file}" && ! -L "${state_file}" ]] ||
     fail "missing or unsafe DSOMM state file: ${state_file}; run --apply"
 done
 
 if [[ "${MODE}" == "--apply" ]]; then
   printf '\n==> TrueNAS Custom App reconciliation\n'
-  truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+  DSOMM_IMAGE="${DSOMM_IMAGE}" truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
 
   state="$(truenas_app_state "${APP_ID}")"
   if [[ "${state}" == "STOPPED" ]]; then
