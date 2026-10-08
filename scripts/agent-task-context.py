@@ -126,6 +126,7 @@ def suggested_skills(paths: list[str]) -> list[str]:
             "mise.toml",
             "AGENTS.md",
             "agent.md",
+            "opencode.json",
             ".pre-commit-config.yaml",
             ".pre-commit-pre-push.yaml",
             "dagger.toml",
