@@ -238,7 +238,8 @@ sock.close()
       ;;
     *)
       if [[ "${status}" == "exited" ]]; then
-        printf '  ❌ steady-state service is exited\n'
+        printf '  ❌ steady-state service is exited: service=%s container=%s exit=%s\n' \
+          "${service}" "${name}" "${exit_code}"
         unexpected_exit_count=$((unexpected_exit_count + 1))
       fi
       ;;
