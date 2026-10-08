@@ -372,7 +372,8 @@ fi
 
 if ! "${PYTHON_CMD[@]}" -c 'import pytest, yaml' >/dev/null 2>&1; then
   echo "❌ QG_PYTHON_DEPS_MISSING: pytest and PyYAML are required by local contract hooks" >&2
-  echo "   Run: bash scripts/truenas/bootstrap-dev-tools.sh" >&2
+  echo "   TrueNAS: bash scripts/truenas/bootstrap-dev-tools.sh --persist-shell-path && source ~/.bashrc" >&2
+  echo "   Verify: ~/.cache/nabla-compose/dev-venv/bin/python -c 'import pytest, yaml'" >&2
   exit 1
 fi
 
