@@ -186,16 +186,29 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     traffic before any supported persistent tuning; do not hand-edit generated
     runtime config. Keep detailed tuning in
     [`pfsense-php-fpm-hardening.md`](./pfsense-php-fpm-hardening.md).
-  - [ ] Reduce untrusted WebConfigurator/API ingress according to
-    [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md) so
-    Internet authentication scans do not consume scarce PHP-FPM capacity.
+  - [x] Reduce untrusted WebConfigurator/API ingress: WAN TCP/10443 now uses
+    `PFSENSE_ADMIN_WAN` (one reviewed public source) followed immediately by
+    an explicit `any -> WAN address:10443` block. The block matched untrusted
+    traffic immediately and sampled public `root`/`admin` PHP-FPM
+    authentication failures stopped afterwards.
+  - [x] Remove the malformed legacy `ExternalOffice` alias after resolving its
+    rule references. It contained one office address plus all 256 LAN /24
+    addresses expanded individually; the replacement admin alias resolves only
+    to `80.15.4.233`.
+  - [ ] Repair the repeated GET-only pfSense API authentication failures from
+    internal observer `172.17.0.24` (`user unknown`) without reopening WAN
+    10443 or broadening the human-administration alias.
+  - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
+    legacy alias removal; do not use the FastAPI Cloud public hostname as a
+    source identity because ingress DNS does not prove stable cloud egress.
   - [ ] Keep Unbound out of Service Watchdog during OOM remediation; reassess
     guarded recovery only after the memory policy is stable, rather than hiding
     a kill/restart loop.
   - [ ] Exit gate: sustained observation with no new allocation/reclaim kills,
     stable Unbound/Kea DNS/DHCP, no ASN retry spam, and bounded
     Unbound/Snort/PHP-FPM/CrowdSec RSS plus free-memory headroom under normal
-    WebGUI/API traffic.
+    WebGUI/API traffic. Incident evidence:
+    [`2026-10-08-pfsense-unbound-oom-wan-exposure.md`](./incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md).
 - [ ] DNS maintenance acceptance: only after the edge-memory exit gate, stop
   Pi-hole during a controlled window, rerun pfSense posture + Talos
   ResolverStatus/DNSUpstream checks and prove public registry resolution through
