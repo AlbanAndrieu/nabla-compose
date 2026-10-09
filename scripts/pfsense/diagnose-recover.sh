@@ -31,7 +31,23 @@ ICON_ERROR="❌"
 ICON_INFO="ℹ️"
 ICON_SECTION="🔎"
 
-C_RESET=
+C_RESET=""
+C_GREEN=""
+C_YELLOW=""
+C_RED=""
+C_BLUE=""
+C_CYAN=""
+C_BOLD=""
+if [[ "${COLOR_ENABLED}" == true ]] && command -v tput >/dev/null 2>&1; then
+  C_RESET="$(tput sgr0 2>/dev/null || true)"
+  C_GREEN="$(tput setaf 2 2>/dev/null || true)"
+  C_YELLOW="$(tput setaf 3 2>/dev/null || true)"
+  C_RED="$(tput setaf 1 2>/dev/null || true)"
+  C_BLUE="$(tput setaf 4 2>/dev/null || true)"
+  C_CYAN="$(tput setaf 6 2>/dev/null || true)"
+  C_BOLD="$(tput bold 2>/dev/null || true)"
+fi
+
 usage() {
   cat <<'USAGE'
 Usage: scripts/pfsense/diagnose-recover.sh [options]
