@@ -161,7 +161,9 @@ if [[ "${MODE}" == "--apply" ]]; then
   done
 
   if [[ "${smoke_ready}" != true ]]; then
-    printf 'ERROR: direct DSOMM container smoke failed; recent logs follow.\n' >&2
+    printf 'ERROR: direct DSOMM container smoke failed; container status and recent logs follow.\n' >&2
+    docker inspect --format 'status={{.State.Status}} exit_code={{.State.ExitCode}} error={{.State.Error}}' \
+      "${smoke_name}" >&2 2>/dev/null || true
     docker logs --tail 80 "${smoke_name}" >&2 2>/dev/null || true
     fail "DSOMM image/mount/security contract failed before TrueNAS reconciliation"
   fi
