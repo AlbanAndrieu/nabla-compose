@@ -125,19 +125,79 @@ if [[ "${MODE}" == "--apply" ]]; then
   docker pull "${DSOMM_IMAGE}" >/dev/null
   printf 'OK: DSOMM frontend image is local: %s\n' "${DSOMM_IMAGE}"
 
+  printf '\n==> DSOMM direct container smoke\n'
+  docker network inspect intranet >/dev/null 2>&1 ||
+    fail "required external Docker network is missing: intranet"
+
+  smoke_name="nabla-dsomm-preflight-$"
+  cleanup_dsomm_smoke() {
+    docker rm -f "${smoke_name}" >/dev/null 2>&1 || true
+  }
+  trap cleanup_dsomm_smoke EXIT
+
+  docker run -d --rm \
+    --name "${smoke_name}" \
+    --network intranet \
+    --cap-drop ALL \
+    --security-opt no-new-privileges:true \
+    --mount "type=bind,src=${CANONICAL_ROOT}/apps/dsomm/config/meta.yaml,dst=/srv/assets/YAML/meta.yaml,readonly" \
+    --mount "type=bind,src=${model_file},dst=/srv/assets/YAML/default/model.yaml,readonly" \
+    --mount "type=bind,src=${progress_file},dst=/srv/assets/YAML/team-progress.yaml,readonly" \
+    --mount "type=bind,src=${evidence_file},dst=/srv/assets/YAML/team-evidence.yaml,readonly" \
+    "${DSOMM_IMAGE}" >/dev/null
+
+  smoke_ready=false
+  for ((attempt = 1; attempt <= 20; attempt++)); do
+    if docker exec "${smoke_name}" wget -q --spider http://127.0.0.1:8080/; then
+      smoke_ready=true
+      break
+    fi
+    running="$(docker inspect -f '{{.State.Running}}' "${smoke_name}" 2>/dev/null || printf 'false')"
+    [[ "${running}" == "true" ]] || break
+    sleep 1
+  done
+
+  if [[ "${smoke_ready}" != true ]]; then
+    printf 'ERROR: direct DSOMM container smoke failed; recent logs follow.\n' >&2
+    docker logs --tail 80 "${smoke_name}" >&2 2>/dev/null || true
+    fail "DSOMM image/mount/security contract failed before TrueNAS reconciliation"
+  fi
+  printf 'OK: DSOMM image starts with the repository mounts/security posture outside TrueNAS App orchestration\n'
+  cleanup_dsomm_smoke
+  trap - EXIT
+
+  printf '\n==> render DSOMM runtime Compose for TrueNAS\n'
+  runtime_compose_json="$(
+    NABLA_COMPOSE_ROOT="${CANONICAL_ROOT}" DSOMM_IMAGE="${DSOMM_IMAGE}" \
+      docker compose -f "${compose_path}" config --format json |
+      jq -c '
+        {
+          services: {
+            dsomm: (.services.dsomm | del(.["x-nabla"]))
+          },
+          networks: {
+            intranet: .networks.intranet
+          }
+        }
+      '
+  )"
+  jq -e '
+    .services.dsomm.image != null
+    and .services.dsomm.ports != null
+    and .networks.intranet != null
+  ' <<<"${runtime_compose_json}" >/dev/null ||
+    fail "rendered DSOMM runtime Compose is incomplete"
+  printf 'OK: rendered one-service DSOMM Compose for TrueNAS Custom App\n'
+
   printf '\n==> TrueNAS Custom App reconciliation\n'
   lifecycle_mark="$(truenas_lifecycle_mark)"
   if truenas_app_query_by_id "${APP_ID}" | jq -e 'length == 1' >/dev/null; then
-    payload="$(jq -cn --arg include "${compose_path}" '{
-      custom_compose_config: {
-        include: [$include],
-        services: {}
-      }
+    payload="$(jq -cn --argjson compose "${runtime_compose_json}" '{
+      custom_compose_config: $compose
     }')"
     midclt call -j app.update "${APP_ID}" "${payload}"
   else
-    wrapper="$(printf 'include:\n  - %s\nservices: {}\n' "${compose_path}")"
-    payload="$(jq -cn --arg app_name "${APP_ID}" --arg compose "${wrapper}" '{
+    payload="$(jq -cn --arg app_name "${APP_ID}" --arg compose "${runtime_compose_json}" '{
       app_name: $app_name,
       custom_app: true,
       custom_compose_config_string: $compose
