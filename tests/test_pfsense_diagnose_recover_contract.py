@@ -64,6 +64,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn('command -v tput', text)
         self.assertIn('C_GREEN="$(tput setaf 2', text)
         self.assertIn('console_line "INFO: ${summary_line}"', text)
+        self.assertIn("printf '%s\\n' \"${rendered}\"", text)
+        self.assertNotIn("printf '%b\\n' \"${rendered}\"", text)
         self.assertIn("The report file always remains plain text.", text)
 
     def test_check_keeps_api_evidence_when_ssh_is_unavailable(self) -> None:
