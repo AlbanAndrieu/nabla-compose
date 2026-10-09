@@ -39,7 +39,7 @@ docker compose \
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
-  midclt call -j app.update "${APP_ID}" "$(
+  truenas_job_compact app.update "${APP_ID}" "$(
     jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {
         include: [$include]
@@ -49,7 +49,7 @@ if truenas_app_query_by_id "${APP_ID}" |
 else
   printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
   wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-  midclt call -j app.create "$(
+  truenas_job_compact app.create "$(
     jq -cn \
       --arg app_name "${APP_ID}" \
       --arg compose "${wrapper}" \
@@ -64,8 +64,7 @@ fi
 app_json="$(truenas_app_query_by_id "${APP_ID}")"
 printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null ||
   fail "TrueNAS app ${APP_ID} is not uniquely present after reconciliation"
-printf '%s\n' "${app_json}" |
-  jq -r '.[0] | "✅ TrueNAS app \(.id): state=\(.state // \"UNKNOWN\")"'
+truenas_app_summary "${APP_ID}"
 
 printf 'Expected Custom App YAML include:\n'
 printf 'include:\n  - %s\n' "${compose_path}"

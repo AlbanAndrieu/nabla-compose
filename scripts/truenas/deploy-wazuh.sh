@@ -46,7 +46,7 @@ compose_path="${ROOT}/apps/wazuh/compose.yml"
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
-  midclt call -j app.update "${APP_ID}" "$(
+  truenas_job_compact app.update "${APP_ID}" "$(
     jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {
         include: [$include]
@@ -56,7 +56,7 @@ if truenas_app_query_by_id "${APP_ID}" |
 else
   printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
   wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-  midclt call -j app.create "$(
+  truenas_job_compact app.create "$(
     jq -cn \
       --arg app_name "${APP_ID}" \
       --arg compose "${wrapper}" \
@@ -75,14 +75,14 @@ app_state="$(
 case "${app_state}" in
   STOPPED)
     printf 'Starting TrueNAS Custom App %s after configuration reconciliation...\n' "${APP_ID}"
-    midclt call -j app.start "${APP_ID}"
+    truenas_job_compact app.start "${APP_ID}"
     ;;
   RUNNING | DEPLOYING)
     printf 'TrueNAS Custom App %s is already %s; continuing convergence checks.\n'       "${APP_ID}" "${app_state}"
     ;;
   CRASHED)
     printf 'TrueNAS Custom App %s is CRASHED after reconciliation; attempting one controlled start.\n' "${APP_ID}"
-    midclt call -j app.start "${APP_ID}"
+    truenas_job_compact app.start "${APP_ID}"
     ;;
   *)
     fail "unexpected TrueNAS App state after reconciliation: ${app_state}"

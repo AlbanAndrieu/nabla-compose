@@ -33,6 +33,9 @@ done
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 
+# shellcheck source=../lib/truenas.sh
+source "${ROOT}/scripts/lib/truenas.sh"
+
 if [[ "${MODE}" == "--apply" ]]; then
   [[ "${SCRUTINY_CUTOVER_APPROVED:-0}" == "1" ]] ||
     fail "set SCRUTINY_CUTOVER_APPROVED=1 after snapshot/history/token review"
@@ -116,7 +119,7 @@ reconcile_app_include() {
   if midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
     jq -e 'length > 0' >/dev/null; then
     printf 'Updating TrueNAS Custom App %s...\n' "${app_id}"
-    midclt call -j app.update "${app_id}" "$(
+    truenas_job_compact app.update "${app_id}" "$(
       jq -cn --arg include "${compose_path}" '{
         custom_compose_config: {
           include: [$include]
@@ -126,7 +129,7 @@ reconcile_app_include() {
   else
     printf 'Creating TrueNAS Custom App %s...\n' "${app_id}"
     wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-    midclt call -j app.create "$(
+    truenas_job_compact app.create "$(
       jq -cn \
         --arg app_name "${app_id}" \
         --arg compose "${wrapper}" \
@@ -197,14 +200,14 @@ reconcile_app_string() {
   if midclt call app.query "[[\"id\",\"=\",\"${app_id}\"]]" |
     jq -e 'length > 0' >/dev/null; then
     printf 'Updating TrueNAS Custom App %s with rendered host device access...\n' "${app_id}"
-    midclt call -j app.update "${app_id}" "$(
+    truenas_job_compact app.update "${app_id}" "$(
       jq -cn --arg compose "${compose_yaml}" '{
         custom_compose_config_string: $compose
       }'
     )"
   else
     printf 'Creating TrueNAS Custom App %s with rendered host device access...\n' "${app_id}"
-    midclt call -j app.create "$(
+    truenas_job_compact app.create "$(
       jq -cn \
         --arg app_name "${app_id}" \
         --arg compose "${compose_yaml}" \

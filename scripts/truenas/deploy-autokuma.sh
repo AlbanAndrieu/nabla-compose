@@ -105,18 +105,19 @@ else
 fi
 
 for _ in $(seq 1 30); do
-  if docker ps --format '{{.Names}}' | grep -Fxq "${CONTAINER}"; then
+  container_id="$(truenas_compose_container_id "${APP_ID}" autokuma)"
+  if [[ -n "${container_id}" ]] && [[ "$(docker inspect "${container_id}" --format '{{.State.Status}}' 2>/dev/null || true)" == "running" ]]; then
     printf 'OK: AutoKuma container is running; generated monitor count=%s\n' \
       "${monitor_count}"
-    midclt call app.query \
-      "[[\"id\",\"=\",\"${APP_ID}\"]]" |
-      jq '.[0] | {id,state,active_workloads}'
+    truenas_app_summary "${APP_ID}"
     exit 0
   fi
   sleep 2
 done
 
-docker ps -a --filter "name=^${CONTAINER}$" \
-  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
-docker logs --tail 100 "${CONTAINER}" 2>&1 || true
+container_id="$(truenas_compose_container_id "${APP_ID}" autokuma)"
+if [[ -n "${container_id}" ]]; then
+  docker inspect "${container_id}" --format '{{.Name}} {{.State.Status}} {{.Config.Image}}' || true
+  docker logs --tail 40 "${container_id}" 2>&1 || true
+fi
 fail "AutoKuma did not reach running state"
