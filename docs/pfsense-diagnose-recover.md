@@ -101,6 +101,35 @@ an empty curl `remote_ip` remains `peer=unknown` instead of shifting latency
 fields.
 
 
+## CrowdSec / edge-memory read-only diagnostics
+
+The normal `--check` path now includes the CrowdSec and pfBlockerNG evidence
+needed for the 2026-10-08 OOM investigation without starting or reloading any
+service.
+
+It reports:
+
+- CrowdSec engine PID separately from the firewall-bouncer PID;
+- `crowdsec -version` and `cscli version` when available;
+- bounded `cscli metrics` only when the engine is already running;
+- config references to `pf-scan-multi_ports` / `firewallservices`;
+- streamed counts and maxima for `failed_sent` and `attempts` across current
+  and rotated CrowdSec logs;
+- only the last 30 matching backpressure lines;
+- pfBlockerNG ASN Reporting state, token presence as a boolean, ASN database
+  presence and the last IPinfo retry lines.
+
+The log summarizer deliberately does **not** load all CrowdSec backpressure
+lines into a shell variable. The Netgate 1100 is the constrained system being
+diagnosed, so diagnostic collection must itself remain memory-bounded.
+
+When the engine is intentionally stopped, `crowdsec_metrics=skipped_engine_stopped`
+is expected. Do not restart CrowdSec merely to obtain metrics.
+
+Also distinguish service enablement from runtime state: exporter metrics such as
+`pfsense_service_enabled{name="crowdsec"} 1` show configuration enablement,
+not proof that the CrowdSec engine process is running.
+
 ## REST API service identities
 
 The canonical service accounts are deliberately split:
