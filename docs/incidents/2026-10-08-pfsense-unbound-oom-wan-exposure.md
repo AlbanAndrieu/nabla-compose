@@ -181,14 +181,41 @@ The existing exporter hardener now also rejects the literal
 `REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY` placeholder instead of
 preserving it as a non-empty credential.
 
+## Follow-up evidence — 2026-10-09
+
+No new OOM/reclaim incident was observed during the reported 2026-10-09
+observation window while the CrowdSec engine remained stopped. Snort and
+Unbound remained up. This materially strengthens CrowdSec as a major memory/CPU
+pressure contributor, but does not prove it was the sole cause because the
+pfBlockerNG ASN/IPinfo retry loop was also active during the 2026-10-08
+failures and was disabled during the same remediation window.
+
+CrowdSec logs from 2026-10-08 show repeated
+`firewallservices/pf-scan-multi_ports` backpressure with failed-send counters
+reaching many millions before the engine was stopped. The engine must remain
+isolated until that path is understood and bounded.
+
+The stale Prometheus exporter credential was also repaired on 2026-10-09:
+
+- a single-request preflight returned HTTP 401 with the old runtime key;
+- dedicated user `pfsense_exporter` was created with only GET privileges for
+  `status/system`, `status/gateways` and `status/services`;
+- the rotated key returned HTTP 200 for all three endpoints;
+- `pfsense-exporter` restarted successfully and a supervised `/metrics`
+  scrape returned pfSense gateway/service metrics.
+
+Final acceptance still requires at least one normal 300-second Prometheus cycle
+with no new `webConfigurator authentication error ... user 'unknown' from:
+172.17.0.24` entry.
+
 ## Remaining actions
 
 - keep CrowdSec engine stopped until its failed-send loop is diagnosed;
 - keep Unbound out of Service Watchdog while OOM remains plausible;
 - correlate the Snort 02:09 rule-update job with the 02:10 OOM before changing
   its schedule;
-- diagnose the repeated `172.17.0.24` pfSense API authentication failures and
-  restore the intended least-privilege observer identity;
+- observe at least one normal 300-second Prometheus cycle after the exporter
+  key rotation and confirm no new `172.17.0.24` authentication failure;
 - measure PHP-FPM/Unbound/Snort memory under the reduced WAN load before applying
   any persistent PHP-FPM tuning;
 - revalidate the TCP/7000 TrueNAS source policy independently after removing the
