@@ -110,9 +110,10 @@ service.
 It reports:
 
 - CrowdSec engine PID separately from the firewall-bouncer PID;
-- `crowdsec -version` and `cscli version` when available;
+- `crowdsec -version`, `cscli version` and installed CrowdSec package versions;
 - bounded `cscli metrics` only when the engine is already running;
-- config references to `pf-scan-multi_ports` / `firewallservices`;
+- config references plus the effective `pf-scan-multi_ports` scenario policy
+  (`groupby`, `distinct`, `capacity`, `leakspeed`, `blackhole`, remediation);
 - streamed counts and maxima for `failed_sent` and `attempts` across current
   and rotated CrowdSec logs;
 - only the last 30 matching backpressure lines;
@@ -125,6 +126,16 @@ diagnosed, so diagnostic collection must itself remain memory-bounded.
 
 When the engine is intentionally stopped, `crowdsec_metrics=skipped_engine_stopped`
 is expected. Do not restart CrowdSec merely to obtain metrics.
+
+Interpret the `stuck ... failed_sent ... attempts` warning as an **internal
+leaky-bucket delivery contention signal**, not as proof that the firewall
+bouncer or LAPI network delivery failed. CrowdSec issue
+[`#1519`](https://github.com/crowdsecurity/crowdsec/issues/1519) documented the
+same tight retry loop, and the upstream v1.8.1 source still uses a non-blocking
+send to `bucket.In` followed by an immediate retry:
+[`manager_run.go`](https://github.com/crowdsecurity/crowdsec/blob/v1.8.1/pkg/leakybucket/manager_run.go).
+Record the installed version and scenario policy before considering an upgrade;
+do not assume a version bump alone removes this CPU-spin path.
 
 Also distinguish service enablement from runtime state: exporter metrics such as
 `pfsense_service_enabled{name="crowdsec"} 1` show configuration enablement,
