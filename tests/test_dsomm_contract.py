@@ -37,7 +37,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual("planned", service["x-nabla"]["status"])
         self.assertIn("healthcheck", service)
         self.assertEqual(["ALL"], service["cap_drop"])
-        self.assertIn("no-new-privileges:true", service["security_opt"])
+        self.assertIn("no-new-privileges=true", service["security_opt"])
         self.assertEqual("truenas-app", service["x-nabla"]["runtime"]["provider"])
         self.assertEqual(31088, service["x-nabla"]["monitoring"]["port"])
         self.assertTrue(
@@ -81,7 +81,7 @@ class DsommContractTests(unittest.TestCase):
         )
         self.assertTrue(service["read_only"])
         self.assertEqual(["ALL"], service["cap_drop"])
-        self.assertIn("no-new-privileges:true", service["security_opt"])
+        self.assertIn("no-new-privileges=true", service["security_opt"])
         self.assertIn("/tmp:rw,noexec,nosuid,nodev,size=64m", service["tmpfs"])
         self.assertIn("AlbanAndrieu/fastapi-sample", service["environment"]["DSOMM_BASELINE_REPOS"])
         self.assertEqual(
@@ -158,7 +158,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn('custom_compose_config_string', text)
         self.assertNotIn("include:\\n  - %s", text)
         self.assertIn('if [[ "${state}" == "STOPPED" ]]', text)
-        self.assertIn('midclt call -j app.start "${APP_ID}"', text)
+        self.assertIn('truenas_job_compact app.start "${APP_ID}"', text)
         self.assertIn("docker pull", text)
         self.assertIn("truenas_lifecycle_mark", text)
         self.assertIn("truenas_lifecycle_errors_since", text)
