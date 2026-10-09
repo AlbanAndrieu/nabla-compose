@@ -48,6 +48,21 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn('if [[ "${CONSOLE_OUTPUT}" == true ]]', text)
         self.assertIn('printf \'%s\\n\' "$*" >>"${REPORT}"', text)
 
+    def test_console_status_rendering_is_tty_aware_and_report_stays_plain(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn('COLOR_ENABLED=false', text)
+        self.assertIn('[[ -t 1 && -z "${NO_COLOR:-}"', text)
+        self.assertIn('ICON_OK="✅"', text)
+        self.assertIn('ICON_WARN="⚠️"', text)
+        self.assertIn('ICON_ERROR="❌"', text)
+        self.assertIn('ICON_INFO="ℹ️"', text)
+        self.assertIn('ICON_SECTION="🔎"', text)
+        self.assertIn('console_line()', text)
+        self.assertIn('printf \'%s\\n\' "$*" >>"${REPORT}"', text)
+        self.assertIn('console_line "$*"', text)
+        self.assertIn("The report file always remains plain text.", text)
+
     def test_check_keeps_api_evidence_when_ssh_is_unavailable(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 
