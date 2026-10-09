@@ -204,9 +204,10 @@ The stale Prometheus exporter credential was also repaired on 2026-10-09:
 - `pfsense-exporter` restarted successfully and a supervised `/metrics`
   scrape returned pfSense gateway/service metrics.
 
-Final acceptance still requires at least one normal 300-second Prometheus cycle
-with no new `webConfigurator authentication error ... user 'unknown' from:
-172.17.0.24` entry.
+Final exporter acceptance was obtained later on 2026-10-09. A pfSense log query
+covering both `20:` and `21:` still ended at `20:41:24`, the last pre-rotation
+`172.17.0.24` authentication failure. Multiple subsequent normal 300-second
+Prometheus cycles therefore completed without a new `user unknown` error.
 
 ## Remaining actions
 
@@ -214,8 +215,6 @@ with no new `webConfigurator authentication error ... user 'unknown' from:
 - keep Unbound out of Service Watchdog while OOM remains plausible;
 - correlate the Snort 02:09 rule-update job with the 02:10 OOM before changing
   its schedule;
-- observe at least one normal 300-second Prometheus cycle after the exporter
-  key rotation and confirm no new `172.17.0.24` authentication failure;
 - measure PHP-FPM/Unbound/Snort memory under the reduced WAN load before applying
   any persistent PHP-FPM tuning;
 - revalidate the TCP/7000 TrueNAS source policy independently after removing the
