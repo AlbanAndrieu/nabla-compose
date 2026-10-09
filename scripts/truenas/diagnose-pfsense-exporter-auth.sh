@@ -87,7 +87,7 @@ case "${status}" in
     exit 4
     ;;
   403)
-    printf 'ERROR: pfSense exporter runtime key authenticated but is not authorized for %s (HTTP 403)\n' "${ENDPOINT}" >&2
+    printf 'ERROR: pfSense exporter runtime key authenticated but access to %s is denied (HTTP 403); check endpoint privilege, REST API Access List, and Allowed Interfaces\n' "${ENDPOINT}" >&2
     exit 5
     ;;
   *)
