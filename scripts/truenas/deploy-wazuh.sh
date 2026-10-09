@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 APP_ID="${WAZUH_APP_ID:-wazuh}"
 WAIT_ATTEMPTS="${WAZUH_WAIT_ATTEMPTS:-240}"
