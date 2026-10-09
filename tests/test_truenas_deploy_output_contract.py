@@ -36,3 +36,23 @@ def test_dsomm_smoke_name_is_valid_and_pid_scoped() -> None:
 
     assert 'smoke_name="nabla-dsomm-preflight-${BASHPID}"' in text
     assert 'smoke_name="nabla-dsomm-preflight-$"' not in text
+
+
+def test_all_deployers_report_checkout_provenance() -> None:
+    offenders: list[str] = []
+    expected = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
+    for path in DEPLOYERS:
+        text = path.read_text(encoding="utf-8")
+        if expected not in text:
+            offenders.append(path.name)
+    assert not offenders, f"deploy checkout provenance missing in: {offenders}"
+
+
+def test_checkout_provenance_is_local_and_non_blocking() -> None:
+    text = TRUENAS_LIB.read_text(encoding="utf-8")
+
+    assert "truenas_repo_provenance()" in text
+    assert "status --porcelain" in text
+    assert "rev-list --left-right --count" in text
+    assert "git fetch" not in text
+    assert "relation=behind-" in text
