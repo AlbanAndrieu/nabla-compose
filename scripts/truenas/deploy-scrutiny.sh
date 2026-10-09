@@ -35,6 +35,7 @@ cd "${ROOT}"
 
 # shellcheck source=../lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 if [[ "${MODE}" == "--apply" ]]; then
   [[ "${SCRUTINY_CUTOVER_APPROVED:-0}" == "1" ]] ||
