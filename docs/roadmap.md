@@ -167,59 +167,36 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
 - [ ] Keep current + previous known-good reboot bundles until another normal
   reboot cycle passes.
 - [ ] **pfSense edge-memory / DNS resilience regression:** repeated FreeBSD
-  reclaim/OOM kills on 2026-10-08 removed Unbound at 02:10 and 11:03 and killed
-  `php_pfb` at 19:00. Current evidence points to combined edge-capacity pressure
-  rather than native Unbound caches alone: Unbound Python DNSBL, Snort, the
-  generated PHP-FPM pool and a broken CrowdSec event path can overlap on the
-  memory-constrained Netgate 1100.
-  - [x] Set pfBlockerNG `ASN Reporting=disabled` while `asn.mmdb`/`asn.csv`
-    are absent and no IPinfo token is configured; verify the repeated IPinfo
-    download attempts stop.
-  - [x] Stop the CrowdSec engine after `firewallservices/pf-scan-multi_ports`
-    accumulated millions of failed event-send attempts; keep the firewall
-    bouncer independent while the engine is isolated.
-  - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
-    restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
-    observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof. The canonical diagnostic now
-    reports engine vs bouncer state, versions, config references, bounded
-    `cscli metrics` when already running, and streamed
-    `pf-scan-multi_ports` failed-send maxima without retaining the full log set.
-  - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
-    changing its schedule; keep optional restart/reload churn bounded meanwhile.
+  reclaim/OOM kills on 2026-10-08 removed Unbound and other processes on the
+  memory-constrained Netgate 1100. Incident evidence and accepted mitigations
+  live in
+  [`2026-10-08-pfsense-unbound-oom-wan-exposure.md`](./incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md).
+
+  Accepted baseline (not open work): ASN Reporting is disabled while no
+  IPinfo/ASN database contract exists; CrowdSec engine is isolated while its
+  firewall bouncer stays independent; WAN TCP/10443 is restricted by
+  `PFSENSE_ADMIN_WAN` plus explicit deny; legacy `ExternalOffice` is gone;
+  dedicated `pfsense_exporter` uses least privilege and automatic 300-second
+  Prometheus cycles no longer generate `user unknown` authentication errors.
+
+  Remaining work:
+  - [ ] Diagnose/fix CrowdSec `firewallservices/pf-scan-multi_ports`
+    backpressure and prove bounded CPU/RSS before restarting the engine. The
+    2026-10-09 A/B window (CrowdSec stopped, Snort + Unbound healthy, no new
+    OOM observed) is strong contributor evidence, not sole-cause proof.
+  - [ ] Correlate the Snort 02:09 rule-update job with the historical 02:10 OOM
+    before changing its schedule.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
     traffic before any supported persistent tuning; do not hand-edit generated
-    runtime config. Keep detailed tuning in
+    runtime config. Keep tuning detail in
     [`pfsense-php-fpm-hardening.md`](./pfsense-php-fpm-hardening.md).
-  - [x] Reduce untrusted WebConfigurator/API ingress: WAN TCP/10443 now uses
-    `PFSENSE_ADMIN_WAN` (one reviewed public source) followed immediately by
-    an explicit `any -> WAN address:10443` block. The block matched untrusted
-    traffic immediately and sampled public `root`/`admin` PHP-FPM
-    authentication failures stopped afterwards.
-  - [x] Remove the malformed legacy `ExternalOffice` alias after resolving its
-    rule references. It contained one office address plus all 256 LAN /24
-    addresses expanded individually; the replacement admin alias resolves only
-    to `80.15.4.233`.
-  - [x] Repair the rejected pfSense exporter credential: create dedicated
-    `pfsense_exporter`, rotate the stale key, prove HTTP 200 for
-    `status/system`, `status/gateways` and `status/services`, then restore
-    the exporter and obtain real pfSense metrics. Keep the identity lifecycle
-    repository-managed and separate from FastAPI/admin identities.
-  - [x] Validate automatic Prometheus recovery after rotation: a log query
-    spanning `20:` and `21:` on 2026-10-09 still ends at `20:41:24`, so multiple
-    normal 300-second cycles completed without a new `172.17.0.24` `user unknown`
-    authentication failure.
-  - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
-    legacy alias removal; do not use the FastAPI Cloud public hostname as a
-    source identity because ingress DNS does not prove stable cloud egress.
-  - [ ] Keep Unbound out of Service Watchdog during OOM remediation; reassess
-    guarded recovery only after the memory policy is stable, rather than hiding
-    a kill/restart loop.
+  - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy independently; do not
+    use the FastAPI Cloud public hostname as a source identity.
+  - [ ] Keep Unbound out of Service Watchdog until the memory exit gate is met.
   - [ ] Exit gate: sustained observation with no new allocation/reclaim kills,
     stable Unbound/Kea DNS/DHCP, no ASN retry spam, and bounded
     Unbound/Snort/PHP-FPM/CrowdSec RSS plus free-memory headroom under normal
-    WebGUI/API traffic. Incident evidence:
-    [`2026-10-08-pfsense-unbound-oom-wan-exposure.md`](./incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md).
+    WebGUI/API traffic.
 - [ ] DNS maintenance acceptance: only after the edge-memory exit gate, stop
   Pi-hole during a controlled window, rerun pfSense posture + Talos
   ResolverStatus/DNSUpstream checks and prove public registry resolution through
