@@ -649,16 +649,30 @@ if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
 fi
 printf 'CrowdSec scenario/config references:\n'
 grep -RniE 'pf-scan-multi_ports|firewallservices' /usr/local/etc/crowdsec /etc/crowdsec 2>/dev/null | head -80 || true
-CROWDSEC_STUCK_LINES="$(for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do [ -f "${log}" ] || continue; grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null; done)"
-if [ -n "${CROWDSEC_STUCK_LINES}" ]; then
-  CROWDSEC_STUCK_COUNT="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | wc -l | tr -d ' ')"
-  CROWDSEC_MAX_FAILED_SENT="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | sed -n 's/.*failed_sent:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
-  CROWDSEC_MAX_ATTEMPTS="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
-  printf 'crowdsec_pf_scan_stuck_lines=%s max_failed_sent=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_FAILED_SENT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
-  printf '%s\n' "${CROWDSEC_STUCK_LINES}" | tail -30 || true
-else
-  printf 'crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0\n'
-fi
+CROWDSEC_STUCK_SUMMARY="$(for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
+  [ -f "${log}" ] || continue
+  grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
+done | awk '
+  {
+    count++
+    if (match($0, /failed_sent:[0-9]+/)) {
+      value = substr($0, RSTART + 12, RLENGTH - 12) + 0
+      if (value > max_failed) max_failed = value
+    }
+    if (match($0, /attempts:[0-9]+/)) {
+      value = substr($0, RSTART + 9, RLENGTH - 9) + 0
+      if (value > max_attempts) max_attempts = value
+    }
+  }
+  END {
+    printf "crowdsec_pf_scan_stuck_lines=%d max_failed_sent=%d max_attempts=%d", count + 0, max_failed + 0, max_attempts + 0
+  }
+' 2>/dev/null)"
+printf '%s\n' "${CROWDSEC_STUCK_SUMMARY:-crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0}"
+for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
+  [ -f "${log}" ] || continue
+  grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
+done | tail -30 || true
 ASN_REPORTING="$(sed -n 's:.*<asn_reporting>\([^<]*\)</asn_reporting>.*:\1:p' /conf/config.xml 2>/dev/null | tail -n 1)"
 if grep -Eq '<asn_token>[^<]+</asn_token>' /conf/config.xml 2>/dev/null; then
   ASN_TOKEN_PRESENT=yes
