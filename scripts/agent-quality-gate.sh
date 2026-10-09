@@ -61,8 +61,8 @@ Modes:
 
 Environment:
   QUALITY_BASE_REF                 override comparison base
-  QUALITY_LOG_TAIL                 failure log lines to print (default: 80)
-  QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 600)
+  QUALITY_LOG_TAIL                 failure log lines to print (default: 32)
+  QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 320)
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   NABLA_TRUENAS_DEV_VENV           preferred local dev venv (default: ~/.cache/nabla-compose/dev-venv)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
@@ -82,8 +82,8 @@ if (($# > 0)); then
   exit 2
 fi
 
-LOG_TAIL="${QUALITY_LOG_TAIL:-80}"
-LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-600}"
+LOG_TAIL="${QUALITY_LOG_TAIL:-32}"
+LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
 REVIEWED_LARGE_DELETIONS="${ROOT}/config/quality/reviewed-large-deletions.tsv"
 if ! [[ "${LOG_TAIL}" =~ ^[1-9][0-9]*$ ]]; then
