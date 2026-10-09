@@ -6,6 +6,7 @@ CYBERBRO_URL="${CYBERBRO_URL:-http://172.17.0.24:5100/}"
 MCP_URL="${CYBERBRO_MCP_URL:-http://172.17.0.24:8013/mcp}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+VERBOSE="${CYBERBRO_DIAGNOSTIC_VERBOSE:-false}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -19,17 +20,13 @@ done
 # shellcheck source=../lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
 
-printf '==> TrueNAS application state\n'
-app_json="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]")"
+printf '==> Cyberbro runtime summary\n'
+app_json="$(truenas_app_query_by_id "${APP_ID}")"
 [[ "$(jq 'length' <<<"${app_json}")" -eq 1 ]] || fail "TrueNAS application ${APP_ID} not found or ambiguous"
 app_state="$(jq -r '.[0].state // "UNKNOWN"' <<<"${app_json}")"
-jq '.[0] | {id,state,version,human_version,active_workloads}' <<<"${app_json}"
+container_count="$(jq -r '.[0].active_workloads.containers // 0' <<<"${app_json}")"
+printf 'TrueNAS app=%s state=%s containers=%s\n' "${APP_ID}" "${app_state}" "${container_count}"
 
-printf '\n==> recent TrueNAS app jobs (arguments omitted)\n'
-midclt call core.get_jobs |
-  jq --arg app "${APP_ID}" '[.[] | select((.method // "") | startswith("app.")) | select(((.arguments // []) | tostring) | contains($app)) | {id,method,state,progress:{percent:(.progress.percent // null),description:(.progress.description // null)},time_started,time_finished,error}] | sort_by(.id) | reverse | .[:8]'
-
-printf '\n==> TrueNAS app lifecycle errors\n'
 lifecycle_warning=0
 if [[ -n "${TRUENAS_LIFECYCLE_MARK:-}" ]]; then
   lifecycle_mark="${TRUENAS_LIFECYCLE_MARK}"
@@ -41,55 +38,77 @@ else
     lifecycle_mark=0
   fi
 fi
-if ! truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 40; then
+if ! truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 20; then
   lifecycle_warning=1
 fi
 
 failed=0
-printf '\n==> Docker state\n'
-for name in cyberbro mcp-cyberbro; do
-  if ! docker inspect "${name}" >/dev/null 2>&1; then
-    printf 'ERROR: container missing: %s\n' "${name}" >&2
+declare -A container_ids=()
+printf '\n==> Compose services\n'
+for service in cyberbro mcp-cyberbro; do
+  container_id="$(truenas_compose_container_id "${APP_ID}" "${service}")"
+  container_ids["${service}"]="${container_id}"
+  if [[ -z "${container_id}" ]]; then
+    printf 'ERROR: Compose service container missing: %s\n' "${service}" >&2
     failed=1
     continue
   fi
-  inspect="$(docker inspect "${name}")"
+  inspect="$(docker inspect "${container_id}")"
   status="$(jq -r '.[0].State.Status // "unknown"' <<<"${inspect}")"
   health="$(jq -r '.[0].State.Health.Status // "none"' <<<"${inspect}")"
   restarts="$(jq -r '.[0].RestartCount // 0' <<<"${inspect}")"
-  printf '%-16s state=%-10s health=%-10s restarts=%s\n' "${name}" "${status}" "${health}" "${restarts}"
-  if [[ "${status}" != "running" || ( "${name}" == "cyberbro" && "${health}" != "healthy" ) ]]; then
+  printf '%-16s state=%-8s health=%-8s restarts=%s\n' "${service}" "${status}" "${health}" "${restarts}"
+  if [[ "${status}" != "running" || ( "${service}" == "cyberbro" && "${health}" != "healthy" ) ]]; then
     failed=1
   fi
 done
 
-printf '\n==> database dependency\n'
-printf 'INFO: Cyberbro has no database dependency in the repository Compose contract.\n'
-
 printf '\n==> functional probes\n'
-curl -fsS --max-time 8 -o /dev/null "${CYBERBRO_URL}" || failed=1
-curl -sS --max-time 8 -o /dev/null "${MCP_URL}" || failed=1
+if curl -fsS --max-time 8 -o /dev/null "${CYBERBRO_URL}"; then
+  printf 'OK: Cyberbro HTTP ready: %s\n' "${CYBERBRO_URL}"
+else
+  printf 'ERROR: Cyberbro HTTP probe failed: %s\n' "${CYBERBRO_URL}" >&2
+  failed=1
+fi
+mcp_code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "${MCP_URL}" || true)"
+if [[ "${mcp_code}" == "000" || -z "${mcp_code}" ]]; then
+  printf 'ERROR: Cyberbro MCP transport unreachable: %s\n' "${MCP_URL}" >&2
+  failed=1
+else
+  printf 'OK: Cyberbro MCP transport reachable: http=%s\n' "${mcp_code}"
+fi
 [[ "${app_state}" == "RUNNING" ]] || failed=1
 
+if ((failed > 0)) || [[ "${VERBOSE}" == "true" || "${VERBOSE}" == "1" ]]; then
+  printf '\n==> recent TrueNAS app jobs\n'
+  midclt call core.get_jobs |
+    jq --arg app "${APP_ID}" '
+      [
+        .[]
+        | select((.method // "") | startswith("app."))
+        | select(((.arguments // []) | tostring) | contains($app))
+        | {id,method,state,error}
+      ]
+      | sort_by(.id)
+      | reverse
+      | .[:5]
+    ' || true
+fi
+
 if ((failed > 0)); then
-  printf '\n==> bounded container logs (review locally; do not paste secrets)\n'
-  for name in cyberbro mcp-cyberbro; do
-    docker logs --tail 80 "${name}" 2>&1 | tail -80 || true
+  printf '\n==> bounded container logs\n'
+  for service in cyberbro mcp-cyberbro; do
+    container_id="${container_ids[${service}]:-}"
+    [[ -n "${container_id}" ]] || continue
+    printf '%s:\n' "${service}" >&2
+    docker logs --tail 40 "${container_id}" 2>&1 | tail -40 || true
   done
 
-  printf '\n==> bounded middleware evidence\n'
-  if [[ -r /var/log/middlewared.log ]]; then
-    grep -Ei 'cyberbro|app\.(create|update|redeploy)|docker|compose' /var/log/middlewared.log | tail -80 || true
-  fi
-
   if command -v journalctl >/dev/null 2>&1; then
-    printf '\n==> bounded Docker service evidence\n'
-    journalctl -u docker --since '-15 min' --no-pager 2>/dev/null | tail -80 || true
-
-    printf '\n==> bounded system warning evidence\n'
-    journalctl --since '-15 min' -p warning..alert --no-pager 2>/dev/null |
-      grep -Ei 'cyberbro|docker|middleware|zfs|ix-app' |
-      tail -80 || true
+    printf '\n==> bounded Cyberbro Docker evidence\n'
+    journalctl -u docker --since '-10 min' --no-pager 2>/dev/null |
+      grep -Ei 'cyberbro|mcp-cyberbro|ix-cyberbro' |
+      tail -40 || true
   fi
 
   fail "Cyberbro runtime diagnosis failed"

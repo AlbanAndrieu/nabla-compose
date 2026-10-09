@@ -21,6 +21,10 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
+# shellcheck source=../lib/truenas.sh
+source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
+
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
@@ -73,7 +77,7 @@ compose_path="${CANONICAL_ROOT}/apps/autokuma/compose.yml"
 if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
   jq -e 'length > 0' >/dev/null; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
-  sudo midclt call -j app.update "${APP_ID}" "$(
+  truenas_job_compact app.update "${APP_ID}" "$(
     jq -cn \
       --arg include "${compose_path}" \
       '{
@@ -82,14 +86,14 @@ if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
         }
       }'
   )"
-  sudo midclt call -j app.redeploy "${APP_ID}"
+  truenas_job_compact app.redeploy "${APP_ID}"
 else
   printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
   wrapper="$(
     printf 'include:\n  - %s\n' "${compose_path}"
   )"
 
-  sudo midclt call -j app.create "$(
+  truenas_job_compact app.create "$(
     jq -cn \
       --arg app_name "${APP_ID}" \
       --arg compose "${wrapper}" \
@@ -102,18 +106,19 @@ else
 fi
 
 for _ in $(seq 1 30); do
-  if docker ps --format '{{.Names}}' | grep -Fxq "${CONTAINER}"; then
+  container_id="$(truenas_compose_container_id "${APP_ID}" autokuma)"
+  if [[ -n "${container_id}" ]] && [[ "$(docker inspect "${container_id}" --format '{{.State.Status}}' 2>/dev/null || true)" == "running" ]]; then
     printf 'OK: AutoKuma container is running; generated monitor count=%s\n' \
       "${monitor_count}"
-    midclt call app.query \
-      "[[\"id\",\"=\",\"${APP_ID}\"]]" |
-      jq '.[0] | {id,state,active_workloads}'
+    truenas_app_summary "${APP_ID}"
     exit 0
   fi
   sleep 2
 done
 
-docker ps -a --filter "name=^${CONTAINER}$" \
-  --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
-docker logs --tail 100 "${CONTAINER}" 2>&1 || true
+container_id="$(truenas_compose_container_id "${APP_ID}" autokuma)"
+if [[ -n "${container_id}" ]]; then
+  docker inspect "${container_id}" --format '{{.Name}} {{.State.Status}} {{.Config.Image}}' || true
+  docker logs --tail 40 "${container_id}" 2>&1 || true
+fi
 fail "AutoKuma did not reach running state"
