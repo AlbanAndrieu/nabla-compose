@@ -55,4 +55,4 @@ def test_checkout_provenance_is_local_and_non_blocking() -> None:
     assert "status --porcelain" in text
     assert "rev-list --left-right --count" in text
     assert "git fetch" not in text
-    assert "relation=behind-" in text
+    assert 'relation="behind-${right}"' in text
