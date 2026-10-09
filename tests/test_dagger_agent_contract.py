@@ -175,6 +175,7 @@ def test_dagger_requires_reviewed_lock_before_execution() -> None:
 def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
     skill = SKILL.read_text(encoding="utf-8")
+    normalized_skill = " ".join(skill.split())
 
     for expected in (
         "ShellCheck + Biome",
@@ -191,14 +192,14 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     ):
         assert expected in roadmap
 
-    assert "Experimental Dagger PoC" in skill
-    assert "just dagger-sync" in skill
-    assert "just dagger-list" in skill
-    assert "just dagger-poc" in skill
-    assert "does not replace the canonical publication gate" in skill
-    assert "L1" in skill
-    assert "explicit Dagger `Secret` input" in skill
-    assert "this PoC never uses them as Dagger module" in skill
+    assert "Experimental Dagger PoC" in normalized_skill
+    assert "just dagger-sync" in normalized_skill
+    assert "just dagger-list" in normalized_skill
+    assert "just dagger-poc" in normalized_skill
+    assert "does not replace the canonical publication gate" in normalized_skill
+    assert "L1" in normalized_skill
+    assert "explicit Dagger `Secret` input" in normalized_skill
+    assert "this PoC never uses them as Dagger module" in normalized_skill
 
 
 def test_dagger_changes_route_to_local_first_and_current_docs_skills() -> None:
