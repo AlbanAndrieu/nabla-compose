@@ -20,8 +20,11 @@ if [[ -z "$BASE" ]]; then
   done
 fi
 declare -a files=()
+# Do not let a failing git diff silently turn into an empty, passing scan:
+# mapfile/process substitution would otherwise hide the producer's exit code.
 if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1 &&
-  git merge-base "$BASE" HEAD >/dev/null 2>&1; then
+  git merge-base "$BASE" HEAD >/dev/null 2>&1 &&
+  git diff --name-only --diff-filter=ACMR "$BASE...HEAD" >/dev/null 2>&1; then
   mapfile -t files < <(
     { git diff --name-only --diff-filter=ACMR "$BASE...HEAD"
       git diff --name-only --diff-filter=ACMR
