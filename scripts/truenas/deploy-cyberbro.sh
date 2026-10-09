@@ -49,7 +49,7 @@ printf '\n==> TrueNAS Custom App reconciliation\n'
 lifecycle_mark="$(truenas_lifecycle_mark)"
 if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
   jq -e 'length > 0' >/dev/null; then
-  midclt call -j app.update "${APP_ID}" "$(
+  truenas_job_compact app.update "${APP_ID}" "$(
     jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {
         include: [$include]
@@ -58,7 +58,7 @@ if midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
   )"
 else
   wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-  midclt call -j app.create "$(
+  truenas_job_compact app.create "$(
     jq -cn \
       --arg app_name "${APP_ID}" \
       --arg compose "${wrapper}" \
@@ -73,10 +73,19 @@ fi
 printf '\n==> wait for TrueNAS RUNNING + container health\n'
 deadline=$((SECONDS + WAIT_SECONDS))
 while ((SECONDS < deadline)); do
-  state="$(midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" | jq -r '.[0].state // "UNKNOWN"')"
-  cyberbro_health="$(docker inspect cyberbro --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)"
-  mcp_state="$(docker inspect mcp-cyberbro --format '{{.State.Status}}' 2>/dev/null || true)"
+  state="$(truenas_app_state "${APP_ID}")"
+  cyberbro_id="$(truenas_compose_container_id "${APP_ID}" cyberbro)"
+  mcp_id="$(truenas_compose_container_id "${APP_ID}" mcp-cyberbro)"
+  cyberbro_health=""
+  mcp_state=""
+  if [[ -n "${cyberbro_id}" ]]; then
+    cyberbro_health="$(docker inspect "${cyberbro_id}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)"
+  fi
+  if [[ -n "${mcp_id}" ]]; then
+    mcp_state="$(docker inspect "${mcp_id}" --format '{{.State.Status}}' 2>/dev/null || true)"
+  fi
   if [[ "${state}" == "RUNNING" && "${cyberbro_health}" == "healthy" && "${mcp_state}" == "running" ]]; then
+    printf 'OK: Cyberbro runtime ready state=%s web=%s mcp=%s\n' "${state}" "${cyberbro_health}" "${mcp_state}"
     break
   fi
   sleep 4
@@ -112,7 +121,7 @@ for consumer in gatus homarr; do
   if midclt call app.query "[[\"id\",\"=\",\"${consumer}\"]]" |
     jq -e 'length > 0' >/dev/null; then
     consumer_lifecycle_mark="$(truenas_lifecycle_mark)"
-    midclt call -j app.redeploy "${consumer}"
+    truenas_job_compact app.redeploy "${consumer}"
     midclt call app.query "[[\"id\",\"=\",\"${consumer}\"]]" |
       jq -r '.[0] | "OK: \(.id) state=\(.state // \"UNKNOWN\")"'
     truenas_lifecycle_errors_since "${consumer}" "${consumer_lifecycle_mark}" 20 || true
