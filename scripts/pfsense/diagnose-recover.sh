@@ -592,6 +592,17 @@ printf '\nRecent WebConfigurator authentication failures:\n'
 grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -60 || true
 printf '\nAuthentication failures grouped by source:\n'
 grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -120 | sed -n 's/.*from: \([^ ]*\)$/\1/p' | sort | uniq -c | sort -nr || true
+printf '\nPrometheus exporter authentication regression summary:\n'
+EXPORTER_AUTH_LINES="$(grep -h "$(date '+%Y-%m-%d')T.*webConfigurator authentication error.*from: 172.17.0.24$" /var/log/system.log* 2>/dev/null || true)"
+if [ -n "${EXPORTER_AUTH_LINES}" ]; then
+  EXPORTER_AUTH_COUNT="$(printf '%s\n' "${EXPORTER_AUTH_LINES}" | wc -l | tr -d ' ')"
+  EXPORTER_AUTH_LAST="$(printf '%s\n' "${EXPORTER_AUTH_LINES}" | tail -n 1)"
+  printf 'pfsense_exporter_auth_failures_today=%s\n' "${EXPORTER_AUTH_COUNT}"
+  printf 'pfsense_exporter_auth_latest=%s\n' "${EXPORTER_AUTH_LAST}"
+else
+  printf 'pfsense_exporter_auth_failures_today=0\n'
+  printf 'pfsense_exporter_auth_latest=<none>\n'
+fi
 tail -n 450 /var/log/system.log 2>/dev/null | egrep -i 'nginx|php|fpm|webconfig|fatal|segfault|killed|memory|502|upstream|error' | tail -180 || true
 
 section "Unbound"
