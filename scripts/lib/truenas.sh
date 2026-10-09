@@ -70,6 +70,37 @@ truenas_app_state() {
     jq -r 'if length == 1 then .[0].state else "MISSING" end'
 }
 
+truenas_repo_provenance() {
+  local repo_root="${1:-.}"
+  local head upstream dirty relation counts left right
+
+  head="$(git -C "${repo_root}" rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')"
+  if [[ -n "$(git -C "${repo_root}" status --porcelain 2>/dev/null || true)" ]]; then
+    dirty="dirty"
+  else
+    dirty="clean"
+  fi
+
+  upstream="$(git -C "${repo_root}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  relation="no-upstream"
+  if [[ -n "${upstream}" ]]; then
+    counts="$(git -C "${repo_root}" rev-list --left-right --count "HEAD...${upstream}" 2>/dev/null || true)"
+    left="${counts%%[[:space:]]*}"
+    right="${counts##*[[:space:]]}"
+    if [[ "${left}" =~ ^[0-9]+$ && "${right}" =~ ^[0-9]+$ ]]; then
+      case "${left}:${right}" in
+        0:0) relation="synced" ;;
+        0:*) relation="behind-${right}" ;;
+        *:0) relation="ahead-${left}" ;;
+        *) relation="diverged-${left}-${right}" ;;
+      esac
+    fi
+  fi
+
+  printf 'INFO: repository head=%s tree=%s upstream=%s relation=%s\n' \
+    "${head}" "${dirty}" "${upstream:-none}" "${relation}" >&2
+}
+
 truenas_job_compact() {
   local method="${1:?TrueNAS middleware job method is required}"
   shift
