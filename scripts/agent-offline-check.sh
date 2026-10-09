@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 
 # Dependency-free L1 syntax gate for disconnected workspaces.
