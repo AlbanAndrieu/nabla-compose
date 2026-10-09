@@ -42,6 +42,18 @@ publish:
 quality-gate:
     mise run quality
 
+# Refresh/review dagger.lock explicitly before running the PoC.
+dagger-sync:
+    mise run dagger-sync
+
+# List the bounded experimental Dagger checks; this is not the publication gate.
+dagger-list:
+    mise run dagger-list
+
+# Run the experimental ShellCheck + Biome Dagger PoC.
+dagger-poc:
+    mise run dagger-poc
+
 # Test this justfile and the Betterleaks toolchain contracts.
 tooling-test:
     python -m unittest tests.test_dev_tooling_contract -v
@@ -61,3 +73,11 @@ secrets-history:
 # Legacy Makefile is deliberately retained.
 make-help:
     make help
+
+# Generate outside-in Synthetic Open Schema YAML from the exposure catalog.
+sos-generate:
+    python scripts/generate-synthetic-open-schema.py
+
+# Validate the deterministic SOS generator contract without network probes.
+sos-test:
+    python -m pytest -q tests/test_synthetic_open_schema_generation.py

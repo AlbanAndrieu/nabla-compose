@@ -511,3 +511,6 @@ __marimo__/
 .dev.vars
 .wrangler/
 .vercel
+
+# Generated Synthetic Open Schema outside-in checks
+/generated/synthetic-open-schema/

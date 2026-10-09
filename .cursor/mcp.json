@@ -93,6 +93,10 @@
       "env": {
         "SENTRY_ACCESS_TOKEN": "${env:SENTRY_ACCESS_TOKEN}"
       }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
     }
   }
 }

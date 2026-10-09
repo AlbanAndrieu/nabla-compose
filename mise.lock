@@ -22,6 +22,11 @@ version = "2.36.31"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
+[[tools.dagger]]
+version = "0.21.10"
+backend = "aqua:dagger/dagger"
+specifiers = ["0.21.10"]
+
 [[tools.docker-compose]]
 version = "5.5.0"
 backend = "github:docker/compose"

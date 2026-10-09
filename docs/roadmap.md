@@ -277,55 +277,83 @@ L3 full local publication. Only L3 means the complete local gate is green.
 
 ### Dagger — portable local/CI execution
 
-Dagger is a candidate **execution layer**, not a second source of quality policy.
-Its documented model lets the same typed checks run locally and in CI with
-containerized DAG execution, caching and reusable modules. Official modules
-already cover tools such as Pytest and ShellCheck.
+Dagger remains a **beta parity PoC**, not a second source of quality policy.
+The repository installs the stable CLI `0.21.10`, while the new workspace/check
+surface is selected explicitly with `--x-release=v1.0.0-beta.15`. The
+canonical publication evidence remains `agent-pre-push`.
 
-- [ ] Add a bounded Dagger PoC workspace (`dagger.toml`) on a dedicated PR.
-- [ ] Start with 2–3 deterministic checks already owned by the repository
-  (for example Pytest contracts + ShellCheck + one generated/config contract).
-- [ ] Prefer official Dagger modules when they exactly fit; create a local Dagger
-  module only when it represents a durable Nabla workflow rather than wrapping
-  one command ceremonially.
-- [ ] Prove identical results locally and from a CI runner before moving any
-  required check behind Dagger.
-- [ ] Measure cold/warm execution, cache reuse and failure readability against
-  `just loop` / `just pre-push`.
-- [ ] Keep Pre-commit/Just/Mise and `scripts/agent-quality-gate.sh` authoritative
-  until parity is proven; Dagger must reduce CI glue/custom orchestration rather
-  than duplicate it.
-- [ ] If accepted, expose a small stable interface such as
-  `dagger check` / named checks and let GitHub Actions become a thin trigger.
-  Local execution must remain possible when Actions credits are unavailable.
-- [ ] Add Dagger usage/routing to the `local-first-quality` skill only after the
-  PoC is reproducible.
+- [x] Add a bounded `dagger.toml` workspace with
+  `defaults_from_dotenv=false`, generated checks disabled for the PoC and heavy/
+  sensitive source trees excluded.
+- [x] Start with two existing deterministic concerns that already have native
+  repository coverage: **ShellCheck + Biome**. Their Dagger module sources are
+  pinned to reviewed Git commits instead of floating module names.
+- [x] Pin Dagger `0.21.10` in Mise/mise.lock and expose
+  `just dagger-sync`, `just dagger-list` plus `just dagger-poc`; the tasks
+  explicitly select `v1.0.0-beta.15`.
+- [x] Add a Pre-commit contract for the Dagger configuration/tool pins and keep
+  the PoC separate from `just pre-push`.
+- [ ] Run `just dagger-sync` first on a checkout with a supported container
+  runtime, review/commit the generated `dagger.lock`, then run
+  `just dagger-list` and `just dagger-poc`.
+- [ ] Prove parity against the native ShellCheck/Biome contracts on the same
+  exact HEAD and compare failure readability.
+- [ ] Measure cold/warm execution and cache reuse against the corresponding
+  `just loop` work before deciding whether Dagger removes enough CI glue to
+  justify promotion.
+- [ ] **Pytest deferred:** the official Dagger Pytest discovery expects a clean
+  root Python project marker; this repository currently has no root
+  `pyproject.toml`/`tox.ini`. Do not invent a project marker solely for
+  Dagger. Add Pytest only after native project metadata is intentionally
+  normalized or a durable local Dagger module clearly reduces code.
+- [x] Repair the native Ruff configuration debt: `.ruff.toml` is now
+  standalone and no longer extends the missing root `pyproject.toml`.
+- [ ] **Ruff in Dagger deferred:** the current official Dagger module catalog
+  does not expose a Ruff module. Do not create a repository-local wrapper merely
+  to duplicate the native Ruff path; revisit only if an official module appears
+  or a broader local module removes measurable orchestration code.
+- [ ] Keep GitHub Actions unchanged during the PoC. Only after local parity is
+  proven may a later PR make Actions a thin `dagger check` trigger.
+- [ ] Promote Dagger from the experimental section of `local-first-quality`
+  only after the runtime/parity evidence above is green.
 
-Reference: <https://docs.dagger.io/getting-started/introduction/> and
-<https://docs.dagger.io/reference/modules/>.
+References: <https://docs.dagger.io/reference/config-files/dagger-toml/>,
+<https://docs.dagger.io/cli/checking/>,
+<https://docs.dagger.io/reference/modules/shellcheck/> and
+<https://docs.dagger.io/reference/modules/js/biome/>.
 
 ### Context7 — current documentation for coding agents
 
-Context7 is a candidate documentation context provider for **external APIs and
-libraries**, not a replacement for repository source, runtime evidence or
-official application state. It provides current/version-specific documentation
-through MCP/CLI.
+Context7 is documentation-only: it improves version/API accuracy for external
+libraries but never replaces repository/runtime evidence.
 
-- [ ] Configure Context7 MCP or `ctx7` CLI for the primary coding-agent path
-  (OpenCode first; Cursor/other adapters may reuse the same policy).
-- [ ] Keep `CONTEXT7_API_KEY` outside Git; use local environment/approved secret
-  handling and prefer local stdio MCP rather than exposing another public service.
-- [ ] Route rapidly evolving external-library questions through Context7 before
-  implementation when available: Dagger, Docker/Compose, Kubernetes/Talos,
-  Python/JS libraries and other indexed dependencies.
-- [ ] Request the exact library/version whenever practical; record a normal
-  official-doc/web fallback when Context7 has no suitable library/version.
-- [ ] Never use Context7 as evidence for repository state, TrueNAS runtime state,
-  secret values or deployed versions; those remain source/runtime queries.
-- [ ] Add a small agent contract/test proving that Context7 is **on-demand**,
-  does not bloat every prompt, and that repository instructions still win.
-- [ ] After acceptance, add the routing rule to `AGENTS.md`,
-  `local-first-quality` and the relevant specialized skills.
+- [x] Register the hosted Context7 MCP endpoint without credentials/headers in
+  `.mcp.json`, `.cursor/mcp.json` and OpenCode V2
+  `opencode.json -> mcp.servers.context7`. OpenCode keeps
+  `codemode=true` so the server stays grouped rather than expanding every MCP
+  tool directly into the native tool list.
+- [x] Add `context7-docs` as an on-demand skill with an anonymous CLI fallback
+  (`ctx7 library` → versioned library ID → `ctx7 docs`) and telemetry disabled
+  in the documented CLI path.
+- [x] Route external/version-specific library questions through Context7 from
+  `AGENTS.md` and `local-first-quality`, while keeping repository files,
+  lockfiles and runtime diagnostics authoritative.
+- [x] Add a Pre-commit contract that rejects a required
+  `CONTEXT7_API_KEY` in the project MCP configuration and verifies the
+  free-first/on-demand boundaries.
+- [ ] Runtime-smoke the anonymous endpoint from the primary OpenCode client
+  (`opencode mcp list` + one version-specific lookup). If the anonymous quota
+  is insufficient, prefer OpenCode OAuth/free login before any paid tier.
+- [ ] Keep `CONTEXT7_API_KEY` optional and outside Git; reserve it for
+  non-interactive automation or higher free-plan limits only.
+- [x] Route every `dagger.toml` change through both `local-first-quality`
+  and `context7-docs`, so future Dagger edits automatically request current
+  external API documentation. Runtime Context7 lookup remains acceptance-gated
+  by the OpenCode smoke above.
+- [x] Keep an official-doc/web fallback for environments where Context7 is not
+  connected, lacks the required library/version or is rate-limited. The current
+  API-only agent used that fallback to validate the Dagger/OpenCode contracts
+  without pretending the Context7 runtime smoke had passed.
 
 Reference: <https://context7.com/docs/overview> and
 <https://context7.com/docs/clients/cli>.

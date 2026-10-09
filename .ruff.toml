@@ -1,6 +1,5 @@
 
-# Extend the `pyproject.toml` file in the parent directory.
-extend = "./pyproject.toml"
+# Standalone repository configuration; no root pyproject.toml is required.
 
 exclude = [
     ".git",
