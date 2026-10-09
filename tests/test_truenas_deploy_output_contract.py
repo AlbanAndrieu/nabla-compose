@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,3 +57,44 @@ def test_checkout_provenance_is_local_and_non_blocking() -> None:
     assert "rev-list --left-right --count" in text
     assert "git fetch" not in text
     assert "relation=behind-" in text
+
+
+def test_compact_job_helper_preserves_failed_exit_status() -> None:
+    script = """
+source "$1"
+midclt() {
+  printf 'middleware failure\\n' >&2
+  return 23
+}
+truenas_job_compact app.update dsomm '{}'
+"""
+    result = subprocess.run(
+        ["bash", "-c", script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 23
+    assert "TrueNAS job app.update failed (exit=23)" in result.stderr
+    assert "middleware failure" in result.stderr
+    assert "completed" not in result.stdout
+
+
+def test_compact_job_helper_reports_success() -> None:
+    script = """
+source "$1"
+midclt() {
+  printf 'middleware success\\n'
+  return 0
+}
+truenas_job_compact app.update dsomm '{}'
+"""
+    result = subprocess.run(
+        ["bash", "-c", script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "OK: TrueNAS job app.update completed" in result.stdout
+    assert "middleware success" not in result.stdout
