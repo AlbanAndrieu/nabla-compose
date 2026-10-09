@@ -127,7 +127,23 @@ if [[ "${MODE}" == "--apply" ]]; then
 
   printf '\n==> TrueNAS Custom App reconciliation\n'
   lifecycle_mark="$(truenas_lifecycle_mark)"
-  DSOMM_IMAGE="${DSOMM_IMAGE}" truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+  if truenas_app_query_by_id "${APP_ID}" | jq -e 'length == 1' >/dev/null; then
+    payload="$(jq -cn --arg include "${compose_path}" '{
+      custom_compose_config: {
+        include: [$include],
+        services: {}
+      }
+    }')"
+    midclt call -j app.update "${APP_ID}" "${payload}"
+  else
+    wrapper="$(printf 'include:\n  - %s\nservices: {}\n' "${compose_path}")"
+    payload="$(jq -cn --arg app_name "${APP_ID}" --arg compose "${wrapper}" '{
+      app_name: $app_name,
+      custom_app: true,
+      custom_compose_config_string: $compose
+    }')"
+    midclt call -j app.create "${payload}"
+  fi
 
   state="$(truenas_app_state "${APP_ID}")"
   if [[ "${state}" == "STOPPED" ]]; then
