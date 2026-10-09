@@ -20,7 +20,8 @@ if [[ -z "$BASE" ]]; then
   done
 fi
 declare -a files=()
-if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1; then
+if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1 &&
+  git merge-base "$BASE" HEAD >/dev/null 2>&1; then
   mapfile -t files < <(
     { git diff --name-only --diff-filter=ACMR "$BASE...HEAD"
       git diff --name-only --diff-filter=ACMR
