@@ -23,6 +23,7 @@ cd "${CANONICAL_ROOT}"
 
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 printf '==> Cyberbro datasets\n'
 bash scripts/truenas/bootstrap-repository-storage.sh --apply "${APP_ID}"
