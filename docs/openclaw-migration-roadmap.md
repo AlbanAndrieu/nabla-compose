@@ -16,6 +16,84 @@ merge automatique. Ne pas relancer GitHub Actions pour ce chantier.
 vérifié en conditions réelles ; `cutover` = instance TrueNAS propriétaire
 des canaux et automatisations. Ne pas confondre succès du dry-run et upgrade.
 
+## Contrat fonctionnel — OpenClaw personnel / Hermes technique
+
+**Destination souhaitée, non encore déployée.** Deux assistants distincts avec
+des frontières explicites ; la migration d'hébergement ne doit pas fusionner
+leurs rôles, secrets, mémoires, outils ou privilèges.
+
+| Dimension | OpenClaw (personnel) | Hermes (technique) |
+| --- | --- | --- |
+| Mission | Trier et prioriser les messages Gmail et WhatsApp personnels ; préparer des synthèses et brouillons | Assistance développement, DevSecOps, cloud, infrastructure, cybersécurité et diagnostic |
+| Sources | Boîte Gmail personnelle et conversations WhatsApp expressément autorisées | Repositories, documentation, logs techniques expurgés, outils de build et plateformes autorisées |
+| Sorties | Briefs privés, labels/catégories proposés, réponses brouillon et rappels proposés | Analyses techniques, correctifs, runbooks, scripts et propositions de PR |
+| Exécution | **Lecture seule par défaut** ; proposition avant archivage, étiquetage ou envoi | Read-only par défaut sur infra ; écriture Git explicite, changements runtime/production soumis à validation |
+| Interdits | Accès implicite à SSH, pfSense, TrueNAS admin, Docker, Kubernetes, GitHub write, dépôt de secrets, communication à Hermes | Accès implicite aux mails/WhatsApp, contacts privés, sauvegardes personnelles et historique OpenClaw |
+| Identités | Tokens Gmail/WhatsApp strictement dédiés ; stockage et logs privés | Identités dédiées GitHub/CI/cloud et permissions bornées |
+| État | Sessions, historique de tri, règles personnelles, pièces jointes sous politique de rétention | Workspace de code, métriques et mémoire technique sans correspondance privée |
+
+### Parcours personnel cible, par paliers de consentement
+
+1. **P0 — observation** : connecter une seule source avec autorisations
+   minimales ; inventorier métadonnées, dossiers et capacités réelles de
+   l'intégration ; ne rien envoyer ni supprimer ; journaliser seulement les
+   décisions et identifiants opaques nécessaires, pas les corps des messages.
+2. **P1 — tri assisté** : proposer « urgent / à traiter / information /
+   indésirable potentiel », avec justification courte, confiance et lien vers
+   le message ; préserver les catégories et labels existants ; vérifier
+   faux positifs, fils groupés, contacts importants, langue FR/EN et duplicats.
+3. **P2 — brouillons privés** : préparer des réponses **sans envoi
+   automatique** ; demander accord avant création/modification de brouillon
+   et avant tout changement de label/archivage ; jamais de suppression
+   automatique. Restreindre les destinataires et empêcher les réponses à
+   des expéditeurs inconnus sans confirmation.
+4. **P3 — routines explicites** : digest opt-in et alertes importantes
+   configurables (pas de notification pour chaque message) ; déduplication
+   et idempotence par source/compte/conversation/message ; aucune propagation
+   des contenus personnels vers Slack, Discord, observabilité ou Hermes.
+5. **WhatsApp** : vérifier les capacités et limites du canal réellement
+   installé avant de promettre lecture exhaustive, marquage, archivage ou
+   brouillons natifs. Démarrer par résumé et **proposition de réponse locale**,
+   sans émission. Le statut de reconnexion 408 et la dérive de version du
+   plugin sont des blocages fonctionnels jusqu'à résolution.
+
+### Gouvernance, sécurité et contrôle qualité
+
+- **Séparation stricte** : profils, identités système, volumes, bases/sessions,
+  contextes LLM, mémoires et clés distincts ; aucun bus d'événements global
+  partageant les corps des messages ; échanges inter-assistants désactivés
+  sauf demande ponctuelle, expurgée et approuvée.
+- **Données sensibles** : minimiser les scopes OAuth/Gmail, consentement
+  explicite pour chaque compte, ne pas exporter les conversations dans Git
+  ou dans des outils de télémétrie ; chiffrement au repos/en transit,
+  redaction de PII et secrets, rétention limitée et export/suppression possibles.
+- **Prompt injection** : considérer mail, HTML, liens, PDF et messages entrants
+  comme entrées non fiables ; ils ne peuvent jamais déclencher outils admin,
+  changements de permissions, achats, envois ou délégation à Hermes.
+- **Modèles** : mesurer flux réels vers LiteLLM/proxy/providers (notamment
+  logs, traces, embeddings et stockage éventuel de prompts). L'usage d'un
+  modèle distant pour des messages privés nécessite une décision explicite ;
+  préférer un traitement local/privé quand réalisable, et documenter le mode
+  dégradé si le GPU de la workstation est indisponible.
+- **Validation** : corpus synthétique Gmail/WhatsApp sans PII ; tests de
+  classification, garde-fous de consentement, déduplication, absence de
+  cross-tenant/cross-agent, comportements offline et rollback. Mesures
+  pertinentes : précision du tri, taux de faux urgents, faux négatifs critiques,
+  actions soumises à confirmation, zéro émission/suppression non autorisée.
+- **Observabilité** : santé/intégrité des connecteurs, erreurs, latence et
+  volumes agrégés seulement ; métriques Prometheus sans sujets, noms,
+  adresses, numéros de téléphone, texte ou pièces jointes.
+- **Hermes** : traiter séparément la roadmap de son déploiement technique ;
+  ne pas lui accorder par héritage les privilèges ou connecteurs d'OpenClaw.
+  Lors de la bascule TrueNAS, éprouver la séparation fonctionnelle en plus
+  des tests runtime/reboot.
+
+**Critère d'acceptation métier** : OpenClaw produit un digest de messages
+personnels fiable, propose catégories et brouillons sans envoyer/supprimer ;
+Hermes peut travailler sur code/cloud/sécurité sans voir les conversations
+privées. Toute action mutatrice personnelle ou infrastructurelle nécessite
+une autorisation limitée et traçable.
+
 ## Inventaire observé sur la workstation
 
 - CLI/OpenClaw Gateway : `2026.9.5`; dry-run cible stable `2026.9.9`.
