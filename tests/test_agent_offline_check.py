@@ -109,3 +109,35 @@ def test_agent_error_excerpt_limits_remain_configurable() -> None:
     assert "additional summary lines omitted" in gate
     assert 'print_compact_log "${log}"' in gate
     assert 'return "${rc}"' in gate
+
+
+def test_offline_inventory_git_failure_is_blocking(tmp_path: Path) -> None:
+    """Unavailable Git inventory cannot produce a false-green empty scan."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    binary = shutil.which("git")
+    assert binary is not None
+    mock_dir = tmp_path / "bin"
+    mock_dir.mkdir()
+    mock_git = mock_dir / "git"
+    mock_git.write_text(
+        '#!/bin/sh\\n'
+        'if [ "$1" = ls-files ]; then exit 97; fi\\n'
+        f'exec "{binary}" "$@"\\n',
+        encoding="utf-8",
+    )
+    mock_git.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(GATE)],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{mock_dir}:{os.environ['PATH']}",
+            "QUALITY_BASE_REF": "refs/remotes/origin/unavailable",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "offline file inventory failed" in result.stderr
+    assert "syntax + whitespace checks passed" not in result.stdout
