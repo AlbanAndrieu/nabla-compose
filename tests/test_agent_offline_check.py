@@ -96,3 +96,13 @@ def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None
     assert result.returncode != 0
     assert "offline Git base missing" in result.stderr
     assert "existing.py" in result.stderr
+
+
+def test_agent_error_excerpt_limits_remain_configurable() -> None:
+    gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'LOG_TAIL="${QUALITY_LOG_TAIL:-32}"' in gate
+    assert 'LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"' in gate
+    assert 'print_compact_log "${log}"' in gate
+    assert 'return "${rc}"' in gate
