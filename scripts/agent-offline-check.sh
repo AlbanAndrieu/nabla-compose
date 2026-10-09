@@ -5,9 +5,9 @@ set -euo pipefail
 # This never replaces agent-pre-push, pre-commit, Betterleaks or remote CI.
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-MAX_PATHS="${AGENT_OFFLINE_MAX_PATHS:-200}"
-[[ "$MAX_PATHS" =~ ^[1-9][0-9]*$ ]] || {
-  echo "ERROR: AGENT_OFFLINE_MAX_PATHS must be a positive integer" >&2
+MAX_PATHS="${AGENT_OFFLINE_MAX_PATHS:-0}"
+[[ "$MAX_PATHS" =~ ^(0|[1-9][0-9]*)$ ]] || {
+  echo "ERROR: AGENT_OFFLINE_MAX_PATHS must be a nonnegative integer" >&2
   exit 2
 }
 BASE="${QUALITY_BASE_REF:-}"
@@ -22,21 +22,21 @@ fi
 declare -a files=()
 if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1; then
   mapfile -t files < <(
-    { git diff --name-only --diff-filter=ACMR "$BASE...HEAD" || true
+    { git diff --name-only --diff-filter=ACMR "$BASE...HEAD"
       git diff --name-only --diff-filter=ACMR
       git diff --cached --name-only --diff-filter=ACMR
       git ls-files --others --exclude-standard
     } | LC_ALL=C sort -u
   )
 else
-  printf 'WARNING: offline Git base missing; checking tracked + local files, not PR completeness\n' >&2
+  printf 'WARNING: offline Git base missing; checking all tracked + local files, not PR completeness\n' >&2
   mapfile -t files < <(
     { git ls-files
       git ls-files --others --exclude-standard
     } | LC_ALL=C sort -u
   )
 fi
-if (("${#files[@]}" > MAX_PATHS)); then
+if ((MAX_PATHS > 0 && ${#files[@]} > MAX_PATHS)); then
   printf 'ERROR: offline scope %d exceeds maximum %d; narrow the change or adjust AGENT_OFFLINE_MAX_PATHS\n' "${#files[@]}" "$MAX_PATHS" >&2
   exit 2
 fi
