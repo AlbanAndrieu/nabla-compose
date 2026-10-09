@@ -156,7 +156,7 @@ print_compact_log() {
     [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
     summary_count="$(printf '%s\n' "${summary}" | wc -l)"
     printf '%s\n' '--- failure summary ---' >&2
-    printf '%s\n' "${summary}" | head -n "${summary_limit}" |
+    printf '%s\n' "${summary}" | awk -v max="${summary_limit}" 'NR <= max' |
       print_bounded_log_lines >&2
     if ((summary_count > summary_limit)); then
       printf '... %d additional summary lines omitted; inspect full local log if needed\n' \
