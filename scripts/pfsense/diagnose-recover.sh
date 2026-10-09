@@ -140,6 +140,10 @@ console_line() {
       rendered="${ICON_INFO} ${line}"
       [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_CYAN}${rendered}${C_RESET}"
       ;;
+    "INFO:"*)
+      rendered="${ICON_INFO} ${line#INFO: }"
+      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_BLUE}${rendered}${C_RESET}"
+      ;;
     "API summary:"*|"SSH summary"*)
       rendered="${ICON_INFO} ${line}"
       [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_BLUE}${rendered}${C_RESET}"
@@ -973,7 +977,7 @@ else
   if [[ "${VERBOSE}" != true ]]; then
     log "SSH summary (full evidence: ${REPORT})"
     while IFS= read -r summary_line; do
-      [[ -n "${summary_line}" ]] && console_line "${ICON_INFO} ${summary_line}"
+      [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
     done < <(
       grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
     )
