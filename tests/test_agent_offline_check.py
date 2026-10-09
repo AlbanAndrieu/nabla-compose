@@ -104,5 +104,8 @@ def test_agent_error_excerpt_limits_remain_configurable() -> None:
     )
     assert 'LOG_TAIL="${QUALITY_LOG_TAIL:-32}"' in gate
     assert 'LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"' in gate
+    assert 'summary_limit="${QUALITY_SUMMARY_LINES:-12}"' in gate
+    assert 'awk -v max="${summary_limit}"' in gate
+    assert "additional summary lines omitted" in gate
     assert 'print_compact_log "${log}"' in gate
     assert 'return "${rc}"' in gate
