@@ -186,6 +186,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("crowdsec_metrics=skipped_engine_stopped", text)
         self.assertIn("cscli metrics", text)
         self.assertIn("CrowdSec scenario/config references", text)
+        self.assertIn("CROWDSEC_STUCK_SUMMARY", text)
+        self.assertNotIn('CROWDSEC_STUCK_LINES="', text)
         self.assertIn("pf-scan-multi_ports", text)
         self.assertIn("pfblocker_asn_reporting", text)
         self.assertIn("asn_token_present", text)
