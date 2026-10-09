@@ -152,6 +152,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertNotIn("docker run -d --rm", text)
         self.assertIn("trap cleanup_dsomm_smoke EXIT", text)
         self.assertIn("docker logs --tail 80", text)
+        self.assertIn("exit_code={{.State.ExitCode}}", text)
+        self.assertIn("error={{.State.Error}}", text)
         self.assertIn("wget -q --spider http://127.0.0.1:8080/", text)
         self.assertIn("runtime_compose_json", text)
         self.assertIn("docker compose -f", text)
