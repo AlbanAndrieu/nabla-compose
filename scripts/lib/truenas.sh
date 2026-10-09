@@ -76,18 +76,22 @@ truenas_job_compact() {
   local tail_lines="${TRUENAS_JOB_LOG_TAIL:-40}"
   local verbose="${TRUENAS_DEPLOY_VERBOSE:-false}"
   local tmp rc
+  local -a job_cmd=(midclt call -j)
 
   [[ "${tail_lines}" =~ ^[1-9][0-9]*$ ]] || tail_lines=40
+  if ((EUID != 0)) && command -v sudo >/dev/null 2>&1; then
+    job_cmd=(sudo midclt call -j)
+  fi
 
   case "${verbose}" in
     1 | true | TRUE | yes | YES)
-      midclt call -j "${method}" "$@"
+      "${job_cmd[@]}" "${method}" "$@"
       return
       ;;
   esac
 
   tmp="$(mktemp "${TMPDIR:-/tmp}/nabla-truenas-job.XXXXXX")"
-  if midclt call -j "${method}" "$@" >"${tmp}" 2>&1; then
+  if "${job_cmd[@]}" "${method}" "$@" >"${tmp}" 2>&1; then
     rm -f "${tmp}"
     printf 'OK: TrueNAS job %s completed\n' "${method}"
     return 0
