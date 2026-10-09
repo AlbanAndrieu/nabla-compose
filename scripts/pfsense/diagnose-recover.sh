@@ -705,6 +705,8 @@ fi
 if command -v cscli >/dev/null 2>&1; then
   cscli version 2>/dev/null | head -20 || true
 fi
+printf 'CrowdSec package versions:\n'
+pkg info -x 'crowdsec' 2>/dev/null | sed 's/^/crowdsec_pkg=/' | head -20 || true
 if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
   ps -p "${CROWDSEC_ENGINE_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
   if command -v cscli >/dev/null 2>&1; then
@@ -719,18 +721,28 @@ if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
 fi
 printf 'CrowdSec scenario/config references:\n'
 grep -RniE 'pf-scan-multi_ports|firewallservices' /usr/local/etc/crowdsec /etc/crowdsec 2>/dev/null | head -80 || true
+printf 'CrowdSec effective pf-scan scenario policy:\n'
+for scenario in /usr/local/etc/crowdsec/scenarios/*pf-scan-multi_ports*.yaml /etc/crowdsec/scenarios/*pf-scan-multi_ports*.yaml; do
+  [ -f "${scenario}" ] || continue
+  printf 'crowdsec_scenario_file=%s\n' "${scenario}"
+  awk '/^[[:space:]]*(type|name|filter|groupby|distinct|capacity|leakspeed|blackhole|remediation):/ {print}' "${scenario}" 2>/dev/null | head -20 || true
+done
 CROWDSEC_STUCK_SUMMARY="$(for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
   [ -f "${log}" ] || continue
   grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
 done | awk '
   {
     count++
-    if (match($0, /failed_sent:[0-9]+/)) {
-      value = substr($0, RSTART + 12, RLENGTH - 12) + 0
+    if (match($0, /failed_sent:[[:space:]]*[0-9]+/)) {
+      value = substr($0, RSTART, RLENGTH)
+      gsub(/[^0-9]/, "", value)
+      value += 0
       if (value > max_failed) max_failed = value
     }
-    if (match($0, /attempts:[0-9]+/)) {
-      value = substr($0, RSTART + 9, RLENGTH - 9) + 0
+    if (match($0, /attempts:[[:space:]]*[0-9]+/)) {
+      value = substr($0, RSTART, RLENGTH)
+      gsub(/[^0-9]/, "", value)
+      value += 0
       if (value > max_attempts) max_attempts = value
     }
   }
@@ -979,7 +991,7 @@ else
     while IFS= read -r summary_line; do
       [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
     done < <(
-      grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
+      grep -E '^(unbound_control_healthy=|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 32 || true
     )
   fi
 fi
