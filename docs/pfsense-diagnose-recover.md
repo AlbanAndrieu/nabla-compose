@@ -109,6 +109,7 @@ The canonical service accounts are deliberately split:
 | --- | --- | --- |
 | `fastapi_posture` | `api-v2-system-version-get`, `api-v2-status-services-get`, `api-v2-services-dns-resolver-settings-get`, `api-v2-system-dns-get`, `user-config-readonly` | pfSense service/DNS posture |
 | `fastapi_security` | `api-v2-diagnostics-table-get`, `user-config-readonly` | exact Snort/PF table evidence |
+| `pfsense_exporter` | `api-v2-status-system-get`, `api-v2-status-gateways-get`, `api-v2-status-services-get`, `user-config-readonly` | TrueNAS Prometheus pfSense metrics |
 
 Neither identity should belong to a named privilege-bearing group such as
 `admins`. The only normal group membership is pfSense's implicit `all`
@@ -121,7 +122,7 @@ the appliance privilege ID exactly. Unexpected privileges such as
 `api-v2-system-restapi-version-get` are reported as drift and removed by the
 explicit reconcile/finalize actions.
 
-Audit both accounts, privileges and persisted key metadata without exercising
+Audit all three service accounts, privileges and persisted key metadata without exercising
 KeyAuth. The audit also instantiates the installed pfREST endpoint classes and
 prints their effective GET privilege sets as `endpoint_acl ... get_privileges=...`.
 Use this appliance-derived evidence to distinguish a role drift from an endpoint
@@ -148,17 +149,62 @@ passwords; the files are used only to create missing users.
 umask 077
 printf '%s\n' '<posture-password>' > /tmp/pfsense-posture.password
 printf '%s\n' '<security-password>' > /tmp/pfsense-security.password
+printf '%s\n' '<exporter-password>' > /tmp/pfsense-exporter.password
 
 PFSENSE_POSTURE_PASSWORD_FILE=/tmp/pfsense-posture.password \
 PFSENSE_SECURITY_PASSWORD_FILE=/tmp/pfsense-security.password \
+PFSENSE_EXPORTER_PASSWORD_FILE=/tmp/pfsense-exporter.password \
   bash scripts/pfsense/diagnose-recover.sh --apply-identities
 
-rm -f /tmp/pfsense-posture.password /tmp/pfsense-security.password
+rm -f /tmp/pfsense-posture.password /tmp/pfsense-security.password /tmp/pfsense-exporter.password
 ```
 
 The helper sends password material only through the encrypted SSH stdin stream;
 it does not put plaintext passwords on the SSH command line or in the recovery
 report.
+
+## Prometheus exporter identity
+
+The TrueNAS Prometheus exporter uses a dedicated pfSense identity:
+`pfsense_exporter`. Keep it separate from the FastAPI posture/security
+identities and from the write-capable observability operator identity.
+
+Steady-state privileges are intentionally limited to:
+
+```text
+api-v2-status-system-get
+api-v2-status-gateways-get
+api-v2-status-services-get
+user-config-readonly
+```
+
+The lifecycle helper now supports the exporter exactly like the FastAPI
+identities:
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --check-identities
+bash scripts/pfsense/diagnose-recover.sh --prepare-key-rotation exporter
+# create the one-time plaintext key using the pfsense_exporter Basic credentials
+bash scripts/pfsense/diagnose-recover.sh --finalize-key-rotation exporter
+bash scripts/pfsense/diagnose-recover.sh --check-identities
+```
+
+On TrueNAS, the runtime credential remains in
+`/mnt/cpool/prometheus/secrets/pfsense-exporter.yml`. Validate it without
+printing the secret or fanning out into all collectors:
+
+```bash
+sudo bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+sudo PFSENSE_EXPORTER_AUTH_ENDPOINT=/api/v2/status/system \
+  bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+sudo PFSENSE_EXPORTER_AUTH_ENDPOINT=/api/v2/status/gateways \
+  bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+```
+
+A successful rotation must produce three HTTP 200 preflights and then a
+successful supervised exporter scrape. HTTP 401 means the runtime key is
+rejected. HTTP 403 means authentication succeeded but a privilege, REST API
+Access List rule, or Allowed Interfaces policy still denies the request.
 
 ## API-key bootstrap and rotation
 
