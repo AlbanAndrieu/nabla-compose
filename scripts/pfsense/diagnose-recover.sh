@@ -629,17 +629,35 @@ CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
 CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
 printf 'crowdsec_engine_pid=%s\n' "${CROWDSEC_ENGINE_PID:-absent}"
 printf 'crowdsec_firewall_bouncer_pid=%s\n' "${CROWDSEC_BOUNCER_PID:-absent}"
+if command -v crowdsec >/dev/null 2>&1; then
+  crowdsec -version 2>/dev/null | head -20 || true
+fi
+if command -v cscli >/dev/null 2>&1; then
+  cscli version 2>/dev/null | head -20 || true
+fi
 if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
   ps -p "${CROWDSEC_ENGINE_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+  if command -v cscli >/dev/null 2>&1; then
+    printf 'CrowdSec metrics (bounded):\n'
+    cscli metrics 2>/dev/null | head -120 || true
+  fi
+else
+  printf 'crowdsec_metrics=skipped_engine_stopped\n'
 fi
 if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
   ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
 fi
-if [ -f /var/log/crowdsec/crowdsec.log ]; then
-  CROWDSEC_STUCK_COUNT="$(grep -c 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null || true)"
-  CROWDSEC_MAX_ATTEMPTS="$(grep 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
-  printf 'crowdsec_pf_scan_stuck_lines=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
-  grep -E 'stuck for .*pf-scan-multi_ports|SIGTERM received|Crowdsec service shutting down' /var/log/crowdsec/crowdsec.log 2>/dev/null | tail -30 || true
+printf 'CrowdSec scenario/config references:\n'
+grep -RniE 'pf-scan-multi_ports|firewallservices' /usr/local/etc/crowdsec /etc/crowdsec 2>/dev/null | head -80 || true
+CROWDSEC_STUCK_LINES="$(for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do [ -f "${log}" ] || continue; grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null; done)"
+if [ -n "${CROWDSEC_STUCK_LINES}" ]; then
+  CROWDSEC_STUCK_COUNT="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | wc -l | tr -d ' ')"
+  CROWDSEC_MAX_FAILED_SENT="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | sed -n 's/.*failed_sent:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
+  CROWDSEC_MAX_ATTEMPTS="$(printf '%s\n' "${CROWDSEC_STUCK_LINES}" | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
+  printf 'crowdsec_pf_scan_stuck_lines=%s max_failed_sent=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_FAILED_SENT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
+  printf '%s\n' "${CROWDSEC_STUCK_LINES}" | tail -30 || true
+else
+  printf 'crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0\n'
 fi
 ASN_REPORTING="$(sed -n 's:.*<asn_reporting>\([^<]*\)</asn_reporting>.*:\1:p' /conf/config.xml 2>/dev/null | tail -n 1)"
 if grep -Eq '<asn_token>[^<]+</asn_token>' /conf/config.xml 2>/dev/null; then
