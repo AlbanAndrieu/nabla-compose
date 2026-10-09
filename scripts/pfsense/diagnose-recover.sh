@@ -35,13 +35,13 @@ Options:
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
-  --check-identities         SSH-only audit of fastapi_posture/fastapi_security
-                            users, group membership, privileges and persisted keys.
+  --check-identities         SSH-only audit of fastapi_posture/fastapi_security/
+                            pfsense_exporter users, privileges and persisted keys.
   --apply-identities         Create missing service users (password files required)
-                            and reconcile both to steady-state least privilege.
-  --prepare-key-rotation ID  Prepare posture|security for key creation: remove
-                            Deny Config Write and grant api-v2-auth-key-post.
-  --finalize-key-rotation ID Restore posture|security to steady state after a
+                            and reconcile all three to steady-state least privilege.
+  --prepare-key-rotation ID  Prepare posture|security|exporter for key creation:
+                            remove Deny Config Write and grant api-v2-auth-key-post.
+  --finalize-key-rotation ID Restore posture|security|exporter to steady state after a
                             persisted key is visible: remove key POST, restore
                             Deny Config Write. Refuses finalization with zero keys.
   --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
@@ -68,6 +68,9 @@ Environment:
   PFSENSE_SECURITY_PASSWORD_FILE
                             One-line password file used only when --apply-identities
                             must create a missing fastapi_security user.
+  PFSENSE_EXPORTER_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing pfsense_exporter user.
 
 Recommended sequence:
   1. --check
@@ -77,9 +80,9 @@ Recommended sequence:
 
 Identity/key lifecycle:
   --check-identities
-  --prepare-key-rotation posture|security
+  --prepare-key-rotation posture|security|exporter
   create the key with that service user's Basic credentials
-  --finalize-key-rotation posture|security
+  --finalize-key-rotation posture|security|exporter
   --check-identities
 USAGE
 }
@@ -120,13 +123,13 @@ while (($# > 0)); do
       ;;
     --prepare-key-rotation)
       shift
-      (($# > 0)) || fail "--prepare-key-rotation requires posture or security"
+      (($# > 0)) || fail "--prepare-key-rotation requires posture, security, or exporter"
       IDENTITY_ACTION="prepare"
       IDENTITY_TARGET="$1"
       ;;
     --finalize-key-rotation)
       shift
-      (($# > 0)) || fail "--finalize-key-rotation requires posture or security"
+      (($# > 0)) || fail "--finalize-key-rotation requires posture, security, or exporter"
       IDENTITY_ACTION="finalize"
       IDENTITY_TARGET="$1"
       ;;
@@ -191,8 +194,8 @@ fi
 if [[ -n "${IDENTITY_ACTION}" && ( "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
   fail "identity lifecycle options cannot be combined with --api-only, --apply, or --unblock-sources"
 fi
-if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" ]]; then
-  fail "identity target must be posture or security"
+if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" && "${IDENTITY_TARGET}" != "exporter" ]]; then
+  fail "identity target must be posture, security, or exporter"
 fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
@@ -239,6 +242,7 @@ run_identity_admin() {
   local target="$2"
   local posture_password_b64=""
   local security_password_b64=""
+  local exporter_password_b64=""
   local status=0
   local -a ssh_opts=(
     -o BatchMode=yes
@@ -256,6 +260,7 @@ run_identity_admin() {
   if [[ "${action}" == "apply" ]]; then
     posture_password_b64="$(password_file_b64 "${PFSENSE_POSTURE_PASSWORD_FILE:-}" "posture")"
     security_password_b64="$(password_file_b64 "${PFSENSE_SECURITY_PASSWORD_FILE:-}" "security")"
+    exporter_password_b64="$(password_file_b64 "${PFSENSE_EXPORTER_PASSWORD_FILE:-}" "exporter")"
   fi
 
   set +e
@@ -265,6 +270,7 @@ run_identity_admin() {
     printf "define('NABLA_IDENTITY_TARGET', '%s');\n" "${target}"
     printf "define('NABLA_POSTURE_PASSWORD_B64', '%s');\n" "${posture_password_b64}"
     printf "define('NABLA_SECURITY_PASSWORD_B64', '%s');\n" "${security_password_b64}"
+    printf "define('NABLA_EXPORTER_PASSWORD_B64', '%s');\n" "${exporter_password_b64}"
     printf '?>\n'
     cat "${IDENTITY_HELPER}"
   } | ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
@@ -553,8 +559,17 @@ run_optional df -i
 run_optional swapinfo -h
 printf '\nTop RSS processes:\n'
 ps axo pid,rss,vsz,pcpu,pmem,command 2>/dev/null | sort -nr -k2 | head -25 || true
-printf '\nKernel memory/reclaim evidence:\n'
+printf '\nKernel memory/reclaim evidence (current boot):\n'
 dmesg 2>/dev/null | egrep -i 'killed|failed to reclaim|waited too long|out of swap|out of memory|oom' | tail -80 || true
+printf '\nSystem-log OOM/reclaim evidence (today + previous day when available):\n'
+TODAY="$(date '+%Y-%m-%d')"
+YESTERDAY="$(date -v-1d '+%Y-%m-%d' 2>/dev/null || true)"
+for day in "${TODAY}" "${YESTERDAY}"; do
+  [ -n "${day}" ] || continue
+  grep -hE "${day}T.*(was killed|failed to reclaim|waited too long|out of swap|out of memory)" /var/log/system.log* 2>/dev/null | tail -40 || true
+done
+printf '\nRelevant scheduled jobs:\n'
+grep -nE 'snort_check_(cron_misc|for_rule_updates)|pfblockerng.php|servicewatchdog_cron|RESTAPI/.resources/scripts/manage.php' /etc/crontab 2>/dev/null || true
 
 section "nginx / PHP-FPM / webConfigurator"
 pgrep -laf 'nginx|php-fpm' 2>/dev/null || true
@@ -565,11 +580,28 @@ if command -v php-fpm >/dev/null 2>&1; then
 elif [ -x /usr/local/sbin/php-fpm ]; then
   run_optional /usr/local/sbin/php-fpm -t
 fi
+printf '\nEffective/generated PHP-FPM policy:\n'
+grep -nE '^[[:space:]]*pm\.(max_children|start_servers|min_spare_servers|max_spare_servers|max_requests)' /usr/local/lib/php-fpm.conf 2>/dev/null || true
+printf '\nPackage/default PHP-FPM pool policy (comparison only):\n'
+grep -nE '^[[:space:]]*pm\.(max_children|start_servers|min_spare_servers|max_spare_servers|max_requests)' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+printf '\nPHP memory limit:\n'
+grep -nE '^[[:space:]]*memory_limit' /usr/local/etc/php.ini 2>/dev/null || true
+printf '\nPHP-FPM worker RSS:\n'
+ps axo pid,rss,pcpu,command 2>/dev/null | grep '[p]hp-fpm: pool nginx' || true
+printf '\nRecent WebConfigurator authentication failures:\n'
+grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -60 || true
+printf '\nAuthentication failures grouped by source:\n'
+grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -120 | sed -n 's/.*from: \([^ ]*\)$/\1/p' | sort | uniq -c | sort -nr || true
 tail -n 450 /var/log/system.log 2>/dev/null | egrep -i 'nginx|php|fpm|webconfig|fatal|segfault|killed|memory|502|upstream|error' | tail -180 || true
 
 section "Unbound"
 UNBOUND_HEALTHY=false
-pgrep -laf '[u]nbound' 2>/dev/null || true
+UNBOUND_PID="$(pgrep -x unbound 2>/dev/null | head -n 1 || true)"
+if [ -n "${UNBOUND_PID}" ]; then
+  ps -p "${UNBOUND_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+else
+  echo 'unbound_process=absent'
+fi
 sockstat 2>/dev/null | grep ':53' | head -30 || true
 if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf ]; then
   if unbound-control -c /var/unbound/unbound.conf status 2>&1; then
@@ -578,6 +610,42 @@ if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf 
   unbound-control -c /var/unbound/unbound.conf stats_noreset 2>/dev/null | egrep '^mem\.' | head -80 || true
 fi
 printf 'unbound_control_healthy=%s\n' "${UNBOUND_HEALTHY}"
+printf '\nService Watchdog entries (Unbound should remain absent during OOM remediation):\n'
+sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | egrep -i '<name>|<service>|<servicename>|<descr>|unbound' | head -80 || true
+
+section "CrowdSec / pfBlockerNG pressure indicators"
+CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
+CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
+printf 'crowdsec_engine_pid=%s\n' "${CROWDSEC_ENGINE_PID:-absent}"
+printf 'crowdsec_firewall_bouncer_pid=%s\n' "${CROWDSEC_BOUNCER_PID:-absent}"
+if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
+  ps -p "${CROWDSEC_ENGINE_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+fi
+if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
+  ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+fi
+if [ -f /var/log/crowdsec/crowdsec.log ]; then
+  CROWDSEC_STUCK_COUNT="$(grep -c 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null || true)"
+  CROWDSEC_MAX_ATTEMPTS="$(grep 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
+  printf 'crowdsec_pf_scan_stuck_lines=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
+  grep -E 'stuck for .*pf-scan-multi_ports|SIGTERM received|Crowdsec service shutting down' /var/log/crowdsec/crowdsec.log 2>/dev/null | tail -30 || true
+fi
+ASN_REPORTING="$(sed -n 's:.*<asn_reporting>\([^<]*\)</asn_reporting>.*:\1:p' /conf/config.xml 2>/dev/null | tail -n 1)"
+if grep -Eq '<asn_token>[^<]+</asn_token>' /conf/config.xml 2>/dev/null; then
+  ASN_TOKEN_PRESENT=yes
+else
+  ASN_TOKEN_PRESENT=no
+fi
+printf 'pfblocker_asn_reporting=%s asn_token_present=%s\n' "${ASN_REPORTING:-unknown}" "${ASN_TOKEN_PRESENT}"
+for db in /usr/local/share/GeoIP/asn.mmdb /usr/local/share/GeoIP/asn.csv; do
+  if [ -f "${db}" ]; then
+    ls -lh "${db}" 2>/dev/null || true
+  else
+    printf 'asn_database_missing=%s\n' "${db}"
+  fi
+done
+printf 'Recent IPinfo/ASN retry evidence:\n'
+grep -nEi 'Downloading \[ IPinfo databases \]|ASN Token not defined|Database ASN' /var/log/pfblockerng/extras.log 2>/dev/null | tail -10 || true
 
 section "REST API settings / service identities (redacted)"
 run_optional pkg info -x 'pfSense-pkg-RESTAPI'
@@ -587,7 +655,7 @@ if [ -x /usr/local/bin/php ]; then
 require_once('/etc/inc/config.inc');
 global $config;
 
-$targets = ['fastapi_posture', 'fastapi_security'];
+$targets = ['fastapi_posture', 'fastapi_security', 'pfsense_exporter'];
 $expected = [
     'fastapi_posture' => [
         'api-v2-system-version-get',
@@ -598,6 +666,12 @@ $expected = [
     ],
     'fastapi_security' => [
         'api-v2-diagnostics-table-get',
+        'user-config-readonly',
+    ],
+    'pfsense_exporter' => [
+        'api-v2-status-system-get',
+        'api-v2-status-gateways-get',
+        'api-v2-status-services-get',
         'user-config-readonly',
     ],
 ];
@@ -699,7 +773,7 @@ else
 fi
 
 section "Snort / pfBlockerNG / Login Protection / PF attribution"
-pgrep -laf 'snort|pfblocker|pfb_|sshguard' 2>/dev/null || true
+pgrep -laf 'snort|pfblocker|pfb_|sshguard|crowdsec' 2>/dev/null || true
 TABLES="$(pfctl -s Tables 2>/dev/null | egrep '^(snort2c|pfB_|pfb_|sshguard$)' || true)"
 printf 'candidate_tables:\n%s\n' "${TABLES:-<none>}"
 BLOCK_MATCH_COUNT=0
