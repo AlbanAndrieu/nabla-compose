@@ -13,6 +13,7 @@ Primary references:
 - secret migration: [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md);
 - platform migration: [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md);
 - security tooling: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
+- OpenClaw workstation → TrueNAS: [`openclaw-migration-roadmap.md`](./openclaw-migration-roadmap.md);
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
 - incidents/evidence: [`incidents/`](./incidents/).
 
@@ -118,6 +119,22 @@ The exact import/materialization/finalization commands and rollback rules remain
 owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
 the service README/runbook. Never bulk-finalize env files or recreate non-empty
 datasets just to change presets.
+
+## OpenClaw — workstation first, TrueNAS later
+
+- [ ] **P0/P1 (workstation)** : sauvegarder/restaurer, aligner Node systemd
+  sur `mise` et le préfixe npm, réparer les migrations Slack/SQLite, les
+  plugins/canaux, cron et la gestion des secrets avant de déclarer le runtime
+  stable. Gateway opérationnel en `2026.9.5`, mais update `2026.9.9` encore
+  seulement en dry-run le 2026-10-09.
+- [ ] **P2 (TrueNAS staging)** : image pinnée, Compose durci, volumes ZFS,
+  secrets externes, restauration isolée et observabilité ; aucune connexion
+  concurrente aux canaux ni exécution de cron en doublon.
+- [ ] **P3 (cutover)** : arrêter proprement la source, backup final, transfert
+  chiffré, reprise TrueNAS contrôlée, test après reboot et failback documenté.
+  La workstation demeure référence tant que les critères P0/P1 ne passent pas.
+
+Détails et critères : [roadmap OpenClaw](./openclaw-migration-roadmap.md).
 
 ## Current execution order
 
