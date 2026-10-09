@@ -125,6 +125,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
 
         self.assertIn("'fastapi_posture'", helper)
         self.assertIn("'fastapi_security'", helper)
+        self.assertIn("'pfsense_exporter'", helper)
+        self.assertIn("PFSENSE_EXPORTER_PASSWORD_FILE", shell)
         self.assertIn("'api-v2-auth-key-post'", helper)
         self.assertIn("'user-config-readonly'", helper)
         self.assertIn("no persisted REST API key; refusing finalization", helper)
@@ -142,6 +144,10 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertNotIn("'api-v2-services-dns_resolver-settings-get'", helper)
         self.assertIn("'api-v2-system-dns-get'", helper)
         self.assertIn("'api-v2-diagnostics-table-get'", helper)
+        self.assertIn("'api-v2-status-system-get'", helper)
+        self.assertIn("'api-v2-status-gateways-get'", helper)
+        self.assertIn("'api-v2-status-services-get'", helper)
+        self.assertIn("TrueNAS Prometheus pfSense exporter", helper)
         self.assertIn("nabla_report_endpoint_acl", helper)
         self.assertIn("ServicesDNSResolverSettingsEndpoint", helper)
         self.assertIn("endpoint_acl name=%s path=%s get_privileges=%s", helper)
@@ -158,6 +164,25 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("/api/runtime/topology", text)
         self.assertIn("/api/health-board", text)
         self.assertIn(".runtime.active_egress_ips[]?", text)
+
+
+    def test_runtime_diagnostics_cover_current_memory_incident_signals(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("System-log OOM/reclaim evidence", text)
+        self.assertIn("snort_check_for_rule_updates", text)
+        self.assertIn("Effective/generated PHP-FPM policy", text)
+        self.assertIn("/usr/local/lib/php-fpm.conf", text)
+        self.assertIn("Package/default PHP-FPM pool policy", text)
+        self.assertIn("Authentication failures grouped by source", text)
+        self.assertIn("pgrep -x unbound", text)
+        self.assertIn("CrowdSec / pfBlockerNG pressure indicators", text)
+        self.assertIn("crowdsec_pf_scan_stuck_lines", text)
+        self.assertIn("pf-scan-multi_ports", text)
+        self.assertIn("pfblocker_asn_reporting", text)
+        self.assertIn("asn_token_present", text)
+        self.assertIn("Recent IPinfo/ASN retry evidence", text)
+        self.assertNotIn("grep -nEi '<asn_reporting>|<asn_token>'", text)
 
     def test_transport_metadata_preserves_empty_remote_ip_fields(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
