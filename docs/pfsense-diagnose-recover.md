@@ -112,9 +112,11 @@ It reports:
 - CrowdSec engine PID separately from the firewall-bouncer PID;
 - `crowdsec -version`, `cscli version` and installed CrowdSec package versions;
 - bounded `cscli metrics` only when the engine is already running;
+- redacted firewall-bouncer policy plus the last bounded warning/error lines;
 - config references plus the effective `pf-scan-multi_ports` scenario policy
   (`groupby`, `distinct`, `capacity`, `leakspeed`, `blackhole`, remediation);
-- streamed counts and maxima for `failed_sent` and `attempts` across current
+- streamed counts and maxima for `failed_sent`, `attempts` and `sigclosed`
+  across current
   and rotated CrowdSec logs;
 - only the last 30 matching backpressure lines;
 - pfBlockerNG ASN Reporting state, token presence as a boolean, ASN database
@@ -129,7 +131,10 @@ is expected. Do not restart CrowdSec merely to obtain metrics.
 
 Interpret the `stuck ... failed_sent ... attempts` warning as an **internal
 leaky-bucket delivery contention signal**, not as proof that the firewall
-bouncer or LAPI network delivery failed. CrowdSec issue
+bouncer or LAPI network delivery failed. A sustained `max_sigclosed=0` with
+`max_failed_sent` close to `max_attempts` is especially consistent with a
+live bucket whose input cannot accept the event, rather than repeated bucket
+destruction/recreation. CrowdSec issue
 [`#1519`](https://github.com/crowdsecurity/crowdsec/issues/1519) documented the
 same tight retry loop, and the upstream v1.8.1 source still uses a non-blocking
 send to `bucket.In` followed by an immediate retry:

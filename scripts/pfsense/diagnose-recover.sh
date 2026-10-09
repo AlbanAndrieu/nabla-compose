@@ -735,6 +735,21 @@ fi
 if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
   ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
 fi
+CROWDSEC_BOUNCER_CONF=/usr/local/etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+CROWDSEC_BOUNCER_LOG=/var/log/crowdsec/crowdsec-firewall-bouncer.log
+printf 'CrowdSec firewall bouncer policy (redacted):\n'
+if [ -f "${CROWDSEC_BOUNCER_CONF}" ]; then
+  printf 'crowdsec_firewall_bouncer_config=%s\n' "${CROWDSEC_BOUNCER_CONF}"
+  awk '/^[[:space:]]*(mode|update_frequency|log_mode|log_dir|log_level|api_url|disable_ipv6|deny_action|blacklists_ipv4|blacklists_ipv6):/ {print}' "${CROWDSEC_BOUNCER_CONF}" 2>/dev/null | head -30 || true
+else
+  printf 'crowdsec_firewall_bouncer_config=missing\n'
+fi
+printf 'Recent CrowdSec firewall bouncer warnings/errors (bounded):\n'
+if [ -f "${CROWDSEC_BOUNCER_LOG}" ]; then
+  grep -Ei 'warn|error|fail|refused|timeout|unauthor|forbidden' "${CROWDSEC_BOUNCER_LOG}" 2>/dev/null | tail -20 || true
+else
+  printf 'crowdsec_firewall_bouncer_log=missing\n'
+fi
 printf 'CrowdSec scenario/config references:\n'
 grep -RniE 'pf-scan-multi_ports|firewallservices' /usr/local/etc/crowdsec /etc/crowdsec 2>/dev/null | head -80 || true
 printf 'CrowdSec effective pf-scan scenario policy:\n'
@@ -761,12 +776,18 @@ done | awk '
       value += 0
       if (value > max_attempts) max_attempts = value
     }
+    if (match($0, /sigclosed:[[:space:]]*[0-9]+/)) {
+      value = substr($0, RSTART, RLENGTH)
+      gsub(/[^0-9]/, "", value)
+      value += 0
+      if (value > max_sigclosed) max_sigclosed = value
+    }
   }
   END {
-    printf "crowdsec_pf_scan_stuck_lines=%d max_failed_sent=%d max_attempts=%d", count + 0, max_failed + 0, max_attempts + 0
+    printf "crowdsec_pf_scan_stuck_lines=%d max_failed_sent=%d max_attempts=%d max_sigclosed=%d", count + 0, max_failed + 0, max_attempts + 0, max_sigclosed + 0
   }
 ' 2>/dev/null)"
-printf '%s\n' "${CROWDSEC_STUCK_SUMMARY:-crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0}"
+printf '%s\n' "${CROWDSEC_STUCK_SUMMARY:-crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0 max_sigclosed=0}"
 for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
   [ -f "${log}" ] || continue
   grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
