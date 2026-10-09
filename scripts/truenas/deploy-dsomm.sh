@@ -129,7 +129,7 @@ if [[ "${MODE}" == "--apply" ]]; then
   docker network inspect intranet >/dev/null 2>&1 ||
     fail "required external Docker network is missing: intranet"
 
-  smoke_name="nabla-dsomm-preflight-$"
+  smoke_name="nabla-dsomm-preflight-${BASHPID}"
   cleanup_dsomm_smoke() {
     docker rm -f "${smoke_name}" >/dev/null 2>&1 || true
   }
