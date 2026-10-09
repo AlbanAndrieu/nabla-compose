@@ -63,6 +63,7 @@ Environment:
   QUALITY_BASE_REF                 override comparison base
   QUALITY_LOG_TAIL                 failure log lines to print (default: 32)
   QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 320)
+  QUALITY_SUMMARY_LINES            maximum failure-summary lines (default: 12)
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   NABLA_TRUENAS_DEV_VENV           preferred local dev venv (default: ~/.cache/nabla-compose/dev-venv)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
@@ -150,8 +151,17 @@ print_compact_log() {
 
   summary="$(grep -E '^(FAIL|ERROR): |^FAILED |^ERROR |^Ran [0-9]+ tests|^=+ .* (failed|error|passed).* =+$' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
+    local summary_limit="${QUALITY_SUMMARY_LINES:-12}"
+    local summary_count
+    [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
+    summary_count="$(printf '%s\n' "${summary}" | wc -l)"
     printf '%s\n' '--- failure summary ---' >&2
-    printf '%s\n' "${summary}" | print_bounded_log_lines >&2
+    printf '%s\n' "${summary}" | head -n "${summary_limit}" |
+      print_bounded_log_lines >&2
+    if ((summary_count > summary_limit)); then
+      printf '... %d additional summary lines omitted; inspect full local log if needed\n' \
+        "$((summary_count - summary_limit))" >&2
+    fi
   fi
   printf '%s\n' "--- last ${LOG_TAIL} log lines ---" >&2
   tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
