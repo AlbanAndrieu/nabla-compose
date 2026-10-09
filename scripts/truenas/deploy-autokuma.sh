@@ -23,6 +23,7 @@ cd "${CANONICAL_ROOT}"
 
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
