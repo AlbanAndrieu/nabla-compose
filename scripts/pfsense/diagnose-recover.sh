@@ -20,34 +20,6 @@ IDENTITY_ACTION=""
 IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
-COLOR_ENABLED=false
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
-  COLOR_ENABLED=true
-fi
-
-ICON_OK="✅"
-ICON_WARN="⚠️"
-ICON_ERROR="❌"
-ICON_INFO="ℹ️"
-ICON_SECTION="🔎"
-
-C_RESET=""
-C_GREEN=""
-C_YELLOW=""
-C_RED=""
-C_BLUE=""
-C_CYAN=""
-C_BOLD=""
-if [[ "${COLOR_ENABLED}" == true ]] && command -v tput >/dev/null 2>&1; then
-  C_RESET="$(tput sgr0 2>/dev/null || true)"
-  C_GREEN="$(tput setaf 2 2>/dev/null || true)"
-  C_YELLOW="$(tput setaf 3 2>/dev/null || true)"
-  C_RED="$(tput setaf 1 2>/dev/null || true)"
-  C_BLUE="$(tput setaf 4 2>/dev/null || true)"
-  C_CYAN="$(tput setaf 6 2>/dev/null || true)"
-  C_BOLD="$(tput bold 2>/dev/null || true)"
-fi
-
 usage() {
   cat <<'USAGE'
 Usage: scripts/pfsense/diagnose-recover.sh [options]
@@ -82,10 +54,6 @@ Options:
   --report PATH             Local report path.
   -h, --help                Show this help.
 
-Console rendering:
-  Interactive terminals use status icons and ANSI colors. Set NO_COLOR=1 to
-  disable colors. The report file always remains plain text.
-
 Environment:
   PFSENSE_POSTURE_API_KEY   Optional posture GET-only API key. It stays on the
                             caller; it is never sent through SSH or printed.
@@ -119,51 +87,13 @@ Identity/key lifecycle:
 USAGE
 }
 
-console_line() {
-  local line="$1"
-  local rendered="${line}"
-
-  case "${line}" in
-    "OK:"*)
-      rendered="${ICON_OK} ${line#OK: }"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_GREEN}${rendered}${C_RESET}"
-      ;;
-    "WARN:"*)
-      rendered="${ICON_WARN} ${line#WARN: }"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_YELLOW}${rendered}${C_RESET}"
-      ;;
-    "ERROR:"*)
-      rendered="${ICON_ERROR} ${line#ERROR: }"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_RED}${rendered}${C_RESET}"
-      ;;
-    "AUTH:"*)
-      rendered="${ICON_INFO} ${line}"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_CYAN}${rendered}${C_RESET}"
-      ;;
-    "INFO:"*)
-      rendered="${ICON_INFO} ${line#INFO: }"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_BLUE}${rendered}${C_RESET}"
-      ;;
-    "API summary:"*|"SSH summary"*)
-      rendered="${ICON_INFO} ${line}"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_BLUE}${rendered}${C_RESET}"
-      ;;
-    "==>"*)
-      rendered="${ICON_SECTION} ${line#==> }"
-      [[ "${COLOR_ENABLED}" == true ]] && rendered="${C_BOLD}${C_CYAN}${rendered}${C_RESET}"
-      ;;
-  esac
-
-  printf '%s\n' "${rendered}"
-}
-
 fail() {
-  console_line "ERROR: $*" >&2
+  printf 'ERROR: %s\n' "$*" >&2
   exit 1
 }
 
 warn() {
-  console_line "WARN: $*" >&2
+  printf 'WARN: %s\n' "$*" >&2
 }
 
 while (($# > 0)); do
@@ -403,7 +333,7 @@ mkdir -p "$(dirname "${REPORT}")"
 log() {
   printf '%s\n' "$*" >>"${REPORT}"
   if [[ "${CONSOLE_OUTPUT}" == true ]]; then
-    console_line "$*"
+    printf '%s\n' "$*"
   fi
 }
 
@@ -662,17 +592,6 @@ printf '\nRecent WebConfigurator authentication failures:\n'
 grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -60 || true
 printf '\nAuthentication failures grouped by source:\n'
 grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -120 | sed -n 's/.*from: \([^ ]*\)$/\1/p' | sort | uniq -c | sort -nr || true
-printf '\nPrometheus exporter authentication regression summary:\n'
-EXPORTER_AUTH_LINES="$(grep -h "$(date '+%Y-%m-%d')T.*webConfigurator authentication error.*from: 172.17.0.24$" /var/log/system.log* 2>/dev/null || true)"
-if [ -n "${EXPORTER_AUTH_LINES}" ]; then
-  EXPORTER_AUTH_COUNT="$(printf '%s\n' "${EXPORTER_AUTH_LINES}" | wc -l | tr -d ' ')"
-  EXPORTER_AUTH_LAST="$(printf '%s\n' "${EXPORTER_AUTH_LINES}" | tail -n 1)"
-  printf 'pfsense_exporter_auth_failures_today=%s\n' "${EXPORTER_AUTH_COUNT}"
-  printf 'pfsense_exporter_auth_latest=%s\n' "${EXPORTER_AUTH_LAST}"
-else
-  printf 'pfsense_exporter_auth_failures_today=0\n'
-  printf 'pfsense_exporter_auth_latest=<none>\n'
-fi
 tail -n 450 /var/log/system.log 2>/dev/null | egrep -i 'nginx|php|fpm|webconfig|fatal|segfault|killed|memory|502|upstream|error' | tail -180 || true
 
 section "Unbound"
@@ -699,50 +618,18 @@ CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
 CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
 printf 'crowdsec_engine_pid=%s\n' "${CROWDSEC_ENGINE_PID:-absent}"
 printf 'crowdsec_firewall_bouncer_pid=%s\n' "${CROWDSEC_BOUNCER_PID:-absent}"
-if command -v crowdsec >/dev/null 2>&1; then
-  crowdsec -version 2>/dev/null | head -20 || true
-fi
-if command -v cscli >/dev/null 2>&1; then
-  cscli version 2>/dev/null | head -20 || true
-fi
 if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
   ps -p "${CROWDSEC_ENGINE_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
-  if command -v cscli >/dev/null 2>&1; then
-    printf 'CrowdSec metrics (bounded):\n'
-    cscli metrics 2>/dev/null | head -120 || true
-  fi
-else
-  printf 'crowdsec_metrics=skipped_engine_stopped\n'
 fi
 if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
   ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
 fi
-printf 'CrowdSec scenario/config references:\n'
-grep -RniE 'pf-scan-multi_ports|firewallservices' /usr/local/etc/crowdsec /etc/crowdsec 2>/dev/null | head -80 || true
-CROWDSEC_STUCK_SUMMARY="$(for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
-  [ -f "${log}" ] || continue
-  grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
-done | awk '
-  {
-    count++
-    if (match($0, /failed_sent:[0-9]+/)) {
-      value = substr($0, RSTART + 12, RLENGTH - 12) + 0
-      if (value > max_failed) max_failed = value
-    }
-    if (match($0, /attempts:[0-9]+/)) {
-      value = substr($0, RSTART + 9, RLENGTH - 9) + 0
-      if (value > max_attempts) max_attempts = value
-    }
-  }
-  END {
-    printf "crowdsec_pf_scan_stuck_lines=%d max_failed_sent=%d max_attempts=%d", count + 0, max_failed + 0, max_attempts + 0
-  }
-' 2>/dev/null)"
-printf '%s\n' "${CROWDSEC_STUCK_SUMMARY:-crowdsec_pf_scan_stuck_lines=0 max_failed_sent=0 max_attempts=0}"
-for log in /var/log/crowdsec/crowdsec.log* /var/log/crowdsec.log*; do
-  [ -f "${log}" ] || continue
-  grep -h 'stuck for .*pf-scan-multi_ports' "${log}" 2>/dev/null
-done | tail -30 || true
+if [ -f /var/log/crowdsec/crowdsec.log ]; then
+  CROWDSEC_STUCK_COUNT="$(grep -c 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null || true)"
+  CROWDSEC_MAX_ATTEMPTS="$(grep 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
+  printf 'crowdsec_pf_scan_stuck_lines=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
+  grep -E 'stuck for .*pf-scan-multi_ports|SIGTERM received|Crowdsec service shutting down' /var/log/crowdsec/crowdsec.log 2>/dev/null | tail -30 || true
+fi
 ASN_REPORTING="$(sed -n 's:.*<asn_reporting>\([^<]*\)</asn_reporting>.*:\1:p' /conf/config.xml 2>/dev/null | tail -n 1)"
 if grep -Eq '<asn_token>[^<]+</asn_token>' /conf/config.xml 2>/dev/null; then
   ASN_TOKEN_PRESENT=yes
@@ -976,11 +863,7 @@ else
   log "OK: SSH appliance diagnostics completed"
   if [[ "${VERBOSE}" != true ]]; then
     log "SSH summary (full evidence: ${REPORT})"
-    while IFS= read -r summary_line; do
-      [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
-    done < <(
-      grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
-    )
+    grep -E '^(unbound_control_healthy=|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 24 || true
   fi
 fi
 
