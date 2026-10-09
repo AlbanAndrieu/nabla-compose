@@ -70,6 +70,108 @@ truenas_app_state() {
     jq -r 'if length == 1 then .[0].state else "MISSING" end'
 }
 
+truenas_repo_provenance() {
+  local repo_root="${1:-.}"
+  local head upstream dirty relation counts left right
+
+  head="$(git -C "${repo_root}" rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')"
+  if [[ -n "$(git -C "${repo_root}" status --porcelain 2>/dev/null || true)" ]]; then
+    dirty="dirty"
+  else
+    dirty="clean"
+  fi
+
+  upstream="$(git -C "${repo_root}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  relation="no-upstream"
+  if [[ -n "${upstream}" ]]; then
+    counts="$(git -C "${repo_root}" rev-list --left-right --count "HEAD...${upstream}" 2>/dev/null || true)"
+    left="${counts%%[[:space:]]*}"
+    right="${counts##*[[:space:]]}"
+    if [[ "${left}" =~ ^[0-9]+$ && "${right}" =~ ^[0-9]+$ ]]; then
+      case "${left}:${right}" in
+        0:0) relation="synced" ;;
+        0:*) relation="behind-${right}" ;;
+        *:0) relation="ahead-${left}" ;;
+        *) relation="diverged-${left}-${right}" ;;
+      esac
+    fi
+  fi
+
+  printf 'INFO: repository head=%s tree=%s upstream=%s relation=%s\n' \
+    "${head}" "${dirty}" "${upstream:-none}" "${relation}" >&2
+}
+
+truenas_job_compact() {
+  local method="${1:?TrueNAS middleware job method is required}"
+  shift
+  local tail_lines="${TRUENAS_JOB_LOG_TAIL:-40}"
+  local verbose="${TRUENAS_DEPLOY_VERBOSE:-false}"
+  local tmp rc
+  local -a job_cmd=(midclt call -j)
+
+  [[ "${tail_lines}" =~ ^[1-9][0-9]*$ ]] || tail_lines=40
+  if ((EUID != 0)) && command -v sudo >/dev/null 2>&1; then
+    job_cmd=(sudo midclt call -j)
+  fi
+
+  case "${verbose}" in
+    1 | true | TRUE | yes | YES)
+      "${job_cmd[@]}" "${method}" "$@"
+      return
+      ;;
+  esac
+
+  tmp="$(mktemp "${TMPDIR:-/tmp}/nabla-truenas-job.XXXXXX")"
+  if "${job_cmd[@]}" "${method}" "$@" >"${tmp}" 2>&1; then
+    rm -f "${tmp}"
+    printf 'OK: TrueNAS job %s completed\n' "${method}"
+    return 0
+  else
+    rc=$?
+  fi
+  printf 'ERROR: TrueNAS job %s failed (exit=%s); last %s lines follow\n' \
+    "${method}" "${rc}" "${tail_lines}" >&2
+  tr '\r' '\n' <"${tmp}" | tail -n "${tail_lines}" >&2 || true
+  rm -f "${tmp}"
+  return "${rc}"
+}
+
+truenas_compose_container_id() {
+  local app_id="${1:?TrueNAS app id is required}"
+  local service="${2:?Compose service name is required}"
+  local container_id
+
+  container_id="$(
+    docker ps -aq \
+      --filter "label=com.docker.compose.project=ix-${app_id}" \
+      --filter "label=com.docker.compose.service=${service}" |
+      head -n 1
+  )"
+
+  if [[ -z "${container_id}" ]]; then
+    container_id="$(
+      docker ps -aq --filter "name=^ix-${app_id}-${service}-1$" |
+        head -n 1
+    )"
+  fi
+
+  printf '%s\n' "${container_id}"
+}
+
+truenas_app_summary() {
+  local app_id="${1:?TrueNAS app id is required}"
+
+  truenas_app_query_by_id "${app_id}" |
+    jq -r '
+      if length == 1 then
+        .[0]
+        | "OK: TrueNAS app \(.id) state=\(.state // \"UNKNOWN\") containers=\(.active_workloads.containers // 0)"
+      else
+        "WARNING: TrueNAS app not found: '"${app_id}"'"
+      end
+    '
+}
+
 truenas_reconcile_custom_app() {
   local app_id="${1:?TrueNAS app id is required}"
   local compose_path="${2:?compose path is required}"
@@ -85,7 +187,7 @@ truenas_reconcile_custom_app() {
     payload="$(jq -cn --arg include "${compose_path}" '{
       custom_compose_config: {include: [$include]}
     }')"
-    midclt call -j app.update "${app_id}" "${payload}"
+    truenas_job_compact app.update "${app_id}" "${payload}"
   else
     wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
     payload="$(jq -cn --arg app_name "${app_id}" --arg compose "${wrapper}" '{
@@ -93,7 +195,7 @@ truenas_reconcile_custom_app() {
       custom_app: true,
       custom_compose_config_string: $compose
     }')"
-    midclt call -j app.create "${payload}"
+    truenas_job_compact app.create "${payload}"
   fi
 }
 

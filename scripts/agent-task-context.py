@@ -38,7 +38,12 @@ def changed_paths() -> list[str]:
             ).returncode == 0:
                 base = candidate
                 break
-    if base:
+    if base and subprocess.run(
+        ["git", "rev-parse", "--verify", f"{base}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    ).returncode == 0:
         paths.update(
             path
             for path in git("diff", "--name-only", f"{base}...HEAD").splitlines()
@@ -155,9 +160,14 @@ def main() -> int:
 
     print(f"branch: {branch or '<detached>'}")
     print("default-branch-protected: " + ("NO" if branch == "master" else "YES"))
+    max_paths = int(os.environ.get("AGENT_CONTEXT_MAX_PATHS", "25"))
+    if max_paths < 1:
+        raise ValueError("AGENT_CONTEXT_MAX_PATHS must be positive")
     print(f"changed-paths: {len(paths)}")
-    for path in paths:
+    for path in paths[:max_paths]:
         print(f"  - {path}")
+    if len(paths) > max_paths:
+        print(f"  ... {len(paths) - max_paths} more; use git diff --name-only")
 
     print("suggested-skills:")
     if skills:
@@ -168,8 +178,11 @@ def main() -> int:
 
     print("working-tree:")
     if status:
-        for line in status.splitlines():
+        lines = status.splitlines()
+        for line in lines[:max_paths]:
             print(f"  {line}")
+        if len(lines) > max_paths:
+            print(f"  ... {len(lines) - max_paths} more; use git status --short")
     else:
         print("  clean")
 

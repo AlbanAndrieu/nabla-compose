@@ -18,6 +18,10 @@ context:
 preflight:
     mise run agent-preflight
 
+# Dependency-free syntax-only fallback for disconnected development (L1, not publication).
+offline:
+    bash scripts/agent-offline-check.sh
+
 # Fast iterative local-first loop: autofix + changed-file contracts only.
 loop:
     mise run agent-loop

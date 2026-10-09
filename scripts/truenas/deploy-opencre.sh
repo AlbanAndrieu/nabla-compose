@@ -29,6 +29,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "${CANONICAL_ROOT}"
 
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 compose_path="${CANONICAL_ROOT}/apps/opencre/compose.yml"
 [[ -f "${compose_path}" ]] || fail "missing ${compose_path}"

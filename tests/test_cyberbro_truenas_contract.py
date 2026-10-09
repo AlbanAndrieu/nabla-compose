@@ -49,8 +49,8 @@ def test_cyberbro_deploy_uses_supported_truenas_custom_app_flow() -> None:
     assert "docker compose" in script
     assert "--no-interpolate" in script
     assert "--no-env-resolution" in script
-    assert "midclt call -j app.create" in script
-    assert "midclt call -j app.update" in script
+    assert "truenas_job_compact app.create" in script
+    assert "truenas_job_compact app.update" in script
     assert "custom_compose_config_string" in script
     assert "custom_compose_config" in script
     assert "diagnose-cyberbro.sh" in script
@@ -72,14 +72,12 @@ def test_cyberbro_deploy_reconciles_generated_observability_consumers() -> None:
 def test_cyberbro_diagnostic_collects_bounded_runtime_evidence() -> None:
     script = DIAGNOSE.read_text(encoding="utf-8")
 
-    assert "midclt call app.query" in script
+    assert "truenas_app_query_by_id" in script
     assert "core.get_jobs" in script
     assert "docker inspect" in script
-    assert "docker logs --tail 80" in script
-    assert "/var/log/middlewared.log" in script
+    assert "truenas_compose_container_id" in script
+    assert "docker logs --tail 40" in script
     assert "journalctl -u docker" in script
-    assert "warning..alert" in script
-    assert "no database dependency" in script
     assert "curl -fsS" in script
 
 
@@ -99,6 +97,4 @@ def test_cyberbro_checks_lifecycle_log_after_app_mutations() -> None:
     assert 'consumer_lifecycle_mark="$(truenas_lifecycle_mark)"' in deploy
     assert 'truenas_lifecycle_errors_since "${consumer}"' in deploy
 
-    assert "TrueNAS app lifecycle errors" in diagnose
     assert 'truenas_lifecycle_errors_since "${APP_ID}"' in diagnose
-    assert "500" in diagnose

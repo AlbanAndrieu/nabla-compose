@@ -33,6 +33,7 @@ cd "${CANONICAL_ROOT}"
 
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 # shellcheck source=../lib/probe.sh
 source "${CANONICAL_ROOT}/scripts/lib/probe.sh"
@@ -125,14 +126,94 @@ if [[ "${MODE}" == "--apply" ]]; then
   docker pull "${DSOMM_IMAGE}" >/dev/null
   printf 'OK: DSOMM frontend image is local: %s\n' "${DSOMM_IMAGE}"
 
+  printf '\n==> DSOMM direct container smoke\n'
+  docker network inspect intranet >/dev/null 2>&1 ||
+    fail "required external Docker network is missing: intranet"
+
+  smoke_name="nabla-dsomm-preflight-${BASHPID}"
+  cleanup_dsomm_smoke() {
+    docker rm -f "${smoke_name}" >/dev/null 2>&1 || true
+  }
+  trap cleanup_dsomm_smoke EXIT
+
+  # Keep an exited smoke container until its logs have been collected.
+  # The EXIT trap removes it after both successful and failed diagnostics.
+  docker run -d \
+    --name "${smoke_name}" \
+    --network intranet \
+    --cap-drop ALL \
+    --security-opt no-new-privileges=true \
+    --mount "type=bind,src=${CANONICAL_ROOT}/apps/dsomm/config/meta.yaml,dst=/srv/assets/YAML/meta.yaml,readonly" \
+    --mount "type=bind,src=${model_file},dst=/srv/assets/YAML/default/model.yaml,readonly" \
+    --mount "type=bind,src=${progress_file},dst=/srv/assets/YAML/team-progress.yaml,readonly" \
+    --mount "type=bind,src=${evidence_file},dst=/srv/assets/YAML/team-evidence.yaml,readonly" \
+    "${DSOMM_IMAGE}" >/dev/null
+
+  smoke_ready=false
+  for ((attempt = 1; attempt <= 20; attempt++)); do
+    if docker exec "${smoke_name}" wget -q --spider http://127.0.0.1:8080/; then
+      smoke_ready=true
+      break
+    fi
+    running="$(docker inspect -f '{{.State.Running}}' "${smoke_name}" 2>/dev/null || printf 'false')"
+    [[ "${running}" == "true" ]] || break
+    sleep 1
+  done
+
+  if [[ "${smoke_ready}" != true ]]; then
+    printf 'ERROR: direct DSOMM container smoke failed; container status and recent logs follow.\n' >&2
+    docker inspect --format 'status={{.State.Status}} exit_code={{.State.ExitCode}} error={{.State.Error}}' \
+      "${smoke_name}" >&2 2>/dev/null || true
+    docker logs --tail 80 "${smoke_name}" >&2 2>/dev/null || true
+    fail "DSOMM image/mount/security contract failed before TrueNAS reconciliation"
+  fi
+  printf 'OK: DSOMM image starts with the repository mounts/security posture outside TrueNAS App orchestration\n'
+  cleanup_dsomm_smoke
+  trap - EXIT
+
+  printf '\n==> render DSOMM runtime Compose for TrueNAS\n'
+  runtime_compose_json="$(
+    NABLA_COMPOSE_ROOT="${CANONICAL_ROOT}" DSOMM_IMAGE="${DSOMM_IMAGE}" \
+      docker compose -f "${compose_path}" config --format json |
+      jq -c '
+        {
+          services: {
+            dsomm: (.services.dsomm | del(.["x-nabla"]))
+          },
+          networks: {
+            intranet: .networks.intranet
+          }
+        }
+      '
+  )"
+  jq -e '
+    .services.dsomm.image != null
+    and .services.dsomm.ports != null
+    and .networks.intranet != null
+  ' <<<"${runtime_compose_json}" >/dev/null ||
+    fail "rendered DSOMM runtime Compose is incomplete"
+  printf 'OK: rendered one-service DSOMM Compose for TrueNAS Custom App\n'
+
   printf '\n==> TrueNAS Custom App reconciliation\n'
   lifecycle_mark="$(truenas_lifecycle_mark)"
-  DSOMM_IMAGE="${DSOMM_IMAGE}" truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
+  if truenas_app_query_by_id "${APP_ID}" | jq -e 'length == 1' >/dev/null; then
+    payload="$(jq -cn --argjson compose "${runtime_compose_json}" '{
+      custom_compose_config: $compose
+    }')"
+    truenas_job_compact app.update "${APP_ID}" "${payload}"
+  else
+    payload="$(jq -cn --arg app_name "${APP_ID}" --arg compose "${runtime_compose_json}" '{
+      app_name: $app_name,
+      custom_app: true,
+      custom_compose_config_string: $compose
+    }')"
+    truenas_job_compact app.create "${payload}"
+  fi
 
   state="$(truenas_app_state "${APP_ID}")"
   if [[ "${state}" == "STOPPED" ]]; then
     printf 'Starting DSOMM Custom App after configuration reconciliation...\n'
-    midclt call -j app.start "${APP_ID}"
+    truenas_job_compact app.start "${APP_ID}"
     state="$(truenas_app_state "${APP_ID}")"
     if [[ "${state}" == "STOPPED" ]]; then
       printf 'ERROR: DSOMM app.start completed but the App returned to STOPPED.\n' >&2
