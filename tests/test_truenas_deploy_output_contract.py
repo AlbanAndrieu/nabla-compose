@@ -62,6 +62,7 @@ def test_checkout_provenance_is_local_and_non_blocking() -> None:
 def test_compact_job_helper_preserves_failed_exit_status() -> None:
     script = """
 source "$1"
+sudo() { "$@"; }
 midclt() {
   printf 'middleware failure\\n' >&2
   return 23
@@ -83,6 +84,7 @@ truenas_job_compact app.update dsomm '{}'
 def test_compact_job_helper_reports_success() -> None:
     script = """
 source "$1"
+sudo() { "$@"; }
 midclt() {
   printf 'middleware success\\n'
   return 0
