@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE = ROOT / "scripts" / "agent-offline-check.sh"
