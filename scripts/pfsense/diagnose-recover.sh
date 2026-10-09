@@ -559,8 +559,17 @@ run_optional df -i
 run_optional swapinfo -h
 printf '\nTop RSS processes:\n'
 ps axo pid,rss,vsz,pcpu,pmem,command 2>/dev/null | sort -nr -k2 | head -25 || true
-printf '\nKernel memory/reclaim evidence:\n'
+printf '\nKernel memory/reclaim evidence (current boot):\n'
 dmesg 2>/dev/null | egrep -i 'killed|failed to reclaim|waited too long|out of swap|out of memory|oom' | tail -80 || true
+printf '\nSystem-log OOM/reclaim evidence (today + previous day when available):\n'
+TODAY="$(date '+%Y-%m-%d')"
+YESTERDAY="$(date -v-1d '+%Y-%m-%d' 2>/dev/null || true)"
+for day in "${TODAY}" "${YESTERDAY}"; do
+  [ -n "${day}" ] || continue
+  grep -hE "${day}T.*(was killed|failed to reclaim|waited too long|out of swap|out of memory)" /var/log/system.log* 2>/dev/null | tail -40 || true
+done
+printf '\nRelevant scheduled jobs:\n'
+grep -nE 'snort_check_(cron_misc|for_rule_updates)|pfblockerng.php|servicewatchdog_cron|RESTAPI/.resources/scripts/manage.php' /etc/crontab 2>/dev/null || true
 
 section "nginx / PHP-FPM / webConfigurator"
 pgrep -laf 'nginx|php-fpm' 2>/dev/null || true
