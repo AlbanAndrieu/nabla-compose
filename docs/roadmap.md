@@ -290,6 +290,15 @@ just context
 Evidence levels remain L0 static, L1 targeted, L2 changed-file convergence and
 L3 full local publication. Only L3 means the complete local gate is green.
 
+- [x] Prevent offline source checks from passing on a failed Git comparison;
+  parse Python sources in one interpreter, retain an opt-in scope limit and
+  keep error excerpts bounded without truncating forensic logs.
+- [x] Define exact-HEAD GitHub-connector/source-snapshot recovery in the
+  `local-first-quality` skill; use already-existing artifacts only and never
+  treat source-only verification as a full Git publication proof.
+- [ ] Demonstrate L3 on the PR's exact checkout with cached dependencies;
+  report first actionable failure only, and preserve security/formatter checks.
+
 ### Dagger — portable local/CI execution
 
 Dagger remains a **beta parity PoC**, not a second source of quality policy.
