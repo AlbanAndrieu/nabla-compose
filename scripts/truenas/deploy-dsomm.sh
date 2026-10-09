@@ -136,7 +136,9 @@ if [[ "${MODE}" == "--apply" ]]; then
   }
   trap cleanup_dsomm_smoke EXIT
 
-  docker run -d --rm \
+  # Keep an exited smoke container until its logs have been collected.
+  # The EXIT trap removes it after both successful and failed diagnostics.
+  docker run -d \
     --name "${smoke_name}" \
     --network intranet \
     --cap-drop ALL \
