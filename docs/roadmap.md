@@ -181,7 +181,10 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
     restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
     observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof.
+    as contributor evidence, not sole-cause proof. The canonical diagnostic now
+    reports engine vs bouncer state, versions, config references, bounded
+    `cscli metrics` when already running, and streamed
+    `pf-scan-multi_ports` failed-send maxima without retaining the full log set.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
@@ -202,8 +205,10 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     `status/system`, `status/gateways` and `status/services`, then restore
     the exporter and obtain real pfSense metrics. Keep the identity lifecycle
     repository-managed and separate from FastAPI/admin identities.
-  - [ ] Observe at least one normal 300-second Prometheus cycle after rotation
-    and confirm no new `172.17.0.24` `user unknown` authentication failure.
+  - [x] Validate automatic Prometheus recovery after rotation: a log query
+    spanning `20:` and `21:` on 2026-10-09 still ends at `20:41:24`, so multiple
+    normal 300-second cycles completed without a new `172.17.0.24` `user unknown`
+    authentication failure.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
