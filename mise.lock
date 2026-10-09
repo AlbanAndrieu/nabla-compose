@@ -47,6 +47,11 @@ version = "4.2.4"
 backend = "aqua:helm/helm"
 specifiers = ["latest"]
 
+[[tools.hyperfine]]
+version = "2.0.0"
+backend = "aqua:sharkdp/hyperfine"
+specifiers = ["2.0.0"]
+
 [[tools.just]]
 version = "1.58.0"
 backend = "aqua:casey/just"

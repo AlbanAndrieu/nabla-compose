@@ -395,7 +395,7 @@ if [[ "${MODE}" != "fix" && "${agent_gate_changed}" == true ]]; then
   run_compact "agent gate shell formatting" \
     pre-commit run shfmt --files scripts/agent-quality-gate.sh
   run_compact "agent gate shell lint" \
-    pre-commit run shell-lint --files scripts/agent-quality-gate.sh
+    pre-commit run shellcheck --files scripts/agent-quality-gate.sh
   run_compact "agent gate shell style" \
     pre-commit run bashate --files scripts/agent-quality-gate.sh
 fi

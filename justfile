@@ -54,6 +54,14 @@ dagger-list:
 dagger-poc:
     mise run dagger-poc
 
+# Run the native reference checks used for Dagger parity.
+dagger-native-parity:
+    mise run dagger-native-parity
+
+# Benchmark warm native-vs-Dagger paths without clearing shared caches.
+dagger-bench:
+    mise run dagger-bench
+
 # Test this justfile and the Betterleaks toolchain contracts.
 tooling-test:
     python -m unittest tests.test_dev_tooling_contract -v
