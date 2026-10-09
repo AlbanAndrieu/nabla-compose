@@ -154,7 +154,7 @@ console_line() {
       ;;
   esac
 
-  printf '%b\n' "${rendered}"
+  printf '%s\n' "${rendered}"
 }
 
 fail() {
