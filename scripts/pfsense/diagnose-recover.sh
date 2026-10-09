@@ -580,11 +580,28 @@ if command -v php-fpm >/dev/null 2>&1; then
 elif [ -x /usr/local/sbin/php-fpm ]; then
   run_optional /usr/local/sbin/php-fpm -t
 fi
+printf '\nEffective/generated PHP-FPM policy:\n'
+grep -nE '^[[:space:]]*pm\.(max_children|start_servers|min_spare_servers|max_spare_servers|max_requests)' /usr/local/lib/php-fpm.conf 2>/dev/null || true
+printf '\nPackage/default PHP-FPM pool policy (comparison only):\n'
+grep -nE '^[[:space:]]*pm\.(max_children|start_servers|min_spare_servers|max_spare_servers|max_requests)' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+printf '\nPHP memory limit:\n'
+grep -nE '^[[:space:]]*memory_limit' /usr/local/etc/php.ini 2>/dev/null || true
+printf '\nPHP-FPM worker RSS:\n'
+ps axo pid,rss,pcpu,command 2>/dev/null | grep '[p]hp-fpm: pool nginx' || true
+printf '\nRecent WebConfigurator authentication failures:\n'
+grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -60 || true
+printf '\nAuthentication failures grouped by source:\n'
+grep -h 'webConfigurator authentication error' /var/log/system.log* 2>/dev/null | tail -120 | sed -n 's/.*from: \([^ ]*\)$/\1/p' | sort | uniq -c | sort -nr || true
 tail -n 450 /var/log/system.log 2>/dev/null | egrep -i 'nginx|php|fpm|webconfig|fatal|segfault|killed|memory|502|upstream|error' | tail -180 || true
 
 section "Unbound"
 UNBOUND_HEALTHY=false
-pgrep -laf '[u]nbound' 2>/dev/null || true
+UNBOUND_PID="$(pgrep -x unbound 2>/dev/null | head -n 1 || true)"
+if [ -n "${UNBOUND_PID}" ]; then
+  ps -p "${UNBOUND_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+else
+  echo 'unbound_process=absent'
+fi
 sockstat 2>/dev/null | grep ':53' | head -30 || true
 if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf ]; then
   if unbound-control -c /var/unbound/unbound.conf status 2>&1; then
@@ -593,6 +610,42 @@ if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf 
   unbound-control -c /var/unbound/unbound.conf stats_noreset 2>/dev/null | egrep '^mem\.' | head -80 || true
 fi
 printf 'unbound_control_healthy=%s\n' "${UNBOUND_HEALTHY}"
+printf '\nService Watchdog entries (Unbound should remain absent during OOM remediation):\n'
+sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | egrep -i '<name>|<service>|<servicename>|<descr>|unbound' | head -80 || true
+
+section "CrowdSec / pfBlockerNG pressure indicators"
+CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
+CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
+printf 'crowdsec_engine_pid=%s\n' "${CROWDSEC_ENGINE_PID:-absent}"
+printf 'crowdsec_firewall_bouncer_pid=%s\n' "${CROWDSEC_BOUNCER_PID:-absent}"
+if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
+  ps -p "${CROWDSEC_ENGINE_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+fi
+if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
+  ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
+fi
+if [ -f /var/log/crowdsec/crowdsec.log ]; then
+  CROWDSEC_STUCK_COUNT="$(grep -c 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null || true)"
+  CROWDSEC_MAX_ATTEMPTS="$(grep 'stuck for .*pf-scan-multi_ports' /var/log/crowdsec/crowdsec.log 2>/dev/null | sed -n 's/.*attempts:\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1)"
+  printf 'crowdsec_pf_scan_stuck_lines=%s max_attempts=%s\n' "${CROWDSEC_STUCK_COUNT:-0}" "${CROWDSEC_MAX_ATTEMPTS:-0}"
+  grep -E 'stuck for .*pf-scan-multi_ports|SIGTERM received|Crowdsec service shutting down' /var/log/crowdsec/crowdsec.log 2>/dev/null | tail -30 || true
+fi
+ASN_REPORTING="$(sed -n 's:.*<asn_reporting>\([^<]*\)</asn_reporting>.*:\1:p' /conf/config.xml 2>/dev/null | tail -n 1)"
+if grep -Eq '<asn_token>[^<]+</asn_token>' /conf/config.xml 2>/dev/null; then
+  ASN_TOKEN_PRESENT=yes
+else
+  ASN_TOKEN_PRESENT=no
+fi
+printf 'pfblocker_asn_reporting=%s asn_token_present=%s\n' "${ASN_REPORTING:-unknown}" "${ASN_TOKEN_PRESENT}"
+for db in /usr/local/share/GeoIP/asn.mmdb /usr/local/share/GeoIP/asn.csv; do
+  if [ -f "${db}" ]; then
+    ls -lh "${db}" 2>/dev/null || true
+  else
+    printf 'asn_database_missing=%s\n' "${db}"
+  fi
+done
+printf 'Recent IPinfo/ASN retry evidence:\n'
+grep -nEi 'Downloading \[ IPinfo databases \]|ASN Token not defined|Database ASN' /var/log/pfblockerng/extras.log 2>/dev/null | tail -10 || true
 
 section "REST API settings / service identities (redacted)"
 run_optional pkg info -x 'pfSense-pkg-RESTAPI'
@@ -720,7 +773,7 @@ else
 fi
 
 section "Snort / pfBlockerNG / Login Protection / PF attribution"
-pgrep -laf 'snort|pfblocker|pfb_|sshguard' 2>/dev/null || true
+pgrep -laf 'snort|pfblocker|pfb_|sshguard|crowdsec' 2>/dev/null || true
 TABLES="$(pfctl -s Tables 2>/dev/null | egrep '^(snort2c|pfB_|pfb_|sshguard$)' || true)"
 printf 'candidate_tables:\n%s\n' "${TABLES:-<none>}"
 BLOCK_MATCH_COUNT=0
