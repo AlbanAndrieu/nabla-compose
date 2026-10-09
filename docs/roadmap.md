@@ -228,6 +228,13 @@ Vaultwarden bootstrap remains independently recoverable under:
 Open work:
 
 - [ ] close the immediate DSOMM/Sentry/Scrutiny/Code queue above;
+- [ ] after DSOMM runtime acceptance, pilot importing one existing Custom App
+  into `truenas_app.custom_compose` with the existing OpenTofu/Terragrunt
+  stack. Require an empty post-import plan plus a no-op apply before replacing
+  repository deploy scripts; keep those scripts as recovery tooling until
+  reboot/rollback acceptance. Evaluate provider v3.x separately from the
+  currently pinned `PjSalty/truenas ~> 2.4.1` so a major provider upgrade is
+  not mixed with the first App-state migration.
 - [ ] accept Scanopy/Joplin/AutoKuma and Sample one service at a time;
 - [ ] convert remaining explicit legacy `env_file` declarations to canonical
   runtime paths, keeping compatibility paths until restart/reboot acceptance;
@@ -309,8 +316,9 @@ The canonical publication evidence remains `agent-pre-push`.
 - [ ] Decide whether measured cache reuse and failure readability remove enough
   CI glue to justify promotion. If not, keep Dagger experimental or remove it.
 - [ ] **Pytest deferred:** do not invent root project metadata solely for
-  Dagger. Add Pytest only after native Python project metadata is intentionally
-  normalized or a durable module measurably reduces orchestration code.
+  Dagger. Add Pytest only after a clean root Python project marker and native
+  Python project metadata are intentionally normalized, or a durable module
+  measurably reduces orchestration code.
 - [x] Native Ruff configuration is standalone; keep Ruff outside Dagger unless
   an official module or broader reusable module removes measurable code.
 - [ ] Keep GitHub Actions unchanged during the PoC. Only after reproducibility,
