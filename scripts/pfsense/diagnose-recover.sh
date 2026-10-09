@@ -38,7 +38,7 @@ Options:
   --check-identities         SSH-only audit of fastapi_posture/fastapi_security/
                             pfsense_exporter users, privileges and persisted keys.
   --apply-identities         Create missing service users (password files required)
-                            and reconcile both to steady-state least privilege.
+                            and reconcile all three to steady-state least privilege.
   --prepare-key-rotation ID  Prepare posture|security|exporter for key creation:
                             remove Deny Config Write and grant api-v2-auth-key-post.
   --finalize-key-rotation ID Restore posture|security|exporter to steady state after a
