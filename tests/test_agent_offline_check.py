@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 import subprocess
 
@@ -53,3 +54,45 @@ def test_invalid_bash_remains_blocking(tmp_path: Path) -> None:
     (tmp_path / "invalid.sh").write_text("if then\n", encoding="utf-8")
     result = invoke(tmp_path)
     assert result.returncode != 0
+
+
+def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None:
+    """A failed Git comparison must not produce a false-green empty selection."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "existing.py").write_text("def invalid(:\\n", encoding="utf-8")
+    subprocess.run(["git", "add", "existing.py"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
+         "commit", "-qm", "fixture"],
+        cwd=tmp_path,
+        check=True,
+    )
+    git_binary = shutil.which("git")
+    assert git_binary is not None
+    bin_dir = tmp_path / "mock-bin"
+    bin_dir.mkdir()
+    shim = bin_dir / "git"
+    shim.write_text(
+        '#!/bin/sh\\n'
+        'if [ "$1" = diff ] && [ "$2" = --name-only ] && '
+        '[ "$3" = --diff-filter=ACMR ]; then exit 99; fi\\n'
+        f'exec "{git_binary}" "$@"\\n',
+        encoding="utf-8",
+    )
+    shim.chmod(0o755)
+
+    result = subprocess.run(
+        ["bash", str(GATE)],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "QUALITY_BASE_REF": "HEAD",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "offline Git base missing" in result.stderr
+    assert "existing.py" in result.stderr
