@@ -34,5 +34,5 @@ def test_dsomm_smoke_name_is_valid_and_pid_scoped() -> None:
         encoding="utf-8"
     )
 
-    assert 'smoke_name="nabla-dsomm-preflight-$$"' in text
+    assert 'smoke_name="nabla-dsomm-preflight-${BASHPID}"' in text
     assert 'smoke_name="nabla-dsomm-preflight-$"' not in text
