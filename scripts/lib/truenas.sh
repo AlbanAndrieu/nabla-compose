@@ -126,9 +126,9 @@ truenas_job_compact() {
     rm -f "${tmp}"
     printf 'OK: TrueNAS job %s completed\n' "${method}"
     return 0
+  else
+    rc=$?
   fi
-
-  rc=$?
   printf 'ERROR: TrueNAS job %s failed (exit=%s); last %s lines follow\n' \
     "${method}" "${rc}" "${tail_lines}" >&2
   tr '\r' '\n' <"${tmp}" | tail -n "${tail_lines}" >&2 || true
