@@ -130,6 +130,36 @@ first failing test or job, its path, a bounded error excerpt and exact HEAD.
 Never send successful full logs or complete generated catalogs into context.
 Escalate from a concise failure to full logs only when required.
 
+## Exact-HEAD source recovery when shell DNS is blocked
+
+Use the GitHub connector as a **control plane** when a local shell cannot
+resolve `github.com`, `codeload.github.com`, or `raw.githubusercontent.com`:
+
+1. Inspect PR metadata once and pin its `head_sha`. Read check status for
+   that SHA; do not infer a green run from an earlier SHA.
+2. Check *existing* workflow artifacts for a source snapshot of exactly that
+   SHA. `nabla-site-alban` uses
+   `source-snapshot-<HEAD_SHA>`, produced with `git archive` and short
+   retention. This repository does **not** yet guarantee such an artifact.
+3. If an exact-HEAD artifact already exists, download it through the GitHub
+   connector, check artifact/run provenance, and extract into a clean isolated
+   source tree. Treat the archive as source-only; it has **no .git** and cannot
+   validate merge ancestry, hooks, or the exact publication proof.
+4. Otherwise use narrow connector `fetch_file` / per-file PR patches with
+   file SHA leases. For a reproducible local test, reconstruct only the
+   affected files and their required fixtures. Label that proof **L1 targeted
+   reproduction**, not L3 or a full repository checkout.
+5. Do not repeatedly `git clone`, `curl`, or `pip install` against a
+   known-blocked host. Missing dependencies remain unverified; never use
+   `SKIP`, `--no-verify`, or empty file selections to claim green.
+6. Preserve failing command exit codes. Show only the first actionable
+   failure and a bounded excerpt in agent context. Retain detailed evidence
+   separately when policy permits, without exposing credentials.
+
+This fallback is inspired by the `nabla-maintenance` and `nabla-quality`
+skills in `nabla-site-alban`. It must not silently create an expensive new
+GitHub Actions run just to transport sources.
+
 ## API-only fallback / source archives
 
 When the execution environment cannot obtain a complete Git checkout:
