@@ -181,7 +181,10 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
     restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
     observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof.
+    as contributor evidence, not sole-cause proof. The canonical diagnostic now
+    reports engine vs bouncer state, versions, config references, bounded
+    `cscli metrics` when already running, and streamed
+    `pf-scan-multi_ports` failed-send maxima without retaining the full log set.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
