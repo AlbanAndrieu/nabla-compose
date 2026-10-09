@@ -33,6 +33,7 @@ cd "${CANONICAL_ROOT}"
 
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 # shellcheck source=../lib/probe.sh
 source "${CANONICAL_ROOT}/scripts/lib/probe.sh"
