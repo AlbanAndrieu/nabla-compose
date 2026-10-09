@@ -202,8 +202,10 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     `status/system`, `status/gateways` and `status/services`, then restore
     the exporter and obtain real pfSense metrics. Keep the identity lifecycle
     repository-managed and separate from FastAPI/admin identities.
-  - [ ] Observe at least one normal 300-second Prometheus cycle after rotation
-    and confirm no new `172.17.0.24` `user unknown` authentication failure.
+  - [x] Validate automatic Prometheus recovery after rotation: a log query
+    spanning `20:` and `21:` on 2026-10-09 still ends at `20:41:24`, so multiple
+    normal 300-second cycles completed without a new `172.17.0.24` `user unknown`
+    authentication failure.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
