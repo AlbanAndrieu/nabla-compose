@@ -122,6 +122,12 @@ datasets just to change presets.
 
 ## OpenClaw — workstation first, TrueNAS later
 
+**Contrat métier** : OpenClaw = assistant personnel Gmail/WhatsApp (tri,
+priorisation, synthèses et brouillons sur validation) ; Hermes = assistant
+technique développement/cloud/DevSecOps/cybersécurité. Identités, secrets,
+données, mémoire et permissions isolés ; pas de transfert des messages privés
+vers Hermes. Actions de messagerie jamais automatiques au démarrage.
+
 - [ ] **P0/P1 (workstation)** : sauvegarder/restaurer, aligner Node systemd
   sur `mise` et le préfixe npm, réparer les migrations Slack/SQLite, les
   plugins/canaux, cron et la gestion des secrets avant de déclarer le runtime
