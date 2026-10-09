@@ -20,25 +20,33 @@ if [[ -z "$BASE" ]]; then
   done
 fi
 declare -a files=()
-# Do not let a failing git diff silently turn into an empty, passing scan:
-# mapfile/process substitution would otherwise hide the producer's exit code.
+base_paths=""
+use_base=false
 if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1 &&
-  git merge-base "$BASE" HEAD >/dev/null 2>&1 &&
-  git diff --name-only --diff-filter=ACMR "$BASE...HEAD" >/dev/null 2>&1; then
-  mapfile -t files < <(
-    { git diff --name-only --diff-filter=ACMR "$BASE...HEAD"
-      git diff --name-only --diff-filter=ACMR
-      git diff --cached --name-only --diff-filter=ACMR
-      git ls-files --others --exclude-standard
-    } | LC_ALL=C sort -u
-  )
-else
-  printf 'WARNING: offline Git base missing; checking all tracked + local files, not PR completeness\n' >&2
-  mapfile -t files < <(
-    { git ls-files
-      git ls-files --others --exclude-standard
-    } | LC_ALL=C sort -u
-  )
+  git merge-base "$BASE" HEAD >/dev/null 2>&1; then
+  if base_paths="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD")"; then
+    use_base=true
+  fi
+fi
+
+collect_scope() {
+  if [[ "$use_base" == true ]]; then
+    printf '%s\n' "$base_paths"
+    git diff --name-only --diff-filter=ACMR || return
+    git diff --cached --name-only --diff-filter=ACMR || return
+  else
+    printf 'WARNING: offline Git base missing; checking all tracked + local files, not PR completeness\n' >&2
+    git ls-files || return
+  fi
+  git ls-files --others --exclude-standard
+}
+# Capture the producer's exit code: mapfile < <(...) silently ignores failures.
+if ! scope="$(collect_scope | LC_ALL=C sort -u)"; then
+  printf 'ERROR: offline file inventory failed; refusing an unverified pass\n' >&2
+  exit 2
+fi
+if [[ -n "$scope" ]]; then
+  mapfile -t files <<<"$scope"
 fi
 if ((MAX_PATHS > 0 && ${#files[@]} > MAX_PATHS)); then
   printf 'ERROR: offline scope %d exceeds maximum %d; narrow the change or adjust AGENT_OFFLINE_MAX_PATHS\n' "${#files[@]}" "$MAX_PATHS" >&2
