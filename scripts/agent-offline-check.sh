@@ -43,6 +43,7 @@ if ((MAX_PATHS > 0 && ${#files[@]} > MAX_PATHS)); then
 fi
 command -v python3 >/dev/null || { echo 'ERROR: python3 is required' >&2; exit 2; }
 checked=0
+declare -a python_files=()
 for file in "${files[@]}"; do
   [[ -f "$file" && ! -L "$file" ]] || continue
   case "$file" in
@@ -51,11 +52,21 @@ for file in "${files[@]}"; do
       checked=$((checked + 1))
       ;;
     *.py)
-      python3 -c 'import ast,sys; from pathlib import Path; ast.parse(Path(sys.argv[1]).read_text(encoding="utf-8"), filename=sys.argv[1])' "$file"
-      checked=$((checked + 1))
+      python_files+=("$file")
       ;;
   esac
 done
+if (("${#python_files[@]}" > 0)); then
+  python3 - "${python_files[@]}" <<'PY'
+import ast
+from pathlib import Path
+import sys
+
+for name in sys.argv[1:]:
+    ast.parse(Path(name).read_text(encoding="utf-8"), filename=name)
+PY
+  checked=$((checked + ${#python_files[@]}))
+fi
 git diff --check
 git diff --cached --check
 printf 'OK: offline L1 syntax + whitespace checks passed, files=%d, parsed=%d\n' "${#files[@]}" "$checked"
