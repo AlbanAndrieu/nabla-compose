@@ -111,6 +111,25 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
+## Disconnected development and token budget
+
+When `github.com`, PyPI or hook repositories are unavailable, do not retry
+network operations in a loop. Use `just offline` for a **syntax-only L1**
+check (Bash syntax, Python AST and whitespace). Without a cached comparison
+ref, it checks the entire local tracked/untracked source set. It does not stop
+at an arbitrary 200-file limit; `AGENT_OFFLINE_MAX_PATHS` remains an optional
+explicit resource bound, default `0` (unlimited). A limited scan refuses to
+claim success if its bound is exceeded.
+
+Keep `agent-pre-push` authoritative for L3. Missing tools or dependencies
+are not interpreted as passing quality. Resume cached Pre-commit, Betterleaks,
+full Pytest and generated contracts when the environment permits.
+
+For smaller agents, run `mise run agent-context` first and show only the
+first failing test or job, its path, a bounded error excerpt and exact HEAD.
+Never send successful full logs or complete generated catalogs into context.
+Escalate from a concise failure to full logs only when required.
+
 ## API-only fallback / source archives
 
 When the execution environment cannot obtain a complete Git checkout:
