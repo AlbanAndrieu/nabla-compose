@@ -29,6 +29,7 @@ done
 
 # shellcheck source=../lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 all_apps=("${PERSISTENT_APPS[@]}" "${MANUAL_APPS[@]}")
 if [[ "${TARGET}" != "all" ]]; then
