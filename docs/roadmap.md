@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-08.
+Last updated: 2026-10-09.
 
 This file is the **concise execution index and conversation restart point**.
 Detailed procedures, rollback instructions and historical evidence stay in their
@@ -181,7 +181,11 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
     restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
     observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof.
+    as contributor evidence, not sole-cause proof. The canonical read-only
+    diagnostic now preserves engine/bouncer separation, versions, package and
+    scenario policy, bounded `cscli metrics` only when the engine is already up,
+    and streaming maxima for `failed_sent` / `attempts`; do not restart
+    CrowdSec merely to collect those metrics.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
@@ -202,8 +206,10 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     `status/system`, `status/gateways` and `status/services`, then restore
     the exporter and obtain real pfSense metrics. Keep the identity lifecycle
     repository-managed and separate from FastAPI/admin identities.
-  - [ ] Observe at least one normal 300-second Prometheus cycle after rotation
-    and confirm no new `172.17.0.24` `user unknown` authentication failure.
+  - [x] Observe multiple normal 300-second Prometheus cycles after rotation:
+    the last `172.17.0.24` authentication failure was observed at
+    `2026-10-09 20:41:24`, with no recurrence across the following 20:xx/21:xx
+    checks. Exporter credential regression is closed.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
