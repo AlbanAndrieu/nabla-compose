@@ -35,13 +35,13 @@ Options:
   --apply                   Run narrowly scoped recovery over SSH after probes.
   --unblock-sources         With --apply only: delete exact host entries from
                             proven snort2c/pfBlockerNG dynamic tables.
-  --check-identities         SSH-only audit of fastapi_posture/fastapi_security
-                            users, group membership, privileges and persisted keys.
+  --check-identities         SSH-only audit of fastapi_posture/fastapi_security/
+                            pfsense_exporter users, privileges and persisted keys.
   --apply-identities         Create missing service users (password files required)
                             and reconcile both to steady-state least privilege.
-  --prepare-key-rotation ID  Prepare posture|security for key creation: remove
-                            Deny Config Write and grant api-v2-auth-key-post.
-  --finalize-key-rotation ID Restore posture|security to steady state after a
+  --prepare-key-rotation ID  Prepare posture|security|exporter for key creation:
+                            remove Deny Config Write and grant api-v2-auth-key-post.
+  --finalize-key-rotation ID Restore posture|security|exporter to steady state after a
                             persisted key is visible: remove key POST, restore
                             Deny Config Write. Refuses finalization with zero keys.
   --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
@@ -68,6 +68,9 @@ Environment:
   PFSENSE_SECURITY_PASSWORD_FILE
                             One-line password file used only when --apply-identities
                             must create a missing fastapi_security user.
+  PFSENSE_EXPORTER_PASSWORD_FILE
+                            One-line password file used only when --apply-identities
+                            must create a missing pfsense_exporter user.
 
 Recommended sequence:
   1. --check
@@ -77,9 +80,9 @@ Recommended sequence:
 
 Identity/key lifecycle:
   --check-identities
-  --prepare-key-rotation posture|security
+  --prepare-key-rotation posture|security|exporter
   create the key with that service user's Basic credentials
-  --finalize-key-rotation posture|security
+  --finalize-key-rotation posture|security|exporter
   --check-identities
 USAGE
 }
@@ -120,13 +123,13 @@ while (($# > 0)); do
       ;;
     --prepare-key-rotation)
       shift
-      (($# > 0)) || fail "--prepare-key-rotation requires posture or security"
+      (($# > 0)) || fail "--prepare-key-rotation requires posture, security, or exporter"
       IDENTITY_ACTION="prepare"
       IDENTITY_TARGET="$1"
       ;;
     --finalize-key-rotation)
       shift
-      (($# > 0)) || fail "--finalize-key-rotation requires posture or security"
+      (($# > 0)) || fail "--finalize-key-rotation requires posture, security, or exporter"
       IDENTITY_ACTION="finalize"
       IDENTITY_TARGET="$1"
       ;;
@@ -191,8 +194,8 @@ fi
 if [[ -n "${IDENTITY_ACTION}" && ( "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
   fail "identity lifecycle options cannot be combined with --api-only, --apply, or --unblock-sources"
 fi
-if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" ]]; then
-  fail "identity target must be posture or security"
+if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" && "${IDENTITY_TARGET}" != "exporter" ]]; then
+  fail "identity target must be posture, security, or exporter"
 fi
 if [[ -n "${SSH_PORT}" && ! "${SSH_PORT}" =~ ^[0-9]+$ ]]; then
   fail "--port must be numeric"
@@ -239,6 +242,7 @@ run_identity_admin() {
   local target="$2"
   local posture_password_b64=""
   local security_password_b64=""
+  local exporter_password_b64=""
   local status=0
   local -a ssh_opts=(
     -o BatchMode=yes
@@ -256,6 +260,7 @@ run_identity_admin() {
   if [[ "${action}" == "apply" ]]; then
     posture_password_b64="$(password_file_b64 "${PFSENSE_POSTURE_PASSWORD_FILE:-}" "posture")"
     security_password_b64="$(password_file_b64 "${PFSENSE_SECURITY_PASSWORD_FILE:-}" "security")"
+    exporter_password_b64="$(password_file_b64 "${PFSENSE_EXPORTER_PASSWORD_FILE:-}" "exporter")"
   fi
 
   set +e
@@ -265,6 +270,7 @@ run_identity_admin() {
     printf "define('NABLA_IDENTITY_TARGET', '%s');\n" "${target}"
     printf "define('NABLA_POSTURE_PASSWORD_B64', '%s');\n" "${posture_password_b64}"
     printf "define('NABLA_SECURITY_PASSWORD_B64', '%s');\n" "${security_password_b64}"
+    printf "define('NABLA_EXPORTER_PASSWORD_B64', '%s');\n" "${exporter_password_b64}"
     printf '?>\n'
     cat "${IDENTITY_HELPER}"
   } | ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
@@ -587,7 +593,7 @@ if [ -x /usr/local/bin/php ]; then
 require_once('/etc/inc/config.inc');
 global $config;
 
-$targets = ['fastapi_posture', 'fastapi_security'];
+$targets = ['fastapi_posture', 'fastapi_security', 'pfsense_exporter'];
 $expected = [
     'fastapi_posture' => [
         'api-v2-system-version-get',
@@ -598,6 +604,12 @@ $expected = [
     ],
     'fastapi_security' => [
         'api-v2-diagnostics-table-get',
+        'user-config-readonly',
+    ],
+    'pfsense_exporter' => [
+        'api-v2-status-system-get',
+        'api-v2-status-gateways-get',
+        'api-v2-status-services-get',
         'user-config-readonly',
     ],
 ];
