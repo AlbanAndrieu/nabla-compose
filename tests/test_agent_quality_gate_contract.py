@@ -191,6 +191,25 @@ class AgentQualityGateContractTests(unittest.TestCase):
         ):
             self.assertEqual(hook_ids.count(hook_id), 1, hook_id)
 
+    def test_shellcheck_uses_official_versioned_precommit_hook(self) -> None:
+        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "repo: https://github.com/koalaman/shellcheck-precommit",
+            config,
+        )
+        self.assertIn("rev: v0.11.0", config)
+        self.assertIn("- id: shellcheck", config)
+        self.assertNotIn("github.com/detailyang/pre-commit-shell", config)
+        self.assertNotIn("- id: shell-lint", config)
+        self.assertIn(
+            "pre-commit run shellcheck --files scripts/agent-quality-gate.sh",
+            gate,
+        )
+
     def test_shell_formatter_and_bashate_split_responsibility(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
@@ -198,7 +217,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('args: [-i, "E003,E006,E011,E042,E043"]', config)
         self.assertNotIn('args: [-i, "E002,E003,E006,E011,E042,E043"]', config)
         self.assertIn("shfmt owns formatting", config)
-        self.assertIn("shell-lint/ShellCheck owns semantic shell lint", config)
+        self.assertIn("ShellCheck owns semantic shell lint", config)
 
     def test_pre_push_converges_fixes_before_publication(self) -> None:
         config = (ROOT / ".pre-commit-pre-push.yaml").read_text(encoding="utf-8")

@@ -181,10 +181,7 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
     restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
     observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof. The canonical diagnostic now
-    reports engine vs bouncer state, versions, config references, bounded
-    `cscli metrics` when already running, and streamed
-    `pf-scan-multi_ports` failed-send maxima without retaining the full log set.
+    as contributor evidence, not sole-cause proof.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
@@ -205,10 +202,8 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     `status/system`, `status/gateways` and `status/services`, then restore
     the exporter and obtain real pfSense metrics. Keep the identity lifecycle
     repository-managed and separate from FastAPI/admin identities.
-  - [x] Validate automatic Prometheus recovery after rotation: a log query
-    spanning `20:` and `21:` on 2026-10-09 still ends at `20:41:24`, so multiple
-    normal 300-second cycles completed without a new `172.17.0.24` `user unknown`
-    authentication failure.
+  - [ ] Observe at least one normal 300-second Prometheus cycle after rotation
+    and confirm no new `172.17.0.24` `user unknown` authentication failure.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
@@ -285,44 +280,62 @@ L3 full local publication. Only L3 means the complete local gate is green.
 ### Dagger — portable local/CI execution
 
 Dagger remains a **beta parity PoC**, not a second source of quality policy.
-The repository installs the stable CLI `0.21.10`, while the new workspace/check
-surface is selected explicitly with `--x-release=v1.0.0-beta.15`. The
-canonical publication evidence remains `agent-pre-push`.
+The canonical publication evidence remains `agent-pre-push`.
 
 - [x] Add a bounded `dagger.toml` workspace with
-  `defaults_from_dotenv=false`, generated checks disabled for the PoC and heavy/
-  sensitive source trees excluded.
-- [x] Start with two existing deterministic concerns that already have native
-  repository coverage: **ShellCheck + Biome**. Their Dagger module sources are
-  pinned to reviewed Git commits instead of floating module names.
-- [x] Pin Dagger `0.21.10` in Mise/mise.lock and expose
-  `just dagger-sync`, `just dagger-list` plus `just dagger-poc`; the tasks
-  explicitly select `v1.0.0-beta.15`.
-- [x] Add a Pre-commit contract for the Dagger configuration/tool pins and keep
-  the PoC separate from `just pre-push`.
-- [ ] Run `just dagger-sync` first on a checkout with a supported container
-  runtime, review/commit the generated `dagger.lock`, then run
-  `just dagger-list` and `just dagger-poc`.
-- [ ] Prove parity against the native ShellCheck/Biome contracts on the same
-  exact HEAD and compare failure readability.
-- [ ] Measure cold/warm execution and cache reuse against the corresponding
-  `just loop` work before deciding whether Dagger removes enough CI glue to
-  justify promotion.
-- [ ] **Pytest deferred:** the official Dagger Pytest discovery expects a clean
-  root Python project marker; this repository currently has no root
-  `pyproject.toml`/`tox.ini`. Do not invent a project marker solely for
-  Dagger. Add Pytest only after native project metadata is intentionally
-  normalized or a durable local Dagger module clearly reduces code.
-- [x] Repair the native Ruff configuration debt: `.ruff.toml` is now
-  standalone and no longer extends the missing root `pyproject.toml`.
-- [ ] **Ruff in Dagger deferred:** the current official Dagger module catalog
-  does not expose a Ruff module. Do not create a repository-local wrapper merely
-  to duplicate the native Ruff path; revisit only if an official module appears
-  or a broader local module removes measurable orchestration code.
-- [ ] Keep GitHub Actions unchanged during the PoC. Only after local parity is
-  proven may a later PR make Actions a thin `dagger check` trigger.
-- [ ] Promote Dagger from the experimental section of `local-first-quality`
-  only after the runtime/parity evidence above is green.
+  `defaults_from_dotenv=false`, generated checks disabled for the PoC and
+  sensitive/heavy source trees excluded.
+- [x] Start with native concerns already owned by the repository:
+  **ShellCheck + Biome**; module sources are commit-pinned.
+- [x] Pin Dagger `0.21.10` in Mise/mise.lock and centralize the
+  workspace/check surface in one non-secret Mise value,
+  `DAGGER_WORKSPACE_RELEASE=v1.0.0-beta.15`; task commands reference only
+  that value.
+- [x] Make Biome reproducible before benchmarking:
+  `@biomejs/biome=2.4.12` is exact in package.json/package-lock; the Dagger
+  module is pinned to official commit
+  `03db7bbf81087918657205c1eace20dfff7e29b3`, uses a digest-pinned Node
+  image, forces npm and installs with `--ignore-scripts`.
+- [x] Replace the legacy `detailyang/pre-commit-shell` wrapper with the
+  official `koalaman/shellcheck-precommit@v0.11.0`; the native reference no
+  longer depends on an unpinned system ShellCheck binary.
+- [x] Align the relevant ShellCheck exclusion set with the native Pre-commit
+  contract, including `biscuitcutter.sh`.
+- [x] Make native Biome parity non-mutating: use the exact local
+  `node_modules/.bin/biome check` after `npm ci --ignore-scripts`, not the Pre-commit
+  `biome-check` hook because that hook runs with `--write`.
+- [x] Keep the PoC credential-free:
+  `defaults_from_dotenv=false`; Mise-loaded operator `.env*` values are not
+  Dagger module settings/defaults. Any future credential must use an explicit
+  Dagger `Secret` input and receive a separate security review.
+- [x] Fail closed: `dagger-list`, `dagger-poc` and `dagger-bench` refuse
+  execution until a reviewed `dagger.lock` exists.
+- [x] Add mature OSS benchmark tooling instead of custom timing code:
+  Hyperfine `2.0.0` is pinned through Mise; `just dagger-bench` compares
+  the two stable recipes `just dagger-native-parity` and `just dagger-poc`
+  using one warmup + three runs.
+- [ ] Run `just dagger-sync` on a supported container runtime, review/commit
+  the generated `dagger.lock`, and verify that the official ShellCheck
+  module's internal `koalaman/shellcheck-alpine` lookup is resolved
+  immutably. If not, stop promotion rather than adding a local wrapper.
+- [ ] Run `just dagger-list`, then `just dagger-native-parity` and
+  `just dagger-poc` on the same exact HEAD. Compare findings, scope and
+  failure readability; parity must be understood before performance matters.
+- [ ] Run `just dagger-bench` for warm-cache comparison. Record cold-start
+  behavior only from a naturally cold/fresh environment; never clear shared
+  Docker/Dagger caches just to generate a benchmark.
+- [ ] Decide whether measured cache reuse and failure readability remove enough
+  CI glue to justify promotion. If not, keep Dagger experimental or remove it.
+- [ ] **Pytest deferred:** do not invent root project metadata solely for
+  Dagger. Add Pytest only after native Python project metadata is intentionally
+  normalized or a durable module measurably reduces orchestration code.
+- [x] Native Ruff configuration is standalone; keep Ruff outside Dagger unless
+  an official module or broader reusable module removes measurable code.
+- [ ] Keep GitHub Actions unchanged during the PoC. Only after reproducibility,
+  parity and performance acceptance may a later PR make Actions a thin
+  `dagger check` trigger.
+- [ ] Promote Dagger out of the experimental skill section only after those
+  runtime criteria pass.
 
 References: <https://docs.dagger.io/reference/config-files/dagger-toml/>,
 <https://docs.dagger.io/cli/checking/>,

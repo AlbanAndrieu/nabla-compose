@@ -201,13 +201,6 @@ Important incident lessons from 2026-10-08/09:
   million-scale `failed_sent/attempts` counters is abnormal pressure evidence;
 - distinguish the CrowdSec engine from `crowdsec-firewall-bouncer`; the bouncer
   can remain running while the engine is deliberately isolated;
-- do not infer engine runtime from `pfsense_service_enabled{name="crowdsec"} 1`;
-  that metric describes service enablement/configuration, not the live PID;
-- when mining CrowdSec logs on this constrained appliance, stream counters and
-  maxima and retain only a bounded tail; never accumulate the full matching log
-  set in a shell variable;
-- only run `cscli metrics` when the CrowdSec engine is already running; do not
-  restart the engine merely to collect diagnostics;
 - when `asn.mmdb`/`asn.csv` and the IPinfo token are absent, repeated
   `Downloading [ IPinfo databases ]` lines are retry-loop evidence; disabling
   ASN Reporting is a valid bounded mitigation when ASN enrichment is not needed;
