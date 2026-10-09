@@ -119,6 +119,22 @@ owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
 the service README/runbook. Never bulk-finalize env files or recreate non-empty
 datasets just to change presets.
 
+## OpenClaw workstation stabilization (separate personal assistant)
+
+- [ ] **P0:** check mise Node / systemd runtime mismatch with the read-only
+  [workstation diagnostic](../scripts/workstation/diagnose-openclaw.sh);
+  create and test a private backup before any mutation or update.
+- [ ] **P1:** repair Slack/session migration, WhatsApp version and reconnect
+  issues, plaintext secrets and cron errors; validate personal Gmail/WhatsApp
+  triage in read-only mode and require approval for mail actions.
+- [ ] **P2:** design isolated TrueNAS Compose/ZFS/secret storage and rehearse
+  recovery; migrate only after acceptance with a single active Gateway.
+- [ ] **Isolation:** OpenClaw = personal messaging; Hermes = development,
+  cloud and cybersecurity. No shared personal message state or secrets.
+
+Procedure, evidence and rollback contract:
+[OpenClaw workstation runbook](./openclaw-workstation-runbook.md).
+
 ## Current execution order
 
 1. **P0 runtime closure:** stabilize the pfSense edge-memory/DNS regression,
