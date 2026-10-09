@@ -111,6 +111,29 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
+## Disconnected workstation / agent fallback
+
+If github.com, package registries or pre-commit hook downloads are blocked, do
+not retry the same network command in a loop or claim that an abbreviated gate
+is complete. Run `just offline` (or
+`bash scripts/agent-offline-check.sh`) from the available checkout. It performs
+local Bash syntax checks, Python AST parsing and Git whitespace checks without
+installing packages or using network access. It falls back to the tracked/local
+file inventory when the comparison base is unavailable and explicitly warns
+that PR-wide coverage has not been established. Failures remain blocking.
+
+This is **L1 syntax evidence only**. It never replaces the complete pre-push
+quality gate, security scanners, formatters, generators or tests. Use cached
+pre-commit environments, an already provisioned toolchain, or a verified source
+archive to restore L2/L3. If the archive lacks `.git`, keep its source-only
+checks separate from Git publication/freshness assertions.
+
+For small-model contexts use `mise run agent-context`; its default output is
+limited to 25 changed paths and status entries, with total counts preserved.
+Increase `AGENT_CONTEXT_MAX_PATHS` only when the truncated entries matter.
+Fetch the exact failing file or diagnostic rather than dumping the repository,
+all CI logs or entire dependency trees into the agent conversation.
+
 ## API-only fallback / source archives
 
 When the execution environment cannot obtain a complete Git checkout:
