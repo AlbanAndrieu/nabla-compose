@@ -175,6 +175,39 @@ Service restoration priority after an OOM is normally:
 Do not start ntopng on this appliance. Keep legacy softflowd disabled when
 native pflow is providing the required exports.
 
+### Current OOM/CrowdSec incident diagnostics
+
+For active appliance incidents, prefer the canonical deep diagnostic before
+reconstructing ad-hoc greps:
+
+```bash
+scripts/pfsense/diagnose-recover.sh --check
+```
+
+The helper now correlates current-boot and date-scoped system-log OOM evidence,
+relevant cron jobs, effective generated PHP-FPM policy, exact Unbound process
+state, CrowdSec engine vs firewall-bouncer state, CrowdSec
+`pf-scan-multi_ports` failed-send pressure, pfBlockerNG ASN/IPinfo state and
+recent WebConfigurator authentication sources.
+
+Important incident lessons from 2026-10-08/09:
+
+- use `pgrep -x unbound`, not a broad argument match; `lighttpd_pfb` and other
+  commands can contain `/var/unbound` without being the resolver;
+- on pfSense, compare package/default PHP-FPM files with
+  `/usr/local/lib/php-fpm.conf`; the generated file is the relevant effective
+  policy when they differ;
+- a CrowdSec `stuck ... firewallservices/pf-scan-multi_ports` loop with
+  million-scale `failed_sent/attempts` counters is abnormal pressure evidence;
+- distinguish the CrowdSec engine from `crowdsec-firewall-bouncer`; the bouncer
+  can remain running while the engine is deliberately isolated;
+- when `asn.mmdb`/`asn.csv` and the IPinfo token are absent, repeated
+  `Downloading [ IPinfo databases ]` lines are retry-loop evidence; disabling
+  ASN Reporting is a valid bounded mitigation when ASN enrichment is not needed;
+- one stable day with CrowdSec stopped while Snort and Unbound remain up
+  strengthens CrowdSec as a contributor but does not prove sole causality when
+  other pressure sources were fixed in the same window.
+
 ### Repository regression audit
 
 When a workstation checkout of `nabla-compose` is available, prefer the
@@ -494,6 +527,48 @@ FastAPI Sample production uses two dedicated identities over shared transport de
 The historical generic `PFSENSE_API_KEY` was removed from FastAPI Cloud on 2026-09-02 after both dedicated identities were validated. FastAPI Sample may temporarily retain code-level migration fallback, but do not recommend restoring the generic shared key or merging the two privilege sets.
 
 Never print, echo, commit or paste either dedicated API key into diagnostics.
+
+### Prometheus exporter identity
+
+TrueNAS Prometheus uses a separate pfSense service identity,
+`pfsense_exporter`, with only:
+
+```text
+GET /api/v2/status/system
+GET /api/v2/status/gateways
+GET /api/v2/status/services
+```
+
+The corresponding steady-state privilege IDs are:
+
+```text
+api-v2-status-system-get
+api-v2-status-gateways-get
+api-v2-status-services-get
+user-config-readonly
+```
+
+Do not reuse `fastapi_posture`, `fastapi_security`, an admin key, or the
+write-capable observability operator key for this exporter.
+
+Repository lifecycle:
+
+```bash
+scripts/pfsense/diagnose-recover.sh --check-identities
+scripts/pfsense/diagnose-recover.sh --prepare-key-rotation exporter
+scripts/pfsense/diagnose-recover.sh --finalize-key-rotation exporter
+```
+
+Runtime validation on TrueNAS:
+
+```bash
+sudo bash scripts/truenas/diagnose-pfsense-exporter-auth.sh
+```
+
+The runtime preflight sends exactly one request and suppresses the key and
+response body. HTTP 401 means the key is rejected. HTTP 403 means the key
+authenticated but endpoint privilege, REST API Access List or Allowed
+Interfaces policy still denies the request.
 
 ### Posture/liveness identity
 

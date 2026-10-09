@@ -179,7 +179,9 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     accumulated millions of failed event-send attempts; keep the firewall
     bouncer independent while the engine is isolated.
   - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
-    restarting the engine.
+    restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
+    observed with CrowdSec stopped while Snort and Unbound remained up; keep this
+    as contributor evidence, not sole-cause proof.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
@@ -195,13 +197,13 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     rule references. It contained one office address plus all 256 LAN /24
     addresses expanded individually; the replacement admin alias resolves only
     to `80.15.4.233`.
-  - [ ] Repair the repeated pfSense exporter authentication failures from
-    `172.17.0.24`: the 300-second cadence and exact
-    `system/gateways/service` endpoint set now attribute them to
-    `pfsense-exporter`. Run the single-request
-    `diagnose-pfsense-exporter-auth.sh` preflight, then reconcile/rotate only
-    the dedicated exporter credential according to 401 vs 403 evidence; do not
-    reopen WAN 10443 or broaden the human-administration alias.
+  - [x] Repair the rejected pfSense exporter credential: create dedicated
+    `pfsense_exporter`, rotate the stale key, prove HTTP 200 for
+    `status/system`, `status/gateways` and `status/services`, then restore
+    the exporter and obtain real pfSense metrics. Keep the identity lifecycle
+    repository-managed and separate from FastAPI/admin identities.
+  - [ ] Observe at least one normal 300-second Prometheus cycle after rotation
+    and confirm no new `172.17.0.24` `user unknown` authentication failure.
   - [ ] Revalidate TrueNAS/HAProxy TCP/7000 source policy separately after the
     legacy alias removal; do not use the FastAPI Cloud public hostname as a
     source identity because ingress DNS does not prove stable cloud egress.
