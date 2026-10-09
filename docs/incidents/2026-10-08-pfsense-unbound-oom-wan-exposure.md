@@ -67,6 +67,18 @@ The firewall bouncer remained resident independently at low CPU/RSS. Do not
 restart the CrowdSec engine until the event backpressure failure is understood
 and a bounded CPU/RSS acceptance sample is available.
 
+Upstream analysis narrows the meaning of the warning: `failed_sent` /
+`attempts` are counters from CrowdSec's internal leaky-bucket event delivery,
+not bouncer/LAPI network-send counters. The producer performs a non-blocking
+send to the scenario bucket and immediately retries when the channel is not
+ready. This busy-spin pattern was reported in
+[crowdsecurity/crowdsec#1519](https://github.com/crowdsecurity/crowdsec/issues/1519)
+and is still visible in the
+[v1.8.1 `manager_run.go`](https://github.com/crowdsecurity/crowdsec/blob/v1.8.1/pkg/leakybucket/manager_run.go).
+On this memory-constrained appliance, millions of attempts therefore provide a
+credible direct explanation for the observed high CrowdSec CPU, while remaining
+only contributor evidence for the system-wide OOM.
+
 ## WAN TCP/10443 exposure diagnosis
 
 The pfSense WebConfigurator nginx listener was bound directly on `*:10443`.
@@ -204,9 +216,10 @@ The stale Prometheus exporter credential was also repaired on 2026-10-09:
 - `pfsense-exporter` restarted successfully and a supervised `/metrics`
   scrape returned pfSense gateway/service metrics.
 
-Final acceptance still requires at least one normal 300-second Prometheus cycle
-with no new `webConfigurator authentication error ... user 'unknown' from:
-172.17.0.24` entry.
+Exporter acceptance is now complete: the last observed
+`172.17.0.24` authentication failure was at `2026-10-09 20:41:24`, and no
+new failure appeared across multiple following 300-second Prometheus cycles
+covering the 20:xx and 21:xx observation windows.
 
 ## Remaining actions
 
@@ -214,8 +227,6 @@ with no new `webConfigurator authentication error ... user 'unknown' from:
 - keep Unbound out of Service Watchdog while OOM remains plausible;
 - correlate the Snort 02:09 rule-update job with the 02:10 OOM before changing
   its schedule;
-- observe at least one normal 300-second Prometheus cycle after the exporter
-  key rotation and confirm no new `172.17.0.24` authentication failure;
 - measure PHP-FPM/Unbound/Snort memory under the reduced WAN load before applying
   any persistent PHP-FPM tuning;
 - revalidate the TCP/7000 TrueNAS source policy independently after removing the
