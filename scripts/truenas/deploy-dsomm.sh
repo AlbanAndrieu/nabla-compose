@@ -139,7 +139,7 @@ if [[ "${MODE}" == "--apply" ]]; then
     --name "${smoke_name}" \
     --network intranet \
     --cap-drop ALL \
-    --security-opt no-new-privileges:true \
+    --security-opt no-new-privileges=true \
     --mount "type=bind,src=${CANONICAL_ROOT}/apps/dsomm/config/meta.yaml,dst=/srv/assets/YAML/meta.yaml,readonly" \
     --mount "type=bind,src=${model_file},dst=/srv/assets/YAML/default/model.yaml,readonly" \
     --mount "type=bind,src=${progress_file},dst=/srv/assets/YAML/team-progress.yaml,readonly" \
@@ -195,20 +195,20 @@ if [[ "${MODE}" == "--apply" ]]; then
     payload="$(jq -cn --argjson compose "${runtime_compose_json}" '{
       custom_compose_config: $compose
     }')"
-    midclt call -j app.update "${APP_ID}" "${payload}"
+    truenas_job_compact app.update "${APP_ID}" "${payload}"
   else
     payload="$(jq -cn --arg app_name "${APP_ID}" --arg compose "${runtime_compose_json}" '{
       app_name: $app_name,
       custom_app: true,
       custom_compose_config_string: $compose
     }')"
-    midclt call -j app.create "${payload}"
+    truenas_job_compact app.create "${payload}"
   fi
 
   state="$(truenas_app_state "${APP_ID}")"
   if [[ "${state}" == "STOPPED" ]]; then
     printf 'Starting DSOMM Custom App after configuration reconciliation...\n'
-    midclt call -j app.start "${APP_ID}"
+    truenas_job_compact app.start "${APP_ID}"
     state="$(truenas_app_state "${APP_ID}")"
     if [[ "${state}" == "STOPPED" ]]; then
       printf 'ERROR: DSOMM app.start completed but the App returned to STOPPED.\n' >&2
