@@ -18,6 +18,9 @@ $passwords = [
     'fastapi_security' => defined('NABLA_SECURITY_PASSWORD_B64')
         ? (string)NABLA_SECURITY_PASSWORD_B64
         : '',
+    'pfsense_exporter' => defined('NABLA_EXPORTER_PASSWORD_B64')
+        ? (string)NABLA_EXPORTER_PASSWORD_B64
+        : '',
 ];
 $definitions = [
     'fastapi_posture' => [
@@ -35,6 +38,15 @@ $definitions = [
         'descr' => 'FastAPI pfSense security observer',
         'base_privs' => [
             'api-v2-diagnostics-table-get',
+        ],
+    ],
+    'pfsense_exporter' => [
+        'short' => 'exporter',
+        'descr' => 'TrueNAS Prometheus pfSense exporter',
+        'base_privs' => [
+            'api-v2-status-system-get',
+            'api-v2-status-gateways-get',
+            'api-v2-status-services-get',
         ],
     ],
 ];
@@ -239,6 +251,8 @@ function nabla_reconcile_service_user(
 function nabla_report_endpoint_acl(): void {
     $classes = [
         'system_version' => '\\RESTAPI\\Endpoints\\SystemVersionEndpoint',
+        'status_system' => '\\RESTAPI\\Endpoints\\StatusSystemEndpoint',
+        'status_gateways' => '\\RESTAPI\\Endpoints\\StatusGatewaysEndpoint',
         'status_services' => '\\RESTAPI\\Endpoints\\StatusServicesEndpoint',
         'dns_resolver_settings' => '\\RESTAPI\\Endpoints\\ServicesDNSResolverSettingsEndpoint',
         'system_dns' => '\\RESTAPI\\Endpoints\\SystemDNSEndpoint',
@@ -414,7 +428,7 @@ try {
 
     if ($changed) {
         write_config(
-            'Reconciled FastAPI pfSense REST API service identities'
+            'Reconciled pfSense REST API service identities'
         );
     }
 } catch (Throwable $exc) {
