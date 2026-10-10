@@ -34,3 +34,11 @@ def test_unavailable_docker_logs_are_not_reported_as_zero() -> None:
     assert "zero errors cannot be inferred" in source
     assert "cli_path=" in source
     assert 'elif logs="$(' in source
+
+
+def test_scope_and_historical_404_classification() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert 'SCOPE="truenas"' in source
+    assert 'SCOPE="workstation"' in source
+    assert "skipped-non-truenas" in source
+    assert "historical Key-ID POST/404 evidence" in source
