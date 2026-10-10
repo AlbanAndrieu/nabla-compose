@@ -18,7 +18,7 @@ x-nabla:
 
 services:
   crowdsec:
-    image: crowdsecurity/crowdsec:v1.7.8
+    image: crowdsecurity/crowdsec:v1.8.1
     container_name: crowdsec
     restart: unless-stopped
     x-nabla:
@@ -61,10 +61,20 @@ services:
         required: false
     environment:
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
+      # pfSense evidence on 2026-10-10 showed an internal leaky-bucket spin:
+      # 19,899,999 failed sends / 19,900,000 attempts with sigclosed=0.
+      # Keep the rest of the pfSense collection while removing only this scenario.
+      DISABLE_SCENARIOS: firewallservices/pf-scan-multi_ports
       TZ: ${TZ:-Europe/Paris}
     ports:
       - "${CROWDSEC_LAPI_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_LAPI_PORT:-8084}:8080"
       - "${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_METRICS_PORT:-6060}:6060"
+    healthcheck:
+      test: ["CMD-SHELL", "cscli lapi status >/dev/null 2>&1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     volumes:
       - crowdsec_config:/etc/crowdsec
       - crowdsec_data:/var/lib/crowdsec/data
