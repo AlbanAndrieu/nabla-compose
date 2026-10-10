@@ -262,6 +262,32 @@ operations to supported backends such as S3, but their workflows differ:
   existing homelab orchestration.
   https://restic.readthedocs.io/en/stable/
 
+**Databasus comparison required before a backup pilot:** Databasus is a
+self-hosted database backup application for PostgreSQL (including physical
+incrementals / WAL streaming and point-in-time recovery where configured),
+MongoDB, MySQL and MariaDB. It adds web scheduling, failure notifications,
+restore verification and destinations including S3. It does **not** replace a
+general-purpose file backup for Compose, TrueNAS configuration, ZFS exports,
+Terraform state metadata or other non-database files. Restic covers those
+artifacts but does not itself provide PostgreSQL PITR orchestration.
+
+| Need | Databasus | Restic |
+| --- | --- | --- |
+| PostgreSQL logical/physical backup and PITR | native database workflow | external database dump/WAL handling needed |
+| MongoDB/MySQL/MariaDB backup | native supported dump workflow | requires external dumps |
+| Config files, datasets and host exports | not its primary role | natural fit |
+| Schedules/UI/alerts | integrated | reuse cron/automation + monitoring |
+| Encrypted offsite repository | configurable | built in |
+| Recovery verification | database restore workflows | `check` plus explicit restore drill |
+
+**Decision gate:** choose Databasus for verified DB-specific recovery if
+its PITR/restore capability adds value; use Restic for non-DB artifacts
+and offsite copies. They can be complementary, but do not operate
+overlapping retention/backup jobs without a named owner and tested
+consistent snapshot boundary. Neither should use Garage's Terraform
+state bucket as the only backup destination.
+References: https://databasus.com/ , https://github.com/databasus/databasus .
+
 **Pilot choice:** Restic plus an existing scheduler for the lightest
 integration; choose Kopia if its built-in policy/GUI/server materially
 reduces backup operations. Use an **independent offsite target**, not only
