@@ -18,6 +18,21 @@ Primary references:
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
 - incidents/evidence: [`incidents/`](./incidents/).
 
+## P0–P2 — Cloudflare, identité et traçabilité (2026-10-10)
+
+- [x] **P0 repository** — corriger la déclaration dupliquée LanguageTool (identité canonique, `external: false`).
+- [x] **P0 prototype** — `scripts/cloudflare/manage-routes.py` inventorie DNS/Tunnel/Access et produit des plans de création/suppression **sans mutation**. Ce prototype n'est pas un feu vert opérationnel.
+- [ ] **P0** — vérifier la propriété DNS effective d'AutoXpose, du compagnon `dnsupdater` lié à Traefik, des enregistrements Cloudflare et des règles pfSense/HAProxy. Bloquer les migrations avec conflit ; retirer d'abord la source déclarative du contrôleur sortant.
+- [ ] **P0** — diagnostiquer les états IT Tools / Karakeep : dans FastAPI, HTTP 403/redirect doit déclencher la sonde Cloudflare Access, comparer refus anonyme, authentification machine et origine ; distinguer « sain protégé » de « Access prouvé, origine non vérifiée ». La connexion humaine GitHub + YubiKey/FIDO2 ne prouve pas le succès du Service Token.
+- [ ] **P0** — vérifier Scanopy LAN sur `172.17.0.24:60072` avant publication : initialisation TrueNAS, HTTP, DNS LAN et éventuel Traefik. Son démon utilise `privileged: true`, `network_mode: host` et le socket Docker ; ne pas rendre automatiquement le serveur public. Si accès extérieur nécessaire, passer exclusivement par Cloudflare Access/FIDO2 et vérifier les chemins de contournement.
+- [ ] **P1** — étendre le planificateur Cloudflare aux opérations de création, activation, désactivation, suppression avec état propriétaire, dry-run, authentification minimale, politique Access **avant** route, fermeture automatique JIT après reboot, tests de conflits et rollback. Jamais de suppression d'objets tiers ou de changement automatique des données DNS sans revue.
+- [ ] **P1** — évaluer Cloudflare Logpush → collecteur HTTPS authentifié → Loki/Grafana (ou R2 puis ingestion) : depuis 2026-09-30, 25 Go/mois d'export externe inclus par compte, **puis 0,10 USD/Go** ; vérifier le dataset `access_requests`, les permissions Logs Edit + Zero Trust PII Read, la limite budgétaire, les masquages PII, la rétention et la fiabilité du collecteur. Sources : https://developers.cloudflare.com/logs/logpush/pricing/ et https://developers.cloudflare.com/logs/logpush/logpush-job/enable-destinations/http/ .
+- [ ] **P1** — centraliser les logs Cloudflare Access, pfSense/HAProxy, Traefik, AutoXpose et gestionnaire JIT ; détecter accès anonyme inattendu, dérive de route, modifications DNS, élévation de privilège et disparition de journaux.
+- [ ] **P2** — étudier Keycloak OIDC comme IdP central en alternative ou complément à GitHub/FIDO2, notamment pour les groupes, politiques d'authentification, journaux et comptes de secours. Ne pas introduire de point de défaillance unique ; conserver le MFA matériel, la récupération d'urgence et des identités d'administration séparées.
+- [ ] **P2** — rattacher `TM-TRUENAS-001` aux UUID officiels DSOMM, inclure les menaces de vol de session GitHub/Access et l'usage abusif des identités Service Token/API ; produire des preuves et ne pas augmenter artificiellement le score DSOMM.
+
+Voir [le threat modeling](security/cloudflare-temporary-access-threat-model.md).
+
 ## Roadmap contract
 
 - **declared / repository-ready** means code/config exists; it does not imply
