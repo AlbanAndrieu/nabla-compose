@@ -213,6 +213,18 @@ else
   fi
 fi
 
+printf '\n==> Central decisions\n'
+if [[ -n "${container_id:-}" ]]; then
+  decisions_json="$(timeout 12 docker exec "${container_id}" cscli decisions list -o json 2>/dev/null || true)"
+  decisions_count="$(jq 'if type == "array" then length else 0 end' <<<"${decisions_json:-[]}" 2>/dev/null || printf '0')"
+  printf 'crowdsec_active_decisions=%s\n' "${decisions_count}"
+  if [[ "${decisions_count}" =~ ^[0-9]+$ ]] && ((decisions_count > 0)); then
+    ok "central LAPI exposes ${decisions_count} active decision(s)"
+  else
+    warn "central LAPI currently exposes no active decisions; workstation PF tables may legitimately be empty"
+  fi
+fi
+
 printf '\n==> Central LAPI bouncer registration\n'
 if [[ "${CUTOVER_REQUIRED}" != true ]]; then
   printf 'crowdsec_bouncer_registration=deferred_runtime_only\n'

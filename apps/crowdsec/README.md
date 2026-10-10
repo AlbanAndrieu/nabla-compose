@@ -160,19 +160,32 @@ sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
 `--accept` additionally requires that the pfSense firewall bouncer has polled
 the central LAPI at least once.
 
-Complete the pfSense-side acceptance from the workstation with the read-only
-helper:
+The acceptance is intentionally split by trust boundary:
+
+**On TrueNAS only** — validate the central engine/LAPI/Loki path and observe
+`crowdsec_active_decisions`:
 
 ```bash
-bash scripts/pfsense/verify-crowdsec-small.sh
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+```
+
+TrueNAS never SSHes to pfSense.
+
+**On the workstation only** — validate pfSense Small mode over the workstation's
+existing SSH path:
+
+```bash
+bash scripts/workstation/verify-crowdsec-pfsense.sh
 ```
 
 It verifies that the local Security Engine is absent, the firewall bouncer is
 running, its `api_url` targets `http://172.17.0.24:8084`, and the
 `crowdsec_blacklists` / `crowdsec6_blacklists` PF tables exist. Empty tables
 are a warning by default because they are legitimate when no active ban exists.
-When `cscli decisions list` on TrueNAS proves at least one active ban, rerun
-with `--require-nonempty-table`; an empty PF table then becomes a failure.
+When the TrueNAS diagnostic reports `crowdsec_active_decisions>0`, rerun the
+workstation helper with `--require-nonempty-table`; an empty PF table then
+becomes a failure. Do not run `docker exec` from the workstation.
 
 ## Migration from pfSense Large to Small
 

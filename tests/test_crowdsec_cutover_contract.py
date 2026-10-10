@@ -14,7 +14,8 @@ README = ROOT / "apps" / "crowdsec" / "README.md"
 ACQUIS = ROOT / "apps" / "crowdsec" / "acquis.d" / "security.yaml"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-crowdsec-cutover.sh"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-crowdsec.sh"
-PFSENSE_VERIFY = ROOT / "scripts" / "pfsense" / "verify-crowdsec-small.sh"
+PFSENSE_VERIFY = ROOT / "scripts" / "workstation" / "verify-crowdsec-pfsense.sh"
+PFSENSE_VERIFY_COMPAT = ROOT / "scripts" / "pfsense" / "verify-crowdsec-small.sh"
 
 class CrowdSecCutoverContractTest(unittest.TestCase):
     def test_central_engine_uses_current_pinned_image_and_disables_spin_scenario(self) -> None:
@@ -156,6 +157,7 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "--require-nonempty-table",
             "acceptable only when the central LAPI has no active ban decisions",
             "BatchMode=yes",
+            'sub(/^[^:]*:[[:space:]]*/, "", line)',
         ):
             self.assertIn(expected, text)
 
@@ -170,11 +172,18 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertNotRegex(text, r"(?m)^\\s*(?:service|pfctl).*\\b(?:restart|start|add|delete)\\b")
         self.assertNotIn("cscli bouncers add", text)
 
+    def test_pfsense_small_compat_wrapper_is_explicit_and_executable(self) -> None:
+        text = PFSENSE_VERIFY_COMPAT.read_text(encoding="utf-8")
+        self.assertIn("scripts/workstation/verify-crowdsec-pfsense.sh", text)
+        self.assertIn("TrueNAS must not SSH to pfSense", text)
+        self.assertTrue(PFSENSE_VERIFY_COMPAT.stat().st_mode & stat.S_IXUSR)
+
     def test_runbook_requires_preflight_before_pfsense_small_cutover(self) -> None:
         text = " ".join(README.read_text(encoding="utf-8").split())
         self.assertIn("diagnose-crowdsec-cutover.sh --runtime", text)
         self.assertIn("diagnose-crowdsec-cutover.sh --check", text)
         self.assertIn("diagnose-crowdsec-cutover.sh --accept", text)
+        self.assertIn("verify-crowdsec-pfsense.sh", text)
         self.assertIn("DISABLE_SCENARIOS", text)
         self.assertIn("firewallservices/pf-scan-multi_ports", text)
         self.assertIn("max_attempts=19900000", text)
