@@ -46,6 +46,21 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden inventory evidence — CrowdSec (2026-10-10)
+
+- [x] Vaultwarden unlocked; expected `TrueNAS` folder exists and its
+  ID matches `config/secrets/manifest.json`.
+- [x] Search for `crowdsec` returned three unrelated entries,
+  but **not** `nabla/prod/crowdsec`; no available proof that the
+  existing pfSense bouncer key is stored there.
+- [ ] Perform metadata-only exact inventory search in the TrueNAS
+  folder; if no matching item exists, stop automated rendering and
+  locate existing key through an approved operator-controlled source.
+  Do not reuse unrelated CrowdSec account passwords or implicitly
+  create/rotate a bouncer registration.
+- [ ] CLI `KeyIdBackfillError` HTTP 404 remains a separate
+  compatibility issue despite some `bw list` commands working.
+
 ### P0 blocker — Bitwarden CLI endpoint and crypto compatibility (2026-10-10)
 
 - [x] TrueNAS Vaultwarden local `http://127.0.0.1:30032/api/config`
