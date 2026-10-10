@@ -313,7 +313,7 @@ prompt. Use the repository script through an explicitly selected
 POSIX interpreter **from the workstation checkout**:
 
 ```bash
-ssh home.albandrieu.com /bin/sh -s < scripts/pfsense/check-central-crowdsec-bouncer.sh
+ssh -T home.albandrieu.com 'sudo /bin/sh -s' < scripts/pfsense/check-central-crowdsec-bouncer.sh
 ```
 
 The script reads the existing pfSense bouncer key locally, does **not**
