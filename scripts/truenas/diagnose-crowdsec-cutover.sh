@@ -156,7 +156,8 @@ else
 fi
 
 loki_probe="$(mktemp)"
-trap 'rm -f "${loki_probe}"' EXIT
+crowdsec_metrics_probe="$(mktemp)"
+trap 'rm -f "${loki_probe:-}" "${crowdsec_metrics_probe:-}"' EXIT
 if curl --silent --show-error --get --connect-timeout 4 --max-time 12
   --data-urlencode 'query={job="pfsense",device="pfsense"}'
   --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}"
@@ -168,6 +169,30 @@ if curl --silent --show-error --get --connect-timeout 4 --max-time 12
   ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
 else
   error "no pfSense Loki event observed in lookback ${PFSENSE_LOG_LOOKBACK}"
+fi
+
+printf '\n==> CrowdSec Loki datasource metric\n'
+if curl --silent --show-error --connect-timeout 4 --max-time 10 \
+  --output "${crowdsec_metrics_probe}" \
+  "http://${METRICS_HOST}:${METRICS_PORT}/metrics" 2>/dev/null &&
+  grep -Eq '^cs_lokisource_hits_total([ {]|$)' "${crowdsec_metrics_probe}"; then
+  loki_hits="$(
+    awk '/^cs_lokisource_hits_total([ {]|$)/ {
+      found = 1
+      value = $NF + 0
+      total += value
+    }
+    END {
+      if (found) printf "%.0f", total
+    }' "${crowdsec_metrics_probe}"
+  )"
+  printf 'crowdsec_loki_datasource_metric=present hits=%s\n' "${loki_hits:-0}"
+  ok "CrowdSec Loki datasource metric is exported"
+  if [[ "${loki_hits:-0}" == "0" ]]; then
+    warn "CrowdSec Loki datasource has not consumed a post-start event yet"
+  fi
+else
+  error "CrowdSec metric cs_lokisource_hits_total is missing"
 fi
 
 printf '\n==> Central LAPI bouncer registration\n'
