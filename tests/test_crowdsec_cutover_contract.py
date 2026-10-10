@@ -47,6 +47,25 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", compose)
         self.assertNotIn("/mnt/cpool/crowdsec/.env.secrets", compose)
 
+    def test_loki_metric_absence_is_only_fatal_after_matching_activity(self) -> None:
+        text = DIAGNOSE.read_text(encoding="utf-8")
+
+        self.assertIn("pfsense_loki_event_observed=false", text)
+        self.assertIn("pfsense_loki_event_observed=true", text)
+        self.assertIn('query={job="pfsense"}', text)
+        self.assertIn(
+            "job=pfsense events exist but none are classified device=pfsense",
+            text,
+        )
+        self.assertIn(
+            'if [[ "${pfsense_loki_event_observed}" == true ]]',
+            text,
+        )
+        self.assertIn(
+            "CrowdSec Loki metric is not exported yet because no matching post-start pfSense event has been consumed",
+            text,
+        )
+
     def test_cutover_diagnostic_parses_with_bash(self) -> None:
         result = subprocess.run(
             ["bash", "-n", str(DIAGNOSE)],
