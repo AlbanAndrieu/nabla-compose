@@ -24,6 +24,9 @@ def test_executable_gate_rejects_non_executable_shebang(tmp_path):
 
     subprocess.run(["git", "update-index", "--chmod=+x", "example.sh"],
                    cwd=tmp_path, check=True)
+    # Git tracks the executable bit, but does not chmod the checkout itself.
+    # The gate intentionally requires owner-executable worktree permissions.
+    script.chmod(0o700)
     passed = subprocess.run(["bash", "-e", "-c", invocation], cwd=tmp_path,
                             text=True, capture_output=True)
     assert passed.returncode == 0, passed.stderr
