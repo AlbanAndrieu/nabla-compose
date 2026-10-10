@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import socket
 import subprocess
@@ -108,8 +107,9 @@ def main() -> int:
     critical = ("docker_fastapi", "postgres", "redis", "fastapi_http")
     critical_good = ("running", "reachable", "reachable", "ok")
     failed = [
-        name for name, expected in zip(critical, critical_good)
+        name for name, expected in zip(critical, critical_good, strict=True)
         if checks[name]["state"] != expected
+        and not (name == "fastapi_http" and checks[name].get("http_status") in (401, 403))
     ]
     report = {
         "schema_version": 1, "mode": "post_reboot_read_only",
