@@ -221,6 +221,43 @@ discover an available Python environment with `command -v python`,
 The old two-file comparison is no longer needed when only the
 canonical source remains.
 
+## 7. Git root-owned index recurring; consumer generator traceback
+
+Further operator evidence: the main `.git/index` was repaired, but a
+subsequent `sudo git status` left it `root:apps 0600` again (mtime
+12:16). Git status may refresh and replace the index while running as
+root. Do **not** run `sudo git status`, `sudo git add`, `sudo git
+switch`, `sudo python scripts/generate-*.py` or a root-owned quality
+gate in this checkout. The correct target identity for Git is the
+non-root operator, while `sudo` remains necessary for TrueNAS APIs.
+
+Check each index as ordinary operator, and change ownership only when
+the index is actually root-owned:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+for index in .git/index .git/modules/anything-llm/index; do
+  [[ -f "$index" ]] || continue
+  stat -c '%U:%G %a %n' "$index"
+  if [[ "$(stat -c %u "$index")" == 0 ]]; then
+    sudo chown "$(id -u):$(id -g)" "$index"
+  fi
+done
+git status --short --branch
+```
+
+If a different submodule reports another protected index, inspect the
+specific path and repair it individually. Do not recursively chown the
+checkout. Do not discard `fastapi-sample` new commits.
+
+The consumer generator then failed at `git ls-files` with exit 128
+and masked the Git failure with a missing `subprocess` import. The
+import was added in PR #251. **The import alone cannot fix a protected
+Git index.** After the operator fixes ownership and pulls the change,
+run generators as the ordinary operator. If a subsequent generator
+write is denied by root-owned generated artifacts, inspect that file's
+exact ownership before any targeted repair.
+
 ## Acceptance
 
 - Checkout writable by operator without `sudo git` and nested
