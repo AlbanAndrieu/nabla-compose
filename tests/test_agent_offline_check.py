@@ -59,7 +59,7 @@ def test_invalid_bash_remains_blocking(tmp_path: Path) -> None:
 def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None:
     """A failed Git comparison must not produce a false-green empty selection."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "existing.py").write_text("def invalid(:\\n", encoding="utf-8")
+    (tmp_path / "existing.py").write_text("def invalid(:\n", encoding="utf-8")
     subprocess.run(["git", "add", "existing.py"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
@@ -73,10 +73,10 @@ def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None
     bin_dir.mkdir()
     shim = bin_dir / "git"
     shim.write_text(
-        '#!/bin/sh\\n'
+        '#!/bin/sh\n'
         'if [ "$1" = diff ] && [ "$2" = --name-only ] && '
-        '[ "$3" = --diff-filter=ACMR ]; then exit 99; fi\\n'
-        f'exec "{git_binary}" "$@"\\n',
+        '[ "$3" = --diff-filter=ACMR ]; then exit 99; fi\n'
+        f'exec "{git_binary}" "$@"\n',
         encoding="utf-8",
     )
     shim.chmod(0o755)
@@ -120,9 +120,9 @@ def test_offline_inventory_git_failure_is_blocking(tmp_path: Path) -> None:
     mock_dir.mkdir()
     mock_git = mock_dir / "git"
     mock_git.write_text(
-        '#!/bin/sh\\n'
-        'if [ "$1" = ls-files ]; then exit 97; fi\\n'
-        f'exec "{binary}" "$@"\\n',
+        '#!/bin/sh\n'
+        'if [ "$1" = ls-files ]; then exit 97; fi\n'
+        f'exec "{binary}" "$@"\n',
         encoding="utf-8",
     )
     mock_git.chmod(0o755)
