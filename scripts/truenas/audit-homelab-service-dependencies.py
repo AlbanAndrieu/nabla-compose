@@ -49,7 +49,7 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
     by_id = {str(item["id"]): item for item in apps}
     nodes = topology.get("nodes", [])
     entries = {str(n.get("id")): n for n in nodes if isinstance(n, dict)}
-    errors = warnings = passed = skipped = 0
+    errors = warnings = passed = uncovered = 0
     stopped = sorted(a for a, record in by_id.items() if record.get("state") == "STOPPED")
     selected = set(plan["selected_apps"])
     predecessors: dict[str, set[str]] = {name: set() for name in selected}
@@ -75,7 +75,7 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
     states: dict[str, str] = {}
     for i, wave in enumerate(plan["start_waves"], 1):
         phase = plan.get("start_wave_phases", [])[i - 1]
-        wave_passed = wave_warnings = wave_errors = 0
+        wave_passed = wave_warnings = wave_errors = wave_uncovered = 0
         if verbose:
             print(f"\n🔗 Wave {i} · {phase} · {len(wave)} Apps")
         for name in wave:
@@ -94,13 +94,26 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
             checks = monitoring_by_app.get(name, [])
             if not deep or not checks:
                 if verbose:
-                    render("pass", name, "TrueNAS RUNNING" + ("; no declared network probe" if deep else ""), color=color)
+                    render("pass", name, "TrueNAS RUNNING; network not checked", color=color)
+                if deep:
+                    uncovered += 1
+                    wave_uncovered += 1
                 passed += 1
                 wave_passed += 1
                 states[name] = "pass"
                 continue
             results = [(node, *probe(monitor, timeout)) for node, monitor in checks]
-            failures = [f"{node} ({detail})" for node, ok, detail in results if not ok]
+            failures = [
+                f"{node} ({detail})"
+                for node, ok, detail in results
+                if not ok and "missing host/port metadata" not in detail
+            ]
+            incomplete = sum(
+                not ok and "missing host/port metadata" in detail
+                for _, ok, detail in results
+            )
+            uncovered += incomplete
+            wave_uncovered += incomplete
             if failures:
                 # An unsupported/missing metadata check is not runtime proof of DOWN.
                 render("warn", name, "; ".join(failures[:3]), color=color)
@@ -109,23 +122,23 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
                 states[name] = "warn"
             else:
                 if verbose:
-                    render("pass", name, f"RUNNING; {len(results)} network checks OK", color=color)
+                    render("pass", name, f"RUNNING; {len(results) - incomplete} reachable, {incomplete} unconfigured", color=color)
                 passed += 1
                 states[name] = "pass"
 
-        print(f"🔗 {i:02d} {phase}: ✅ {wave_passed}  ⚠️ {wave_warnings}  ❌ {wave_errors}")
+        print(f"🔗 {i:02d} {phase}: ✅ {wave_passed}  ⚠️ {wave_warnings}  ❌ {wave_errors}  ◻️ {wave_uncovered} no probe")
 
     print(f"\n⏹️  STOPPED Apps: {len(stopped)} (not tested)")
     if stopped and verbose:
         print("   " + ", ".join(stopped))
     unmapped = plan.get("unmapped_apps", [])
     if unmapped:
-        print(f"⚠️  Catalog mapping missing: {len(unmapped)} Apps")
+        print(f"ℹ️  Catalog mapping to complete: {len(unmapped)} Apps")
         if verbose:
             for name in unmapped:
-                render("warn", name, "no declared service-topology mapping", color=color)
-        warnings += len(unmapped)
-    print(f"\n📊 SUMMARY apps_ok={passed} failures={errors} warnings={warnings} stopped={len(stopped)}")
+                render("skip", name, "no declared service-topology mapping", color=color)
+        uncovered += len(unmapped)
+    print(f"\n📊 SUMMARY running={passed} failures={errors} warnings={warnings} probe_gaps={uncovered} stopped={len(stopped)}")
     return 1 if errors else 0
 
 
