@@ -64,7 +64,7 @@ services:
             - apps/prometheus/prometheus.yml:job_name=crowdsec
     # Vaultwarden import alias: CROWDSEC_PFSENSE_BOUNCER_KEY
     env_file:
-      - path: /mnt/cpool/crowdsec/.env.secrets
+      - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
         required: false
     environment:
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata

@@ -42,6 +42,8 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         compose = COMPOSE.read_text(encoding="utf-8")
         self.assertNotIn("PFSENSE_LOG_DIR", compose)
         self.assertNotIn("/logs/pfsense", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", compose)
+        self.assertNotIn("/mnt/cpool/crowdsec/.env.secrets", compose)
 
     def test_cutover_diagnostic_is_read_only_bounded_and_secret_safe(self) -> None:
         text = DIAGNOSE.read_text(encoding="utf-8")

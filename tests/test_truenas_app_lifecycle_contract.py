@@ -83,7 +83,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         openhands_readme = self.read("apps/openhands/README.md")
 
         self.assertIn("required: false", crowdsec)
-        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", crowdsec)
+        self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", crowdsec)
         self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", crowdsec)
         self.assertNotIn("apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY", crowdsec)
         self.assertIn("can bootstrap without a bouncer secret", crowdsec_readme)
@@ -148,7 +148,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         readme = self.read("apps/crowdsec/README.md")
         akvorado_readme = self.read("apps/akvorado/README.md")
 
-        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", compose)
         self.assertNotIn("${CROWDSEC_PFSENSE_BOUNCER_KEY}", compose)
         self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", readme)
         self.assertIn('app_name: "crowdsec"', readme)
