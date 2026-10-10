@@ -5,6 +5,7 @@ from collections import Counter
 counts = Counter()
 context_estimates = []
 prompt_budgets = []
+context_ratios = []
 for line in sys.stdin:
     s = line.lower()
     if "429" in s and ("budget has been exceeded" in s or "max budget" in s):
@@ -19,6 +20,8 @@ for line in sys.stdin:
             context_estimates.append(int(estimate.group(1)))
         if budget:
             prompt_budgets.append(int(budget.group(1)))
+        if estimate and budget and int(budget.group(1)) > 0:
+            context_ratios.append(int(estimate.group(1)) / int(budget.group(1)))
     if "memory sync aborted" in s:
         counts["memory_sync_aborted"] += 1
     if "database integrity verification passed" in s:
@@ -32,8 +35,8 @@ if context_estimates:
     print(f"estimated_prompt_tokens_max={max(context_estimates)}")
 if prompt_budgets:
     print(f"prompt_budget_before_reserve_min={min(prompt_budgets)}")
-if context_estimates and prompt_budgets:
-    print(f"estimated_prompt_to_budget_ratio_max={max(context_estimates) / min(prompt_budgets):.2f}")
+if context_ratios:
+    print(f"estimated_prompt_to_budget_ratio_max={max(context_ratios):.2f}")
 print("NOTE: estimated tokens and journal matches are not billable LiteLLM usage")
 if counts["litellm_budget_429"]:
     print("ACTION: inspect LiteLLM virtual-key budget; do not bypass cost limits")
