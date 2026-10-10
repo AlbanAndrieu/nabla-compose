@@ -27,7 +27,7 @@ it is **not** runtime acceptance evidence.
 | Global Langflow | OpenRAG-compatible `0.7.1` image | bundle aligned to OpenRAG `0.8.0` | high |
 | OpenRAG OpenSearch | OpenRAG `latest` by default | matching `0.8.0` image and schema | critical |
 | Open WebUI | `v0.11.0` | `v0.11.4` | medium |
-| Open WebUI Pipelines | `main` | migrate active Pipes/Filters before retirement | medium |
+| Open WebUI Pipelines | Removed from source Compose (unused, operator-confirmed) | runtime retirement separate; preserve volume until reviewed | low |
 | Docling Serve CPU | `v1.32.0` | `v1.36.0`; API/OCR smoke | medium |
 | LiteLLM TrueNAS | `main-stable` | evaluate `v1.104.2`; verify OCI signature | high |
 | LiteLLM GPU workstation | runtime unknown | inspect separately; preserve aliases | high |
@@ -42,6 +42,81 @@ Versions discovered on 2026-10-10 from the projects' official GitHub
 releases. Revalidate release, image, digest and changelog at execution time.
 Remaining services in the 75 Compose app files require the same comparison;
 do not infer `upgrade available` from an unpinned tag.
+
+
+## Operator-confirmed state and proxy decisions (2026-10-10)
+
+- **No ingested data:** Docling, OpenRAG, Wazuh, Keycloak and **OpenSearch
+  Security**. Their application/index/identity data migration is **not
+  required** at present, conditional on a final read-only check. Do not
+  delete other OpenSearch RAG indices without checking: the RAG cluster
+  and the distinct `opensearch-security` instance are different workloads.
+  Reconfiguration still needs preserved secrets, baseline and rollback.
+- **Garage:** stores only the **Terraform state bucket**. It is not a
+  general replacement for MinIO without a migration decision. Protect
+  state versioning, encryption, concurrency/locking semantics, state
+  history and an independent/offsite backup; avoid experimental writes.
+- **MinIO:** declared endpoint used by Langfuse for S3 event, media and
+  export data (`http://minio:9000`). It should not be removed unless
+  Langfuse has an alternative tested endpoint, buckets and migration proof.
+  The Compose file currently exposes `9002:9000` and `9091:9001`.
+- **AIStor:** distinct MinIO enterprise distribution with a license
+  argument `--license /minio.license`; the repository does not declare
+  an associated license-file mount. It publishes the **same host ports
+  9002 and 9091** as MinIO, so both definitions cannot bind simultaneously
+  to the same host addresses. Its `latest` image and evaluation/commercial
+  license need explicit review. **Do not deploy in parallel by default**.
+- **Nginx Proxy Manager and NPMplus:** both are operator-confirmed trials
+  for `hello.int.albandrieu.com`, not authoritative ingress. NPMplus
+  was intended to supersede NPM, but did not work. Future ownership
+  belongs to Traefik, while pfSense HAProxy remains the explicit
+  upstream for directly exposed `*.int` routes. No blind proxy deletion.
+
+### Proposed Traefik + CrowdSec integration (not enabled)
+
+1. **Topology:** pfSense HAProxy (TLS termination and re-encryption)
+   → TrueNAS Traefik → application. Existing CrowdSec LAPI is declared
+   on `172.17.0.24:8084`, with a separate pfSense bouncer. Define a
+   **distinct Traefik bouncer identity/key**; never reuse the pfSense key.
+2. **Ingestion:** enable JSON access logging (bounded retention), mount
+   only the selected Traefik access log read-only into CrowdSec and
+   configure a Traefik acquisition source/parser. Current CrowdSec
+   acquisition lists pfSense and Suricata, **not Traefik**.
+3. **Enforcement:** evaluate the maintained
+   `maxlerebourg/crowdsec-bouncer-traefik-plugin` as a pinned
+   Traefik middleware. Load plugin code in an isolated canary first;
+   no `latest` plugin or accidental production middleware activation.
+   LAPI endpoint `172.17.0.24:8084` is reachable via host port only
+   if Docker networking/firewall policies allow it.
+4. **Real IP:** pin trusted forwarded headers to the actual pfSense
+   HAProxy source addresses (not all RFC1918 ranges). Validate spoofed
+   `X-Forwarded-For` rejection, direct LAN traffic, Cloudflare Tunnel
+   boundaries and the distinction between CDN/proxy/source identities.
+5. **AppSec WAF:** optional **second step**, after plain IP remediation:
+   the CrowdSec AppSec listener, collections and bouncer appsec route
+   must be separately configured. Start with monitor-only/rule tuning,
+   then enable bounded enforcement for a canary.
+6. **Canary:** route only `hello.int.albandrieu.com` through Traefik.
+   Confirm TLS, backend identity, HAProxy headers, login, false-positive
+   rate, response times, Prometheus metrics, CrowdSec decisions and
+   rollback. Do not enable CrowdSec middleware globally immediately.
+7. **Retire tests:** only after reviewing 30020–30022 and NPMplus
+   30360–30362 consumers, certificates, admin UI and data. Keep data
+   backups and disable/retire separate TrueNAS apps through its API
+   when explicitly approved.
+
+**Security debt surfaced in Traefik Compose:** `--api.insecure=true`
+and the HTTP dashboard published at `:8080`; global
+`serversTransport.insecureSkipVerify=true`; debug logging; and direct
+Docker socket access. Add security-hardening acceptance to the same
+Traefik canary, not as an undocumented proxy migration. Prefer the
+existing Docker socket proxy only after verifying the required read-only
+Docker API capability. Avoid broad configuration changes to the
+production entrypoint during the experiment.
+
+Sources: https://docs.crowdsec.net/u/bouncers/traefik/ ,
+https://www.crowdsec.net/blog/enhance-docker-compose-security ,
+https://docs.crowdsec.net/docs/appsec/intro/ .
 
 ## Existing dependencies and potential integration
 
@@ -100,7 +175,7 @@ do not infer `upgrade available` from an unpinned tag.
 
 | Candidate | Initial decision | Evidence required before removal |
 | --- | --- | --- |
-| Open WebUI Pipelines | **Evaluate retirement** | live pipeline inventory, active routes, model references, filters, rollback |
+| Open WebUI Pipelines | **Source Compose removed** | TrueNAS runtime retirement and volume cleanup remain separate, non-automatic transactions |
 | OpenRAG vs Open WebUI | **Keep separate** | evaluate UX vs ingestion/retrieval boundaries and permissions |
 | Gatus vs Uptime Kuma/AutoKuma | **Keep pending** | active probes, alert owners, synthetic checks and recovery path |
 | Traefik vs NPM/NPMplus | **Keep pending** | actual ingress ownership, TLS/DNS routes and cert renewal |
@@ -136,7 +211,7 @@ have been accepted.
 
 ## Execution waves and acceptance
 
-### Wave 0 — inventory and evidence (no mutations)
+### Wave 0 — inventory and evidence (no runtime mutations)
 
 - [ ] Capture `app.query` state and effective runtime image digest for
   OpenRAG, Langflow, OpenSearch, Open WebUI, Pipelines, Docling, LiteLLM,
@@ -171,9 +246,12 @@ health/permission smoke passes. **Defer:** shared-state migration.
   API, Docker DNS and supported Docling request format.
 - [ ] Upgrade Open WebUI `0.11.0` → `0.11.4` in an isolated test,
   preserving database and file volumes and testing citations/RAG.
-- [ ] Inventory every Pipelines filter/pipe; replace with reviewed
-  in-process Functions or existing MCP/OpenAPI integration only where
-  equivalent. Check tool security, execution boundaries and latency.
+- [x] Remove the operator-confirmed unused Pipelines service and its
+  unused named-volume declaration from the source Open WebUI Compose.
+  This is a source-only change; do not automatically delete the existing
+  runtime app or Docker volume, and regenerate catalog projections separately.
+- [ ] Confirm no external consumer of TCP/9099 and retire any existing
+  Pipelines runtime only through the TrueNAS application lifecycle.
 - [ ] Test OIDC via Keycloak/Cloudflare boundary separately.
 
 **Done:** representative PDF/OCR, embeddings, streaming chat, user ACL and
