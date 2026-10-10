@@ -45,7 +45,7 @@ def fake_yaml(url: str, timeout: float = 8.0):
         "team-evidence.yaml": {"evidence": {"uuid-1": [{"id": "example"}]}},
     }
     if name == "default/model.yaml":
-        return Response(b"meta:\n  source: upstream\n---\nversion: 5.0.2\nactivities: {}\n")
+        return Response(b"meta:\n  version: 5.0.2\n---\nAgentic AI:\n  Data Protection: {}\n")
     return Response(yaml.safe_dump(docs[name]).encode())
 
 
@@ -83,7 +83,7 @@ def test_reboot_hook_keeps_existing_gates() -> None:
 def test_reject_ambiguous_model_documents() -> None:
     def ambiguous(url: str, timeout: float = 8.0):
         if url.endswith("/default/model.yaml"):
-            return Response(b"version: 5.0.2\\n---\\nversion: 5.0.2\\n")
+            return Response(b"meta:\n  version: 5.0.2\n---\nmeta:\n  version: 5.0.2\n---\nAgentic AI: {}\n")
         return fake_yaml(url, timeout=timeout)
 
     with patch.object(module, "urlopen", side_effect=ambiguous):
