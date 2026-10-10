@@ -56,17 +56,35 @@ The central engine can bootstrap without a bouncer secret. The optional
 `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` file is loaded only when present, so a
 missing secret file no longer makes the entire TrueNAS Compose model invalid.
 
-Before switching pfSense to the remote LAPI, render this required bouncer
-credential:
+Before switching pfSense to the remote LAPI, materialize the required
+`BOUNCER_KEY_PFSENSE_FIREWALL` from the existing Vaultwarden manifest. Do not
+invent or rotate a key merely to make the runtime gate green.
 
-```text
-BOUNCER_KEY_PFSENSE_FIREWALL=<random secret shared with the pfSense firewall bouncer>
+Run the renderer from the **unprivileged operator shell** that owns the unlocked
+`BW_SESSION`; never pass that session through `sudo -E`:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py --check
+python scripts/secrets/render_from_bitwarden.py \
+  --app crowdsec \
+  --output-file /tmp/crowdsec.env.secrets
+
+sudo install -d -o root -g root -m 700 \
+  /mnt/cpool/secrets/runtime/crowdsec
+sudo install -o root -g root -m 600 \
+  /tmp/crowdsec.env.secrets \
+  /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
+rm -f /tmp/crowdsec.env.secrets
+
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check crowdsec
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
 ```
 
-The file must be mode `0600`. The repository Vaultwarden manifest imports the
-legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` name and renders the container-facing
-`BOUNCER_KEY_PFSENSE_FIREWALL` variable. Redeploy CrowdSec after rendering the
-file, then verify `cscli bouncers list` before changing pfSense.
+The repository manifest maps legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` to the
+container-facing `BOUNCER_KEY_PFSENSE_FIREWALL`. If Vaultwarden cannot render
+that field, stop the cutover: an existing CrowdSec bouncer registration does not
+reveal its API key. Rotation is a separate explicit operator transaction and is
+never performed by `deploy-crowdsec.sh`.
 
 Optional:
 
