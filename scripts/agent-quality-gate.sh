@@ -204,7 +204,9 @@ collect_changed_files() {
     awk 'NF' |
     sort -u |
     while IFS= read -r file; do
-      [[ -f "${file}" ]] && printf '%s\n' "${file}"
+      if [[ -f "${file}" ]]; then
+        printf '%s\n' "${file}"
+      fi
     done
 }
 
