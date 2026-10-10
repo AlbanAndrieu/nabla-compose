@@ -158,6 +158,7 @@ fi
 loki_probe="$(mktemp)"
 crowdsec_metrics_probe="$(mktemp)"
 trap 'rm -f "${loki_probe:-}" "${crowdsec_metrics_probe:-}"' EXIT
+pfsense_loki_event_observed=false
 if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
   --data-urlencode 'query={job="pfsense",device="pfsense"}' \
   --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
@@ -166,9 +167,21 @@ if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
   --output "${loki_probe}" \
   "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
   jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
+  pfsense_loki_event_observed=true
   ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
 else
-  error "no pfSense Loki event observed in lookback ${PFSENSE_LOG_LOOKBACK}"
+  if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
+    --data-urlencode 'query={job="pfsense"}' \
+    --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
+    --data-urlencode 'limit=1' \
+    --data-urlencode 'direction=backward' \
+    --output "${loki_probe}" \
+    "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
+    jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
+    error "job=pfsense events exist but none are classified device=pfsense; inspect Alloy source-IP relabeling"
+  else
+    error "no pfSense syslog event observed in Loki in lookback ${PFSENSE_LOG_LOOKBACK}; verify pfSense -> Alloy UDP/1514"
+  fi
 fi
 
 printf '\n==> CrowdSec Loki datasource metric\n'
@@ -192,7 +205,12 @@ if curl --silent --show-error --connect-timeout 4 --max-time 10 \
     warn "CrowdSec Loki datasource has not consumed a post-start event yet"
   fi
 else
-  error "CrowdSec metric cs_lokisource_hits_total is missing"
+  printf 'crowdsec_loki_datasource_metric=absent\n'
+  if [[ "${pfsense_loki_event_observed}" == true ]]; then
+    error "CrowdSec metric cs_lokisource_hits_total is missing despite recent matching pfSense events"
+  else
+    warn "CrowdSec Loki metric is not exported yet because no matching post-start pfSense event has been consumed"
+  fi
 fi
 
 printf '\n==> Central LAPI bouncer registration\n'
