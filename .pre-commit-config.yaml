@@ -467,6 +467,7 @@ repos:
       - id: compose-config
         name: "🐳 compose · Validate Compose configuration"
         language: system
-        entry: bash -c 'for file do if ! docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution; then printf "ERROR: compose-config failed: %s\\n" "$file" >&2; exit 1; fi; done' --
+        entry: >-
+          bash -c 'for file do if ! docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution; then printf "ERROR: compose-config failed: %s\\n" "$file" >&2; exit 1; fi; done' --
         files: '(^|/)(compose|docker-compose)([.-][^./]+)?\.ya?ml$'
         stages: [pre-commit]
