@@ -176,3 +176,19 @@ The 429 skill-review issue remains separately confirmed as exhaustion of the `op
 ### Provider route diagnostics accepted on workstation (2026-10-10)
 
 Both `python3 scripts/workstation/openclaw-route-metadata.py` and `bash scripts/workstation/openclaw-ops.sh --routes` completed with identical sanitized output. `litellm-main` and `litellm-cron` have non-loopback HTTP base URLs and configured API keys without detected simple environment-reference syntax. Generic `litellm` has a loopback HTTP URL and no API key in this provider entry; `ollama` has a non-loopback HTTP URL and configured key. No embedded URL credentials were detected. `agents.defaults.memorySearch` is not declared in the inspected JSON. **This does not determine effective memory-core embedding credentials, provider routing, or HTTP authentication success.** The OpenClaw memory status still declares `openai/text-embedding-3-small`, and Gateway process inspection previously found `OPENAI_API_KEY` present while the shell did not. Do not infer that generic `litellm` carries embeddings or automatically change memorySearch routing. Next: inspect the OpenClaw `memory-core` plugin's effective settings and sanitized 401 request target; preserve state and avoid index rebuild until the route and credentials are validated.
+
+### P0 embedding 401 root-cause evidence: invalid key and unresolved reference (2026-10-10)
+
+Two `openclaw memory status --deep` invocations returned `openai embeddings failed (401)`, `code=invalid_api_key` for model `text-embedding-3-small`. Main returned a redacted key-like value; a subsequent cron-only invocation displayed a **literal placeholder** matching `${NABLA_…KEY}`. Do not record, compare, or reproduce key fragments. This is direct proof that OpenAI rejects the effective credential and, in the cron-only CLI path, that a reference was not expanded. An earlier combined invocation returned a different masked value for cron; do not assume all CLI/service processes resolve secrets identically.
+
+The Gateway's process environment had an OpenAI key, while the interactive shell lacked one. The API caller in these observations is the OpenClaw CLI; **the Gateway's key presence does not validate the CLI's embedding credentials**. Existing `models.providers.litellm-main.apiKey` and `litellm-cron.apiKey` relate to chat routes, not automatically to OpenAI memory embeddings.
+
+Both vector stores reported `ready` and loaded sqlite-vec; semantic embeddings were unavailable due to provider auth. Main 15/96 and cron 0/63 remain dirty/paused. The provider error, not missing sqlite-vec, is the immediate blocker.
+
+Read-only investigation sequence:
+1. Inspect secret-reference syntax and effective variable availability in the precise CLI and user-systemd contexts **without printing values or variable names**; cross-check the OpenClaw memory-core/provider configuration sources.
+2. Ensure the authorized credential for the intended OpenAI embeddings endpoint is actually resolved and scoped for `text-embedding-3-small`. Avoid hardcoding, logging or copying API keys into Git. When correcting systemd SecretRefs, review a restart separately.
+3. Run one deliberately bounded `openclaw memory status --agent main --deep` and confirm `Embeddings: available`; probe `cron` separately only if the first passes. Deep probes may make provider calls and incur charges.
+4. Only after authorization, consistent state backup and confirmed embeddings, review `memory index` for main then cron, keeping SQLite/JSONL snapshots and their 768-dimensional prior vectors safe.
+
+Do **not** run `memory reset`, `memory index --force`, `memory status --fix` or `doctor --fix` to resolve 401. A 401 with `invalid_api_key` requires credential routing correction, not indexing.
