@@ -35,6 +35,7 @@ GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-aft
 DOCKER_STORAGE_AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
 FASTAPI_REBOOT_DIAGNOSTIC="${NABLA_FASTAPI_REBOOT_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-fastapi-integrations.py}"
 INGRESS_ROUTE_AUDIT="${NABLA_INGRESS_ROUTE_AUDIT:-${BUNDLE_ROOT}/scripts/ingress/audit-internal-routes.py}"
+DSOMM_POST_REBOOT_CHECK="${NABLA_DSOMM_POST_REBOOT_CHECK:-${BUNDLE_ROOT}/scripts/truenas/check-dsomm-post-reboot.py}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
@@ -804,6 +805,20 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
       { warn "strict internal ingress audit failed"; postcheck_failed=1; }
   else
     warn "strict ingress audit unavailable: ${INGRESS_ROUTE_AUDIT}"
+    postcheck_failed=1
+  fi
+  # Run after App resume: DSOMM must serve real YAML, not the Caddy SPA HTML fallback.
+  # No reboot/restart or change to persisted assessment data.
+  if [[ -f "${DSOMM_POST_REBOOT_CHECK}" ]]; then
+    if [[ "$(app_state dsomm)" == RUNNING ]]; then
+      python3 "${DSOMM_POST_REBOOT_CHECK}" ||
+        { warn "DSOMM YAML/context acceptance failed"; postcheck_failed=1; }
+    else
+      warn "DSOMM is not RUNNING; runtime assessment cannot be accepted yet"
+      postcheck_failed=1
+    fi
+  else
+    warn "DSOMM acceptance script missing: ${DSOMM_POST_REBOOT_CHECK}"
     postcheck_failed=1
   fi
   ((postcheck_failed == 0)) ||
