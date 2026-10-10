@@ -29,6 +29,42 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — OpenClaw ShellCheck et préparation DSOMM/Gatus/Sentry/Scrutiny (2026-10-10)
+
+- [x] **P0** : l'opérateur a confirmé `15 passed / 22 subtests`
+  sur OpenClaw backup + DSOMM. Le `just pre-push` a ensuite convergé
+  sur les droits exécutables de `openclaw-ops.sh`, mais ShellCheck
+  SC2250 bloquait les références `$mode`, `$id`, `$ROOT`,
+  `$value`. Les variables régulières ont été mises en forme
+  `${...}` dans le script. Le strict ShellCheck reste actif.
+- [ ] **P0** : sur le HEAD commité, exécuter
+  `shellcheck -x -P SCRIPTDIR scripts/workstation/openclaw-ops.sh`,
+  les tests ciblés OpenClaw/DSOMM puis `just pre-push`. Sans
+  exécution locale du vrai ShellCheck dans le conteneur agent,
+  ne pas déclarer L3 vert avant preuve opérateur.
+- [x] **DSOMM correctif prêt** : le déployeur fait le direct smoke
+  avec `--cap-drop ALL --cap-add NET_BIND_SERVICE`, refuse un
+  Compose rendu dépourvu de la capacité et contrôle le `HostConfig`
+  effectif. Désormais, un `--apply` réutilise le `model.yaml`
+  existant si sa version et ses UUID sont valides ; il ne le remplace
+  plus systématiquement. Les fichiers team-progress/evidence existants
+  restent inchangés. Contrat ajouté, validation runtime à effectuer.
+- [ ] **DSOMM intervention** : sauvegarder et vérifier empreintes
+  de `model.yaml`, `team-progress.yaml` et `team-evidence.yaml`,
+  inspecter l'App existante, puis exécuter explicitement
+  `sudo bash scripts/truenas/deploy-dsomm.sh --apply` lorsque
+  la gate et les préconditions sont vertes. L'outil peut appeler
+  `app.update` puis `app.start` : il s'agit d'une mutation.
+  Vérifier ensuite `NET_BIND_SERVICE`, `RUNNING`, HTTP 31088
+  et SHA256 des trois fichiers ; ne pas utiliser `docker restart`.
+- [x] **Pi-hole DNS Sync** : accepté `healthy`, sessions 16 ;
+  pas de réparation à faire au vu des preuves actuelles.
+- [ ] **Gatus**, puis **Sentry**, puis **Scrutiny** :
+  diagnostics runtime et acceptation en lecture seule via
+  [le runbook](./runbooks/2026-10-10-platform-services-acceptance.md) ;
+  redémarrer seulement les App pour lesquelles un incident est
+  établi et un rollback existe.
+
 ## PR #251 — DNS Pi-hole accepté, DSOMM pas encore redémarrable (2026-10-10)
 
 - [x] **Pi-hole DNS Sync** : `sudo bash scripts/truenas/verify-pihole-dns-sync.sh`
