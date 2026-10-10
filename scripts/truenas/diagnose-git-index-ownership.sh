@@ -107,13 +107,23 @@ if command -v systemctl >/dev/null 2>&1; then
     grep -Ei 'git|nabla|compose|cron' || true
 fi
 
-printf '\n==> Recent sudo/git journal evidence\n'
+printf '\n==> Recent sudo/Git journal evidence (safe summary)\n'
 if command -v journalctl >/dev/null 2>&1; then
-  journalctl --since '-24 hours' --no-pager 2>/dev/null |
-    grep -Ei 'sudo.*git|COMMAND=.*git|nabla-compose|\.git/index' |
-    tail -n 80 || true
+  # Never echo sudo COMMAND arguments: they can contain URLs, tokens or passwords.
+  journalctl --since '-24 hours' -t sudo --no-pager -q 2>/dev/null |
+    awk '
+      /COMMAND=/ {
+        total++
+        if (/COMMAND=[^[:space:]]*git([[:space:]]|$)/) direct_git++
+        if (/COMMAND=[^[:space:]]*(bash|sh)[[:space:]].*(scripts\/truenas|scripts\/quality)/) root_script++
+      }
+      END {
+        printf "sudo_events=%d direct_git=%d root_script_candidates=%d\n", total, direct_git, root_script
+      }
+    ' || true
 else
   printf 'INFO: journalctl unavailable\n'
 fi
+printf 'INFO: journal command arguments are intentionally not printed\n'
 
 printf '\nDefault --check is read-only. --repair changes ownership only for root-owned Git index files under the canonical .git tree, preserves each file mode, never recursively chowns, resets, cleans or runs Git as root.\n'
