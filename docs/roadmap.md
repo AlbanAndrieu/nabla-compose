@@ -671,6 +671,21 @@ datasets just to change presets.
   human approval for sending, deleting or archiving. Track daily spend,
   p50/p95 input/output tokens, retries, failures and useful triages per $.
 
+### P0–P3 OpenClaw workstation remediation (evidence 2026-10-10)
+
+**Authoritative evidence and CLI procedures:** [OpenClaw workstation remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md). Do not fold this incident history into the roadmap. The `daily-tech-news-digest` may contribute to token use, but no supplied per-job LiteLLM spend demonstrates causality.
+
+- [ ] **P0 — Cost attribution:** compare `openclaw-main` and `litellm-cron` virtual key and provider usage; reconcile 275 429 matches, actual input/output token bills, cost, retry amplification, and reset windows. Keep spending limits.
+- [ ] **P0 — Embeddings:** diagnose 109 401 matches, resolve effective `openai/text-embedding-3-small` endpoint/auth/dimension configuration; preserve existing SQLite, memory index, cache and FTS before any index action.
+- [ ] **P0 — Cron quality:** inspect 7 `daily-tech-news-digest` runs; although all delivered, Oct 8 returned Discord target error text and Oct 5/6/10 included unverifiable claims. Require date/source URLs, bounded search and summary, and no fabricated events. Evaluate separately from budget attribution.
+- [ ] **P0 — Cron security:** replace digest legacy sender-policy resolution with a reviewed explicit minimal tool cap, keep isolated session and existing 09:00 Europe/Paris delivery. Never grant broader messaging permissions solely to silence Doctor.
+- [ ] **P1 — Context & memory:** measure pressure after reducing cron/tool prompt overhead; baseline 248/248 paired events over limit, max ratio 2.01; investigate 256 memory-sync aborts. Fix embedding 401 before indexing main (15/96) or cron (0/63).
+- [ ] **P1 — Recovery:** verify recoverable backup; inspect 29 SQLite session issues and Slack state migration via dry-run; only then review repair/update. Do not auto-run `doctor --fix`.
+- [ ] **P1 — Cron health:** investigate main heartbeat error streak 12x, skill-collection review 5x, one stale in-flight marker and restricted messaging/tool routing; separate task outcomes from delivery outcomes.
+- [ ] **P2 — Trim unused surface:** deactivate IRC through version-verified `openclaw config set channels.irc.enabled false`, review bindings and retained plugin config, preserve Telegram/Discord/WhatsApp; avoid unsolicited public Gateway exposure.
+- [ ] **P2 — Automation without UI:** use `scripts/workstation/openclaw-cron-runs-summary.py`, `diagnose-openclaw-errors.sh`, and read-only CLI runbook; consider idempotent guarded remediation script with `--check` default and reviewed `--apply` after baseline.
+- [ ] **P3 — Quality:** redaction/fail-closed tests for cron JSON, status CLI contract, local-first validation and exact HEAD full gate; no automatic PR merge or GitHub Actions reruns.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
