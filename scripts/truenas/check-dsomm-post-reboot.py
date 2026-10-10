@@ -48,20 +48,16 @@ def probe(base_url: str, *, timeout: float = 8.0) -> None:
     for context in CONTEXTS:
         if not any(isinstance(v, dict) and context in v for v in progress.values()):
             raise ValueError(f"DSOMM has no progress for {context}")
-    if not any("uuid" in str(item).lower() for item in [payloads["default/model.yaml"]]):
-        # The model may use nested activity metadata; its detailed validation
-        # remains owned by validate-seed.py, not this HTTP accessibility probe.
-        print("INFO: model UUID field not found in quick text inspection")
     print(f"OK dsomm HTTP YAML acceptance: progress_activities={len(progress)} evidence_activities={len(evidence)} contexts=2")
 
 
-def browser_probe(base_url: str) -> None:
+def browser_probe(base_url: str) -> bool:
     """Optional browser-level smoke; never silently claim it ran."""
     try:
         from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
     except ImportError:
         print("WARN DSOMM browser smoke not executed: playwright unavailable")
-        return
+        return False
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
@@ -74,17 +70,20 @@ def browser_probe(base_url: str) -> None:
                 raise ValueError("DSOMM circular-heatmap SVG was not rendered")
         finally:
             browser.close()
+    return True
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://172.17.0.24:31088")
     parser.add_argument("--browser", action="store_true")
+    parser.add_argument("--require-browser", action="store_true")
     args = parser.parse_args()
     try:
         probe(args.url)
-        if args.browser:
-            browser_probe(args.url)
+        if args.browser or args.require_browser:
+            if not browser_probe(args.url) and args.require_browser:
+                raise ValueError("browser smoke is required but Playwright is unavailable")
     except (ValueError, HTTPError, URLError, TimeoutError, yaml.YAMLError, OSError) as exc:
         print(f"FAIL dsomm post-reboot acceptance: {exc}", file=sys.stderr)
         return 1
