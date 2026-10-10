@@ -109,23 +109,28 @@ sudo midclt call -j app.create "$(
 Use `app.redeploy crowdsec` only after `app.query` confirms the app exists.
 
 Before changing pfSense, use the scoped repository deployer. Its default mode is
-read-only and it refuses `--apply` if the canonical runtime materialization is
-missing/empty or if the CrowdSec source scope has uncommitted changes:
+read-only. A missing bouncer credential is reported as a **cutover warning**,
+not as a blocker for repairing the central TrueNAS runtime. Uncommitted changes
+inside the CrowdSec deployment scope remain a blocking precondition.
 
 ```bash
 sudo bash scripts/truenas/deploy-crowdsec.sh --check
 sudo bash scripts/truenas/deploy-crowdsec.sh --apply
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime
+
+# Only after the canonical bouncer credential is materialized:
 sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
 ```
 
 `--apply` reconciles **only** the TrueNAS CrowdSec Custom App; it does not
 change pfSense, create/delete a bouncer, rotate a key or start the local pfSense
-Security Engine.
+Security Engine. The post-reconcile `--runtime` gate proves the image, scenario
+exclusion, LAPI/listeners and Loki acquisition independently from cutover
+credentials.
 
-It verifies the pinned image, LAPI health, LAN-only listeners, the scenario
-exclusion, the redacted bouncer-secret contract, pfSense log acquisition and the
-central `PFSENSE_FIREWALL` bouncer registration. It never creates a bouncer,
-prints a key, redeploys an App or restarts a service.
+The stronger `--check` gate additionally verifies the canonical bouncer-secret
+contract and central `PFSENSE_FIREWALL` registration. It never creates a
+bouncer, prints a key, redeploys an App or restarts a service.
 
 After pfSense is switched to the remote LAPI, require the stronger acceptance
 gate:
