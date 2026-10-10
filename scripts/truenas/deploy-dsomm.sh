@@ -250,6 +250,11 @@ fi
 state="$(truenas_app_state "${APP_ID}")"
 [[ "${state}" != "MISSING" ]] ||
   fail "${APP_ID}: TrueNAS Custom App is not registered; run --apply"
+# A read-only --check cannot start a STOPPED App. Do not wait for the
+# entire readiness timeout when there is no active startup to observe.
+if [[ "${MODE}" == "--check" && "${state}" == "STOPPED" ]]; then
+  fail "${APP_ID}: TrueNAS App is STOPPED; --check cannot start it. Review the direct-smoke/runtime preconditions before --apply."
+fi
 
 printf '\n==> wait for DSOMM runtime\n'
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
