@@ -42,6 +42,10 @@ pre-push:
 publish:
     mise run agent-publish
 
+# Read-only post-reboot FastAPI/TrueNAS dependency orchestration.
+truenas-fastapi-check:
+    python3 scripts/truenas/diagnose-fastapi-integrations.py
+
 # Original repository quality gate, kept separate from the agent-first path.
 quality-gate:
     mise run quality
