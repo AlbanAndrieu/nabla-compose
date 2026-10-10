@@ -46,27 +46,6 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
-### P0 Vaultwarden CLI diagnostic acceptance — 2026-10-10
-
-- [x] TrueNAS operator evidence: Vaultwarden image `vaultwarden/server:1.37.3`,
-  running/healthy; Bitwarden CLI `2026.9.0` configured to
-  `https://vaultwarden.albandrieu.com`; host NTP active,
-  clock synchronized in Europe/Paris. Server logs show
-  `POST /api/accounts/key-management/user-key-id` returning HTTP 404
-  during login; the Vaultwarden endpoint/CLI compatibility remains
-  unaccepted. A one-step TOTP drift warning is separate and not proof
-  of unsynchronized host clock.
-- [x] New read-only `scripts/truenas/diagnose-vaultwarden-cli.sh`
-  reports CLI base/status/version, NTP, container image/health and
-  aggregated key-ID request, 404 and TOTP log counts, without printing
-  raw logs or triggering login, logout, sync or upgrade.
-- [ ] Validate script syntax, targeted test and operator runtime output;
-  log counters indicate correlation candidates rather than a
-  specific HTTP request-response pair.
-- [ ] Keep CrowdSec cutover blocked until the existing bouncer key is
-  located and the exact `nabla/prod/crowdsec` inventory item is
-  materialized through an approved source.
-
 ### P0 Vaultwarden inventory acceptance — workstation and TrueNAS
 
 - [x] Workstation and TrueNAS returned the same manifest inventory: only
@@ -132,9 +111,12 @@ of redeploying them.
   Diagnose CLI profile/config persistence and endpoint overrides before
   any secret materialization; `bw status=unlocked` alone is insufficient.
 - [ ] Vaultwarden login with current CLI fails `KeyIdBackfillError`
-  (server HTTP 404 during user key-id backfill); determine CLI/Vaultwarden
-  version compatibility without altering vault data, disabling cryptography,
-  or guessing a downgrade.
+  (server HTTP 404 during user key-id backfill). A bounded A/B test is now
+  prepared: keep CLI 2026.9.0 as default, but allow official checksum-pinned
+  CLI 2026.8.0 (`NABLA_BITWARDEN_CLI_VERSION=2026.8.0`) to test whether the
+  regression is client-side. Compare login/unlock + metadata-only inventory;
+  do not alter vault data or disable cryptography. Restore 2026.9.0 after the
+  test unless 2026.8.0 is proven necessary as a temporary compatibility pin.
 - [x] Cron #8 sanitized executable is `bash` following the
   `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168` prefix.
   Its script path and child Git use remain unverified.
