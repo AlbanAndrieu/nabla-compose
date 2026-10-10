@@ -7,29 +7,42 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/workstation/backup-openclaw.sh"
 
 
+def gateway_bash_env(tmp_path, state="inactive"):
+    """Return a BASH_ENV file that mocks systemctl without exec permissions."""
+    bash_env = tmp_path / "bash-env"
+    bash_env.write_text(
+        'systemctl() {\n'
+        '  if [ "$1" = "--user" ] && [ "$2" = "is-active" ]; then\n'
+        f'    printf "%s\\n" "{state}"\n'
+        '    return 0\n'
+        '  fi\n'
+        '  return 2\n'
+        '}\n'
+    )
+    return bash_env
+
+
 def run(tmp_path, *args):
     home = tmp_path / "home"
     state = home / ".openclaw"
     state.mkdir(parents=True, exist_ok=True)
     (state / "settings.json").write_text('{"fake":"fixture"}')
-    # Hermetic systemctl: never inspect or depend on the real user Gateway.
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir(exist_ok=True)
-    fake_systemctl = fake_bin / "systemctl"
-    fake_systemctl.write_text(
-        '#!/bin/sh\n'
-        'if [ "$1" = "--user" ] && [ "$2" = "is-active" ]; then\n'
-        '  printf "%s\n" "${TEST_GATEWAY_STATE:-inactive}"\n'
-        '  exit 0\n'
-        'fi\n'
-        'exit 2\n'
+    # BASH_ENV is sourced by non-interactive Bash and works even when tmp_path
+    # is mounted noexec (as on TrueNAS). Do not depend on an executable shim.
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "OPENCLAW_STATE_DIR": str(state),
+        "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
+        "PATH": "/usr/bin:/bin",
+        "BASH_ENV": str(gateway_bash_env(tmp_path)),
+    }
+    return subprocess.run(
+        ["bash", str(SCRIPT), *args],
+        env=env,
+        capture_output=True,
+        text=True,
     )
-    fake_systemctl.chmod(0o755)
-    env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
-           "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
-           "PATH": f"{fake_bin}:/usr/bin:/bin", "TEST_GATEWAY_STATE": "inactive"}
-    return subprocess.run(["bash", str(SCRIPT), *args], env=env,
-                          capture_output=True, text=True)
 
 
 def test_bash_syntax():
@@ -70,19 +83,15 @@ def test_rejects_backup_when_gateway_active(tmp_path):
     state = home / ".openclaw"
     state.mkdir(parents=True, exist_ok=True)
     (state / "settings.json").write_text('{"fake":"fixture"}')
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    systemctl = fake_bin / "systemctl"
-    systemctl.write_text('#!/bin/sh\nprintf "active\n"\n')
-    systemctl.chmod(0o755)
-    # Fail closed on the *mock* active Gateway, independent of interactive
-    # TrueNAS shell hooks (BASH_ENV, exported functions, mise or unit overrides).
+    # Fail closed on the mock active Gateway without executing a tmp_path shim;
+    # TrueNAS mounts /tmp noexec, so chmod alone is not a valid fixture.
     env = {
         "HOME": str(home),
         "OPENCLAW_STATE_DIR": str(state),
         "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
         "OPENCLAW_UNIT": "openclaw-gateway.service",
-        "PATH": f"{fake_bin}:/usr/bin:/bin",
+        "PATH": "/usr/bin:/bin",
+        "BASH_ENV": str(gateway_bash_env(tmp_path, "active")),
     }
     result = subprocess.run(
         ["bash", str(SCRIPT), "--create"],
