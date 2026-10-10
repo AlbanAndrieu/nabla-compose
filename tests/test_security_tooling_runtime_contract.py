@@ -53,7 +53,8 @@ def test_secret_preparation_supports_vaultwarden_parity() -> None:
     assert "render_from_bitwarden.py" in script
     assert "import_env_to_bitwarden.py" in script
     assert "--import-env-apply" in script
-    assert "cmp -s" in script
+    assert 'python3 scripts/secrets/materialize_runtime.py --app "${app}" --verify' in script
+    assert 'python3 scripts/secrets/materialize_runtime.py --app "${app}" --install' in script
     assert "/mnt/cpool/secrets/runtime/${app}/.env.secrets" in script
     assert "root:root 600" in script
     assert "dsomm" in script
