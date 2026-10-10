@@ -14,6 +14,19 @@ ROOT = Path(__file__).parents[1]
 
 
 class AgentQualityGateContractTests(unittest.TestCase):
+
+    def test_agent_gate_syncs_worktree_exec_bits_from_git_index(self) -> None:
+        text = AGENT_GATE.read_text(encoding="utf-8")
+
+        self.assertIn("git ls-files --stage", text)
+        self.assertIn('[[ "${mode}" == "100755" ]]', text)
+        self.assertIn('[[ ! -x "${path}" ]]', text)
+        self.assertIn('chmod +x -- "${path}"', text)
+        self.assertIn(
+            "working-tree executable bit restored from Git index",
+            text,
+        )
+
     def test_agent_gate_is_executable_and_wraps_canonical_gate(self) -> None:
         gate = ROOT / "scripts" / "agent-quality-gate.sh"
         mode = stat.S_IMODE(gate.stat().st_mode)
