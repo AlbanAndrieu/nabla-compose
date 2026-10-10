@@ -351,8 +351,14 @@ contents or tokens may enter Git, logs or CI artifacts.
   2=warnings (including preserved foreign `/usr` destination), 1=failure.
   This intentionally does not invoke `openclaw doctor`, which has been
   observed installing a plugin even with `--non-interactive`.
-- [ ] **P0 recovery gate:** create/verify a private versioned OpenClaw backup
-  and test isolated restore before package, service or migration changes.
+- [ ] **P0 recovery gate:** run `bash scripts/workstation/backup-openclaw.sh --check`.
+  Stop/quiesce the user Gateway **manually** during maintenance; create an
+  offline archive via `--create` (refuses a running service), then separately
+  run `--verify ARCHIVE` and `--restore-test ARCHIVE`. Only then restart the
+  Gateway manually. Backup is private (0600), its directory 0700, and is not
+  uploaded to Git. The restore-test checks archive safety and readability,
+  **not** full application-level restoration or session compatibility.
+  Backup omits symlinks/sockets; inventory those separately if used.
 - [ ] **P0 Node divergence:** run
   `bash scripts/workstation/prepare-openclaw-systemd.sh` to **print only**
   an override for the observed systemd unit using `/usr/bin/node`, while
