@@ -46,6 +46,23 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 pfSense tcsh interoperability correction
+
+- [x] Operator confirmed pfSense 26.07 admin shell interprets direct
+  POSIX `CONFIG=...` / `$(...)` snippets as tcsh syntax errors.
+  The earlier interactive snippet was invalid; no authentication proof
+  resulted from those errors.
+- [x] Added `scripts/pfsense/check-central-crowdsec-bouncer.sh`
+  with `#!/bin/sh`, delivered from workstation using
+  `ssh home.albandrieu.com /bin/sh -s < scripts/pfsense/check-central-crowdsec-bouncer.sh`.
+  This keeps the key on pfSense and off command arguments; the GET
+  may update LAPI pull metadata but does not change pfSense rules.
+- [x] Added POSIX shell and nonmutating behavior contract tests and
+  usage in `apps/crowdsec/README.md`.
+- [ ] Await operator HTTP result before concluding that pfSense's
+  current key matches a central LAPI bouncer registration. No
+  key rotation or cutover authorized by this diagnostic.
+
 ### P0 CrowdSec central bouncer history — 2026-10-10
 
 - [x] `pfsense-firewall` created 2026-09-08, last pulled
