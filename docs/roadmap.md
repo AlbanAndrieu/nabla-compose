@@ -1296,6 +1296,33 @@ Reference: <https://context7.com/docs/overview> and
 - [x] `planned`/`disabled` services stay catalog-visible without generating
   false Gatus/AutoKuma runtime expectations.
 
+### CrowdSec / pfSense cutover evidence — 2026-10-10 21:17 CEST
+
+- [x] TrueNAS central runtime remains healthy: CrowdSec `v1.8.1`, LAPI
+  `172.17.0.24:8084`, metrics `:6060`, problematic
+  `firewallservices/pf-scan-multi_ports` absent.
+- [x] Canonical pfSense Loki acquisition is live; operator observed
+  `cs_lokisource_hits_total=8563`.
+- [ ] Canonical runtime secret is still absent:
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`.
+- [ ] Central bouncer `PFSENSE_FIREWALL` exists but `last_pull=<none>`;
+  therefore the remote LAPI cutover has **not** happened.
+- [x] Workstation-side pfSense proof: local Security Engine absent, firewall
+  bouncer running, PF tables exist with 31,513 IPv4 + 586 IPv6 entries.
+- [ ] pfSense bouncer still points to legacy local LAPI
+  `http://172.17.0.1:8089`; target is `http://172.17.0.24:8084`.
+- [ ] Operator TrueNAS checkout used for this evidence was
+  `ffdf66e43ad8`, dirty and behind 25 commits. Runtime observations remain
+  useful, but code-level acceptance must be repeated after synchronizing PR
+  #253 without discarding local work.
+- [ ] Next transaction: render the existing CrowdSec bouncer key directly from
+  Vaultwarden into the canonical TrueNAS runtime file; run workstation
+  `verify-crowdsec-pfsense.sh --preflight`; only then change pfSense CrowdSec
+  package settings through the workstation/operator path and require both
+  TrueNAS `--accept` + workstation `--accept`.
+- [x] Trust boundary stays explicit: TrueNAS never SSHes/API-calls pfSense and
+  no runtime secret is copied from TrueNAS to the workstation.
+
 ## P1 — dependency automation and infrastructure secrets
 
 ### Renovate / Mend

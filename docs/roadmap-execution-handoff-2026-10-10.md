@@ -65,6 +65,25 @@ HTTP 8085 without deleting historical SQLite. Continue secrets
 manifest and Backstage descriptor parity in parallel, respecting
 the ratified priority sequence and no merge.
 
+### CrowdSec cutover update — 2026-10-10 21:17 CEST
+
+Central TrueNAS CrowdSec is healthy and consuming pfSense logs through Loki
+(`cs_lokisource_hits_total=8563`). The blocking state is now precise:
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` is absent,
+`PFSENSE_FIREWALL last_pull=<none>`, and the pfSense firewall bouncer still
+uses the legacy local LAPI `http://172.17.0.1:8089`. pfSense Small posture is
+otherwise correct: local Security Engine absent, firewall bouncer running, PF
+tables present with 31,513 IPv4 and 586 IPv6 entries.
+
+PR #253 adds a workstation `--preflight` mode that treats the legacy URL as a
+pre-cutover warning while proving TCP reachability from pfSense to
+`172.17.0.24:8084`; `--accept` remains strict after cutover. The shared key
+must be obtained directly from Vaultwarden on each operator side; never copy the
+TrueNAS runtime secret to the workstation and never grant TrueNAS pfSense
+administrative access. The operator's last TrueNAS checkout was dirty and
+behind 25 commits, so synchronize without destructive reset before final
+acceptance.
+
 ## Proven state / unresolved facts
 
 - **DSOMM:** `deploy-dsomm.sh --check` completed; capacity `CAP_NET_BIND_SERVICE` confirmed in `ix-dsomm`; HTTP 200 on `172.17.0.24:31088`. Declared `x-nabla.status: planned` and catalog descriptor still planned (needs intentional status reconciliation); `dsomm-baseline` stays planned; runtime evidence files are outside Git and must not be blindly committed.
@@ -80,10 +99,10 @@ the ratified priority sequence and no merge.
 
 ## Next agent action on a new chat
 
-1. Read **this handoff** and top/current section of `docs/roadmap.md`, fetch **current** PR #251 head (do not assume SHA in this document is current).
+1. Read **this handoff** and top/current section of `docs/roadmap.md`, fetch the **current PR #253 head** (do not assume a SHA in this document is current).
 2. Perform independent local-first verification of `.pre-commit-config.yaml`, `scripts/quality/check-compose-config.sh`, `tests/test_precommit_compose_validator.py` and adjacent changed files. Fix regressions without asking the operator to re-run all gates.
 3. Advance Gatus read-only diagnostics from existing evidence; implement a targeted, tested correction only once root cause is established. In parallel, generate **non-secret** coverage/debt reports for secrets and Backstage v2 from repository scripts.
-4. Commit coherent changes in PR #251; maintain a short current roadmap status and don't merge.
+4. Commit coherent changes in PR #253; maintain a short current roadmap status and don't merge.
 5. Once environment-specific acceptance is indispensable, consolidate required operator commands into one bounded verification set, rather than interrupting every step.
 
 Key references: `docs/secrets-migration-roadmap.md`, `docs/service-catalog-v2-normalization.md`, `docs/runbooks/2026-10-10-platform-services-acceptance.md`, `docs/runbooks/rag-bababou-poc-architecture.md`, `docs/ai-stack-upgrade-consolidation-plan.md`.

@@ -86,6 +86,11 @@ that field, stop the cutover: an existing CrowdSec bouncer registration does not
 reveal its API key. Rotation is a separate explicit operator transaction and is
 never performed by `deploy-crowdsec.sh`.
 
+The same bouncer key must be obtained **directly from Vaultwarden** when
+configuring pfSense from the workstation/operator session. Do not `cat`, copy
+or SCP the TrueNAS runtime secret to the workstation, and do not grant TrueNAS
+SSH/API access to pfSense merely for this migration.
+
 Optional:
 
 ```text
@@ -172,11 +177,19 @@ sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
 
 TrueNAS never SSHes to pfSense.
 
-**On the workstation only** — validate pfSense Small mode over the workstation's
-existing SSH path:
+**On the workstation only** — run the pre-cutover gate over the workstation's
+existing SSH path. This checks that pfSense can reach the TrueNAS LAPI without
+requiring the bouncer to have switched yet:
 
 ```bash
-bash scripts/workstation/verify-crowdsec-pfsense.sh
+bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
+```
+
+The current legacy URL `http://172.17.0.1:8089` is a warning in preflight
+mode. After changing the CrowdSec package settings, use the strict gate:
+
+```bash
+bash scripts/workstation/verify-crowdsec-pfsense.sh --accept
 ```
 
 It verifies that the local Security Engine is absent, the firewall bouncer is
