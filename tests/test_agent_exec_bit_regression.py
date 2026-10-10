@@ -37,6 +37,6 @@ def test_gate_bash_syntax():
 def test_gate_has_single_completion_block():
     text = GATE.read_text(encoding="utf-8")
     assert text.count("check_exec_bits() {") == 1
-    assert text.count("check_base_freshness\\ncheck_destructive_diff\\ncheck_exec_bits") == 1
+    assert text.count("\\n".join(("check_base_freshness", "check_destructive_diff", "check_exec_bits"))) == 1
     assert "read -r tracked_exec path; do" not in text
     assert text.rstrip().endswith("fi")
