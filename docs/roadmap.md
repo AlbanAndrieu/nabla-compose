@@ -193,12 +193,7 @@ of redeploying them.
 
 ### Execution checkpoint — 2026-10-10, operator evidence on PR #253
 
-- [x] **YubiKey Manager CLI repair prepared:** workstation path now installs
-  the required PC/SC build/runtime prerequisites (`libpcsclite-dev`, `pcscd`,
-  `pkg-config`, `swig`) before the pinned `uv tool` install. TrueNAS no longer
-  attempts a native Python build at all: `ykman` is built and executed in a
-  dedicated container image, leaving the appliance OS/Python/compiler surface
-  unchanged. USB passthrough remains intentionally disabled by default.
+- [x] **YubiKey Manager CLI accepted on workstation:** Ubuntu-packaged `ykman` 5.8.0 is functional and the YubiKey 5 NFC is detected with OTP/FIDO/CCID enabled. The stale `/usr/local/bin/ykman` is bypassed through `~/.local/bin/ykman -> /usr/bin/ykman`. **TrueNAS ykman is intentionally abandoned/not required:** the YubiKey remains on the workstation and OTP can be entered through the SSH terminal for `bw login`; no TrueNAS USB passthrough, container, host Python or package mutation is justified.
 - [x] **Git recovered (observed):** main index `albandrieu:apps 0600`,
   `git ls-files` succeeded; root-owned index scan clear after scoped repair.
   The unprivileged ownership diagnostic is working.
