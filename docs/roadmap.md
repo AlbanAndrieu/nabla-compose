@@ -414,6 +414,42 @@ datasets just to change presets.
 - [ ] Preserve strict OpenClaw personal Gmail/WhatsApp vs Hermes technical
   account/secrets isolation. No outbound message testing without approval.
 
+### LiteLLM/OpenClaw cost attribution — 2026-10-10
+
+- [ ] **Incident:** OpenClaw personal `litellm-main/gpt-4.1` and fallback
+  `litellm-main/gpt-4.1-mini` both receive LiteLLM **HTTP 429
+  Budget has been exceeded** on virtual key alias `openclaw-main`,
+  with accumulated proxy spend 10.061036 vs key cap 10.0 (USD if
+  LiteLLM standard cost accounting is used). Do not equate 50 matching
+  journal lines with 50 billable completions.
+- [ ] **P0 read-only spend attribution:** in LiteLLM Admin UI inspect the
+  virtual key `openclaw-main` (alias, not raw key), its `spend`,
+  `max_budget`, `budget_duration`, `budget_reset_at`, team/user
+  association and model allowlist. Obtain the per-model spend report and
+  request counts for the current budget period. Determine whether the
+  default key has a rolling reset or stays blocked until operator action.
+  Never publish raw `/key/info` responses, which can contain key values.
+- [ ] **P0 stop cost amplification:** determine whether OpenClaw's 9
+  same-model retries, fallback and a cron in error backoff are multiplying
+  failed requests. Classify `budget_exceeded` as non-retriable until budget
+  reset (unlike transient RPM/TPM 429), without raising or resetting any
+  budget. Retain last-run status and idempotence of personal-message jobs.
+- [ ] **P1 measure prompt composition:** observed estimated prompt around
+  215k-216k tokens vs 108k before reserve. Attribute to message history,
+  tool schemas, skills, memory retrieval and cron/session reuse; estimate
+  billable input tokens from LiteLLM spend logs instead of assuming
+  `estimatedPromptTokens` is actual billed input. Establish independent
+  personal Gmail/WhatsApp and Hermes budgets.
+- [ ] **P1 protect memory:** embedding calls failing HTTP 401 on an
+  unresolved secret reference must be fixed without deleting or re-embedding
+  existing `nomic-embed-text` data until provider/dimension parity is
+  established. Redact token fields in all diagnostics.
+- [ ] **P2 efficient personal workflows:** bounded message batches,
+  short-lived triage sessions, few tools/skills, local deduplication,
+  cheap classifier, larger model only for complex replies and explicit
+  human approval for sending, deleting or archiving. Track daily spend,
+  p50/p95 input/output tokens, retries, failures and useful triages per $.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
