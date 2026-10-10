@@ -12,8 +12,22 @@ def run(tmp_path, *args):
     state = home / ".openclaw"
     state.mkdir(parents=True, exist_ok=True)
     (state / "settings.json").write_text('{"fake":"fixture"}')
+    # Hermetic systemctl: never inspect or depend on the real user Gateway.
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    fake_systemctl = fake_bin / "systemctl"
+    fake_systemctl.write_text(
+        '#!/bin/sh\\n'
+        'if [ "$1" = "--user" ] && [ "$2" = "is-active" ]; then\\n'
+        '  printf "%s\\n" "${TEST_GATEWAY_STATE:-inactive}"\\n'
+        '  exit 0\\n'
+        'fi\\n'
+        'exit 2\\n'
+    )
+    fake_systemctl.chmod(0o755)
     env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
-           "OPENCLAW_BACKUP_DIR": str(home / "private-backup"), "PATH": "/usr/bin:/bin"}
+           "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
+           "PATH": f"{fake_bin}:/usr/bin:/bin", "TEST_GATEWAY_STATE": "inactive"}
     return subprocess.run(["bash", str(SCRIPT), *args], env=env,
                           capture_output=True, text=True)
 
@@ -49,3 +63,23 @@ def test_no_service_mutation():
     for operation in ("systemctl --user stop", "systemctl --user restart",
                       "systemctl --user start", "npm install", "doctor --fix"):
         assert operation not in content
+
+
+def test_rejects_backup_when_gateway_active(tmp_path):
+    home = tmp_path / "home"
+    state = home / ".openclaw"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "settings.json").write_text('{"fake":"fixture"}')
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text('#!/bin/sh\\nprintf "active\\n"\\n')
+    systemctl.chmod(0o755)
+    env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
+           "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
+           "PATH": f"{fake_bin}:/usr/bin:/bin"}
+    result = subprocess.run(["bash", str(SCRIPT), "--create"], env=env,
+                            capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "Gateway active" in result.stderr
+    assert not (home / "private-backup").exists()
