@@ -46,6 +46,23 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 DSOMM live post-reboot test — multi-document YAML and stale manifest
+
+- [x] Operator targeted tests: 4 passed, but standalone HTTP check
+  failed on `default/model.yaml`: PyYAML `safe_load` raised
+  `expected a single document in the stream`, because upstream
+  DSOMM model includes `meta:` plus a `---` document separator.
+  Parser now uses `safe_load_all` with exactly one matching model
+  document; added positive and ambiguous-document regression tests.
+- [x] `reboot-homelab.sh --post-reboot-check` correctly refused a
+  stale 2026-10-03 reboot manifest (age 622843 s > permitted
+  172800 s). Do not increase age limit, forge a new manifest,
+  or bypass boot-ID attestation merely to run functional checks.
+- [ ] Re-run standalone `python3 scripts/truenas/check-dsomm-post-reboot.py`
+  after checkout update; expect four successful YAML assets and
+  populated Nabla contexts. Only execute full --post-reboot-check
+  on a **new genuine reboot** with a fresh prepared manifest.
+
 ### P0 DSOMM post-reboot functional acceptance
 
 - [x] Add read-only `scripts/truenas/check-dsomm-post-reboot.py` to
