@@ -76,6 +76,13 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert "restage verification failed" in script
 
 
+def test_repository_env_bootstrap_handles_zero_legacy_sources() -> None:
+    script = ENV_FILES.read_text(encoding="utf-8")
+    # Bash 5.3 rejects empty associative-array subscripts.
+    assert '[[ -n "${source}" ]] || continue' in script
+    assert 'app="${source_app["${source}"]}"' in script
+
+
 def test_repository_env_bootstrap_rejects_empty_secret_placeholders() -> None:
     script = ENV_FILES.read_text(encoding="utf-8")
 
