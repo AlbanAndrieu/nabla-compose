@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:---check}"
-VERSION="${NABLA_YKMAN_VERSION:-5.9.2}"
+VERSION="${NABLA_YKMAN_VERSION:-5.8.0}"
 BIN_DIR="${HOME}/.local/bin"
 LINK="${BIN_DIR}/ykman"
 SYSTEM_YKMAN="/usr/bin/ykman"
@@ -29,7 +29,7 @@ esac
 
 check_install() {
   [[ -x "${SYSTEM_YKMAN}" ]] || return 1
-  actual="$("${SYSTEM_YKMAN}" --version 2>/dev/null | awk '{print $1}')"
+  actual="$("${SYSTEM_YKMAN}" --version 2>/dev/null | awk '{print $NF}')"
   [[ "${actual}" == "${VERSION}" ]] || {
     printf 'ERROR: packaged ykman version=%s expected=%s\n' "${actual:-<unknown>}" "${VERSION}" >&2
     return 1
@@ -60,7 +60,7 @@ sudo apt-get install -y --no-install-recommends yubikey-manager pcscd libu2f-ude
 
 [[ -x "${SYSTEM_YKMAN}" ]] ||
   fail "package installation completed but ${SYSTEM_YKMAN} is missing"
-actual="$("${SYSTEM_YKMAN}" --version 2>/dev/null | awk '{print $1}')"
+actual="$("${SYSTEM_YKMAN}" --version 2>/dev/null | awk '{print $NF}')"
 [[ "${actual}" == "${VERSION}" ]] ||
   fail "distribution package installed ykman ${actual:-<unknown>}; expected ${VERSION}"
 
