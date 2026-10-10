@@ -29,6 +29,58 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Gatus crash, Sentry/Scrutiny accepted and secret/catalog cutover (2026-10-10)
+
+- [x] **Sentry** : TrueNAS `diagnose-sentry.sh --check`
+  returned **exit 0 / 14 OK / 0 failures / 0 warnings** on
+  2026-10-10. This validates its diagnostic contract now,
+  but an end-to-end persisted event and reboot recovery remain
+  separate acceptance gates.
+- [x] **Scrutiny** : TrueNAS app RUNNING (web + collector);
+  web healthy with zero restarts and HTTP `/api/health` 200,
+  InfluxDB v2.9.1 reachable, collector sees
+  `/dev/sda` through `/dev/sdd`. Canonical runtime secret exists
+  at `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets` (mode
+  600, v2 token scope); **/dev/sde permission denied** is
+  a bounded hardware/permission debt. Avoid widening privileges
+  until the device's expected SMART support is known.
+- [ ] **Gatus P1 incident** : TrueNAS app STOPPED; Docker
+  `gatus` restarting with exit **2**, host port 8085 refused.
+  Dataset `/mnt/cpool/gatus` and `gatus.db` are
+  `root:root 770`; possible denial to a non-root container
+  (not yet demonstrated). First inspect bounded restart logs,
+  effective UID/GID and config mount permissions. Preserve
+  SQLite DB; do not `chmod 777`, delete it or blindly restart.
+- [x] **Pre-commit YAML regression** : operator L3 stopped before
+  tests at `.pre-commit-config.yaml` line 470, invalid YAML.
+  Converted the long inline Compose hook to a named Bash script
+  `scripts/quality/check-compose-config.sh`; added a YAML/syntax
+  regression test. Isolated local Bash smoke passes both success
+  and failing Compose cases. Full L3 on TrueNAS remains pending.
+- [ ] **Secret migration** : `config/secrets/manifest.json`
+  contains a DSOMM manual baseline `GH_TOKEN` mapping
+  and Scrutiny InfluxDB v2 token mappings; **no Gatus or
+  Sentry manifest entries currently identified**.
+  Sentry Compose already uses canonical
+  `/mnt/cpool/secrets/runtime/sentry/{.env.secrets,
+  .env.migrator.secrets}` paths but this alone does not prove
+  Vaultwarden source materialization. Audit non-secret key names,
+  manifest coverage, and bootstrap recovery; do not import values
+  or rotate keys automatically.
+- [ ] **Canonical catalog** : `catalog/services.json` is generated
+  from declarative Compose. DSOMM is still declared
+  `status: planned` despite successful runtime check; Gatus
+  has no explicit status despite STOPPED. Reconcile intent,
+  rollout phase and observed state independently. Update
+  `x-nabla` only following approved runtime acceptance, then
+  regenerate topology and downstream service consumers; never
+  hand-edit `catalog/services.json`.
+- [ ] **Execution order** : L3 YAML validation -> Gatus
+  read-only crash triage -> Gatus permission/config fix (if
+  proven) -> secrets manifest gap analysis -> Backstage/Compose
+  canonical entity status reconciliation -> fresh runtime
+  acceptance for Sentry/Scrutiny -> reboot test when planned.
+
 ## PR #251 — DSOMM runtime accepted, index Git ownership, next Gatus/Sentry/Scrutiny (2026-10-10)
 
 - [x] **DSOMM runtime acceptance (operator)** : `pytest -q
