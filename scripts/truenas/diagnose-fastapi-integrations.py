@@ -11,7 +11,8 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-SERVICES = (("postgres", 5432), ("redis", 6379), ("prometheus", 9090))
+SERVICES = (("postgres", 5432), ("redis", 30059), ("prometheus", 9090))
+# Redis uses published host port 30059 (container-internal 6379).
 DEFAULT_HOST = "172.17.0.24"
 FASTAPI_URL = "http://172.17.0.24:8091"
 PROMETHEUS_READY = "http://172.17.0.24:9090/-/ready"
