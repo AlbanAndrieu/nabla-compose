@@ -26,7 +26,7 @@ def main() -> int:
             return 2
         statuses["ok" if entry.get("status") == "ok" else "non_ok"] += 1
         delivery["delivered" if entry.get("delivered") is True else "not_delivered"] += 1
-        delivery["fallback_used" if entry.get("delivery", {}).get("fallbackUsed") is True else "no_fallback"] += 1
+        delivery["fallback_used" if isinstance(entry.get("delivery"), dict) and entry["delivery"].get("fallbackUsed") is True else "no_fallback"] += 1
         ms = entry.get("durationMs")
         if isinstance(ms, int) and not isinstance(ms, bool) and ms >= 0:
             durations.append(ms)
