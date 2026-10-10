@@ -367,8 +367,9 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [ ] Complete the pfSense Small cutover: run CrowdSec 1.8.1 centrally on
     TrueNAS, remove only `firewallservices/pf-scan-multi_ports` through
     `DISABLE_SCENARIOS`, render the bouncer secret, then require
-    `diagnose-crowdsec-cutover.sh --check` before the pfSense change and
-    `--accept` afterwards. The central engine must reuse the existing
+    `deploy-crowdsec.sh --check` then explicit `--apply` to reconcile only
+    the TrueNAS App; require `diagnose-crowdsec-cutover.sh --check` before the
+    pfSense change and `--accept` afterwards. The central engine must reuse the existing
     Alloy/Loki pfSense stream `{job="pfsense",device="pfsense"}`; do not add a
     second syslog receiver or depend on nonexistent `/mnt/cpool/logs/pfsense`
     files. Keep the local pfSense Security Engine stopped; do not restart it

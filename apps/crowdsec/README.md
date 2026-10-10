@@ -53,7 +53,7 @@ port-scan scenario.
 ## Runtime variables
 
 The central engine can bootstrap without a bouncer secret. The optional
-`/mnt/cpool/crowdsec/.env.secrets` file is loaded only when present, so a
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` file is loaded only when present, so a
 missing secret file no longer makes the entire TrueNAS Compose model invalid.
 
 Before switching pfSense to the remote LAPI, render this required bouncer
@@ -84,7 +84,7 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 ## TrueNAS Custom App deployment
 
 The app may be installed before the bouncer secret exists. For the final
-pfSense cutover, render `/mnt/cpool/crowdsec/.env.secrets` and redeploy it.
+pfSense cutover, render `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` and redeploy it.
 Register the missing Custom App with the canonical repository include:
 
 ```bash
@@ -108,11 +108,19 @@ sudo midclt call -j app.create "$(
 
 Use `app.redeploy crowdsec` only after `app.query` confirms the app exists.
 
-Before changing pfSense, run the repository-owned read-only gate:
+Before changing pfSense, use the scoped repository deployer. Its default mode is
+read-only and it refuses `--apply` if the canonical runtime materialization is
+missing/empty or if the CrowdSec source scope has uncommitted changes:
 
 ```bash
+sudo bash scripts/truenas/deploy-crowdsec.sh --check
+sudo bash scripts/truenas/deploy-crowdsec.sh --apply
 sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
 ```
+
+`--apply` reconciles **only** the TrueNAS CrowdSec Custom App; it does not
+change pfSense, create/delete a bouncer, rotate a key or start the local pfSense
+Security Engine.
 
 It verifies the pinned image, LAPI health, LAN-only listeners, the scenario
 exclusion, the redacted bouncer-secret contract, pfSense log acquisition and the

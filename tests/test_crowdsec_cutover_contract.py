@@ -12,6 +12,7 @@ COMPOSE = ROOT / "apps" / "crowdsec" / "compose.yml"
 README = ROOT / "apps" / "crowdsec" / "README.md"
 ACQUIS = ROOT / "apps" / "crowdsec" / "acquis.d" / "security.yaml"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-crowdsec-cutover.sh"
+DEPLOY = ROOT / "scripts" / "truenas" / "deploy-crowdsec.sh"
 
 class CrowdSecCutoverContractTest(unittest.TestCase):
     def test_central_engine_uses_current_pinned_image_and_disables_spin_scenario(self) -> None:
@@ -66,6 +67,31 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             text,
             r"(?m)^\\s*(?:sudo\\s+)?service\\s+\\S+\\s+restart\\b",
         )
+
+    def test_deployer_is_scoped_fail_closed_and_never_mutates_pfsense(self) -> None:
+        text = DEPLOY.read_text(encoding="utf-8")
+
+        for expected in (
+            "--check",
+            "--apply",
+            "truenas_reconcile_custom_app",
+            "truenas_wait_app_running",
+            "truenas_lifecycle_errors_since",
+            "/mnt/cpool/secrets/runtime/crowdsec/.env.secrets",
+            "DISABLE_SCENARIOS: firewallservices/pf-scan-multi_ports",
+            'git -C "${ROOT}" diff --quiet -- apps/crowdsec',
+            '"${DIAGNOSE}" --check',
+        ):
+            self.assertIn(expected, text)
+
+        self.assertNotIn("git fetch", text)
+        self.assertNotIn("docker pull", text)
+        self.assertNotIn("cscli bouncers add", text)
+        self.assertNotIn("cscli bouncers delete", text)
+        self.assertNotRegex(text, r"(?m)^\\s*ssh\\s+.*pfsense")
+
+    def test_deployer_keeps_executable_bit(self) -> None:
+        self.assertTrue(DEPLOY.stat().st_mode & stat.S_IXUSR)
 
     def test_cutover_diagnostic_keeps_executable_bit(self) -> None:
         self.assertTrue(DIAGNOSE.stat().st_mode & stat.S_IXUSR)
