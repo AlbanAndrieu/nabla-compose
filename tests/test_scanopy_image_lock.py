@@ -36,13 +36,15 @@ class ScanopyImageLockContractTests(unittest.TestCase):
             directory = Path(tmp)
             compose = directory / "compose.yml"
             compose.write_text("services: {}\n", encoding="utf-8")
+            inventory = directory / "images.txt"
+            inventory.write_text(images, encoding="utf-8")
             docker = directory / "docker"
             docker.write_text(
                 "#!/usr/bin/env bash\n"
                 '[[ "$1" == "compose" && "$2" == "-f" && "$4" == "config" '
                 '&& "$5" == "--no-env-resolution" && "$6" == "--images" ]] '
                 "|| exit 22\n"
-                "printf '%s' \"${SCANOPY_TEST_IMAGES}\"\n"
+                'cat -- "${SCANOPY_TEST_IMAGES_FILE}"\n'
                 'exit "${SCANOPY_TEST_EXIT:-0}"\n',
                 encoding="utf-8",
             )
@@ -51,11 +53,14 @@ class ScanopyImageLockContractTests(unittest.TestCase):
             env.update(
                 {
                     "PATH": f"{directory}{os.pathsep}{env.get('PATH', '')}",
-                    "SCANOPY_TEST_IMAGES": images,
+                    "SCANOPY_TEST_IMAGES_FILE": str(inventory),
                     "SCANOPY_TEST_EXIT": str(docker_exit),
                     "SCANOPY_ALLOW_MUTABLE_IMAGE": override,
                 }
             )
+            # A login/operator environment must not inject Bash startup
+            # commands that shadow the fake Docker executable.
+            env.pop("BASH_ENV", None)
             return subprocess.run(
                 ["bash", str(GATE), str(compose)],
                 env=env,
