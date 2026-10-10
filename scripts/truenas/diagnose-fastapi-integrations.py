@@ -46,7 +46,12 @@ def check_container(name: str, timeout: float) -> dict[str, object]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"state": "unknown", "error_type": type(exc).__name__}
     if completed.returncode != 0:
-        return {"state": "not_found"}
+        stderr = completed.stderr.lower()
+        if "permission denied" in stderr:
+            return {"state": "unknown", "reason": "docker_permission_denied"}
+        if "no such object" in stderr or "not found" in stderr:
+            return {"state": "not_found"}
+        return {"state": "unknown", "reason": "docker_inspect_failed"}
     return {"state": "running" if completed.stdout.strip() == "true" else "stopped"}
 
 
