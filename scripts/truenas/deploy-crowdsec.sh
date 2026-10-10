@@ -9,9 +9,10 @@ case "${MODE}" in
     cat <<'EOF'
 Usage: sudo bash scripts/truenas/deploy-crowdsec.sh [--check|--apply]
 
---check  Read-only source/runtime readiness check.
+--check  Read-only source/runtime readiness check. Missing cutover credentials
+         are warnings, not blockers for central-engine reconciliation.
 --apply  Reconcile only the TrueNAS CrowdSec Custom App, wait for RUNNING,
-         then rerun the read-only cutover diagnostic.
+         then rerun the read-only --runtime diagnostic.
 
 The helper never changes pfSense, never creates/deletes a bouncer, never
 rotates a key and never starts the pfSense CrowdSec Security Engine.
@@ -40,7 +41,9 @@ SECRET_FILE="${CROWDSEC_SECRET_FILE:-/mnt/cpool/secrets/runtime/crowdsec/.env.se
 WAIT_SECONDS="${CROWDSEC_APP_WAIT_SECONDS:-600}"
 
 errors=0
+warnings=0
 ok() { printf 'OK: %s\n' "$*"; }
+warn_check() { printf 'WARNING: %s\n' "$*" >&2; warnings=$((warnings + 1)); }
 fail_check() { printf 'ERROR: %s\n' "$*" >&2; errors=$((errors + 1)); }
 
 for command in docker git grep jq midclt stat; do
@@ -75,16 +78,58 @@ else
   fail_check 'CrowdSec Compose render failed'
 fi
 
-printf '\n==> CrowdSec runtime secret contract\n'
+printf '\n==> CrowdSec cutover credential contract\n'
 if [[ ! -s "${SECRET_FILE}" ]]; then
-  fail_check "canonical CrowdSec runtime file missing or empty: ${SECRET_FILE}"
+  warn_check "canonical CrowdSec runtime file missing or empty; central runtime can be reconciled, pfSense cutover remains blocked: ${SECRET_FILE}"
 else
   secret_metadata="$(stat -c '%U:%G %a' "${SECRET_FILE}" 2>/dev/null || true)"
   printf 'crowdsec_secret_file=%s metadata=%s\n' "${SECRET_FILE}" "${secret_metadata:-unknown}"
   [[ "${secret_metadata}" == 'root:root 600' ]] ||
-    fail_check 'CrowdSec runtime file must be root:root 0600'
-  grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+$' "${SECRET_FILE}" ||
-    fail_check 'BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty'
+    fail_check 'existing CrowdSec runtime file must be root:root 0600'
+  grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+
+
+printf '\n==> CrowdSec scoped Git cleanliness\n'
+if git -C "${ROOT}" diff --quiet -- apps/crowdsec scripts/truenas/deploy-crowdsec.sh scripts/truenas/diagnose-crowdsec-cutover.sh &&
+  git -C "${ROOT}" diff --cached --quiet -- apps/crowdsec scripts/truenas/deploy-crowdsec.sh scripts/truenas/diagnose-crowdsec-cutover.sh; then
+  ok 'CrowdSec deployment scope is clean'
+else
+  fail_check 'CrowdSec deployment scope is dirty; commit/stash only this scope before apply'
+fi
+
+printf '\n==> Current TrueNAS CrowdSec runtime\n'
+truenas_app_summary "${APP_ID}"
+
+if [[ "${MODE}" == '--check' ]]; then
+  if ! "${DIAGNOSE}" --runtime; then
+    fail_check 'CrowdSec central runtime diagnostic is not ready'
+  fi
+  ((errors == 0))
+  exit
+fi
+
+((EUID == 0)) || {
+  printf 'ERROR: --apply requires root on TrueNAS\n' >&2
+  exit 2
+}
+if ((errors > 0)); then
+  printf 'ERROR: refusing CrowdSec apply with %s failed precondition(s)\n' "${errors}" >&2
+  exit 1
+fi
+
+printf '\n==> Reconcile only the CrowdSec TrueNAS Custom App\n'
+lifecycle_mark="$(truenas_lifecycle_mark)"
+truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
+truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
+truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 40
+
+printf '\n==> Post-reconcile CrowdSec validation\n'
+"${DIAGNOSE}" --runtime
+printf 'OK: CrowdSec TrueNAS runtime reconciliation completed; pfSense was not modified\n'
+if ((warnings > 0)); then
+  printf 'WARNING: CrowdSec runtime is reconciled but %s cutover prerequisite warning(s) remain\n' "${warnings}" >&2
+fi
+ "${SECRET_FILE}" ||
+    warn_check 'BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty; pfSense cutover remains blocked'
 fi
 
 printf '\n==> CrowdSec scoped Git cleanliness\n'
