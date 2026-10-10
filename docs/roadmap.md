@@ -29,6 +29,27 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — OpenCRE gate + acceptation séquentielle des services (2026-10-10)
+
+- [x] Corriger le test `opencre-contract` : le déployeur exécutable a
+  légitimement le shebang `#!/usr/bin/env bash` ; confirmer
+  `bash -n` plutôt qu'imposer `not text.startswith("#!")`.
+  Le contrôle du mode exécutable et la politique de refus des images
+  mutables restent actifs.
+- [x] Publier le runbook de vérification **lecture seule** :
+  [DSOMM → Gatus → Sentry → Scrutiny](./runbooks/2026-10-10-platform-services-acceptance.md).
+- [ ] P0 : sur TrueNAS, vérifier `pytest -q tests/test_opencre_contract.py`
+  puis `just pre-push` sur le HEAD commité ; les 9 tests DSOMM, les
+  5 tests des audits Cloudflare et `just loop` ont été rapportés verts
+  par l'opérateur, mais **pas** le contrôle L3 complet.
+- [ ] P1, **une App à la fois** : DSOMM `--check` → preuve de
+  persistance/HTTP ; Gatus → historique SQLite et endpoints ; Sentry →
+  diagnostic edge/Relay/Kafka/Snuba ; Scrutiny → diagnostic Web,
+  collector, InfluxDB et provenance des secrets. Ne pas exécuter de
+  `--apply`, `--capture-startup` ou redéploiement sans preuve.
+- [ ] P2 : Scanopy/Joplin/AutoKuma puis Docling/OpenRAG/LiteLLM après
+  les acceptations de priorité P1.
+
 ## PR #251 — Node.js absent du PATH TrueNAS (2026-10-10)
 
 - [x] Diagnostiquer le faux échec de validation Cloudflare : le test
