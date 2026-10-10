@@ -29,6 +29,58 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## Post-reboot LIGHT profile and runtime acceptance (2026-10-10)
+
+- [x] Define explicit optional app set in
+  `config/truenas/restore-optional-apps.txt` (Graylog, Zabbix,
+  Transmission and the *arr family). Default restore behavior excludes
+  this final optional wave even if an older restore list requests it.
+- [x] Add `restore-optional-apps.sh --check|--stop|--start`.
+  It uses exact TrueNAS App IDs, refuses protected foundation services
+  and refuses interruption of in-flight `DEPLOYING` Apps.
+- [x] Add bounded read-only `triage-post-reboot-apps.sh` for
+  non-RUNNING Apps and problematic containers.
+- [ ] On TrueNAS, verify the actual App IDs and update optional list;
+  check that no required service depends on an optional workload.
+- [ ] Run read-only triage first; distinguish intentionally STOPPED
+  optional Apps from `DEPLOYING`/`CRASHED` core applications.
+- [ ] **DSOMM:** validate seeds, runtime image and canonical storage with
+  `deploy-dsomm.sh --check`; apply only after an exact failing
+  precondition is understood, then prove healthy HTTP and saved state.
+- [ ] **Cyberbro:** verify two Compose services, diagnostics and canonical
+  env materialization with `diagnose-cyberbro.sh` and
+  `bootstrap-cyberbro-env.sh --check`. Only reconcile/redeploy after
+  identifying failed dependency, permission, secret contract or readiness.
+- [ ] **Secrets:** take a global read-only
+  `bootstrap-repository-env-files.sh --check` inventory, then stage and
+  finalize each App separately using the canonical Vaultwarden manifest.
+  Never overwrite existing nonempty `.env.secrets`, never print values,
+  preserve rollback and never finalize a failing runtime.
+- [ ] Reboot acceptance: foundation RUNNING, no core App stuck
+  DEPLOYING/STARTING, no unauthorized optional auto-start, and all
+  previously accepted secrets/loadable integrations unchanged.
+
+Commands and safety boundary:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/triage-post-reboot-apps.sh
+sudo bash scripts/truenas/restore-optional-apps.sh --check
+sudo bash scripts/truenas/restore-app-set.sh --check --apps-file config/truenas/restore-foundation-apps.txt
+sudo bash scripts/truenas/deploy-dsomm.sh --check
+sudo bash scripts/truenas/diagnose-cyberbro.sh
+sudo bash scripts/truenas/bootstrap-cyberbro-env.sh --check
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
+```
+
+Stop optional apps only by explicit operator action:
+`sudo bash scripts/truenas/restore-optional-apps.sh --stop`.
+Later opt in to the final optional wave by
+`sudo bash scripts/truenas/restore-optional-apps.sh --start`.
+A `restore-app-set.sh --apply` defaults to LIGHT unless
+`--include-optional` is passed. Do not treat STOPPED optional Apps
+as a platform recovery failure.
+
 ## Restart context — 2026-10-07
 
 PR #240 (`fix: stabiliser DSOMM, Sentry et les migrations runtime TrueNAS`) is
