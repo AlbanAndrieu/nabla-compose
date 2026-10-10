@@ -763,7 +763,7 @@ datasets just to change presets.
 - [ ] **P1 — Recovery:** verify recoverable backup; inspect 29 SQLite session issues and Slack state migration via dry-run; only then review repair/update. Do not auto-run `doctor --fix`.
 - [ ] **P1 — Cron health:** investigate main heartbeat error streak 12x, skill-collection review 5x, one stale in-flight marker and restricted messaging/tool routing; separate task outcomes from delivery outcomes.
 - [ ] **P2 — Trim unused surface:** deactivate IRC through version-verified `openclaw config set channels.irc.enabled false`, review bindings and retained plugin config, preserve Telegram/Discord/WhatsApp; avoid unsolicited public Gateway exposure.
-- [ ] **P2 — Automation without UI:** use `scripts/workstation/openclaw-cron-runs-summary.py`, `diagnose-openclaw-errors.sh`, and read-only CLI runbook; consider idempotent guarded remediation script with `--check` default and reviewed `--apply` after baseline.
+- [x] **P2 — CLI triage documented:** `scripts/workstation/openclaw-ops.sh` provides non-mutating aggregate checks, cron/memory/backup subcommands and explicit `--disable-irc`; full workstation acceptance still pending.\n- [ ] **P2 — Automation without UI:** use `scripts/workstation/openclaw-cron-runs-summary.py`, `diagnose-openclaw-errors.sh`, and read-only CLI runbook; consider idempotent guarded remediation script with `--check` default and reviewed `--apply` after baseline.
 - [ ] **P3 — Quality:** redaction/fail-closed tests for cron JSON, status CLI contract, local-first validation and exact HEAD full gate; no automatic PR merge or GitHub Actions reruns.
 
 ## OpenClaw personal assistant — workstation stabilization
