@@ -7,6 +7,8 @@ LOCAL_ORIGIN="${NABLA_VAULTWARDEN_LOCAL_ORIGIN:-http://127.0.0.1:30032}"
 LOCAL_LAN_IP="${NABLA_VAULTWARDEN_LOCAL_LAN_IP:-172.17.0.24}"
 LAN_RESOLVER="${NABLA_LAN_RESOLVER:-172.17.0.1}"
 PUBLIC_RESOLVER="${NABLA_PUBLIC_RESOLVER:-1.1.1}"
+PUBLIC_RESOLVER_SOURCE="${NABLA_PUBLIC_RESOLVER:+environment}"
+PUBLIC_RESOLVER_SOURCE="${PUBLIC_RESOLVER_SOURCE:-default}"
 PUBLIC_HOST="${PUBLIC_BASE#*://}"
 PUBLIC_HOST="${PUBLIC_HOST%%/*}"
 PUBLIC_HOST="${PUBLIC_HOST%%:*}"
@@ -80,8 +82,8 @@ diagnose_public_dns() {
     public_ips="$(dig +short A "${PUBLIC_HOST}" @"${PUBLIC_RESOLVER}" 2>/dev/null | sort -u | paste -sd, - || true)"
   fi
 
-  printf 'vaultwarden_public_host=%s system_ips=%s lan_resolver_ips=%s public_resolver_ips=%s\n' \
-    "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${public_ips:-<unknown>}"
+  printf 'vaultwarden_public_host=%s system_ips=%s lan_resolver_ips=%s public_resolver=%s public_resolver_source=%s public_resolver_ips=%s\n' \
+    "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${PUBLIC_RESOLVER}" "${PUBLIC_RESOLVER_SOURCE}" "${public_ips:-<unknown>}"
 
   if [[ ",${system_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
     if [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
