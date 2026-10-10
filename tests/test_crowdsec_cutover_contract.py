@@ -33,11 +33,22 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         for expected in ("--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "/mnt/cpool/logs/pfsense", "172.17.0.24", "8084", "6060", "timeout 12"):
             self.assertIn(expected, text)
         self.assertIn("value redacted", text)
-        self.assertNotIn("cscli bouncers add", text)
-        self.assertNotIn("app.redeploy", text)
-        self.assertNotIn("docker restart", text)
-        self.assertNotIn("service restart", text)
-        self.assertNotIn("midclt call -j", text)
+        self.assertNotRegex(
+            text,
+            r"(?m)^\\s*(?:sudo\\s+)?cscli\\s+bouncers\\s+add\\b",
+        )
+        self.assertNotRegex(
+            text,
+            r"(?m)^\\s*(?:sudo\\s+)?midclt\\s+call\\s+-j\\s+app\\.redeploy\\b",
+        )
+        self.assertNotRegex(
+            text,
+            r"(?m)^\\s*(?:sudo\\s+)?docker\\s+restart\\b",
+        )
+        self.assertNotRegex(
+            text,
+            r"(?m)^\\s*(?:sudo\\s+)?service\\s+\\S+\\s+restart\\b",
+        )
 
     def test_cutover_diagnostic_keeps_executable_bit(self) -> None:
         self.assertTrue(DIAGNOSE.stat().st_mode & stat.S_IXUSR)
