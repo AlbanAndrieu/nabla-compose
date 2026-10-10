@@ -85,6 +85,15 @@ services:
       SCANOPY_PUBLIC_URL: ${SCANOPY_PUBLIC_URL:-http://172.17.0.24:60072}
       SCANOPY_INTEGRATED_DAEMON_URL: http://host.docker.internal:60073
       TZ: ${TZ:-Europe/Paris}
+    labels:
+      # Private Traefik router; pihole-dns-sync publishes LAN-only DNS.
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_network"
+      - "traefik.http.routers.scanopy-internal.rule=Host(`scanopy.int.albandrieu.com`)"
+      - "traefik.http.routers.scanopy-internal.entrypoints=websecure"
+      - "traefik.http.routers.scanopy-internal.tls=true"
+      - "traefik.http.routers.scanopy-internal.service=scanopy-internal"
+      - "traefik.http.services.scanopy-internal.loadbalancer.server.port=60072"
     ports:
       - name: web
         target: 60072
@@ -101,8 +110,12 @@ services:
       - /mnt/cpool/scanopy/data:/data
     networks:
       - intranet
+      - traefik_network
 
 networks:
+  traefik_network:
+    external: true
+    name: traefik_network
   intranet:
     external: true
     name: intranet
