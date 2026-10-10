@@ -376,3 +376,31 @@ The baseline image is pinned to commit
 Python dependencies are also pinned locally to `PyYAML==6.0.3` and
 `tabulate==0.10.0` so rebuilding that commit does not silently change the
 runtime.
+
+## Post-reboot acceptance (read-only)
+
+The TrueNAS reboot orchestrator invokes the same DSOMM YAML HTTP
+check in `--post-reboot-check` **when DSOMM is RUNNING**. It
+rejects Caddy's 200/HTML fallback, missing assessment contexts and
+empty progress/evidence; it does not modify the app or reset browser
+storage. Run its standalone check without rebooting:
+
+```bash
+python3 scripts/truenas/check-dsomm-post-reboot.py
+python3 -m pytest -q tests/test_dsomm_post_reboot_contract.py
+```
+
+Optional frontend smoke, only when Playwright/Chromium are installed
+in the execution environment:
+
+```bash
+python3 scripts/truenas/check-dsomm-post-reboot.py --browser
+# Require real browser validation (fails if Playwright unavailable):
+python3 scripts/truenas/check-dsomm-post-reboot.py --require-browser
+```
+
+The default reboot gate is a deterministic HTTP/YAML data contract, **not**
+proof that Chromium rendered the circular heatmap. Do not install
+Playwright or browser binaries on the TrueNAS appliance. Run the browser
+smoke from an approved workstation/CI runner separately.
+
