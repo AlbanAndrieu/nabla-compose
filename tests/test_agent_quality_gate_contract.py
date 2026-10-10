@@ -16,7 +16,7 @@ ROOT = Path(__file__).parents[1]
 class AgentQualityGateContractTests(unittest.TestCase):
 
     def test_agent_gate_preserves_private_worktree_modes_and_guards_git_index(self) -> None:
-        text = AGENT_GATE.read_text(encoding="utf-8")
+        text = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(encoding="utf-8")
         section = text.split("check_exec_bits() {", 1)[1].split(
             "\ncheck_base_freshness", 1
         )[0]
