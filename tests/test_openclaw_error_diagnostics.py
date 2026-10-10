@@ -44,3 +44,23 @@ def test_context_pressure_reports_bounded_numbers_without_payloads():
     assert "estimated_prompt_to_budget_ratio_max=2.00" in result.stdout
     assert "not billable LiteLLM usage" in result.stdout
     assert "confidential-value" not in result.stdout
+
+
+def test_context_pressure_ratio_is_paired_per_event():
+    # Taking max(estimate)/min(budget) across unrelated journal events
+    # invents a ratio that never occurred in any one request.
+    log = (
+        "[context-pressure-diagnostic] estimatedPromptTokens=500 "
+        "promptBudgetBeforeReserve=500\\n"
+        "[context-pressure-diagnostic] estimatedPromptTokens=100 "
+        "promptBudgetBeforeReserve=20\\n"
+        "[context-pressure-diagnostic] estimatedPromptTokens=900\\n"
+    )
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--stdin"],
+        input=log, text=True, capture_output=True, check=True,
+    )
+    assert "estimated_prompt_tokens_max=900" in result.stdout
+    assert "prompt_budget_before_reserve_min=20" in result.stdout
+    assert "estimated_prompt_to_budget_ratio_max=5.00" in result.stdout
+    assert "estimated_prompt_to_budget_ratio_max=45.00" not in result.stdout
