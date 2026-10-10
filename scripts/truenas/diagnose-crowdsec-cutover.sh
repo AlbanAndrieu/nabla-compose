@@ -145,8 +145,8 @@ else
 fi
 
 loki_ready_status="$(
-  curl --silent --show-error --connect-timeout 4 --max-time 10
-    --output /dev/null --write-out '%{http_code}'
+  curl --silent --show-error --connect-timeout 4 --max-time 10 \
+    --output /dev/null --write-out '%{http_code}' \
     "${LOKI_URL%/}/ready" 2>/dev/null || true
 )"
 if [[ "${loki_ready_status}" == "200" ]]; then
@@ -158,12 +158,12 @@ fi
 loki_probe="$(mktemp)"
 crowdsec_metrics_probe="$(mktemp)"
 trap 'rm -f "${loki_probe:-}" "${crowdsec_metrics_probe:-}"' EXIT
-if curl --silent --show-error --get --connect-timeout 4 --max-time 12
-  --data-urlencode 'query={job="pfsense",device="pfsense"}'
-  --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}"
-  --data-urlencode 'limit=1'
-  --data-urlencode 'direction=backward'
-  --output "${loki_probe}"
+if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
+  --data-urlencode 'query={job="pfsense",device="pfsense"}' \
+  --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
+  --data-urlencode 'limit=1' \
+  --data-urlencode 'direction=backward' \
+  --output "${loki_probe}" \
   "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
   jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
   ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
