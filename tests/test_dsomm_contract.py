@@ -220,6 +220,10 @@ class DsommContractTests(unittest.TestCase):
             script,
         )
         self.assertIn(
+            '. == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE"',
+            script,
+        )
+        self.assertIn(
             "live container lacks NET_BIND_SERVICE", script
         )
         self.assertIn(
