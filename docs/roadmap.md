@@ -29,6 +29,42 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — DSOMM runtime accepted, index Git ownership, next Gatus/Sentry/Scrutiny (2026-10-10)
+
+- [x] **DSOMM runtime acceptance (operator)** : `pytest -q
+  tests/test_dsomm_contract.py` **12 passed, 22 subtests** ;
+  `deploy-dsomm.sh --check` confirms seed DSOMM 5.0.2
+  (22 activities, 22 evidences), image 4.4.1, Compose, catalog,
+  dataset, effective `NET_BIND_SERVICE` and HTTP readiness ;
+  independent `curl` reports **HTTP 200** on
+  `http://172.17.0.24:31088/`. **Runtime accepted**;
+  reboot/persistence acceptance is **not** yet established.
+  No app restart or `--apply` needed.
+- [x] **Git permission root cause** : TrueNAS operator is
+  `uid=1000(albandrieu)`; `.git` is `albandrieu:apps 755`,
+  but `.git/index` is `root:apps 644`. Correct only that index's
+  ownership back to `albandrieu:apps` (preserve mode 644);
+  do not run Git as root or recursively chown the checkout.
+- [ ] **P0 L3** : verify shebang of the exact executable indexed
+  `scripts/workstation/openclaw-ops.sh`, update the local branch
+  safely and run `just pre-push` on clean committed HEAD. No bypass.
+- [ ] **P1 Gatus** : read-only TrueNAS App state/containers,
+  HTTP `172.17.0.24:8085`, dataset `/mnt/cpool/gatus`,
+  database presence, configuration group permissions. Determine
+  migration status before deploying.
+- [ ] **P1 Sentry** : execute
+  `sudo bash scripts/truenas/diagnose-sentry.sh --check`,
+  inspect edge/Relay/Kafka/Snuba with no secret values;
+  do not redeploy while inspecting.
+- [ ] **P1 Scrutiny** : execute
+  `sudo bash scripts/truenas/diagnose-scrutiny.sh --check`,
+  inspect collector, InfluxDB and canonical secret metadata;
+  avoid `--capture-startup` and state changes.
+- [ ] **DSOMM evidence in Git** : the reviewed seeds are already
+  versioned. If runtime assessments must be committed, prepare
+  a reviewed/redacted export; never copy raw
+  `/mnt/cpool/dsomm/state` into a public repository automatically.
+
 ## PR #251 — DSOMM CAP_ normalized, Git index permissions and evidence versioning (2026-10-10)
 
 - [x] **DSOMM effective runtime** : operator `docker inspect` reported
