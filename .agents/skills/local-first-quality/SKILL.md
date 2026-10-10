@@ -151,6 +151,13 @@ excuse to stop at static inspection. In a network-isolated agent environment:
    `DIAGNOSTIC_COMPACT_OUTPUT`) when the fixture intends a fresh invocation.
    Reproduce with those flags injected as well as absent so the test does not
    accidentally depend on how an operator entered their shell.
+   For mocked executable tools (e.g. fake `docker` in Python tests), do not
+   assume `/tmp` permits execution on TrueNAS. Create executable fixtures on
+   the writable repository filesystem or an explicitly verified exec-capable
+   temporary directory, prepend that directory to `PATH`, and scrub exported
+   `BASH_FUNC_*` overrides and `BASH_ENV`. Verify the mock was invoked rather
+   than accidentally calling the real tool. Never relax the production check
+   because of an invalid test fixture.
 3. When a failure depends on Git semantics (submodules, missing paths,
    detached HEAD, origin refs or index modes), create a **temporary Git
    repository** and execute the exact helper/function against the failing
