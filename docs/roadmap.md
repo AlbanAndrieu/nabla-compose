@@ -121,13 +121,12 @@ of redeploying them.
 
 ### Execution checkpoint — 2026-10-10, operator evidence on PR #253
 
-- [x] **YubiKey Manager CLI repair prepared:** pin `yubikey-manager==5.9.2`
-  in isolated per-user virtualenvs for workstation and TrueNAS. Workstation
-  repair intentionally does not delete the broken `/usr/local/bin/ykman`;
-  `~/.local/bin` is the canonical launcher. TrueNAS does not mutate system
-  Python/OS packages. Physical management on TrueNAS still requires the key
-  device to be visible; Yubico OTP typed through SSH does not.
-
+- [x] **YubiKey Manager CLI repair prepared:** workstation path now installs
+  the required PC/SC build/runtime prerequisites (`libpcsclite-dev`, `pcscd`,
+  `pkg-config`, `swig`) before the pinned `uv tool` install. TrueNAS no longer
+  attempts a native Python build at all: `ykman` is built and executed in a
+  dedicated container image, leaving the appliance OS/Python/compiler surface
+  unchanged. USB passthrough remains intentionally disabled by default.
 - [x] **Git recovered (observed):** main index `albandrieu:apps 0600`,
   `git ls-files` succeeded; root-owned index scan clear after scoped repair.
   The unprivileged ownership diagnostic is working.
