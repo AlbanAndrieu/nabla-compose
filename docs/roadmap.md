@@ -296,6 +296,8 @@ L3 full local publication. Only L3 means the complete local gate is green.
 - [x] Define exact-HEAD GitHub-connector/source-snapshot recovery in the
   `local-first-quality` skill; use already-existing artifacts only and never
   treat source-only verification as a full Git publication proof.
+- [x] Keep bounded agent context operational when a cached Git base exists
+  but has unrelated history; never fetch merely to print changed-path context.
 - [ ] Demonstrate L3 on the PR's exact checkout with cached dependencies;
   report first actionable failure only, and preserve security/formatter checks.
 
