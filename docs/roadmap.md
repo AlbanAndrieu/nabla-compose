@@ -1353,6 +1353,12 @@ Reference: <https://context7.com/docs/overview> and
   `cs_lokisource_hits_total=8563`.
 - [ ] Canonical runtime secret is still absent:
   `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`.
+- [ ] CrowdSec secret rendering is currently blocked by the known Vaultwarden
+  public split-DNS: TrueNAS resolves `vaultwarden.albandrieu.com` to
+  `172.17.0.24` through the historical pfSense/Unbound Host Override and
+  therefore receives local HTTPS `404` instead of traversing Cloudflare.
+  Correct the Host Override first; do not bypass by copying secrets between
+  hosts.
 - [ ] Central bouncer `PFSENSE_FIREWALL` exists but `last_pull=<none>`;
   therefore the remote LAPI cutover has **not** happened.
 - [x] Workstation-side pfSense proof: local Security Engine absent, firewall

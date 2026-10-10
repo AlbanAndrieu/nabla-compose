@@ -66,6 +66,13 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertNotIn('--api "${LOCAL_ORIGIN}/api"', helper)
         self.assertNotIn('--identity "${LOCAL_ORIGIN}/identity"', helper)
         self.assertIn("bw logout", helper)
+        self.assertIn("split-DNS detected", helper)
+        self.assertIn("vaultwarden.int.albandrieu.com", helper)
+        self.assertIn("/var/unbound/host_entries.conf", helper)
+        self.assertIn("NABLA_LAN_RESOLVER", helper)
+        self.assertIn("NABLA_PUBLIC_RESOLVER", helper)
+        self.assertIn("getent ahostsv4", helper)
+        self.assertIn("dig +short A", helper)
         self.assertIn("run as the unprivileged operator", helper)
         self.assertNotIn("sudo ", helper)
 

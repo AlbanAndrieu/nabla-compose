@@ -4,6 +4,12 @@ set -euo pipefail
 MODE="${1:---check}"
 PUBLIC_BASE="${NABLA_VAULTWARDEN_PUBLIC_BASE:-https://vaultwarden.albandrieu.com}"
 LOCAL_ORIGIN="${NABLA_VAULTWARDEN_LOCAL_ORIGIN:-http://127.0.0.1:30032}"
+LOCAL_LAN_IP="${NABLA_VAULTWARDEN_LOCAL_LAN_IP:-172.17.0.24}"
+LAN_RESOLVER="${NABLA_LAN_RESOLVER:-172.17.0.1}"
+PUBLIC_RESOLVER="${NABLA_PUBLIC_RESOLVER:-1.1.1}"
+PUBLIC_HOST="${PUBLIC_BASE#*://}"
+PUBLIC_HOST="${PUBLIC_HOST%%/*}"
+PUBLIC_HOST="${PUBLIC_HOST%%:*}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -47,6 +53,33 @@ jq -e '
 ' >/dev/null <<<"${local_config}" ||
   fail "native /api/config response is not a compatible Vaultwarden server config"
 
+diagnose_public_dns() {
+  local system_ips=""
+  local lan_ips=""
+  local public_ips=""
+
+  if command -v getent >/dev/null 2>&1; then
+    system_ips="$(getent ahostsv4 "${PUBLIC_HOST}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd, - || true)"
+  fi
+  if command -v dig >/dev/null 2>&1; then
+    lan_ips="$(dig +short A "${PUBLIC_HOST}" @"${LAN_RESOLVER}" 2>/dev/null | sort -u | paste -sd, - || true)"
+    public_ips="$(dig +short A "${PUBLIC_HOST}" @"${PUBLIC_RESOLVER}" 2>/dev/null | sort -u | paste -sd, - || true)"
+  fi
+
+  printf 'vaultwarden_public_host=%s system_ips=%s lan_resolver_ips=%s public_resolver_ips=%s\n' \
+    "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${public_ips:-<unknown>}"
+
+  if [[ ",${system_ips}," == *",${LOCAL_LAN_IP},"* ]] ||
+     [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
+    printf 'ERROR: split-DNS detected: %s resolves to local TrueNAS IP %s from the LAN path.\n' \
+      "${PUBLIC_HOST}" "${LOCAL_LAN_IP}" >&2
+    printf 'ERROR: known RCA is the pfSense/Unbound Host Override vaultwarden + albandrieu.com -> %s; remove that public override and keep vaultwarden.int.albandrieu.com for direct LAN access if needed.\n' \
+      "${LOCAL_LAN_IP}" >&2
+    printf 'ERROR: do not edit /var/unbound/host_entries.conf directly; it is generated from pfSense configuration.\n' >&2
+    return 1
+  fi
+}
+
 check_public_api() {
   local public_code
   public_code="$(
@@ -57,9 +90,11 @@ check_public_api() {
   if [[ "${public_code}" != "200" ]]; then
     printf 'WARN: canonical HTTPS Vaultwarden client API returned HTTP %s: %s/api/config\n' \
       "${public_code:-000}" "${PUBLIC_BASE}" >&2
+    diagnose_public_dns || true
     return 1
   fi
-  printf 'OK: canonical HTTPS Vaultwarden client API is reachable: %s/api/config\n' "${PUBLIC_BASE}"
+  diagnose_public_dns || return 1
+  printf 'OK: canonical HTTPS Vaultwarden client API is reachable through the public hostname: %s/api/config\n' "${PUBLIC_BASE}"
 }
 
 if [[ "${MODE}" == "--check" ]]; then
