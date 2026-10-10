@@ -15,10 +15,11 @@ fail() { printf 'ERROR: %s\n' "$*"; failures=$((failures + 1)); }
 
 printf '==> Bitwarden CLI metadata (no session or secrets)\n'
 if command -v bw >/dev/null 2>&1; then
+  cli_path="$(command -v bw)"
   version="$(bw --version 2>/dev/null || true)"
   server="$(bw config server 2>/dev/null || true)"
   status="$(bw status 2>/dev/null | jq -r '.status // "unknown"' 2>/dev/null || true)"
-  printf 'cli_version=%s cli_server=%s cli_state=%s\n' "${version:-unknown}" "${server:-unknown}" "${status:-unknown}"
+  printf 'cli_path=%s cli_version=%s cli_server=%s cli_state=%s\n' "${cli_path}" "${version:-unknown}" "${server:-unknown}" "${status:-unknown}"
   case "${version}" in
     "${ACCEPTED_CLI}") ok "Bitwarden CLI ${version} runtime-accepted against current Vaultwarden" ;;
     "${KNOWN_BAD_CLI}")
@@ -77,16 +78,19 @@ else
 fi
 
 printf '\n==> Key-ID API compatibility evidence (redacted counts)\n'
-if (( ${#DOCKER_CMD[@]} > 0 )); then
-  logs="$("${DOCKER_CMD[@]}" logs --since 2h "${CONTAINER}" 2>/dev/null || true)"
-  # Only count specific known-safe endpoint response sequences; never print raw logs.
+if (( ${#DOCKER_CMD[@]} == 0 )); then
+  warn 'logs_unavailable: Docker access denied; zero errors cannot be inferred'
+elif logs="$("${DOCKER_CMD[@]}" logs --since 2h "${CONTAINER}" 2>/dev/null)"; then
+  # Never display raw container logs: they can contain authentication data.
   requests="$(printf '%s\n' "${logs}" | grep -Fc 'POST /api/accounts/key-management/user-key-id' || true)"
   not_found="$(printf '%s\n' "${logs}" | grep -Fc '404 Not Found' || true)"
   drift="$(printf '%s\n' "${logs}" | grep -Fc 'TOTP Time drift detected' || true)"
-  printf 'user_key_id_requests=%s http_404_lines=%s totp_drift_warnings=%s window=2h\n' "${requests}" "${not_found}" "${drift}"
+  printf 'logs_available=true user_key_id_requests=%s http_404_lines=%s totp_drift_warnings=%s window=2h\n' "${requests}" "${not_found}" "${drift}"
   if ((requests > 0 && not_found > 0)); then
     warn 'Key-ID POST and HTTP 404 observed in same time window; correlate timestamps before attributing the 404'
   fi
+else
+  warn 'logs_unavailable: cannot read Vaultwarden Docker logs; zero errors cannot be inferred'
 fi
 
 printf '\nVaultwarden compatibility summary: failures=%s warnings=%s (read-only; no login, logout, sync, upgrades, or secrets)\n' "${failures}" "${warnings}"
