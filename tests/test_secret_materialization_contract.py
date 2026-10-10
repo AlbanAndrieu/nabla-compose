@@ -85,6 +85,9 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("a stale hosts cache can explain this mismatch", helper)
         self.assertIn("dig +short A", helper)
         self.assertIn("run as the unprivileged operator", helper)
+        self.assertIn("TrueNAS-only helper", helper)
+        self.assertIn("+time=2 +tries=1 +short A", helper)
+        self.assertIn("public_resolver_ips=%s", helper)
         self.assertNotIn("sudo ", helper)
 
         compose = (ROOT / "apps" / "vaultwarden" / "compose.yml").read_text(
