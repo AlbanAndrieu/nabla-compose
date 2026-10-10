@@ -46,6 +46,27 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden CLI diagnostic acceptance — 2026-10-10
+
+- [x] TrueNAS operator evidence: Vaultwarden image `vaultwarden/server:1.37.3`,
+  running/healthy; Bitwarden CLI `2026.9.0` configured to
+  `https://vaultwarden.albandrieu.com`; host NTP active,
+  clock synchronized in Europe/Paris. Server logs show
+  `POST /api/accounts/key-management/user-key-id` returning HTTP 404
+  during login; the Vaultwarden endpoint/CLI compatibility remains
+  unaccepted. A one-step TOTP drift warning is separate and not proof
+  of unsynchronized host clock.
+- [x] New read-only `scripts/truenas/diagnose-vaultwarden-cli.sh`
+  reports CLI base/status/version, NTP, container image/health and
+  aggregated key-ID request, 404 and TOTP log counts, without printing
+  raw logs or triggering login, logout, sync or upgrade.
+- [ ] Validate script syntax, targeted test and operator runtime output;
+  log counters indicate correlation candidates rather than a
+  specific HTTP request-response pair.
+- [ ] Keep CrowdSec cutover blocked until the existing bouncer key is
+  located and the exact `nabla/prod/crowdsec` inventory item is
+  materialized through an approved source.
+
 ### P0 Vaultwarden inventory acceptance — workstation and TrueNAS
 
 - [x] Workstation and TrueNAS returned the same manifest inventory: only
