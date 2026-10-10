@@ -21,6 +21,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "\ncheck_base_freshness", 1
         )[0]
 
+        self.assertEqual(text.count("check_exec_bits() {"), 1)
+        self.assertEqual(text.count("collect_changed_files() {"), 1)
+        self.assertEqual(text.count("run_compact() {"), 1)
         self.assertIn("git ls-files --stage", section)
         self.assertIn('[[ "${mode}" != "100755" ]]', section)
         self.assertIn('git add --chmod=+x -- "${path}"', section)
