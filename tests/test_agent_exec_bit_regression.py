@@ -29,7 +29,11 @@ def test_executable_gate_rejects_non_executable_shebang(tmp_path):
     # Git tracks the executable bit, but does not chmod the checkout itself.
     # The gate intentionally requires owner-executable worktree permissions.
     script.chmod(0o700)
-    executable = subprocess.run(["bash", "-c", '[[ -x "$1" ]]', "_", str(script)],\n                                check=False)\n    if executable.returncode != 0:
+    executable = subprocess.run(
+        ["bash", "-c", '[[ -x "$1" ]]', "_", str(script)],
+        check=False,
+    )
+    if executable.returncode != 0:
         # On some TrueNAS ACL/noexec mounts, chmod cannot grant effective
         # execute access. This is a mount-policy limitation, not a Git-index
         # failure; keep the negative security assertion above active.
