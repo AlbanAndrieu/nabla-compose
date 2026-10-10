@@ -137,6 +137,39 @@ normalize a private `0700` TrueNAS file to `0755`. Examine the staged diff
 before committing; the publication gate must refuse dirty staged changes.
 
 
+## TrueNAS noexec fixtures and branch divergence
+
+TrueNAS may mount `/tmp` as `tmpfs rw,nosuid,nodev,noexec` (confirmed
+2026-10-10). A fixture placed there can have POSIX `0700` and Git index
+`100755` but still fail Bash `[[ -x file ]]` due to the mount. **Do not**
+remount `/tmp` with `exec`, run as root, force `chmod 755`, or weaken the
+production executable-bit gate to make tests green.
+
+Before a test needs an executable fixture, inspect
+`findmnt -T "${TMPDIR:-/tmp}" -o TARGET,FSTYPE,OPTIONS`. Prefer an
+exec-capable isolated directory on the repository dataset (or an explicitly
+verified scratch mount), create it with `0700`, and clean it afterwards.
+For index-only semantics, use `git update-index --chmod=+x` and inspect
+`git ls-files --stage` without trying to execute a file. If a test
+intentionally exercises effective execution on `noexec`, assert the denied
+case separately; any skip must name the unmet environmental prerequisite and
+must not hide a failing negative security test.
+
+Regression fixtures must execute against the **same filesystem semantics**
+as the production assertion. `chmod(0o700)` alone is not proof that
+`[[ -x file ]]` succeeds. When a fixture is simulated with a temporary Git
+repo, check both the index mode and Bash's effective `-x` result. Validate
+Python syntax and the exact generated file before publishing, avoiding
+literal `\\n` text accidentally injected into Python source.
+
+When a local permission-only commit is created while the remote PR HEAD has
+advanced, `git pull --ff-only` will legitimately fail. Never reset, force-push,
+or drop the commit. Use `git status --short`, `git log --oneline
+--left-right HEAD...@{upstream}` and then, if the working tree is clean,
+`git merge --no-ff @{upstream}` (or a reviewed rebase). Retest on the
+resulting HEAD before pushing. Outputs from `git pull` and pytest are not
+shell commands and must never be pasted back as executable input.
+
 ## Disconnected development and token budget
 
 When `github.com`, PyPI or hook repositories are unavailable, do not retry
