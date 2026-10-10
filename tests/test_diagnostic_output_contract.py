@@ -92,6 +92,10 @@ class DiagnosticOutputContractTest(unittest.TestCase):
             wrapper.chmod(0o755)
 
             env = os.environ.copy()
+            # The operator may run tests from an already-wrapped diagnostic
+            # shell. The fixture must exercise fresh, unwrapped invocation.
+            env.pop("NABLA_DIAGNOSTIC_WRAPPED", None)
+            env.pop("DIAGNOSTIC_FULL_OUTPUT", None)
             env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
             result = subprocess.run(
                 [
@@ -123,6 +127,7 @@ class DiagnosticOutputContractTest(unittest.TestCase):
             target = Path(tmp) / "sample.sh"
             target.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
             env = os.environ.copy()
+            env.pop("NABLA_DIAGNOSTIC_WRAPPED", None)
             env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
             env["DIAGNOSTIC_FULL_OUTPUT"] = "1"
 
