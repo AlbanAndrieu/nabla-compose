@@ -171,7 +171,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
                 [
                     "bash", "-euo", "pipefail", "-c",
                     'LOCAL_LOOP=true; BASE_REF=HEAD; ' + collect
-                    + '; collect_changed_files',
+                    + '\ncollect_changed_files',
                 ],
                 cwd=repo,
                 text=True,
