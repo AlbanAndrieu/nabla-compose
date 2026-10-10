@@ -51,6 +51,9 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         for expected in ("--runtime", "--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "expected healthy", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "CROWDSEC_LOKI_URL", "/loki/api/v1/query_range", "172.17.0.24", "8084", "6060", "timeout 12"):
             self.assertIn(expected, text)
         self.assertIn("value redacted", text)
+        self.assertEqual(text.count("CrowdSec cutover summary"), 1)
+        self.assertEqual(text.count("==> pfSense log acquisition via Loki"), 1)
+        self.assertTrue(text.rstrip().endswith("((failures == 0))"))
         self.assertNotRegex(
             text,
             r"(?m)^\\s*(?:sudo\\s+)?cscli\\s+bouncers\\s+add\\b",
