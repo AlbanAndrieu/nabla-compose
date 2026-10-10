@@ -44,6 +44,8 @@ def fake_yaml(url: str, timeout: float = 8.0):
         "team-progress.yaml": {"progress": {"uuid-1": {"Nabla Platform": {"Started": "2026-10-04"}, "Nabla Applications": {"Started": "2026-10-04"}}}},
         "team-evidence.yaml": {"evidence": {"uuid-1": [{"id": "example"}]}},
     }
+    if name == "default/model.yaml":
+        return Response(b"meta:\n  source: upstream\n---\nversion: 5.0.2\nactivities: {}\n")
     return Response(yaml.safe_dump(docs[name]).encode())
 
 
@@ -76,3 +78,14 @@ def test_reboot_hook_keeps_existing_gates() -> None:
     assert 'python3 "${FASTAPI_REBOOT_DIAGNOSTIC}"' in source
     assert 'python3 "${INGRESS_ROUTE_AUDIT}" --strict' in source
     assert subprocess.run(["bash", "-n", str(SCRIPT.parent / "reboot-homelab.sh")], check=False).returncode == 0
+
+
+def test_reject_ambiguous_model_documents() -> None:
+    def ambiguous(url: str, timeout: float = 8.0):
+        if url.endswith("/default/model.yaml"):
+            return Response(b"version: 5.0.2\\n---\\nversion: 5.0.2\\n")
+        return fake_yaml(url, timeout=timeout)
+
+    with patch.object(module, "urlopen", side_effect=ambiguous):
+        with pytest.raises(ValueError, match="exactly one matching"):
+            module.probe("http://example.test")
