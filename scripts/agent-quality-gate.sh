@@ -149,7 +149,10 @@ print_compact_log() {
   local log="$1"
   local summary=""
 
-  summary="$(grep -E '^(FAIL|ERROR): |^FAILED |^ERROR |^Ran [0-9]+ tests|^=+ .* (failed|error|passed).* =+$' "${log}" || true)"
+  # pre-commit prints hook names and dotted Failed/modified statuses.
+  # Preserve those diagnostics even when the failure log ends with a diff
+  # rather than the actual failing hook (common with --show-diff-on-failure).
+  summary="$(grep -E '^(.{0,150}\\.{3,}(Failed|Passed|files were modified by this hook)|- hook id: |\[ERROR\]|FAIL|ERROR: |FAILED |Ran [0-9]+ tests|=+ .* (failed|error|passed).* =+$)' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
     local summary_limit="${QUALITY_SUMMARY_LINES:-12}"
     local summary_count
