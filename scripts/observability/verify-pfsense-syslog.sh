@@ -115,12 +115,23 @@ verify_live_pfsense() {
     return
   fi
 
-  if jq -e '.status == "success" and (.data.result | length) > 0'     "${output}" >/dev/null 2>&1; then
+  if jq -e '.status == "success" and (.data.result | length) > 0' "${output}" >/dev/null 2>&1; then
     local streams
     streams="$(jq '[.data.result[].stream] | unique | length' "${output}")"
     ok "real pfSense syslog observed from the trusted pfSense source (${streams} stream(s), lookback ${PFSENSE_LOG_LOOKBACK})"
   else
-    fail "no real pfSense syslog classified as device=pfsense in the last ${PFSENSE_LOG_LOOKBACK}"
+    local unclassified_query='{job="pfsense",app!="nabla-smoke"}'
+    local unclassified_output="${tmp_dir}/pfsense-unclassified.json"
+    if loki_query "${unclassified_query}" "${PFSENSE_LOG_LOOKBACK}" "${unclassified_output}" 2>/dev/null &&
+      jq -e '.status == "success" and (.data.result | length) > 0' "${unclassified_output}" >/dev/null 2>&1; then
+      fail "real job=pfsense events exist but are not classified device=pfsense"
+      printf 'Observed non-smoke stream labels (max 5):\n' >&2
+      jq -r '[.data.result[].stream] | unique | .[:5][] | to_entries | map("\(.key)=\(.value)") | join(" ")' \
+        "${unclassified_output}" >&2 || true
+    else
+      fail "no real pfSense syslog observed in Loki in the last ${PFSENSE_LOG_LOOKBACK}"
+      printf 'Next check: configure-pfsense-syslog.sh --check (requires the dedicated observability API key)\n' >&2
+    fi
   fi
 }
 
@@ -155,7 +166,7 @@ fi
 printf '\n'
 if ((errors > 0)); then
   printf '❌ pfSense syslog verification failed with %d error(s).\n' "${errors}" >&2
-  printf 'Inspect: docker logs alloy --since 10m ; docker logs loki --since 10m\n' >&2
+  printf 'Compact diagnostics: docker logs alloy --since 10m 2>&1 | grep -Ei "syslog|1514|172\\.17\\.0\\.1|warn|error" | tail -40\n' >&2
   exit 1
 fi
 

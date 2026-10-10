@@ -52,9 +52,9 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
 
         self.assertIn("pfsense_loki_event_observed=false", text)
         self.assertIn("pfsense_loki_event_observed=true", text)
-        self.assertIn('query={job="pfsense"}', text)
+        self.assertIn('query={job="pfsense",app!="nabla-smoke"}', text)
         self.assertIn(
-            "job=pfsense events exist but none are classified device=pfsense",
+            "non-smoke job=pfsense events exist but none are classified device=pfsense",
             text,
         )
         self.assertIn(

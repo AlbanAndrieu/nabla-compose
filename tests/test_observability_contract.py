@@ -638,6 +638,9 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("RFC5424", syslog)
         self.assertIn('marker="nabla-observability-smoke-$(date +%s)-$"', syslog)
         self.assertIn('device="pfsense"', syslog)
+        self.assertIn('app!="nabla-smoke"', syslog)
+        self.assertIn("Observed non-smoke stream labels (max 5)", syslog)
+        self.assertIn("Compact diagnostics:", syslog)
         self.assertNotIn('target_label  = "sender"', syslog)
         self.assertIn("socket.SOCK_DGRAM", syslog)
 

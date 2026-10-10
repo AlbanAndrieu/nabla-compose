@@ -171,14 +171,14 @@ if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
   ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
 else
   if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
-    --data-urlencode 'query={job="pfsense"}' \
+    --data-urlencode 'query={job="pfsense",app!="nabla-smoke"}' \
     --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
     --data-urlencode 'limit=1' \
     --data-urlencode 'direction=backward' \
     --output "${loki_probe}" \
     "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
     jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
-    error "job=pfsense events exist but none are classified device=pfsense; inspect Alloy source-IP relabeling"
+    error "non-smoke job=pfsense events exist but none are classified device=pfsense; inspect Alloy source-IP relabeling"
   else
     error "no pfSense syslog event observed in Loki in lookback ${PFSENSE_LOG_LOOKBACK}; verify pfSense -> Alloy UDP/1514"
   fi
