@@ -290,14 +290,19 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [x] Stop the CrowdSec engine after `firewallservices/pf-scan-multi_ports`
     accumulated millions of failed event-send attempts; keep the firewall
     bouncer independent while the engine is isolated.
-  - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
-    restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
-    observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof. The canonical read-only
-    diagnostic now preserves engine/bouncer separation, versions, package and
-    scenario policy, bounded `cscli metrics` only when the engine is already up,
-    and streaming maxima for `failed_sent` / `attempts`; do not restart
-    CrowdSec merely to collect those metrics.
+  - [x] Diagnose CrowdSec event backpressure without restarting the engine.
+    Workstation evidence on 2026-10-10 shows 19,213 stuck lines,
+    `max_failed_sent=19,899,999`, `max_attempts=19,900,000` and
+    `max_sigclosed=0`: a live `pf-scan-multi_ports` leaky bucket is spinning
+    internally while the independent firewall bouncer remains healthy. Treat
+    this as a major CPU/memory-pressure contributor, not sole-cause proof for
+    every OOM.
+  - [ ] Complete the pfSense Small cutover: run CrowdSec 1.8.1 centrally on
+    TrueNAS, remove only `firewallservices/pf-scan-multi_ports` through
+    `DISABLE_SCENARIOS`, render the bouncer secret, then require
+    `diagnose-crowdsec-cutover.sh --check` before the pfSense change and
+    `--accept` afterwards. Keep the local pfSense Security Engine stopped;
+    do not restart it merely to collect metrics.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
