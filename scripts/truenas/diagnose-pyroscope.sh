@@ -48,7 +48,6 @@ if [[ -d "${DATA_ROOT}" ]]; then
   container_uid="$(docker inspect "${CONTAINER}" --format '{{.Config.User}}' | cut -d: -f1)"
   printf 'container_user=%s\n' "${container_uid}"
   if [[ "${container_uid}" =~ ^[0-9]+$ ]] && [[ "${owner_uid}" != "${container_uid}" ]]; then
-    warn_permissions=1
     # Do not infer supplementary groups from a numeric UID. Report a potential
     # mismatch for the operator to validate rather than mutate permissions.
     printf 'WARNING: data owner UID differs from container UID; verify effective write permission\n'
