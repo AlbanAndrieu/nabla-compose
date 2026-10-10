@@ -4,15 +4,16 @@ set -euo pipefail
 
 MODE="${1:---check}"
 case "${MODE}" in
-  --check | --accept) ;;
+  --runtime | --check | --accept) ;;
   -h | --help)
     cat <<'EOF'
-Usage: sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh [--check|--accept]
+Usage: sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh [--runtime|--check|--accept]
 
 Read-only validation for the CrowdSec Security Engine/LAPI migration to TrueNAS.
---check   Pre-cutover readiness. A registered pfSense bouncer is required; a
-          missing last_pull is reported as a warning because pfSense may not
-          have switched to the remote LAPI yet.
+--runtime Validate only the central TrueNAS runtime: image, scenario exclusion,
+          LAPI/listeners and pfSense log acquisition through Loki.
+--check   Pre-cutover readiness. Adds canonical credential and bouncer
+          registration checks. A missing last_pull is only a warning.
 --accept  Post-cutover acceptance. Requires the pfSense bouncer to have polled
           the central LAPI at least once.
 
@@ -48,6 +49,8 @@ METRICS_HOST="${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}"
 METRICS_PORT="${CROWDSEC_METRICS_PORT:-6060}"
 DISABLED_SCENARIO="firewallservices/pf-scan-multi_ports"
 BOUNCER_NAME="PFSENSE_FIREWALL"
+CUTOVER_REQUIRED=true
+[[ "${MODE}" == "--runtime" ]] && CUTOVER_REQUIRED=false
 
 failures=0
 warnings=0
@@ -113,14 +116,77 @@ else
   warn "expected CrowdSec metrics listener missing on ${METRICS_HOST}:${METRICS_PORT}"
 fi
 
-printf '\n==> Secret and log-source readiness\n'
-if [[ ! -r "${SECRET_FILE}" ]]; then
+printf '\n==> Cutover credential readiness\n'
+if [[ "${CUTOVER_REQUIRED}" != true ]]; then
+  printf 'crowdsec_cutover_credentials=deferred_runtime_only\n'
+elif [[ ! -r "${SECRET_FILE}" ]]; then
   error "pfSense bouncer secret file is missing or unreadable: ${SECRET_FILE}"
 else
   secret_mode="$(stat -c '%a' "${SECRET_FILE}" 2>/dev/null || true)"
   printf 'crowdsec_secret_file=%s mode=%s\n' "${SECRET_FILE}" "${secret_mode:-unknown}"
   [[ "${secret_mode}" == "600" ]] || error "CrowdSec secret file must be mode 0600"
-  if grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+$' "${SECRET_FILE}"; then
+  if grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+
+
+printf '\n==> pfSense log acquisition via Loki\n'
+if [[ -n "${container_id:-}" ]] &&
+  timeout 12 docker exec "${container_id}" grep -q 'source: loki' /etc/crowdsec/acquis.d/security.yaml 2>/dev/null &&
+  timeout 12 docker exec "${container_id}" grep -q 'job="pfsense", device="pfsense"' /etc/crowdsec/acquis.d/security.yaml 2>/dev/null; then
+  ok "CrowdSec runtime acquisition uses the canonical pfSense Loki stream"
+else
+  error "CrowdSec runtime acquisition is not yet using the canonical pfSense Loki stream"
+fi
+
+loki_ready_status="$(
+  curl --silent --show-error --connect-timeout 4 --max-time 10
+    --output /dev/null --write-out '%{http_code}'
+    "${LOKI_URL%/}/ready" 2>/dev/null || true
+)"
+if [[ "${loki_ready_status}" == "200" ]]; then
+  ok "Loki readiness: HTTP 200"
+else
+  error "Loki readiness failed: HTTP ${loki_ready_status:-none}"
+fi
+
+loki_probe="$(mktemp)"
+trap 'rm -f "${loki_probe}"' EXIT
+if curl --silent --show-error --get --connect-timeout 4 --max-time 12
+  --data-urlencode 'query={job="pfsense",device="pfsense"}'
+  --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}"
+  --data-urlencode 'limit=1'
+  --data-urlencode 'direction=backward'
+  --output "${loki_probe}"
+  "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
+  jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
+  ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
+else
+  error "no pfSense Loki event observed in lookback ${PFSENSE_LOG_LOOKBACK}"
+fi
+
+printf '\n==> Central LAPI bouncer registration\n'
+if [[ "${CUTOVER_REQUIRED}" != true ]]; then
+  printf 'crowdsec_bouncer_registration=deferred_runtime_only\n'
+elif [[ -n "${container_id:-}" ]]; then
+  bouncer_json="$(timeout 12 docker exec "${container_id}" cscli bouncers list -o json 2>/dev/null || true)"
+  bouncer_count="$(jq --arg name "${BOUNCER_NAME}" '[.[]? | select(.name == $name)] | length' <<<"${bouncer_json:-[]}" 2>/dev/null || printf '0')"
+  if [[ "${bouncer_count}" == "1" ]]; then
+    bouncer_status="$(jq -r --arg name "${BOUNCER_NAME}" '.[] | select(.name == $name) | "name=\(.name) ip=\(.ip_address // "<none>") last_pull=\(.last_pull // "<none>")"' <<<"${bouncer_json}")"
+    printf 'crowdsec_bouncer_%s\n' "${bouncer_status}"
+    last_pull="$(jq -r --arg name "${BOUNCER_NAME}" '.[] | select(.name == $name) | (.last_pull // "")' <<<"${bouncer_json}")"
+    if [[ -n "${last_pull}" ]]; then
+      ok "pfSense firewall bouncer has polled the central LAPI"
+    elif [[ "${MODE}" == "--accept" ]]; then
+      error "pfSense firewall bouncer is registered but has not polled the central LAPI"
+    else
+      warn "pfSense firewall bouncer is registered but has not polled yet; expected before cutover"
+    fi
+  else
+    error "expected exactly one ${BOUNCER_NAME} bouncer registration, found ${bouncer_count}"
+  fi
+fi
+
+printf '\nCrowdSec cutover summary: failures=%s warnings=%s mode=%s\n' "${failures}" "${warnings}" "${MODE}"
+((failures == 0))
+ "${SECRET_FILE}"; then
     ok "pfSense bouncer credential is present (value redacted)"
   else
     error "BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty"
