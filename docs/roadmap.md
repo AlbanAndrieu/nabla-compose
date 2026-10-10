@@ -389,12 +389,15 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
     internally while the independent firewall bouncer remains healthy. Treat
     this as a major CPU/memory-pressure contributor, not sole-cause proof for
     every OOM.
-  - [ ] Complete the pfSense Small cutover: run CrowdSec 1.8.1 centrally on
-    TrueNAS, remove only `firewallservices/pf-scan-multi_ports` through
-    `DISABLE_SCENARIOS`, render the bouncer secret, then require
-    `deploy-crowdsec.sh --check` then explicit `--apply` to reconcile only
-    the TrueNAS App; require `diagnose-crowdsec-cutover.sh --check` before the
-    pfSense change and `--accept` afterwards. The central engine must reuse the existing
+  - [ ] Complete the pfSense Small cutover in two independent gates:
+    first reconcile CrowdSec 1.8.1 centrally on TrueNAS with
+    `deploy-crowdsec.sh --check` then explicit `--apply`; require
+    `diagnose-crowdsec-cutover.sh --runtime` to prove image, LAPI/listeners,
+    Loki acquisition and removal of `firewallservices/pf-scan-multi_ports`.
+    A missing bouncer credential does not block this central-runtime repair.
+    Only after the canonical credential is materialized, require
+    `diagnose-crowdsec-cutover.sh --check` before the pfSense change and
+    `--accept` afterwards. The central engine must reuse the existing
     Alloy/Loki pfSense stream `{job="pfsense",device="pfsense"}`; do not add a
     second syslog receiver or depend on nonexistent `/mnt/cpool/logs/pfsense`
     files. Keep the local pfSense Security Engine stopped; do not restart it
