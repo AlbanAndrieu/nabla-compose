@@ -46,6 +46,24 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Git evidence — targeted sudo timeline (2026-10-10)
+
+- [x] Appliance evidence: root Git sudo journal entries at **12:09:16**
+  and **12:21:52** on 2026-10-10; precise subcommands not yet
+  identified. The current index was subsequently observed owned by
+  `albandrieu:apps` and writable, with no root-owned index.
+- [x] Secret-safe audit operator-validated:
+  `sudo_events=199 direct_git=2 root_script_candidates=57`.
+  Candidate counts are not evidence of Git index writes.
+- [ ] Recover only sanitized Git subcommand names from those
+  timestamped sudo events, inspect TrueNAS cron job 8 metadata
+  without displaying command arguments, and correlate with index
+  ownership changes. Do not alter cron or recursively chown checkout
+  without attribution.
+- [ ] CrowdSec remains runtime healthy, but cutover requires the
+  existing bouncer secret from Vaultwarden and workstation pfSense
+  preflight; do not redeploy or change firewall until accepted.
+
 ### P0 follow-up — redacted TrueNAS Git audit (2026-10-10)
 
 - [x] `scripts/truenas/diagnose-git-index-ownership.sh` now prints
