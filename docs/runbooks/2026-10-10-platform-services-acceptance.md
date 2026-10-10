@@ -121,6 +121,43 @@ provenance de l'image, état des modèles/seeds, volume et rollback.
 contrôle fonctionnel humain. Ne passer `x-nabla.status` de `planned`
 à `active` qu'après ces preuves.
 
+### Acceptation runtime DSOMM confirmée — 10 octobre
+
+Résultats vérifiés par l'opérateur : **12 tests DSOMM réussis**, **22
+sous-tests réussis**, `deploy-dsomm.sh --check` sans erreur, capacité
+Docker `CAP_NET_BIND_SERVICE` présente et `curl` HTTP **200** sur
+`172.17.0.24:31088`. La réconciliation TrueNAS est fonctionnelle ;
+aucun autre `--apply` ou redémarrage nécessaire. L'acceptation
+`reboot accepted` reste **en attente** d'un futur test de reprise.
+
+### Vérifications suivantes : Gatus, Sentry, Scrutiny
+
+Le statut Gatus n'est pas encore confirmé. Depuis TrueNAS, recueillir
+les observations sans lancer `app.start` ni `app.update` :
+
+```bash
+sudo midclt call app.query '[["id","=","gatus"]]' |
+  jq '[.[] | {id,state,active_workloads:{containers:(.active_workloads.containers // 0)}}]'
+sudo docker ps -a --filter label=com.docker.compose.service=gatus \
+  --format '{{.Names}} {{.Status}}'
+curl -sS -o /dev/null -w 'gatus_http=%{http_code}\n' \
+  --connect-timeout 2 --max-time 8 http://172.17.0.24:8085/ || true
+sudo stat -c '%U:%G %a %n' /mnt/cpool/gatus \
+  /mnt/cpool/gatus/gatus.db 2>/dev/null || true
+```
+
+Après Gatus, les scripts de diagnostic Sentry et Scrutiny sont
+lecture seule :
+
+```bash
+sudo bash scripts/truenas/diagnose-sentry.sh --check
+sudo bash scripts/truenas/diagnose-scrutiny.sh --check
+```
+
+Ne pas publier de logs bruts contenant credentials ou valeurs
+d'environnement. Corriger chaque défaut constaté indépendamment,
+sans effet de bord sur d'autres Apps.
+
 ## 2. Gatus — historique et contrôles synthétiques
 
 Contrat déclaré dans `apps/gatus/compose.yml` : stockage SQLite
