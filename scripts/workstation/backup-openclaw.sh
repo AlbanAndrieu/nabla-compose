@@ -8,38 +8,38 @@ usage() {
   printf '%s\n' 'Create requires the user Gateway stopped; this script never stops or starts it.'
 }
 mode="${1:-}"
-case "$mode" in
+case "${mode}" in
   --check|--create) [[ $# -eq 1 ]] || { usage >&2; exit 2; } ;;
   --verify|--restore-test) [[ $# -eq 2 ]] || { usage >&2; exit 2; } ;;
   *) usage >&2; exit 2 ;;
 esac
 
-state="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
-dest="${OPENCLAW_BACKUP_DIR:-$HOME/Backups/openclaw}"
+state="${OPENCLAW_STATE_DIR:-${HOME}/.openclaw}"
+dest="${OPENCLAW_BACKUP_DIR:-${HOME}/Backups/openclaw}"
 unit="${OPENCLAW_UNIT:-openclaw-gateway.service}"
 
-if [[ -L "$state" || ! -d "$state" ]]; then
-  printf 'ERROR: state directory missing or symlink: %s\n' "$state" >&2
+if [[ -L "${state}" || ! -d "${state}" ]]; then
+  printf 'ERROR: state directory missing or symlink: %s\n' "${state}" >&2
   exit 1
 fi
-if [[ "$mode" == --check || "$mode" == --create ]]; then
+if [[ "${mode}" == --check || "${mode}" == --create ]]; then
   printf 'State directory present. No state contents displayed.\n'
   if command -v systemctl >/dev/null 2>&1; then
-    active="$(systemctl --user is-active "$unit" 2>/dev/null || true)"
-    if [[ "$active" == active ]]; then
-      if [[ "$mode" == --create ]]; then
+    active="$(systemctl --user is-active "${unit}" 2>/dev/null || true)"
+    if [[ "${active}" == active ]]; then
+      if [[ "${mode}" == --create ]]; then
         echo 'ERROR: Gateway active; quiesce it explicitly before consistent backup.' >&2
         exit 1
       fi
       echo 'WARN: Gateway active; consistent backup requires operator-controlled quiesce.'
     fi
   fi
-  if [[ "$mode" == --check ]]; then exit 0; fi
+  if [[ "${mode}" == --check ]]; then exit 0; fi
 fi
 
 # Delegate tar safety, pathname validation and atomic output to the standard
 # Python library. Refuse untrusted archives and any path traversal.
-python3 - "$mode" "$state" "$dest" "${2:-}" <<'PY'
+python3 - "${mode}" "${state}" "${dest}" "${2:-}" <<'PY'
 import datetime
 import hashlib
 import os
