@@ -185,6 +185,18 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("x-nabla.status remains planned", text)
 
+    def test_apply_preserves_existing_dsomm_model(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn('if [[ -e "${model_file}" || -L "${model_file}" ]]', script)
+        self.assertIn(
+            "preserving existing pinned DSOMM model without replacement",
+            script,
+        )
+        self.assertIn("existing DSOMM model version mismatch", script)
+        self.assertIn("existing DSOMM model contains no activity UUIDs", script)
+        self.assertIn('else\n    model_tmp="$(mktemp', script)
+        self.assertIn('install -o root -g root -m 0600 "${model_tmp}" "${model_file}"', script)
+
     def test_deployer_fails_closed_if_truenas_loses_caddy_capability(self) -> None:
         script = DEPLOY.read_text(encoding="utf-8")
         self.assertIn(
