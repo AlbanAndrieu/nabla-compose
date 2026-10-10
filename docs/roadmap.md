@@ -46,6 +46,42 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 A2 — Gatus root cause confirmed, follow-up branch (2026-10-10)
+
+- [x] **Definitive failure evidence:** Gatus container `restarting`,
+  exit 2, 564 restarts, no HTTP :8085. Log panic is
+  `open config/config.yml: permission denied`. This is a
+  generated **configuration read** failure, not a proven SQLite
+  problem. File `apps/gatus/config/config.yml` is
+  `albandrieu:apps 0640`; Gatus dataset/database are
+  `root:root 0770` and remain untouched.
+- [x] Added `scripts/truenas/repair-gatus-config-access.sh`
+  with `--check` (metadata/read-only) and opt-in
+  `--apply` that adjusts only generated `config` directory
+  group/mode (apps/0750) and `config.yml` (apps/0640).
+  It rejects unsafe paths, incorrect host GID and absent
+  Docker `HostConfig.GroupAdd`; no broad chmod, new
+  privileges, container restart, SQLite change or data reset.
+  Added an offline contract test for these safety constraints.
+- [ ] **Appliance-only acceptance:** inspect
+  `stat apps/gatus/config`, `docker inspect gatus`
+  for `HostConfig.GroupAdd` and actual bind-mount destinations;
+  run `--check` and *only if scoped preconditions are met*
+  `--apply`. Docker restart policy may retry naturally.
+  Validate HTTP 8085, a steady healthy process, SQLite
+  history and an eventual reboot. If no supplemental apps
+  group is effective, repair the TrueNAS Custom App definition,
+  not the dataset permissions.
+- [ ] **Parallel work:** preserve P0 pfSense/CrowdSec stability;
+  continue value-blind `config/secrets/manifest.json`
+  coverage and Backstage v2 service parity. Do not
+  materialize new credentials, mutate private state or
+  switch the multi-repository catalog without rollback proof.
+- [ ] **Validation:** targeted agent tests where tools exist;
+  required full L3 remains a before-merge gate rather than a
+  demand for repeated user-side ShellCheck/pytest invocations.
+  Historical #251 was merged; the recovery is on a follow-up PR.
+
 ### P0 A1/A2 evidence — 2026-10-10, PR #251
 
 - [x] Added `scripts/truenas/diagnose-gatus.sh`: bounded **read-only** container status, UID/GID and mount destination metadata, SQLite/config path metadata, and **aggregate log error categories only**. No raw log text, environment, secret value, chmod/chown, restart or database mutation.
