@@ -10,26 +10,32 @@ class YubiKeyManagerBootstrapContractTests(unittest.TestCase):
     def read(self, rel: str) -> str:
         return (ROOT / rel).read_text(encoding="utf-8")
 
-    def test_workstation_install_uses_uv_managed_python(self) -> None:
+    def test_workstation_installs_pcsc_prerequisites_before_uv(self) -> None:
         text = self.read("scripts/workstation/bootstrap-yubikey-manager.sh")
         self.assertIn('VERSION="${NABLA_YKMAN_VERSION:-5.9.2}"', text)
-        self.assertIn('PYTHON_VERSION="${NABLA_YKMAN_PYTHON_VERSION:-3.13}"', text)
+        self.assertIn("libpcsclite-dev pcscd pkg-config swig", text)
+        self.assertIn("pkg-config --exists libpcsclite", text)
+        self.assertIn("/usr/include/PCSC/winscard.h", text)
         self.assertIn('tool install --force --python "${PYTHON_VERSION}"', text)
-        self.assertIn('"yubikey-manager==${VERSION}"', text)
-        self.assertIn("mise --no-config exec uv@latest -- uv", text)
-        self.assertNotIn("python3 -m venv", text)
-        self.assertNotIn("sudo pip", text)
         self.assertNotIn("rm -f /usr/local/bin/ykman", text)
 
-    def test_truenas_install_avoids_system_python_and_apt(self) -> None:
+    def test_truenas_uses_container_not_host_python_or_apt(self) -> None:
         text = self.read("scripts/truenas/bootstrap-yubikey-manager.sh")
-        self.assertIn('PYTHON_VERSION="${NABLA_YKMAN_PYTHON_VERSION:-3.13}"', text)
-        self.assertIn('tool install --force --python "${PYTHON_VERSION}"', text)
-        self.assertIn("run as the unprivileged TrueNAS operator", text)
-        self.assertIn("no TrueNAS OS package or system Python was modified", text)
+        self.assertIn("tools/yubikey-manager/Dockerfile", text)
+        self.assertIn("docker build", text)
+        self.assertIn('docker run --rm "${IMAGE}" --version', text)
+        self.assertIn("wrapper has no host USB passthrough by default", text)
+        self.assertNotIn("apt-get install", text)
         self.assertNotIn("python3 -m venv", text)
-        self.assertNotIn("sudo pip", text)
-        self.assertNotIn("apt install", text)
+        self.assertNotIn("uv tool install", text)
+
+    def test_container_contains_native_build_dependencies_only_inside_image(self) -> None:
+        text = self.read("tools/yubikey-manager/Dockerfile")
+        self.assertIn("python:3.13.15-slim-bookworm", text)
+        self.assertIn("libpcsclite-dev", text)
+        self.assertIn("swig", text)
+        self.assertIn('"yubikey-manager==${YKMAN_VERSION}"', text)
+        self.assertIn('ENTRYPOINT ["ykman"]', text)
 
 
 if __name__ == "__main__":
