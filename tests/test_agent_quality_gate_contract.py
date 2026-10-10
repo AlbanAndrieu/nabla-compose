@@ -93,6 +93,14 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('changed_output="$(collect_changed_files)"', text)
         self.assertIn('deleted_output="$(collect_deleted_files)"', text)
         self.assertNotIn("mapfile -t CHANGED_FILES < <(collect_changed_files)", text)
+        self.assertIn("edge_security_contract_scope_changed", text)
+        self.assertIn("pfSense/CrowdSec targeted contracts", text)
+        self.assertIn("tests/test_pfsense_diagnose_recover_contract.py", text)
+        self.assertIn("tests/test_crowdsec_cutover_contract.py", text)
+        self.assertLess(
+            text.index("pfSense/CrowdSec targeted contracts"),
+            text.index('if [[ "${LOCAL_LOOP}" == true ]]'),
+        )
         self.assertIn("runtime_primitive_scope_changed", text)
         self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
