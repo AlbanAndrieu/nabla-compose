@@ -95,7 +95,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("/tmp:rw,noexec,nosuid,nodev,size=64m", service["tmpfs"])
         self.assertIn("AlbanAndrieu/fastapi-sample", service["environment"]["DSOMM_BASELINE_REPOS"])
         self.assertEqual(
-            "/reports/dsomm-baseline.md",
+            "${DSOMM_BASELINE_SUMMARY_OUTPUT:-/reports/dsomm-baseline.md}",
             service["environment"]["DSOMM_BASELINE_SUMMARY_OUTPUT"],
         )
         self.assertEqual("automates", service["x-nabla"]["relations"][0]["type"])
@@ -150,7 +150,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("wurstbrot/dsomm:4.4.1", text)
         self.assertIn("docker manifest inspect", text)
         self.assertIn("a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a", text)
-        self.assertIn("/mnt/cpool/dsomm/state/model.yaml", text)
+        self.assertIn('state_root="/mnt/cpool/dsomm/state"', text)
+        self.assertIn('model_file="${state_root}/model.yaml"', text)
         self.assertIn("version: ${DSOMM_MODEL_VERSION}", text)
         self.assertIn("python3 scripts/dsomm/validate-seed.py", text)
         self.assertIn('install -m 0600 "${state_seed}" "${state_file}"', text)
