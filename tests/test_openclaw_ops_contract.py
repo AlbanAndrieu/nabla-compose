@@ -13,7 +13,7 @@ def test_bash_syntax() -> None:
 def test_default_diagnostics_are_nonmutating() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'mode="${1:---check}"' in text
-    assert 'openclaw cron runs --id "$id" --limit 50' in text
+    assert 'openclaw cron runs --id "${id}" --limit 50' in text
     assert "openclaw-cron-runs-summary.py" in text
     assert "diagnose-openclaw-errors.sh" in text
     assert "backup-openclaw.sh" in text
