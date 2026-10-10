@@ -46,6 +46,33 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 CI and DSOMM UI investigation — 2026-10-10
+
+- [x] GitHub Actions PR #253 pre-commit failure at
+  `499ea482` was `QG_EXEC_BIT` (five shebang scripts committed
+  `100644`). Committed their exact blobs with executable mode
+  `100755` (commit `3d56031`); new DSOMM diagnostic is also
+  `100755`. CodeQL previously succeeded. Exact-new-HEAD full
+  local/remote quality gate remains **unverified**; do not label CI green.
+- [x] pfSense `sh` central CrowdSec key probe returned HTTP
+  **403**, therefore current pfSense key has **not** been
+  authenticated on central LAPI. Keep cutover blocked and do not
+  treat historical `pfsense-firewall` pull as current matching-key proof.
+- [x] DSOMM frontend HTTP 200 previously observed, but the
+  operator reports an empty UI. Added
+  `scripts/truenas/diagnose-dsomm-assessment.sh` and a
+  targeted test to distinguish persisted progress/evidence
+  and repository JSON producers from browser presentation.
+- [x] `nabla-site-alban` publishes a `nabla.dsomm.repository-assessment/v1`
+  JSON producer. `nabla-compose` has reviewed DSOMM 5.0.2
+  runtime YAML seed but no confirmed repository producer JSON.
+  Existing aggregator writes a separate review report; it does **not**
+  mutate `team-progress.yaml` or browser localStorage.
+- [ ] Validate DSOMM source via `--check`, produce a separate
+  aggregation report, inspect mounted runtime YAML and browser asset
+  requests, then review a **backup-first non-destructive** UI
+  import procedure; never silently inflate portfolio scores.
+
 ### P0 pfSense tcsh interoperability correction
 
 - [x] Operator confirmed pfSense 26.07 admin shell interprets direct
