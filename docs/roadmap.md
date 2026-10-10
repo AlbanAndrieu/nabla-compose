@@ -974,6 +974,16 @@ Prochain ordre de travail :
 6. exiger `last_pull` non vide et décisions visibles avant acceptation ;
 7. seulement ensuite reprendre Bitwarden/secrets.
 
+### P0 evidence update — skill review and LiteLLM (2026-10-10, PR #253)
+
+- [x] Classify failed OpenClaw cron runs without printing virtual-key prefixes or content: `scripts/workstation/openclaw-cron-runs-summary.py`.
+- [x] Add a CLI-only read-only entry point for the failing main skill review: `bash scripts/workstation/openclaw-ops.sh --skill-review`.
+- [ ] Resolve actual `openclaw-main` key-budget exhaustion (10.046146 / 10.0): inspect LiteLLM usage/reset period and reduce job usage, do not override budget or treat shared-key model fallback as recovery.
+- [ ] Verify main `skill-collection-review` actually succeeds after budget resets; one retained run failed after 272541 ms, five consecutive failures reported by the job status.
+- [ ] Separately resolve embedding provider 401 and paused main/cron vector indexes, preserving backup and secret isolation.
+
+See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
