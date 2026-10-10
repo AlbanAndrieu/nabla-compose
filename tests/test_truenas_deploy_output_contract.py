@@ -41,10 +41,13 @@ def test_dsomm_smoke_name_is_valid_and_pid_scoped() -> None:
 
 def test_all_deployers_report_checkout_provenance() -> None:
     offenders: list[str] = []
-    expected = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
+    direct = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
+    rooted = 'truenas_repo_provenance "${ROOT}"'
+    root_from_script = 'ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"'
     for path in DEPLOYERS:
         text = path.read_text(encoding="utf-8")
-        if expected not in text:
+        valid = direct in text or (rooted in text and root_from_script in text)
+        if not valid:
             offenders.append(path.name)
     assert not offenders, f"deploy checkout provenance missing in: {offenders}"
 
