@@ -19,7 +19,7 @@ def test_default_diagnostics_are_nonmutating() -> None:
     assert "backup-openclaw.sh" in text
     assert '--disable-irc)' in text
     assert 'openclaw config set channels.irc.enabled false' in text
-    assert '[[ "$value" == false ]]' in text
+    assert '[[ "${value}" == false ]]' in text
     assert "openclaw doctor --fix" not in text
     assert "openclaw memory status --index" not in text
     assert "systemctl --user restart" not in text
