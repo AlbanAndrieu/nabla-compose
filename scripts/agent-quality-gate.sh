@@ -166,9 +166,9 @@ print_compact_log() {
         "$((summary_count - summary_limit))" >&2
     fi
   fi
-  printf 'Full failure log: %s (private, mode 0600)\\n' "${log}" >&2
+  printf 'Full failure log: %s (private, mode 0600)\n' "${log}" >&2
   if [[ -z "${summary}" ]]; then
-    printf '%s\\n' "--- last ${LOG_TAIL} log lines (no recognizable summary) ---" >&2
+    printf '%s\n' "--- last ${LOG_TAIL} log lines (no recognizable summary) ---" >&2
     tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
   fi
 }
@@ -459,7 +459,12 @@ if [[ "${MODE}" == "fix" ]]; then
         "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
     fi
 
-    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if ! changed_output="$(collect_changed_files)"; then
+      printf '❌ QG_GIT_SCOPE: failed to refresh changed paths during fix pass\\n' >&2
+      exit 2
+    fi
+    CHANGED_FILES=()
+    [[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
     if (("${#CHANGED_FILES[@]}" == 0)); then
       printf '✅ no changed files require formatter/linter fixes\n'
       exit 0
@@ -470,7 +475,12 @@ if [[ "${MODE}" == "fix" ]]; then
     rc=0
     pre-commit run --hook-stage pre-commit \
       --files "${CHANGED_FILES[@]}" --show-diff-on-failure >"${log}" 2>&1 || rc=$?
-    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if ! changed_output="$(collect_changed_files)"; then
+      printf '❌ QG_GIT_SCOPE: failed to refresh changed paths during fix pass\\n' >&2
+      exit 2
+    fi
+    CHANGED_FILES=()
+    [[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
     after_fingerprint="$(worktree_fingerprint)"
 
     if ((rc == 0)) && [[ "${after_fingerprint}" == "${before_fingerprint}" ]]; then
