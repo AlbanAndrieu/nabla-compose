@@ -40,6 +40,7 @@ EOF
 esac
 
 [[ "${EUID}" -ne 0 ]] || fail "run as the unprivileged operator, not root"
+command -v midclt >/dev/null 2>&1 || fail "TrueNAS-only helper: run this on the TrueNAS host; use plain bw config/status commands on a workstation"
 
 for command in bw curl jq; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
@@ -78,12 +79,15 @@ diagnose_public_dns() {
     system_ips="$(getent ahostsv4 "${PUBLIC_HOST}" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd, - || true)"
   fi
   if command -v dig >/dev/null 2>&1; then
-    lan_ips="$(dig +short A "${PUBLIC_HOST}" @"${LAN_RESOLVER}" 2>/dev/null | sort -u | paste -sd, - || true)"
-    public_ips="$(dig +short A "${PUBLIC_HOST}" @"${PUBLIC_RESOLVER}" 2>/dev/null | sort -u | paste -sd, - || true)"
+    lan_ips="$(dig +time=2 +tries=1 +short A "${PUBLIC_HOST}" @"${LAN_RESOLVER}" 2>/dev/null | awk '/^([0-9]{1,3}\.){3}[0-9]{1,3}$/' | sort -u | paste -sd, - || true)"
+    public_ips="$(dig +time=2 +tries=1 +short A "${PUBLIC_HOST}" @"${PUBLIC_RESOLVER}" 2>/dev/null | awk '/^([0-9]{1,3}\.){3}[0-9]{1,3}$/' | sort -u | paste -sd, - || true)"
   fi
 
   printf 'vaultwarden_public_host=%s system_ips=%s lan_resolver_ips=%s public_resolver=%s public_resolver_source=%s public_resolver_ips=%s\n' \
-    "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${PUBLIC_RESOLVER}" "${PUBLIC_RESOLVER_SOURCE}" "${public_ips:-<unknown>}"
+    "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${PUBLIC_RESOLVER}" "${PUBLIC_RESOLVER_SOURCE}" "${public_ips:-<unreachable>}"
+  if [[ -z "${public_ips}" ]]; then
+    printf 'WARN: direct public resolver %s is unreachable from TrueNAS; canonical system/LAN resolution and HTTPS remain authoritative for this check.\n' "${PUBLIC_RESOLVER}" >&2
+  fi
 
   if [[ ",${system_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
     if [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
