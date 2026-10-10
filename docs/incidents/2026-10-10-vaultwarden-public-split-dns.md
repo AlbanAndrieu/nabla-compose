@@ -236,3 +236,42 @@ Unbound.
 La présence de l'entrée dans `host_entries.conf` avec absence du FQDN complet
 dans `/conf/config.xml` n'est pas contradictoire : pfSense peut stocker
 `host=vaultwarden` et `domain=albandrieu.com` dans des champs distincts.
+
+
+## Objet de configuration source confirmé
+
+Le diagnostic SSH a ensuite identifié l'objet source exact dans
+`/conf/config.xml` :
+
+```xml
+<hosts>
+  <host>vaultwarden</host>
+  <domain>albandrieu.com</domain>
+  <ip>172.17.0.24</ip>
+  <descr><![CDATA[For bitwarden api intenal acces]]></descr>
+  <aliases></aliases>
+</hosts>
+```
+
+Cet objet Unbound génère les lignes suivantes dans
+`/var/unbound/host_entries.conf` :
+
+```text
+local-data-ptr: "172.17.0.24 vaultwarden.albandrieu.com"
+local-data: "vaultwarden.albandrieu.com. A 172.17.0.24"
+```
+
+La cause racine du split-DNS est donc un **DNS Resolver Host Override pfSense
+historique**, créé pour l'accès interne à l'API Bitwarden/Vaultwarden.
+
+Correction attendue :
+
+1. supprimer l'override public `vaultwarden.albandrieu.com -> 172.17.0.24` ;
+2. si un nom LAN direct est encore utile, utiliser
+   `vaultwarden.int.albandrieu.com -> 172.17.0.24` ;
+3. laisser pfSense régénérer `host_entries.conf` ;
+4. vérifier que `dig @172.17.0.1 vaultwarden.albandrieu.com` retourne ensuite
+   les IP Cloudflare publiques et que le hostname `.int` reste privé.
+
+Ne pas éditer `host_entries.conf` directement : il est dérivé de
+`/conf/config.xml`.
