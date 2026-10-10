@@ -764,12 +764,48 @@ if command -v drill >/dev/null 2>&1; then
   printf 'vaultwarden_public_dns_answer='
   drill -Q vaultwarden.albandrieu.com @127.0.0.1 2>/dev/null | awk '$4 == "A" {print $5; exit}' || true
 fi
+printf 'vaultwarden_public_unbound_lookup='
+if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf ]; then
+  unbound-control -c /var/unbound/unbound.conf lookup vaultwarden.albandrieu.com 2>/dev/null |
+    tr '\n' ' ' | tr -s ' ' | head -c 1200 || true
+fi
+printf '\n'
+printf 'Vaultwarden candidate runtime sources (bounded):\n'
+for candidate in   /var/unbound/pfb_py_data.txt   /var/unbound/pfb_py_zone.txt   /var/unbound/host_entries.conf   /var/unbound/dhcpleases_entries.conf   /var/unbound/*.conf; do
+  [ -f "${candidate}" ] || continue
+  if grep -qiF 'vaultwarden.albandrieu.com' "${candidate}" 2>/dev/null; then
+    printf 'vaultwarden_runtime_match=%s\n' "${candidate}"
+    grep -niF 'vaultwarden.albandrieu.com' "${candidate}" 2>/dev/null | head -8 || true
+  fi
+done
+printf 'Vaultwarden split-name candidates in config.xml (host/domain may be stored separately):\n'
+grep -niE '<(host|hostname)>vaultwarden</(host|hostname)>|<domain>albandrieu\.com</domain>' /conf/config.xml 2>/dev/null | head -40 || true
 
 printf '\npfSense remote syslog configuration (read-only):\n'
 if grep -q '<syslog>' /conf/config.xml 2>/dev/null; then
-  sed -n '/<syslog>/,/<\/syslog>/p' /conf/config.xml 2>/dev/null |
+  SYSLOG_BLOCK="$(sed -n '/<syslog>/,/<\/syslog>/p' /conf/config.xml 2>/dev/null)"
+  printf '%s\n' "${SYSLOG_BLOCK}" |
     egrep '<(format|enableremotelogging|ipprotocol|sourceip|remoteserver|remoteserver2|remoteserver3|logall|filter|dhcp|auth|vpn|dpinger|system|resolver)>' |
     head -80 || true
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '<enableremotelogging'; then
+    printf 'pfsense_remote_syslog_enabled=true\n'
+  else
+    printf 'pfsense_remote_syslog_enabled=false\n'
+  fi
+  for field in format sourceip remoteserver remoteserver2 remoteserver3; do
+    value="$(printf '%s\n' "${SYSLOG_BLOCK}" | sed -n "s:.*<${field}>\(.*\)</${field}>.*:\1:p" | head -n1)"
+    printf 'pfsense_remote_syslog_%s=%s\n' "${field}" "${value:-<unset>}"
+  done
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.57:1514'; then
+    printf 'pfsense_remote_syslog_legacy_workstation=present\n'
+  else
+    printf 'pfsense_remote_syslog_legacy_workstation=absent\n'
+  fi
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.24:1514'; then
+    printf 'pfsense_remote_syslog_alloy_target=present\n'
+  else
+    printf 'pfsense_remote_syslog_alloy_target=absent\n'
+  fi
 else
   printf 'pfsense_remote_syslog_config=missing\n'
 fi
@@ -1121,7 +1157,7 @@ else
     while IFS= read -r summary_line; do
       [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
     done < <(
-      grep -E '^(unbound_control_healthy=|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 32 || true
+      grep -E '^(unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 52 || true
     )
   fi
 fi
