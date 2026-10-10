@@ -179,6 +179,35 @@ checks suivis dans le catalogue, restauration/reboot testée avant toute
 suppression d'ancienne configuration. Une DB absente peut être normale
 avant le premier démarrage ; ne pas créer de placeholder manuellement.
 
+### Incident Gatus du 10 octobre — investigation avant mutation
+
+Preuves : App TrueNAS `STOPPED`, conteneur
+`gatus Restarting (2)`, HTTP 8085 inaccessible, répertoire
+`/mnt/cpool/gatus` et `gatus.db` `root:root 770`.
+La cause **n'est pas encore établie** ; privilégier les logs et
+l'identité du processus avant de toucher aux ACL.
+
+```bash
+sudo docker inspect gatus --format \
+  'state={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} user={{.Config.User}} image={{.Config.Image}}'
+sudo docker logs --tail 40 gatus 2>&1 |
+  grep -Ei 'sqlite|permission|database|config|yaml|error|fatal|unable|readonly' |
+  tail -20
+sudo stat -c '%U:%G %a %n' \
+  /mnt/cpool/gatus /mnt/cpool/gatus/gatus.db \
+  apps/gatus/config/config.yml
+sudo docker inspect gatus --format '{{range .Mounts}}{{println .Destination .RW}}{{end}}'
+```
+
+Ne publier aucun log contenant une URL avec identifiants, des
+headers d'authentification ou des variables de secrets. Avant de
+changer les droits du dataset, vérifier le UID/GID effectivement
+utilisé par Gatus et le chemin exact indiqué par l'erreur.
+Ne pas réinitialiser `gatus.db` : elle contient l'historique
+des sondes. Le catalogue généré doit refléter le **déclaratif**
+et le diagnostic runtime la **réalité** : un service déclaré
+ne devient pas sain parce qu'il est projeté.
+
 ## 3. Sentry — edge, migration et consommateurs
 
 ```bash
