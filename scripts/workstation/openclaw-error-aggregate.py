@@ -36,6 +36,8 @@ if context_estimates:
 if prompt_budgets:
     print(f"prompt_budget_before_reserve_min={min(prompt_budgets)}")
 if context_ratios:
+    print(f"context_events_with_paired_budget={len(context_ratios)}")
+    print(f"context_over_budget_events={sum(ratio > 1 for ratio in context_ratios)}")
     print(f"estimated_prompt_to_budget_ratio_max={max(context_ratios):.2f}")
 print("NOTE: estimated tokens and journal matches are not billable LiteLLM usage")
 if counts["litellm_budget_429"]:
