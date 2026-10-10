@@ -38,8 +38,10 @@ def changed_paths() -> list[str]:
             ).returncode == 0:
                 base = candidate
                 break
+    # A cached base may exist without sharing history with the local HEAD.
+    # Missing/divergent history is not a reason to try a network fetch here.
     if base and subprocess.run(
-        ["git", "rev-parse", "--verify", f"{base}^{{commit}}"],
+        ["git", "merge-base", base, "HEAD"],
         cwd=ROOT,
         capture_output=True,
         check=False,
