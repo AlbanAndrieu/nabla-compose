@@ -741,8 +741,37 @@ printf 'CrowdSec firewall bouncer policy (redacted):\n'
 if [ -f "${CROWDSEC_BOUNCER_CONF}" ]; then
   printf 'crowdsec_firewall_bouncer_config=%s\n' "${CROWDSEC_BOUNCER_CONF}"
   awk '/^[[:space:]]*(mode|update_frequency|log_mode|log_dir|log_level|api_url|disable_ipv6|deny_action|blacklists_ipv4|blacklists_ipv6):/ {print}' "${CROWDSEC_BOUNCER_CONF}" 2>/dev/null | head -30 || true
+  CROWDSEC_BOUNCER_API_URL="$(
+    awk '/^[[:space:]]*api_url:[[:space:]]*/ {
+      sub(/^[[:space:]]*api_url:[[:space:]]*/, "")
+      gsub(/^["'\''"]|["'\''"]$/, "")
+      print
+      exit
+    }' "${CROWDSEC_BOUNCER_CONF}" 2>/dev/null
+  )"
+  case "${CROWDSEC_BOUNCER_API_URL}" in
+    http://127.0.0.1:* | https://127.0.0.1:* | http://localhost:* | https://localhost:*)
+      CROWDSEC_BOUNCER_LAPI_MODE=local
+      ;;
+    http://172.17.0.24:8084* | https://172.17.0.24:8084*)
+      CROWDSEC_BOUNCER_LAPI_MODE=remote-truenas
+      ;;
+    "")
+      CROWDSEC_BOUNCER_LAPI_MODE=missing
+      ;;
+    *)
+      CROWDSEC_BOUNCER_LAPI_MODE=other
+      ;;
+  esac
+  CROWDSEC_BOUNCER_API_URL_REDACTED="$(
+    printf '%s\n' "${CROWDSEC_BOUNCER_API_URL:-<none>}" |
+      sed -E 's#(https?://)[^/@]+@#\\1<redacted>@#'
+  )"
+  printf 'crowdsec_firewall_bouncer_api_url=%s mode=%s\n' \
+    "${CROWDSEC_BOUNCER_API_URL_REDACTED}" "${CROWDSEC_BOUNCER_LAPI_MODE}"
 else
   printf 'crowdsec_firewall_bouncer_config=missing\n'
+  printf 'crowdsec_firewall_bouncer_api_url=<none> mode=missing\n'
 fi
 printf 'Recent CrowdSec firewall bouncer warnings/errors (bounded):\n'
 if [ -f "${CROWDSEC_BOUNCER_LOG}" ]; then
@@ -1028,7 +1057,7 @@ else
     while IFS= read -r summary_line; do
       [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
     done < <(
-      grep -E '^(unbound_control_healthy=|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 32 || true
+      grep -E '^(unbound_control_healthy=|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 32 || true
     )
   fi
 fi
