@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:---check}"
-VERSION="${NABLA_BITWARDEN_CLI_VERSION:-2026.9.0}"
+VERSION="${NABLA_BITWARDEN_CLI_VERSION:-2026.8.0}"
 INSTALL_DIR="${NABLA_BITWARDEN_CLI_INSTALL_DIR:-${HOME}/.local/bin}"
 BW_BIN="${NABLA_BITWARDEN_CLI_BIN:-${INSTALL_DIR}/bw}"
 
@@ -19,8 +19,9 @@ usage: bash scripts/truenas/bootstrap-bitwarden-cli.sh [--check|--apply]
 
 Installs the pinned official Bitwarden Password Manager CLI into ~/.local/bin.
 Run as the unprivileged operator; this script never modifies the TrueNAS OS.
-The default remains 2026.9.0. Set NABLA_BITWARDEN_CLI_VERSION=2026.8.0 only
-for the documented Vaultwarden compatibility A/B test; both pins are checksummed.
+The runtime-accepted default is 2026.8.0. Version 2026.9.0 remains checksum-pinned
+for controlled A/B testing but is known to fail login against the current
+Vaultwarden with KeyIdBackfillError/HTTP 404.
 EOF
     exit 0
     ;;
