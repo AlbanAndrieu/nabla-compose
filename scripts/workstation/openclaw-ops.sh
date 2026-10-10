@@ -8,7 +8,7 @@ usage() {
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
-(($# <= 1)) || { usage >&2; exit 2; }
+((${#} <= 1)) || { usage >&2; exit 2; }
 case "${mode}" in
   --check|--cron|--memory|--backup-check|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
@@ -24,7 +24,7 @@ diagnose_memory() {
   openclaw memory status |
     grep -E '^(Memory Search|Provider:|Model:|Indexed:|Dirty:|Index identity:|Vector search:|Vector dims:|FTS:|Batch:)' || true
 }
-case "$mode" in
+case "${mode}" in
   --check)
     echo '==> OpenClaw error counters (24h)'
     bash "${ROOT}/scripts/workstation/diagnose-openclaw-errors.sh" --since '24 hours ago'
