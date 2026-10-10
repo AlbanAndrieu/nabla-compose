@@ -6,9 +6,9 @@ pfSense should run in CrowdSec **Small / remediation-only** mode and consume dec
 ## Target architecture
 
 ```text
-pfSense filter/nginx/auth logs ─┐
-                               ├──> CrowdSec Security Engine + LAPI on TrueNAS
-Suricata eve.json ──────────────┘                  │
+pfSense RFC5424 ──> Alloy UDP/1514 ──> Loki ─┐
+                                              ├──> CrowdSec Security Engine + LAPI on TrueNAS
+Suricata eve.json ─────────────────────────────┘                  │
                                                   │ tcp/8084, LAN only
                                                   ▼
                                      pfSense firewall bouncer
@@ -75,7 +75,6 @@ CROWDSEC_LAPI_BIND_ADDRESS=172.17.0.24
 CROWDSEC_LAPI_PORT=8084
 CROWDSEC_METRICS_BIND_ADDRESS=172.17.0.24
 CROWDSEC_METRICS_PORT=6060
-PFSENSE_LOG_DIR=/mnt/cpool/logs/pfsense
 SURICATA_LOG_DIR=/mnt/cpool/suricata/log
 TZ=Europe/Paris
 ```
@@ -163,10 +162,17 @@ observed with bounded CPU/RSS and free-memory headroom.
 
 The central engine currently acquires:
 
-- pfSense syslog files from `${PFSENSE_LOG_DIR}`;
+- pfSense RFC5424 events from the **existing Loki stream**
+  `{job="pfsense", device="pfsense"}`, produced by Alloy on TrueNAS;
 - Suricata `eve.json` from `${SURICATA_LOG_DIR}`.
 
-The pfSense logs are intentionally parsed on TrueNAS after migration, so pfSense Small mode does not need to run the CrowdSec Log Processor.
+This intentionally avoids a second syslog receiver and avoids inventing a
+`/mnt/cpool/logs/pfsense/*.log` persistence path that the observability stack
+does not create. CrowdSec's Loki datasource starts at the current time, so
+post-redeploy acceptance must generate/observe fresh pfSense activity.
+
+The pfSense logs are parsed centrally on TrueNAS after migration, so pfSense
+Small mode does not need to run the CrowdSec Log Processor.
 
 ## Motivation and current pfSense evidence
 

@@ -10,6 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / "apps" / "crowdsec" / "compose.yml"
 README = ROOT / "apps" / "crowdsec" / "README.md"
+ACQUIS = ROOT / "apps" / "crowdsec" / "acquis.d" / "security.yaml"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-crowdsec-cutover.sh"
 
 class CrowdSecCutoverContractTest(unittest.TestCase):
@@ -28,9 +29,23 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertIn('"${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_METRICS_PORT:-6060}:6060"', text)
         self.assertNotIn("0.0.0.0:${CROWDSEC_LAPI_PORT", text)
 
+    def test_pfsense_acquisition_reuses_canonical_loki_stream(self) -> None:
+        documents = list(yaml.safe_load_all(ACQUIS.read_text(encoding="utf-8")))
+        pfsense = documents[0]
+
+        self.assertEqual("loki", pfsense["source"])
+        self.assertEqual("http://172.17.0.24:3100/", pfsense["url"])
+        self.assertIn('job="pfsense"', pfsense["query"])
+        self.assertIn('device="pfsense"', pfsense["query"])
+        self.assertEqual("syslog", pfsense["labels"]["type"])
+
+        compose = COMPOSE.read_text(encoding="utf-8")
+        self.assertNotIn("PFSENSE_LOG_DIR", compose)
+        self.assertNotIn("/logs/pfsense", compose)
+
     def test_cutover_diagnostic_is_read_only_bounded_and_secret_safe(self) -> None:
         text = DIAGNOSE.read_text(encoding="utf-8")
-        for expected in ("--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "/mnt/cpool/logs/pfsense", "172.17.0.24", "8084", "6060", "timeout 12"):
+        for expected in ("--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "CROWDSEC_LOKI_URL", "/loki/api/v1/query_range", "172.17.0.24", "8084", "6060", "timeout 12"):
             self.assertIn(expected, text)
         self.assertIn("value redacted", text)
         self.assertNotRegex(

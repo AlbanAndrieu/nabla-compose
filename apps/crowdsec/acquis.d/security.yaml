@@ -1,9 +1,15 @@
 ---
-filenames:
-  - /logs/pfsense/*.log
+source: loki
+url: http://172.17.0.24:3100/
+query: |
+  {job="pfsense", device="pfsense"}
+limit: 1000
+wait_for_ready: 30s
+max_failure_duration: 2m
 labels:
   type: syslog
 ---
+source: file
 filenames:
   - /logs/suricata/eve.json
 labels:

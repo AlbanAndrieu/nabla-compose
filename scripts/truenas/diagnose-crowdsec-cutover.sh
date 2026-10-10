@@ -40,7 +40,8 @@ APP_ID="${CROWDSEC_APP_ID:-crowdsec}"
 SERVICE="${CROWDSEC_SERVICE:-crowdsec}"
 EXPECTED_IMAGE="${CROWDSEC_EXPECTED_IMAGE:-crowdsecurity/crowdsec:v1.8.1}"
 SECRET_FILE="${CROWDSEC_SECRET_FILE:-/mnt/cpool/crowdsec/.env.secrets}"
-PFSENSE_LOG_DIR="${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}"
+LOKI_URL="${CROWDSEC_LOKI_URL:-http://172.17.0.24:3100}"
+PFSENSE_LOG_LOOKBACK="${PFSENSE_LOG_LOOKBACK:-30m}"
 LAPI_HOST="${CROWDSEC_LAPI_BIND_ADDRESS:-172.17.0.24}"
 LAPI_PORT="${CROWDSEC_LAPI_PORT:-8084}"
 METRICS_HOST="${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}"
@@ -55,7 +56,7 @@ ok() { printf 'OK: %s\n' "$*"; }
 warn() { warnings=$((warnings + 1)); printf 'WARNING: %s\n' "$*" >&2; }
 error() { failures=$((failures + 1)); printf 'ERROR: %s\n' "$*" >&2; }
 
-for command in docker jq midclt ss stat find grep timeout sed awk tail; do
+for command in curl docker jq midclt ss stat grep timeout sed awk tail; do
   command -v "${command}" >/dev/null 2>&1 || {
     printf 'ERROR: required command missing: %s\n' "${command}" >&2
     exit 2
@@ -126,15 +127,39 @@ else
   fi
 fi
 
-if [[ ! -d "${PFSENSE_LOG_DIR}" ]]; then
-  error "pfSense log directory is missing: ${PFSENSE_LOG_DIR}"
+printf '\n==> pfSense log acquisition via Loki\n'
+if [[ -n "${container_id:-}" ]] &&
+  timeout 12 docker exec "${container_id}" grep -q 'source: loki' /etc/crowdsec/acquis.d/security.yaml 2>/dev/null &&
+  timeout 12 docker exec "${container_id}" grep -q 'job="pfsense", device="pfsense"' /etc/crowdsec/acquis.d/security.yaml 2>/dev/null; then
+  ok "CrowdSec runtime acquisition uses the canonical pfSense Loki stream"
 else
-  pfsense_log="$(find "${PFSENSE_LOG_DIR}" -maxdepth 1 -type f -name '*.log' -print -quit 2>/dev/null || true)"
-  if [[ -n "${pfsense_log}" ]]; then
-    ok "pfSense log acquisition source exists"
-  else
-    error "no pfSense *.log acquisition source found in ${PFSENSE_LOG_DIR}"
-  fi
+  error "CrowdSec runtime acquisition is not yet using the canonical pfSense Loki stream"
+fi
+
+loki_ready_status="$(
+  curl --silent --show-error --connect-timeout 4 --max-time 10
+    --output /dev/null --write-out '%{http_code}'
+    "${LOKI_URL%/}/ready" 2>/dev/null || true
+)"
+if [[ "${loki_ready_status}" == "200" ]]; then
+  ok "Loki readiness: HTTP 200"
+else
+  error "Loki readiness failed: HTTP ${loki_ready_status:-none}"
+fi
+
+loki_probe="$(mktemp)"
+trap 'rm -f "${loki_probe}"' EXIT
+if curl --silent --show-error --get --connect-timeout 4 --max-time 12
+  --data-urlencode 'query={job="pfsense",device="pfsense"}'
+  --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}"
+  --data-urlencode 'limit=1'
+  --data-urlencode 'direction=backward'
+  --output "${loki_probe}"
+  "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
+  jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
+  ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
+else
+  error "no pfSense Loki event observed in lookback ${PFSENSE_LOG_LOOKBACK}"
 fi
 
 printf '\n==> Central LAPI bouncer registration\n'
