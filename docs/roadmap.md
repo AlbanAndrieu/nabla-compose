@@ -46,6 +46,21 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 CrowdSec bouncer credential provenance — operator checks
+
+- [x] pfSense firewall bouncer YAML contains a nonempty `api_key`
+  (presence only; never print or export the value).
+- [x] TrueNAS CrowdSec LAPI lists `PFSENSE_FIREWALL` registered
+  with `last_pull=null`. This confirms registration only, not
+  that the legacy pfSense key is accepted by the central LAPI.
+- [ ] Locate approved original central bouncer key, or perform
+  separately approved explicit central key rotation with
+  rollback. Do not compare or print raw secrets and do not assume
+  keys match based on name alone. Keep legacy pfSense bouncer
+  untouched until central authentication is proven.
+- [ ] Continue exact Vaultwarden item reconciliation; 
+  `nabla/prod/crowdsec` is still missing.
+
 ### P0 Vaultwarden unlocked acceptance — latest operator evidence
 
 - [x] On TrueNAS, pinned Bitwarden CLI `2026.8.0` successfully
