@@ -75,11 +75,25 @@ def test_rejects_backup_when_gateway_active(tmp_path):
     systemctl = fake_bin / "systemctl"
     systemctl.write_text('#!/bin/sh\nprintf "active\n"\n')
     systemctl.chmod(0o755)
-    env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
-           "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
-           "PATH": f"{fake_bin}:/usr/bin:/bin"}
-    result = subprocess.run(["bash", str(SCRIPT), "--create"], env=env,
-                            capture_output=True, text=True)
-    assert result.returncode == 1
-    assert "Gateway active" in result.stderr
+    # Fail closed on the *mock* active Gateway, independent of interactive
+    # TrueNAS shell hooks (BASH_ENV, exported functions, mise or unit overrides).
+    env = {
+        "HOME": str(home),
+        "OPENCLAW_STATE_DIR": str(state),
+        "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
+        "OPENCLAW_UNIT": "openclaw-gateway.service",
+        "PATH": f"{fake_bin}:/usr/bin:/bin",
+    }
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--create"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1, (
+        f"exit={result.returncode}; stdout={result.stdout!r}; "
+        f"stderr={result.stderr!r}"
+    )
+    assert "Gateway active" in result.stderr, result.stderr
     assert not (home / "private-backup").exists()
