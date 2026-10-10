@@ -531,9 +531,16 @@ authorized by this entry.** Declared Compose versions are not runtime proof.
   upstream releases and identify candidate integration/duplication areas.
 - [x] Define bounded upgrade waves, stop conditions, compatibility
   evidence, rollback/restore gates and conditional service additions.
-- [ ] Capture TrueNAS exact image digests, active Pipelines consumers,
-  Docker networks, bucket/index owners and recent backups in a
-  **read-only** runtime audit.
+- [ ] Capture TrueNAS exact image digests, Docker networks, bucket/index
+  owners, and recent backups in a **read-only** runtime audit.
+- [x] Remove unused Open WebUI Pipelines service from Compose and its
+  Backstage component (operator confirmed). Runtime retirement and generated
+  catalog/Gatus/Homarr/AutoKuma reconciliation still require acceptance.
+- [ ] Canary `hello.int.albandrieu.com` on existing Traefik with CrowdSec
+  LAPI bouncer, real-client-IP trust and optional staged AppSec WAF;
+  avoid migrating pfSense HAProxy or Cloudflare routes implicitly.
+- [ ] Reconcile NPM/NPMplus trial ingress ownership after the canary;
+  do not delete their data before reviewing host/cert/port consumers.
 - [ ] Evaluate reuse of Docling by Open WebUI and Langfuse/Alloy tracing,
   then retire Pipelines only after equivalent Function/MCP coverage.
 - [ ] Qualify Open WebUI 0.11.4 independently before upgrading the
