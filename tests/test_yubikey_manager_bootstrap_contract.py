@@ -12,8 +12,9 @@ class YubiKeyManagerBootstrapContractTests(unittest.TestCase):
 
     def test_workstation_uses_distribution_package_not_local_pyscard_build(self) -> None:
         text = self.read("scripts/workstation/bootstrap-yubikey-manager.sh")
-        self.assertIn('VERSION="${NABLA_YKMAN_VERSION:-5.9.2}"', text)
+        self.assertIn('VERSION="${NABLA_YKMAN_VERSION:-5.8.0}"', text)
         self.assertIn('SYSTEM_YKMAN="/usr/bin/ykman"', text)
+        self.assertIn("awk '{print $NF}'", text)
         self.assertIn("yubikey-manager pcscd libu2f-udev", text)
         self.assertIn('ln -sfn "${SYSTEM_YKMAN}" "${LINK}"', text)
         self.assertNotIn("uv tool install", text)
