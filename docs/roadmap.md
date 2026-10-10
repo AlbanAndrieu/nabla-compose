@@ -29,6 +29,39 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Docling contract et DSOMM Caddy EPERM (2026-10-10)
+
+- [x] **P0 Docling** : le service déclare un port Compose sous forme
+  structurée `{name: web, target: 5001, published: "5001",
+  host_ip: "172.17.0.24", protocol: tcp, app_protocol: http}`. Le
+  test attendait l'ancienne chaîne `172.17.0.24:5001:5001`, d'où
+  `1 failed, 154 passed, 1 skipped, 64 subtests`. Contrat actualisé
+  sans toucher au service ni à son exposition réseau.
+- [ ] **L3** : rejouer `python3 -m pytest -q
+  tests/test_docling_joplin_contract.py --tb=short`, puis
+  `just pre-push` sur le HEAD actuel. L'agent a exécuté une
+  reproduction isolée de l'assertion de ports : 1 passed ; cela
+  ne remplace pas le test du dépôt complet.
+- [x] **DSOMM — cause runtime corroborée** : conteneur actuel
+  `dsomm` `restarting`, `ExitCode=255`, `OOMKilled=false`,
+  `RestartCount=1109`, `CapDrop=["ALL"]`, `CapAdd=null`,
+  `SecurityOpt=["no-new-privileges:true"]`. Logs :
+  `exec /usr/bin/caddy: operation not permitted`. Le Compose
+  canonique *déclare* `cap_add: NET_BIND_SERVICE` ; le conteneur
+  inspecté ne l'a pas. C'est une divergence de posture **déclarée
+  versus appliquée**, pas un problème démontré de permissions sur
+  les datasets (`700` et `600 root:root`).
+- [ ] **DSOMM — prochaine étape explicite** : confronter
+  `docker compose -f apps/dsomm/compose.yml config --format json`
+  et les métadonnées sans secrets de `docker inspect dsomm`, puis
+  revoir la définition Custom App persistée dans TrueNAS. Contrôler
+  la conservation du jeu de données avant de réconcilier le runtime
+  via une opération `--apply` **distincte, planifiée et surveillée**.
+  Ne pas ouvrir `privileged`, retirer `no-new-privileges` ou
+  réinitialiser les états pour masquer le problème.
+- [ ] **Suite P1** : Gatus puis Sentry puis Scrutiny, un par un
+  après résolution du P0 et revue explicite DSOMM.
+
 ## PR #251 — quality gate L3 et DSOMM restart 255 (2026-10-10)
 
 - [x] `tests/test_truenas_deploy_output_contract.py` : **8 passed** sur
