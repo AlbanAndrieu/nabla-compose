@@ -216,8 +216,16 @@ collect_deleted_files() {
     sort -u
 }
 
-mapfile -t CHANGED_FILES < <(collect_changed_files)
-mapfile -t DELETED_FILES < <(collect_deleted_files)
+# Process substitution masks Git errors; fail closed rather than skip tests.
+if ! changed_output="$(collect_changed_files)" ||
+  ! deleted_output="$(collect_deleted_files)"; then
+  printf '❌ QG_GIT_SCOPE: failed to collect changed/deleted paths; no checks were skipped\n' >&2
+  exit 2
+fi
+CHANGED_FILES=()
+DELETED_FILES=()
+[[ -z "$changed_output" ]] || mapfile -t CHANGED_FILES <<<"$changed_output"
+[[ -z "$deleted_output" ]] || mapfile -t DELETED_FILES <<<"$deleted_output"
 
 check_base_freshness() {
   if [[ "${BASE_REF}" == "HEAD" ]]; then
