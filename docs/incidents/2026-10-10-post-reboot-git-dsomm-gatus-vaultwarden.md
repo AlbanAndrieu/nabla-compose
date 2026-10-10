@@ -150,6 +150,77 @@ Avoid `sudo pip`/`apt` on TrueNAS. Check InfluxDB authorization using
 the Scrutiny health/collector contract; do not rotate, restage or
 finalize until the source of truth is proven.
 
+## 6. Follow-up after branch fast-forward
+
+The main `.git/index` was `root:apps 0600` and repaired narrowly.
+A subsequent ordinary `git status` then failed on
+`.git/modules/anything-llm/index`. This is the **same root-owned index
+pattern in the nested submodule**, not evidence that `fastapi-sample` must
+be reset. Repair only the proven owner mismatch:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+gitdir="$(git rev-parse --absolute-git-dir)"
+stat -c '%U:%G %a %n' "$gitdir/modules/anything-llm" "$gitdir/modules/anything-llm/index"
+# ONLY if the index is root-owned:
+sudo chown "$(id -u):$(id -g)" "$gitdir/modules/anything-llm/index"
+git -C anything-llm status --short --branch
+git status --short --branch
+```
+
+The operator successfully fast-forwarded the branch to
+`0d566b1dabad` on 2026-10-10. DSOMM `--check` then reported
+`catalog/service-topology.json is stale` (expected after deleting the
+Pipelines icon); the generator no longer raised `NameError`.
+Regenerate only the canonical generated assets from a **writable**
+checkout, without `sudo`:
+
+```bash
+python3 scripts/generate-service-topology.py
+python3 scripts/generate-service-consumers.py
+python3 scripts/generate-service-topology.py --check
+python3 scripts/generate-service-consumers.py --check
+git diff --stat
+```
+
+**New Gatus evidence:** both parent paths are 0755 but
+`apps/gatus/config/config.yml` is owned by `albandrieu:apps` mode
+0600. `docker inspect gatus` shows no configured container user; its
+process therefore runs under the image/daemon default, but
+`cap_drop: ALL` prevents Docker root from overriding the mounted
+file permissions. Use `docker exec gatus id` only if the container
+is running, otherwise inspect OCI/container image identity and TrueNAS
+ACL. Grant read access to the actual process UID or effective group
+using a **targeted ACL or group-read mode**, not global `chmod 777`.
+Before granting group read, review config for embedded authorization
+headers or credentials.
+
+**New Vaultwarden adapter evidence:** recursive path search returned
+only `/mnt/cpool/vaultwarden/bw-data/data.json`. Do **not** print it;
+identify exact JSON paths using:
+
+```bash
+sudo jq -r 'paths(scalars) as $p | select(getpath($p) == "http://vaultwarden") | $p | join(".")' \
+  /mnt/cpool/vaultwarden/bw-data/data.json
+```
+
+Stop the adapter through the supported TrueNAS lifecycle, back up that
+file with unchanged owner/mode, then update *only* the old HTTP server
+field after verifying the HTTPS endpoint. Preserve tokens and other
+properties. Do not `rm -rf bw-data`.
+
+**New Scrutiny evidence:** operator removed both the repository-local
+and `/mnt/cpool/scrutiny/.env.secrets` legacy source; canonical file
+remains present, and `--check scrutiny` failed in Bash on an empty
+`source_app` key. This is fixed by an empty-key guard in the PR.
+After pulling, re-run `--check scrutiny`, not `--restage`.
+The previously suggested dev venv path was **absent** on the appliance;
+discover an available Python environment with `command -v python`,
+`command -v mise` or `find ~/.cache/nabla-compose -maxdepth 3
+-type f -name python` before running any optional dotenv comparator.
+The old two-file comparison is no longer needed when only the
+canonical source remains.
+
 ## Acceptance
 
 - Checkout writable by operator without `sudo git` and nested
