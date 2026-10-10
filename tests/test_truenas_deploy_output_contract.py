@@ -59,7 +59,9 @@ def test_checkout_provenance_is_local_and_non_blocking() -> None:
     assert "status --porcelain" in text
     assert "rev-list --left-right --count" in text
     assert "git fetch" not in text
-    assert "relation=behind-" in text
+    assert '0:*) relation="behind-${right}"' in text
+    assert '*:0) relation="ahead-${left}"' in text
+    assert '*) relation="diverged-${left}-${right}"' in text
 
 
 def test_app_summary_renders_found_and_missing_apps_without_jq_errors() -> None:
