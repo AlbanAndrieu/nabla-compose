@@ -36,6 +36,40 @@
 
 **Deferrals:** Karmada/federation, broad AI upgrades, Trivy Operator, new observability daemons, S3 backend consolidation, native Grafana migration unless an active incident warrants it, and destructive cleanup of legacy services.
 
+## TrueNAS Git index recovery and PR #253 — operator handoff
+
+The appliance reports repeated `fatal: .git/index: index file open failed:
+Permission denied`, including for `git stash`, `git restore`,
+`git switch` and `git pull`. Earlier metadata established
+`.git/index` as `root:apps 0644` and the working user as
+`albandrieu` (UID 1000); `git fetch` succeeds since it need
+not update the index. **Do not use `sudo git` or recursively
+chown the repository.**
+
+After rechecking ownership, narrowly correct
+`sudo chown albandrieu:apps .git/index` and
+`sudo chmod 644 .git/index`. Re-run `git status`, then
+stash only the two indexed modifications
+`scripts/quality/check-compose-config.sh` and
+`scripts/workstation/openclaw-auth-presence.py` (preserve stash;
+no force checkout). Fetch, switch to
+`fix/gatus-config-permissions-and-runtime-closure`, and
+fast-forward; the newly added
+`scripts/truenas/repair-gatus-config-access.sh` does not
+exist on the older local branch.
+
+The standalone Gatus diagnostic already proves a **config read
+permission** panic, not a SQLite read error. PR #253 corrects
+a mismatched static contract test on the script's two-mode
+`--check|--apply` guard. Evaluate and run these small tests
+in the agent environment when supported; avoid repeated
+operator-side full quality-gate requests. Read-only `--check`
+of the scoped repair, then permission-only `--apply` after
+mount/GID verification; never alter `gatus.db`.
+
+No full TrueNAS L3 or runtime fix has been confirmed yet;
+the PR remains open and unmerged.
+
 ## Latest execution addendum — 2026-10-10 21:04 CEST
 
 PR **#251 is already merged**. Active follow-up is the draft
