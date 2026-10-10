@@ -15,17 +15,22 @@ ROOT = Path(__file__).parents[1]
 
 class AgentQualityGateContractTests(unittest.TestCase):
 
-    def test_agent_gate_syncs_worktree_exec_bits_from_git_index(self) -> None:
+    def test_agent_gate_preserves_private_worktree_modes_and_guards_git_index(self) -> None:
         text = AGENT_GATE.read_text(encoding="utf-8")
+        section = text.split("check_exec_bits() {", 1)[1].split(
+            "\ncheck_base_freshness", 1
+        )[0]
 
-        self.assertIn("git ls-files --stage", text)
-        self.assertIn('[[ "${mode}" == "100755" ]]', text)
-        self.assertIn('current_mode="$(stat -c \'%a\' -- "${path}"', text)
-        self.assertIn('[[ "${current_mode}" != "755" ]]', text)
-        self.assertIn('chmod 755 -- "${path}"', text)
-        self.assertIn(
-            "working-tree mode restored from Git index",
-            text,
+        self.assertIn("git ls-files --stage", section)
+        self.assertIn('[[ "${mode}" != "100755" ]]', section)
+        self.assertIn('git add --chmod=+x -- "${path}"', section)
+        self.assertIn('chmod u+x -- "${path}"', section)
+        self.assertIn("tracked shebang", section)
+        self.assertNotIn('chmod 755 -- "${path}"', section)
+        # Guarding only CHANGED_FILES misses a 100644 shebang already on HEAD.
+        self.assertLess(
+            section.index("done < <(git ls-files --stage)"),
+            section.index('for file in "${CHANGED_FILES[@]}"'),
         )
 
     def test_agent_gate_is_executable_and_wraps_canonical_gate(self) -> None:
