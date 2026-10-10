@@ -29,6 +29,78 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## CURRENT AUTHORITATIVE EXECUTION ORDER — operator-approved (2026-10-10)
+
+**Use this section rather than superseded chronological entries below.**
+Compact new-chat handoff with complete decisions, dependencies and proofs:
+[`roadmap-execution-handoff-2026-10-10.md`](./roadmap-execution-handoff-2026-10-10.md).
+Historic PR #251 notes and the older `Current execution order` remain
+as evidence/context only; if they disagree, **this section wins**.
+
+**Decisions approved:** (1) stability/Gatus/pfSense before new features;
+(2) secret migration **one service at a time**, bundled with its Backstage
+descriptor; (3) prepare catalog v2 gradually but perform a **coordinated
+three-repository cutover**, no permanent dual schema; (4) Cyberbro before
+Docling when choosing between equal-priority feature work, while read-only
+Docling diagnostics may run earlier; (5) finalize already operational
+DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
+of redeploying them.
+
+### Validation policy — agent local first, operator only for runtime acceptance
+
+- [ ] **Agent responsibility:** run and correct `shellcheck`,
+  `bash -n`, targeted/full `pytest`, YAML validation, Ruff,
+  pre-commit, Compose config, generators, BetterLeaks, SAST and
+  Playwright/ZAP **in the agent's own environment wherever feasible**.
+  Retrieve exact HEAD source if clone/DNS is blocked, use hermetic
+  fixtures for relevant isolated tests, and state precisely what
+  ran and what did not. Never claim the full gate is green based on
+  partial checks.
+- [ ] **Avoid operator-test ping-pong:** do **not** repeatedly require
+  `just pre-push`, ShellCheck, pytest or all quality gates on
+  workstation/TrueNAS between each small roadmap change. Batch
+  operator-only appliance evidence or final acceptance in a single
+  bounded checkpoint. An unrelated, known failing gate may remain
+  explicit debt while safe independent work continues; agent fixes
+  introduced regressions and prioritizes the root blocking issue.
+- [ ] **Never bypass safety/quality controls:** do not disable,
+  silently skip or weaken pytest, ShellCheck, Ruff, pre-commit,
+  BetterLeaks, SAST, Playwright, ZAP, deployment/security contracts
+  or mandatory PR checks to accelerate progress. Required full
+  quality-gate acceptance remains a **before-merge** requirement,
+  distinct from the targeted **before-next-step** gate.
+- [ ] **No auto-merge.** No silent TrueNAS app mutations, data
+  migrations, public endpoints, secret rotation or Bababou ingestion.
+  Preserve rollback, version pinning and authoritative runtime evidence.
+
+### Critical path — close started work first
+
+| Gate | Priority | Work | Exit condition |
+| --- | --- | --- | --- |
+| A1 | P0 | Stabilize pre-commit YAML/executable hooks and autonomous local-first validation | Targeted agent checks executed; final L3 state tracked |
+| A2 | P0 | Diagnose and repair Gatus STOPPED/restart exit 2 without SQLite loss | Correct root cause; HTTP 8085, persistence and history accepted |
+| A3 | P0 | Confirm pfSense/CrowdSec DNS/memory stability; close runtime-vs-reboot acceptance on DSOMM, Sentry, Scrutiny, Pi-hole | Critical risk isolated; status declarations reconcile with proof |
+| B1 | P1 | Complete `/mnt/cpool/secrets/runtime/<app>/` migration and Vaultwarden recovery per active service | Manifest/path, identity, consumer, restart/rollback proof |
+| B2 | P1 | Backstage descriptors, catalog v2 parity/ownership/exposure, prepare FastAPI/Site consumers | Semantic parity and no duplicated authority |
+| B3 | P1 | Coordinated `nabla-compose` → `fastapi-sample` → `nabla-site-alban` cutover | Cross-repo contract, runtime/health and reboot proof before legacy deletion |
+| C1 | P2 | Cyberbro HTTP, IoC and MCP/LiteLLM least-privilege acceptance | Bounded functional and auth smoke |
+| C2 | P2 | Shared Docling for OpenRAG + Open WebUI; version-verified OpenRAG search API/MCP | PDF/table/OCR extraction, known route and ACL |
+| C3 | P2 | Private Bababou dataset POC via reviewed read-only subset | Measured retrieval/citation quality and no data leakage |
+
+**Explicitly defer** Karmada/multi-cluster federation, broad image
+upgrades, Trivy Operator, new observability daemons, Garage/MinIO/AIStor
+consolidation and destructive legacy cleanup until the path above is
+sufficiently accepted. Keep outage-driven urgent security fixes eligible
+for reprioritization.
+
+**Current proof:** DSOMM 12 tests/22 subtests + HTTP 200 + Docker
+capability; Sentry diagnostic 14 OK; Scrutiny healthy web/InfluxDB and
+four SMART devices; Pi-hole DNS sync healthy. Gatus was STOPPED with
+restart exit 2 and HTTP 8085 unavailable. The canonical source for
+the private Bababou dataset has not been located or mounted for indexing.
+**Full local pre-push green has not been demonstrated in the provided
+evidence.**
+
 ## PR #251 — Shared Docling, OpenRAG API/MCP, Open WebUI and Bababou POC (2026-10-10)
 
 Implementation and security gates: [`docs/runbooks/rag-bababou-poc-architecture.md`](./runbooks/rag-bababou-poc-architecture.md).
