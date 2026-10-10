@@ -3,7 +3,11 @@ set -euo pipefail
 
 MODE="${1:---check}"
 VERSION="${NABLA_YKMAN_VERSION:-5.9.2}"
-PYTHON_VERSION="${NABLA_YKMAN_PYTHON_VERSION:-3.13}"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+DOCKERFILE="${ROOT}/tools/yubikey-manager/Dockerfile"
+IMAGE="${NABLA_YKMAN_IMAGE:-local/nabla-ykman:${VERSION}}"
+BIN_DIR="${HOME}/.local/bin"
+WRAPPER="${BIN_DIR}/ykman"
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
@@ -13,10 +17,9 @@ case "${MODE}" in
     cat <<'EOF'
 usage: bash scripts/truenas/bootstrap-yubikey-manager.sh [--check|--apply]
 
-Install pinned YubiKey Manager CLI through uv using a managed Python 3.13.
-This avoids TrueNAS system Python/ensurepip and never invokes apt or system pip.
-Physical YubiKey management still requires the USB/HID/CCID device to be
-visible to TrueNAS; OTP typed through an SSH terminal does not.
+Build an isolated containerized ykman CLI for TrueNAS. Native build dependencies
+exist only inside the image; the TrueNAS host Python/package database is not
+modified. Device-management commands still require explicit USB device exposure.
 EOF
     exit 0
     ;;
@@ -24,35 +27,41 @@ EOF
 esac
 
 [[ "${EUID}" -ne 0 ]] || fail "run as the unprivileged TrueNAS operator, not root"
+command -v docker >/dev/null 2>&1 || fail "docker is required"
+[[ -f "${DOCKERFILE}" ]] || fail "missing ${DOCKERFILE}"
 
-resolve_uv() {
-  if command -v uv >/dev/null 2>&1; then
-    UV_CMD=(uv)
-  elif command -v mise >/dev/null 2>&1; then
-    UV_CMD=(mise --no-config exec uv@latest -- uv)
-  else
-    fail "uv or mise is required; run the repository TrueNAS dev-tools bootstrap first"
-  fi
+check_image() {
+  docker image inspect "${IMAGE}" >/dev/null 2>&1 || return 1
+  actual="$(docker run --rm "${IMAGE}" --version 2>/dev/null | awk '{print $1}')"
+  [[ "${actual}" == "${VERSION}" ]]
 }
 
-resolve_uv
-BIN_DIR="$("${UV_CMD[@]}" tool dir --bin)"
-YKM="${BIN_DIR}/ykman"
-
-check_install() {
-  [[ -x "${YKM}" ]] || return 1
-  actual="$("${YKM}" --version 2>/dev/null | awk '{print $1}')"
-  [[ "${actual}" == "${VERSION}" ]] || return 1
+write_wrapper() {
+  install -d -m 700 "${BIN_DIR}"
+  cat >"${WRAPPER}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec docker run --rm "${IMAGE}" "\$@"
+EOF
+  chmod 700 "${WRAPPER}"
 }
 
 if [[ "${MODE}" == "--check" ]]; then
-  check_install || fail "isolated ykman ${VERSION} is not ready; run --apply"
-  printf 'OK: isolated YubiKey Manager %s ready at %s\n' "${VERSION}" "${YKM}"
+  check_image || fail "containerized ykman ${VERSION} is not ready; run --apply"
+  [[ -x "${WRAPPER}" ]] || fail "ykman wrapper missing: ${WRAPPER}; run --apply"
+  printf 'OK: containerized YubiKey Manager %s ready via %s\n' "${VERSION}" "${WRAPPER}"
+  printf 'INFO: wrapper has no host USB passthrough by default.\n'
   exit 0
 fi
 
-"${UV_CMD[@]}" tool install --force --python "${PYTHON_VERSION}" "yubikey-manager==${VERSION}"
-check_install || fail "uv-installed ykman failed self-check"
-printf 'OK: installed YubiKey Manager %s with uv-managed Python %s\n' "${VERSION}" "${PYTHON_VERSION}"
+docker build \
+  --build-arg "YKMAN_VERSION=${VERSION}" \
+  -t "${IMAGE}" \
+  -f "${DOCKERFILE}" \
+  "${ROOT}/tools/yubikey-manager"
+
+check_image || fail "containerized ykman failed self-check"
+write_wrapper
+printf 'OK: built containerized YubiKey Manager %s as %s\n' "${VERSION}" "${IMAGE}"
 printf 'INFO: export PATH="%s:$PATH"; hash -r\n' "${BIN_DIR}"
-printf 'INFO: no TrueNAS OS package or system Python was modified.\n'
+printf 'INFO: no TrueNAS OS package, compiler or system Python was modified.\n'
