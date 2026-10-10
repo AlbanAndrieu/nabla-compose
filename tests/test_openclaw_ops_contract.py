@@ -23,3 +23,9 @@ def test_default_diagnostics_are_nonmutating() -> None:
     assert "openclaw doctor --fix" not in text
     assert "openclaw memory status --index" not in text
     assert "systemctl --user restart" not in text
+
+
+def test_routes_option_is_accepted_and_dispatched() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--auth|--routes|--backup-check|--disable-irc) ;;" in text
+    assert '--routes) python3 "${ROOT}/scripts/workstation/openclaw-route-metadata.py" ;;' in text
