@@ -69,13 +69,33 @@ diagnose_public_dns() {
   printf 'vaultwarden_public_host=%s system_ips=%s lan_resolver_ips=%s public_resolver_ips=%s\n' \
     "${PUBLIC_HOST}" "${system_ips:-<unknown>}" "${lan_ips:-<unknown>}" "${public_ips:-<unknown>}"
 
-  if [[ ",${system_ips}," == *",${LOCAL_LAN_IP},"* ]] ||
-     [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
-    printf 'ERROR: split-DNS detected: %s resolves to local TrueNAS IP %s from the LAN path.\n' \
+  if [[ ",${system_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
+    if [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
+      printf 'ERROR: split-DNS detected: %s resolves to local TrueNAS IP %s from pfSense/Unbound and the system resolver.\n' \
+        "${PUBLIC_HOST}" "${LOCAL_LAN_IP}" >&2
+      printf 'ERROR: remove the public pfSense/Unbound Host Override; keep vaultwarden.int.albandrieu.com for direct LAN access if needed.\n' >&2
+      printf 'ERROR: do not edit /var/unbound/host_entries.conf directly; it is generated from pfSense configuration.\n' >&2
+    else
+      printf 'ERROR: TrueNAS system resolver still maps %s to %s while pfSense/Unbound no longer does.\n' \
+        "${PUBLIC_HOST}" "${LOCAL_LAN_IP}" >&2
+      if grep -Eq "(^|[[:space:]])${LOCAL_LAN_IP}([[:space:]]+.*[[:space:]])?${PUBLIC_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null; then
+        printf 'ERROR: /etc/hosts contains a local override for %s. Remove it through the TrueNAS-supported configuration path rather than editing generated state blindly.\n' \
+          "${PUBLIC_HOST}" >&2
+      else
+        printf 'INFO: no matching /etc/hosts entry detected; inspect hosts: ordering in /etc/nsswitch.conf and any local resolver/cache before changing pfSense again.\n' >&2
+        grep -E '^[[:space:]]*hosts:' /etc/nsswitch.conf 2>/dev/null || true
+        grep -E '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null || true
+        if command -v resolvectl >/dev/null 2>&1; then
+          resolvectl query "${PUBLIC_HOST}" 2>/dev/null || true
+        fi
+      fi
+    fi
+    return 1
+  fi
+
+  if [[ ",${lan_ips}," == *",${LOCAL_LAN_IP},"* ]]; then
+    printf 'ERROR: pfSense/Unbound still maps %s to local TrueNAS IP %s although the system resolver currently does not.\n' \
       "${PUBLIC_HOST}" "${LOCAL_LAN_IP}" >&2
-    printf 'ERROR: known RCA is the pfSense/Unbound Host Override vaultwarden + albandrieu.com -> %s; remove that public override and keep vaultwarden.int.albandrieu.com for direct LAN access if needed.\n' \
-      "${LOCAL_LAN_IP}" >&2
-    printf 'ERROR: do not edit /var/unbound/host_entries.conf directly; it is generated from pfSense configuration.\n' >&2
     return 1
   fi
 }

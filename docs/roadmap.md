@@ -48,6 +48,20 @@ of redeploying them.
 
 ### P0 — Git index ownership: evidence of root Git access, not proven cron (2026-10-10)
 
+- [ ] **Git index recurrence after DNS work:** operator again hit
+  `fatal: .git/index: index file open failed: Permission denied` before
+  `git switch`/pull. This is a recurrence, not a resolved historical issue.
+  Run `scripts/truenas/diagnose-git-index-ownership.sh` read-only before
+  repairing ownership; correlate the exact index mtime with cron/timers/sudo
+  journal. Repair only confirmed root-owned index files, never recursively
+  chown the checkout and never use `sudo git`.
+- [ ] **Vaultwarden residual resolver drift:** pfSense/Unbound now returns the
+  public Cloudflare addresses for `vaultwarden.albandrieu.com`, but TrueNAS
+  `getent` still returns `172.17.0.24`. The remaining fault is therefore
+  local to TrueNAS NSS/resolver state, not the renamed pfSense override.
+  Inspect `/etc/hosts`, `hosts:` in `/etc/nsswitch.conf`, resolver config
+  and cache before retrying Bitwarden CLI.
+
 - [x] Source investigation: `docs/truenas-deployment-automation.md`
   records TrueNAS cron **ID 6**, hourly at minute 0, user
   `albandrieu`, running `scripts/cron.sh`.

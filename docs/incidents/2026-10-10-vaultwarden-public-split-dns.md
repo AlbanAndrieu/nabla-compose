@@ -302,3 +302,29 @@ Ordre de reprise :
    pointent plus vers `172.17.0.24:443` ;
 5. seulement ensuite relancer `configure-bitwarden-cli-local.sh --apply`,
    `bw login`, `bw unlock` et le renderer CrowdSec.
+
+
+### After pfSense override rename — residual TrueNAS NSS override
+
+The operator renamed the pfSense Host Override from `vaultwarden` to
+`bitwarden`. After that change, direct DNS queries were corrected:
+
+```text
+dig @172.17.0.1 vaultwarden.albandrieu.com -> 188.114.96.2 / 188.114.97.2
+dig @1.1.1.1 vaultwarden.albandrieu.com   -> 188.114.96.2 / 188.114.97.2
+```
+
+However, the TrueNAS system resolver still returned:
+
+```text
+getent ahostsv4 vaultwarden.albandrieu.com -> 172.17.0.24
+curl https://vaultwarden.albandrieu.com/... -> Trying 172.17.0.24:443 -> HTTP 404
+```
+
+Therefore the pfSense public override is no longer the active source of the
+remaining wrong answer. The residual mapping is now local to the TrueNAS NSS /
+resolver path (for example `/etc/hosts`, `hosts:` ordering, or a local cache).
+Do not change pfSense again until that local source is identified.
+
+The local Vaultwarden origin remains healthy:
+`http://127.0.0.1:30032/api/config` returns the expected Vaultwarden config.
