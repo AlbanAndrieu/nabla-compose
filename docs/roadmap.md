@@ -536,9 +536,27 @@ authorized by this entry.** Declared Compose versions are not runtime proof.
 - [x] Remove unused Open WebUI Pipelines service from Compose and its
   Backstage component (operator confirmed). Runtime retirement and generated
   catalog/Gatus/Homarr/AutoKuma reconciliation still require acceptance.
-- [ ] Canary `hello.int.albandrieu.com` on existing Traefik with CrowdSec
-  LAPI bouncer, real-client-IP trust and optional staged AppSec WAF;
+- [x] Prepare the existing `hello.int.albandrieu.com` Traefik router:
+  explicitly pin Docker network `traefik_network` and backend port `80`,
+  and add regression contract (source-only; **not runtime cutover**).
+- [ ] Run the read-only hello ingress preflight and accept actual TrueNAS
+  routing, pfSense HAProxy, DNS/TLS, headers and expected response before
+  retiring the NPM test; see [hello cutover](./hello-traefik-migration.md).
+- [ ] Canary `hello.int.albandrieu.com` with CrowdSec LAPI bouncer,
+  real-client-IP trust and optional staged AppSec WAF;
   avoid migrating pfSense HAProxy or Cloudflare routes implicitly.
+- [ ] Confirm NPMplus has **no active proxy hosts or callers**, then
+  disable the TrueNAS app and only subsequently delete app + data if
+  unused. NPM is a test too: migrate any other configured routes
+  explicitly and remove NPM only after consumer-free evidence.
+- [ ] Confirm AIStor has no buckets, consumers or data, stop the app,
+  observe Langfuse/MinIO health, then delete AIStor after backup review.
+- [ ] Add Trivy Operator as a scoped Talos/Kubernetes **planned service**,
+  then export its reports using DefectDojo's `Trivy Operator Scan`
+  parser and its reimport-scan API, avoiding duplicate findings.
+- [ ] Compare Databasus (PostgreSQL PITR, MongoDB/MySQL backups) against
+  Restic (general files/ZFS exports): choose complementary roles or one
+  minimal stack, then pilot offsite encrypted backup and restore.
 - [ ] Reconcile NPM/NPMplus trial ingress ownership after the canary;
   do not delete their data before reviewing host/cert/port consumers.
 - [ ] Evaluate reuse of Docling by Open WebUI and Langfuse/Alloy tracing,
