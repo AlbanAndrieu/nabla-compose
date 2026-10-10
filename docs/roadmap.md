@@ -29,6 +29,24 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## Consumer hook and stash hygiene — 2026-10-10
+
+- [x] Repair `scripts/quality/check-service-consumers.sh`: prior
+  `git ... || cd ... && pwd` executed `pwd` even when Git succeeded,
+  yielding two newline-separated roots and breaking `cd` at pre-commit.
+  An explicit `if/else` now selects exactly one path; isolated
+  checkout/archive test added.
+- [ ] Operator: after pulling this fix, rerun staged pre-commit and
+  complete the generated-only commit; never stage the unrelated
+  `fastapi-sample` gitlink.
+- [ ] Keep a **stash-free active workflow** after acceptance. First
+  inspect `git stash list`; then drop only the two recent
+  generated-catalog stashes by message, preferably by stash object ID
+  after verifying them. The older stashes (other branches) may contain
+  unrelated unrecovered work and must not be cleared automatically.
+- [ ] Confirm the five generated assets pass both generator `--check`
+  commands and the consumer quality hook on the same checkout/HEAD.
+
 ## Operator follow-up: Git-generated files and DSOMM check (2026-10-10)
 
 - [x] Operator repaired Git index ownership in the superproject and nested
