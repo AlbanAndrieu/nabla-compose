@@ -231,6 +231,47 @@ owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
 the service README/runbook. Never bulk-finalize env files or recreate non-empty
 datasets just to change presets.
 
+## OpenClaw personal assistant — workstation stabilization
+
+**Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
+(read-only by default); Hermes manages development/cloud/cybersecurity. Their
+secrets, memory, tokens and tools must remain isolated. No private message
+contents or tokens may enter Git, logs or CI artifacts.
+
+- [ ] **P0 read-only audit:** from the repo on the workstation run
+  `bash scripts/workstation/diagnose-openclaw.sh`. Codes 0=clean,
+  2=warnings (including preserved foreign `/usr` destination), 1=failure.
+  This intentionally does not invoke `openclaw doctor`, which has been
+  observed installing a plugin even with `--non-interactive`.
+- [ ] **P0 recovery gate:** create/verify a private versioned OpenClaw backup
+  and test isolated restore before package, service or migration changes.
+- [ ] **P0 Node divergence:** run
+  `bash scripts/workstation/prepare-openclaw-systemd.sh` to **print only**
+  an override for the observed systemd unit using `/usr/bin/node`, while
+  the CLI uses mise Node 24.18.1. It refuses unfamiliar service flags; it
+  neither installs the override nor restarts the Gateway. Preserve any
+  separately owned `/usr/lib/node_modules/openclaw` package.
+- [ ] **P1 application:** after validated rollback, align systemd runtime
+  and npm prefix, then run update dry-run and controlled update; repair
+  Slack state migration, inspect SQLite sessions (29 warnings), reconcile
+  WhatsApp plugin version/reconnect, review cron errors and migrate
+  cleartext tokens to SecretRefs. Reverify channels, sessions and Gateway
+  after restart and reboot; do not declare 2026.9.9 installed based on dry-run.
+- [ ] **P2 personal workflows:** test Gmail and WhatsApp with synthetic data
+  in read-only mode; require explicit approval for any sending, deletion,
+  archiving or labeling, including cron-triggered actions.
+- [ ] **P3 TrueNAS:** only after workstation acceptance, stage isolated,
+  pinned Compose/ZFS/secret-backed deployment; prove restore with all
+  personal connectors disabled; coordinate single-owner cutover and failback.
+- [ ] **Quality gate:** run
+  `python -m pytest -q tests/test_openclaw_workstation_contract.py`
+  and `bash -n scripts/workstation/*openclaw*.sh` locally, no GitHub Actions.
+
+Observed workstation baseline (2026-10-09): OpenClaw 2026.9.5,
+CLI mise Node 24.18.1, Gateway service /usr/bin/node, target 2026.9.9
+**dry-run only**. No direct access to workstation from this repository
+change; acceptance requires its actual runtime evidence.
+
 ## Current execution order
 
 1. **P0 runtime closure:** stabilize the pfSense edge-memory/DNS regression,
