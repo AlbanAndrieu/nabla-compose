@@ -46,6 +46,24 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 CrowdSec central bouncer history — 2026-10-10
+
+- [x] `pfsense-firewall` created 2026-09-08, last pulled
+  2026-09-25T22:55:08Z from 172.17.0.1, with type
+  `crowdsec-firewall-bouncer`. This is historical evidence of
+  central LAPI communication, not proof that pfSense's **current**
+  local key matches this registration.
+- [x] `PFSENSE_FIREWALL` created 2026-09-11, never pulled,
+  no recorded IP/type. Keep both registrations pending attribution.
+- [x] Last 24h CrowdSec Docker logs showed zero lines matching
+  the operator's limited unauthorized/forbidden/invalid-key filter.
+  This is **not** evidence of successful authentication.
+- [ ] Perform an operator-approved credential authentication probe
+  from pfSense to central LAPI without exposing keys in logs,
+  arguments, shell history or chat; use only read/poll endpoints
+  with understood side effects. Preserve rollback and never
+  disrupt current firewall tables as part of diagnostic work.
+
 ### P0 CrowdSec bouncer credential provenance — operator checks
 
 - [x] pfSense firewall bouncer YAML contains a nonempty `api_key`
