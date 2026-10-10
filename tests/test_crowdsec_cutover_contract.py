@@ -158,6 +158,7 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "acceptable only when the central LAPI has no active ban decisions",
             "BatchMode=yes",
             'sub(/^[^:]*:[[:space:]]*/, "", line)',
+            'gsub(/^["\\\\047]|["\\\\047]$/, "", line)',
         ):
             self.assertIn(expected, text)
 

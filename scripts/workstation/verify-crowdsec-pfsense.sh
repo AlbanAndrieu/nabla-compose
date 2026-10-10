@@ -103,7 +103,7 @@ else
         line=$0
         sub(/^[^:]*:[[:space:]]*/, "", line)
         sub(/[[:space:]]+$/, "", line)
-        gsub(/^['"'"'"]|['"'"'"]$/, "", line)
+        gsub(/^["\\047]|["\\047]$/, "", line)
         print line
         exit
       }
