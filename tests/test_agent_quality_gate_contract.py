@@ -39,7 +39,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             'if [[ "${generator_scope_changed}" == true ]]',
             text,
         )
-        self.assertIn("no local changes require formatter/linter fixes", text)
+        self.assertIn("no changed files require formatter/linter fixes", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
@@ -205,20 +205,36 @@ class AgentQualityGateContractTests(unittest.TestCase):
         ):
             self.assertEqual(hook_ids.count(hook_id), 1, hook_id)
 
-    def test_shellcheck_uses_official_versioned_precommit_hook(self) -> None:
-        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    def test_shellcheck_uses_pinned_native_operator_binary(self) -> None:
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
         gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
             encoding="utf-8"
         )
-
-        self.assertIn(
-            "repo: https://github.com/koalaman/shellcheck-precommit",
-            config,
+        self.assertFalse(
+            any(
+                repo.get("repo")
+                == "https://github.com/koalaman/shellcheck-precommit"
+                for repo in config["repos"]
+            )
         )
-        self.assertIn("rev: v0.11.0", config)
-        self.assertIn("- id: shellcheck", config)
-        self.assertNotIn("github.com/detailyang/pre-commit-shell", config)
-        self.assertNotIn("- id: shell-lint", config)
+        hooks = [
+            hook
+            for repo in config["repos"]
+            if repo.get("repo") == "local"
+            for hook in repo["hooks"]
+            if hook.get("id") == "shellcheck"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "system")
+        self.assertEqual(hooks[0]["entry"], "shellcheck")
+        self.assertEqual(hooks[0]["args"], ["-x", "-P", "SCRIPTDIR"])
+        bootstrap = (
+            ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SHELLCHECK_VERSION", bootstrap)
+        self.assertIn("0.11.0", bootstrap)
         self.assertIn(
             "pre-commit run shellcheck --files scripts/agent-quality-gate.sh",
             gate,
@@ -272,11 +288,12 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("truenas-deployment-automation-contract", config)
         self.assertGreaterEqual(config.count("(?:[.-][^./]+)?"), 3)
         payload = yaml.safe_load(config)
-        local_hooks = next(
-            repository["hooks"]
+        local_hooks = [
+            hook
             for repository in payload["repos"]
             if repository.get("repo") == "local"
-        )
+            for hook in repository["hooks"]
+        ]
         catalog_hook = next(
             hook
             for hook in local_hooks
