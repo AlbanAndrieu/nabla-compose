@@ -82,3 +82,29 @@ Operator executed `openclaw cron runs --id 7ed5dd9a-da30-479f-b0eb-4cc494fb4966 
 ### Discord cron delivery validated on workstation (2026-10-10)
 
 The operator ran the exact cron-history summary on the workstation with 3/3 targeted pytest tests passing. Seven runs were successful and delivered; all seven reported `fallbackUsed=true`, but destination identity was preserved in all seven (`delivery_route_same_destination=7`, `delivery_route_different_destination=0`). Total run duration was 464590 ms (range 9121–172807 ms). **Do not treat fallbackUsed alone as a Discord incident** or change delivery settings. Successful delivery is separate from editorial correctness, token usage and cost attribution. The digest spend remains unmeasured; next priority is redacted per-key/per-model LiteLLM metrics.
+
+## Workstation CLI playbook (no web UI)
+
+Script: `scripts/workstation/openclaw-ops.sh`. Run from a synchronized repository checkout on the workstation. Default is read-only, never prints raw journal lines or cron content.
+
+| Command | Effect | Resolution gate |
+| --- | --- | --- |
+| `bash scripts/workstation/openclaw-ops.sh` | Aggregate 24h gateway errors, digest cron runs, memory index status, and backup prerequisite | Observe counts without inferring billable requests |
+| `bash scripts/workstation/openclaw-ops.sh --cron` | Digest-only counts and same/different Discord delivery resolution | If same=7 and different=0, do not reconfigure Discord |
+| `bash scripts/workstation/openclaw-ops.sh --memory` | Filtered main/cron index identity and readiness | Diagnose 401 provider authentication **before** costly indexing |
+| `bash scripts/workstation/openclaw-ops.sh --backup-check` | Validate safe backup preconditions only | Quiesce manually in scheduled maintenance before `backup-openclaw.sh --create` |
+| `bash scripts/workstation/openclaw-ops.sh --disable-irc` | **Explicit mutation:** `openclaw config set channels.irc.enabled false`, read-back check | Channel disabled in config; possible later reviewed restart |
+
+Recommended workflow: `--check` -> inspect `openclaw doctor` output privately -> review `openclaw cron show` and LiteLLM aggregate spending -> targeted remediation and repeated `--check`. Don't paste `openclaw models status` publicly: it may include credential prefixes. No script here repairs Slack plugin migration, SQLite session issues, 401 or 429 automatically.
+
+### Remaining issues and safe remediation decisions
+
+1. **429 LiteLLM:** collect spend per virtual key, model and hour from LiteLLM's authenticated administrative endpoint or interface using read-only scoped authorization; keep keys and response bodies private. Confirm the `openclaw-main` cap/exhaustion and if `litellm-cron` is independently funded. Adjust cron content and request strategy rather than silently raising limits.
+2. **401 embedding:** inspect runtime endpoint and secret-reference resolution without echoing credentials; perform at most one approved controlled embedding request, check result dimensions against index configuration. Rebuild only after success and backup.
+3. **Context overrun:** isolate source of 248/248 over-budget journal events. Reduce repeated tools/context and session history; validate prompt usage separately from LiteLLM billing.
+4. **Cron editorial correctness:** successful delivery is not evidence of factuality. Require sourced dated headlines, no unsourced product or vulnerability announcements, bounded sources, and no manual Discord send from the agent when scheduler announcement works.
+5. **Heartbeat (12 consecutive errors), skill collection review (5):** inspect `openclaw cron list` and `openclaw cron show <id>`; assess last error and tool permission before modifying. Never blanket-disable health checks to make a status green.
+6. **SQLite/Slack migration:** `openclaw doctor --session-sqlite dry-run --session-sqlite-all-agents`, verify recovery archive and rollback, then plan maintenance. Do not run `doctor --fix` automatically.
+7. **IRC unwanted:** apply explicit `--disable-irc` only after reviewing backup/config; keep other channel policies unchanged and don't expose Gateway network listener.
+
+`--check` is read-only by design, but may read local OpenClaw state and may be affected by the installed CLI version. Do not run against an untrusted checkout. Runtime tests remain required on the workstation.
