@@ -128,6 +128,15 @@ the filesystem execute bit for the owning operator uses `chmod u+x` (only
 when actually needed). Do not use `git reset --hard` to reconcile modes.
 Never treat a permission-mode mismatch as permission to skip pre-commit.
 
+The `agent-quality-gate.sh --preflight` checks **all tracked shebang files**
+against Git index mode `100755`, including files not changed by this PR.
+This prevents old `100644` executable scripts escaping changed-file checks.
+In fix mode, `git add --chmod=+x` corrects the index; if needed, only
+`chmod u+x` corrects the owner's filesystem execute bit. Never silently
+normalize a private `0700` TrueNAS file to `0755`. Examine the staged diff
+before committing; the publication gate must refuse dirty staged changes.
+
+
 ## Disconnected development and token budget
 
 When `github.com`, PyPI or hook repositories are unavailable, do not retry
