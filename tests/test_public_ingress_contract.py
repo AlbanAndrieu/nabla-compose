@@ -34,6 +34,28 @@ class PublicIngressContractTests(unittest.TestCase):
             compose,
         )
 
+    def test_hello_uses_one_explicit_traefik_route(self) -> None:
+        compose = yaml.safe_load(
+            (ROOT / "apps" / "nginx" / "compose.yml").read_text(encoding="utf-8")
+        )
+        service = compose["services"]["nginx"]
+        labels = dict(item.split("=", 1) for item in service["labels"])
+        self.assertEqual(labels["traefik.enable"], "true")
+        self.assertEqual(labels["traefik.docker.network"], "traefik_network")
+        self.assertEqual(
+            labels["traefik.http.routers.hello.rule"],
+            "Host(`hello.int.albandrieu.com`)",
+        )
+        self.assertEqual(labels["traefik.http.routers.hello.entrypoints"], "websecure")
+        self.assertEqual(labels["traefik.http.routers.hello.service"], "hello")
+        self.assertEqual(
+            labels["traefik.http.services.hello.loadbalancer.server.port"], "80"
+        )
+        self.assertTrue(compose["networks"]["traefik_network"]["external"])
+        self.assertEqual(service["networks"], ["traefik_network"])
+        self.assertNotIn("npmplus", str(service).lower())
+        self.assertNotIn("nginx-proxy-manager", str(service).lower())
+
     def test_homelab_observer_keeps_appliance_probes_on_lan(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 

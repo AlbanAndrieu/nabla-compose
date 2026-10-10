@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTEXT_SCRIPT = ROOT / "scripts" / "agent-task-context.py"
@@ -47,3 +47,35 @@ def test_context_rejects_invalid_output_bound(tmp_path: Path) -> None:
     )
     assert result.returncode != 0
     assert "AGENT_CONTEXT_MAX_PATHS must be positive" in result.stderr
+
+
+def test_context_handles_existing_but_unrelated_base(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    identity = ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid"]
+    (tmp_path / "first.txt").write_text("first\n", encoding="utf-8")
+    subprocess.run(["git", "add", "first.txt"], cwd=tmp_path, check=True)
+    subprocess.run([*identity, "commit", "-qm", "base"], cwd=tmp_path, check=True)
+    old_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True,
+        capture_output=True, check=True,
+    ).stdout.strip()
+    subprocess.run(["git", "checkout", "-q", "--orphan", "disconnected"],
+                   cwd=tmp_path, check=True)
+    subprocess.run(["git", "rm", "-q", "-rf", "."], cwd=tmp_path, check=True)
+    (tmp_path / "second.txt").write_text("second\n", encoding="utf-8")
+    subprocess.run(["git", "add", "second.txt"], cwd=tmp_path, check=True)
+    subprocess.run([*identity, "commit", "-qm", "unrelated"],
+                   cwd=tmp_path, check=True)
+    (tmp_path / "untracked.txt").write_text("new\n", encoding="utf-8")
+
+    result = subprocess.run(
+        ["python3", str(CONTEXT_SCRIPT)],
+        cwd=tmp_path,
+        env={**os.environ, "QUALITY_BASE_REF": old_sha},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "changed-paths: 1" in result.stdout
+    assert "untracked.txt" in result.stdout

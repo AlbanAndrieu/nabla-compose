@@ -1,6 +1,6 @@
 # Homelab roadmap
 
-Last updated: 2026-10-09.
+Last updated: 2026-10-10.
 
 This file is the **concise execution index and conversation restart point**.
 Detailed procedures, rollback instructions and historical evidence stay in their
@@ -13,6 +13,8 @@ Primary references:
 - secret migration: [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md);
 - platform migration: [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md);
 - security tooling: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
+- AI stack upgrades, integrations and consolidation:
+  [`ai-stack-upgrade-consolidation-plan.md`](./ai-stack-upgrade-consolidation-plan.md);
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
 - incidents/evidence: [`incidents/`](./incidents/).
 
@@ -290,6 +292,17 @@ just context
 Evidence levels remain L0 static, L1 targeted, L2 changed-file convergence and
 L3 full local publication. Only L3 means the complete local gate is green.
 
+- [x] Prevent offline source checks from passing on a failed Git comparison;
+  parse Python sources in one interpreter, retain an opt-in scope limit and
+  keep error excerpts bounded without truncating forensic logs.
+- [x] Define exact-HEAD GitHub-connector/source-snapshot recovery in the
+  `local-first-quality` skill; use already-existing artifacts only and never
+  treat source-only verification as a full Git publication proof.
+- [x] Keep bounded agent context operational when a cached Git base exists
+  but has unrelated history; never fetch merely to print changed-path context.
+- [ ] Demonstrate L3 on the PR's exact checkout with cached dependencies;
+  report first actionable failure only, and preserve security/formatter checks.
+
 ### Dagger — portable local/CI execution
 
 Dagger remains a **beta parity PoC**, not a second source of quality policy.
@@ -506,6 +519,54 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy.
   LiteLLM/GPU ingest/retrieve acceptance.
 - [ ] Cyberbro free-engine baseline, then provider onboarding in bounded
   least-privilege batches; resolve Vaultwarden token-refresh/icon TLS debt.
+
+## P3.1 — AI stack upgrades and service consolidation (planning only)
+
+Execution plan: [AI stack upgrade and consolidation](./ai-stack-upgrade-consolidation-plan.md).
+**No runtime upgrade, redeploy, migration, deletion or secret rotation is
+authorized by this entry.** Declared Compose versions are not runtime proof.
+
+- [x] Inventory the declared OpenRAG, Open WebUI, Langflow, Docling,
+  LiteLLM, Langfuse, OpenSearch and storage dependencies; record available
+  upstream releases and identify candidate integration/duplication areas.
+- [x] Define bounded upgrade waves, stop conditions, compatibility
+  evidence, rollback/restore gates and conditional service additions.
+- [ ] Capture TrueNAS exact image digests, Docker networks, bucket/index
+  owners, and recent backups in a **read-only** runtime audit.
+- [x] Remove unused Open WebUI Pipelines service from Compose and its
+  Backstage component (operator confirmed). Runtime retirement and generated
+  catalog/Gatus/Homarr/AutoKuma reconciliation still require acceptance.
+- [x] Prepare the existing `hello.int.albandrieu.com` Traefik router:
+  explicitly pin Docker network `traefik_network` and backend port `80`,
+  and add regression contract (source-only; **not runtime cutover**).
+- [ ] Run the read-only hello ingress preflight and accept actual TrueNAS
+  routing, pfSense HAProxy, DNS/TLS, headers and expected response before
+  retiring the NPM test; see [hello cutover](./hello-traefik-migration.md).
+- [ ] Canary `hello.int.albandrieu.com` with CrowdSec LAPI bouncer,
+  real-client-IP trust and optional staged AppSec WAF;
+  avoid migrating pfSense HAProxy or Cloudflare routes implicitly.
+- [ ] Confirm NPMplus has **no active proxy hosts or callers**, then
+  disable the TrueNAS app and only subsequently delete app + data if
+  unused. NPM is a test too: migrate any other configured routes
+  explicitly and remove NPM only after consumer-free evidence.
+- [ ] Confirm AIStor has no buckets, consumers or data, stop the app,
+  observe Langfuse/MinIO health, then delete AIStor after backup review.
+- [ ] Add Trivy Operator as a scoped Talos/Kubernetes **planned service**,
+  then export its reports using DefectDojo's `Trivy Operator Scan`
+  parser and its reimport-scan API, avoiding duplicate findings.
+- [ ] Compare Databasus (PostgreSQL PITR, MongoDB/MySQL backups) against
+  Restic (general files/ZFS exports): choose complementary roles or one
+  minimal stack, then pilot offsite encrypted backup and restore.
+- [ ] Reconcile NPM/NPMplus trial ingress ownership after the canary;
+  do not delete their data before reviewing host/cert/port consumers.
+- [ ] Evaluate reuse of Docling by Open WebUI and Langfuse/Alloy tracing,
+  then retire Pipelines only after equivalent Function/MCP coverage.
+- [ ] Qualify Open WebUI 0.11.4 independently before upgrading the
+  coordinated OpenRAG 0.8.0 / Langflow / OpenSearch bundle.
+- [ ] Preserve isolated security data, S3 buckets, RAG indices, DNS
+  authority and ingress ownership until an explicit migration is accepted.
+- [ ] Add a new service only after documenting a missing capability and
+  verifying reuse of the existing stack is insufficient.
 
 ## P4 — Kubernetes and multi-cluster
 
