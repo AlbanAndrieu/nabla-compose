@@ -32,3 +32,10 @@ def test_wrapper_keeps_existing_checks() -> None:
     assert "audit-internal-routes.py" in source
     for forbidden in ("app.redeploy", "docker restart", "app.start"):
         assert forbidden not in source
+
+
+def test_monitoring_coverage_not_equated_to_runtime_outage() -> None:
+    source = AUDIT.read_text(encoding="utf-8")
+    assert "probe_gaps={uncovered}" in source
+    assert "missing host/port metadata\" not in detail" in source
+    assert "Catalog mapping to complete:" in source
