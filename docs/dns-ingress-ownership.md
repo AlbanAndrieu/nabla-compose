@@ -197,6 +197,35 @@ OpenWebUI is another tunnel-origin example:
 `open-webui.albandrieu.com -> Cloudflare Tunnel -> cloudflared ->
 172.17.0.24:31028`. It does not traverse Traefik.
 
+### Anti-pattern: hostname public tunnelé réécrit vers le LAN
+
+Incident de référence :
+[`incidents/2026-10-10-vaultwarden-public-split-dns.md`](./incidents/2026-10-10-vaultwarden-public-split-dns.md).
+
+Le 10 octobre 2026, `vaultwarden.albandrieu.com` était correctement publié par
+Cloudflare Tunnel vers `http://172.17.0.24:30032`, mais pfSense/Unbound
+répondait `172.17.0.24` aux clients LAN pour ce même hostname public. TrueNAS
+contactait donc `172.17.0.24:443` directement et recevait un `404`, tandis
+qu'une workstation utilisant la résolution Cloudflare obtenait `200`.
+
+Un hostname public appartenant à Cloudflare Tunnel ne doit pas être réécrit vers
+une IP LAN simplement pour optimiser le chemin interne. Ce split-DNS bypass le
+contrôle d'ingress public et peut diriger le client vers un port/frontend qui
+n'implémente pas le même contrat.
+
+Avant d'accuser Cloudflare ou l'application, comparer systématiquement :
+
+```bash
+getent ahostsv4 <hostname-public>
+dig +short A <hostname-public> @172.17.0.1
+dig +short A <hostname-public> @1.1.1.1
+curl -sv https://<hostname-public>/... -o /dev/null 2>&1 |
+  grep -E 'Trying |Connected to|< HTTP|server:|cf-ray:'
+```
+
+Si un accès LAN direct est souhaité, utiliser de préférence un nom distinct sous
+`*.int.albandrieu.com` avec son propre contrat Traefik/service.
+
 ## Public `*.albandrieu.com`
 
 There is not one universal publication mechanism for every public hostname.
