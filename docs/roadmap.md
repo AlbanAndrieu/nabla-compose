@@ -101,6 +101,8 @@ of redeploying them.
 
 ### P0 blocker — Bitwarden CLI endpoint and crypto compatibility (2026-10-10)
 
+- [x] **CLI 2026.8.0 runtime accepted:** operator A/B test proved login with YubiKey OTP, unlock, `bw status=unlocked`, and metadata-only Vaultwarden inventory all succeed. CLI 2026.9.0 reproduces `KeyIdBackfillError`/HTTP 404 against the current Vaultwarden. The TrueNAS bootstrap therefore defaults to checksum-pinned 2026.8.0; 2026.9.0 is retained only for controlled compatibility retesting after a future Vaultwarden/client upgrade.
+
 - [x] TrueNAS Vaultwarden local `http://127.0.0.1:30032/api/config`
   and canonical public `https://vaultwarden.albandrieu.com/api/config`
   pass the repository read-only check; pfSense and system resolver returned
