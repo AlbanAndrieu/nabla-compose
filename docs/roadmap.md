@@ -29,6 +29,27 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Node.js absent du PATH TrueNAS (2026-10-10)
+
+- [x] Diagnostiquer le faux échec de validation Cloudflare : le test
+  `test_all_committed_audit_json_passes_vendored_cloudflare_validators`
+  échoue avant de lire les audits lorsque `shutil.which("node") is None`.
+  **Ce constat ne démontre aucune corruption du JSON d'audit.**
+- [x] Étendre `scripts/truenas/bootstrap-dev-tools.sh` : installer
+  `node@24.18.1` via `mise --no-config` sous le HOME opérateur et publier
+  l'exécutable dans `~/.cache/nabla-compose/dev-venv/bin/node`. Le gate
+  réutilise ce venv en tête de `PATH`. Aucun `apt` ni privilège Docker.
+- [x] Contrat de régression : `tests/test_agent_quality_gate_contract.py`
+  atteste la version pin et le lien vers le binaire utilisateur.
+- [ ] **Operator local-first L1/L3** : exécuter
+  `bash scripts/truenas/bootstrap-dev-tools.sh` uniquement si Node n'est
+  pas déjà accessible ; vérifier `command -v node` et `node --version`
+  dans le venv et relancer `pytest -q tests/test_security_audit_skill_contract.py`.
+  Poursuivre `just loop` puis `just pre-push` seulement après
+  convergence sur un HEAD commité, sans `SKIP` ou `--no-verify`.
+- [ ] La roadmap services (DSOMM, Gatus, Sentry, Scrutiny, Scanopy et
+  Docling/OpenRAG) reprend seulement quand le P0 L3 passe.
+
 ## PR #251 — DSOMM gate recovery and service acceptance (2026-10-10)
 
 - [x] Repair stale **DSOMM test contracts** without weakening deployment security:
