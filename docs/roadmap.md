@@ -81,6 +81,32 @@ A `restore-app-set.sh --apply` defaults to LIGHT unless
 `--include-optional` is passed. Do not treat STOPPED optional Apps
 as a platform recovery failure.
 
+## Targeted post-reboot incident follow-up (2026-10-10)
+
+Runbook: [Git/DSOMM/Gatus/Vaultwarden/Scrutiny incident](./incidents/2026-10-10-post-reboot-git-dsomm-gatus-vaultwarden.md).
+
+- [x] Identify `dsomm` exit 255 as Caddy `execve EPERM`,
+  consistent with the upstream file-capability versus `cap_drop: ALL`
+  issue; source fix adds only `NET_BIND_SERVICE` back to the bounding
+  set. **Runtime validation pending**, not yet a confirmed repair.
+- [ ] Correct Gatus read access to `apps/gatus/config/config.yml`
+  using the **actual** container UID and TrueNAS path ACL. Do not
+  loosen all dataset permissions or modify application data.
+- [ ] Correct `bitwarden-api`'s persisted `http://vaultwarden`
+  Bitwarden CLI server URL; tracked Compose already specifies HTTPS.
+  Check old Doco-CD adapter consumers, back up only the affected
+  CLI config and verify TLS before its isolated restart.
+- [ ] Repair the TrueNAS operator's `.git/index` ownership/access
+  without `sudo git` or reset/clean on the nested
+  `fastapi-sample` submodule.
+- [ ] Reconcile Scrutiny after operator removed its repository-local
+  legacy file and commented a possible old InfluxDB token in the
+  canonical file. Do not uncomment unverified credentials, restage,
+  finalize or rotate as a batch. Missing `dotenv` under system Python
+  requires the existing **user-space venv**.
+- [ ] Confirm DSOMM/Gatus/Vaultwarden acceptance via runtime health and
+  exact-HEAD generator/quality gate checks before closing the incident.
+
 ## Runtime evidence — 2026-10-10, post-reboot (user-provided)
 
 - [x] LIGHT review: `emby`, `graylog`, `lidarr`,
