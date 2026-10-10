@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # shellcheck shell=bash
 # Safe, content-free OpenClaw workstation triage. No service mutation or raw config output.
 set -euo pipefail

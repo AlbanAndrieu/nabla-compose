@@ -29,6 +29,70 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — DSOMM CAP_ normalized, Git index permissions and evidence versioning (2026-10-10)
+
+- [x] **DSOMM effective runtime** : operator `docker inspect` reported
+  `state=running`, `project=ix-dsomm`,
+  `service=dsomm`, `CapAdd=["CAP_NET_BIND_SERVICE"]`,
+  `CapDrop=["ALL"]`, new container created 2026-10-10.
+  The deployer incorrectly accepted only `NET_BIND_SERVICE`;
+  its runtime check now accepts Docker's normalized
+  `CAP_NET_BIND_SERVICE` as well. HTTP readiness and uptime
+  remain to be confirmed via `--check` (no new `--apply`).
+- [x] **Git state source separation** : version-controlled DSOMM
+  `config/team-progress.seed.yaml`,
+  `config/team-evidence.seed.yaml`,
+  `config/seed-activities.yaml` and
+  `config/model-activity-index.json` are reviewed templates,
+  whereas `/mnt/cpool/dsomm/state/{model,team-progress,team-evidence}.yaml`
+  are outside the repository and may include live assessment
+  evidence. Import only a reviewed and scrubbed snapshot if
+  versioning it is required; preserve separate writable runtime data.
+- [ ] **Git permission incident** : `git ls-files` and
+  `git status` report `.git/index: Permission denied` on
+  TrueNAS; diagnose index ownership and parent directory access,
+  correct *only* incorrect ownership/permissions and avoid
+  `sudo git`, blanket recursive chmod or disabling pre-commit.
+  Reconfirm the executable shebang from the synced HEAD.
+- [ ] **Service acceptance** : DSOMM `--check`, port 31088,
+  Gatus runtime, Sentry E2E and Scrutiny read-only checks in order.
+
+## PR #251 — pre-push shebang et DSOMM après app.update (2026-10-10)
+
+- [x] **Hook shebang** : `openclaw-ops.sh` possède désormais
+  `#!/usr/bin/env bash` au HEAD distant, mais l'opérateur a constaté
+  `check-executables-have-shebangs` en échec au HEAD
+  `f5b67697ea4d`. Le journal compact ne donne pas le chemin exact ;
+  ne pas affirmer que l'échec porte sur ce script sans la liste des
+  fichiers incriminés. Contrôler le journal privé `/tmp/tmp.1UY6kFZI9X`
+  et les modes Git indexés, puis relancer L3 après `git pull`.
+- [x] **DSOMM --apply exécuté sur TrueNAS** : seed, image,
+  Compose, catalogue, stockage, modèle existant préservé et direct
+  smoke Docker ont réussi ; `app.update` et `app.start` ont répondu
+  succès. **L'acceptation a échoué** : conteneur réel sans
+  `NET_BIND_SERVICE`, malgré un Compose rendu valide. L'App n'est
+  donc pas considérée réparée.
+- [x] **Diagnostic durci** : le déployeur relève maintenant, en cas
+  de divergence de capacité, l'identité et la date de création Docker,
+  le projet/service Compose, l'exit code, les redémarrages et les
+  capacités appliquées, sans afficher l'environnement des secrets.
+  Ce diagnostic différencie une Custom App non réconciliée et un
+  conteneur ancien/orphelin ; il ne change pas l'état du système.
+- [ ] **DSOMM action prioritaire** : confirmer la provenance du
+  conteneur et la définition persistée TrueNAS, en ne révélant pas
+  les valeurs `Config.Env`, `custom_compose_config` ou secrets.
+  Comparer `Created`, `com.docker.compose.project`,
+  `com.docker.compose.service`, `HostConfig.CapAdd` et
+  `app.query`. Ne pas répéter `--apply` aveuglément.
+- [x] **Pourquoi préserver un état DSOMM** : Git versionne les
+  fichiers seed/config du dépôt, pas les trois fichiers runtime
+  `/mnt/cpool/dsomm/state/` (modèle externe pinné et preuves
+  utilisateur pouvant évoluer). Sauvegarder cet état avant les
+  mutations TrueNAS évite la perte de travaux d'évaluation.
+- [ ] **Gatus/Sentry/Scrutiny** : poursuivre les diagnostics en
+  lecture seule dans le runbook, sans démarrer de services depuis
+  la boucle de correction du pre-push.
+
 ## PR #251 — OpenClaw ShellCheck et préparation DSOMM/Gatus/Sentry/Scrutiny (2026-10-10)
 
 - [x] **P0** : l'opérateur a confirmé `15 passed / 22 subtests`
@@ -584,223 +648,35 @@ catalog, topology, Gatus, Homarr and AutoKuma projections still require
 canonical regeneration and L3 exact-HEAD validation. No runtime changes
 have been made by the agent.
 
-## Restart context — 2026-10-07
+## Restart context — 2026-10-10
 
-PR #240 (`fix: stabiliser DSOMM, Sentry et les migrations runtime TrueNAS`) is
-**merged**. Its repository contracts are available on `master`, but the
-post-merge TrueNAS operator transactions were **not run as part of that merge**.
-A new discussion must therefore **not** treat DSOMM/Sentry/Scrutiny/Code runtime
-migration as complete.
+État de reprise canonique pour un nouveau chat/agent :
 
-Conversation bootstrap:
+- PR active : `#251`, branche `fix/agent-compose-gate-offline-followup`; ne jamais merger automatiquement.
+- Local-first obligatoire : corriger le premier échec déterministe avant toute nouvelle amélioration, puis rejouer `bash scripts/agent-pre-push.sh`.
+- OpenClaw : le test backup `Gateway active` est désormais compatible TrueNAS `/tmp noexec`; `openclaw-ops.sh` doit rester `100755` avec shebang Bash explicite.
+- Vaultwarden : RCA confirmée. Un Host Override pfSense
+  `vaultwarden.albandrieu.com -> 172.17.0.24` génère
+  `/var/unbound/host_entries.conf`. Le supprimer côté pfSense et conserver, si nécessaire, un nom privé séparé `vaultwarden.int.albandrieu.com`.
+- pfSense syslog : émission RFC5424 réelle prouvée
+  `172.17.0.1:514 -> 172.17.0.24:1514`; Alloy/Loki valident deux runs consécutifs `exit=0 ok=10`.
+- CrowdSec central TrueNAS : `crowdsecurity/crowdsec:v1.8.1`, healthy, LAPI `:8084`, metrics `:6060`, scénario `firewallservices/pf-scan-multi_ports` désactivé.
+- CrowdSec Loki acquisition : événements pfSense réels visibles ; `cs_lokisource_hits_total` confirmé et croissant (174 → 180 → 287). Étapes pfSense→Alloy→Loki→CrowdSec terminées.
+- Bouncer pfSense : encore sur LAPI local `http://172.17.0.1:8089`; ne pas basculer vers `172.17.0.24:8084` tant que credential/registration/last_pull ne sont pas validés.
+- Syslog legacy : `172.17.0.57:1514` est une ancienne cible workstation à retirer ; la cible canonique doit rester `172.17.0.24:1514`.
+- Bitwarden/secrets : explicitement différés jusqu'après stabilisation du bouncer. Ne pas bloquer la chaîne observabilité dessus.
+- Quality gate actuelle : le dernier blocage observé est le contrat shebang/executable OpenClaw ; corriger sans `--no-verify`, puis relancer la gate complète.
+- Git local : préserver tout commit local non poussé ; si la branche distante avance, inspecter `HEAD...@{upstream}` et merger/rebaser sans reset destructif.
 
-```text
-Repository: AlbanAndrieu/nabla-compose
-Base: master after merged PR #240
-Validation policy: local-first; GitHub Actions are not the edit loop
-Never merge automatically
-Do not assume the TrueNAS commands below were already executed
-Start with read-only checks and current runtime evidence
-Apply/finalize exactly one service transaction at a time
-Preserve legacy files/datasets until runtime + restart/reboot acceptance
-```
+Prochain ordre de travail :
 
-### Immediate TrueNAS acceptance queue
-
-Execute from the canonical TrueNAS checkout. Start with the read-only global
-inventory:
-
-```bash
-sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
-sudo bash scripts/truenas/audit-app-lifecycle.sh
-```
-
-Then progress in bounded transactions:
-
-1. [ ] **DSOMM** — repository seed/deployer is ready; perform the first runtime
-   acceptance without overwriting existing assessment state:
-
-   ```bash
-   sudo bash scripts/truenas/deploy-dsomm.sh --check
-   sudo bash scripts/truenas/deploy-dsomm.sh --apply
-   ```
-
-   Require TrueNAS App `RUNNING`, HTTP health and protected persisted seed/state
-   before changing DSOMM from `planned` to `active`.
-
-2. [ ] **Sentry canonical secret finalization** — existing Sentry E2E ingestion
-   history remains valid evidence, but the merged recovery/restage/finalize
-   transaction still needs current TrueNAS evidence. Run `--check` first,
-   use `--apply` only when the current diagnostic requires reconciliation, and
-   use `--finalize` only after a fresh diagnostic + E2E ingestion smoke.
-   Never reset Kafka offsets/topics/databases as part of this transaction.
-
-3. [ ] **Scrutiny runtime-env acceptance** — preserve the existing v2 InfluxDB
-   token, scope-version marker and authorization ID as one set. Compare sources
-   value-blind, import the accepted historical values to Vaultwarden, materialize
-   `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`, then run:
-
-   ```bash
-   sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
-   sudo bash scripts/truenas/deploy-scrutiny.sh --check
-   ```
-
-   Do not run the bootstrap `--apply` merely because the canonical file is
-   missing. Rotate only as an explicit operator decision. Acceptance also
-   requires Web/API health, TrueNAS SMART visibility and the pinned workstation
-   collector submission.
-
-4. [ ] **Code Server runtime-env cutover** — preserve the historical
-   `CODE_PASSWORD` value while mapping it to runtime `PASSWORD`. Import and
-   materialize through the canonical secret tooling, validate
-   `http://172.17.0.24:8443/healthz`, then finalize only when the generic
-   runtime-env check is clean:
-
-   ```bash
-   sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check code
-   sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize code
-   ```
-
-5. [ ] **First-wave runtime envs** — accept Scanopy, Joplin and AutoKuma one
-   service at a time with
-   `accept-runtime-env-first-wave.sh --check/--stage/--accept`. AutoKuma stays
-   blocked until repository-owned Uptime Kuma is present and RUNNING. Scanopy
-   requires reviewed immutable server/daemon digests.
-
-6. [ ] **Sample** — finish canonical runtime-env/reboot acceptance and normalize
-   PostgreSQL ownership to a dedicated `sample` database/role. Keep
-   `fastapi_observer` read-only and prove `VM_READ` for the three Talos VMs.
-
-The exact import/materialization/finalization commands and rollback rules remain
-owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
-the service README/runbook. Never bulk-finalize env files or recreate non-empty
-datasets just to change presets.
-
-### Backup incident and recovery — 2026-10-10
-
-- [x] Workstation operator created
-  `openclaw-20261010T113723Z-2100092.tar.gz` with 106886 archived files;
-  script reported a SHA-256 digest. The archive was readable during creation,
-  but a **separate restore test has not yet passed**.
-- [x] The first local pytest run reported 1 failure / 3 passes because the
-  fixture interrogated the **real** active systemd Gateway. The test now
-  substitutes a hermetic `systemctl` executable in a temporary PATH and
-  explicitly verifies that an active Gateway blocks backup creation.
-  Exact-HEAD workstation pytest rerun is still required.
-- [ ] Never pass the literal `<archive>.tar.gz` placeholder to the script;
-  supply the actual archive filename. Safe read-only commands:
-
-  ```bash
-  ARCHIVE="$HOME/Backups/openclaw/openclaw-20261010T113723Z-2100092.tar.gz"
-  test -f "$ARCHIVE"
-  bash scripts/workstation/backup-openclaw.sh --verify "$ARCHIVE"
-  # The restore test temporarily expands the archive: check free disk first.
-  df -h /tmp "$HOME"
-  bash scripts/workstation/backup-openclaw.sh --restore-test "$ARCHIVE"
-  ```
-
-- [ ] Confirm Gateway readiness after the earlier stop/start. The process was
-  active but the first WebSocket probe showed `ECONNREFUSED` during warm-up:
-
-  ```bash
-  systemctl --user is-active openclaw-gateway.service
-  ss -ltn '( sport = :18789 )'
-  openclaw gateway status --deep
-  # Only if still failing:
-  journalctl --user -u openclaw-gateway.service -n 80 --no-pager
-  ```
-
-  Do **not** restart repeatedly until logs explain continued probe failure.
-  Avoid sharing secrets, message payloads or verbose env content from logs.
-- [ ] Add application-level isolated restore/SQLite consistency validation
-  before declaring a full recoverability SLA. Temporary extraction integrity
-  is not a proof that all OpenClaw channels, credentials and sessions resume.
-
-### Incident OpenClaw — 2026-10-10, runtime evidence
-
-- [x] Backup archive verified and isolated extraction passed:
-  106886 regular files, matching SHA-256 reported during creation
-  (`6f14f0572effc9dcedf08b0907412dd05b2651a51057c8b88d98b74685bf16bf`).
-  The archive is private; do not publish or ingest it in CI. Functional
-  restoration of channels/sessions is still untested.
-- [x] Gateway systemd active, loopback `:18789` listening and WebSocket
-  connectivity OK after warmup; **runtime still uses `/usr/bin/node`**.
-- [x] Eight targeted workstation/backup tests passed in the operator environment.
-- [ ] The local quality gate falsely reported executable-script success after
-  `line 356: for: command not found`. Fixed the malformed loop and added
-  behavioral regression: a 100644 script with shebang must fail, 100755 must
-  pass. Re-run exact-HEAD local checks.
-- [ ] Runtime logs show LiteLLM HTTP **429 budget exceeded** for the
-  `openclaw-main` virtual key (observed spend ~10.06 against budget 10.0),
-  not a network outage. Both GPT-4.1 and fallback GPT-4.1-mini consume the
-  same exhausted key, triggering repeated futile retries. Check budget,
-  effective key identity, reset period and spend accounting; **do not bypass
-  the cap or silently increase it**. Add bounded backoff/circuit breaker.
-- [ ] Embedding memory sync returns HTTP **401** because a key reference is
-  sent as a literal unexpanded value to the OpenAI embedding endpoint.
-  Preserve the existing `nomic-embed-text` vector index; check configured
-  provider and secure variable resolution before any reindex. Do not print
-  tokens or secret-bearing JSON.
-- [ ] Prompt ~215k tokens exceeded an advertised pre-reserve budget ~108k.
-  Review session compaction/summary lifecycle, history retention, provider
-  token budgets and private-message minimization; do not flush or delete
-  history as an implicit workaround.
-- [ ] Run `bash scripts/workstation/diagnose-openclaw-errors.sh` for
-  **aggregate-only** journal evidence (no original message or API key text).
-  Install the script's executable Git bit, then run its local pytest.
-- [ ] Preserve strict OpenClaw personal Gmail/WhatsApp vs Hermes technical
-  account/secrets isolation. No outbound message testing without approval.
-
-### LiteLLM/OpenClaw cost attribution — 2026-10-10
-
-- [ ] **Incident:** OpenClaw personal `litellm-main/gpt-4.1` and fallback
-  `litellm-main/gpt-4.1-mini` both receive LiteLLM **HTTP 429
-  Budget has been exceeded** on virtual key alias `openclaw-main`,
-  with accumulated proxy spend 10.061036 vs key cap 10.0 (USD if
-  LiteLLM standard cost accounting is used). Do not equate 50 matching
-  journal lines with 50 billable completions.
-- [ ] **P0 read-only spend attribution:** in LiteLLM Admin UI inspect the
-  virtual key `openclaw-main` (alias, not raw key), its `spend`,
-  `max_budget`, `budget_duration`, `budget_reset_at`, team/user
-  association and model allowlist. Obtain the per-model spend report and
-  request counts for the current budget period. Determine whether the
-  default key has a rolling reset or stays blocked until operator action.
-  Never publish raw `/key/info` responses, which can contain key values.
-- [ ] **P0 stop cost amplification:** determine whether OpenClaw's 9
-  same-model retries, fallback and a cron in error backoff are multiplying
-  failed requests. Classify `budget_exceeded` as non-retriable until budget
-  reset (unlike transient RPM/TPM 429), without raising or resetting any
-  budget. Retain last-run status and idempotence of personal-message jobs.
-- [ ] **P1 measure prompt composition:** observed estimated prompt around
-  215k-216k tokens vs 108k before reserve. Attribute to message history,
-  tool schemas, skills, memory retrieval and cron/session reuse; estimate
-  billable input tokens from LiteLLM spend logs instead of assuming
-  `estimatedPromptTokens` is actual billed input. Establish independent
-  personal Gmail/WhatsApp and Hermes budgets.
-- [ ] **P1 protect memory:** embedding calls failing HTTP 401 on an
-  unresolved secret reference must be fixed without deleting or re-embedding
-  existing `nomic-embed-text` data until provider/dimension parity is
-  established. Redact token fields in all diagnostics.
-- [ ] **P2 efficient personal workflows:** bounded message batches,
-  short-lived triage sessions, few tools/skills, local deduplication,
-  cheap classifier, larger model only for complex replies and explicit
-  human approval for sending, deleting or archiving. Track daily spend,
-  p50/p95 input/output tokens, retries, failures and useful triages per $.
-
-### P0–P3 OpenClaw workstation remediation (evidence 2026-10-10)
-
-**Authoritative evidence and CLI procedures:** [OpenClaw workstation remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md). Do not fold this incident history into the roadmap. The `daily-tech-news-digest` may contribute to token use, but no supplied per-job LiteLLM spend demonstrates causality.
-
-- [ ] **P0 — Cost attribution:** compare `openclaw-main` and `litellm-cron` virtual key and provider usage; reconcile 275 429 matches, actual input/output token bills, cost, retry amplification, and reset windows. Keep spending limits.
-- [ ] **P0 — Embeddings:** diagnose 109 401 matches, resolve effective `openai/text-embedding-3-small` endpoint/auth/dimension configuration; preserve existing SQLite, memory index, cache and FTS before any index action.
-- [ ] **P0 — Cron quality:** inspect 7 `daily-tech-news-digest` runs; although all delivered, Oct 8 returned Discord target error text and Oct 5/6/10 included unverifiable claims. Require date/source URLs, bounded search and summary, and no fabricated events. Evaluate separately from budget attribution.
-- [ ] **P0 — Cron security:** replace digest legacy sender-policy resolution with a reviewed explicit minimal tool cap, keep isolated session and existing 09:00 Europe/Paris delivery. Never grant broader messaging permissions solely to silence Doctor.
-- [ ] **P1 — Context & memory:** measure pressure after reducing cron/tool prompt overhead; baseline 248/248 paired events over limit, max ratio 2.01; investigate 256 memory-sync aborts. Fix embedding 401 before indexing main (15/96) or cron (0/63).
-- [ ] **P1 — Recovery:** verify recoverable backup; inspect 29 SQLite session issues and Slack state migration via dry-run; only then review repair/update. Do not auto-run `doctor --fix`.
-- [ ] **P1 — Cron health:** investigate main heartbeat error streak 12x, skill-collection review 5x, one stale in-flight marker and restricted messaging/tool routing; separate task outcomes from delivery outcomes.
-- [ ] **P2 — Trim unused surface:** deactivate IRC through version-verified `openclaw config set channels.irc.enabled false`, review bindings and retained plugin config, preserve Telegram/Discord/WhatsApp; avoid unsolicited public Gateway exposure.
-- [x] **P2 — CLI triage documented:** `scripts/workstation/openclaw-ops.sh` provides non-mutating aggregate checks, cron/memory/backup subcommands and explicit `--disable-irc`; full workstation acceptance still pending.\n- [ ] **P2 — Automation without UI:** use `scripts/workstation/openclaw-cron-runs-summary.py`, `diagnose-openclaw-errors.sh`, and read-only CLI runbook; consider idempotent guarded remediation script with `--check` default and reviewed `--apply` after baseline.
-- [ ] **P3 — Quality:** redaction/fail-closed tests for cron JSON, status CLI contract, local-first validation and exact HEAD full gate; no automatic PR merge or GitHub Actions reruns.
+1. obtenir une gate locale L3 verte sur le HEAD courant ;
+2. supprimer l'Host Override public Vaultwarden et valider public Cloudflare + privé `.int` ;
+3. nettoyer la cible syslog workstation `.57` ;
+4. préparer/valider le credential et la registration du bouncer central ;
+5. basculer le bouncer pfSense vers `172.17.0.24:8084` ;
+6. exiger `last_pull` non vide et décisions visibles avant acceptation ;
+7. seulement ensuite reprendre Bitwarden/secrets.
 
 ## OpenClaw personal assistant — workstation stabilization
 

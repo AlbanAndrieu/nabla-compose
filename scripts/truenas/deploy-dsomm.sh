@@ -278,7 +278,13 @@ truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
 # container still runs without Caddy's file-capability bounding-set exception.
 # Inspect only effective host configuration; never print container environment.
 if ! docker inspect "${APP_ID}" --format '{{json .HostConfig.CapAdd}}' 2>/dev/null |
-  jq -e 'type == "array" and index("NET_BIND_SERVICE") != null' >/dev/null; then
+  jq -e 'type == "array" and any(.[]; . == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE")' >/dev/null; then
+  printf '%s\n' 'ERROR: DSOMM runtime/configuration mismatch after TrueNAS app reconciliation' >&2
+  # Emit a strictly bounded, non-secret subset of Docker metadata to determine
+  # whether the app retained an old container or a different Compose project.
+  docker inspect "${APP_ID}" --format \
+    'runtime id={{.Id}} created={{.Created}} state={{.State.Status}} exit={{.State.ExitCode}} restart_count={{.RestartCount}} compose_project={{index .Config.Labels "com.docker.compose.project"}} compose_service={{index .Config.Labels "com.docker.compose.service"}} cap_add={{json .HostConfig.CapAdd}} cap_drop={{json .HostConfig.CapDrop}}' >&2 2>/dev/null || true
+  printf '%s\n' 'Review the persisted TrueNAS Custom App Compose and container provenance before another --apply; app.update/app.start may not have recreated the container.' >&2
   fail "${APP_ID}: live container lacks NET_BIND_SERVICE (Caddy execve EPERM risk); TrueNAS Custom App has not converged"
 fi
 printf 'OK: DSOMM runtime NET_BIND_SERVICE capability present\n'

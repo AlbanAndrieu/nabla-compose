@@ -197,6 +197,14 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn('else\n    model_tmp="$(mktemp', script)
         self.assertIn('install -o root -g root -m 0600 "${model_tmp}" "${model_file}"', script)
 
+    def test_runtime_capability_mismatch_reports_sanitized_provenance(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn("runtime/configuration mismatch", script)
+        self.assertIn("compose_project=", script)
+        self.assertIn("compose_service=", script)
+        self.assertIn("restart_count=", script)
+        self.assertIn("may not have recreated the container", script)
+
     def test_deployer_fails_closed_if_truenas_loses_caddy_capability(self) -> None:
         script = DEPLOY.read_text(encoding="utf-8")
         self.assertIn(
@@ -209,6 +217,10 @@ class DsommContractTests(unittest.TestCase):
         )
         self.assertIn(
             '(.services.dsomm.security_opt // [] | index("no-new-privileges=true") != null)',
+            script,
+        )
+        self.assertIn(
+            '. == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE"',
             script,
         )
         self.assertIn(

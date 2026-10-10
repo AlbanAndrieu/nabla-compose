@@ -108,3 +108,11 @@ Recommended workflow: `--check` -> inspect `openclaw doctor` output privately ->
 7. **IRC unwanted:** apply explicit `--disable-irc` only after reviewing backup/config; keep other channel policies unchanged and don't expose Gateway network listener.
 
 `--check` is read-only by design, but may read local OpenClaw state and may be affected by the installed CLI version. Do not run against an untrusted checkout. Runtime tests remain required on the workstation.
+
+### Workstation validation — IRC and operator CLI (2026-10-10)
+
+The operator executed `bash scripts/workstation/openclaw-ops.sh --disable-irc`. OpenClaw returned `No change`, and the CLI read-back confirmed `channels.irc.enabled=false`. This proves the configuration value is false; it does **not** prove the running Gateway has reloaded it. Do not restart automatically.
+
+The default read-only operator wrapper completed and reported 300 LiteLLM budget 429 journal matches, 115 embedding 401 matches, 267/267 paired context events over budget (max ratio 2.01), 275 memory sync aborts and zero gateway connection-refused matches in the operator's latest 24-hour window. These are journal matches, not independent requests. Cron: 7/7 delivered and same destination, zero destination drift. Memory remained main 15/96 files indexed, cron 0/63, both dirty and vector search paused. Backup prerequisite warns Gateway is running, so no consistent backup was created by this check. Slack migration warnings remain.
+
+Operator pytest found 1 pass, 1 failure: static test expected Bash `"$id"`, while the real helper uses the equally valid and explicitly quoted `"${id}"`. The assertion has been corrected; runtime retest on the new HEAD is still outstanding. Neither the gateway nor memory index was modified to address this test failure.
