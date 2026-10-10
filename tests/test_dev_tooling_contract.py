@@ -124,6 +124,33 @@ class DeveloperToolingContractTests(unittest.TestCase):
         self.assertIn("quality", result.stdout)
         self.assertIn("secrets", result.stdout)
 
+    def test_security_control_ownership_stays_explicit_and_blocking(self) -> None:
+        production = (
+            ROOT / ".github" / "workflows" / "production-security.yml"
+        ).read_text(encoding="utf-8")
+        codeql = (ROOT / ".github" / "workflows" / "codeql.yml").read_text(
+            encoding="utf-8"
+        )
+        package = (ROOT / "package.json").read_text(encoding="utf-8")
+
+        self.assertIn("AlbanAndrieu/fastapi-sample", production)
+        self.assertIn(
+            "Playwright: .github/workflows/production-smoke.yml",
+            production,
+        )
+        self.assertIn(
+            "OWASP ZAP Web/OpenAPI: .github/workflows/security-zap.yml",
+            production,
+        )
+        self.assertIn(
+            "replace them here with continue-on-error, soft-fail wrappers",
+            production,
+        )
+        self.assertNotIn('"playwright"', package.lower())
+        self.assertIn("SAST / CodeQL (Python)", codeql)
+        self.assertIn("github/codeql-action/analyze@", codeql)
+        self.assertNotIn("continue-on-error:", codeql)
+
     def test_legacy_megalinter_secrets_scanner_remains_disabled(self) -> None:
         config = yaml.safe_load(
             (ROOT / ".mega-linter.yml").read_text(encoding="utf-8")
