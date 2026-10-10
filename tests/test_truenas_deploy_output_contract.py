@@ -54,14 +54,36 @@ def test_all_deployers_report_checkout_provenance() -> None:
 
 def test_checkout_provenance_is_local_and_non_blocking() -> None:
     text = TRUENAS_LIB.read_text(encoding="utf-8")
+    start = text.find("truenas_repo_provenance() {")
+    end = text.find("\ntruenas_job_compact() {", start)
+    assert start >= 0 and end > start, (
+        "truenas_repo_provenance must be defined before truenas_job_compact"
+    )
+    function = text[start:end]
+    required = (
+        "status --porcelain",
+        "rev-list --left-right --count",
+        '0:*) relation="behind-${right}"',
+        '*:0) relation="ahead-${left}"',
+        '*) relation="diverged-${left}-${right}"',
+    )
+    for contract in required:
+        assert contract in function, (
+            f"truenas_repo_provenance missing local contract: {contract}"
+        )
 
-    assert "truenas_repo_provenance()" in text
-    assert "status --porcelain" in text
-    assert "rev-list --left-right --count" in text
-    assert "git fetch" not in text
-    assert '0:*) relation="behind-${right}"' in text
-    assert '*:0) relation="ahead-${left}"' in text
-    assert '*) relation="diverged-${left}-${right}"' in text
+    # A deployment helper must never fetch, mutate or require network access
+    # merely to print the checkout provenance. Inspect the function rather than
+    # unrelated code elsewhere in the shared TrueNAS library.
+    import re
+
+    forbidden = re.findall(
+        r"\bgit\s+(?:fetch|pull|push|checkout|switch|reset)\b",
+        function,
+    )
+    assert not forbidden, (
+        f"truenas_repo_provenance must remain read-only: {forbidden}"
+    )
 
 
 def test_app_summary_renders_found_and_missing_apps_without_jq_errors() -> None:
