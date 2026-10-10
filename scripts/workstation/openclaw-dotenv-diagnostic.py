@@ -11,40 +11,42 @@ ASSIGNMENT = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*=\s*(.*)$
 REFERENCE = re.compile(r"^\$\{[A-Za-z_][A-Za-z_0-9]*\}$")
 
 
+def decode(raw: str | None) -> str | None:
+    """Parse simple dotenv assignment, allowing comments after closed quotes."""
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    if value[0] in ("'", '"'):
+        quote = value[0]
+        closing = value.find(quote, 1)
+        if closing < 0 or value[closing + 1:].strip() and not value[closing + 1:].lstrip().startswith("#"):
+            return None
+        result = value[1:closing]
+    else:
+        result = re.split(r"\\s+#", value, maxsplit=1)[0].strip()
+        if result.endswith(("'", '"')):
+            return None
+    if not result or REFERENCE.fullmatch(result):
+        return None
+    return result
+
+
 def classify(raw: str | None) -> str:
     if raw is None:
         return "absent"
-    if not raw.strip():
-        return "empty"
     value = raw.strip()
-    if REFERENCE.fullmatch(value) or REFERENCE.fullmatch(value.strip("'\"")):
+    if not value:
+        return "empty"
+    if REFERENCE.fullmatch(value) or REFERENCE.fullmatch(value.strip("'\\\"")):
         return "unexpanded_reference"
-    if value[0] in "'\"":
-        if len(value) < 2 or value[-1] != value[0]:
-            return "unbalanced_quotes"
-        value = value[1:-1]
-    elif value.endswith(("'", '"')):
-        return "trailing_quote"
-    if not value or REFERENCE.fullmatch(value):
-        return "empty_or_reference"
-    if value.startswith(("sk-", "sess-")):
+    parsed = decode(raw)
+    if parsed is None:
+        return "unbalanced_quotes_or_reference"
+    if parsed.startswith(("sk-", "sess-")):
         return "configured_key_shaped"
     return "configured_unverified"
-
-
-def decode(raw: str | None) -> str | None:
-    if raw is None:
-        return None
-    value = raw.strip()
-    if not value or REFERENCE.fullmatch(value):
-        return None
-    if value.startswith(('"', "'")):
-        if len(value) < 2 or value[-1] != value[0]:
-            return None
-        return value[1:-1]
-    if value.endswith(('"', "'")):
-        return None
-    return value
 
 
 def parity(values: dict[str, str]) -> str:
