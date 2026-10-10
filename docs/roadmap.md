@@ -29,6 +29,33 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — DSOMM gate recovery and service acceptance (2026-10-10)
+
+- [x] Repair stale **DSOMM test contracts** without weakening deployment security:
+  `DSOMM_BASELINE_SUMMARY_OUTPUT` is a configurable Compose expression whose
+  default is `/reports/dsomm-baseline.md`; the DSOMM model path is constructed
+  from `state_root` and `model_file`, not embedded as one literal string.
+  Pinned model/image, manual baseline profile, secret-backed configuration and
+  fail-closed custom-app deployment remain unchanged.
+- [ ] **P0 quality gate** — run exact `python3 -m pytest -q
+  tests/test_dsomm_contract.py --tb=short`; then `just loop` and
+  `just pre-push` on a clean, committed HEAD, resolving each reported hook
+  before proceeding. The agent's isolated source-contract reproduction is
+  partial L1 evidence only, **not** the full suite or L3.
+- [ ] **P1 DSOMM service** — first run the read-only
+  `sudo bash scripts/truenas/deploy-dsomm.sh --check`. Before any
+  `--apply`, inspect storage prerequisites, immutable assessment seeds,
+  supported TrueNAS Custom App configuration and image availability. Runtime
+  `RUNNING`, HTTP 31088 and persisted evidence are required before claiming
+  acceptance or changing `x-nabla.status: planned`.
+- [ ] **P1 platform recovery** — triage Gatus and canonical Sentry/Scrutiny
+  secrets read-only; do not infer successful migration from passing contracts.
+  Confirm live service/secret provenance one service at a time, with rollback.
+- [ ] **P2 subsequent services** — resume the planned Scanopy/Joplin/AutoKuma
+  first-wave runtime-env migration, then bounded Docling health/conversion and
+  OpenRAG/LiteLLM GPU integration. Do not deploy or restart these as a side
+  effect of fixing the CI.
+
 ## Local-first quality gate compact diagnostics — 2026-10-10
 
 - [x] Keep complete security/lint/test coverage, but print only failed
