@@ -231,8 +231,8 @@ if ! changed_output="$(collect_changed_files)" ||
 fi
 CHANGED_FILES=()
 DELETED_FILES=()
-[[ -z "$changed_output" ]] || mapfile -t CHANGED_FILES <<<"$changed_output"
-[[ -z "$deleted_output" ]] || mapfile -t DELETED_FILES <<<"$deleted_output"
+[[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
+[[ -z "${deleted_output}" ]] || mapfile -t DELETED_FILES <<<"${deleted_output}"
 
 check_base_freshness() {
   if [[ "${BASE_REF}" == "HEAD" ]]; then
