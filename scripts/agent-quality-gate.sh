@@ -499,6 +499,24 @@ if [[ "${MODE}" == "fix" ]]; then
   done
 fi
 
+edge_security_contract_scope_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  case "${file}" in
+    apps/crowdsec/*|scripts/pfsense/diagnose-recover.sh|scripts/truenas/deploy-crowdsec.sh|scripts/truenas/diagnose-crowdsec-cutover.sh|scripts/lib/truenas.sh|tests/test_pfsense_diagnose_recover_contract.py|tests/test_crowdsec_cutover_contract.py|docs/pfsense-diagnose-recover.md|docs/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
+      edge_security_contract_scope_changed=true
+      break
+      ;;
+  esac
+done
+
+if [[ "${edge_security_contract_scope_changed}" == true ]]; then
+  run_compact "pfSense/CrowdSec targeted contracts" \
+    "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
+    --tb=short --show-capture=no \
+    tests/test_pfsense_diagnose_recover_contract.py \
+    tests/test_crowdsec_cutover_contract.py
+fi
+
 if [[ "${LOCAL_LOOP}" == true ]]; then
   git diff --check
   git diff --cached --check
