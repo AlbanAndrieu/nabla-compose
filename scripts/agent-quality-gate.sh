@@ -161,6 +161,7 @@ print_compact_log() {
     fi
     summary+="${shellcheck_summary}"
   fi
+  if [[ -n "${summary}" ]]; then
     local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
     local summary_count
     [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
