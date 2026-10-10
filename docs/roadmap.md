@@ -1347,8 +1347,12 @@ Reference: <https://context7.com/docs/overview> and
   therefore the remote LAPI cutover has **not** happened.
 - [x] Workstation-side pfSense proof: local Security Engine absent, firewall
   bouncer running, PF tables exist with 31,513 IPv4 + 586 IPv6 entries.
+- [x] Workstation preflight is now accepted: pfSense reaches central LAPI TCP
+  `172.17.0.24:8084`, local Security Engine is absent, firewall bouncer is
+  running, and PF tables contain 32,099 entries.
 - [ ] pfSense bouncer still points to legacy local LAPI
-  `http://172.17.0.1:8089`; target is `http://172.17.0.24:8084`.
+  `http://172.17.0.1:8089`; strict `--accept` correctly fails until the
+  bouncer is reconfigured to `http://172.17.0.24:8084`.
 - [ ] Operator TrueNAS checkout used for this evidence was
   `ffdf66e43ad8`, dirty and behind 25 commits. Runtime observations remain
   useful, but code-level acceptance must be repeated after synchronizing PR

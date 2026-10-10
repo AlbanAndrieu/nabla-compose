@@ -109,9 +109,11 @@ uses the legacy local LAPI `http://172.17.0.1:8089`. pfSense Small posture is
 otherwise correct: local Security Engine absent, firewall bouncer running, PF
 tables present with 31,513 IPv4 and 586 IPv6 entries.
 
-PR #253 adds a workstation `--preflight` mode that treats the legacy URL as a
-pre-cutover warning while proving TCP reachability from pfSense to
-`172.17.0.24:8084`; `--accept` remains strict after cutover. The shared key
+Workstation `--preflight` is now accepted: pfSense reaches TCP
+`172.17.0.24:8084`, its local Security Engine is absent, its firewall bouncer is
+running and its PF tables contain 32,099 entries. The bouncer still points to
+`http://172.17.0.1:8089`, so strict `--accept` correctly remains red until the
+actual cutover. The shared key
 must be obtained directly from Vaultwarden on each operator side; never copy the
 TrueNAS runtime secret to the workstation and never grant TrueNAS pfSense
 administrative access. The operator's last TrueNAS checkout was dirty and
