@@ -29,6 +29,37 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Smoke FastAPI/Pyroscope et dérive runtime DSOMM (2026-10-10)
+
+- [x] **P0 test de contrat FastAPI** : `just pre-push` a dépassé les
+  contrats Docling (**2 passed** après pull), puis a bloqué au premier
+  échec de la suite globale :
+  `test_fastapi_observability_smoke_covers_error_trace_and_profile`
+  (**1 failed, 187 passed, 1 skipped, 91 subtests**).
+  L'assertion `"Pyroscope readiness"` était un libellé de log obsolète.
+  Le script réel vérifie `probe_http_success` sur la racine, l'exposition
+  `/metrics` puis `/querier.v1.QuerierService/Series` et refuse les
+  profils absents. Le test a été aligné sur ces **contrôles fonctionnels**
+  sans contourner l'exigence de profils.
+- [ ] **Validation P0** : relancer le test ciblé FastAPI, puis
+  `just pre-push` depuis un checkout propre. Le prochain échec éventuel
+  doit être corrigé avant les modifications de services.
+- [x] **DSOMM état/runtime** : `docker inspect` reproduit
+  `CapAdd=null`, `CapDrop=["ALL"]`, `no-new-privileges:true`,
+  avec **1121 redémarrages** ; le dépôt exige
+  `cap_add: NET_BIND_SERVICE`. Logs précédents :
+  `exec /usr/bin/caddy: operation not permitted`.
+  La configuration effective du conteneur est donc différente de la
+  configuration canonique. L'état des fichiers d'évidence doit rester
+  préservé.
+- [ ] **DSOMM action suivante** : inspecter la configuration persistée
+  TrueNAS sans divulguer de secrets, puis planifier une réconciliation
+  bornée de la Custom App seulement après P0 vert. Mesurer
+  `CapAdd` et santé HTTP `172.17.0.24:31088` après correction.
+  Ne pas utiliser `privileged:true` ni assouplir les ACL de l'état.
+- [ ] **Ordre P1** : DSOMM → Gatus → Sentry → Scrutiny ; P2 Scanopy,
+  Joplin, AutoKuma ; P3 Docling/OpenRAG/LiteLLM.
+
 ## PR #251 — Docling contract et DSOMM Caddy EPERM (2026-10-10)
 
 - [x] **P0 Docling** : le service déclare un port Compose sous forme
