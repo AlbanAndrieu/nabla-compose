@@ -29,6 +29,25 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## TrueNAS local ShellCheck pre-commit incident — 2026-10-10
+
+- [x] Root cause: official `shellcheck-precommit` hook invokes Docker;
+  non-privileged TrueNAS operator cannot access
+  `unix:///var/run/docker.sock`, so the commit fails *before* shell
+  linting. **Do not add operator to `docker` group, run hooks with
+  `sudo`, disable ShellCheck, or bypass pre-push**.
+- [x] Replace Docker-based hook with `repo: local`, `language: system`,
+  `entry: shellcheck`, preserving `-x -P SCRIPTDIR` and exclusions.
+  Existing `bootstrap-dev-tools.sh` installs pinned ShellCheck 0.11.0
+  under the operator's home via `mise`/venv. Contract test added.
+- [ ] Operator: `command -v shellcheck && shellcheck --version`;
+  install in home using the documented TrueNAS tool bootstrap only
+  if absent. Re-run `pre-commit run shellcheck --files` for the
+  four executable scripts before retrying the permission commit.
+- [ ] Re-run bounded local gate, resolve actual ShellCheck diagnostics,
+  reconcile remote HEAD with `git fetch`, then push without
+  `--no-verify`, `sudo git` or `--force`.
+
 ## Consumer hook and stash hygiene — 2026-10-10
 
 - [x] Repair `scripts/quality/check-service-consumers.sh`: prior
