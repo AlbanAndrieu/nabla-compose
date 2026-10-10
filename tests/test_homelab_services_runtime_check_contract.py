@@ -29,3 +29,10 @@ def test_model_parser_supports_upstream_meta_version() -> None:
     script = (ROOT / "scripts/truenas/check-dsomm-post-reboot.py").read_text()
     assert "safe_load_all" in script
     assert 'data["meta"].get("version")' in script
+
+
+def test_exited_legacy_adapter_is_visible() -> None:
+    source = (ROOT / "scripts/truenas/check-homelab-services.sh").read_text()
+    assert "docker ps -a" in source
+    assert "bitwarden-api" in source
+    assert "warnings=$((warnings + 1))" in source
