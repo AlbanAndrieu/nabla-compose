@@ -153,9 +153,14 @@ print_compact_log() {
   # dumps, file diffs, successful hooks, or source code containing ERROR.
   # Full untruncated evidence remains in a private on-disk log.
   summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|FAIL: |ERROR: |.*[.]{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\[ERROR\])' "${log}" || true)"
+  local shellcheck_summary
   shellcheck_summary="$(grep -E '^(In .* line [0-9]+:|.*SC[0-9]{4}.*)' "${log}" || true)"
   if [[ -n "${shellcheck_summary}" ]]; then
-    summary="${summary}${summary:+
+    if [[ -n "${summary}" ]]; then
+      summary+=$'\\n'
+    fi
+    summary+="${shellcheck_summary}"
+  fi
     local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
     local summary_count
     [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
