@@ -72,6 +72,48 @@ printf '\n🐳 Docker container health\n'
 if command -v docker >/dev/null 2>&1; then
   [[ "$VERBOSE" == true ]] && docker ps --format '{{.Names}}\t{{.Status}}'
   unhealthy_containers="$(docker ps --format '{{.Names}} {{.Status}}' | grep -Ei 'unhealthy|restarting' || true)"
+  # Do not mistake a healthy TrueNAS App for healthy auxiliary containers.
+  # Docker ps excludes exited Compose services, including bitwarden-api.
+  exited_critical="$(docker ps -a --filter 'name=^/bitwarden-api
+    printf '%s\n' "$unhealthy_containers"
+    printf '%s❌ FAIL Docker unhealthy/restarting containers detected%s\n' "$RED" "$RESET"
+    failed=$((failed + 1))
+  fi
+else
+  echo 'WARN Docker CLI unavailable'
+  warnings=$((warnings + 1))
+fi
+
+if jq -e '.[] | select(.id == "dsomm" and .state == "RUNNING")' <<<"$apps_json" >/dev/null; then
+  run_gate dsomm python3 "${ROOT}/scripts/truenas/check-dsomm-post-reboot.py"
+else
+  echo 'WARN DSOMM not RUNNING; skipping DSOMM check'
+  warnings=$((warnings + 1))
+fi
+
+if [[ -f "${ROOT}/scripts/truenas/diagnose-fastapi-integrations.py" ]]; then
+  run_gate fastapi-integrations python3 "${ROOT}/scripts/truenas/diagnose-fastapi-integrations.py"
+else
+  echo 'WARN FastAPI diagnostic unavailable'
+  warnings=$((warnings + 1))
+fi
+
+if [[ -f "${ROOT}/scripts/ingress/audit-internal-routes.py" ]]; then
+  run_gate ingress-routes python3 "${ROOT}/scripts/ingress/audit-internal-routes.py" --strict
+else
+  printf '%s⚠️ WARN ingress audit unavailable%s\n' "$YELLOW" "$RESET"
+  warnings=$((warnings + 1))
+fi
+
+printf '\n📊 Homelab result: failures=%d warnings=%d\n' "$failed" "$warnings"
+((failed == 0))
+ \
+    --filter 'status=exited' --format '{{.Names}} {{.Status}}' || true)"
+  if [[ -n "$exited_critical" ]]; then
+    printf '%s⚠️ WARN Vaultwarden legacy adapter stopped: %s%s\n' \
+      "$YELLOW" "$exited_critical" "$RESET"
+    warnings=$((warnings + 1))
+  fi
   if [[ -n "$unhealthy_containers" ]]; then
     printf '%s\n' "$unhealthy_containers"
     printf '%s❌ FAIL Docker unhealthy/restarting containers detected%s\n' "$RED" "$RESET"
