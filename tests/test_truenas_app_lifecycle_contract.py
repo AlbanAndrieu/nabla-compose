@@ -414,7 +414,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_scrutiny_loads_influx_token_from_runtime_env_file(self) -> None:
         scrutiny = self.read("apps/scrutiny/compose.yml")
 
-        self.assertIn("/mnt/cpool/scrutiny/.env.secrets", scrutiny)
+        self.assertIn("/mnt/cpool/secrets/runtime/scrutiny/.env.secrets", scrutiny)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN:?", scrutiny)
         self.assertNotIn("SCRUTINY_WEB_INFLUXDB_TOKEN:", scrutiny)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_HOST: influxdb", scrutiny)
