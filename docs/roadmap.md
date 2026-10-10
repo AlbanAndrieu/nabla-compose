@@ -62,6 +62,12 @@ of redeploying them.
   pfSense bouncer key, adding its exact manifest item and then
   securely rendering the runtime secret. No automatic key issuance,
   pfSense config change or Vaultwarden upgrade.
+- [x] **CrowdSec candidate discovery prepared:** metadata-only Vaultwarden
+  inventory can now list candidate item names and classify only
+  `expected` / `other` / `unfiled` folder scope. No IDs, fields,
+  usernames, URLs, notes or values are emitted. The migration runbook no
+  longer instructs generation of a new key; recovery of the existing approved
+  bouncer key remains mandatory unless rotation is separately authorized.
 
 ### P0 Vaultwarden read-only diagnostic operator acceptance
 
