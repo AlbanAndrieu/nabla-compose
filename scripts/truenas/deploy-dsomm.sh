@@ -83,20 +83,32 @@ if [[ "${MODE}" == "--apply" ]]; then
     fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
 
-  model_tmp="$(mktemp "${state_root}/model.yaml.tmp.XXXXXX")"
-  trap 'rm -f "${model_tmp:-}"' EXIT
-  curl --fail --location --silent --show-error \
-    --proto '=https' --tlsv1.2 \
-    "${DSOMM_MODEL_URL}" -o "${model_tmp}"
-  grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_tmp}" ||
-    fail "downloaded DSOMM model does not declare expected version ${DSOMM_MODEL_VERSION}"
-  grep -Fq 'uuid:' "${model_tmp}" ||
-    fail "downloaded DSOMM model contains no activity UUIDs"
-  install -o root -g root -m 0600 "${model_tmp}" "${model_file}"
-  rm -f "${model_tmp}"
-  trap - EXIT
-  printf 'Staged pinned DSOMM model %s from commit %s without following latest\n' \
-    "${DSOMM_MODEL_VERSION}" "${DSOMM_MODEL_REF}"
+  # Preserve any existing operator-owned assessment model on a capability
+  # reconciliation. Never overwrite the live model as a side effect of --apply.
+  if [[ -e "${model_file}" || -L "${model_file}" ]]; then
+    [[ -f "${model_file}" && ! -L "${model_file}" ]] ||
+      fail "unsafe DSOMM model path: ${model_file}"
+    grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_file}" ||
+      fail "existing DSOMM model version mismatch; review it before reconciling"
+    grep -Fq 'uuid:' "${model_file}" ||
+      fail "existing DSOMM model contains no activity UUIDs"
+    printf 'OK: preserving existing pinned DSOMM model without replacement\n'
+  else
+    model_tmp="$(mktemp "${state_root}/model.yaml.tmp.XXXXXX")"
+    trap 'rm -f "${model_tmp:-}"' EXIT
+    curl --fail --location --silent --show-error \
+      --proto '=https' --tlsv1.2 \
+      "${DSOMM_MODEL_URL}" -o "${model_tmp}"
+    grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_tmp}" ||
+      fail "downloaded DSOMM model does not declare expected version ${DSOMM_MODEL_VERSION}"
+    grep -Fq 'uuid:' "${model_tmp}" ||
+      fail "downloaded DSOMM model contains no activity UUIDs"
+    install -o root -g root -m 0600 "${model_tmp}" "${model_file}"
+    rm -f "${model_tmp}"
+    trap - EXIT
+    printf 'Staged pinned DSOMM model %s from commit %s without following latest\n' \
+      "${DSOMM_MODEL_VERSION}" "${DSOMM_MODEL_REF}"
+  fi
 
   state_specs=(
     "progress|${progress_file}|${progress_seed}"
