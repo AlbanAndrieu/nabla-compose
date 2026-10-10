@@ -46,6 +46,24 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 health audit evidence — 2026-10-11
+
+- [x] Operator confirmed DSOMM accepted; 4,170-byte progress and
+  18,108-byte evidence YAML correctly served.
+- [ ] Investigate `sample` TrueNAS DEPLOYING, `fastapi-sample`
+  Docker unhealthy, FastAPI Redis unreachable and HTTP unreachable;
+  diagnose independently before any restart. `vaultwarden` was
+  transiently DEPLOYING and `bitwarden-api` health was starting
+  in successive snapshots, requiring follow-up state checks.
+- [x] Split declared-monitoring coverage gaps from failed network
+  probes: missing host/port and unmapped catalog entries now count
+  as `probe_gaps`, not operational warnings. Keep real connection
+  refusals/DNS failures and non-RUNNING app states visible.
+- [ ] Reconcile erroneous hostname-only monitor targets
+  (Kafka, sentry-clickhouse) and port probes (postgres-exporter,
+  portracker) against actual runtime topology without hiding failures.
+- [ ] Verify exact-head CI and full runtime report; do not merge.
+
 ### P0 service health audit: dependency-order operator acceptance
 
 - [x] Read-only TrueNAS operator audit: DSOMM accepts 22 activities
