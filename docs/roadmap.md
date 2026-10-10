@@ -46,6 +46,430 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 CI and DSOMM UI investigation — 2026-10-10
+
+- [x] GitHub Actions PR #253 pre-commit failure at
+  `499ea482` was `QG_EXEC_BIT` (five shebang scripts committed
+  `100644`). Committed their exact blobs with executable mode
+  `100755` (commit `3d56031`); new DSOMM diagnostic is also
+  `100755`. CodeQL previously succeeded. Exact-new-HEAD full
+  local/remote quality gate remains **unverified**; do not label CI green.
+- [x] pfSense `sh` central CrowdSec key probe returned HTTP
+  **403**, therefore current pfSense key has **not** been
+  authenticated on central LAPI. Keep cutover blocked and do not
+  treat historical `pfsense-firewall` pull as current matching-key proof.
+- [x] DSOMM frontend HTTP 200 previously observed, but the
+  operator reports an empty UI. Added
+  `scripts/truenas/diagnose-dsomm-assessment.sh` and a
+  targeted test to distinguish persisted progress/evidence
+  and repository JSON producers from browser presentation.
+- [x] `nabla-site-alban` publishes a `nabla.dsomm.repository-assessment/v1`
+  JSON producer. `nabla-compose` has reviewed DSOMM 5.0.2
+  runtime YAML seed but no confirmed repository producer JSON.
+  Existing aggregator writes a separate review report; it does **not**
+  mutate `team-progress.yaml` or browser localStorage.
+- [ ] Validate DSOMM source via `--check`, produce a separate
+  aggregation report, inspect mounted runtime YAML and browser asset
+  requests, then review a **backup-first non-destructive** UI
+  import procedure; never silently inflate portfolio scores.
+
+### P0 pfSense tcsh interoperability correction
+
+- [x] Operator confirmed pfSense 26.07 admin shell interprets direct
+  POSIX `CONFIG=...` / `$(...)` snippets as tcsh syntax errors.
+  The earlier interactive snippet was invalid; no authentication proof
+  resulted from those errors.
+- [x] Added `scripts/pfsense/check-central-crowdsec-bouncer.sh`
+  with `#!/bin/sh`, delivered from workstation using
+  `ssh home.albandrieu.com /bin/sh -s < scripts/pfsense/check-central-crowdsec-bouncer.sh`.
+  This keeps the key on pfSense and off command arguments; the GET
+  may update LAPI pull metadata but does not change pfSense rules.
+- [x] Added POSIX shell and nonmutating behavior contract tests and
+  usage in `apps/crowdsec/README.md`.
+- [ ] Await operator HTTP result before concluding that pfSense's
+  current key matches a central LAPI bouncer registration. No
+  key rotation or cutover authorized by this diagnostic.
+
+### P0 CrowdSec central bouncer history — 2026-10-10
+
+- [x] `pfsense-firewall` created 2026-09-08, last pulled
+  2026-09-25T22:55:08Z from 172.17.0.1, with type
+  `crowdsec-firewall-bouncer`. This is historical evidence of
+  central LAPI communication, not proof that pfSense's **current**
+  local key matches this registration.
+- [x] `PFSENSE_FIREWALL` created 2026-09-11, never pulled,
+  no recorded IP/type. Keep both registrations pending attribution.
+- [x] Last 24h CrowdSec Docker logs showed zero lines matching
+  the operator's limited unauthorized/forbidden/invalid-key filter.
+  This is **not** evidence of successful authentication.
+- [ ] Perform an operator-approved credential authentication probe
+  from pfSense to central LAPI without exposing keys in logs,
+  arguments, shell history or chat; use only read/poll endpoints
+  with understood side effects. Preserve rollback and never
+  disrupt current firewall tables as part of diagnostic work.
+
+### P0 CrowdSec bouncer credential provenance — operator checks
+
+- [x] pfSense firewall bouncer YAML contains a nonempty `api_key`
+  (presence only; never print or export the value).
+- [x] TrueNAS CrowdSec LAPI lists `PFSENSE_FIREWALL` registered
+  with `last_pull=null`. This confirms registration only, not
+  that the legacy pfSense key is accepted by the central LAPI.
+- [ ] Locate approved original central bouncer key, or perform
+  separately approved explicit central key rotation with
+  rollback. Do not compare or print raw secrets and do not assume
+  keys match based on name alone. Keep legacy pfSense bouncer
+  untouched until central authentication is proven.
+- [ ] Continue exact Vaultwarden item reconciliation; 
+  `nabla/prod/crowdsec` is still missing.
+
+### P0 Vaultwarden unlocked acceptance — latest operator evidence
+
+- [x] On TrueNAS, pinned Bitwarden CLI `2026.8.0` successfully
+  unlocked with `bw unlock --raw`; exact manifest inventory completed
+  and returned `crowdsec: missing`. CLI state `unlocked`,
+  canonical HTTPS base URL, NTP synchronized and
+  Vaultwarden `1.37.3` running/healthy.
+- [x] Read-only compatibility diagnostic reports failures=0,
+  warnings=1 with five historical user-key-id requests and five
+  HTTP 404 lines in a two-hour window, plus one TOTP drift warning.
+  Do not interpret these historical counters as a failed 2026.8.0
+  unlock or as correlated request/response pairs.
+- [ ] CrowdSec remains blocked on locating the **existing** approved
+  pfSense bouncer key, adding its exact manifest item and then
+  securely rendering the runtime secret. No automatic key issuance,
+  pfSense config change or Vaultwarden upgrade.
+- [x] **CrowdSec candidate discovery prepared:** metadata-only Vaultwarden
+  inventory can now list candidate item names and classify only
+  `expected` / `other` / `unfiled` folder scope. No IDs, fields,
+  usernames, URLs, notes or values are emitted. The migration runbook no
+  longer instructs generation of a new key; recovery of the existing approved
+  bouncer key remains mandatory unless rotation is separately authorized.
+
+### P0 Vaultwarden read-only diagnostic operator acceptance
+
+- [x] On TrueNAS, `git pull --ff-only` succeeded, Bash syntax passed
+  and targeted Vaultwarden diagnostic/inventory contracts **5 passed**.
+- [x] `diagnose-vaultwarden-cli.sh` reported active CLI
+  `2026.8.0`, canonical HTTPS URL, NTP synchronized,
+  `vaultwarden/server:1.37.3` running/healthy, Docker logs
+  accessible.
+- [x] Historic 2h log counts: `user_key_id_requests=5`,
+  `http_404_lines=5`, `totp_drift_warnings=1`.
+  These counters are not a current CLI 2026.8.0 login failure,
+  and do not correlate individual requests/responses.
+- [ ] The CLI status at check time was `locked`; a prior
+  successful `bw unlock --raw` on 2026.8.0 proves the
+  version can unlock, but this run does not prove an active
+  unlocked session. Inventory still reports `crowdsec: missing`.
+- [ ] No CrowdSec pfSense cutover until the existing bouncer
+  key is accounted for. No Vaultwarden upgrade necessary
+  solely on historical 404 evidence.
+
+### P0 Vaultwarden CLI 2026.8.0 — TrueNAS acceptance (2026-10-10)
+
+- [x] Operator installed checksum-pinned `bw 2026.8.0` using
+  `scripts/truenas/bootstrap-bitwarden-cli.sh --apply` and
+  rechecked the exact version with `--check`; canonical HTTPS server
+  persisted.
+- [x] CLI initially `locked`, then `bw unlock --raw` successfully
+  produced an unlocked session and the manifest inventory executed:
+  `crowdsec: missing`. This is a proven successful unlock on 2026.8.0,
+  unlike the 2026.9.0 `KeyIdBackfillError/HTTP 404` observed previously.
+- [x] Diagnostic enhanced with active `bw` binary path and explicit
+  `logs_unavailable` if Docker permission/log retrieval fails;
+  unavailable logs must not be interpreted as zero HTTP 404.
+- [ ] Validate the amended diagnostic and targeted contracts on
+  TrueNAS. Full local quality gate still not evidenced.
+- [ ] CrowdSec bouncer key remains absent from exact Vaultwarden
+  TrueNAS folder inventory. Do not create/rotate secrets as a
+  side effect of successful CLI compatibility recovery.
+
+### P0 Vaultwarden inventory acceptance — workstation and TrueNAS
+
+- [x] Workstation and TrueNAS returned the same manifest inventory: only
+  `n8n` and `cyberbro` present in the specified Vaultwarden folder;
+  all other declared items, including `crowdsec`, marked missing.
+  Missing means *exact item/folder mismatch*, not proven absence of a
+  credential anywhere.
+- [x] TrueNAS local validation: `python3 -m compileall -q
+  scripts/secrets/inventory_vaultwarden.py` succeeded and
+  `pytest -q tests/test_vaultwarden_inventory_contract.py`
+  reported 2 passed.
+- [ ] Next: metadata-only reconciliation with existing vault item names,
+  without copying credential values, creating placeholders, or rotating
+  keys. Prioritize CrowdSec's existing bouncer key before any pfSense
+  configuration change.
+- [ ] The TrueNAS absolute repository path is not portable to the
+  workstation; use its existing checkout directory rather than
+  `/mnt/cpool/compose/nabla-compose`.
+
+### P0 Vaultwarden operational inventory tooling (2026-10-10)
+
+- [x] Added `scripts/secrets/inventory_vaultwarden.py` to verify
+  canonical CLI base URL, unlocked operator session, expected folder,
+  and exact manifest item names/folder membership. Default output only
+  includes app and presence status; `--json` is metadata-only.
+- [x] Added unit contracts for wrong-folder items, missing items, and
+  suppression of mock secret values.
+- [ ] **Operator test required:** `python3 scripts/secrets/inventory_vaultwarden.py --app crowdsec`
+  should report `crowdsec: missing` until the existing approved
+  bouncer key is **safely imported** as `nabla/prod/crowdsec` in
+  folder TrueNAS with field `CROWDSEC_PFSENSE_BOUNCER_KEY`.
+  Do not copy unrelated pfSense account password or generate key
+  implicitly. After inventory succeeds, run the existing renderer;
+  do not print generated .env contents.
+- [ ] Audit Bitwarden CLI 2026.9.0 / Vaultwarden 2026.6.0
+  `KeyIdBackfillError` HTTP 404 separately; successful unlocked
+  list operations are not proof that crypto migration succeeded.
+
+### P0 Vaultwarden inventory evidence — CrowdSec (2026-10-10)
+
+- [x] Vaultwarden unlocked; expected `TrueNAS` folder exists and its
+  ID matches `config/secrets/manifest.json`.
+- [x] Search for `crowdsec` returned three unrelated entries,
+  but **not** `nabla/prod/crowdsec`; no available proof that the
+  existing pfSense bouncer key is stored there.
+- [ ] Perform metadata-only exact inventory search in the TrueNAS
+  folder; if no matching item exists, stop automated rendering and
+  locate existing key through an approved operator-controlled source.
+  Do not reuse unrelated CrowdSec account passwords or implicitly
+  create/rotate a bouncer registration.
+- [ ] CLI `KeyIdBackfillError` HTTP 404 remains a separate
+  compatibility issue despite some `bw list` commands working.
+
+### P0 blocker — Bitwarden CLI endpoint and crypto compatibility (2026-10-10)
+
+- [x] **CLI 2026.8.0 runtime accepted:** operator A/B test proved login with YubiKey OTP, unlock, `bw status=unlocked`, and metadata-only Vaultwarden inventory all succeed. CLI 2026.9.0 reproduces `KeyIdBackfillError`/HTTP 404 against the current Vaultwarden. The TrueNAS bootstrap therefore defaults to checksum-pinned 2026.8.0; 2026.9.0 is retained only for controlled compatibility retesting after a future Vaultwarden/client upgrade.
+
+- [x] TrueNAS Vaultwarden local `http://127.0.0.1:30032/api/config`
+  and canonical public `https://vaultwarden.albandrieu.com/api/config`
+  pass the repository read-only check; pfSense and system resolver returned
+  the same Cloudflare IPv4 addresses. External `1.1.1.1` DNS timed out,
+  but the canonical HTTPS endpoint worked.
+- [ ] `bw config server` still returned `https://bitwarden.com`
+  after `configure-bitwarden-cli-local.sh --apply` reported success.
+  Diagnose CLI profile/config persistence and endpoint overrides before
+  any secret materialization; `bw status=unlocked` alone is insufficient.
+- [ ] Vaultwarden login with current CLI fails `KeyIdBackfillError`
+  (server HTTP 404 during user key-id backfill). A bounded A/B test is now
+  prepared: keep CLI 2026.9.0 as default, but allow official checksum-pinned
+  CLI 2026.8.0 (`NABLA_BITWARDEN_CLI_VERSION=2026.8.0`) to test whether the
+  regression is client-side. Compare login/unlock + metadata-only inventory;
+  do not alter vault data or disable cryptography. Restore 2026.9.0 after the
+  test unless 2026.8.0 is proven necessary as a temporary compatibility pin.
+- [x] Cron #8 sanitized executable is `bash` following the
+  `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168` prefix.
+  Its script path and child Git use remain unverified.
+
+### P0 follow-up — cron identity and CrowdSec secrets (2026-10-10)
+
+- [x] Cron #8 starts with `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168`.
+  This resembles an image-pruning task, but its executed binary/script and
+  any nested Git calls remain **unverified**. Inspect sanitized executable
+  identity before modifying it; do not infer cron caused earlier `sudo git status`.
+- [x] `render_from_bitwarden.py --check` validated only
+  `config/secrets/manifest.json`; it did not unlock Vaultwarden,
+  retrieve the bouncer key or materialize any runtime file.
+- [ ] CrowdSec canonical secret file remains absent; legacy source
+  `/mnt/cpool/crowdsec/.env.secrets` is an empty placeholder.
+  Perform user-context `--app crowdsec --output-file` only with an
+  unlocked `BW_SESSION`, install with owner root and mode 0600,
+  and test the strict LAPI check before pfSense changes.
+- [x] CrowdSec central runtime healthy, Loki hits=10431,
+  `PFSENSE_FIREWALL last_pull=<none>` and no active decisions.
+  pfSense preflight previously passed with legacy URL still configured.
+
+### P0 operator evidence — Git and CrowdSec (2026-10-10 late)
+
+- [x] Privileged Git calls on the appliance were specifically
+  `sudo git status` at 12:09:16 and 12:21:52; `git status` can
+  refresh `.git/index`. These are evidenced unsafe invocations,
+  not proof that a particular cron was their parent.
+- [ ] TrueNAS cron ID **8** is `enabled=true user=root` and its
+  command references Git or the repository. Audit its *script identity
+  and effective child UID* without printing command secrets; do not
+  disable or rewrite it without identifying its purpose.
+- [x] Workstation pfSense CrowdSec `--preflight` completed with
+  failures=0 warnings=1: engine absent, bouncer running, central
+  LAPI TCP 172.17.0.24:8084 reachable, PF tables 31513 IPv4
+  and 586 IPv6 entries. The only warning is the legacy
+  `http://172.17.0.1:8089` bouncer target.
+- [x] TrueNAS CrowdSec central engine is healthy; Loki datasource
+  hits=10323, fresh events present, scenario disabled, LAN-only
+  listeners healthy, active decisions=0 (not an error).
+- [ ] **Cutover blocked:** canonical runtime
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` is missing;
+  legacy source is an empty placeholder; registered
+  `PFSENSE_FIREWALL` bouncer has no `last_pull`. Obtain the
+  *existing approved key* from Vaultwarden separately at both
+  trust boundaries, confirm secret delivery and strict
+  `--check`, then configure pfSense and run `--accept`.
+  Do not create a fresh key or rotate implicitly.
+
+### P0 Git evidence — targeted sudo timeline (2026-10-10)
+
+- [x] Appliance evidence: root Git sudo journal entries at **12:09:16**
+  and **12:21:52** on 2026-10-10; precise subcommands not yet
+  identified. The current index was subsequently observed owned by
+  `albandrieu:apps` and writable, with no root-owned index.
+- [x] Secret-safe audit operator-validated:
+  `sudo_events=199 direct_git=2 root_script_candidates=57`.
+  Candidate counts are not evidence of Git index writes.
+- [ ] Recover only sanitized Git subcommand names from those
+  timestamped sudo events, inspect TrueNAS cron job 8 metadata
+  without displaying command arguments, and correlate with index
+  ownership changes. Do not alter cron or recursively chown checkout
+  without attribution.
+- [ ] CrowdSec remains runtime healthy, but cutover requires the
+  existing bouncer secret from Vaultwarden and workstation pfSense
+  preflight; do not redeploy or change firewall until accepted.
+
+### P0 follow-up — redacted TrueNAS Git audit (2026-10-10)
+
+- [x] `scripts/truenas/diagnose-git-index-ownership.sh` now prints
+  aggregate sudo Git/root-script counters rather than raw privileged
+  command arguments. Default `--check` remains read-only and scoped
+  `--repair` does not run Git as root.
+- [ ] Confirm the compact output and correctness on TrueNAS, then identify
+  any remaining *actual* root Git callers before changing scheduled tasks.
+  Do not equate a `root_script_candidates` count with proven root Git writes.
+
+### Execution checkpoint — 2026-10-10, operator evidence on PR #253
+
+- [x] **YubiKey Manager CLI accepted on workstation:** Ubuntu-packaged `ykman` 5.8.0 is functional and the YubiKey 5 NFC is detected with OTP/FIDO/CCID enabled. The stale `/usr/local/bin/ykman` is bypassed through `~/.local/bin/ykman -> /usr/bin/ykman`. **TrueNAS ykman is intentionally abandoned/not required:** the YubiKey remains on the workstation and OTP can be entered through the SSH terminal for `bw login`; no TrueNAS USB passthrough, container, host Python or package mutation is justified.
+- [x] **Git recovered (observed):** main index `albandrieu:apps 0600`,
+  `git ls-files` succeeded; root-owned index scan clear after scoped repair.
+  The unprivileged ownership diagnostic is working.
+- [ ] **Git recurrence prevention:** eliminate remaining root-context Git
+  operations in other TrueNAS scripts. A successful repair is not proof that
+  all root Git writers have disappeared. Cron ID 6 runs as albandrieu;
+  root cron ID 8 remains to be audited by command/child process, without
+  printing secret-bearing arguments.
+- [x] **Gatus runtime accepted:** TrueNAS `app.update` plus explicit
+  `app.redeploy` recreated the container with `GroupAdd=["568"]`;
+  `RUNNING`, exit 0, restarts 0, HTTP /health OK, zero recent
+  config/permission/database/fatal errors. Existing SQLite inode
+  `139:2` preserved; file size 2260992 bytes at acceptance.
+- [ ] **Gatus long-term acceptance:** verify stored monitoring history
+  via application/API and recovery after a later planned reboot.
+  Do not modify or recreate `/mnt/cpool/gatus/gatus.db`.
+- [x] **DSOMM/Sentry/Scrutiny runtime checks:** DSOMM HTTP 200,
+  22 assessment activities/evidence records; Sentry 14 diagnostics OK;
+  Scrutiny web/InfluxDB/collector healthy, four SMART devices accessible.
+  Remaining: DSOMM reboot, Sentry fresh end-to-end event,
+  Scrutiny `/dev/sde` EPERM classification, Pi-hole reboot.
+- [x] **Cyberbro transport baseline:** HTTP 5100 ready; MCP endpoint
+  responds HTTP 400 (transport reachable, *not* MCP authentication/tool
+  acceptance).
+- [ ] **CrowdSec pfSense cutover:** engine and LAPI healthy, Loki
+  hits=9124, no active decisions (not a failure); canonical bouncer
+  secret absent/empty, `PFSENSE_FIREWALL last_pull=<none>`.
+  Render existing key directly from approved Vaultwarden source and
+  validate on TrueNAS before workstation-only pfSense cutover;
+  do not generate/rotate credentials implicitly.
+- [x] **Catalog generators:** operator confirmed declared catalog and
+  topology synchronized after Git-index recovery. The separately invoked
+  consumer `--check` did not print an acceptance result; recheck in a
+  consolidated gate before marking its validation complete.
+- [ ] **Quality gate:** full exact-HEAD L3 remains unproven. No bypass
+  and no automatic merge.
+
+### P0 — Git index ownership: evidence of root Git access, not proven cron (2026-10-10)
+
+- [x] **Scoped Git-index repair implemented and operator-proven:** the main
+  `.git/index` was observed as `root:apps 0600`; targeted ownership repair
+  restored access without recursive checkout mutation. The helper
+  `scripts/truenas/diagnose-git-index-ownership.sh --repair` now repairs every
+  root-owned `index` file under the canonical `.git` tree only, preserves each
+  existing mode, reuses the `.git` group, and is protected by a contract test.
+- [ ] **Git index recurrence remains open:** journal timestamps correlate one
+  recurrence with the Gatus apply window, but that is not yet proof of cause.
+  Current `deploy-gatus.sh` already runs Git provenance/diff through `runuser`
+  as `albandrieu` when invoked as root. Continue correlating exact index mtime
+  with cron/timers/sudo/appliance operations; never use `sudo git`.
+- [ ] **Vaultwarden residual resolver drift:** pfSense/Unbound now returns
+  Cloudflare IPv4, `/etc/hosts` has no matching override and NSS order is
+  `hosts: files dns`. TrueNAS remains internally inconsistent: `getent hosts`
+  returns Cloudflare IPv6 and Python `socket.getaddrinfo(AF_INET)` returns
+  Cloudflare IPv4, while `getent ahostsv4` and curl still use `172.17.0.24`.
+  `nscd` is running and is now the primary suspected stale-cache layer.
+  `configure-bitwarden-cli-local.sh --flush-host-cache` invalidates only the
+  `hosts` cache through `nscd -i hosts`, then reruns the HTTPS/DNS checks.
+  Do not change pfSense again unless post-flush evidence points back to it.
+
+- [x] Source investigation: `docs/truenas-deployment-automation.md`
+  records TrueNAS cron **ID 6**, hourly at minute 0, user
+  `albandrieu`, running `scripts/cron.sh`.
+  The script checks the current branch and only fetches/
+  fast-forwards the configured `master` checkout; on PR
+  branches it is a no-op. This documented cron is **not**
+  evidence of root-origin Git metadata writes.
+- [x] Earlier incident
+  `docs/incidents/2026-10-10-post-reboot-git-dsomm-gatus-vaultwarden.md`
+  explicitly records `sudo git status` followed by a new
+  `.git/index` owned by `root:apps 0600` at 12:16.
+  Git `status` can refresh and rewrite the index.
+  Therefore **root Git invocation is an evidenced cause**
+  of the recurring symptom, but attribution of every later
+  occurrence to a specific cron/service is still unproven.
+- [ ] Verify **actual** TrueNAS cron schedule, root/user
+  crontabs, systemd timers and `sudo` journal entries
+  around the affected index timestamps. Avoid dumping
+  secret-bearing command lines or changing cron jobs
+  without evidence. Do not run `sudo git`, repository
+  generators or quality gates as root. TrueNAS middleware
+  or dataset-specific commands may still need sudo.
+- [x] Operator explicitly elected to **discard** staged
+  modifications to `scripts/quality/check-compose-config.sh`
+  and `scripts/workstation/openclaw-auth-presence.py`.
+  Recommended exact restore is `git restore --source=HEAD
+  --staged --worktree -- <both paths>`; no stash,
+  no repository reset/clean, no submodule overwrite.
+- [x] Gatus `repair-gatus-config-access.sh --check`
+  rejected the running container because it lacks
+  `HostConfig.GroupAdd` GID 568. This is **runtime
+  TrueNAS Custom App Compose drift**. Correct/redeploy
+  the Custom App definition before the isolated config
+  permission `--apply`; do not widen YAML readability
+  or mutate SQLite as a substitute.
+
+### P0 A2 — Gatus root cause confirmed, follow-up branch (2026-10-10)
+
+- [x] **Definitive failure evidence:** Gatus container `restarting`,
+  exit 2, 564 restarts, no HTTP :8085. Log panic is
+  `open config/config.yml: permission denied`. This is a
+  generated **configuration read** failure, not a proven SQLite
+  problem. File `apps/gatus/config/config.yml` is
+  `albandrieu:apps 0640`; Gatus dataset/database are
+  `root:root 0770` and remain untouched.
+- [x] Added `scripts/truenas/repair-gatus-config-access.sh`
+  with `--check` (metadata/read-only) and opt-in
+  `--apply` that adjusts only generated `config` directory
+  group/mode (apps/0750) and `config.yml` (apps/0640).
+  It rejects unsafe paths, incorrect host GID and absent
+  Docker `HostConfig.GroupAdd`; no broad chmod, new
+  privileges, container restart, SQLite change or data reset.
+  Added an offline contract test for these safety constraints.
+- [ ] **Appliance-only acceptance:** inspect
+  `stat apps/gatus/config`, `docker inspect gatus`
+  for `HostConfig.GroupAdd` and actual bind-mount destinations;
+  run `--check` and *only if scoped preconditions are met*
+  `--apply`. Docker restart policy may retry naturally.
+  Validate HTTP 8085, a steady healthy process, SQLite
+  history and an eventual reboot. If no supplemental apps
+  group is effective, repair the TrueNAS Custom App definition,
+  not the dataset permissions.
+- [ ] **Parallel work:** preserve P0 pfSense/CrowdSec stability;
+  continue value-blind `config/secrets/manifest.json`
+  coverage and Backstage v2 service parity. Do not
+  materialize new credentials, mutate private state or
+  switch the multi-repository catalog without rollback proof.
+- [ ] **Validation:** targeted agent tests where tools exist;
+  required full L3 remains a before-merge gate rather than a
+  demand for repeated user-side ShellCheck/pytest invocations.
+  Historical #251 was merged; the recovery is on a follow-up PR.
+
 ### P0 A1/A2 evidence — 2026-10-10, PR #251
 
 - [x] Added `scripts/truenas/diagnose-gatus.sh`: bounded **read-only** container status, UID/GID and mount destination metadata, SQLite/config path metadata, and **aggregate log error categories only**. No raw log text, environment, secret value, chmod/chown, restart or database mutation.
@@ -900,6 +1324,16 @@ Prochain ordre de travail :
 6. exiger `last_pull` non vide et décisions visibles avant acceptation ;
 7. seulement ensuite reprendre Bitwarden/secrets.
 
+### P0 evidence update — skill review and LiteLLM (2026-10-10, PR #253)
+
+- [x] Classify failed OpenClaw cron runs without printing virtual-key prefixes or content: `scripts/workstation/openclaw-cron-runs-summary.py`.
+- [x] Add a CLI-only read-only entry point for the failing main skill review: `bash scripts/workstation/openclaw-ops.sh --skill-review`.
+- [ ] Resolve actual `openclaw-main` key-budget exhaustion (10.046146 / 10.0): inspect LiteLLM usage/reset period and reduce job usage, do not override budget or treat shared-key model fallback as recovery.
+- [ ] Verify main `skill-collection-review` actually succeeds after budget resets; one retained run failed after 272541 ms, five consecutive failures reported by the job status.
+- [ ] Separately resolve embedding provider 401 and paused main/cron vector indexes, preserving backup and secret isolation.
+
+See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
@@ -1259,6 +1693,43 @@ Reference: <https://context7.com/docs/overview> and
 - [x] Anti-duplication gates protect migrated runtime primitives.
 - [x] `planned`/`disabled` services stay catalog-visible without generating
   false Gatus/AutoKuma runtime expectations.
+
+### CrowdSec / pfSense cutover evidence — 2026-10-10 21:17 CEST
+
+- [x] TrueNAS central runtime remains healthy: CrowdSec `v1.8.1`, LAPI
+  `172.17.0.24:8084`, metrics `:6060`, problematic
+  `firewallservices/pf-scan-multi_ports` absent.
+- [x] Canonical pfSense Loki acquisition is live; operator observed
+  `cs_lokisource_hits_total=8563`.
+- [ ] Canonical runtime secret is still absent:
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`.
+- [ ] CrowdSec secret rendering is currently blocked by the known Vaultwarden
+  public split-DNS: TrueNAS resolves `vaultwarden.albandrieu.com` to
+  `172.17.0.24` through the historical pfSense/Unbound Host Override and
+  therefore receives local HTTPS `404` instead of traversing Cloudflare.
+  Correct the Host Override first; do not bypass by copying secrets between
+  hosts.
+- [ ] Central bouncer `PFSENSE_FIREWALL` exists but `last_pull=<none>`;
+  therefore the remote LAPI cutover has **not** happened.
+- [x] Workstation-side pfSense proof: local Security Engine absent, firewall
+  bouncer running, PF tables exist with 31,513 IPv4 + 586 IPv6 entries.
+- [x] Workstation preflight is now accepted: pfSense reaches central LAPI TCP
+  `172.17.0.24:8084`, local Security Engine is absent, firewall bouncer is
+  running, and PF tables contain 32,099 entries.
+- [ ] pfSense bouncer still points to legacy local LAPI
+  `http://172.17.0.1:8089`; strict `--accept` correctly fails until the
+  bouncer is reconfigured to `http://172.17.0.24:8084`.
+- [ ] Operator TrueNAS checkout used for this evidence was
+  `ffdf66e43ad8`, dirty and behind 25 commits. Runtime observations remain
+  useful, but code-level acceptance must be repeated after synchronizing PR
+  #253 without discarding local work.
+- [ ] Next transaction: render the existing CrowdSec bouncer key directly from
+  Vaultwarden into the canonical TrueNAS runtime file; run workstation
+  `verify-crowdsec-pfsense.sh --preflight`; only then change pfSense CrowdSec
+  package settings through the workstation/operator path and require both
+  TrueNAS `--accept` + workstation `--accept`.
+- [x] Trust boundary stays explicit: TrueNAS never SSHes/API-calls pfSense and
+  no runtime secret is copied from TrueNAS to the workstation.
 
 ## P1 — dependency automation and infrastructure secrets
 

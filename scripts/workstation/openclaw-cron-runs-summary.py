@@ -20,6 +20,7 @@ def main() -> int:
     statuses: Counter[str] = Counter()
     delivery: Counter[str] = Counter()
     durations: list[int] = []
+    failures: Counter[str] = Counter()
     for entry in entries:
         if not isinstance(entry, dict):
             print("ERROR: malformed cron run entry", file=sys.stderr)
@@ -43,6 +44,26 @@ def main() -> int:
                 and target == actual.removeprefix("channel:")
             )
             delivery["same_destination" if same else "different_destination"] += 1
+        if entry.get("status") != "ok":
+            # Classify errors without reproducing message bodies, API key fragments
+            # or private session identifiers in operator logs.
+            details = " ".join(
+                str(entry.get(key) or "")
+                for key in ("error", "diagnostic")
+                if isinstance(entry.get(key), str)
+            ).lower()
+            if "budget has been exceeded" in details or (
+                "429" in details and "budget" in details
+            ):
+                failures["budget_429"] += 1
+            elif "429" in details:
+                failures["other_429"] += 1
+            elif "401" in details or "unauthorized" in details:
+                failures["auth_401"] += 1
+            elif "agent-runner-failure" in details:
+                failures["agent_runner"] += 1
+            else:
+                failures["unknown"] += 1
         ms = entry.get("durationMs")
         if isinstance(ms, int) and not isinstance(ms, bool) and ms >= 0:
             durations.append(ms)
@@ -54,6 +75,8 @@ def main() -> int:
         print(f"delivery_{key}={delivery[key]}")
     print(f'delivery_route_same_destination={delivery["same_destination"]}')
     print(f'delivery_route_different_destination={delivery["different_destination"]}')
+    for category in ("budget_429", "other_429", "auth_401", "agent_runner", "unknown"):
+        print(f"failure_{category}={failures[category]}")
     if durations:
         print(f"duration_ms_min={min(durations)}")
         print(f"duration_ms_max={max(durations)}")

@@ -2,36 +2,51 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+MODE="--accept"
 EXPECTED_LAPI_URL="${CROWDSEC_EXPECTED_LAPI_URL:-http://172.17.0.24:8084}"
+EXPECTED_LAPI_HOST="${CROWDSEC_EXPECTED_LAPI_HOST:-172.17.0.24}"
+EXPECTED_LAPI_PORT="${CROWDSEC_EXPECTED_LAPI_PORT:-8084}"
+LEGACY_LAPI_URL="${CROWDSEC_LEGACY_LAPI_URL:-http://172.17.0.1:8089}"
 SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
 REQUIRE_NONEMPTY=false
 
 usage() {
   cat <<'EOF'
-Usage: scripts/workstation/verify-crowdsec-pfsense.sh [--require-nonempty-table]
+Usage: scripts/workstation/verify-crowdsec-pfsense.sh [--preflight|--accept] [--require-nonempty-table]
 
-Read-only workstation-side pfSense acceptance check for CrowdSec Small/remediation-only mode.
+Read-only workstation-side pfSense validation for CrowdSec Small/remediation-only mode.
 
-Checks:
-- local CrowdSec Security Engine is not running;
-- crowdsec_firewall bouncer is running;
-- bouncer api_url points to the central TrueNAS LAPI;
-- CrowdSec PF tables exist and their entry counts are reported.
+--preflight
+  Validate the local Security Engine is stopped, the firewall bouncer is
+  running, pfSense can reach the central TrueNAS LAPI, and PF tables exist.
+  The legacy local LAPI URL is reported as a warning rather than a failure.
 
-By default an empty table is a warning because it can be legitimate when there
-are no active decisions. Use --require-nonempty-table only when the central
-LAPI is known to expose at least one active ban decision.
+--accept
+  Post-cutover acceptance (default). Requires the firewall bouncer api_url to
+  point to the central TrueNAS LAPI.
+
+--require-nonempty-table
+  Require at least one entry across CrowdSec PF tables. Use this only when the
+  TrueNAS diagnostic proves that the central LAPI has active ban decisions.
+
+No pfSense configuration or service is modified.
 
 Environment:
-  PFSENSE_SSH_TARGET          SSH target (default: home.albandrieu.com)
-  PFSENSE_SSH_PORT            Optional SSH port
-  CROWDSEC_EXPECTED_LAPI_URL  Expected remote LAPI URL
+  PFSENSE_SSH_TARGET           SSH target (default: home.albandrieu.com)
+  PFSENSE_SSH_PORT             Optional SSH port
+  CROWDSEC_EXPECTED_LAPI_URL   Expected remote LAPI URL
+  CROWDSEC_EXPECTED_LAPI_HOST  Expected LAPI host for TCP preflight
+  CROWDSEC_EXPECTED_LAPI_PORT  Expected LAPI port for TCP preflight
+  CROWDSEC_LEGACY_LAPI_URL     Known pre-cutover local LAPI URL
 EOF
 }
 
 while (($# > 0)); do
   case "$1" in
+    --preflight | --accept)
+      MODE="$1"
+      ;;
     --require-nonempty-table)
       REQUIRE_NONEMPTY=true
       ;;
@@ -65,11 +80,15 @@ if [[ -n "${SSH_PORT}" ]]; then
 fi
 
 remote_output="$(
-  ssh "${ssh_args[@]}" "${SSH_TARGET}" sh -s -- "${EXPECTED_LAPI_URL}" "${REQUIRE_NONEMPTY}" <<'REMOTE'
+  ssh "${ssh_args[@]}" "${SSH_TARGET}" sh -s --     "${MODE}" "${EXPECTED_LAPI_URL}" "${EXPECTED_LAPI_HOST}"     "${EXPECTED_LAPI_PORT}" "${LEGACY_LAPI_URL}" "${REQUIRE_NONEMPTY}" <<'REMOTE'
 set -eu
 
-expected_lapi="$1"
-require_nonempty="$2"
+mode="$1"
+expected_lapi="$2"
+expected_host="$3"
+expected_port="$4"
+legacy_lapi="$5"
+require_nonempty="$6"
 failures=0
 warnings=0
 
@@ -93,6 +112,17 @@ else
   error 'CrowdSec firewall bouncer is not running'
 fi
 
+printf '\n==> Central LAPI reachability\n'
+if command -v nc >/dev/null 2>&1; then
+  if nc -z -w 3 "${expected_host}" "${expected_port}" >/dev/null 2>&1; then
+    ok "pfSense can reach central LAPI TCP ${expected_host}:${expected_port}"
+  else
+    error "pfSense cannot reach central LAPI TCP ${expected_host}:${expected_port}"
+  fi
+else
+  warn 'nc is unavailable on pfSense; central LAPI TCP reachability was not tested'
+fi
+
 printf '\n==> Remote LAPI contract\n'
 if [ ! -r "${config}" ]; then
   error "bouncer config is missing or unreadable: ${config}"
@@ -113,9 +143,15 @@ else
     */) api_url="${api_url%/}" ;;
   esac
   expected="${expected_lapi%/}"
+  legacy="${legacy_lapi%/}"
   printf 'crowdsec_bouncer_api_url=%s\n' "${api_url:-<missing>}"
+
   if [ "${api_url:-}" = "${expected}" ]; then
     ok "bouncer points to central LAPI ${expected}"
+  elif [ "${mode}" = "--preflight" ] && [ "${api_url:-}" = "${legacy}" ]; then
+    warn "bouncer still points to legacy local LAPI ${legacy}; expected before cutover"
+  elif [ "${mode}" = "--preflight" ]; then
+    warn "bouncer api_url is ${api_url:-<missing>}; cutover has not been accepted"
   else
     error "bouncer api_url is ${api_url:-<missing>}; expected ${expected}"
   fi
@@ -144,14 +180,16 @@ else
   warn 'CrowdSec PF tables are empty; acceptable only when the central LAPI has no active ban decisions'
 fi
 
-printf '\nCrowdSec pfSense Small summary: failures=%s warnings=%s table_entries=%s\n' \
-  "${failures}" "${warnings}" "${total}"
+printf '\nCrowdSec pfSense Small summary: failures=%s warnings=%s table_entries=%s mode=%s\n' \
+  "${failures}" "${warnings}" "${total}" "${mode}"
 [ "${failures}" -eq 0 ]
 REMOTE
 )" || {
   status=$?
-  printf '%s\n' "${remote_output:-}" | sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'
+  printf '%s\n' "${remote_output:-}" |
+    sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'
   exit "${status}"
 }
 
-printf '%s\n' "${remote_output}" | sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'
+printf '%s\n' "${remote_output}" |
+  sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'

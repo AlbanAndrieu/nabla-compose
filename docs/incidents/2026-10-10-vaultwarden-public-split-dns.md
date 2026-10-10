@@ -1,6 +1,6 @@
 # Incident Vaultwarden : split-DNS public vers TrueNAS — 2026-10-10
 
-Status: **cause racine identifiée ; correction DNS à planifier ; secrets/cutover pfSense différés**.
+Status: **cause racine et objet pfSense confirmés ; correction DNS toujours à appliquer ; secrets/cutover CrowdSec bloqués par cette dépendance**.
 
 ## Résumé
 
@@ -201,10 +201,9 @@ Pour un hostname tunnelé, la vue LAN ne doit plus pointer directement vers
 
 ## Actions ouvertes
 
-- localiser la source exacte de l'override
-  `vaultwarden.albandrieu.com -> 172.17.0.24` dans pfSense/Unbound ou sa
-  génération ;
-- supprimer/corriger cet override sans affecter
+- [x] source exacte confirmée : DNS Resolver Host Override pfSense
+  `host=vaultwarden`, `domain=albandrieu.com`, `ip=172.17.0.24` ;
+- [ ] supprimer/corriger cet override public sans affecter
   `vaultwarden.int.albandrieu.com` ;
 - ajouter un contrôle automatisé détectant les hostnames publics tunnelés qui
   résolvent vers une IP LAN depuis le resolver pfSense ;
@@ -275,3 +274,57 @@ Correction attendue :
 
 Ne pas éditer `host_entries.conf` directement : il est dérivé de
 `/conf/config.xml`.
+
+
+## Incident réobservé — CrowdSec cutover, 2026-10-10
+
+Le rendu du secret `crowdsec` a remis ce défaut sur le chemin critique :
+
+```text
+bw login
+Unable to fetch ServerConfig from https://vaultwarden.albandrieu.com/api
+404 page not found
+```
+
+Le comportement est identique à la RCA ci-dessus : le CLI n'atteint pas
+Cloudflare depuis TrueNAS tant que le Host Override public reste actif. Le
+CrowdSec central et la connectivité pfSense -> LAPI `172.17.0.24:8084` sont
+déjà sains ; **ne pas contourner** cette dette en copiant le secret depuis un
+autre hôte ou en donnant à TrueNAS un accès administratif pfSense.
+
+Ordre de reprise :
+
+1. supprimer le Host Override public dans pfSense DNS Resolver ;
+2. conserver/créer séparément `vaultwarden.int.albandrieu.com -> 172.17.0.24`
+   si l'accès LAN direct est requis ;
+3. laisser pfSense régénérer Unbound ;
+4. depuis TrueNAS, exiger que le resolver LAN et le chemin HTTPS public ne
+   pointent plus vers `172.17.0.24:443` ;
+5. seulement ensuite relancer `configure-bitwarden-cli-local.sh --apply`,
+   `bw login`, `bw unlock` et le renderer CrowdSec.
+
+
+### After pfSense override rename — residual TrueNAS NSS override
+
+The operator renamed the pfSense Host Override from `vaultwarden` to
+`bitwarden`. After that change, direct DNS queries were corrected:
+
+```text
+dig @172.17.0.1 vaultwarden.albandrieu.com -> 188.114.96.2 / 188.114.97.2
+dig @1.1.1.1 vaultwarden.albandrieu.com   -> 188.114.96.2 / 188.114.97.2
+```
+
+However, the TrueNAS system resolver still returned:
+
+```text
+getent ahostsv4 vaultwarden.albandrieu.com -> 172.17.0.24
+curl https://vaultwarden.albandrieu.com/... -> Trying 172.17.0.24:443 -> HTTP 404
+```
+
+Therefore the pfSense public override is no longer the active source of the
+remaining wrong answer. The residual mapping is now local to the TrueNAS NSS /
+resolver path (for example `/etc/hosts`, `hosts:` ordering, or a local cache).
+Do not change pfSense again until that local source is identified.
+
+The local Vaultwarden origin remains healthy:
+`http://127.0.0.1:30032/api/config` returns the expected Vaultwarden config.

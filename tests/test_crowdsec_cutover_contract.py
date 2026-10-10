@@ -154,9 +154,13 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "pgrep -x crowdsec",
             "crowdsec_blacklists",
             "crowdsec6_blacklists",
+            "--preflight",
+            "--accept",
             "--require-nonempty-table",
             "acceptable only when the central LAPI has no active ban decisions",
             "BatchMode=yes",
+            "nc -z -w 3",
+            "legacy local LAPI",
             'sub(/^[^:]*:[[:space:]]*/, "", line)',
             'gsub(/^["\\\\047]|["\\\\047]$/, "", line)',
         ):

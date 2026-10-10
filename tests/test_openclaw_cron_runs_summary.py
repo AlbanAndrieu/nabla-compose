@@ -70,3 +70,24 @@ def test_fallback_keeps_resolved_discord_target_without_leaking_ids() -> None:
     assert "delivery_route_different_destination=1" in result.stdout
     assert target not in result.stdout + result.stderr
     assert private_text not in result.stdout + result.stderr
+
+
+def test_failed_skill_review_classifies_budget_without_exposing_key() -> None:
+    marker = "private-key-prefix-not-for-output"
+    payload = {"entries": [{"status": "error", "delivered": False,
+                            "durationMs": 272541,
+                            "error": "All models failed: 429 Budget has been exceeded! Key=" + marker}]}
+    result = run(payload)
+    assert result.returncode == 0, result.stderr
+    assert "runs=1" in result.stdout
+    assert "status_non_ok=1" in result.stdout
+    assert "failure_budget_429=1" in result.stdout
+    assert "duration_ms_total=272541" in result.stdout
+    assert marker not in result.stdout + result.stderr
+
+
+def test_unknown_error_is_not_misattributed_to_budget() -> None:
+    result = run({"entries": [{"status": "error", "error": "agent-runner-failure"}]})
+    assert result.returncode == 0
+    assert "failure_agent_runner=1" in result.stdout
+    assert "failure_budget_429=0" in result.stdout
