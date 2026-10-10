@@ -160,6 +160,20 @@ sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
 `--accept` additionally requires that the pfSense firewall bouncer has polled
 the central LAPI at least once.
 
+Complete the pfSense-side acceptance from the workstation with the read-only
+helper:
+
+```bash
+bash scripts/pfsense/verify-crowdsec-small.sh
+```
+
+It verifies that the local Security Engine is absent, the firewall bouncer is
+running, its `api_url` targets `http://172.17.0.24:8084`, and the
+`crowdsec_blacklists` / `crowdsec6_blacklists` PF tables exist. Empty tables
+are a warning by default because they are legitimate when no active ban exists.
+When `cscli decisions list` on TrueNAS proves at least one active ban, rerun
+with `--require-nonempty-table`; an empty PF table then becomes a failure.
+
 ## Migration from pfSense Large to Small
 
 1. Keep the existing pfSense **firewall bouncer** running, but keep the local

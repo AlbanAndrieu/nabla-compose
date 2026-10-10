@@ -14,6 +14,7 @@ README = ROOT / "apps" / "crowdsec" / "README.md"
 ACQUIS = ROOT / "apps" / "crowdsec" / "acquis.d" / "security.yaml"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-crowdsec-cutover.sh"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-crowdsec.sh"
+PFSENSE_VERIFY = ROOT / "scripts" / "pfsense" / "verify-crowdsec-small.sh"
 
 class CrowdSecCutoverContractTest(unittest.TestCase):
     def test_central_engine_uses_current_pinned_image_and_disables_spin_scenario(self) -> None:
@@ -142,6 +143,32 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
 
     def test_cutover_diagnostic_keeps_executable_bit(self) -> None:
         self.assertTrue(DIAGNOSE.stat().st_mode & stat.S_IXUSR)
+
+    def test_pfsense_small_verifier_is_read_only_remote_lapi_aware(self) -> None:
+        text = PFSENSE_VERIFY.read_text(encoding="utf-8")
+
+        for expected in (
+            "http://172.17.0.24:8084",
+            "crowdsec_firewall onestatus",
+            "pgrep -x crowdsec",
+            "crowdsec_blacklists",
+            "crowdsec6_blacklists",
+            "--require-nonempty-table",
+            "acceptable only when the central LAPI has no active ban decisions",
+            "BatchMode=yes",
+        ):
+            self.assertIn(expected, text)
+
+        result = subprocess.run(
+            ["bash", "-n", str(PFSENSE_VERIFY)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(PFSENSE_VERIFY.stat().st_mode & stat.S_IXUSR)
+        self.assertNotRegex(text, r"(?m)^\\s*(?:service|pfctl).*\\b(?:restart|start|add|delete)\\b")
+        self.assertNotIn("cscli bouncers add", text)
 
     def test_runbook_requires_preflight_before_pfsense_small_cutover(self) -> None:
         text = " ".join(README.read_text(encoding="utf-8").split())
