@@ -2,12 +2,14 @@
 # Standalone read-only homelab health diagnostic; no reboot manifest required.
 set -uo pipefail
 DEEP=false
-if [[ "${1:-}" == "--deep" && $# -eq 1 ]]; then
-  DEEP=true
-elif (( $# > 0 )); then
-  printf 'usage: %s [--deep]\n' "$0" >&2
-  exit 2
-fi
+VERBOSE=false
+for arg in "$@"; do
+  case "$arg" in
+    --deep) DEEP=true ;;
+    --verbose) VERBOSE=true ;;
+    *) printf 'usage: %s [--deep] [--verbose]\n' "$0" >&2; exit 2 ;;
+  esac
+done
 GREEN='' RED='' YELLOW='' RESET=''
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
   GREEN="$(printf '\033[32m')"
@@ -23,11 +25,12 @@ warnings=0
 run_gate() {
   local name="$1"
   shift
-  printf '\n🔎 %s\n' "$name"
-  if "$@"; then
+  if "$@" >"${runtime_tmp}/${name}.log" 2>&1; then
+    [[ "$VERBOSE" == true ]] && cat "${runtime_tmp}/${name}.log"
     printf '%s✅ PASS %s%s\n' "${GREEN}" "$name" "${RESET}"
   else
     printf '%s❌ FAIL %s%s\n' "${RED}" "$name" "${RESET}"
+    tail -n 12 "${runtime_tmp}/${name}.log"
     failed=$((failed + 1))
   fi
 }
@@ -37,13 +40,13 @@ if ! command -v midclt >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
   exit 2
 fi
 
-printf '==> TrueNAS Apps state (read-only)\n'
+printf '🏠 Homelab health · topology-ordered checks\n'
 apps_json="$(midclt call app.query)" || { echo 'FAIL app.query'; exit 2; }
 if [[ "$DEEP" == true ]]; then
-  echo '🔗 Deep dependency checks enabled (topology order)'
+  echo '🔗 Deep probes enabled'
 fi
 runtime_tmp="$(mktemp -d)"
-trap 'rm -rf "${runtime_tmp}"' EXIT
+trap 'rm -f "${runtime_tmp}"/apps.json "${runtime_tmp}"/plan.json "${runtime_tmp}"/*.log; rmdir "${runtime_tmp}" 2>/dev/null || true' EXIT
 printf '%s\n' "$apps_json" >"${runtime_tmp}/apps.json"
 if python3 "${ROOT}/scripts/truenas/plan-app-lifecycle-order.py" \
   --apps "${runtime_tmp}/apps.json" --states RUNNING,DEPLOYING,CRASHED,ERROR \
@@ -52,6 +55,7 @@ if python3 "${ROOT}/scripts/truenas/plan-app-lifecycle-order.py" \
   >"${runtime_tmp}/plan.json"; then
   extra=()
   [[ "$DEEP" == true ]] && extra+=(--deep)
+  [[ "$VERBOSE" == true ]] && extra+=(--verbose)
   python3 "${ROOT}/scripts/truenas/audit-homelab-service-dependencies.py" \
     --apps "${runtime_tmp}/apps.json" --plan "${runtime_tmp}/plan.json" "${extra[@]}" || failed=$((failed + 1))
 else
@@ -64,12 +68,12 @@ if ((unhealthy > 0)); then
   failed=$((failed + 1))
 fi
 
-printf '\n==> Docker unhealthy containers (read-only)\n'
+printf '\n🐳 Docker container health\n'
 if command -v docker >/dev/null 2>&1; then
-  if [[ "$DEEP" == true ]]; then
-    docker ps --format '{{.Names}}\t{{.Status}}'
-  fi
-  if docker ps --format '{{.Names}} {{.Status}}' | grep -Ei 'unhealthy|restarting' ; then
+  [[ "$VERBOSE" == true ]] && docker ps --format '{{.Names}}\t{{.Status}}'
+  unhealthy_containers="$(docker ps --format '{{.Names}} {{.Status}}' | grep -Ei 'unhealthy|restarting' || true)"
+  if [[ -n "$unhealthy_containers" ]]; then
+    printf '%s\n' "$unhealthy_containers"
     printf '%s❌ FAIL Docker unhealthy/restarting containers detected%s\n' "$RED" "$RESET"
     failed=$((failed + 1))
   fi
@@ -99,5 +103,5 @@ else
   warnings=$((warnings + 1))
 fi
 
-printf '\n📊 SUMMARY homelab-service-diagnostic failures=%d warnings=%d\n' "$failed" "$warnings"
+printf '\n📊 Homelab result: failures=%d warnings=%d\n' "$failed" "$warnings"
 ((failed == 0))
