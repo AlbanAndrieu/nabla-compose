@@ -146,6 +146,11 @@ excuse to stop at static inspection. In a network-isolated agent environment:
    are unavailable), then the smallest matching `pytest`/unittest module.
    For scripts invoked in live mode, never run mutating `--apply` remotely:
    exercise read-only checks and hermetic mocks/contracts instead.
+   For subprocess/diagnostic tests, explicitly isolate inherited control flags
+   (`NABLA_DIAGNOSTIC_WRAPPED`, `DIAGNOSTIC_FULL_OUTPUT`,
+   `DIAGNOSTIC_COMPACT_OUTPUT`) when the fixture intends a fresh invocation.
+   Reproduce with those flags injected as well as absent so the test does not
+   accidentally depend on how an operator entered their shell.
 3. When a failure depends on Git semantics (submodules, missing paths,
    detached HEAD, origin refs or index modes), create a **temporary Git
    repository** and execute the exact helper/function against the failing
