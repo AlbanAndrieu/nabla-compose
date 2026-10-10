@@ -1,6 +1,7 @@
 """Contracts for the canonical pfSense diagnosis/recovery helper."""
 
 from pathlib import Path
+import stat
 import subprocess
 import unittest
 
@@ -27,6 +28,14 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertLess(
             text.index("==> HTTPS/API vantage points"),
             text.index("==> Deep appliance evidence over SSH"),
+        )
+
+    def test_shell_helper_is_executable(self) -> None:
+        mode = SCRIPT.stat().st_mode
+
+        self.assertTrue(
+            mode & stat.S_IXUSR,
+            f"{SCRIPT} must keep the executable bit in Git",
         )
 
     def test_shell_helper_parses_after_identity_lifecycle_changes(self) -> None:
@@ -194,7 +203,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         text = SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("System-log OOM/reclaim evidence", text)
-        self.assertIn("snort_check_for_rule_updates", text)
+        self.assertIn("snort_check_(cron_misc|for_rule_updates)", text)
         self.assertIn("Effective/generated PHP-FPM policy", text)
         self.assertIn("/usr/local/lib/php-fpm.conf", text)
         self.assertIn("Package/default PHP-FPM pool policy", text)
