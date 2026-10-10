@@ -310,7 +310,7 @@ while IFS= read -r app; do
       printf 'NEXT: Tailscale is documented as intentionally deferred; keep it STOPPED unless it has an explicit current consumer.\n'
       ;;
     vaultwarden)
-      printf 'NEXT: validate local + canonical HTTPS /api/config with configure-bitwarden-cli-local.sh --check; a public 404 is an ingress/tunnel defect.\n'
+      printf 'NEXT: run scripts/truenas/diagnose-vaultwarden-cli.sh --check, then configure-bitwarden-cli-local.sh --check for endpoint/DNS details.\n'
       ;;
   esac
 
