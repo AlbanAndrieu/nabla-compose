@@ -152,7 +152,7 @@ print_compact_log() {
   # Summarize only failure IDs/statuses, not verbose pytest assertion
   # dumps, file diffs, successful hooks, or source code containing ERROR.
   # Full untruncated evidence remains in a private on-disk log.
-  summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|.*[.]{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\[ERROR\])' "${log}" || true)"
+  summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|FAIL: |ERROR: |.*[.]{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\[ERROR\])' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
     local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
     local summary_count
