@@ -118,9 +118,9 @@ if [[ "${INCLUDE_OPTIONAL}" != true ]]; then
   for app in "${APPS[@]}"; do
     skip=false
     for optional in "${OPTIONAL_APPS[@]}"; do
-      [[ "$app" == "$optional" ]] && { skip=true; break; }
+      [[ "${app}" == "${optional}" ]] && { skip=true; break; }
     done
-    [[ "$skip" == true ]] || filtered_apps+=("$app")
+    [[ "${skip}" == true ]] || filtered_apps+=("${app}")
   done
   APPS=("${filtered_apps[@]}")
   printf 'LIGHT restore: optional apps excluded (%s configured); use --include-optional to opt in\n' "${#OPTIONAL_APPS[@]}"
