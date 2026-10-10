@@ -83,7 +83,7 @@ if (($# > 0)); then
   exit 2
 fi
 
-LOG_TAIL="${QUALITY_LOG_TAIL:-32}"
+LOG_TAIL="${QUALITY_LOG_TAIL:-12}"
 LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
 REVIEWED_LARGE_DELETIONS="${ROOT}/config/quality/reviewed-large-deletions.tsv"
@@ -149,12 +149,12 @@ print_compact_log() {
   local log="$1"
   local summary=""
 
-  # pre-commit prints hook names and dotted Failed/modified statuses.
-  # Preserve those diagnostics even when the failure log ends with a diff
-  # rather than the actual failing hook (common with --show-diff-on-failure).
-  summary="$(grep -E '^(.{0,150}\\.{3,}(Failed|Passed|files were modified by this hook)|- hook id: |\[ERROR\]|FAIL|ERROR: |FAILED |Ran [0-9]+ tests|=+ .* (failed|error|passed).* =+$)' "${log}" || true)"
+  # Summarize only failure IDs/statuses, not verbose pytest assertion
+  # dumps, file diffs, successful hooks, or source code containing ERROR.
+  # Full untruncated evidence remains in a private on-disk log.
+  summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|[[:alnum:]_./ -]+\\.{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\\[ERROR\\])' "${log}" || true)"
   if [[ -n "${summary}" ]]; then
-    local summary_limit="${QUALITY_SUMMARY_LINES:-12}"
+    local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
     local summary_count
     [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
     summary_count="$(printf '%s\n' "${summary}" | wc -l)"
@@ -166,8 +166,11 @@ print_compact_log() {
         "$((summary_count - summary_limit))" >&2
     fi
   fi
-  printf '%s\n' "--- last ${LOG_TAIL} log lines ---" >&2
-  tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+  printf 'Full failure log: %s (private, mode 0600)\\n' "${log}" >&2
+  if [[ -z "${summary}" ]]; then
+    printf '%s\\n' "--- last ${LOG_TAIL} log lines (no recognizable summary) ---" >&2
+    tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+  fi
 }
 
 run_compact() {
@@ -185,7 +188,6 @@ run_compact() {
   fi
   printf '❌ %s\n' "${label}" >&2
   print_compact_log "${log}"
-  rm -f "${log}"
   return "${rc}"
 }
 
@@ -494,7 +496,6 @@ if [[ "${MODE}" == "fix" ]]; then
 
     printf '❌ QG_FIX_STALLED: Pre-commit failed without changing files; fix the reported error instead of repeating identical passes\n' >&2
     print_compact_log "${log}"
-    rm -f "${log}"
     exit "${rc}"
   done
 fi
