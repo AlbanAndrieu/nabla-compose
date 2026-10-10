@@ -46,6 +46,23 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 DSOMM post-reboot functional acceptance
+
+- [x] Add read-only `scripts/truenas/check-dsomm-post-reboot.py` to
+  `reboot-homelab.sh --post-reboot-check`, preserving FastAPI,
+  ingress and Talos checks. It rejects SPA HTML fallback on
+  `/assets/YAML/`, empty assessment YAML, or missing Nabla contexts.
+- [x] Add synthetic HTTP regression coverage, including a 200/HTML
+  fallback, and document the independent standalone command.
+- [ ] Run the standalone check on TrueNAS with the updated checkout,
+  then confirm browser-level circular-heatmap rendering on an
+  approved Playwright runner. Full orchestrated `--post-reboot-check`
+  requires a valid manifest and a genuine reboot, and is **not**
+  equivalent to the standalone check.
+- [ ] Exact-HEAD local gate remains unverified in this agent sandbox
+  (GitHub DNS unreachable); do not claim all services checked or
+  the PR ready to merge.
+
 ### P0 DSOMM mounted-data acceptance and frontend rendering investigation
 
 - [x] Operator confirmed `app.redeploy dsomm` complete, TrueNAS
