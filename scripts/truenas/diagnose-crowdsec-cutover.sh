@@ -126,8 +126,14 @@ elif [[ ! -r "${SECRET_FILE}" ]]; then
 else
   secret_mode="$(stat -c '%a' "${SECRET_FILE}" 2>/dev/null || true)"
   printf 'crowdsec_secret_file=%s mode=%s\n' "${SECRET_FILE}" "${secret_mode:-unknown}"
-  [[ "${secret_mode}" == "600" ]] || error "CrowdSec secret file must be mode 0600"
-  if grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+
+  [[ "${secret_mode}" == "600" ]] ||
+    error "CrowdSec secret file must be mode 0600"
+  if grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+$' "${SECRET_FILE}"; then
+    ok "pfSense bouncer credential is present (value redacted)"
+  else
+    error "BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty"
+  fi
+fi
 
 printf '\n==> pfSense log acquisition via Loki\n'
 if [[ -n "${container_id:-}" ]] &&
