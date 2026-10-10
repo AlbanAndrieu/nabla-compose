@@ -11,9 +11,9 @@ spec.loader.exec_module(module)
 
 def test_unexpanded_reference_and_trailing_quote() -> None:
     assert module.classify("${NABLA_PLUS_OPENAI_API_KEY}") == "unexpanded_reference"
-    assert module.classify("sk-proj-example-value\"") == "trailing_quote"
+    assert module.classify("sk-proj-example-value\"") == "unbalanced_quotes_or_reference"
     assert module.classify("\"sk-proj-example-value\"") == "configured_key_shaped"
-    assert module.classify("\"sk-proj-example-value") == "unbalanced_quotes"
+    assert module.classify("\"sk-proj-example-value") == "unbalanced_quotes_or_reference"
 
 
 def test_no_secrets_exposed_by_classifier() -> None:
@@ -41,3 +41,12 @@ def test_openai_cli_secret_parity_checks_values_without_emitting_them() -> None:
         "NABLA_OPENAI_CLI_API_KEY": value,
         "OPENAI_API_KEY": value + '"',
     }) == "unverifiable"
+
+
+def test_quoted_values_with_inline_comments() -> None:
+    assert module.classify('"sk-proj-test-value" # operator comment') == "configured_key_shaped"
+    assert module.parity({
+        "NABLA_OPENAI_CLI_API_KEY": '"sk-proj-test-value" # source',
+        "OPENAI_API_KEY": 'sk-proj-test-value # destination',
+    }) == "match"
+    assert module.classify('"sk-proj-test-value"unexpected') == "unbalanced_quotes_or_reference"
