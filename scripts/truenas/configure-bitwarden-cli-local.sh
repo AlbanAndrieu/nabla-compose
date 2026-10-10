@@ -20,7 +20,8 @@ Validate the local Vaultwarden origin, then configure the official Bitwarden
 CLI with the canonical HTTPS Vaultwarden server.
 
 The local HTTP origin is a health probe only. Bitwarden CLI 2026.x intentionally
-rejects insecure API and identity URLs, including loopback URLs.
+rejects insecure API and identity URLs, including loopback URLs. Operational use
+requires a working HTTPS client endpoint before login or secret materialization.
 EOF
     exit 0
     ;;
