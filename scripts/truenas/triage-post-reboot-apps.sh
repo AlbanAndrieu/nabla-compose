@@ -20,7 +20,7 @@ jq -r '.[] | select((.state // "UNKNOWN") != "RUNNING") | [.id, .state] | @tsv' 
 printf '%s\n' '==> High-priority application states'
 for app in dsomm cyberbro sentry scrutiny openrag langflow docling; do
   jq -r --arg app "${app}" '
-    [.[] | select(.id==${app}) | (.state // "UNKNOWN")] |
+    [.[] | select(.id==$app) | (.state // "UNKNOWN")] |
     if length==0 then "ABSENT" else .[0] end |
     $app+"="+.' "${tmp}"
 done
