@@ -10,6 +10,12 @@ services:
       - no-new-privileges=true
     cap_drop:
       - ALL
+    # Upstream Caddy is packaged with a file capability on /usr/bin/caddy.
+    # Keep only NET_BIND_SERVICE in the bounding set; dropping every
+    # capability makes execve fail with EPERM before Caddy starts, even on
+    # an unprivileged listening port. Do not use privileged: true.
+    cap_add:
+      - NET_BIND_SERVICE
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
       interval: 30s
