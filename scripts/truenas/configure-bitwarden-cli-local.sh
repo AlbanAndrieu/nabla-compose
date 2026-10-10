@@ -165,7 +165,7 @@ esac
 # Bitwarden CLI supports per-service endpoint overrides. Configure the complete
 # set in one command so stale api/identity loopback overrides cannot survive
 # even when `bw config server` prints the canonical base URL.
-bw config server \
+bw config server "${PUBLIC_BASE}" \
   --web-vault "${PUBLIC_BASE}" \
   --api "${PUBLIC_BASE}/api" \
   --identity "${PUBLIC_BASE}/identity" \
@@ -173,7 +173,10 @@ bw config server \
   --notifications "${PUBLIC_BASE}/notifications" \
   --events "${PUBLIC_BASE}/events"
 
-printf 'OK: Bitwarden CLI per-service endpoints reset to canonical HTTPS origin %s\n' "${PUBLIC_BASE}"
+configured_after="$(bw config server 2>/dev/null | tr -d '\r\n' || true)"
+[[ "${configured_after}" == "${PUBLIC_BASE}" ]] ||
+  fail "Bitwarden CLI base URL did not persist canonical HTTPS origin"
+printf 'OK: Bitwarden CLI base and per-service endpoints set to canonical HTTPS origin %s\n' "${PUBLIC_BASE}"
 
 check_public_api ||
   fail "CLI overrides are now HTTPS-only, but canonical Vaultwarden ingress still returns a non-200 /api/config; fix the tunnel/origin route before login"
