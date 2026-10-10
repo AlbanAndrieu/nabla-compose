@@ -6,7 +6,7 @@ mode=journal
 since="2 hours ago"
 case "${1:-}" in
   "") ;;
-  --since) [[ $# -eq 2 ]] || { usage; exit 2; }; since="$2" ;;
+  --since) [[ $# -eq 2 ]] || { usage; exit 2; }; since="${2}" ;;
   --stdin) [[ $# -eq 1 ]] || { usage; exit 2; }; mode=stdin ;;
   *) usage; exit 2 ;;
 esac
