@@ -46,6 +46,26 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 DSOMM mounted-data acceptance and frontend rendering investigation
+
+- [x] Operator confirmed `app.redeploy dsomm` complete, TrueNAS
+  `RUNNING`, Docker `healthy`, UI HTTP 200, and mounted
+  progress/evidence YAML sizes 4170 and 18108 bytes respectively.
+  Thus runtime files are populated but the browser still displays
+  empty `Nabla Platform` and `Nabla Applications`.
+- [x] Added browser-facing `/YAML/{meta.yaml,default/model.yaml,team-progress.yaml,team-evidence.yaml}`
+  HTTP status/length/content-type probes to read-only diagnostic.
+  Investigate wrong asset URLs, stale browser localStorage and
+  frontend/model compatibility **from measured output**, not guessed
+  scores. Do not delete localStorage or overwrite YAML without backup.
+- [x] The previous Pre-commit failure on `9b3f196` was
+  `trailing-whitespace`; removed the offending trailing space
+  in `docs/roadmap.md`. An exact-new-HEAD green CI run has
+  not yet been observed.
+- [ ] Confirm YAML asset responses and console/network errors in
+  browser. Then address confirmed frontend failure and run
+  exact-HEAD local quality gate.
+
 ### P0 DSOMM empty persisted YAML — runtime root cause
 
 - [x] TrueNAS operator ran new diagnostic: the checked-in DSOMM
