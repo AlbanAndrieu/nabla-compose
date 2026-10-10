@@ -46,6 +46,33 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 operator evidence — Git and CrowdSec (2026-10-10 late)
+
+- [x] Privileged Git calls on the appliance were specifically
+  `sudo git status` at 12:09:16 and 12:21:52; `git status` can
+  refresh `.git/index`. These are evidenced unsafe invocations,
+  not proof that a particular cron was their parent.
+- [ ] TrueNAS cron ID **8** is `enabled=true user=root` and its
+  command references Git or the repository. Audit its *script identity
+  and effective child UID* without printing command secrets; do not
+  disable or rewrite it without identifying its purpose.
+- [x] Workstation pfSense CrowdSec `--preflight` completed with
+  failures=0 warnings=1: engine absent, bouncer running, central
+  LAPI TCP 172.17.0.24:8084 reachable, PF tables 31513 IPv4
+  and 586 IPv6 entries. The only warning is the legacy
+  `http://172.17.0.1:8089` bouncer target.
+- [x] TrueNAS CrowdSec central engine is healthy; Loki datasource
+  hits=10323, fresh events present, scenario disabled, LAN-only
+  listeners healthy, active decisions=0 (not an error).
+- [ ] **Cutover blocked:** canonical runtime
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` is missing;
+  legacy source is an empty placeholder; registered
+  `PFSENSE_FIREWALL` bouncer has no `last_pull`. Obtain the
+  *existing approved key* from Vaultwarden separately at both
+  trust boundaries, confirm secret delivery and strict
+  `--check`, then configure pfSense and run `--accept`.
+  Do not create a fresh key or rotate implicitly.
+
 ### P0 Git evidence — targeted sudo timeline (2026-10-10)
 
 - [x] Appliance evidence: root Git sudo journal entries at **12:09:16**
