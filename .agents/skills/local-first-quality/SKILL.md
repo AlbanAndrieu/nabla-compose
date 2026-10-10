@@ -111,6 +111,23 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
+## Git executable contract versus filesystem permissions
+
+Git records executable files as `100755` regardless of actual checkout
+permissions, including `0700` on a locked-down TrueNAS dataset. In portable
+tests, assert `S_IXUSR` for operator execution and `git ls-files --stage`
+`100755` for repository distribution. Do **not** insist on `S_IXGRP` or
+`S_IXOTH` merely because the Git mode is `100755`. Never `chmod 755`
+private operator scripts to make a CI test pass. Verify the effective ACL and
+the operator identity separately if runtime execution is denied.
+
+If a local checkout has `core.fileMode=false` or ACL/chmod policies diverge
+from the Git index, distinguish **index**, **stat**, **getfacl**, and
+**shebang** evidence. A staged mode fix uses `git add --chmod=+x`; changing
+the filesystem execute bit for the owning operator uses `chmod u+x` (only
+when actually needed). Do not use `git reset --hard` to reconcile modes.
+Never treat a permission-mode mismatch as permission to skip pre-commit.
+
 ## Disconnected development and token budget
 
 When `github.com`, PyPI or hook repositories are unavailable, do not retry
