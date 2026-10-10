@@ -63,4 +63,6 @@ def test_context_pressure_ratio_is_paired_per_event():
     assert "estimated_prompt_tokens_max=900" in result.stdout
     assert "prompt_budget_before_reserve_min=20" in result.stdout
     assert "estimated_prompt_to_budget_ratio_max=5.00" in result.stdout
+    assert "context_events_with_paired_budget=2" in result.stdout
+    assert "context_over_budget_events=1" in result.stdout
     assert "estimated_prompt_to_budget_ratio_max=45.00" not in result.stdout
