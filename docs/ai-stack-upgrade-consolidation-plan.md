@@ -218,6 +218,33 @@ blocking: this is discovery/reporting first, not an automatic pod deny rule.
 Reuse existing Grafana/Prometheus for result visibility where feasible.
 Official: https://aquasecurity.github.io/trivy-operator/latest/
 
+### Trivy Operator → DefectDojo (planned integration)
+
+DefectDojo includes dedicated **Trivy Operator** and **Trivy** JSON parsers
+(`Trivy Operator Scan` versus `Trivy Scan`; do not mix their formats).
+After Trivy Operator is deployed in Talos, collect Kubernetes
+`VulnerabilityReport` CRDs read-only and map them to stable DefectDojo
+Product / Engagement / Test identities. Prefer a bounded periodic export
+using the existing scheduler and DefectDojo
+`/api/v2/reimport-scan/` with `scan_type=Trivy Operator Scan`, rather than
+another permanently running Kubernetes controller by default. A separate
+`trivy-dojo-report-operator` exists but requires its own RBAC, API token,
+image-provenance and resource review before opting in.
+
+- [ ] Validate the exact JSON structure accepted by the DefectDojo parser
+  with a one-report fixture (no raw secrets or credentials in artifacts).
+- [ ] Create a dedicated low-privilege API key, stable test/engagement
+  identity and deterministic deduplication, then test repeated imports.
+- [ ] Compare findings and remediation state after a pod image update.
+- [ ] Define exclusions and retention for short-lived namespaces.
+- [ ] Restrict CRD watches and prevent unintended cluster-wide disclosure.
+- [ ] Only automate once the manual import/reimport smoke is repeatable.
+
+References:
+https://docs.defectdojo.com/supported_tools/parsers/file/trivy_operator/
+https://docs.defectdojo.com/supported_tools/parsers/file/trivy/
+https://github.com/telekom-mms/trivy-dojo-report-operator
+
 ### Kopia versus Restic — offsite backup (one choice, not two daemons)
 
 Both provide encrypted, incremental/deduplicated backups and restore
