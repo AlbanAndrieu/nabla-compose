@@ -39,6 +39,25 @@ printf '\n=== Mounts ===\n'
 docker inspect "${CONTAINER}" \
   --format '{{range .Mounts}}{{println .Source "->" .Destination "rw=" .RW}}{{end}}'
 
+printf '\n=== Persistent storage ownership ===\n'
+if [[ -d "${DATA_ROOT}" ]]; then
+  stat -c 'owner=%u:%g mode=%a path=%n' "${DATA_ROOT}"
+  owner_uid="$(stat -c '%u' "${DATA_ROOT}")"
+  owner_gid="$(stat -c '%g' "${DATA_ROOT}")"
+  mode="$(stat -c '%a' "${DATA_ROOT}")"
+  container_uid="$(docker inspect "${CONTAINER}" --format '{{.Config.User}}' | cut -d: -f1)"
+  printf 'container_user=%s\n' "${container_uid}"
+  if [[ "${container_uid}" =~ ^[0-9]+$ ]] && [[ "${owner_uid}" != "${container_uid}" ]]; then
+    warn_permissions=1
+    # Do not infer supplementary groups from a numeric UID. Report a potential
+    # mismatch for the operator to validate rather than mutate permissions.
+    printf 'WARNING: data owner UID differs from container UID; verify effective write permission\n'
+  fi
+  if [[ "${container_uid}" =~ ^[0-9]+$ && "${owner_uid}" != "${container_uid}" && "${owner_gid}" == 0 && "${mode}" == 770 ]]; then
+    printf 'ERROR: root:root 770 bind mount is not writable by an unprivileged UID without supplementary root group\n' >&2
+  fi
+fi
+
 printf '\n=== Readiness ===\n'
 ready_tmp="$(mktemp)"
 trap 'rm -f "${ready_tmp}"' EXIT
