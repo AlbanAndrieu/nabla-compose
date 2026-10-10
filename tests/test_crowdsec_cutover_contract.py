@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import stat
+import subprocess
 import unittest
 import yaml
 
@@ -45,6 +46,15 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertNotIn("/logs/pfsense", compose)
         self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", compose)
         self.assertNotIn("/mnt/cpool/crowdsec/.env.secrets", compose)
+
+    def test_cutover_diagnostic_parses_with_bash(self) -> None:
+        result = subprocess.run(
+            ["bash", "-n", str(DIAGNOSE)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_cutover_diagnostic_is_read_only_bounded_and_secret_safe(self) -> None:
         text = DIAGNOSE.read_text(encoding="utf-8")
