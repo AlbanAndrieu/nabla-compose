@@ -113,6 +113,24 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("--ignore-submodules=all", canonical)
         self.assertIn('awk \'$1 == ":160000" || $2 == "160000" {print}\'', canonical)
 
+    def test_compact_failure_report_preserves_full_evidence(self) -> None:
+        gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("FAILED tests/", gate)
+        self.assertIn("- hook id:", gate)
+        self.assertIn("Full failure log:", gate)
+        self.assertIn('if [[ -z "${summary}" ]]', gate)
+        self.assertNotIn(
+            'print_compact_log "${log}"\n    rm -f "${log}"',
+            gate,
+        )
+        self.assertNotIn(
+            "mapfile -t CHANGED_FILES < <(collect_changed_files)",
+            gate,
+        )
+        self.assertIn("QG_GIT_SCOPE", gate)
+
     def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
         scripts = sorted((ROOT / "scripts").rglob("*.sh"))
         self.assertTrue(scripts)
