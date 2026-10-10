@@ -18,7 +18,7 @@ if ! command -v jq >/dev/null 2>&1 || ! command -v midclt >/dev/null 2>&1; then
   echo 'ERROR: jq and midclt are required on TrueNAS' >&2
   exit 2
 fi
-if [[ "${MODE}" != "--check" && "$EUID" -ne 0 ]]; then
+if [[ "${MODE}" != "--check" && "${EUID}" -ne 0 ]]; then
   echo 'ERROR: --stop/--start require root on TrueNAS' >&2; exit 2
 fi
 
