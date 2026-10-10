@@ -29,6 +29,38 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — preuve opérateur DSOMM et provenance Git (2026-10-10)
+
+- [x] Vérifications TrueNAS : `pytest -q tests/test_opencre_contract.py`
+  **5 tests réussis**. `just pre-push` a convergé en une passe et validé
+  la régénération des projections, puis s'est arrêté au contrat
+  `test_checkout_provenance_is_local_and_non_blocking` :
+  **1 échec, 33 tests réussis** dans le groupe pfSense/CrowdSec.
+  Journal privé : `/tmp/tmp.srBqJeenIk`.
+- [x] Renforcer le test de provenance du checkout : inspecter uniquement
+  `truenas_repo_provenance()`, refuser les opérations Git réseau/mutantes
+  (`fetch/pull/push/checkout/switch/reset`), expliciter les contrats
+  manquants. La fonction de production n'a pas été modifiée.
+  **L'assertion exacte de l'échec d'origine n'a pas été fournie** ;
+  ne pas attribuer rétroactivement une cause non démontrée.
+- [x] `sudo bash scripts/truenas/deploy-dsomm.sh --check` a établi :
+  seed DSOMM 5.0.2 cohérente (22 activités et 22 preuves),
+  image `wurstbrot/dsomm:4.4.1` présente,
+  Compose et projections synchronisés, dataset `cpool/dsomm`
+  présent et non vide ; provenance `HEAD=f1773f969679`,
+  `tree=clean`, upstream synchronisé.
+- [ ] **DSOMM App STOPPED** : le `--check` a correctement refusé de
+  démarrer l'application. Ce n'est ni une erreur de seed ni une preuve
+  de disponibilité HTTP. Diagnostiquer `app.query`, workloads, jobs
+  et persistance avant une opération explicite `--apply`.
+  Ne pas supprimer, écraser ou réinitialiser `/mnt/cpool/dsomm`.
+- [ ] **P0** : exécuter le test de provenance ciblé puis
+  `just pre-push` sur la branche à jour. Ne pas entamer d'autres
+  changements fonctionnels tant que L3 est rouge.
+- [ ] **P1** : une fois L3 validé, ordre d'acceptation :
+  DSOMM STOPPED → Gatus → Sentry → Scrutiny
+  (voir [runbook](./runbooks/2026-10-10-platform-services-acceptance.md)).
+
 ## PR #251 — OpenCRE gate + acceptation séquentielle des services (2026-10-10)
 
 - [x] Corriger le test `opencre-contract` : le déployeur exécutable a
