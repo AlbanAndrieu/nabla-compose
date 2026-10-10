@@ -142,6 +142,7 @@ if [[ "${MODE}" == "--apply" ]]; then
     --name "${smoke_name}" \
     --network intranet \
     --cap-drop ALL \
+    --cap-add NET_BIND_SERVICE \
     --security-opt no-new-privileges=true \
     --mount "type=bind,src=${CANONICAL_ROOT}/apps/dsomm/config/meta.yaml,dst=/srv/assets/YAML/meta.yaml,readonly" \
     --mount "type=bind,src=${model_file},dst=/srv/assets/YAML/default/model.yaml,readonly" \
