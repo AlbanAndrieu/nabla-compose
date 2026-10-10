@@ -30,9 +30,25 @@ esac
 command -v docker >/dev/null 2>&1 || fail "docker is required"
 [[ -f "${DOCKERFILE}" ]] || fail "missing ${DOCKERFILE}"
 
+resolve_docker() {
+  if docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
+  elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(sudo docker)
+  elif command -v sudo >/dev/null 2>&1; then
+    printf 'INFO: Docker socket requires privilege; sudo authentication may be requested once.\n'
+    sudo docker info >/dev/null
+    DOCKER_CMD=(sudo docker)
+  else
+    fail "Docker socket is not accessible and sudo is unavailable"
+  fi
+}
+
+resolve_docker
+
 check_image() {
-  docker image inspect "${IMAGE}" >/dev/null 2>&1 || return 1
-  actual="$(docker run --rm "${IMAGE}" --version 2>/dev/null | awk '{print $1}')"
+  "${DOCKER_CMD[@]}" image inspect "${IMAGE}" >/dev/null 2>&1 || return 1
+  actual="$("${DOCKER_CMD[@]}" run --rm "${IMAGE}" --version 2>/dev/null | awk '{print $1}')"
   [[ "${actual}" == "${VERSION}" ]]
 }
 
@@ -41,7 +57,7 @@ write_wrapper() {
   cat >"${WRAPPER}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-exec docker run --rm "${IMAGE}" "\$@"
+exec sudo docker run --rm "${IMAGE}" "\$@"
 EOF
   chmod 700 "${WRAPPER}"
 }
@@ -54,7 +70,7 @@ if [[ "${MODE}" == "--check" ]]; then
   exit 0
 fi
 
-docker build \
+"${DOCKER_CMD[@]}" build \
   --build-arg "YKMAN_VERSION=${VERSION}" \
   -t "${IMAGE}" \
   -f "${DOCKERFILE}" \
