@@ -23,7 +23,13 @@ def test_docker_socket_proxy_intranet_recovery_contract() -> None:
 def test_pihole_dns_sync_acceptance_contract() -> None:
     text = PIHOLE.read_text(encoding="utf-8")
 
-    assert "getent hosts" in text
+    # DNS resolution is delegated to the shared container probe helper,
+    # which runs bounded `docker exec ... getent hosts` internally.
+    assert 'source "${SCRIPT_DIR}/../lib/probe.sh"' in text
+    assert 'probe_container_dns_success "${SYNC_CONTAINER}" "${PROXY_ALIAS}" 3' in text
+    assert 'probe_container_dns_records "${SYNC_CONTAINER}" "${PROXY_ALIAS}" 3' in text
+    probe = (ROOT / "scripts/lib/probe.sh").read_text(encoding="utf-8")
+    assert 'docker exec "${container}" getent hosts "${hostname}"' in probe
     assert "Initial sync done" in text
     assert "api_seats_exceeded" in text
     assert "failed to connect to the docker API" in text
