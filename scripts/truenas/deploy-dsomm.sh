@@ -278,7 +278,7 @@ truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
 # container still runs without Caddy's file-capability bounding-set exception.
 # Inspect only effective host configuration; never print container environment.
 if ! docker inspect "${APP_ID}" --format '{{json .HostConfig.CapAdd}}' 2>/dev/null |
-  jq -e 'type == "array" and index("NET_BIND_SERVICE") != null' >/dev/null; then
+  jq -e 'type == "array" and any(.[]; . == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE")' >/dev/null; then
   printf '%s\n' 'ERROR: DSOMM runtime/configuration mismatch after TrueNAS app reconciliation' >&2
   # Emit a strictly bounded, non-secret subset of Docker metadata to determine
   # whether the app retained an old container or a different Compose project.
