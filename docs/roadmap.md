@@ -46,6 +46,30 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 service health audit: dependency-order operator acceptance
+
+- [x] Read-only TrueNAS operator audit: DSOMM accepts 22 activities
+  and 22 evidence records; seven focused pytest checks passed.
+  Runtime found Docker `bitwarden-api` restarting, FastAPI Redis probe
+  unreachable, and strict ingress audit missing from its earlier
+  expected path. These are separate failures; other TrueNAS Apps
+  reporting RUNNING does not prove individual endpoints healthy.
+- [x] Introduced colored `check-homelab-services.sh` summary and
+  opt-in `--deep` mode using existing
+  `plan-app-lifecycle-order.py` and declared required dependencies
+  from `catalog/service-topology.json` to order checks by lifecycle
+  waves. Per-service HTTP/TCP probes are bounded and only performed
+  where `monitoring` declares a supported host/port. Missing probe
+  metadata is **not** treated as functional success.
+- [ ] Next: reconcile the real ingress-audit script location, inspect
+  `bitwarden-api` restarting logs without exposing secrets, and
+  diagnose FastAPI → Redis reachability from the observer network.
+- [ ] Gradually extend declared service readiness checks with
+  authenticated/application semantics; avoid treating all RUNNING
+  apps or a bare TCP open as complete service acceptance.
+- [ ] Validate new exact-HEAD Python/style tests and deep-mode live
+  output before making deep checks blocking in reboot gate.
+
 ### P0 DSOMM model and independent all-service checks — 2026-10-11
 
 - [x] Regression fixture fixed: former `b"...\\n..."` test used literal escaped
