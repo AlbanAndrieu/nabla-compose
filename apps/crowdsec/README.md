@@ -76,9 +76,14 @@ bash scripts/truenas/diagnose-vaultwarden-cli.sh
 bw status | jq '{status,serverUrl}'
 # If locked: export BW_SESSION="$(bw unlock --raw)"
 python3 scripts/secrets/inventory_vaultwarden.py --app crowdsec
+python3 scripts/secrets/inventory_vaultwarden.py \
+  --app crowdsec --discover-candidates
 ```
 
-The observed inventory currently reports `crowdsec: missing`.
+The observed inventory currently reports `crowdsec: missing`. The optional
+candidate discovery command prints only matching **item names** plus whether
+an item is in the `expected`, `other` or `unfiled` folder scope; it never
+prints item IDs, usernames, URLs, fields, notes, passwords or secret values.
 This means the exact `nabla/prod/crowdsec` item is not present in
 the manifest's `TrueNAS` folder, **not** that the registered
 pfSense bouncer key can be recovered from CrowdSec. Halt secret
@@ -235,8 +240,11 @@ becomes a failure. Do not run `docker exec` from the workstation.
 2. Deploy the central TrueNAS CrowdSec container and verify that
    `firewallservices/pf-scan-multi_ports` is absent while the remaining
    `crowdsecurity/pfsense` collection is installed.
-3. Generate a new strong `BOUNCER_KEY_PFSENSE_FIREWALL` and configure it in the
-   TrueNAS application environment, then redeploy only the CrowdSec App.
+3. Recover the **existing approved** `PFSENSE_FIREWALL` bouncer key from an
+   operator-controlled source, store it as the manifest field
+   `CROWDSEC_PFSENSE_BOUNCER_KEY`, then materialize it for TrueNAS. If the key
+   cannot be recovered, stop: creating/rotating a bouncer key is a separate
+   explicitly approved transaction, not part of this cutover.
 4. Run `diagnose-crowdsec-cutover.sh --check`; require zero failures before
    touching pfSense.
 5. From pfSense, verify that `172.17.0.24:8084` is reachable over the trusted LAN.
