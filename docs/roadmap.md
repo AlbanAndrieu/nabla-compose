@@ -29,6 +29,34 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — DSOMM CAP_ normalized, Git index permissions and evidence versioning (2026-10-10)
+
+- [x] **DSOMM effective runtime** : operator `docker inspect` reported
+  `state=running`, `project=ix-dsomm`,
+  `service=dsomm`, `CapAdd=["CAP_NET_BIND_SERVICE"]`,
+  `CapDrop=["ALL"]`, new container created 2026-10-10.
+  The deployer incorrectly accepted only `NET_BIND_SERVICE`;
+  its runtime check now accepts Docker's normalized
+  `CAP_NET_BIND_SERVICE` as well. HTTP readiness and uptime
+  remain to be confirmed via `--check` (no new `--apply`).
+- [x] **Git state source separation** : version-controlled DSOMM
+  `config/team-progress.seed.yaml`,
+  `config/team-evidence.seed.yaml`,
+  `config/seed-activities.yaml` and
+  `config/model-activity-index.json` are reviewed templates,
+  whereas `/mnt/cpool/dsomm/state/{model,team-progress,team-evidence}.yaml`
+  are outside the repository and may include live assessment
+  evidence. Import only a reviewed and scrubbed snapshot if
+  versioning it is required; preserve separate writable runtime data.
+- [ ] **Git permission incident** : `git ls-files` and
+  `git status` report `.git/index: Permission denied` on
+  TrueNAS; diagnose index ownership and parent directory access,
+  correct *only* incorrect ownership/permissions and avoid
+  `sudo git`, blanket recursive chmod or disabling pre-commit.
+  Reconfirm the executable shebang from the synced HEAD.
+- [ ] **Service acceptance** : DSOMM `--check`, port 31088,
+  Gatus runtime, Sentry E2E and Scrutiny read-only checks in order.
+
 ## PR #251 — pre-push shebang et DSOMM après app.update (2026-10-10)
 
 - [x] **Hook shebang** : `openclaw-ops.sh` possède désormais
