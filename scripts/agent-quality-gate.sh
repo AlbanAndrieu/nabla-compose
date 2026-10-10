@@ -353,7 +353,7 @@ check_exec_bits() {
   # Some TrueNAS/filesystem setups can preserve index mode 100755 while the
   # checked-out path itself loses +x, which makes runtime/stat-based contracts
   # fail even though git ls-files reports the correct mode.
-  while IFS=  for file in "${CHANGED_FILES[@]}"; do
+  for file in "${CHANGED_FILES[@]}"; do
     [[ -f "${file}" ]] || continue
     IFS= read -r first_line <"${file}" || true
     [[ "${first_line:-}" == '#!'* ]] || continue
