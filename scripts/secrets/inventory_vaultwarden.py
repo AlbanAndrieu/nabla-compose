@@ -40,6 +40,31 @@ def inventory(manifest: dict, folders: list[dict], items: list[dict]) -> tuple[l
     return results, missing + (not folder_ok)
 
 
+
+def candidate_items(manifest: dict, items: list[dict], app: str) -> list[dict]:
+    """Return name/folder classification only for possible existing app items."""
+    expected_folder_id = manifest["folder"]["id"]
+    spec = next(item for item in manifest["items"] if item["app"] == app)
+    tokens = {app.casefold(), spec["item"].split("/")[-1].casefold()}
+    rows: list[dict] = []
+    for item in items:
+        name = item.get("name")
+        if not isinstance(name, str):
+            continue
+        folded = name.casefold()
+        if not any(token and token in folded for token in tokens):
+            continue
+        folder_id = item.get("folderId")
+        if folder_id == expected_folder_id:
+            folder_scope = "expected"
+        elif folder_id in (None, ""):
+            folder_scope = "unfiled"
+        else:
+            folder_scope = "other"
+        rows.append({"name": name, "folder": folder_scope})
+    return sorted(rows, key=lambda row: (row["folder"], row["name"].casefold()))
+
+
 def bw_json(*args: str, session: str) -> list[dict]:
     result = subprocess.run(
         ["bw", *args, "--session", session],
@@ -62,12 +87,15 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--app", help="limit report to this declared app")
     parser.add_argument("--json", action="store_true", help="metadata-only JSON report")
+    parser.add_argument("--discover-candidates", action="store_true", help="with --app, list matching item names and expected/other/unfiled folder scope only")
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     expected = {x["app"] for x in manifest["items"]}
     if args.app and args.app not in expected:
         parser.error("unknown application")
+    if args.discover_candidates and not args.app:
+        parser.error("--discover-candidates requires --app")
 
     server = subprocess.run(
         ["bw", "config", "server"], capture_output=True, text=True, check=False, timeout=10
@@ -95,6 +123,18 @@ def main() -> int:
 
     folders = bw_json("list", "folders", session=session)
     items = bw_json("list", "items", session=session)
+    if args.discover_candidates:
+        candidates = candidate_items(manifest, items, args.app)
+        if args.json:
+            print(json.dumps({"app": args.app, "candidates": candidates}, indent=2))
+        else:
+            print(f"Vaultwarden candidate inventory for {args.app} (metadata only):")
+            if not candidates:
+                print("candidate: none")
+            for candidate in candidates:
+                print(f"candidate: {candidate['name']} folder={candidate['folder']}")
+        return 0
+
     rows, failures = inventory(manifest, folders, items)
     if args.app:
         rows = [row for row in rows if row["app"] == args.app]
