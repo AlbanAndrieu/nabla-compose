@@ -18,7 +18,16 @@ def test_docling_is_private_versioned_and_openrag_addressable() -> None:
     metadata = service["x-nabla"]
 
     assert service["image"].endswith("${DOCLING_VERSION:-v1.32.0}")
-    assert "172.17.0.24:5001:5001" in service["ports"]
+    assert service["ports"] == [
+        {
+            "name": "web",
+            "target": 5001,
+            "published": "5001",
+            "host_ip": "172.17.0.24",
+            "protocol": "tcp",
+            "app_protocol": "http",
+        }
+    ]
     assert set(service["networks"]) == {"intranet", "traefik_network"}
     assert metadata["internalUrl"] == "http://docling:5001"
     assert metadata["url"] == "https://docling.int.albandrieu.com"

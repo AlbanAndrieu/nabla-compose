@@ -118,6 +118,32 @@ Sources: https://docs.crowdsec.net/u/bouncers/traefik/ ,
 https://www.crowdsec.net/blog/enhance-docker-compose-security ,
 https://docs.crowdsec.net/docs/appsec/intro/ .
 
+## Agreed RAG target and private Bababou benchmark (2026-10-10)
+
+The agreed architecture is now executable as staged gates in
+[`runbooks/rag-bababou-poc-architecture.md`](./runbooks/rag-bababou-poc-architecture.md)
+and indexed by [`roadmap.md`](./roadmap.md).
+
+- Reuse the **single repository-managed Docling Serve** for OpenRAG
+  and Open WebUI, but do not claim the latter is already connected.
+  The OpenRAG declaration references `docling:5001`; the Open
+  WebUI declaration currently has neither an explicit shared
+  `intranet` attachment nor a Docling extraction endpoint.
+- Prefer **OpenRAG retrieval** via authenticated MCP (only if the
+  installed release actually implements `/mcp`) or a restricted
+  OpenAPI/REST adapter. Open WebUI is the conversational frontend;
+  `fastapi-sample` may use the same API with independent identity.
+  LiteLLM performs chat/embedding inference, not retrieval.
+- Benchmark with a consented, **read-only subset** of the
+  previously exported Bababou Google Drive copy on `cpool`.
+  The actual dataset mountpoint must be discovered before use.
+  Isolate OpenSearch indices, identities, logging and evaluation
+  material; private/legal documents must not enter public Git,
+  shared prompts/traces or an unauthenticated external endpoint.
+- Preserve the current Open WebUI and OpenRAG knowledge bases
+  independently while evaluating retrieval accuracy, citations,
+  grounding, ingest overhead and ACL behavior.
+
 ## Existing dependencies and potential integration
 
 1. **One Docling extraction API, two clients:** OpenRAG already references

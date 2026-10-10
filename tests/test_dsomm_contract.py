@@ -37,6 +37,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual("planned", service["x-nabla"]["status"])
         self.assertIn("healthcheck", service)
         self.assertEqual(["ALL"], service["cap_drop"])
+        self.assertEqual(["NET_BIND_SERVICE"], service["cap_add"])
+        self.assertNotIn("privileged", service)
         self.assertIn("no-new-privileges=true", service["security_opt"])
         self.assertEqual("truenas-app", service["x-nabla"]["runtime"]["provider"])
         self.assertEqual(31088, service["x-nabla"]["monitoring"]["port"])
@@ -62,6 +64,14 @@ class DsommContractTests(unittest.TestCase):
             )
         )
 
+    def test_direct_smoke_keeps_caddy_file_capability(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn("--cap-drop ALL", script)
+        self.assertIn("--cap-add NET_BIND_SERVICE", script)
+        self.assertIn('if [[ "${MODE}" == "--check" && "${state}" == "STOPPED" ]]', script)
+        self.assertIn("--security-opt no-new-privileges=true", script)
+        self.assertNotIn("--privileged", script)
+
     def test_baseline_is_manual_pinned_and_secret_backed(self) -> None:
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm-baseline"]
@@ -85,7 +95,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("/tmp:rw,noexec,nosuid,nodev,size=64m", service["tmpfs"])
         self.assertIn("AlbanAndrieu/fastapi-sample", service["environment"]["DSOMM_BASELINE_REPOS"])
         self.assertEqual(
-            "/reports/dsomm-baseline.md",
+            "${DSOMM_BASELINE_SUMMARY_OUTPUT:-/reports/dsomm-baseline.md}",
             service["environment"]["DSOMM_BASELINE_SUMMARY_OUTPUT"],
         )
         self.assertEqual("automates", service["x-nabla"]["relations"][0]["type"])
@@ -140,7 +150,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("wurstbrot/dsomm:4.4.1", text)
         self.assertIn("docker manifest inspect", text)
         self.assertIn("a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a", text)
-        self.assertIn("/mnt/cpool/dsomm/state/model.yaml", text)
+        self.assertIn('state_root="/mnt/cpool/dsomm/state"', text)
+        self.assertIn('model_file="${state_root}/model.yaml"', text)
         self.assertIn("version: ${DSOMM_MODEL_VERSION}", text)
         self.assertIn("python3 scripts/dsomm/validate-seed.py", text)
         self.assertIn('install -m 0600 "${state_seed}" "${state_file}"', text)
@@ -173,6 +184,52 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("generate-service-topology.py --check", text)
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("x-nabla.status remains planned", text)
+
+    def test_apply_preserves_existing_dsomm_model(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn('if [[ -e "${model_file}" || -L "${model_file}" ]]', script)
+        self.assertIn(
+            "preserving existing pinned DSOMM model without replacement",
+            script,
+        )
+        self.assertIn("existing DSOMM model version mismatch", script)
+        self.assertIn("existing DSOMM model contains no activity UUIDs", script)
+        self.assertIn('else\n    model_tmp="$(mktemp', script)
+        self.assertIn('install -o root -g root -m 0600 "${model_tmp}" "${model_file}"', script)
+
+    def test_runtime_capability_mismatch_reports_sanitized_provenance(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn("runtime/configuration mismatch", script)
+        self.assertIn("compose_project=", script)
+        self.assertIn("compose_service=", script)
+        self.assertIn("restart_count=", script)
+        self.assertIn("may not have recreated the container", script)
+
+    def test_deployer_fails_closed_if_truenas_loses_caddy_capability(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn(
+            '(.services.dsomm.cap_add // [] | index("NET_BIND_SERVICE") != null)',
+            script,
+        )
+        self.assertIn(
+            '(.services.dsomm.cap_drop // [] | index("ALL") != null)',
+            script,
+        )
+        self.assertIn(
+            '(.services.dsomm.security_opt // [] | index("no-new-privileges=true") != null)',
+            script,
+        )
+        self.assertIn(
+            '. == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE"',
+            script,
+        )
+        self.assertIn(
+            "live container lacks NET_BIND_SERVICE", script
+        )
+        self.assertIn(
+            "DSOMM runtime NET_BIND_SERVICE capability present", script
+        )
+        self.assertNotIn("--privileged", script)
 
     def test_assessment_seed_is_offline_validated_and_conservative(self) -> None:
         activities = yaml.safe_load(SEED_ACTIVITIES.read_text(encoding="utf-8"))

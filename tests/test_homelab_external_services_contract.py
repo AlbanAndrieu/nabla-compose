@@ -89,6 +89,20 @@ def test_active_operator_truenas_services_are_projected() -> None:
         and item.get("presentationRole") in {"service", "core"}
     }
 
+    # Migrated services may keep historical display names or endpoint overrides,
+    # but must carry their canonical runtime identifiers in the legacy projection.
+    for service_id, display_name in (
+        ("plumber", "Plumber"),
+        ("vaultwarden", "Vaultwarden"),
+    ):
+        matches = [
+            item for item in legacy["services"] if item.get("id") == service_id
+        ]
+        assert len(matches) == 1, (
+            f"{service_id}: expected exactly one projected canonical id"
+        )
+        assert matches[0]["name"] == display_name
+
     missing = required_ids - projected_ids
     assert not missing, (
         "active operator-visible TrueNAS services missing from "

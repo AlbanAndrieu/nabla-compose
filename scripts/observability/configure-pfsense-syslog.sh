@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 PFSENSE_API_URL="${PFSENSE_API_URL:-https://172.17.0.1:10443}"
 PFSENSE_SYSLOG_TARGET="${PFSENSE_SYSLOG_TARGET:-172.17.0.24:1514}"
+PFSENSE_SYSLOG_LEGACY_TARGET="${PFSENSE_SYSLOG_LEGACY_TARGET:-172.17.0.57:1514}"
 PFSENSE_SYSLOG_SOURCE_INTERFACE="${PFSENSE_SYSLOG_SOURCE_INTERFACE:-}"
 PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"
 PFSENSE_RESTAPI_MIN_VERSION="v2.9.0"
@@ -158,26 +159,39 @@ ok "pfSense log settings API is readable"
 
 target_field=""
 first_empty=""
+legacy_field=""
+third_value="$(jq -r '.data.remoteserver3 // ""' "${current_file}")"
 for field in remoteserver remoteserver2 remoteserver3; do
   value="$(jq -r --arg field "${field}" '.data[$field] // ""' "${current_file}")"
   if [[ "${value}" == "${PFSENSE_SYSLOG_TARGET}" ]]; then
     target_field="${field}"
-    break
+  fi
+  if [[ "${value}" == "${PFSENSE_SYSLOG_LEGACY_TARGET}" ]]; then
+    legacy_field="${field}"
   fi
   if [[ -z "${value}" && -z "${first_empty}" ]]; then
     first_empty="${field}"
   fi
 done
 
-if [[ -z "${target_field}" ]]; then
+canonicalize_legacy=false
+if [[ "${legacy_field}" == "remoteserver" && "${target_field}" == "remoteserver2" ]]; then
+  if [[ -n "${third_value}" ]]; then
+    fail "legacy workstation occupies remoteserver and Alloy occupies remoteserver2, but remoteserver3 is also populated; refusing to reorder unknown third-party destination"
+    exit 1
+  fi
+  canonicalize_legacy=true
+  target_field="remoteserver"
+elif [[ -z "${target_field}" ]]; then
   target_field="${first_empty}"
 fi
+
 if [[ -z "${target_field}" ]]; then
   fail "all three pfSense remote syslog slots are already occupied; no existing destination was overwritten"
   exit 1
 fi
 
-desired="$(jq -n   --arg target_field "${target_field}"   --arg target "${PFSENSE_SYSLOG_TARGET}"   '{
+desired="$(jq -n --arg target_field "${target_field}" --arg target "${PFSENSE_SYSLOG_TARGET}" '{
     format: "rfc5424",
     enableremotelogging: true,
     ipprotocol: "ipv4",
@@ -190,6 +204,13 @@ desired="$(jq -n   --arg target_field "${target_field}"   --arg target "${PFSENS
     system: true,
     resolver: true
   } + {($target_field): $target}')"
+
+if [[ "${canonicalize_legacy}" == "true" ]]; then
+  desired="$(jq '. + {remoteserver2: null}' <<<"${desired}")"
+  ok "plan will remove legacy workstation syslog target ${PFSENSE_SYSLOG_LEGACY_TARGET} and promote Alloy to remoteserver"
+elif [[ -n "${legacy_field}" ]]; then
+  warn "legacy workstation syslog target remains in ${legacy_field}; automatic removal is only allowed for the proven remoteserver=.57/remoteserver2=Alloy layout"
+fi
 
 if [[ -n "${PFSENSE_SYSLOG_SOURCE_INTERFACE}" ]]; then
   desired="$(jq     --arg source "${PFSENSE_SYSLOG_SOURCE_INTERFACE}"     '. + {sourceip: $source}' <<<"${desired}")"
@@ -266,6 +287,17 @@ if jq -e --arg field "${target_field}" --arg target "${PFSENSE_SYSLOG_TARGET}"  
   ok "pfSense remote syslog destination verified in ${target_field}"
 else
   fail "pfSense remote syslog destination verification failed"
+fi
+
+if [[ "${canonicalize_legacy}" == "true" ]]; then
+  if jq -e --arg legacy "${PFSENSE_SYSLOG_LEGACY_TARGET}" '
+    [.data.remoteserver, .data.remoteserver2, .data.remoteserver3]
+    | all(. != $legacy)
+  ' "${verify_file}" >/dev/null 2>&1; then
+    ok "legacy workstation syslog target removed"
+  else
+    fail "legacy workstation syslog target is still configured"
+  fi
 fi
 
 if [[ -n "${PFSENSE_SYSLOG_SOURCE_INTERFACE}" ]]; then

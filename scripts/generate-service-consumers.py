@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -675,6 +676,11 @@ def write_or_check(path: Path, content: str, check: bool) -> bool:
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+    # Gatus runs without DAC_OVERRIDE. On TrueNAS the generated config is
+    # group-owned by "apps" (GID 568); allow only that group to read it.
+    # Fix the mode on every regeneration, including pre-existing 0600 files.
+    if path == GATUS_OUTPUT:
+        path.chmod(0o640)
     print(f"wrote {path.relative_to(ROOT)}")
     return True
 

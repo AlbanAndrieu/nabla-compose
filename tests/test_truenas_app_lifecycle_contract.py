@@ -12,6 +12,39 @@ ROOT = Path(__file__).parents[1]
 
 
 class TrueNASAppLifecycleContractTests(unittest.TestCase):
+    def test_repository_executable_contract_uses_git_mode(self) -> None:
+        """Git stores 100755, not POSIX group/other ACL or chmod modes.
+
+        TrueNAS checkout policies can materialize executable scripts as 0700.
+        The owner must be able to execute them; Git should still record 100755.
+        """
+        scripts = (
+            "scripts/truenas/deploy-autokuma.sh",
+            "scripts/truenas/update-fastapi-sample.sh",
+            "scripts/truenas/bootstrap-openrag-langflow-key.sh",
+            "scripts/truenas/harden-pfsense-exporter-config.sh",
+            "scripts/truenas/audit-app-lifecycle.sh",
+            "scripts/truenas/deploy-scrutiny.sh",
+            "scripts/truenas/diagnose-sentry.sh",
+            "scripts/truenas/smoke-sentry-event.sh",
+            "scripts/truenas/bootstrap-wazuh.sh",
+            "scripts/truenas/deploy-wazuh.sh",
+            "scripts/truenas/diagnose-wazuh.sh",
+        )
+        for relative in scripts:
+            with self.subTest(path=relative):
+                path = ROOT / relative
+                self.assertTrue(path.stat().st_mode & stat.S_IXUSR)
+                result = subprocess.run(
+                    ["git", "ls-files", "--stage", "--", relative],
+                    cwd=ROOT, capture_output=True, text=True, check=True,
+                )
+                self.assertTrue(
+                    result.stdout.startswith("100755 "),
+                    f"{relative} must be recorded executable in Git; "
+                    f"found {result.stdout.strip()!r}",
+                )
+
     def read(self, relative: str) -> str:
         return (ROOT / relative).read_text(encoding="utf-8")
 
@@ -83,7 +116,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         openhands_readme = self.read("apps/openhands/README.md")
 
         self.assertIn("required: false", crowdsec)
-        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", crowdsec)
+        self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", crowdsec)
         self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", crowdsec)
         self.assertNotIn("apps/crowdsec/compose.yml:CROWDSEC_PFSENSE_BOUNCER_KEY", crowdsec)
         self.assertIn("can bootstrap without a bouncer secret", crowdsec_readme)
@@ -148,7 +181,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         readme = self.read("apps/crowdsec/README.md")
         akvorado_readme = self.read("apps/akvorado/README.md")
 
-        self.assertIn("/mnt/cpool/crowdsec/.env.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/crowdsec/.env.secrets", compose)
         self.assertNotIn("${CROWDSEC_PFSENSE_BOUNCER_KEY}", compose)
         self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL", readme)
         self.assertIn('app_name: "crowdsec"', readme)
@@ -334,8 +367,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         wrapper_mode = (ROOT / "apps/ntopng/entrypoint.sh").stat().st_mode
         self.assertTrue(wrapper_mode & stat.S_IXUSR)
-        self.assertTrue(wrapper_mode & stat.S_IXGRP)
-        self.assertTrue(wrapper_mode & stat.S_IXOTH)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")
@@ -414,7 +445,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_scrutiny_loads_influx_token_from_runtime_env_file(self) -> None:
         scrutiny = self.read("apps/scrutiny/compose.yml")
 
-        self.assertIn("/mnt/cpool/scrutiny/.env.secrets", scrutiny)
+        self.assertIn("/mnt/cpool/secrets/runtime/scrutiny/.env.secrets", scrutiny)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN:?", scrutiny)
         self.assertNotIn("SCRUTINY_WEB_INFLUXDB_TOKEN:", scrutiny)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_HOST: influxdb", scrutiny)
@@ -453,8 +484,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN=", scrutiny_readme)
         self.assertNotIn("SCRUTINY_INFLUXDB_TOKEN=", influxdb_readme)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -545,7 +574,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("SENTRY_REDIS_DB: \"3\"", compose)
         self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.secrets", compose)
         self.assertIn("CLICKHOUSE_USER: sentry_migrator", compose)
-        self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets", compose)
         self.assertIn('command: ["bootstrap", "--force"]', compose)
         self.assertNotIn("CLICKHOUSE_MIGRATOR_PASSWORD", compose)
         self.assertIn('command: ["upgrade", "--noinput", "--create-kafka-topics"]', compose)
@@ -754,15 +783,15 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         migrator = compose.split("\n  snuba-migrate:\n", 1)[1].split("\n  snuba-api:\n", 1)[0]
         self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.secrets", migrator)
-        self.assertIn("/mnt/cpool/sentry/.env.migrator.secrets", migrator)
+        self.assertIn("/mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets", migrator)
         self.assertLess(
             migrator.index("/mnt/cpool/secrets/runtime/sentry/.env.secrets"),
-            migrator.index("/mnt/cpool/sentry/.env.migrator.secrets"),
+            migrator.index("/mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets"),
         )
         self.assertIn("shared `REDIS_PASSWORD` is reused", readme)
         self.assertNotIn(
             'probe_secret_if_present sentry "Sentry migrator secrets" '
-            "/mnt/cpool/sentry/.env.migrator.secrets REDIS_PASSWORD",
+            "/mnt/cpool/secrets/runtime/sentry/.env.migrator.secrets REDIS_PASSWORD",
             audit,
         )
 
@@ -885,8 +914,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = (ROOT / "scripts/truenas/smoke-sentry-event.sh").stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
     def test_sentry_diagnostic_script_is_safe_and_executable(self) -> None:
         path = ROOT / "scripts/truenas/diagnose-sentry.sh"
@@ -894,8 +921,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("event-replacements", script)
         self.assertIn("snuba-commit-log", script)
         self.assertIn("scheduled-subscriptions-events", script)
@@ -937,8 +962,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("app.redeploy", script)
         self.assertNotIn("docker compose down", script)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -952,8 +975,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = (ROOT / "scripts/truenas/audit-app-lifecycle.sh").stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
     def test_pfsense_exporter_hardening_helper_is_safe_and_executable(self) -> None:
         path = ROOT / "scripts/truenas/harden-pfsense-exporter-config.sh"
@@ -961,8 +982,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("/mnt/cpool/prometheus/secrets/pfsense-exporter.yml", script)
         self.assertIn("max_collector_concurrency: 1", script)
         self.assertIn("timeout: 8", script)
@@ -978,8 +997,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn('app.redeploy "${APP_ID}"', script)
         self.assertIn("midclt call app.query", script)
         self.assertNotIn("docker compose -f \"${COMPOSE_FILE}\" up -d", script)
@@ -990,8 +1007,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn('REF="${FASTAPI_SAMPLE_REF:-master}"', script)
         self.assertIn('DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"', script)
         self.assertIn(
@@ -1051,8 +1066,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("/usr/local/bin/kuma", script)
         self.assertIn("login", script)
         self.assertIn("AUTOKUMA__KUMA__AUTH_TOKEN", script)
@@ -1068,8 +1081,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("/mnt/cpool/wazuh/.env.secrets", compose)
         self.assertIn("required: true", compose)
         self.assertNotIn("API_PASSWORD: ${WAZUH_API_PASSWORD}", compose)
@@ -1134,8 +1145,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         for helper in (deploy_path, diagnose_path):
             mode = helper.stat().st_mode
             self.assertTrue(mode & stat.S_IXUSR)
-            self.assertTrue(mode & stat.S_IXGRP)
-            self.assertTrue(mode & stat.S_IXOTH)
             syntax = subprocess.run(
                 ["bash", "-n", str(helper)],
                 capture_output=True,
@@ -1157,8 +1166,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("vm.start", script)
         self.assertNotIn("vm.update", script)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -1181,8 +1188,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("${UPTIME_KUMA_USERNAME", compose)
         self.assertNotIn("${UPTIME_KUMA_PASSWORD", compose)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("app.create", script)
         self.assertIn("app.update", script)
         self.assertIn("app.redeploy", script)
@@ -1200,8 +1205,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             path = ROOT / relative
             mode = path.stat().st_mode
             self.assertTrue(mode & stat.S_IXUSR, relative)
-            self.assertTrue(mode & stat.S_IXGRP, relative)
-            self.assertTrue(mode & stat.S_IXOTH, relative)
 
             syntax = subprocess.run(
                 ["bash", "-n", str(path)],
@@ -1217,8 +1220,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         mode = path.stat().st_mode
 
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
         self.assertIn("http://172.17.0.24:7860/health_check", script)
         self.assertIn("/api/v1/api_key/", script)
         self.assertIn("/api/v1/users/whoami", script)
@@ -1320,8 +1321,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("app.start", script)
         self.assertNotIn("app.redeploy", script)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -1358,8 +1357,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("docker restart", script)
         self.assertNotIn("app.redeploy", script)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],
@@ -1405,8 +1402,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("SCRUTINY_COLLECTOR_MAX_AGE_SECONDS", script)
         self.assertIn("collector acceptance passed", script)
         self.assertTrue(mode & stat.S_IXUSR)
-        self.assertTrue(mode & stat.S_IXGRP)
-        self.assertTrue(mode & stat.S_IXOTH)
 
         syntax = subprocess.run(
             ["bash", "-n", str(path)],

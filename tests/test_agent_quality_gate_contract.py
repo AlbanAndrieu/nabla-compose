@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import stat
+import tempfile
 import subprocess
 import unittest
 from pathlib import Path
@@ -13,6 +14,28 @@ ROOT = Path(__file__).parents[1]
 
 
 class AgentQualityGateContractTests(unittest.TestCase):
+
+    def test_agent_gate_preserves_private_worktree_modes_and_guards_git_index(self) -> None:
+        text = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(encoding="utf-8")
+        section = text.split("check_exec_bits() {", 1)[1].split(
+            "\ncheck_base_freshness", 1
+        )[0]
+
+        self.assertEqual(text.count("check_exec_bits() {"), 1)
+        self.assertEqual(text.count("collect_changed_files() {"), 1)
+        self.assertEqual(text.count("run_compact() {"), 1)
+        self.assertIn("git ls-files --stage", section)
+        self.assertIn('[[ "${mode}" != "100755" ]]', section)
+        self.assertIn('git add --chmod=+x -- "${path}"', section)
+        self.assertIn('chmod u+x -- "${path}"', section)
+        self.assertIn("tracked shebang", section)
+        self.assertNotIn('chmod 755 -- "${path}"', section)
+        # Guarding only CHANGED_FILES misses a 100644 shebang already on HEAD.
+        self.assertLess(
+            section.index("done < <(git ls-files --stage)"),
+            section.index('for file in "${CHANGED_FILES[@]}"'),
+        )
+
     def test_agent_gate_is_executable_and_wraps_canonical_gate(self) -> None:
         gate = ROOT / "scripts" / "agent-quality-gate.sh"
         mode = stat.S_IMODE(gate.stat().st_mode)
@@ -39,7 +62,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             'if [[ "${generator_scope_changed}" == true ]]',
             text,
         )
-        self.assertIn("no local changes require formatter/linter fixes", text)
+        self.assertIn("no changed files require formatter/linter fixes", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
         self.assertIn("QG_LARGE_DELETION", text)
@@ -60,6 +83,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("QUALITY_LOG_LINE_MAX", text)
         self.assertIn("print_compact_log", text)
         self.assertIn("failure summary", text)
+        self.assertIn("shellcheck_summary", text)
+        self.assertIn("SC[0-9]{4}", text)
+        self.assertIn("In .* line [0-9]+:", text)
         self.assertIn("line truncated", text)
         self.assertIn("QUALITY_FIX_MAX_PASSES", text)
         self.assertIn('QUALITY_FIX_MAX_PASSES:-6', text)
@@ -87,6 +113,21 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertNotIn("-m unittest discover -s tests", text)
         self.assertIn('TARGETED_LABEL="CI fast"', text)
         self.assertIn("generated_contract_scope_changed", text)
+        # Nested app Compose edits must trigger topology/consumer regeneration.
+        self.assertIn("apps/*/compose.yml|apps/*/compose.yaml", text)
+        self.assertIn("QG_GIT_SCOPE", text)
+        self.assertIn('changed_output="$(collect_changed_files)"', text)
+        self.assertIn('deleted_output="$(collect_deleted_files)"', text)
+        self.assertNotIn("mapfile -t CHANGED_FILES < <(collect_changed_files)", text)
+        self.assertIn("edge_security_contract_scope_changed", text)
+        self.assertIn("pfSense/CrowdSec targeted contracts", text)
+        self.assertIn("tests/test_pfsense_diagnose_recover_contract.py", text)
+        self.assertIn("tests/test_crowdsec_cutover_contract.py", text)
+        self.assertIn("tests/test_truenas_deploy_output_contract.py", text)
+        self.assertLess(
+            text.index("pfSense/CrowdSec targeted contracts"),
+            text.index('if [[ "${LOCAL_LOOP}" == true ]]'),
+        )
         self.assertIn("runtime_primitive_scope_changed", text)
         self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
@@ -98,6 +139,90 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("publication_status", canonical)
         self.assertIn("--ignore-submodules=all", canonical)
         self.assertIn('awk \'$1 == ":160000" || $2 == "160000" {print}\'', canonical)
+
+    def test_compact_failure_report_preserves_full_evidence(self) -> None:
+        gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("FAILED tests/", gate)
+        self.assertIn("- hook id:", gate)
+        self.assertIn("Full failure log:", gate)
+        self.assertIn('if [[ -z "${summary}" ]]', gate)
+        self.assertNotIn(
+            'print_compact_log "${log}"\n    rm -f "${log}"',
+            gate,
+        )
+        self.assertNotIn(
+            "mapfile -t CHANGED_FILES < <(collect_changed_files)",
+            gate,
+        )
+        self.assertIn("QG_GIT_SCOPE", gate)
+
+    def test_git_scope_ignores_gitlinks_without_failing_pipeline(self) -> None:
+        """A staged submodule path is not a regular file, not a Git error."""
+        gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+        start = gate.index("collect_changed_files() {")
+        end = gate.index("\ncollect_deleted_files() {", start)
+        collect = gate[start:end]
+        self.assertIn('if [[ -f "${file}" ]]; then', collect)
+        self.assertNotIn('[[ -f "${file}" ]] && printf', collect)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            (repo / "README.md").write_text("baseline\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "README.md"], check=True)
+            subprocess.run(
+                [
+                    "git", "-C", str(repo), "-c", "user.name=Quality",
+                    "-c", "user.email=quality@example.com", "commit",
+                    "-qm", "baseline",
+                ],
+                check=True,
+            )
+            sha = subprocess.check_output(
+                ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+            ).strip()
+            subprocess.run(
+                [
+                    "git", "-C", str(repo), "update-index", "--add",
+                    "--cacheinfo", f"160000,{sha},fastapi-sample",
+                ],
+                check=True,
+            )
+            (repo / "fastapi-sample").mkdir()
+            run = subprocess.run(
+                [
+                    "bash", "-euo", "pipefail", "-c",
+                    'LOCAL_LOOP=true; BASE_REF=HEAD; ' + collect
+                    + '\ncollect_changed_files',
+                ],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(run.stdout, "")
+
+            # Ordinary source files still pass through the same filter.
+            source = repo / "script.sh"
+            source.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            rerun = subprocess.run(
+                [
+                    "bash", "-euo", "pipefail", "-c",
+                    'LOCAL_LOOP=true; BASE_REF=HEAD; ' + collect
+                    + '\ncollect_changed_files',
+                ],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(rerun.returncode, 0, rerun.stderr)
+            self.assertEqual(rerun.stdout.splitlines(), ["script.sh"])
 
     def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
         scripts = sorted((ROOT / "scripts").rglob("*.sh"))
@@ -120,6 +245,17 @@ class AgentQualityGateContractTests(unittest.TestCase):
             failures,
             "bash -n syntax failures:\n" + "\n".join(failures),
         )
+
+    def test_truenas_bootstrap_exposes_pinned_node_for_audit_validators(self) -> None:
+        script = (ROOT / "scripts/truenas/bootstrap-dev-tools.sh").read_text(
+            encoding="utf-8"
+        )
+        mise = (ROOT / "mise.toml").read_text(encoding="utf-8")
+        self.assertIn('node = "24.18.1"', mise)
+        self.assertIn('NODE_VERSION="${NABLA_NODE_VERSION:-24.18.1}"', script)
+        self.assertIn('"node@${NODE_VERSION}"', script)
+        self.assertIn('ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"', script)
+        self.assertIn('"node@${NODE_VERSION}" node', script)
 
     def test_mise_exposes_local_fix_check_and_pre_push_workflow(self) -> None:
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
@@ -191,20 +327,36 @@ class AgentQualityGateContractTests(unittest.TestCase):
         ):
             self.assertEqual(hook_ids.count(hook_id), 1, hook_id)
 
-    def test_shellcheck_uses_official_versioned_precommit_hook(self) -> None:
-        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    def test_shellcheck_uses_pinned_native_operator_binary(self) -> None:
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
         gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
             encoding="utf-8"
         )
-
-        self.assertIn(
-            "repo: https://github.com/koalaman/shellcheck-precommit",
-            config,
+        self.assertFalse(
+            any(
+                repo.get("repo")
+                == "https://github.com/koalaman/shellcheck-precommit"
+                for repo in config["repos"]
+            )
         )
-        self.assertIn("rev: v0.11.0", config)
-        self.assertIn("- id: shellcheck", config)
-        self.assertNotIn("github.com/detailyang/pre-commit-shell", config)
-        self.assertNotIn("- id: shell-lint", config)
+        hooks = [
+            hook
+            for repo in config["repos"]
+            if repo.get("repo") == "local"
+            for hook in repo["hooks"]
+            if hook.get("id") == "shellcheck"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "system")
+        self.assertEqual(hooks[0]["entry"], "shellcheck")
+        self.assertEqual(hooks[0]["args"], ["-x", "-P", "SCRIPTDIR"])
+        bootstrap = (
+            ROOT / "scripts" / "truenas" / "bootstrap-dev-tools.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SHELLCHECK_VERSION", bootstrap)
+        self.assertIn("0.11.0", bootstrap)
         self.assertIn(
             "pre-commit run shellcheck --files scripts/agent-quality-gate.sh",
             gate,
@@ -258,11 +410,12 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("truenas-deployment-automation-contract", config)
         self.assertGreaterEqual(config.count("(?:[.-][^./]+)?"), 3)
         payload = yaml.safe_load(config)
-        local_hooks = next(
-            repository["hooks"]
+        local_hooks = [
+            hook
             for repository in payload["repos"]
             if repository.get("repo") == "local"
-        )
+            for hook in repository["hooks"]
+        ]
         catalog_hook = next(
             hook
             for hook in local_hooks
@@ -644,7 +797,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("Local-first validation", agents)
         self.assertIn("QG_AUTOFIX_APPLIED", agents)
         self.assertIn("Do not use remote CI as the edit/format/lint feedback loop", agents)
-        self.assertIn("before any network push", agents)
+        self.assertIn("Before every `git push`", agents)
 
 
 if __name__ == "__main__":

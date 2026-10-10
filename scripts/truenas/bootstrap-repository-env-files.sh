@@ -479,6 +479,10 @@ done < <(printf '%s\n' "${!target_app[@]}" | sort)
 
 # Report or finalize historical paths only after canonical copies exist.
 while IFS= read -r source; do
+  # Bash 5.3 rejects empty associative-array indices. When every legacy
+  # source was removed, printf '%s\\n' over an empty key set emits one
+  # empty line; that is NOT a source, and --check must remain read-only.
+  [[ -n "${source}" ]] || continue
   app="${source_app["${source}"]}"
   kind="${source_kind["${source}"]}"
   target="${source_target["${source}"]}"

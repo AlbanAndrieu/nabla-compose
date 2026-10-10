@@ -195,6 +195,10 @@ jobs:
           --max-p95-ms 1500
           --max-error-rate 0.05
 
-# OWASP ZAP/DAST is intentionally not executed in nabla-compose.
-# Application DAST ownership is delegated to fastapi-sample so findings are
-# fixed and versioned with the application that exposes the HTTP surface.
+# Browser E2E and application DAST are intentionally not duplicated in
+# nabla-compose. Their blocking ownership stays with AlbanAndrieu/fastapi-sample:
+# - Playwright: .github/workflows/production-smoke.yml
+# - OWASP ZAP Web/OpenAPI: .github/workflows/security-zap.yml
+# Keep those application checks blocking in their owning repository; do not
+# replace them here with continue-on-error, soft-fail wrappers or duplicate scans.
+# Management APIs for pfSense and TrueNAS remain outside active ZAP scope.

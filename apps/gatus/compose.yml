@@ -21,6 +21,11 @@ services:
       - /mnt/cpool/gatus:/data
     networks:
       - intranet
+    # The generated /config/config.yml is 0640, owned by host group apps.
+    # Grant supplemental GID 568 rather than weakening it to world-readable.
+    # Verify `getent group apps` on TrueNAS before deployment.
+    group_add:
+      - "${GATUS_CONFIG_GID:-568}"
     cap_drop:
       - ALL
     security_opt:

@@ -12,6 +12,19 @@ SCRIPT = ROOT / "scripts/truenas/diagnose-pfsense-exporter-auth.sh"
 HARDENER = ROOT / "scripts/truenas/harden-pfsense-exporter-config.sh"
 
 
+def curl_bash_env(tmp: Path, marker: Path, status: str) -> Path:
+    """Mock curl in non-interactive Bash without executing a noexec tmp shim."""
+    bash_env = tmp / "bash-env"
+    bash_env.write_text(
+        "curl() {\n"
+        f"  touch {marker}\n"
+        f'  printf "%s" "{status}"\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    return bash_env
+
+
 class PfSenseExporterAuthContractTests(unittest.TestCase):
     def test_diagnostic_is_fail_fast_and_secret_safe(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
@@ -43,33 +56,22 @@ class PfSenseExporterAuthContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_tmp:
             tmp = Path(raw_tmp)
             config = tmp / "config.yml"
-            fake_bin = tmp / "bin"
-            fake_bin.mkdir()
-            fake_curl = fake_bin / "curl"
             marker = tmp / "curl-called"
             secret = "SUPERSECRET-CONTRACT-KEY"
 
             config.write_text(
                 "targets:\n"
-                "  - host: \"172.17.0.1\"\n"
+                '  - host: "172.17.0.1"\n'
                 "    port: 10443\n"
-                "    scheme: \"https\"\n"
-                "    auth_method: \"key\"\n"
-                f"    key: \"{secret}\"\n",
+                '    scheme: "https"\n'
+                '    auth_method: "key"\n'
+                f'    key: "{secret}"\n',
                 encoding="utf-8",
             )
-            fake_curl.write_text(
-                "#!/usr/bin/env bash\n"
-                f"touch {marker}\n"
-                "printf '%s' \"${FAKE_HTTP_STATUS:-200}\"\n",
-                encoding="utf-8",
-            )
-            fake_curl.chmod(0o755)
 
             env = os.environ.copy()
-            env["PATH"] = f"{fake_bin}:{env['PATH']}"
             env["PFSENSE_EXPORTER_CONFIG"] = str(config)
-            env["FAKE_HTTP_STATUS"] = "401"
+            env["BASH_ENV"] = str(curl_bash_env(tmp, marker, "401"))
 
             result = subprocess.run(
                 [str(SCRIPT)],
@@ -89,31 +91,21 @@ class PfSenseExporterAuthContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_tmp:
             tmp = Path(raw_tmp)
             config = tmp / "config.yml"
-            fake_bin = tmp / "bin"
-            fake_bin.mkdir()
-            fake_curl = fake_bin / "curl"
             marker = tmp / "curl-called"
 
             config.write_text(
                 "targets:\n"
-                "  - host: \"172.17.0.1\"\n"
+                '  - host: "172.17.0.1"\n'
                 "    port: 10443\n"
-                "    scheme: \"https\"\n"
-                "    auth_method: \"key\"\n"
-                "    key: \"REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY\"\n",
+                '    scheme: "https"\n'
+                '    auth_method: "key"\n'
+                '    key: "REPLACE_WITH_DEDICATED_PFSENSE_EXPORTER_API_KEY"\n',
                 encoding="utf-8",
             )
-            fake_curl.write_text(
-                "#!/usr/bin/env bash\n"
-                f"touch {marker}\n"
-                "printf '200'\n",
-                encoding="utf-8",
-            )
-            fake_curl.chmod(0o755)
 
             env = os.environ.copy()
-            env["PATH"] = f"{fake_bin}:{env['PATH']}"
             env["PFSENSE_EXPORTER_CONFIG"] = str(config)
+            env["BASH_ENV"] = str(curl_bash_env(tmp, marker, "200"))
 
             result = subprocess.run(
                 [str(SCRIPT)],

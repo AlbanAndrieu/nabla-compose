@@ -41,22 +41,86 @@ def test_dsomm_smoke_name_is_valid_and_pid_scoped() -> None:
 
 def test_all_deployers_report_checkout_provenance() -> None:
     offenders: list[str] = []
-    expected = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
+    direct = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
+    rooted = 'truenas_repo_provenance "${ROOT}"'
+    root_from_script = 'ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"'
     for path in DEPLOYERS:
         text = path.read_text(encoding="utf-8")
-        if expected not in text:
+        valid = direct in text or (rooted in text and root_from_script in text)
+        if not valid:
             offenders.append(path.name)
     assert not offenders, f"deploy checkout provenance missing in: {offenders}"
 
 
 def test_checkout_provenance_is_local_and_non_blocking() -> None:
     text = TRUENAS_LIB.read_text(encoding="utf-8")
+    start = text.find("truenas_repo_provenance() {")
+    end = text.find("\ntruenas_job_compact() {", start)
+    assert start >= 0 and end > start, (
+        "truenas_repo_provenance must be defined before truenas_job_compact"
+    )
+    function = text[start:end]
+    required = (
+        "status --porcelain",
+        "rev-list --left-right --count",
+        '0:*) relation="behind-${right}"',
+        '*:0) relation="ahead-${left}"',
+        '*) relation="diverged-${left}-${right}"',
+    )
+    for contract in required:
+        assert contract in function, (
+            f"truenas_repo_provenance missing local contract: {contract}"
+        )
 
-    assert "truenas_repo_provenance()" in text
-    assert "status --porcelain" in text
-    assert "rev-list --left-right --count" in text
-    assert "git fetch" not in text
-    assert "relation=behind-" in text
+    # A deployment helper must never fetch, mutate or require network access
+    # merely to print the checkout provenance. Inspect the function rather than
+    # unrelated code elsewhere in the shared TrueNAS library.
+    import re
+
+    forbidden = re.findall(
+        r"\bgit\s+(?:fetch|pull|push|checkout|switch|reset)\b",
+        function,
+    )
+    assert not forbidden, (
+        f"truenas_repo_provenance must remain read-only: {forbidden}"
+    )
+
+
+def test_app_summary_renders_found_and_missing_apps_without_jq_errors() -> None:
+    found_script = """
+source "$1"
+truenas_app_query_by_id() {
+  printf '%s\\n' '[{"id":"crowdsec","state":"RUNNING","active_workloads":{"containers":1}}]'
+}
+truenas_app_summary crowdsec
+"""
+    found = subprocess.run(
+        ["bash", "-c", found_script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert found.returncode == 0, found.stderr
+    assert (
+        found.stdout.strip()
+        == "OK: TrueNAS app crowdsec state=RUNNING containers=1"
+    )
+
+    missing_script = """
+source "$1"
+truenas_app_query_by_id() {
+  printf '%s\\n' '[]'
+}
+truenas_app_summary "crowdsec-test"
+"""
+    missing = subprocess.run(
+        ["bash", "-c", missing_script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 0, missing.stderr
+    assert missing.stdout.strip() == "WARNING: TrueNAS app not found: crowdsec-test"
 
 
 def test_compact_job_helper_preserves_failed_exit_status() -> None:

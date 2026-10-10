@@ -1,3 +1,33 @@
+## Stabilisation ordonnée — DNS Vaultwarden → syslog pfSense → CrowdSec
+
+Ordre bloquant après la migration du moteur CrowdSec central en `v1.8.1` :
+
+1. **Source du split-DNS Vaultwarden — confirmée** : un DNS Resolver Host
+   Override pfSense stocké sous `<host>vaultwarden</host>`,
+   `<domain>albandrieu.com</domain>`, `<ip>172.17.0.24</ip>` génère
+   `/var/unbound/host_entries.conf`. Ne jamais éditer le fichier dérivé.
+2. **Corriger le contrat DNS** : le hostname public tunnelé doit suivre la
+   résolution Cloudflare ; l'accès LAN direct doit utiliser
+   `vaultwarden.int.albandrieu.com` ou un contrat local explicitement
+   équivalent. Ne pas supprimer un override avant d'en avoir identifié le
+   propriétaire.
+3. **pfSense -> Alloy -> Loki — validé** : trafic réel observé
+   `172.17.0.1:514 -> 172.17.0.24:1514`, et
+   `verify-pfsense-syslog.sh --live-only` passe `exit=0 ok=10`.
+4. **Acquisition CrowdSec — validée** : événements
+   `{job="pfsense",device="pfsense"}` présents dans Loki et
+   `cs_lokisource_hits_total` croissant, jusqu'à `287` observé.
+5. **Cutover bouncer seulement après ces preuves** : conserver le moteur local
+   pfSense arrêté et le bouncer actif jusqu'à validation des credentials, du
+   bouncer LAPI central et de `last_pull`.
+6. **Bitwarden/secrets après stabilisation** : garder la session CLI
+   workstation, `jsonschema` et la matérialisation
+   `PFSENSE_OBSERVABILITY_API_KEY` comme dette séparée. Ne pas en faire un
+   prérequis artificiel au diagnostic SSH read-only.
+
+Incident associé :
+[`incidents/2026-10-10-vaultwarden-public-split-dns.md`](./incidents/2026-10-10-vaultwarden-public-split-dns.md).
+
 # Homelab platform migration roadmap
 
 This document owns the **platform migration architecture and service cutover

@@ -42,3 +42,36 @@ def test_post_pra_core_restore_set_is_catalog_driven_and_excludes_runtime_drift(
         "adguard-home", "grafana", "prometheus", "uptime-kuma", "autokuma"
     ):
         assert native_or_pending not in active
+
+
+OPTIONAL = ROOT / "config/truenas/restore-optional-apps.txt"
+OPTIONAL_SCRIPT = ROOT / "scripts/truenas/restore-optional-apps.sh"
+
+
+def test_light_restore_excludes_optional_apps_by_default() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert 'INCLUDE_OPTIONAL=false' in script
+    assert '--include-optional' in script
+    assert '[[ "${INCLUDE_OPTIONAL}" != true ]]' in script
+    assert 'APPS=("${filtered_apps[@]}")' in script
+    assert 'restore-optional-apps.sh' in script
+
+
+def test_optional_app_set_does_not_contain_foundation() -> None:
+    apps = {
+        line.split("#", 1)[0].strip()
+        for line in OPTIONAL.read_text(encoding="utf-8").splitlines()
+    } - {""}
+    assert {"graylog", "zabbix", "transmission", "lidarr", "radarr", "sonarr"} <= apps
+    assert not apps & {
+        "traefik", "pihole", "postgres", "redis", "clickhouse",
+        "docker-socket-proxy", "kafka", "vaultwarden", "garage",
+    }
+    script = OPTIONAL_SCRIPT.read_text(encoding="utf-8")
+    for option in ("--check", "--stop", "--start"):
+        assert option in script
+    assert 'is_protected()' in script
+    assert 'SKIP in-flight deployment' in script
+    assert 'midclt call -j app.stop' in script
+    assert 'midclt call -j app.start' in script
+    assert 'rm -rf' not in script

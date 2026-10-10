@@ -56,11 +56,16 @@ repos:
         exclude: '^build\.sh$'
         args: ['-ln=bash', '-i=2']
 
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
+  # Local-first on TrueNAS: the upstream ShellCheck hook uses a Docker image
+  # and requires /var/run/docker.sock. Use the pinned operator binary instead.
+  # bootstrap-dev-tools.sh installs ShellCheck 0.11.0 without appliance apt.
+  - repo: local
     hooks:
       - id: shellcheck
         name: "🐚 shell · ShellCheck v0.11.0"
+        language: system
+        entry: shellcheck
+        types: [shell]
         # Resolve source=../... directives relative to each script, not repo root.
         args: [-x, -P, SCRIPTDIR]
         exclude: >-
@@ -462,6 +467,6 @@ repos:
       - id: compose-config
         name: "🐳 compose · Validate Compose configuration"
         language: system
-        entry: bash -c 'for file do docker compose --project-directory "$(dirname "$file")" -f "$file" config --quiet --no-interpolate --no-env-resolution || exit; done' --
-        files: '(^|/)(compose|docker-compose)([.-][^./]+)?\.ya?ml$'
+        entry: bash scripts/quality/check-compose-config.sh
+        files: '^apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml$'
         stages: [pre-commit]

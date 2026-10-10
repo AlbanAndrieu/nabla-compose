@@ -29,97 +29,923 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
-## Restart context — 2026-10-07
+## CURRENT AUTHORITATIVE EXECUTION ORDER — operator-approved (2026-10-10)
 
-PR #240 (`fix: stabiliser DSOMM, Sentry et les migrations runtime TrueNAS`) is
-**merged**. Its repository contracts are available on `master`, but the
-post-merge TrueNAS operator transactions were **not run as part of that merge**.
-A new discussion must therefore **not** treat DSOMM/Sentry/Scrutiny/Code runtime
-migration as complete.
+**Use this section rather than superseded chronological entries below.**
+Compact new-chat handoff with complete decisions, dependencies and proofs:
+[`roadmap-execution-handoff-2026-10-10.md`](./roadmap-execution-handoff-2026-10-10.md).
+Historic PR #251 notes and the older `Current execution order` remain
+as evidence/context only; if they disagree, **this section wins**.
 
-Conversation bootstrap:
+**Decisions approved:** (1) stability/Gatus/pfSense before new features;
+(2) secret migration **one service at a time**, bundled with its Backstage
+descriptor; (3) prepare catalog v2 gradually but perform a **coordinated
+three-repository cutover**, no permanent dual schema; (4) Cyberbro before
+Docling when choosing between equal-priority feature work, while read-only
+Docling diagnostics may run earlier; (5) finalize already operational
+DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
+of redeploying them.
 
-```text
-Repository: AlbanAndrieu/nabla-compose
-Base: master after merged PR #240
-Validation policy: local-first; GitHub Actions are not the edit loop
-Never merge automatically
-Do not assume the TrueNAS commands below were already executed
-Start with read-only checks and current runtime evidence
-Apply/finalize exactly one service transaction at a time
-Preserve legacy files/datasets until runtime + restart/reboot acceptance
-```
+### P0 A1/A2 evidence — 2026-10-10, PR #251
 
-### Immediate TrueNAS acceptance queue
+- [x] Added `scripts/truenas/diagnose-gatus.sh`: bounded **read-only** container status, UID/GID and mount destination metadata, SQLite/config path metadata, and **aggregate log error categories only**. No raw log text, environment, secret value, chmod/chown, restart or database mutation.
+- [x] Added `tests/test_gatus_diagnostic_contract.py`; isolated agent fixture: **2 passed** (Bash parse and fake Docker log with canary secret). These are **targeted** tests, not full-HEAD L3 proof.
+- [ ] **Runtime root cause remains unknown:** the previous Gatus `exit 2`, missing HTTP 8085 and root-owned 770 dataset are observations, not proof of an ACL defect. Classify the bounded evidence before any UID/permission correction. Check the container's effective user and actual log failure without publishing raw logs.
+- [ ] Full local `just pre-push`, pre-commit, Compose config, BetterLeaks, SAST and generated topology on exact PR HEAD: **UNAVAILABLE/NOT RUN in this isolated agent environment** (GitHub archive DNS blocked, no complete repository checkout). Mandatory pre-merge gate unchanged. No automatic merge or runtime change.
+- [ ] After verified root cause, implement the smallest Gatus config/identity fix, preserve `/mnt/cpool/gatus/gatus.db`, then separately accept HTTP :8085, persistence/history and reboot recovery.
 
-Execute from the canonical TrueNAS checkout. Start with the read-only global
-inventory:
+### Validation policy — agent local first, operator only for runtime acceptance
+
+- [ ] **Agent responsibility:** run and correct `shellcheck`,
+  `bash -n`, targeted/full `pytest`, YAML validation, Ruff,
+  pre-commit, Compose config, generators, BetterLeaks, SAST and
+  Playwright/ZAP **in the agent's own environment wherever feasible**.
+  Retrieve exact HEAD source if clone/DNS is blocked, use hermetic
+  fixtures for relevant isolated tests, and state precisely what
+  ran and what did not. Never claim the full gate is green based on
+  partial checks.
+- [ ] **Avoid operator-test ping-pong:** do **not** repeatedly require
+  `just pre-push`, ShellCheck, pytest or all quality gates on
+  workstation/TrueNAS between each small roadmap change. Batch
+  operator-only appliance evidence or final acceptance in a single
+  bounded checkpoint. An unrelated, known failing gate may remain
+  explicit debt while safe independent work continues; agent fixes
+  introduced regressions and prioritizes the root blocking issue.
+- [ ] **Never bypass safety/quality controls:** do not disable,
+  silently skip or weaken pytest, ShellCheck, Ruff, pre-commit,
+  BetterLeaks, SAST, Playwright, ZAP, deployment/security contracts
+  or mandatory PR checks to accelerate progress. Required full
+  quality-gate acceptance remains a **before-merge** requirement,
+  distinct from the targeted **before-next-step** gate.
+- [ ] **No auto-merge.** No silent TrueNAS app mutations, data
+  migrations, public endpoints, secret rotation or Bababou ingestion.
+  Preserve rollback, version pinning and authoritative runtime evidence.
+
+### Critical path — close started work first
+
+| Gate | Priority | Work | Exit condition |
+| --- | --- | --- | --- |
+| A1 | P0 | Stabilize pre-commit YAML/executable hooks and autonomous local-first validation | Targeted agent checks executed; final L3 state tracked |
+| A2 | P0 | Diagnose and repair Gatus STOPPED/restart exit 2 without SQLite loss | Correct root cause; HTTP 8085, persistence and history accepted |
+| A3 | P0 | Confirm pfSense/CrowdSec DNS/memory stability; close runtime-vs-reboot acceptance on DSOMM, Sentry, Scrutiny, Pi-hole | Critical risk isolated; status declarations reconcile with proof |
+| B1 | P1 | Complete `/mnt/cpool/secrets/runtime/<app>/` migration and Vaultwarden recovery per active service | Manifest/path, identity, consumer, restart/rollback proof |
+| B2 | P1 | Backstage descriptors, catalog v2 parity/ownership/exposure, prepare FastAPI/Site consumers | Semantic parity and no duplicated authority |
+| B3 | P1 | Coordinated `nabla-compose` → `fastapi-sample` → `nabla-site-alban` cutover | Cross-repo contract, runtime/health and reboot proof before legacy deletion |
+| C1 | P2 | Cyberbro HTTP, IoC and MCP/LiteLLM least-privilege acceptance | Bounded functional and auth smoke |
+| C2 | P2 | Shared Docling for OpenRAG + Open WebUI; version-verified OpenRAG search API/MCP | PDF/table/OCR extraction, known route and ACL |
+| C3 | P2 | Private Bababou dataset POC via reviewed read-only subset | Measured retrieval/citation quality and no data leakage |
+
+**Explicitly defer** Karmada/multi-cluster federation, broad image
+upgrades, Trivy Operator, new observability daemons, Garage/MinIO/AIStor
+consolidation and destructive legacy cleanup until the path above is
+sufficiently accepted. Keep outage-driven urgent security fixes eligible
+for reprioritization.
+
+**Current proof:** DSOMM 12 tests/22 subtests + HTTP 200 + Docker
+capability; Sentry diagnostic 14 OK; Scrutiny healthy web/InfluxDB and
+four SMART devices; Pi-hole DNS sync healthy. Gatus was STOPPED with
+restart exit 2 and HTTP 8085 unavailable. The canonical source for
+the private Bababou dataset has not been located or mounted for indexing.
+**Full local pre-push green has not been demonstrated in the provided
+evidence.**
+
+## PR #251 — Shared Docling, OpenRAG API/MCP, Open WebUI and Bababou POC (2026-10-10)
+
+Implementation and security gates: [`docs/runbooks/rag-bababou-poc-architecture.md`](./runbooks/rag-bababou-poc-architecture.md).
+This is a **planned** architecture, not evidence of runtime deployment or ingestion.
+
+- [x] **Architecture decision** : keep Open WebUI for chat and per-user
+  Knowledge; use OpenRAG + shared Langflow + OpenSearch as the
+  independently callable RAG service. LiteLLM is the LLM/embedding
+  gateway, **not** the RAG retrieval service.
+- [x] **Existing declared integration** : `apps/docling/compose.yml`
+  already defines a reusable Docling Serve at `docling:5001` /
+  `172.17.0.24:5001`, and OpenRAG already sets
+  `DOCLING_SERVE_URL=http://docling:5001`. Open WebUI currently has
+  no Docling extraction config and no explicit `intranet` network;
+  **shared Docling is not yet fully integrated or runtime-proven**.
+- [ ] **P0 — common Docling acceptance** : verify actual TrueNAS
+  App/image/health, OpenRAG extraction; connect Open WebUI to
+  the same Docling endpoint using version-supported settings
+  (`CONTENT_EXTRACTION_ENGINE=docling`, `DOCLING_SERVER_URL`),
+  network, trust boundary and PDF/table/OCR smoke. One Docling
+  runtime; independent document stores and ACL.
+- [ ] **P1 — OpenRAG connector** : on the running pinned OpenRAG
+  `0.7.1`, inspect supported API and whether MCP `/mcp` exists;
+  do **not** assume documentation from `main` applies to 0.7.1.
+  Prefer least-privilege MCP for Open WebUI when supported,
+  otherwise REST/OpenAPI adapter. Restrict tools to read/search
+  and scope by authorized corpus.
+- [ ] **P1 — fastapi-sample integration** : consume the same
+  restricted OpenRAG search API with separate service identity;
+  keep inference/embeddings behind TrueNAS LiteLLM with explicit
+  GPU workstation `172.17.0.57:4000/v1` proxy routing.
+  Do not expose OpenSearch/Docling/Langflow or a raw MCP endpoint
+  publicly. An external `fastapi-sample.fastapicloud.dev` caller
+  requires a reviewed Cloudflare Access/service-token boundary,
+  permission tests, rate limits and redacted telemetry.
+- [ ] **P2 — Bababou RAG POC** : locate and confirm the actual
+  `/mnt/cpool` dataset containing the previous Google Drive
+  Bababou extraction (exact path not yet verified); inventory
+  metadata first, use a **read-only** and authorized subset of
+  10–20 documents in separate `bababou-poc` index. Keep PII,
+  legal correspondence and private evidence away from Git,
+  public endpoints, default traces and externally hosted models.
+- [ ] **P2 — evaluation** : with identical documents, embeddings
+  and LLMs, compare Open WebUI Knowledge vs OpenRAG on
+  recall@5, MRR@10, citation page accuracy, faithfulness,
+  latency p95, indexing duration and CPU/RAM/GPU. Include
+  access-control, prompt-injection and deletion/erasure tests.
+  Store only redacted metrics and synthetic evaluation examples
+  in Git; do not commit corpus, chunks or derived private index.
+- [ ] **P3** : promote one RAG integration based on benchmark
+  evidence, wire Open WebUI plus fastapi-sample, monitor via
+  existing Langfuse/Prometheus with private prompts/chunks
+  excluded, then rehearse recovery and rollback.
+  
+## PR #251 — Gatus crash, Sentry/Scrutiny accepted and secret/catalog cutover (2026-10-10)
+
+- [x] **Sentry** : TrueNAS `diagnose-sentry.sh --check`
+  returned **exit 0 / 14 OK / 0 failures / 0 warnings** on
+  2026-10-10. This validates its diagnostic contract now,
+  but an end-to-end persisted event and reboot recovery remain
+  separate acceptance gates.
+- [x] **Scrutiny** : TrueNAS app RUNNING (web + collector);
+  web healthy with zero restarts and HTTP `/api/health` 200,
+  InfluxDB v2.9.1 reachable, collector sees
+  `/dev/sda` through `/dev/sdd`. Canonical runtime secret exists
+  at `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets` (mode
+  600, v2 token scope); **/dev/sde permission denied** is
+  a bounded hardware/permission debt. Avoid widening privileges
+  until the device's expected SMART support is known.
+- [ ] **Gatus P1 incident** : TrueNAS app STOPPED; Docker
+  `gatus` restarting with exit **2**, host port 8085 refused.
+  Dataset `/mnt/cpool/gatus` and `gatus.db` are
+  `root:root 770`; possible denial to a non-root container
+  (not yet demonstrated). First inspect bounded restart logs,
+  effective UID/GID and config mount permissions. Preserve
+  SQLite DB; do not `chmod 777`, delete it or blindly restart.
+- [x] **Pre-commit YAML regression** : operator L3 stopped before
+  tests at `.pre-commit-config.yaml` line 470, invalid YAML.
+  Converted the long inline Compose hook to a named Bash script
+  `scripts/quality/check-compose-config.sh`; added a YAML/syntax
+  regression test. Isolated local Bash smoke passes both success
+  and failing Compose cases. Full L3 on TrueNAS remains pending.
+- [ ] **Secret migration** : `config/secrets/manifest.json`
+  contains a DSOMM manual baseline `GH_TOKEN` mapping
+  and Scrutiny InfluxDB v2 token mappings; **no Gatus or
+  Sentry manifest entries currently identified**.
+  Sentry Compose already uses canonical
+  `/mnt/cpool/secrets/runtime/sentry/{.env.secrets,
+  .env.migrator.secrets}` paths but this alone does not prove
+  Vaultwarden source materialization. Audit non-secret key names,
+  manifest coverage, and bootstrap recovery; do not import values
+  or rotate keys automatically.
+- [ ] **Canonical catalog** : `catalog/services.json` is generated
+  from declarative Compose. DSOMM is still declared
+  `status: planned` despite successful runtime check; Gatus
+  has no explicit status despite STOPPED. Reconcile intent,
+  rollout phase and observed state independently. Update
+  `x-nabla` only following approved runtime acceptance, then
+  regenerate topology and downstream service consumers; never
+  hand-edit `catalog/services.json`.
+- [ ] **Execution order** : L3 YAML validation -> Gatus
+  read-only crash triage -> Gatus permission/config fix (if
+  proven) -> secrets manifest gap analysis -> Backstage/Compose
+  canonical entity status reconciliation -> fresh runtime
+  acceptance for Sentry/Scrutiny -> reboot test when planned.
+
+## PR #251 — DSOMM runtime accepted, index Git ownership, next Gatus/Sentry/Scrutiny (2026-10-10)
+
+- [x] **DSOMM runtime acceptance (operator)** : `pytest -q
+  tests/test_dsomm_contract.py` **12 passed, 22 subtests** ;
+  `deploy-dsomm.sh --check` confirms seed DSOMM 5.0.2
+  (22 activities, 22 evidences), image 4.4.1, Compose, catalog,
+  dataset, effective `NET_BIND_SERVICE` and HTTP readiness ;
+  independent `curl` reports **HTTP 200** on
+  `http://172.17.0.24:31088/`. **Runtime accepted**;
+  reboot/persistence acceptance is **not** yet established.
+  No app restart or `--apply` needed.
+- [x] **Git permission root cause** : TrueNAS operator is
+  `uid=1000(albandrieu)`; `.git` is `albandrieu:apps 755`,
+  but `.git/index` is `root:apps 644`. Correct only that index's
+  ownership back to `albandrieu:apps` (preserve mode 644);
+  do not run Git as root or recursively chown the checkout.
+- [ ] **P0 L3** : verify shebang of the exact executable indexed
+  `scripts/workstation/openclaw-ops.sh`, update the local branch
+  safely and run `just pre-push` on clean committed HEAD. No bypass.
+- [ ] **P1 Gatus** : read-only TrueNAS App state/containers,
+  HTTP `172.17.0.24:8085`, dataset `/mnt/cpool/gatus`,
+  database presence, configuration group permissions. Determine
+  migration status before deploying.
+- [ ] **P1 Sentry** : execute
+  `sudo bash scripts/truenas/diagnose-sentry.sh --check`,
+  inspect edge/Relay/Kafka/Snuba with no secret values;
+  do not redeploy while inspecting.
+- [ ] **P1 Scrutiny** : execute
+  `sudo bash scripts/truenas/diagnose-scrutiny.sh --check`,
+  inspect collector, InfluxDB and canonical secret metadata;
+  avoid `--capture-startup` and state changes.
+- [ ] **DSOMM evidence in Git** : the reviewed seeds are already
+  versioned. If runtime assessments must be committed, prepare
+  a reviewed/redacted export; never copy raw
+  `/mnt/cpool/dsomm/state` into a public repository automatically.
+
+## PR #251 — DSOMM CAP_ normalized, Git index permissions and evidence versioning (2026-10-10)
+
+- [x] **DSOMM effective runtime** : operator `docker inspect` reported
+  `state=running`, `project=ix-dsomm`,
+  `service=dsomm`, `CapAdd=["CAP_NET_BIND_SERVICE"]`,
+  `CapDrop=["ALL"]`, new container created 2026-10-10.
+  The deployer incorrectly accepted only `NET_BIND_SERVICE`;
+  its runtime check now accepts Docker's normalized
+  `CAP_NET_BIND_SERVICE` as well. HTTP readiness and uptime
+  remain to be confirmed via `--check` (no new `--apply`).
+- [x] **Git state source separation** : version-controlled DSOMM
+  `config/team-progress.seed.yaml`,
+  `config/team-evidence.seed.yaml`,
+  `config/seed-activities.yaml` and
+  `config/model-activity-index.json` are reviewed templates,
+  whereas `/mnt/cpool/dsomm/state/{model,team-progress,team-evidence}.yaml`
+  are outside the repository and may include live assessment
+  evidence. Import only a reviewed and scrubbed snapshot if
+  versioning it is required; preserve separate writable runtime data.
+- [ ] **Git permission incident** : `git ls-files` and
+  `git status` report `.git/index: Permission denied` on
+  TrueNAS; diagnose index ownership and parent directory access,
+  correct *only* incorrect ownership/permissions and avoid
+  `sudo git`, blanket recursive chmod or disabling pre-commit.
+  Reconfirm the executable shebang from the synced HEAD.
+- [ ] **Service acceptance** : DSOMM `--check`, port 31088,
+  Gatus runtime, Sentry E2E and Scrutiny read-only checks in order.
+
+## PR #251 — pre-push shebang et DSOMM après app.update (2026-10-10)
+
+- [x] **Hook shebang** : `openclaw-ops.sh` possède désormais
+  `#!/usr/bin/env bash` au HEAD distant, mais l'opérateur a constaté
+  `check-executables-have-shebangs` en échec au HEAD
+  `f5b67697ea4d`. Le journal compact ne donne pas le chemin exact ;
+  ne pas affirmer que l'échec porte sur ce script sans la liste des
+  fichiers incriminés. Contrôler le journal privé `/tmp/tmp.1UY6kFZI9X`
+  et les modes Git indexés, puis relancer L3 après `git pull`.
+- [x] **DSOMM --apply exécuté sur TrueNAS** : seed, image,
+  Compose, catalogue, stockage, modèle existant préservé et direct
+  smoke Docker ont réussi ; `app.update` et `app.start` ont répondu
+  succès. **L'acceptation a échoué** : conteneur réel sans
+  `NET_BIND_SERVICE`, malgré un Compose rendu valide. L'App n'est
+  donc pas considérée réparée.
+- [x] **Diagnostic durci** : le déployeur relève maintenant, en cas
+  de divergence de capacité, l'identité et la date de création Docker,
+  le projet/service Compose, l'exit code, les redémarrages et les
+  capacités appliquées, sans afficher l'environnement des secrets.
+  Ce diagnostic différencie une Custom App non réconciliée et un
+  conteneur ancien/orphelin ; il ne change pas l'état du système.
+- [ ] **DSOMM action prioritaire** : confirmer la provenance du
+  conteneur et la définition persistée TrueNAS, en ne révélant pas
+  les valeurs `Config.Env`, `custom_compose_config` ou secrets.
+  Comparer `Created`, `com.docker.compose.project`,
+  `com.docker.compose.service`, `HostConfig.CapAdd` et
+  `app.query`. Ne pas répéter `--apply` aveuglément.
+- [x] **Pourquoi préserver un état DSOMM** : Git versionne les
+  fichiers seed/config du dépôt, pas les trois fichiers runtime
+  `/mnt/cpool/dsomm/state/` (modèle externe pinné et preuves
+  utilisateur pouvant évoluer). Sauvegarder cet état avant les
+  mutations TrueNAS évite la perte de travaux d'évaluation.
+- [ ] **Gatus/Sentry/Scrutiny** : poursuivre les diagnostics en
+  lecture seule dans le runbook, sans démarrer de services depuis
+  la boucle de correction du pre-push.
+
+## PR #251 — OpenClaw ShellCheck et préparation DSOMM/Gatus/Sentry/Scrutiny (2026-10-10)
+
+- [x] **P0** : l'opérateur a confirmé `15 passed / 22 subtests`
+  sur OpenClaw backup + DSOMM. Le `just pre-push` a ensuite convergé
+  sur les droits exécutables de `openclaw-ops.sh`, mais ShellCheck
+  SC2250 bloquait les références `$mode`, `$id`, `$ROOT`,
+  `$value`. Les variables régulières ont été mises en forme
+  `${...}` dans le script. Le strict ShellCheck reste actif.
+- [ ] **P0** : sur le HEAD commité, exécuter
+  `shellcheck -x -P SCRIPTDIR scripts/workstation/openclaw-ops.sh`,
+  les tests ciblés OpenClaw/DSOMM puis `just pre-push`. Sans
+  exécution locale du vrai ShellCheck dans le conteneur agent,
+  ne pas déclarer L3 vert avant preuve opérateur.
+- [x] **DSOMM correctif prêt** : le déployeur fait le direct smoke
+  avec `--cap-drop ALL --cap-add NET_BIND_SERVICE`, refuse un
+  Compose rendu dépourvu de la capacité et contrôle le `HostConfig`
+  effectif. Désormais, un `--apply` réutilise le `model.yaml`
+  existant si sa version et ses UUID sont valides ; il ne le remplace
+  plus systématiquement. Les fichiers team-progress/evidence existants
+  restent inchangés. Contrat ajouté, validation runtime à effectuer.
+- [ ] **DSOMM intervention** : sauvegarder et vérifier empreintes
+  de `model.yaml`, `team-progress.yaml` et `team-evidence.yaml`,
+  inspecter l'App existante, puis exécuter explicitement
+  `sudo bash scripts/truenas/deploy-dsomm.sh --apply` lorsque
+  la gate et les préconditions sont vertes. L'outil peut appeler
+  `app.update` puis `app.start` : il s'agit d'une mutation.
+  Vérifier ensuite `NET_BIND_SERVICE`, `RUNNING`, HTTP 31088
+  et SHA256 des trois fichiers ; ne pas utiliser `docker restart`.
+- [x] **Pi-hole DNS Sync** : accepté `healthy`, sessions 16 ;
+  pas de réparation à faire au vu des preuves actuelles.
+- [ ] **Gatus**, puis **Sentry**, puis **Scrutiny** :
+  diagnostics runtime et acceptation en lecture seule via
+  [le runbook](./runbooks/2026-10-10-platform-services-acceptance.md) ;
+  redémarrer seulement les App pour lesquelles un incident est
+  établi et un rollback existe.
+
+## PR #251 — DNS Pi-hole accepté, DSOMM pas encore redémarrable (2026-10-10)
+
+- [x] **Pi-hole DNS Sync** : `sudo bash scripts/truenas/verify-pihole-dns-sync.sh`
+  a répondu `OK: Pi-hole DNS sync healthy`. Résolution du
+  `docker-socket-proxy` fonctionnelle (adresse IPv6 Docker
+  `fdd0:0:0:30::2`), synchronisation initiale achevée, sessions
+  API = **16**. `restart_count=1` reste un warning historique à
+  surveiller, non un défaut actuel. Pas de redémarrage requis.
+- [x] **Quality P0** : `tests/test_homelab_external_services_contract.py`
+  **4 passed** ; `just pre-push` a appliqué les droits exécutable
+  de `scripts/workstation/openclaw-cron-runs-summary.py`, convergé
+  en deux passes, puis buté sur
+  `test_openclaw_backup_contract.py::test_rejects_backup_when_gateway_active`
+  (**1 failed / 333 passed / 1 skipped / 154 subtests**).
+  Le test a été rendu hermétique vis-à-vis des variables d'environnement
+  exportées, `BASH_ENV` et des hooks utilisateur, en conservant
+  le refus strict de sauvegarde lorsque Gateway est actif.
+  **L'assertion exacte de cet échec reste non fournie** ; confirmer le
+  test ciblé sur TrueNAS avant de conclure à la cause.
+- [x] **DSOMM garde-fou applicatif** : le Compose versionné inclut
+  `cap_add: NET_BIND_SERVICE`, mais le conteneur actuel en est dépourvu ;
+  les logs montrent `exec /usr/bin/caddy: operation not permitted`.
+  Le déployeur vérifie maintenant la présence de cette capacité dans
+  le Compose rendu *avant* réconciliation et dans
+  `docker inspect` *après* attente d'un App RUNNING ; refuse de
+  déclarer le runtime sain sans capacité. Test de régression ajouté.
+- [ ] **DSOMM intervention distincte** : ne pas se limiter à
+  `docker restart dsomm` ou `app.start` (l'ancien HostConfig resterait
+  inchangé). Avant `deploy-dsomm.sh --apply`, vérifier la définition
+  Custom App TrueNAS, documenter un rollback, sauvegarder le modèle et
+  les deux fichiers d'évidence sans les divulguer, et contrôler l'effet
+  de `--apply` sur `model.yaml` (script actuellement susceptible de
+  le réinstaller). Réconciliation explicite seulement après ces vérifications.
+- [ ] **P0 L3** : tests OpenClaw et DSOMM ciblés puis `just pre-push`
+  à l'issue du pull sur HEAD propre. La validation locale de chaque
+  sous-contrat ne vaut pas acceptation L3 complète.
+- [ ] **P1 suivant** : Gatus, Sentry, Scrutiny après stabilisation
+  et qualification DSOMM.
+
+## PR #251 — parallèle qualité / DSOMM / Pi-hole (2026-10-10)
+
+- [x] **P0 catalogue** : `test_active_operator_truenas_services_are_projected`
+  s'arrêtait après **204 tests réussis**. Cause : `Plumber` et
+  `Vaultwarden` existaient dans `homelab-services.json` mais sans
+  `id` canonique alors que `catalog/services.json` les déclare
+  `truenas-app`, `presentationRole: service`. Les IDs ont été
+  ajoutés et un test protège unicité et noms. Aucun endpoint n'a
+  été changé.
+- [ ] **Plumber inventaire** : la ligne historique pointe vers
+  `172.17.0.57:3001` tandis que la nouvelle déclaration Compose
+  annonce `172.17.0.24:31070`. Ne pas modifier la cible
+  opérationnelle par hypothèse ; confirmer la migration/runtime et
+  ajuster le catalogue seulement après preuve.
+- [ ] **P0 validation** : `pytest -q
+  tests/test_homelab_external_services_contract.py`, puis
+  `just pre-push` sur le HEAD propre. Ne considérer la gate L3
+  réussie que lorsque toutes les étapes passent.
+- [ ] **P1 DSOMM parallèle (diagnostic en lecture seule)** :
+  le Compose versionné contient `NET_BIND_SERVICE`, mais le
+  conteneur existant a `CapAdd=null`, `CapDrop=["ALL"]`,
+  `no-new-privileges:true`, exit 255 et `exec /usr/bin/caddy:
+  operation not permitted`. Relever seulement `HostConfig.CapAdd`
+  / `HostConfig.CapDrop`, état Docker et configuration déclarée
+  TrueNAS **sans les secrets**. Proposer ensuite une réconciliation
+  limitée de la Custom App (pas `privileged:true`), avec sauvegarde
+  métadonnées, contrôle des fichiers d'état, smoke et rollback ;
+  **aucun apply automatique**.
+- [ ] **P1 Pi-hole DNS parallèle (diagnostic en lecture seule)** :
+  `verify-pihole-dns-sync.sh` vérifie le DNS du proxy Docker,
+  la stabilité du synchroniseur, `Initial sync done`,
+  `api_seats_exceeded`, la limite d'API 16 et son ENV.
+  Vérifier l'état réel via ce script et le réseau `intranet` ;
+  ne pas augmenter arbitrairement la limite de sessions, ne pas
+  donner le socket Docker brut au synchroniseur, ne pas redémarrer
+  Docker. Si le réseau ou la résolution est défaillant, rétablir
+  uniquement la connectivité proxy ↔ intranet avant une reprise
+  contrôlée du service.
+- [ ] **P1 ensuite** : Gatus, Sentry et Scrutiny un service à la fois,
+  en continuant les validations P0 indépendamment.
+
+## PR #251 — Pi-hole DNS sync et contrôles délégués (2026-10-10)
+
+- [x] Échec L3 identifié : `test_pihole_dns_sync_acceptance_contract`,
+  après **191 tests réussis, 1 ignoré et 91 sous-tests réussis**.
+  Le test demandait la chaîne `getent hosts` dans
+  `verify-pihole-dns-sync.sh`, alors que le script appelle
+  `probe_container_dns_success` et `probe_container_dns_records`.
+  L'implémentation `docker exec ... getent hosts` appartient au
+  helper partagé `scripts/lib/probe.sh`.
+- [x] Test modifié pour vérifier la source du helper, ses deux appels
+  avec les paramètres bornés et l'instruction `getent hosts` dans le
+  helper réel. Aucun contournement du DNS, des erreurs Pi-hole
+  `api_seats_exceeded` ou du contrôle `webserver.api.max_sessions`.
+- [x] Reproduction locale isolée de l'ancienne assertion : **1 échec** ;
+  même fixture après correction : **1 succès**. Le test du checkout
+  complet exact-HEAD n'a pas été exécuté localement.
+- [ ] P0 : relancer le test de contrat puis `just pre-push` sur TrueNAS,
+  traiter le prochain échec sans ignorer de hook. P1 service :
+  DSOMM `STOPPED` et Caddy `execve EPERM` sur une configuration
+  runtime dépourvue de `NET_BIND_SERVICE` ; diagnostiquer sa
+  définition TrueNAS avant toute réconciliation.
+
+## PR #251 — Smoke FastAPI/Pyroscope et dérive runtime DSOMM (2026-10-10)
+
+- [x] **P0 test de contrat FastAPI** : `just pre-push` a dépassé les
+  contrats Docling (**2 passed** après pull), puis a bloqué au premier
+  échec de la suite globale :
+  `test_fastapi_observability_smoke_covers_error_trace_and_profile`
+  (**1 failed, 187 passed, 1 skipped, 91 subtests**).
+  L'assertion `"Pyroscope readiness"` était un libellé de log obsolète.
+  Le script réel vérifie `probe_http_success` sur la racine, l'exposition
+  `/metrics` puis `/querier.v1.QuerierService/Series` et refuse les
+  profils absents. Le test a été aligné sur ces **contrôles fonctionnels**
+  sans contourner l'exigence de profils.
+- [ ] **Validation P0** : relancer le test ciblé FastAPI, puis
+  `just pre-push` depuis un checkout propre. Le prochain échec éventuel
+  doit être corrigé avant les modifications de services.
+- [x] **DSOMM état/runtime** : `docker inspect` reproduit
+  `CapAdd=null`, `CapDrop=["ALL"]`, `no-new-privileges:true`,
+  avec **1121 redémarrages** ; le dépôt exige
+  `cap_add: NET_BIND_SERVICE`. Logs précédents :
+  `exec /usr/bin/caddy: operation not permitted`.
+  La configuration effective du conteneur est donc différente de la
+  configuration canonique. L'état des fichiers d'évidence doit rester
+  préservé.
+- [ ] **DSOMM action suivante** : inspecter la configuration persistée
+  TrueNAS sans divulguer de secrets, puis planifier une réconciliation
+  bornée de la Custom App seulement après P0 vert. Mesurer
+  `CapAdd` et santé HTTP `172.17.0.24:31088` après correction.
+  Ne pas utiliser `privileged:true` ni assouplir les ACL de l'état.
+- [ ] **Ordre P1** : DSOMM → Gatus → Sentry → Scrutiny ; P2 Scanopy,
+  Joplin, AutoKuma ; P3 Docling/OpenRAG/LiteLLM.
+
+## PR #251 — Docling contract et DSOMM Caddy EPERM (2026-10-10)
+
+- [x] **P0 Docling** : le service déclare un port Compose sous forme
+  structurée `{name: web, target: 5001, published: "5001",
+  host_ip: "172.17.0.24", protocol: tcp, app_protocol: http}`. Le
+  test attendait l'ancienne chaîne `172.17.0.24:5001:5001`, d'où
+  `1 failed, 154 passed, 1 skipped, 64 subtests`. Contrat actualisé
+  sans toucher au service ni à son exposition réseau.
+- [ ] **L3** : rejouer `python3 -m pytest -q
+  tests/test_docling_joplin_contract.py --tb=short`, puis
+  `just pre-push` sur le HEAD actuel. L'agent a exécuté une
+  reproduction isolée de l'assertion de ports : 1 passed ; cela
+  ne remplace pas le test du dépôt complet.
+- [x] **DSOMM — cause runtime corroborée** : conteneur actuel
+  `dsomm` `restarting`, `ExitCode=255`, `OOMKilled=false`,
+  `RestartCount=1109`, `CapDrop=["ALL"]`, `CapAdd=null`,
+  `SecurityOpt=["no-new-privileges:true"]`. Logs :
+  `exec /usr/bin/caddy: operation not permitted`. Le Compose
+  canonique *déclare* `cap_add: NET_BIND_SERVICE` ; le conteneur
+  inspecté ne l'a pas. C'est une divergence de posture **déclarée
+  versus appliquée**, pas un problème démontré de permissions sur
+  les datasets (`700` et `600 root:root`).
+- [ ] **DSOMM — prochaine étape explicite** : confronter
+  `docker compose -f apps/dsomm/compose.yml config --format json`
+  et les métadonnées sans secrets de `docker inspect dsomm`, puis
+  revoir la définition Custom App persistée dans TrueNAS. Contrôler
+  la conservation du jeu de données avant de réconcilier le runtime
+  via une opération `--apply` **distincte, planifiée et surveillée**.
+  Ne pas ouvrir `privileged`, retirer `no-new-privileges` ou
+  réinitialiser les états pour masquer le problème.
+- [ ] **Suite P1** : Gatus puis Sentry puis Scrutiny, un par un
+  après résolution du P0 et revue explicite DSOMM.
+
+## PR #251 — quality gate L3 et DSOMM restart 255 (2026-10-10)
+
+- [x] `tests/test_truenas_deploy_output_contract.py` : **8 passed** sur
+  TrueNAS. Le gate a également confirmé les contrats pfSense/CrowdSec,
+  les primitives runtime et les projections Homarr/Gatus/AutoKuma.
+- [x] Échec L3 suivant : `test_agent_error_excerpt_limits_remain_configurable`
+  dans `tests/test_agent_offline_check.py`, **1 failed, 6 passed,
+  1 skipped** (journal privé : `/tmp/tmp.CFWSNgh4sq`). Cause établie :
+  attentes obsolètes `QUALITY_LOG_TAIL:-32` et
+  `QUALITY_SUMMARY_LINES:-12`, valeurs réelles `12` et `10`.
+  Le test suit maintenant les valeurs publiées sans désactiver le
+  contrôle de bornage ni supprimer les diagnostics privés.
+- [ ] **P0 L3** : confirmer le contrat ciblé puis `just pre-push`
+  sur le dernier HEAD. Ne déclarer L3 vert qu'après un passage complet.
+- [x] **DSOMM runtime** : `app.query` indique `STOPPED`,
+  `active_workloads.containers=0`, tandis que `docker ps -a`
+  montre un conteneur `dsomm Restarting (255)`. État de fichiers :
+  dossier `/mnt/cpool/dsomm/state` `700 root:root`, `model.yaml`,
+  `team-progress.yaml` et `team-evidence.yaml` en
+  `600 root:root`. Cela établit l'existence des données, pas la santé
+  de l'application ni l'origine de l'exit code 255.
+- [ ] **DSOMM analyse ciblée et lecture seule** : obtenir
+  `docker inspect` avec `State.Error`, `ExitCode`, `OOMKilled`,
+  `RestartCount`, `Config.User`, `SecurityOpt`, `CapAdd`,
+  `CapDrop`, `HostConfig.Privileged` et les dernières lignes de logs,
+  sans valeurs d'environnement ni secrets. Vérifier les mounts en
+  mode metadata uniquement. Une défaillance Caddy/file-capability
+  `execve EPERM` a déjà été observée dans l'incident précédent :
+  **hypothèse prioritaire à revérifier**, sans conclure qu'elle cause
+  cette occurrence. Ne pas lancer `docker restart`, `app.start`,
+  `--apply` ni changer les ACL avant le diagnostic.
+- [ ] **P1 services** : ne reprendre Gatus puis Sentry et Scrutiny
+  qu'après traitement P0 et une décision explicite sur DSOMM.
+
+## PR #251 — preuve opérateur DSOMM et provenance Git (2026-10-10)
+
+- [x] Vérifications TrueNAS : `pytest -q tests/test_opencre_contract.py`
+  **5 tests réussis**. `just pre-push` a convergé en une passe et validé
+  la régénération des projections, puis s'est arrêté au contrat
+  `test_checkout_provenance_is_local_and_non_blocking` :
+  **1 échec, 33 tests réussis** dans le groupe pfSense/CrowdSec.
+  Journal privé : `/tmp/tmp.srBqJeenIk`.
+- [x] Renforcer le test de provenance du checkout : inspecter uniquement
+  `truenas_repo_provenance()`, refuser les opérations Git réseau/mutantes
+  (`fetch/pull/push/checkout/switch/reset`), expliciter les contrats
+  manquants. La fonction de production n'a pas été modifiée.
+  **L'assertion exacte de l'échec d'origine n'a pas été fournie** ;
+  ne pas attribuer rétroactivement une cause non démontrée.
+- [x] `sudo bash scripts/truenas/deploy-dsomm.sh --check` a établi :
+  seed DSOMM 5.0.2 cohérente (22 activités et 22 preuves),
+  image `wurstbrot/dsomm:4.4.1` présente,
+  Compose et projections synchronisés, dataset `cpool/dsomm`
+  présent et non vide ; provenance `HEAD=f1773f969679`,
+  `tree=clean`, upstream synchronisé.
+- [ ] **DSOMM App STOPPED** : le `--check` a correctement refusé de
+  démarrer l'application. Ce n'est ni une erreur de seed ni une preuve
+  de disponibilité HTTP. Diagnostiquer `app.query`, workloads, jobs
+  et persistance avant une opération explicite `--apply`.
+  Ne pas supprimer, écraser ou réinitialiser `/mnt/cpool/dsomm`.
+- [ ] **P0** : exécuter le test de provenance ciblé puis
+  `just pre-push` sur la branche à jour. Ne pas entamer d'autres
+  changements fonctionnels tant que L3 est rouge.
+- [ ] **P1** : une fois L3 validé, ordre d'acceptation :
+  DSOMM STOPPED → Gatus → Sentry → Scrutiny
+  (voir [runbook](./runbooks/2026-10-10-platform-services-acceptance.md)).
+
+## PR #251 — OpenCRE gate + acceptation séquentielle des services (2026-10-10)
+
+- [x] Corriger le test `opencre-contract` : le déployeur exécutable a
+  légitimement le shebang `#!/usr/bin/env bash` ; confirmer
+  `bash -n` plutôt qu'imposer `not text.startswith("#!")`.
+  Le contrôle du mode exécutable et la politique de refus des images
+  mutables restent actifs.
+- [x] Publier le runbook de vérification **lecture seule** :
+  [DSOMM → Gatus → Sentry → Scrutiny](./runbooks/2026-10-10-platform-services-acceptance.md).
+- [ ] P0 : sur TrueNAS, vérifier `pytest -q tests/test_opencre_contract.py`
+  puis `just pre-push` sur le HEAD commité ; les 9 tests DSOMM, les
+  5 tests des audits Cloudflare et `just loop` ont été rapportés verts
+  par l'opérateur, mais **pas** le contrôle L3 complet.
+- [ ] P1, **une App à la fois** : DSOMM `--check` → preuve de
+  persistance/HTTP ; Gatus → historique SQLite et endpoints ; Sentry →
+  diagnostic edge/Relay/Kafka/Snuba ; Scrutiny → diagnostic Web,
+  collector, InfluxDB et provenance des secrets. Ne pas exécuter de
+  `--apply`, `--capture-startup` ou redéploiement sans preuve.
+- [ ] P2 : Scanopy/Joplin/AutoKuma puis Docling/OpenRAG/LiteLLM après
+  les acceptations de priorité P1.
+
+## PR #251 — Node.js absent du PATH TrueNAS (2026-10-10)
+
+- [x] Diagnostiquer le faux échec de validation Cloudflare : le test
+  `test_all_committed_audit_json_passes_vendored_cloudflare_validators`
+  échoue avant de lire les audits lorsque `shutil.which("node") is None`.
+  **Ce constat ne démontre aucune corruption du JSON d'audit.**
+- [x] Étendre `scripts/truenas/bootstrap-dev-tools.sh` : installer
+  `node@24.18.1` via `mise --no-config` sous le HOME opérateur et publier
+  l'exécutable dans `~/.cache/nabla-compose/dev-venv/bin/node`. Le gate
+  réutilise ce venv en tête de `PATH`. Aucun `apt` ni privilège Docker.
+- [x] Contrat de régression : `tests/test_agent_quality_gate_contract.py`
+  atteste la version pin et le lien vers le binaire utilisateur.
+- [ ] **Operator local-first L1/L3** : exécuter
+  `bash scripts/truenas/bootstrap-dev-tools.sh` uniquement si Node n'est
+  pas déjà accessible ; vérifier `command -v node` et `node --version`
+  dans le venv et relancer `pytest -q tests/test_security_audit_skill_contract.py`.
+  Poursuivre `just loop` puis `just pre-push` seulement après
+  convergence sur un HEAD commité, sans `SKIP` ou `--no-verify`.
+- [ ] La roadmap services (DSOMM, Gatus, Sentry, Scrutiny, Scanopy et
+  Docling/OpenRAG) reprend seulement quand le P0 L3 passe.
+
+## PR #251 — DSOMM gate recovery and service acceptance (2026-10-10)
+
+- [x] Repair stale **DSOMM test contracts** without weakening deployment security:
+  `DSOMM_BASELINE_SUMMARY_OUTPUT` is a configurable Compose expression whose
+  default is `/reports/dsomm-baseline.md`; the DSOMM model path is constructed
+  from `state_root` and `model_file`, not embedded as one literal string.
+  Pinned model/image, manual baseline profile, secret-backed configuration and
+  fail-closed custom-app deployment remain unchanged.
+- [ ] **P0 quality gate** — run exact `python3 -m pytest -q
+  tests/test_dsomm_contract.py --tb=short`; then `just loop` and
+  `just pre-push` on a clean, committed HEAD, resolving each reported hook
+  before proceeding. The agent's isolated source-contract reproduction is
+  partial L1 evidence only, **not** the full suite or L3.
+- [ ] **P1 DSOMM service** — first run the read-only
+  `sudo bash scripts/truenas/deploy-dsomm.sh --check`. Before any
+  `--apply`, inspect storage prerequisites, immutable assessment seeds,
+  supported TrueNAS Custom App configuration and image availability. Runtime
+  `RUNNING`, HTTP 31088 and persisted evidence are required before claiming
+  acceptance or changing `x-nabla.status: planned`.
+- [ ] **P1 platform recovery** — triage Gatus and canonical Sentry/Scrutiny
+  secrets read-only; do not infer successful migration from passing contracts.
+  Confirm live service/secret provenance one service at a time, with rollback.
+- [ ] **P2 subsequent services** — resume the planned Scanopy/Joplin/AutoKuma
+  first-wave runtime-env migration, then bounded Docling health/conversion and
+  OpenRAG/LiteLLM GPU integration. Do not deploy or restart these as a side
+  effect of fixing the CI.
+
+## Local-first quality gate compact diagnostics — 2026-10-10
+
+- [x] Keep complete security/lint/test coverage, but print only failed
+  pre-commit hook identifiers and pytest failure summaries by default.
+  Preserve complete private `mktemp` logs (mode 0600) on failure; successful
+  logs are removed. The fallback tail is used only if no structured failure
+  lines are found. `QUALITY_LOG_TAIL` and `QUALITY_SUMMARY_LINES` remain
+  operator overrides.
+- [x] Fix stale agent contract tests: native ShellCheck no longer uses
+  docker.sock; aggregate hooks across both `repo: local` sections; align
+  the gate's changed-file message and canonical pre-push policy assertions.
+- [x] Restore syntactically valid CrowdSec scripts: remove duplicated tail
+  and repair the truncated secret check; restore Loki `curl` line
+  continuations. Validate with `bash -n` and the existing
+  `test_agent_quality_gate_contract.py` syntax preflight.
+- [ ] Operator: pull the branch after safely committing any indexed local
+  work, run `python -m pytest -q tests/test_agent_quality_gate_contract.py`,
+  and rerun pre-commit plus the strict local gate. Do not bypass pre-push
+  and do not stage the unrelated `fastapi-sample` gitlink.
+
+## TrueNAS local ShellCheck pre-commit incident — 2026-10-10
+
+- [x] Root cause: official `shellcheck-precommit` hook invokes Docker;
+  non-privileged TrueNAS operator cannot access
+  `unix:///var/run/docker.sock`, so the commit fails *before* shell
+  linting. **Do not add operator to `docker` group, run hooks with
+  `sudo`, disable ShellCheck, or bypass pre-push**.
+- [x] Replace Docker-based hook with `repo: local`, `language: system`,
+  `entry: shellcheck`, preserving `-x -P SCRIPTDIR` and exclusions.
+  Existing `bootstrap-dev-tools.sh` installs pinned ShellCheck 0.11.0
+  under the operator's home via `mise`/venv. Contract test added.
+- [ ] Operator: `command -v shellcheck && shellcheck --version`;
+  install in home using the documented TrueNAS tool bootstrap only
+  if absent. Re-run `pre-commit run shellcheck --files` for the
+  four executable scripts before retrying the permission commit.
+- [ ] Re-run bounded local gate, resolve actual ShellCheck diagnostics,
+  reconcile remote HEAD with `git fetch`, then push without
+  `--no-verify`, `sudo git` or `--force`.
+
+## Consumer hook and stash hygiene — 2026-10-10
+
+- [x] Repair `scripts/quality/check-service-consumers.sh`: prior
+  `git ... || cd ... && pwd` executed `pwd` even when Git succeeded,
+  yielding two newline-separated roots and breaking `cd` at pre-commit.
+  An explicit `if/else` now selects exactly one path; isolated
+  checkout/archive test added.
+- [ ] Operator: after pulling this fix, rerun staged pre-commit and
+  complete the generated-only commit; never stage the unrelated
+  `fastapi-sample` gitlink.
+- [ ] Keep a **stash-free active workflow** after acceptance. First
+  inspect `git stash list`; then drop only the two recent
+  generated-catalog stashes by message, preferably by stash object ID
+  after verifying them. The older stashes (other branches) may contain
+  unrelated unrecovered work and must not be cleared automatically.
+- [ ] Confirm the five generated assets pass both generator `--check`
+  commands and the consumer quality hook on the same checkout/HEAD.
+
+## Operator follow-up: Git-generated files and DSOMM check (2026-10-10)
+
+- [x] Operator repaired Git index ownership in the superproject and nested
+  submodules; ordinary `git status` now works without `sudo`. Preserve
+  unrelated `fastapi-sample` submodule HEAD drift.
+- [x] Both catalog generators and `--check` commands passed on TrueNAS.
+  Generated topology, services, Gatus, Homarr and AutoKuma changes are
+  **uncommitted**; preserve them while updating the source branch.
+- [ ] To integrate upstream changes without losing local artifacts:
+  `git stash push -m "pre-pull generated catalogs" --` for **only**
+  the five generated paths, followed by
+  `git -c pull.rebase=false pull --ff-only origin
+  fix/agent-compose-gate-offline-followup`; regenerate and re-check.
+  Keep the stash for rollback, do not pop stale generated outputs on
+  top of newer inputs. Inspect/commit the regenerated diff separately.
+- [x] DSOMM direct Docker smoke now uses the same minimal
+  `NET_BIND_SERVICE` exception as Compose; `--check` fails fast when
+  the TrueNAS App is STOPPED instead of waiting the entire timeout.
+- [ ] Validate DSOMM `--apply` only after reviewing the fresh generated
+  catalog diff, then accept actual health and stable restart count.
+- [ ] Gatus config mode fix (`0640` and group ID) is in PR but the
+  observed `0600` regeneration was from older local HEAD. Confirm
+  TrueNAS `apps` group GID and active file ownership, update generator
+  and Compose, reconcile Gatus only after checking runtime group access.
+
+## Post-reboot LIGHT profile and runtime acceptance (2026-10-10)
+
+- [x] Define explicit optional app set in
+  `config/truenas/restore-optional-apps.txt` (Graylog, Zabbix,
+  Transmission and the *arr family). Default restore behavior excludes
+  this final optional wave even if an older restore list requests it.
+- [x] Add `restore-optional-apps.sh --check|--stop|--start`.
+  It uses exact TrueNAS App IDs, refuses protected foundation services
+  and refuses interruption of in-flight `DEPLOYING` Apps.
+- [x] Add bounded read-only `triage-post-reboot-apps.sh` for
+  non-RUNNING Apps and problematic containers.
+- [ ] On TrueNAS, verify the actual App IDs and update optional list;
+  check that no required service depends on an optional workload.
+- [ ] Run read-only triage first; distinguish intentionally STOPPED
+  optional Apps from `DEPLOYING`/`CRASHED` core applications.
+- [ ] **DSOMM:** validate seeds, runtime image and canonical storage with
+  `deploy-dsomm.sh --check`; apply only after an exact failing
+  precondition is understood, then prove healthy HTTP and saved state.
+- [ ] **Cyberbro:** verify two Compose services, diagnostics and canonical
+  env materialization with `diagnose-cyberbro.sh` and
+  `bootstrap-cyberbro-env.sh --check`. Only reconcile/redeploy after
+  identifying failed dependency, permission, secret contract or readiness.
+- [ ] **Secrets:** take a global read-only
+  `bootstrap-repository-env-files.sh --check` inventory, then stage and
+  finalize each App separately using the canonical Vaultwarden manifest.
+  Never overwrite existing nonempty `.env.secrets`, never print values,
+  preserve rollback and never finalize a failing runtime.
+- [ ] Reboot acceptance: foundation RUNNING, no core App stuck
+  DEPLOYING/STARTING, no unauthorized optional auto-start, and all
+  previously accepted secrets/loadable integrations unchanged.
+
+Commands and safety boundary:
 
 ```bash
-sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
-sudo bash scripts/truenas/audit-app-lifecycle.sh
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/triage-post-reboot-apps.sh
+sudo bash scripts/truenas/restore-optional-apps.sh --check
+sudo bash scripts/truenas/restore-app-set.sh --check --apps-file config/truenas/restore-foundation-apps.txt
+sudo bash scripts/truenas/deploy-dsomm.sh --check
+sudo bash scripts/truenas/diagnose-cyberbro.sh
+sudo bash scripts/truenas/bootstrap-cyberbro-env.sh --check
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
 ```
 
-Then progress in bounded transactions:
+Stop optional apps only by explicit operator action:
+`sudo bash scripts/truenas/restore-optional-apps.sh --stop`.
+Later opt in to the final optional wave by
+`sudo bash scripts/truenas/restore-optional-apps.sh --start`.
+A `restore-app-set.sh --apply` defaults to LIGHT unless
+`--include-optional` is passed. Do not treat STOPPED optional Apps
+as a platform recovery failure.
 
-1. [ ] **DSOMM** — repository seed/deployer is ready; perform the first runtime
-   acceptance without overwriting existing assessment state:
+## Targeted post-reboot incident follow-up (2026-10-10)
 
-   ```bash
-   sudo bash scripts/truenas/deploy-dsomm.sh --check
-   sudo bash scripts/truenas/deploy-dsomm.sh --apply
-   ```
+Runbook: [Git/DSOMM/Gatus/Vaultwarden/Scrutiny incident](./incidents/2026-10-10-post-reboot-git-dsomm-gatus-vaultwarden.md).
 
-   Require TrueNAS App `RUNNING`, HTTP health and protected persisted seed/state
-   before changing DSOMM from `planned` to `active`.
+- [x] Identify `dsomm` exit 255 as Caddy `execve EPERM`,
+  consistent with the upstream file-capability versus `cap_drop: ALL`
+  issue; source fix adds only `NET_BIND_SERVICE` back to the bounding
+  set. **Runtime validation pending**, not yet a confirmed repair.
+- [ ] Correct Gatus read access to `apps/gatus/config/config.yml`
+  using the **actual** container UID and TrueNAS path ACL. Do not
+  loosen all dataset permissions or modify application data.
+- [ ] Correct `bitwarden-api`'s persisted `http://vaultwarden`
+  Bitwarden CLI server URL; tracked Compose already specifies HTTPS.
+  Check old Doco-CD adapter consumers, back up only the affected
+  CLI config and verify TLS before its isolated restart.
+- [ ] Repair the TrueNAS operator's `.git/index` ownership/access
+  without `sudo git` or reset/clean on the nested
+  `fastapi-sample` submodule.
+- [ ] Reconcile Scrutiny after operator removed its repository-local
+  legacy file and commented a possible old InfluxDB token in the
+  canonical file. Do not uncomment unverified credentials, restage,
+  finalize or rotate as a batch. Missing `dotenv` under system Python
+  requires the existing **user-space venv**.
+- [ ] Confirm DSOMM/Gatus/Vaultwarden acceptance via runtime health and
+  exact-HEAD generator/quality gate checks before closing the incident.
 
-2. [ ] **Sentry canonical secret finalization** — existing Sentry E2E ingestion
-   history remains valid evidence, but the merged recovery/restage/finalize
-   transaction still needs current TrueNAS evidence. Run `--check` first,
-   use `--apply` only when the current diagnostic requires reconciliation, and
-   use `--finalize` only after a fresh diagnostic + E2E ingestion smoke.
-   Never reset Kafka offsets/topics/databases as part of this transaction.
+## Runtime evidence — 2026-10-10, post-reboot (user-provided)
 
-3. [ ] **Scrutiny runtime-env acceptance** — preserve the existing v2 InfluxDB
-   token, scope-version marker and authorization ID as one set. Compare sources
-   value-blind, import the accepted historical values to Vaultwarden, materialize
-   `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`, then run:
+- [x] LIGHT review: `emby`, `graylog`, `lidarr`,
+  `transmission`, `zabbix` are STOPPED; the remaining optional
+  `*arr` names in the configured list are ABSENT. This is **expected**,
+  not a recovery failure. Do not bulk start them.
+- [x] Cyberbro: TrueNAS App `RUNNING`, two Compose containers running,
+  web healthy, MCP HTTP 400 reachable (not a standalone TrueNAS App),
+  zero restarts and canonical Cyberbro `.env`/`.env.secrets` contract
+  accepted. No Cyberbro redeploy required.
+- [ ] DSOMM: TrueNAS `STOPPED`, Docker `dsomm` restarting exit 255.
+  Seed check passed (22 activities/22 evidence), pinned image exists and
+  Compose validation passed. Fix catalog generator defect first (orphan
+  `openwebui-pipelines` icon + missing `subprocess` import; source fixes
+  in this PR), regenerate the catalog/consumers, then capture **bounded
+  DSOMM logs** and TrueNAS app job errors. Do **not** assume a catalog
+  error caused the Docker restart loop. Do not blindly redeploy.
+- [ ] Gatus: TrueNAS `STOPPED` but container `Restarting (2)`.
+  Diagnose its startup/config and regenerate Pipelines-derived monitors
+  before a controlled restart; do not classify as intentional LIGHT.
+- [ ] `bitwarden-api`: Docker restart exit 1; inspect owning project,
+  active consumers and its logs separately. Avoid rotating Vaultwarden
+  or upstream tokens without evidence.
+- [ ] Docling: `ABSENT` (not `DEPLOYING`); schedule explicit install
+  only once prior state and resources are verified.
+- [ ] Scrutiny secrets: **hard conflict** between
+  `/mnt/cpool/scrutiny/.env.secrets`, repository-local
+  `apps/scrutiny/.env.secrets`, and canonical
+  `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`.
+  Compare **key names and semantic equality without printing values**,
+  preserve historical InfluxDB token and do not issue `--restage` or
+  `--finalize` until source authority is reconciled.
+- [ ] `.env.secrets` global inventory: 8 declared missing-source apps,
+  empty placeholders including AutoKuma, CrowdSec, Joplin, PostgreSQL and
+  Scanopy, plus numerous staged/finalize-pending apps. Treat
+  intentionally disabled/not-installed services separately; no empty
+  secret placeholders accepted as production credentials. Finalize
+  individually after the runtime consumer passes.
 
-   ```bash
-   sudo bash scripts/truenas/bootstrap-scrutiny-influxdb.sh --check
-   sudo bash scripts/truenas/deploy-scrutiny.sh --check
-   ```
+Safe next TrueNAS commands (bounded output, no raw secret values):
 
-   Do not run the bootstrap `--apply` merely because the canonical file is
-   missing. Rotate only as an explicit operator decision. Acceptance also
-   requires Web/API health, TrueNAS SMART visibility and the pinned workstation
-   collector submission.
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/triage-post-reboot-apps.sh
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check scrutiny
+sudo python3 scripts/secrets/compare_dotenv_sources.py --app scrutiny \
+  --left /mnt/cpool/scrutiny/.env.secrets \
+  --right /mnt/cpool/compose/nabla-compose/apps/scrutiny/.env.secrets
+sudo docker logs --tail 50 dsomm 2>&1 | tail -50
+sudo docker logs --tail 40 gatus 2>&1 | tail -40
+sudo docker logs --tail 40 bitwarden-api 2>&1 | tail -40
+```
 
-4. [ ] **Code Server runtime-env cutover** — preserve the historical
-   `CODE_PASSWORD` value while mapping it to runtime `PASSWORD`. Import and
-   materialize through the canonical secret tooling, validate
-   `http://172.17.0.24:8443/healthz`, then finalize only when the generic
-   runtime-env check is clean:
+**Quality gate distinction:** generator source defects fixed in PR; output
+catalog, topology, Gatus, Homarr and AutoKuma projections still require
+canonical regeneration and L3 exact-HEAD validation. No runtime changes
+have been made by the agent.
 
-   ```bash
-   sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check code
-   sudo bash scripts/truenas/bootstrap-repository-env-files.sh --finalize code
-   ```
+## Restart context — 2026-10-10
 
-5. [ ] **First-wave runtime envs** — accept Scanopy, Joplin and AutoKuma one
-   service at a time with
-   `accept-runtime-env-first-wave.sh --check/--stage/--accept`. AutoKuma stays
-   blocked until repository-owned Uptime Kuma is present and RUNNING. Scanopy
-   requires reviewed immutable server/daemon digests.
+État de reprise canonique pour un nouveau chat/agent :
 
-6. [ ] **Sample** — finish canonical runtime-env/reboot acceptance and normalize
-   PostgreSQL ownership to a dedicated `sample` database/role. Keep
-   `fastapi_observer` read-only and prove `VM_READ` for the three Talos VMs.
+- PR active : `#251`, branche `fix/agent-compose-gate-offline-followup`; ne jamais merger automatiquement.
+- Local-first obligatoire : corriger le premier échec déterministe avant toute nouvelle amélioration, puis rejouer `bash scripts/agent-pre-push.sh`.
+- OpenClaw : le test backup `Gateway active` est désormais compatible TrueNAS `/tmp noexec`; `openclaw-ops.sh` doit rester `100755` avec shebang Bash explicite.
+- Vaultwarden : RCA confirmée. Un Host Override pfSense
+  `vaultwarden.albandrieu.com -> 172.17.0.24` génère
+  `/var/unbound/host_entries.conf`. Le supprimer côté pfSense et conserver, si nécessaire, un nom privé séparé `vaultwarden.int.albandrieu.com`.
+- pfSense syslog : émission RFC5424 réelle prouvée
+  `172.17.0.1:514 -> 172.17.0.24:1514`; Alloy/Loki valident deux runs consécutifs `exit=0 ok=10`.
+- CrowdSec central TrueNAS : `crowdsecurity/crowdsec:v1.8.1`, healthy, LAPI `:8084`, metrics `:6060`, scénario `firewallservices/pf-scan-multi_ports` désactivé.
+- CrowdSec Loki acquisition : événements pfSense réels visibles ; `cs_lokisource_hits_total` confirmé et croissant (174 → 180 → 287). Étapes pfSense→Alloy→Loki→CrowdSec terminées.
+- Bouncer pfSense : encore sur LAPI local `http://172.17.0.1:8089`; ne pas basculer vers `172.17.0.24:8084` tant que credential/registration/last_pull ne sont pas validés.
+- Syslog legacy : `172.17.0.57:1514` est une ancienne cible workstation à retirer ; la cible canonique doit rester `172.17.0.24:1514`.
+- Bitwarden/secrets : explicitement différés jusqu'après stabilisation du bouncer. Ne pas bloquer la chaîne observabilité dessus.
+- Quality gate actuelle : le dernier blocage observé est le contrat shebang/executable OpenClaw ; corriger sans `--no-verify`, puis relancer la gate complète.
+- Git local : préserver tout commit local non poussé ; si la branche distante avance, inspecter `HEAD...@{upstream}` et merger/rebaser sans reset destructif.
 
-The exact import/materialization/finalization commands and rollback rules remain
-owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
-the service README/runbook. Never bulk-finalize env files or recreate non-empty
-datasets just to change presets.
+Prochain ordre de travail :
+
+1. obtenir une gate locale L3 verte sur le HEAD courant ;
+2. supprimer l'Host Override public Vaultwarden et valider public Cloudflare + privé `.int` ;
+3. nettoyer la cible syslog workstation `.57` ;
+4. préparer/valider le credential et la registration du bouncer central ;
+5. basculer le bouncer pfSense vers `172.17.0.24:8084` ;
+6. exiger `last_pull` non vide et décisions visibles avant acceptation ;
+7. seulement ensuite reprendre Bitwarden/secrets.
+
+## OpenClaw personal assistant — workstation stabilization
+
+**Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
+(read-only by default); Hermes manages development/cloud/cybersecurity. Their
+secrets, memory, tokens and tools must remain isolated. No private message
+contents or tokens may enter Git, logs or CI artifacts.
+
+- [ ] **P0 read-only audit:** from the repo on the workstation run
+  `bash scripts/workstation/diagnose-openclaw.sh`. Codes 0=clean,
+  2=warnings (including preserved foreign `/usr` destination), 1=failure.
+  This intentionally does not invoke `openclaw doctor`, which has been
+  observed installing a plugin even with `--non-interactive`.
+- [ ] **P0 recovery gate:** run `bash scripts/workstation/backup-openclaw.sh --check`.
+  Stop/quiesce the user Gateway **manually** during maintenance; create an
+  offline archive via `--create` (refuses a running service), then separately
+  run `--verify ARCHIVE` and `--restore-test ARCHIVE`. Only then restart the
+  Gateway manually. Backup is private (0600), its directory 0700, and is not
+  uploaded to Git. The restore-test checks archive safety and readability,
+  **not** full application-level restoration or session compatibility.
+  Backup omits symlinks/sockets; inventory those separately if used.
+- [ ] **P0 Node divergence:** run
+  `bash scripts/workstation/prepare-openclaw-systemd.sh` to **print only**
+  an override for the observed systemd unit using `/usr/bin/node`, while
+  the CLI uses mise Node 24.18.1. It refuses unfamiliar service flags; it
+  neither installs the override nor restarts the Gateway. Preserve any
+  separately owned `/usr/lib/node_modules/openclaw` package.
+- [ ] **P1 application:** after validated rollback, align systemd runtime
+  and npm prefix, then run update dry-run and controlled update; repair
+  Slack state migration, inspect SQLite sessions (29 warnings), reconcile
+  WhatsApp plugin version/reconnect, review cron errors and migrate
+  cleartext tokens to SecretRefs. Reverify channels, sessions and Gateway
+  after restart and reboot; do not declare 2026.9.9 installed based on dry-run.
+- [ ] **P2 personal workflows:** test Gmail and WhatsApp with synthetic data
+  in read-only mode; require explicit approval for any sending, deletion,
+  archiving or labeling, including cron-triggered actions.
+- [ ] **P3 TrueNAS:** only after workstation acceptance, stage isolated,
+  pinned Compose/ZFS/secret-backed deployment; prove restore with all
+  personal connectors disabled; coordinate single-owner cutover and failback.
+- [ ] **Quality gate:** run
+  `python -m pytest -q tests/test_openclaw_workstation_contract.py`
+  and `bash -n scripts/workstation/*openclaw*.sh` locally, no GitHub Actions.
+
+Observed workstation baseline (2026-10-09): OpenClaw 2026.9.5,
+CLI mise Node 24.18.1, Gateway service /usr/bin/node, target 2026.9.9
+**dry-run only**. No direct access to workstation from this repository
+change; acceptance requires its actual runtime evidence.
 
 ## Current execution order
 
@@ -180,14 +1006,26 @@ Keep detailed proof in incidents/runbooks. Current accepted foundations are:
   - [x] Stop the CrowdSec engine after `firewallservices/pf-scan-multi_ports`
     accumulated millions of failed event-send attempts; keep the firewall
     bouncer independent while the engine is isolated.
-  - [ ] Diagnose/fix CrowdSec event backpressure and prove bounded CPU/RSS before
-    restarting the engine. 2026-10-09 adds strong A/B evidence: no new OOM was
-    observed with CrowdSec stopped while Snort and Unbound remained up; keep this
-    as contributor evidence, not sole-cause proof. The canonical read-only
-    diagnostic now preserves engine/bouncer separation, versions, package and
-    scenario policy, bounded `cscli metrics` only when the engine is already up,
-    and streaming maxima for `failed_sent` / `attempts`; do not restart
-    CrowdSec merely to collect those metrics.
+  - [x] Diagnose CrowdSec event backpressure without restarting the engine.
+    Workstation evidence on 2026-10-10 shows 19,213 stuck lines,
+    `max_failed_sent=19,899,999`, `max_attempts=19,900,000` and
+    `max_sigclosed=0`: a live `pf-scan-multi_ports` leaky bucket is spinning
+    internally while the independent firewall bouncer remains healthy. Treat
+    this as a major CPU/memory-pressure contributor, not sole-cause proof for
+    every OOM.
+  - [ ] Complete the pfSense Small cutover in two independent gates:
+    first reconcile CrowdSec 1.8.1 centrally on TrueNAS with
+    `deploy-crowdsec.sh --check` then explicit `--apply`; require
+    `diagnose-crowdsec-cutover.sh --runtime` to prove image, LAPI/listeners,
+    Loki acquisition and removal of `firewallservices/pf-scan-multi_ports`.
+    A missing bouncer credential does not block this central-runtime repair.
+    Only after the canonical credential is materialized, require
+    `diagnose-crowdsec-cutover.sh --check` before the pfSense change and
+    `--accept` afterwards. The central engine must reuse the existing
+    Alloy/Loki pfSense stream `{job="pfsense",device="pfsense"}`; do not add a
+    second syslog receiver or depend on nonexistent `/mnt/cpool/logs/pfsense`
+    files. Keep the local pfSense Security Engine stopped; do not restart it
+    merely to collect metrics.
   - [ ] Correlate the Snort 02:09 rule-update job with the 02:10 OOM before
     changing its schedule; keep optional restart/reload churn bounded meanwhile.
   - [ ] Measure the generated PHP-FPM `pm.max_children=8` pool under normal
@@ -519,6 +1357,19 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy.
   LiteLLM/GPU ingest/retrieve acceptance.
 - [ ] Cyberbro free-engine baseline, then provider onboarding in bounded
   least-privilege batches; resolve Vaultwarden token-refresh/icon TLS debt.
+
+### Local-first follow-up after merged PR #250 (2026-10-10)
+
+- [x] Trigger topology and Homarr/Gatus/AutoKuma generator checks for
+  nested `apps/*/compose.yml` edits, not only files directly under `apps/`.
+- [x] Fail closed when local quality-gate Git path collection errors;
+  never interpret a broken `git diff` as zero changed files.
+- [ ] Regenerate and validate any stale Pipelines catalog, topology,
+  Gatus, Homarr or AutoKuma projections from the merged source change
+  using the canonical generators; preserve deterministic diffs.
+- [ ] Run exact-HEAD L3 after obtaining a full verified checkout/cache.
+  Offline L1 and source-level assertions remain limited evidence; do not
+  rerun GitHub Actions merely to discover the next error.
 
 ## P3.1 — AI stack upgrades and service consolidation (planning only)
 

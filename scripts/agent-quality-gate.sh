@@ -83,7 +83,7 @@ if (($# > 0)); then
   exit 2
 fi
 
-LOG_TAIL="${QUALITY_LOG_TAIL:-32}"
+LOG_TAIL="${QUALITY_LOG_TAIL:-12}"
 LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
 REVIEWED_LARGE_DELETIONS="${ROOT}/config/quality/reviewed-large-deletions.tsv"
@@ -137,7 +137,7 @@ print_bounded_log_lines() {
   awk -v max="${LOG_LINE_MAX}" '
     {
       if (length($0) > max) {
-        printf "%s … [line truncated, %d chars omitted]\\n", substr($0, 1, max), length($0) - max
+        printf "%s … [line truncated, %d chars omitted]\n", substr($0, 1, max), length($0) - max
       } else {
         print
       }
@@ -149,9 +149,20 @@ print_compact_log() {
   local log="$1"
   local summary=""
 
-  summary="$(grep -E '^(FAIL|ERROR): |^FAILED |^ERROR |^Ran [0-9]+ tests|^=+ .* (failed|error|passed).* =+$' "${log}" || true)"
+  # Summarize only failure IDs/statuses, not verbose pytest assertion
+  # dumps, file diffs, successful hooks, or source code containing ERROR.
+  # Full untruncated evidence remains in a private on-disk log.
+  summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|FAIL: |ERROR: |.*[.]{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\[ERROR\])' "${log}" || true)"
+  local shellcheck_summary
+  shellcheck_summary="$(grep -E '^(In .* line [0-9]+:|.*SC[0-9]{4}.*)' "${log}" || true)"
+  if [[ -n "${shellcheck_summary}" ]]; then
+    if [[ -n "${summary}" ]]; then
+      summary+=$'\\n'
+    fi
+    summary+="${shellcheck_summary}"
+  fi
   if [[ -n "${summary}" ]]; then
-    local summary_limit="${QUALITY_SUMMARY_LINES:-12}"
+    local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
     local summary_count
     [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
     summary_count="$(printf '%s\n' "${summary}" | wc -l)"
@@ -163,8 +174,11 @@ print_compact_log() {
         "$((summary_count - summary_limit))" >&2
     fi
   fi
-  printf '%s\n' "--- last ${LOG_TAIL} log lines ---" >&2
-  tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+  printf 'Full failure log: %s (private, mode 0600)\n' "${log}" >&2
+  if [[ -z "${summary}" ]]; then
+    printf '%s\n' "--- last ${LOG_TAIL} log lines (no recognizable summary) ---" >&2
+    tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+  fi
 }
 
 run_compact() {
@@ -182,7 +196,6 @@ run_compact() {
   fi
   printf '❌ %s\n' "${label}" >&2
   print_compact_log "${log}"
-  rm -f "${log}"
   return "${rc}"
 }
 
@@ -199,7 +212,9 @@ collect_changed_files() {
     awk 'NF' |
     sort -u |
     while IFS= read -r file; do
-      [[ -f "${file}" ]] && printf '%s\n' "${file}"
+      if [[ -f "${file}" ]]; then
+        printf '%s\n' "${file}"
+      fi
     done
 }
 
@@ -216,8 +231,16 @@ collect_deleted_files() {
     sort -u
 }
 
-mapfile -t CHANGED_FILES < <(collect_changed_files)
-mapfile -t DELETED_FILES < <(collect_deleted_files)
+# Process substitution masks Git errors; fail closed rather than skip tests.
+if ! changed_output="$(collect_changed_files)" ||
+  ! deleted_output="$(collect_deleted_files)"; then
+  printf '❌ QG_GIT_SCOPE: failed to collect changed/deleted paths; no checks were skipped\n' >&2
+  exit 2
+fi
+CHANGED_FILES=()
+DELETED_FILES=()
+[[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
+[[ -z "${deleted_output}" ]] || mapfile -t DELETED_FILES <<<"${deleted_output}"
 
 check_base_freshness() {
   if [[ "${BASE_REF}" == "HEAD" ]]; then
@@ -332,29 +355,56 @@ check_destructive_diff() {
 
 check_exec_bits() {
   local exec_bit_failed=0
-  for file in "${CHANGED_FILES[@]}"; do
-    [[ -f "${file}" ]] || continue
-    IFS= read -r first_line <"${file}" || true
+  local file first_line mode meta path
+
+  # Git tracks only the executable bit; a private TrueNAS checkout may use
+  # 0700 even when the Git index records 100755. Never force chmod 755.
+  # Inspect the full Git index so a committed 100644 shebang cannot escape
+  # detection merely because it is unchanged in the current PR.
+  while IFS=$'\t' read -r meta path; do
+    mode="${meta%% *}"
+    [[ "${mode}" == "100644" || "${mode}" == "100755" ]] || continue
+    [[ -f "${path}" ]] || continue
+    IFS= read -r first_line <"${path}" || true
     [[ "${first_line:-}" == '#!'* ]] || continue
 
-    if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
-      mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
-      if [[ "${mode}" != "100755" ]]; then
-        if [[ "${MODE}" == "fix" ]]; then
-          git add --chmod=+x -- "${file}"
-          printf '🛠️  executable bit restored for %s\n' "${file}"
-        else
-          printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
-            "${file}" "${mode:-unknown}" "${file}" >&2
-          exec_bit_failed=1
-        fi
-      fi
-    elif [[ ! -x "${file}" ]]; then
+    if [[ "${mode}" != "100755" ]]; then
       if [[ "${MODE}" == "fix" ]]; then
-        chmod +x -- "${file}"
-        printf '🛠️  executable bit restored for untracked %s\n' "${file}"
+        git add --chmod=+x -- "${path}"
+        printf '🛠️  Git executable bit staged for %s\n' "${path}"
       else
-        printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
+        printf '❌ QG_EXEC_BIT: tracked shebang %s has Git mode %s; run git add --chmod=+x %q\n' \
+          "${path}" "${mode}" "${path}" >&2
+        exec_bit_failed=1
+      fi
+    fi
+
+    if [[ ! -x "${path}" ]]; then
+      if [[ "${MODE}" == "fix" ]]; then
+        chmod u+x -- "${path}"
+        printf '🛠️  owner execute permission restored for %s\n' "${path}"
+      else
+        printf '❌ QG_EXEC_BIT: owner cannot execute tracked script %s; run chmod u+x %q\n' \
+          "${path}" "${path}" >&2
+        exec_bit_failed=1
+      fi
+    fi
+  done < <(git ls-files --stage)
+
+  # Newly created scripts must also be executable before entering the index.
+  for file in "${CHANGED_FILES[@]}"; do
+    [[ -f "${file}" ]] || continue
+    if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
+      continue
+    fi
+    IFS= read -r first_line <"${file}" || true
+    [[ "${first_line:-}" == '#!'* ]] || continue
+    if [[ ! -x "${file}" ]]; then
+      if [[ "${MODE}" == "fix" ]]; then
+        chmod u+x -- "${file}"
+        printf '🛠️  owner execute permission restored for untracked %s\n' "${file}"
+      else
+        printf '❌ QG_EXEC_BIT: untracked shebang %s is not executable\n' "${file}" >&2
         exec_bit_failed=1
       fi
     fi
@@ -446,7 +496,12 @@ if [[ "${MODE}" == "fix" ]]; then
         "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
     fi
 
-    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if ! changed_output="$(collect_changed_files)"; then
+      printf '❌ QG_GIT_SCOPE: failed to refresh changed paths during fix pass\\n' >&2
+      exit 2
+    fi
+    CHANGED_FILES=()
+    [[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
     if (("${#CHANGED_FILES[@]}" == 0)); then
       printf '✅ no changed files require formatter/linter fixes\n'
       exit 0
@@ -457,7 +512,12 @@ if [[ "${MODE}" == "fix" ]]; then
     rc=0
     pre-commit run --hook-stage pre-commit \
       --files "${CHANGED_FILES[@]}" --show-diff-on-failure >"${log}" 2>&1 || rc=$?
-    mapfile -t CHANGED_FILES < <(collect_changed_files)
+    if ! changed_output="$(collect_changed_files)"; then
+      printf '❌ QG_GIT_SCOPE: failed to refresh changed paths during fix pass\\n' >&2
+      exit 2
+    fi
+    CHANGED_FILES=()
+    [[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
     after_fingerprint="$(worktree_fingerprint)"
 
     if ((rc == 0)) && [[ "${after_fingerprint}" == "${before_fingerprint}" ]]; then
@@ -483,9 +543,27 @@ if [[ "${MODE}" == "fix" ]]; then
 
     printf '❌ QG_FIX_STALLED: Pre-commit failed without changing files; fix the reported error instead of repeating identical passes\n' >&2
     print_compact_log "${log}"
-    rm -f "${log}"
     exit "${rc}"
   done
+fi
+
+edge_security_contract_scope_changed=false
+for file in "${CHANGED_FILES[@]}"; do
+  case "${file}" in
+    apps/crowdsec/*|scripts/pfsense/diagnose-recover.sh|scripts/truenas/deploy-crowdsec.sh|scripts/truenas/diagnose-crowdsec-cutover.sh|scripts/lib/truenas.sh|tests/test_pfsense_diagnose_recover_contract.py|tests/test_crowdsec_cutover_contract.py|docs/pfsense-diagnose-recover.md|docs/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
+      edge_security_contract_scope_changed=true
+      break
+      ;;
+  esac
+done
+
+if [[ "${edge_security_contract_scope_changed}" == true ]]; then
+  run_compact "pfSense/CrowdSec targeted contracts" \
+    "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
+    --tb=short --show-capture=no \
+    tests/test_pfsense_diagnose_recover_contract.py \
+    tests/test_crowdsec_cutover_contract.py \
+    tests/test_truenas_deploy_output_contract.py
 fi
 
 if [[ "${LOCAL_LOOP}" == true ]]; then
@@ -515,7 +593,7 @@ fi
 generated_contract_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
-    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*/compose.yml|apps/*/compose.yaml|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
       generated_contract_scope_changed=true
       break
       ;;

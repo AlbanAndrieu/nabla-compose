@@ -83,20 +83,32 @@ if [[ "${MODE}" == "--apply" ]]; then
     fail "unsafe DSOMM state directory: ${state_root}"
   umask 077
 
-  model_tmp="$(mktemp "${state_root}/model.yaml.tmp.XXXXXX")"
-  trap 'rm -f "${model_tmp:-}"' EXIT
-  curl --fail --location --silent --show-error \
-    --proto '=https' --tlsv1.2 \
-    "${DSOMM_MODEL_URL}" -o "${model_tmp}"
-  grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_tmp}" ||
-    fail "downloaded DSOMM model does not declare expected version ${DSOMM_MODEL_VERSION}"
-  grep -Fq 'uuid:' "${model_tmp}" ||
-    fail "downloaded DSOMM model contains no activity UUIDs"
-  install -o root -g root -m 0600 "${model_tmp}" "${model_file}"
-  rm -f "${model_tmp}"
-  trap - EXIT
-  printf 'Staged pinned DSOMM model %s from commit %s without following latest\n' \
-    "${DSOMM_MODEL_VERSION}" "${DSOMM_MODEL_REF}"
+  # Preserve any existing operator-owned assessment model on a capability
+  # reconciliation. Never overwrite the live model as a side effect of --apply.
+  if [[ -e "${model_file}" || -L "${model_file}" ]]; then
+    [[ -f "${model_file}" && ! -L "${model_file}" ]] ||
+      fail "unsafe DSOMM model path: ${model_file}"
+    grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_file}" ||
+      fail "existing DSOMM model version mismatch; review it before reconciling"
+    grep -Fq 'uuid:' "${model_file}" ||
+      fail "existing DSOMM model contains no activity UUIDs"
+    printf 'OK: preserving existing pinned DSOMM model without replacement\n'
+  else
+    model_tmp="$(mktemp "${state_root}/model.yaml.tmp.XXXXXX")"
+    trap 'rm -f "${model_tmp:-}"' EXIT
+    curl --fail --location --silent --show-error \
+      --proto '=https' --tlsv1.2 \
+      "${DSOMM_MODEL_URL}" -o "${model_tmp}"
+    grep -Fq "version: ${DSOMM_MODEL_VERSION}" "${model_tmp}" ||
+      fail "downloaded DSOMM model does not declare expected version ${DSOMM_MODEL_VERSION}"
+    grep -Fq 'uuid:' "${model_tmp}" ||
+      fail "downloaded DSOMM model contains no activity UUIDs"
+    install -o root -g root -m 0600 "${model_tmp}" "${model_file}"
+    rm -f "${model_tmp}"
+    trap - EXIT
+    printf 'Staged pinned DSOMM model %s from commit %s without following latest\n' \
+      "${DSOMM_MODEL_VERSION}" "${DSOMM_MODEL_REF}"
+  fi
 
   state_specs=(
     "progress|${progress_file}|${progress_seed}"
@@ -142,6 +154,7 @@ if [[ "${MODE}" == "--apply" ]]; then
     --name "${smoke_name}" \
     --network intranet \
     --cap-drop ALL \
+    --cap-add NET_BIND_SERVICE \
     --security-opt no-new-privileges=true \
     --mount "type=bind,src=${CANONICAL_ROOT}/apps/dsomm/config/meta.yaml,dst=/srv/assets/YAML/meta.yaml,readonly" \
     --mount "type=bind,src=${model_file},dst=/srv/assets/YAML/default/model.yaml,readonly" \
@@ -190,8 +203,11 @@ if [[ "${MODE}" == "--apply" ]]; then
     .services.dsomm.image != null
     and .services.dsomm.ports != null
     and .networks.intranet != null
+    and (.services.dsomm.cap_drop // [] | index("ALL") != null)
+    and (.services.dsomm.cap_add // [] | index("NET_BIND_SERVICE") != null)
+    and (.services.dsomm.security_opt // [] | index("no-new-privileges=true") != null)
   ' <<<"${runtime_compose_json}" >/dev/null ||
-    fail "rendered DSOMM runtime Compose is incomplete"
+    fail "rendered DSOMM runtime Compose lacks mandatory minimal Caddy capabilities/security posture"
   printf 'OK: rendered one-service DSOMM Compose for TrueNAS Custom App\n'
 
   printf '\n==> TrueNAS Custom App reconciliation\n'
@@ -249,9 +265,29 @@ fi
 state="$(truenas_app_state "${APP_ID}")"
 [[ "${state}" != "MISSING" ]] ||
   fail "${APP_ID}: TrueNAS Custom App is not registered; run --apply"
+# A read-only --check cannot start a STOPPED App. Do not wait for the
+# entire readiness timeout when there is no active startup to observe.
+if [[ "${MODE}" == "--check" && "${state}" == "STOPPED" ]]; then
+  fail "${APP_ID}: TrueNAS App is STOPPED; --check cannot start it. Review the direct-smoke/runtime preconditions before --apply."
+fi
 
 printf '\n==> wait for DSOMM runtime\n'
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
+
+# The canonical Compose may be correct while an older TrueNAS Custom App
+# container still runs without Caddy's file-capability bounding-set exception.
+# Inspect only effective host configuration; never print container environment.
+if ! docker inspect "${APP_ID}" --format '{{json .HostConfig.CapAdd}}' 2>/dev/null |
+  jq -e 'type == "array" and any(.[]; . == "NET_BIND_SERVICE" or . == "CAP_NET_BIND_SERVICE")' >/dev/null; then
+  printf '%s\n' 'ERROR: DSOMM runtime/configuration mismatch after TrueNAS app reconciliation' >&2
+  # Emit a strictly bounded, non-secret subset of Docker metadata to determine
+  # whether the app retained an old container or a different Compose project.
+  docker inspect "${APP_ID}" --format \
+    'runtime id={{.Id}} created={{.Created}} state={{.State.Status}} exit={{.State.ExitCode}} restart_count={{.RestartCount}} compose_project={{index .Config.Labels "com.docker.compose.project"}} compose_service={{index .Config.Labels "com.docker.compose.service"}} cap_add={{json .HostConfig.CapAdd}} cap_drop={{json .HostConfig.CapDrop}}' >&2 2>/dev/null || true
+  printf '%s\n' 'Review the persisted TrueNAS Custom App Compose and container provenance before another --apply; app.update/app.start may not have recreated the container.' >&2
+  fail "${APP_ID}: live container lacks NET_BIND_SERVICE (Caddy execve EPERM risk); TrueNAS Custom App has not converged"
+fi
+printf 'OK: DSOMM runtime NET_BIND_SERVICE capability present\n'
 
 if probe_http_wait "${DSOMM_URL}" "${WAIT_SECONDS}" 4 3 8; then
   printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"

@@ -1,6 +1,7 @@
 """Contracts for the planned repository-owned OWASP OpenCRE service."""
 
 from pathlib import Path
+import subprocess
 
 import yaml
 
@@ -71,7 +72,11 @@ def test_backstage_component_is_planned_security_tool() -> None:
 def test_deployer_uses_shared_truenas_lifecycle_and_blocks_mutable_apply() -> None:
     text = DEPLOY.read_text(encoding="utf-8")
 
-    assert not text.startswith("#!")
+    assert text.startswith("#!/usr/bin/env bash")
+    syntax = subprocess.run(
+        ["bash", "-n", str(DEPLOY)], capture_output=True, text=True, check=False,
+    )
+    assert syntax.returncode == 0, syntax.stderr
     assert 'MODE="${1:---check}"' in text
     assert "bootstrap-repository-storage.sh" in text
     assert "truenas_reconcile_custom_app" in text

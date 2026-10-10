@@ -18,7 +18,7 @@ x-nabla:
 
 services:
   crowdsec:
-    image: crowdsecurity/crowdsec:v1.7.8
+    image: crowdsecurity/crowdsec:v1.8.1
     container_name: crowdsec
     restart: unless-stopped
     x-nabla:
@@ -41,6 +41,13 @@ services:
           evidence:
             - apps/crowdsec/compose.yml:CROWDSEC_LAPI_PORT
             - apps/crowdsec/compose.yml:BOUNCER_KEY_PFSENSE_FIREWALL
+        - target: loki
+          type: dependsOn
+          strength: required
+          description: CrowdSec consumes the canonical pfSense RFC5424 stream already centralized by Alloy into Loki.
+          evidence:
+            - apps/crowdsec/acquis.d/security.yaml
+            - apps/grafana/config/alloy.alloy:loki.source.syslog
         - target: suricata
           type: dependsOn
           strength: optional
@@ -57,23 +64,29 @@ services:
             - apps/prometheus/prometheus.yml:job_name=crowdsec
     # Vaultwarden import alias: CROWDSEC_PFSENSE_BOUNCER_KEY
     env_file:
-      - path: /mnt/cpool/crowdsec/.env.secrets
+      - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
         required: false
     environment:
       COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
+      # pfSense evidence on 2026-10-10 showed an internal leaky-bucket spin:
+      # 19,899,999 failed sends / 19,900,000 attempts with sigclosed=0.
+      # Keep the rest of the pfSense collection while removing only this scenario.
+      DISABLE_SCENARIOS: firewallservices/pf-scan-multi_ports
       TZ: ${TZ:-Europe/Paris}
     ports:
       - "${CROWDSEC_LAPI_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_LAPI_PORT:-8084}:8080"
       - "${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_METRICS_PORT:-6060}:6060"
+    healthcheck:
+      test: ["CMD-SHELL", "cscli lapi status >/dev/null 2>&1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     volumes:
       - crowdsec_config:/etc/crowdsec
       - crowdsec_data:/var/lib/crowdsec/data
       - ./acquis.d:/etc/crowdsec/acquis.d:ro
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
-      - type: bind
-        source: ${PFSENSE_LOG_DIR:-/mnt/cpool/logs/pfsense}
-        target: /logs/pfsense
-        read_only: true
       - type: bind
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
         target: /logs/suricata

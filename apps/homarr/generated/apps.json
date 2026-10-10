@@ -891,16 +891,6 @@
       "syncEligible": true
     },
     {
-      "id": "openwebui-pipelines",
-      "name": "Open WebUI Pipelines",
-      "group": "ai",
-      "sourcePath": "apps/openwebui/compose.yml",
-      "composeService": "pipelines",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "pfsense",
       "name": "pfSense",
       "group": "network",

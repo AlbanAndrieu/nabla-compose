@@ -564,6 +564,43 @@ if [[ -n "${PFSENSE_POSTURE_API_KEY:-}" ]]; then
     done
     probe_api "posture_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 403 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
     probe_api "posture_lan" "${LAN_API_URL}" true /api/v2/system/version 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+
+    # Optional read-only evidence. These endpoints use distinct privileges and
+    # must not turn the core posture matrix red when the least-privilege posture
+    # identity is intentionally not authorized for them.
+    optional_dns_overrides_body="$(mktemp)"
+    optional_dns_overrides_http="$(curl -k --silent --show-error --connect-timeout 5 --max-time 15 \
+      --output "${optional_dns_overrides_body}" --write-out '%{http_code}' \
+      --header "@${POSTURE_API_HEADER_FILE}" \
+      "${LAN_API_URL%/}/api/v2/services/dns_resolver/host_overrides" 2>/dev/null || true)"
+    if [[ "${optional_dns_overrides_http}" == "200" ]]; then
+      log "DNS host overrides via API (filtered for Vaultwarden):"
+      jq -c '.data[]? | select(((.host // "") + "." + (.domain // "")) == "vaultwarden.albandrieu.com" or (.domain // "") == "vaultwarden.albandrieu.com") | {id,host,domain,ip,descr}' \
+        "${optional_dns_overrides_body}" 2>/dev/null | tee -a "${REPORT}" || true
+      if ! jq -e '.data[]? | select(((.host // "") + "." + (.domain // "")) == "vaultwarden.albandrieu.com" or (.domain // "") == "vaultwarden.albandrieu.com")' \
+        "${optional_dns_overrides_body}" >/dev/null 2>&1; then
+        log "vaultwarden_public_override_api=absent"
+      else
+        log "vaultwarden_public_override_api=present"
+      fi
+    else
+      log "vaultwarden_public_override_api=unavailable http=${optional_dns_overrides_http:-000}"
+    fi
+    rm -f "${optional_dns_overrides_body}"
+
+    optional_syslog_body="$(mktemp)"
+    optional_syslog_http="$(curl -k --silent --show-error --connect-timeout 5 --max-time 15 \
+      --output "${optional_syslog_body}" --write-out '%{http_code}' \
+      --header "@${POSTURE_API_HEADER_FILE}" \
+      "${LAN_API_URL%/}/api/v2/status/logs/settings" 2>/dev/null || true)"
+    if [[ "${optional_syslog_http}" == "200" ]]; then
+      log "pfSense remote syslog settings via API:"
+      jq -c '.data | {format,enableremotelogging,ipprotocol,sourceip,remoteserver,remoteserver2,remoteserver3,logall,filter,dhcp,auth,vpn,dpinger,system,resolver}' \
+        "${optional_syslog_body}" 2>/dev/null | tee -a "${REPORT}" || true
+    else
+      log "pfsense_remote_syslog_api=unavailable http=${optional_syslog_http:-000}"
+    fi
+    rm -f "${optional_syslog_body}"
   fi
   rm -f "${posture_preflight_body}"
 else
@@ -710,6 +747,69 @@ printf 'unbound_control_healthy=%s\n' "${UNBOUND_HEALTHY}"
 printf '\nService Watchdog entries (Unbound should remain absent during OOM remediation):\n'
 sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | egrep -i '<name>|<service>|<servicename>|<descr>|unbound' | head -80 || true
 
+printf '\nVaultwarden public-name DNS evidence (read-only):\n'
+if grep -qi 'vaultwarden\.albandrieu\.com' /conf/config.xml 2>/dev/null; then
+  printf 'vaultwarden_public_override=config_xml_match\n'
+  grep -ni -B 8 -A 12 'vaultwarden\.albandrieu\.com' /conf/config.xml 2>/dev/null | head -80 || true
+else
+  printf 'vaultwarden_public_override=config_xml_absent\n'
+fi
+if grep -qi 'vaultwarden\.albandrieu\.com' /var/unbound/unbound.conf 2>/dev/null; then
+  printf 'vaultwarden_public_unbound_generated=present\n'
+  grep -ni -B 4 -A 6 'vaultwarden\.albandrieu\.com' /var/unbound/unbound.conf 2>/dev/null | head -40 || true
+else
+  printf 'vaultwarden_public_unbound_generated=absent\n'
+fi
+if command -v drill >/dev/null 2>&1; then
+  printf 'vaultwarden_public_dns_answer='
+  drill -Q vaultwarden.albandrieu.com @127.0.0.1 2>/dev/null | awk '$4 == "A" {print $5; exit}' || true
+fi
+printf 'vaultwarden_public_unbound_lookup='
+if command -v unbound-control >/dev/null 2>&1 && [ -f /var/unbound/unbound.conf ]; then
+  unbound-control -c /var/unbound/unbound.conf lookup vaultwarden.albandrieu.com 2>/dev/null |
+    tr '\n' ' ' | tr -s ' ' | head -c 1200 || true
+fi
+printf '\n'
+printf 'Vaultwarden candidate runtime sources (bounded):\n'
+for candidate in   /var/unbound/pfb_py_data.txt   /var/unbound/pfb_py_zone.txt   /var/unbound/host_entries.conf   /var/unbound/dhcpleases_entries.conf   /var/unbound/*.conf; do
+  [ -f "${candidate}" ] || continue
+  if grep -qiF 'vaultwarden.albandrieu.com' "${candidate}" 2>/dev/null; then
+    printf 'vaultwarden_runtime_match=%s\n' "${candidate}"
+    grep -niF 'vaultwarden.albandrieu.com' "${candidate}" 2>/dev/null | head -8 || true
+  fi
+done
+printf 'Vaultwarden split-name candidates in config.xml (host/domain may be stored separately):\n'
+grep -niE '<(host|hostname)>vaultwarden</(host|hostname)>|<domain>albandrieu\.com</domain>' /conf/config.xml 2>/dev/null | head -40 || true
+
+printf '\npfSense remote syslog configuration (read-only):\n'
+if grep -q '<syslog>' /conf/config.xml 2>/dev/null; then
+  SYSLOG_BLOCK="$(sed -n '/<syslog>/,/<\/syslog>/p' /conf/config.xml 2>/dev/null)"
+  printf '%s\n' "${SYSLOG_BLOCK}" |
+    egrep '<(format|enableremotelogging|ipprotocol|sourceip|remoteserver|remoteserver2|remoteserver3|logall|filter|dhcp|auth|vpn|dpinger|system|resolver)>' |
+    head -80 || true
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '<enableremotelogging'; then
+    printf 'pfsense_remote_syslog_enabled=true\n'
+  else
+    printf 'pfsense_remote_syslog_enabled=false\n'
+  fi
+  for field in format sourceip remoteserver remoteserver2 remoteserver3; do
+    value="$(printf '%s\n' "${SYSLOG_BLOCK}" | sed -n "s:.*<${field}>\(.*\)</${field}>.*:\1:p" | head -n1)"
+    printf 'pfsense_remote_syslog_%s=%s\n' "${field}" "${value:-<unset>}"
+  done
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.57:1514'; then
+    printf 'pfsense_remote_syslog_legacy_workstation=present\n'
+  else
+    printf 'pfsense_remote_syslog_legacy_workstation=absent\n'
+  fi
+  if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.24:1514'; then
+    printf 'pfsense_remote_syslog_alloy_target=present\n'
+  else
+    printf 'pfsense_remote_syslog_alloy_target=absent\n'
+  fi
+else
+  printf 'pfsense_remote_syslog_config=missing\n'
+fi
+
 section "CrowdSec / pfBlockerNG pressure indicators"
 CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
 CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
@@ -741,8 +841,37 @@ printf 'CrowdSec firewall bouncer policy (redacted):\n'
 if [ -f "${CROWDSEC_BOUNCER_CONF}" ]; then
   printf 'crowdsec_firewall_bouncer_config=%s\n' "${CROWDSEC_BOUNCER_CONF}"
   awk '/^[[:space:]]*(mode|update_frequency|log_mode|log_dir|log_level|api_url|disable_ipv6|deny_action|blacklists_ipv4|blacklists_ipv6):/ {print}' "${CROWDSEC_BOUNCER_CONF}" 2>/dev/null | head -30 || true
+  CROWDSEC_BOUNCER_API_URL="$(
+    awk '/^[[:space:]]*api_url:[[:space:]]*/ {
+      sub(/^[[:space:]]*api_url:[[:space:]]*/, "")
+      gsub(/^["'\''"]|["'\''"]$/, "")
+      print
+      exit
+    }' "${CROWDSEC_BOUNCER_CONF}" 2>/dev/null
+  )"
+  case "${CROWDSEC_BOUNCER_API_URL}" in
+    http://127.0.0.1:* | https://127.0.0.1:* | http://localhost:* | https://localhost:*)
+      CROWDSEC_BOUNCER_LAPI_MODE=local
+      ;;
+    http://172.17.0.24:8084* | https://172.17.0.24:8084*)
+      CROWDSEC_BOUNCER_LAPI_MODE=remote-truenas
+      ;;
+    "")
+      CROWDSEC_BOUNCER_LAPI_MODE=missing
+      ;;
+    *)
+      CROWDSEC_BOUNCER_LAPI_MODE=other
+      ;;
+  esac
+  CROWDSEC_BOUNCER_API_URL_REDACTED="$(
+    printf '%s\n' "${CROWDSEC_BOUNCER_API_URL:-<none>}" |
+      sed -E 's#(https?://)[^/@]+@#\\1<redacted>@#'
+  )"
+  printf 'crowdsec_firewall_bouncer_api_url=%s mode=%s\n' \
+    "${CROWDSEC_BOUNCER_API_URL_REDACTED}" "${CROWDSEC_BOUNCER_LAPI_MODE}"
 else
   printf 'crowdsec_firewall_bouncer_config=missing\n'
+  printf 'crowdsec_firewall_bouncer_api_url=<none> mode=missing\n'
 fi
 printf 'Recent CrowdSec firewall bouncer warnings/errors (bounded):\n'
 if [ -f "${CROWDSEC_BOUNCER_LOG}" ]; then
@@ -1028,7 +1157,7 @@ else
     while IFS= read -r summary_line; do
       [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
     done < <(
-      grep -E '^(unbound_control_healthy=|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 32 || true
+      grep -E '^(unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 52 || true
     )
   fi
 fi

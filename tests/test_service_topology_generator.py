@@ -17,6 +17,36 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_gatus_config_permission_contract(self) -> None:
+        # Generated Gatus config is not world-readable and the container
+        # belongs to its owning TrueNAS apps group without DAC_OVERRIDE.
+        text = (ROOT / "scripts" / "generate-service-consumers.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("if path == GATUS_OUTPUT:", text)
+        self.assertIn("path.chmod(0o640)", text)
+        compose = (ROOT / "apps" / "gatus" / "compose.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("group_add:", compose)
+        self.assertIn("GATUS_CONFIG_GID:-568", compose)
+        self.assertIn("no-new-privileges:true", compose)
+        self.assertIn("cap_drop:", compose)
+
+    def test_consumer_generator_error_handler_imports_subprocess(self) -> None:
+        # Git failure must be reported, not masked by NameError.
+        text = (ROOT / "scripts" / "generate-service-consumers.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("import subprocess", text)
+        self.assertIn("subprocess.CalledProcessError", text)
+
+    def test_generator_error_handler_imports_subprocess(self) -> None:
+        # Previously a stale icon raised NameError in the exception handler.
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("import subprocess", source)
+        self.assertNotIn('"openwebui-pipelines"', (ROOT / "catalog" / "service-icons.json").read_text(encoding="utf-8"))
+
     def test_tracked_compose_paths_include_root_suffix_variants(self) -> None:
         tracked = {path.as_posix() for path in MODULE.tracked_compose_paths()}
         self.assertIn("docker-compose-truenas.yml", tracked)

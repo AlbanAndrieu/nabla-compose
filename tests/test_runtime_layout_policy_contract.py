@@ -168,10 +168,10 @@ def test_scanopy_deployer_fails_closed_on_mutable_images() -> None:
     assert "server/daemon image release tags differ" in gate
     assert "not production acceptance" in gate
     assert script.index("check-scanopy-image-lock.sh") < script.index(
-        "midclt call -j app.update"
+        'truenas_job_compact app.update'
     )
     assert script.index("check-scanopy-image-lock.sh") < script.index(
-        "midclt call -j app.create"
+        'truenas_job_compact app.create'
     )
 
 

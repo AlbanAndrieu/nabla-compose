@@ -55,7 +55,7 @@ class SecurityCiContractTest(unittest.TestCase):
         workflow = (
             ROOT / ".github/workflows/production-security.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("DAST ownership is delegated to fastapi-sample", workflow)
+        self.assertIn("blocking ownership stays with AlbanAndrieu/fastapi-sample", workflow)
         self.assertNotIn("zaproxy/", workflow)
         self.assertNotIn("action-api-scan", workflow)
         self.assertNotIn("action-baseline", workflow)

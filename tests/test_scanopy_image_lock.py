@@ -32,26 +32,35 @@ class ScanopyImageLockContractTests(unittest.TestCase):
     def invoke(
         self, images: str, *, docker_exit: int = 0, override: str = "0"
     ) -> subprocess.CompletedProcess[str]:
-        with tempfile.TemporaryDirectory() as tmp:
+        # The TrueNAS /tmp mount may not permit executing a fake Docker binary.
+        # Keep the fixture on the repository filesystem, like the earlier
+        # diagnostic-wrapper regression.
+        with tempfile.TemporaryDirectory(prefix=".scanopy-test-", dir=ROOT) as tmp:
             directory = Path(tmp)
             compose = directory / "compose.yml"
             compose.write_text("services: {}\n", encoding="utf-8")
+            inventory = directory / "images.txt"
+            inventory.write_text(images, encoding="utf-8")
             docker = directory / "docker"
             docker.write_text(
                 "#!/usr/bin/env bash\n"
                 '[[ "$1" == "compose" && "$2" == "-f" && "$4" == "config" '
                 '&& "$5" == "--no-env-resolution" && "$6" == "--images" ]] '
                 "|| exit 22\n"
-                "printf '%s' \"${SCANOPY_TEST_IMAGES}\"\n"
+                'cat -- "${SCANOPY_TEST_IMAGES_FILE}"\n'
                 'exit "${SCANOPY_TEST_EXIT:-0}"\n',
                 encoding="utf-8",
             )
             docker.chmod(0o755)
-            env = dict(os.environ)
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if key != "BASH_ENV" and not key.startswith("BASH_FUNC_")
+            }
             env.update(
                 {
                     "PATH": f"{directory}{os.pathsep}{env.get('PATH', '')}",
-                    "SCANOPY_TEST_IMAGES": images,
+                    "SCANOPY_TEST_IMAGES_FILE": str(inventory),
                     "SCANOPY_TEST_EXIT": str(docker_exit),
                     "SCANOPY_ALLOW_MUTABLE_IMAGE": override,
                 }
@@ -130,8 +139,8 @@ class ScanopyImageLockContractTests(unittest.TestCase):
         script = DEPLOY.read_text(encoding="utf-8")
         gate = 'check-scanopy-image-lock.sh" "${compose_path}"'
         self.assertIn(gate, script)
-        self.assertLess(script.index(gate), script.index("midclt call -j app.update"))
-        self.assertLess(script.index(gate), script.index("midclt call -j app.create"))
+        self.assertLess(script.index(gate), script.index("truenas_job_compact app.update"))
+        self.assertLess(script.index(gate), script.index("truenas_job_compact app.create"))
         self.assertLess(
             script.index(gate),
             script.index('bootstrap-repository-runtime.sh --apply'),

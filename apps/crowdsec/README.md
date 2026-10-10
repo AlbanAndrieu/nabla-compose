@@ -6,9 +6,9 @@ pfSense should run in CrowdSec **Small / remediation-only** mode and consume dec
 ## Target architecture
 
 ```text
-pfSense filter/nginx/auth logs ─┐
-                               ├──> CrowdSec Security Engine + LAPI on TrueNAS
-Suricata eve.json ──────────────┘                  │
+pfSense RFC5424 ──> Alloy UDP/1514 ──> Loki ─┐
+                                              ├──> CrowdSec Security Engine + LAPI on TrueNAS
+Suricata eve.json ─────────────────────────────┘                  │
                                                   │ tcp/8084, LAN only
                                                   ▼
                                      pfSense firewall bouncer
@@ -19,23 +19,72 @@ Suricata eve.json ──────────────┘                 
 
 This removes CrowdSec parsing, scenarios, SQLite/LAPI work and CAPI synchronization from the resource-constrained pfSense appliance while keeping packet remediation at the firewall.
 
+## Current incident mitigation — 2026-10-10
+
+The pfSense read-only diagnostic now proves the problematic path rather than
+merely correlating it:
+
+- Security Engine: stopped;
+- firewall bouncer: still running;
+- `crowdsec_pf_scan_stuck_lines=19213`;
+- `max_failed_sent=19899999`;
+- `max_attempts=19900000`;
+- `max_sigclosed=0`.
+
+That shape is consistent with a live leaky bucket whose input cannot accept the
+event, causing the producer to busy-spin. CrowdSec upstream issue
+[crowdsecurity/crowdsec#1519](https://github.com/crowdsecurity/crowdsec/issues/1519)
+describes the same tight-loop failure mode. The current CrowdSec 1.8.1 source
+still contains the non-blocking retry path, so upgrading alone is not treated as
+a fix.
+
+The central TrueNAS engine is therefore pinned to CrowdSec 1.8.1 **and**
+temporarily removes only the offending Hub scenario through the official
+container variable:
+
+```text
+DISABLE_SCENARIOS=firewallservices/pf-scan-multi_ports
+```
+
+The rest of `crowdsecurity/pfsense` remains installed. Do not re-enable the
+pfSense Security Engine while this incident is open merely to regain this one
+port-scan scenario.
+
 ## Runtime variables
 
 The central engine can bootstrap without a bouncer secret. The optional
-`/mnt/cpool/crowdsec/.env.secrets` file is loaded only when present, so a
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` file is loaded only when present, so a
 missing secret file no longer makes the entire TrueNAS Compose model invalid.
 
-Before switching pfSense to the remote LAPI, render this required bouncer
-credential:
+Before switching pfSense to the remote LAPI, materialize the required
+`BOUNCER_KEY_PFSENSE_FIREWALL` from the existing Vaultwarden manifest. Do not
+invent or rotate a key merely to make the runtime gate green.
 
-```text
-BOUNCER_KEY_PFSENSE_FIREWALL=<random secret shared with the pfSense firewall bouncer>
+Run the renderer from the **unprivileged operator shell** that owns the unlocked
+`BW_SESSION`; never pass that session through `sudo -E`:
+
+```bash
+python scripts/secrets/render_from_bitwarden.py --check
+python scripts/secrets/render_from_bitwarden.py \
+  --app crowdsec \
+  --output-file /tmp/crowdsec.env.secrets
+
+sudo install -d -o root -g root -m 700 \
+  /mnt/cpool/secrets/runtime/crowdsec
+sudo install -o root -g root -m 600 \
+  /tmp/crowdsec.env.secrets \
+  /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
+rm -f /tmp/crowdsec.env.secrets
+
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check crowdsec
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
 ```
 
-The file must be mode `0600`. The repository Vaultwarden manifest imports the
-legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` name and renders the container-facing
-`BOUNCER_KEY_PFSENSE_FIREWALL` variable. Redeploy CrowdSec after rendering the
-file, then verify `cscli bouncers list` before changing pfSense.
+The repository manifest maps legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` to the
+container-facing `BOUNCER_KEY_PFSENSE_FIREWALL`. If Vaultwarden cannot render
+that field, stop the cutover: an existing CrowdSec bouncer registration does not
+reveal its API key. Rotation is a separate explicit operator transaction and is
+never performed by `deploy-crowdsec.sh`.
 
 Optional:
 
@@ -44,7 +93,6 @@ CROWDSEC_LAPI_BIND_ADDRESS=172.17.0.24
 CROWDSEC_LAPI_PORT=8084
 CROWDSEC_METRICS_BIND_ADDRESS=172.17.0.24
 CROWDSEC_METRICS_PORT=6060
-PFSENSE_LOG_DIR=/mnt/cpool/logs/pfsense
 SURICATA_LOG_DIR=/mnt/cpool/suricata/log
 TZ=Europe/Paris
 ```
@@ -54,7 +102,7 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 ## TrueNAS Custom App deployment
 
 The app may be installed before the bouncer secret exists. For the final
-pfSense cutover, render `/mnt/cpool/crowdsec/.env.secrets` and redeploy it.
+pfSense cutover, render `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` and redeploy it.
 Register the missing Custom App with the canonical repository include:
 
 ```bash
@@ -78,38 +126,111 @@ sudo midclt call -j app.create "$(
 
 Use `app.redeploy crowdsec` only after `app.query` confirms the app exists.
 
+Before changing pfSense, use the scoped repository deployer. Its default mode is
+read-only. A missing bouncer credential is reported as a **cutover warning**,
+not as a blocker for repairing the central TrueNAS runtime. Uncommitted changes
+inside the CrowdSec deployment scope remain a blocking precondition.
+
+```bash
+sudo bash scripts/truenas/deploy-crowdsec.sh --check
+sudo bash scripts/truenas/deploy-crowdsec.sh --apply
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime
+
+# Only after the canonical bouncer credential is materialized:
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+```
+
+`--apply` reconciles **only** the TrueNAS CrowdSec Custom App; it does not
+change pfSense, create/delete a bouncer, rotate a key or start the local pfSense
+Security Engine. The post-reconcile `--runtime` gate proves the image, scenario
+exclusion, LAPI/listeners and Loki acquisition independently from cutover
+credentials.
+
+The stronger `--check` gate additionally verifies the canonical bouncer-secret
+contract and central `PFSENSE_FIREWALL` registration. It never creates a
+bouncer, prints a key, redeploys an App or restarts a service.
+
+After pfSense is switched to the remote LAPI, require the stronger acceptance
+gate:
+
+```bash
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+```
+
+`--accept` additionally requires that the pfSense firewall bouncer has polled
+the central LAPI at least once.
+
+The acceptance is intentionally split by trust boundary:
+
+**On TrueNAS only** — validate the central engine/LAPI/Loki path and observe
+`crowdsec_active_decisions`:
+
+```bash
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+```
+
+TrueNAS never SSHes to pfSense.
+
+**On the workstation only** — validate pfSense Small mode over the workstation's
+existing SSH path:
+
+```bash
+bash scripts/workstation/verify-crowdsec-pfsense.sh
+```
+
+It verifies that the local Security Engine is absent, the firewall bouncer is
+running, its `api_url` targets `http://172.17.0.24:8084`, and the
+`crowdsec_blacklists` / `crowdsec6_blacklists` PF tables exist. Empty tables
+are a warning by default because they are legitimate when no active ban exists.
+When the TrueNAS diagnostic reports `crowdsec_active_decisions>0`, rerun the
+workstation helper with `--require-nonempty-table`; an empty PF table then
+becomes a failure. Do not run `docker exec` from the workstation.
+
 ## Migration from pfSense Large to Small
 
-1. Keep the existing pfSense CrowdSec installation running while this container is deployed and validated.
-2. Generate a new strong `BOUNCER_KEY_PFSENSE_FIREWALL` and configure it in the TrueNAS application environment.
-3. Start this CrowdSec container and verify:
-
-   ```sh
-   docker exec crowdsec cscli lapi status
-   docker exec crowdsec cscli metrics
-   docker exec crowdsec cscli bouncers list
-   ```
-
-4. From pfSense, verify that `172.17.0.24:8084` is reachable over the trusted LAN.
-5. In **Services > CrowdSec** on pfSense:
+1. Keep the existing pfSense **firewall bouncer** running, but keep the local
+   Security Engine stopped while the backpressure incident remains open.
+2. Deploy the central TrueNAS CrowdSec container and verify that
+   `firewallservices/pf-scan-multi_ports` is absent while the remaining
+   `crowdsecurity/pfsense` collection is installed.
+3. Generate a new strong `BOUNCER_KEY_PFSENSE_FIREWALL` and configure it in the
+   TrueNAS application environment, then redeploy only the CrowdSec App.
+4. Run `diagnose-crowdsec-cutover.sh --check`; require zero failures before
+   touching pfSense.
+5. From pfSense, verify that `172.17.0.24:8084` is reachable over the trusted LAN.
+6. In **Services > CrowdSec** on pfSense:
    - keep **Remediation Component** enabled;
-   - disable **Log Processor**;
-   - disable **Local API**;
+   - keep **Log Processor** disabled;
+   - keep **Local API** disabled;
    - configure the remote LAPI URL as `http://172.17.0.24:8084`;
    - configure the firewall bouncer with the shared key.
-6. Save/apply and verify on the central LAPI that the pfSense bouncer is valid and polling.
-7. Confirm that pfSense still receives CrowdSec decisions in its PF table before considering the migration complete.
+7. Save/apply, then run `diagnose-crowdsec-cutover.sh --accept` on TrueNAS and
+   require a non-empty `last_pull` for `PFSENSE_FIREWALL`.
+8. Confirm that pfSense still receives CrowdSec decisions in its PF table before
+   considering the migration complete.
 
-Rollback is simply to re-enable the pfSense Log Processor and Local API using the previously backed-up pfSense configuration.
+Rollback the **cutover**, not the incident mitigation: restore the previous
+bouncer/LAPI settings from the backed-up pfSense configuration, but do not
+automatically re-enable the local Security Engine. An emergency local-engine
+rollback must first exclude `firewallservices/pf-scan-multi_ports` and must be
+observed with bounded CPU/RSS and free-memory headroom.
 
 ## Detection sources
 
 The central engine currently acquires:
 
-- pfSense syslog files from `${PFSENSE_LOG_DIR}`;
+- pfSense RFC5424 events from the **existing Loki stream**
+  `{job="pfsense", device="pfsense"}`, produced by Alloy on TrueNAS;
 - Suricata `eve.json` from `${SURICATA_LOG_DIR}`.
 
-The pfSense logs are intentionally parsed on TrueNAS after migration, so pfSense Small mode does not need to run the CrowdSec Log Processor.
+This intentionally avoids a second syslog receiver and avoids inventing a
+`/mnt/cpool/logs/pfsense/*.log` persistence path that the observability stack
+does not create. CrowdSec's Loki datasource starts at the current time, so
+post-redeploy acceptance must generate/observe fresh pfSense activity.
+
+The pfSense logs are parsed centrally on TrueNAS after migration, so pfSense
+Small mode does not need to run the CrowdSec Log Processor.
 
 ## Motivation and current pfSense evidence
 

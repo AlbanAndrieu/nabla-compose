@@ -15,6 +15,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeveloperToolingContractTests(unittest.TestCase):
+    def test_shellcheck_is_native_and_preserves_source_aware_lint(self) -> None:
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        self.assertFalse(
+            any(
+                repo["repo"] == "https://github.com/koalaman/shellcheck-precommit"
+                for repo in config["repos"]
+            )
+        )
+        hooks = [
+            hook
+            for repo in config["repos"]
+            if repo["repo"] == "local"
+            for hook in repo["hooks"]
+            if hook["id"] == "shellcheck"
+        ]
+        self.assertEqual(len(hooks), 1)
+        hook = hooks[0]
+        self.assertEqual(hook["language"], "system")
+        self.assertEqual(hook["entry"], "shellcheck")
+        self.assertEqual(hook["args"], ["-x", "-P", "SCRIPTDIR"])
+        self.assertEqual(hook["types"], ["shell"])
+
     def test_betterleaks_is_the_only_active_precommit_secrets_scanner(self) -> None:
         config = yaml.safe_load(
             (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -123,6 +147,33 @@ class DeveloperToolingContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("quality", result.stdout)
         self.assertIn("secrets", result.stdout)
+
+    def test_security_control_ownership_stays_explicit_and_blocking(self) -> None:
+        production = (
+            ROOT / ".github" / "workflows" / "production-security.yml"
+        ).read_text(encoding="utf-8")
+        codeql = (ROOT / ".github" / "workflows" / "codeql.yml").read_text(
+            encoding="utf-8"
+        )
+        package = (ROOT / "package.json").read_text(encoding="utf-8")
+
+        self.assertIn("AlbanAndrieu/fastapi-sample", production)
+        self.assertIn(
+            "Playwright: .github/workflows/production-smoke.yml",
+            production,
+        )
+        self.assertIn(
+            "OWASP ZAP Web/OpenAPI: .github/workflows/security-zap.yml",
+            production,
+        )
+        self.assertIn(
+            "replace them here with continue-on-error, soft-fail wrappers",
+            production,
+        )
+        self.assertNotIn('"playwright"', package.lower())
+        self.assertIn("SAST / CodeQL (Python)", codeql)
+        self.assertIn("github/codeql-action/analyze@", codeql)
+        self.assertNotIn("continue-on-error:", codeql)
 
     def test_legacy_megalinter_secrets_scanner_remains_disabled(self) -> None:
         config = yaml.safe_load(

@@ -502,15 +502,6 @@ endpoints:
   url: tcp://172.17.0.24:31028
   conditions:
   - '[CONNECTED] == true'
-- name: Open WebUI Pipelines
-  group: ai
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: openwebui-pipelines
-    nabla_service_id: openwebui-pipelines
-  url: tcp://172.17.0.24:9099
-  conditions:
-  - '[CONNECTED] == true'
 - name: pfSense
   group: network
   interval: 60s

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -67,31 +66,20 @@ def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None
         cwd=tmp_path,
         check=True,
     )
-    git_binary = shutil.which("git")
-    assert git_binary is not None
-    bin_dir = tmp_path / "mock-bin"
-    bin_dir.mkdir()
-    shim = bin_dir / "git"
-    shim.write_text(
-        '#!/bin/sh\n'
-        'if [ "$1" = diff ] && [ "$2" = --name-only ] && '
-        '[ "$3" = --diff-filter=ACMR ]; then exit 99; fi\n'
-        f'exec "{git_binary}" "$@"\n',
+    # /tmp can be noexec on TrueNAS. Bash sources BASH_ENV without executing it.
+    bash_env = tmp_path / "git-env.sh"
+    bash_env.write_text(
+        "git() {\n"
+        '  if [[ "$1" == diff && "$2" == --name-only && "$3" == --diff-filter=ACMR ]]; then return 99; fi\n'
+        '  command git "$@"\n'
+        "}\n",
         encoding="utf-8",
     )
-    shim.chmod(0o755)
-
     result = subprocess.run(
         ["bash", str(GATE)],
         cwd=tmp_path,
-        env={
-            **os.environ,
-            "PATH": f"{bin_dir}:{os.environ['PATH']}",
-            "QUALITY_BASE_REF": "HEAD",
-        },
-        capture_output=True,
-        text=True,
-        check=False,
+        env={**os.environ, "BASH_ENV": str(bash_env), "QUALITY_BASE_REF": "HEAD"},
+        capture_output=True, text=True, check=False,
     )
     assert result.returncode != 0
     assert "offline Git base missing" in result.stderr
@@ -102,9 +90,9 @@ def test_agent_error_excerpt_limits_remain_configurable() -> None:
     gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
         encoding="utf-8"
     )
-    assert 'LOG_TAIL="${QUALITY_LOG_TAIL:-32}"' in gate
+    assert 'LOG_TAIL="${QUALITY_LOG_TAIL:-12}"' in gate
     assert 'LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"' in gate
-    assert 'summary_limit="${QUALITY_SUMMARY_LINES:-12}"' in gate
+    assert 'summary_limit="${QUALITY_SUMMARY_LINES:-10}"' in gate
     assert 'awk -v max="${summary_limit}"' in gate
     assert "additional summary lines omitted" in gate
     assert 'print_compact_log "${log}"' in gate
@@ -114,29 +102,23 @@ def test_agent_error_excerpt_limits_remain_configurable() -> None:
 def test_offline_inventory_git_failure_is_blocking(tmp_path: Path) -> None:
     """Unavailable Git inventory cannot produce a false-green empty scan."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    binary = shutil.which("git")
-    assert binary is not None
-    mock_dir = tmp_path / "bin"
-    mock_dir.mkdir()
-    mock_git = mock_dir / "git"
-    mock_git.write_text(
-        '#!/bin/sh\n'
-        'if [ "$1" = ls-files ]; then exit 97; fi\n'
-        f'exec "{binary}" "$@"\n',
+    bash_env = tmp_path / "git-env.sh"
+    bash_env.write_text(
+        "git() {\n"
+        '  if [[ "$1" == ls-files ]]; then return 97; fi\n'
+        '  command git "$@"\n'
+        "}\n",
         encoding="utf-8",
     )
-    mock_git.chmod(0o755)
     result = subprocess.run(
         ["bash", str(GATE)],
         cwd=tmp_path,
         env={
             **os.environ,
-            "PATH": f"{mock_dir}:{os.environ['PATH']}",
+            "BASH_ENV": str(bash_env),
             "QUALITY_BASE_REF": "refs/remotes/origin/unavailable",
         },
-        capture_output=True,
-        text=True,
-        check=False,
+        capture_output=True, text=True, check=False,
     )
     assert result.returncode == 2
     assert "offline file inventory failed" in result.stderr
