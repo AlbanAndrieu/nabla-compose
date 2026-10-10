@@ -40,9 +40,9 @@ if counts["context_pressure"]:
     print("ACTION: review session prompt size and compaction limits")
 '
 }
-if [[ "$mode" == stdin ]]; then
+if [[ "${mode}" == stdin ]]; then
   aggregate
 else
-  journalctl --user -u openclaw-gateway.service --since "$since" --no-pager -o cat |
+  journalctl --user -u openclaw-gateway.service --since "${since}" --no-pager -o cat |
     aggregate
 fi
