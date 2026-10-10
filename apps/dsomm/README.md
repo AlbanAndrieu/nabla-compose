@@ -72,6 +72,37 @@ On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
 runtime state with mode `0600`. Existing runtime progress/evidence files are
 **never overwritten** by later deploys.
 
+## Safely restoring the empty runtime assessment
+
+An operator check on 2026-10-10 found valid `model.yaml` but
+`team-progress.yaml` and `team-evidence.yaml` were both 10 bytes and
+contained no activity records. DSOMM returns HTTP 200 but consequently
+shows no assessment progress.
+
+To initialize only **recognized empty YAML** from the reviewed seed,
+run on TrueNAS after syncing the PR branch:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/truenas/repair-empty-dsomm-assessment.py --check
+sudo python3 scripts/truenas/repair-empty-dsomm-assessment.py --apply
+sudo python3 scripts/dsomm/validate-seed.py \\
+  --progress /mnt/cpool/dsomm/state/team-progress.yaml \\
+  --evidence /mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+The repair refuses nonempty or unexpected YAML, symlink/hardlink files,
+and backs up both empty originals under a timestamped, mode-0700 folder
+within `/mnt/cpool/dsomm/state/`. It does **not** change the upstream
+model, aggregate repository JSON claims, or restart the DSOMM app.
+
+**Important:** the running Docker frontend has file bind mounts. An
+atomic replacement changes the host file inode but an already-running
+container can retain the original inode. After validating the restored
+files, use an explicit, controlled app redeploy to remount the new
+inodes; back up first and check container health and browser assets
+afterwards. Never write into `model.yaml`.
+
 ## Empty UI versus repository assessments
 
 The DSOMM frontend at `http://172.17.0.24:31088/` is a static
