@@ -12,6 +12,7 @@ JUST_VERSION="${NABLA_JUST_VERSION:-1.58.0}"
 PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"
 JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"
 SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
+NODE_VERSION="${NABLA_NODE_VERSION:-24.18.1}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
 export MISE_LOCKFILE=false
 PERSIST_SHELL_PATH=false
@@ -58,6 +59,7 @@ fi
 "${MISE_BIN}" --no-config install uv@latest
 "${MISE_BIN}" --no-config install "just@${JUST_VERSION}"
 "${MISE_BIN}" --no-config install "shellcheck@${SHELLCHECK_VERSION}"
+"${MISE_BIN}" --no-config install "node@${NODE_VERSION}"
 
 printf 'Preparing a minimal user-space development environment: %s\n' "${DEV_VENV}"
 mkdir -p "$(dirname "${DEV_VENV}")"
@@ -86,6 +88,17 @@ SHELLCHECK_BIN="$(
 [[ -x "${SHELLCHECK_BIN}" ]] || fail "mise-installed shellcheck is not executable: ${SHELLCHECK_BIN}"
 ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"
 "${DEV_VENV}/bin/shellcheck" --version
+
+NODE_BIN="$(
+  "${MISE_BIN}" --no-config which \
+    --tool "node@${NODE_VERSION}" node
+)"
+[[ -x "${NODE_BIN}" ]] || fail "mise-installed node is not executable: ${NODE_BIN}"
+ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"
+"${DEV_VENV}/bin/node" --version
+# The full offline security audit test invokes pinned Node validators via PATH.
+# A venv-local symlink also works when the interactive mise shims are absent.
+
 
 printf 'Installing repository Git hooks with venv-managed pre-commit...\n'
 "${DEV_VENV}/bin/pre-commit" install \
@@ -121,6 +134,9 @@ fi
 cat <<EOF
 
 ✅ TrueNAS development tooling is ready without modifying the appliance OS.
+
+Pinned Node.js for Cloudflare security audit validators:
+  ${DEV_VENV}/bin/node --version
 
 The agent quality gate automatically prepends this venv when it exists:
   bash scripts/agent-quality-gate.sh --fix
