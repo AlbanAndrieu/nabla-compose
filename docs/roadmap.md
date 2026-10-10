@@ -46,6 +46,28 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 DSOMM empty persisted YAML — runtime root cause
+
+- [x] TrueNAS operator ran new diagnostic: the checked-in DSOMM
+  5.0.2 seed validates (22 activities and 22 evidence records);
+  runtime `model.yaml` exists (614262 bytes) but
+  `team-progress.yaml` and `team-evidence.yaml` are each
+  10 bytes, reporting invalid/no activity mapping. DSOMM root
+  HTTP 200 does not establish populated UI.
+- [x] `nabla-site-alban` repository producer validated and its
+  partial 1/4-source portfolio report was written to
+  `/mnt/cpool/dsomm/reports/site-alban.repository-assessment.aggregate.json`.
+  Do not interpret 1/4 as a complete portfolio maturity score.
+- [x] Added explicit `--check|--apply` backup-first empty-state
+  recovery script and focused regression tests. It refuses
+  populated assessments rather than overwriting them.
+- [ ] Operator acceptance: run `--check`, guarded `--apply`,
+  validate runtime seed, then explicitly remount the file bind
+  mounts through controlled DSOMM app redeploy; verify UI context
+  displays 22 seeded activities and evidence. No automatic restart.
+- [ ] Repo-level portfolio synthesis remains separate from the
+  UI seed and requires reviewed provenance and coverage.
+
 ### P0 CI and DSOMM UI investigation — 2026-10-10
 
 - [x] GitHub Actions PR #253 pre-commit failure at
