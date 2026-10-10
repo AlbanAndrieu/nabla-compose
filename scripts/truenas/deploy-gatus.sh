@@ -46,7 +46,16 @@ for command in curl docker git jq midclt stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "missing ${command}"
 done
 
-truenas_repo_provenance "${ROOT}"
+# Git index must never be refreshed as root: root git status rewrites .git/index.
+if ((EUID == 0)); then
+  command -v runuser >/dev/null 2>&1 || fail 'runuser is required for unprivileged Git metadata inspection'
+  runuser -u albandrieu -- bash -c 'source "$1"; truenas_repo_provenance "$2"' \
+    _ "${ROOT}/scripts/lib/truenas.sh" "${ROOT}"
+  GIT_CMD=(runuser -u albandrieu -- git -C "${ROOT}")
+else
+  truenas_repo_provenance "${ROOT}"
+  GIT_CMD=(git -C "${ROOT}")
+fi
 
 printf '==> Gatus source contract\n'
 docker compose -f "${COMPOSE}" config --quiet ||
@@ -59,8 +68,8 @@ grep -Fq '/mnt/cpool/gatus:/data' "${COMPOSE}" ||
   fail 'Gatus persistent data mount is missing'
 
 printf '\n==> Gatus scoped Git cleanliness\n'
-if git -C "${ROOT}" diff --quiet -- apps/gatus scripts/truenas/deploy-gatus.sh scripts/truenas/repair-gatus-config-access.sh scripts/truenas/diagnose-gatus.sh &&
-  git -C "${ROOT}" diff --cached --quiet -- apps/gatus scripts/truenas/deploy-gatus.sh scripts/truenas/repair-gatus-config-access.sh scripts/truenas/diagnose-gatus.sh; then
+if "${GIT_CMD[@]}" diff --quiet -- apps/gatus scripts/truenas/deploy-gatus.sh scripts/truenas/repair-gatus-config-access.sh scripts/truenas/diagnose-gatus.sh &&
+  "${GIT_CMD[@]}" diff --cached --quiet -- apps/gatus scripts/truenas/deploy-gatus.sh scripts/truenas/repair-gatus-config-access.sh scripts/truenas/diagnose-gatus.sh; then
   printf 'OK: Gatus deployment scope is clean\n'
 else
   fail 'Gatus deployment scope is dirty; commit or restore this scope before apply'
@@ -95,6 +104,9 @@ fi
 printf '\n==> Reconcile only the Gatus TrueNAS Custom App\n'
 lifecycle_mark="$(truenas_lifecycle_mark)"
 truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
+# app.update may succeed without recreating an existing restarting container.
+# The explicit --apply transaction must reinstantiate the app to receive GroupAdd.
+truenas_job_compact app.redeploy "${APP_ID}"
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 3
 truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 30 || true
 
