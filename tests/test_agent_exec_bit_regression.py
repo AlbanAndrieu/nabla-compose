@@ -1,6 +1,9 @@
 """Regression for the executable-bit gate: verify behavior, not just syntax."""
 from pathlib import Path
+import os
 import subprocess
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE = ROOT / "scripts/agent-quality-gate.sh"
@@ -27,6 +30,11 @@ def test_executable_gate_rejects_non_executable_shebang(tmp_path):
     # Git tracks the executable bit, but does not chmod the checkout itself.
     # The gate intentionally requires owner-executable worktree permissions.
     script.chmod(0o700)
+    if not os.access(script, os.X_OK):
+        # On some TrueNAS ACL/noexec mounts, chmod cannot grant effective
+        # execute access. This is a mount-policy limitation, not a Git-index
+        # failure; keep the negative security assertion above active.
+        pytest.skip("fixture filesystem denies execute access after chmod 0700")
     passed = subprocess.run(["bash", "-e", "-c", invocation], cwd=tmp_path,
                             text=True, capture_output=True)
     assert passed.returncode == 0, passed.stderr
