@@ -104,6 +104,35 @@ must not be mistaken for the local PostgreSQL target.
 Supabase database/pooler settings must use explicit `SUPABASE_*` variables;
 do not overload local `POSTGRES_*` with the Supabase pooler identity.
 
+## Diagnostic post-reboot sans dépendance à FastAPI
+
+Depuis le checkout `nabla-compose` sur TrueNAS :
+
+```bash
+just truenas-fastapi-check
+# ou
+python3 scripts/truenas/diagnose-fastapi-integrations.py --json
+```
+
+Cet orchestrateur **lecture seule** vérifie d'abord Docker, TCP PostgreSQL
+(:5432), Redis (:6379), Prometheus (:9090), son endpoint `/-/ready`, puis
+FastAPI (:8091). Les sockets ne prouvent ni authentification DB ni applicatif.
+Lorsque FastAPI répond, il lance
+`fastapi-sample/scripts/diagnose-local-runtime-dependencies.py` sur l'état
+`/api/health-board` existant (TrueNAS, pfSense, Cloudflare, Gatus,
+Prometheus, Sentry, Pyroscope, PostgreSQL, Redis).
+
+Le diagnostic conserve la distinction entre **panne critique**, **télémétrie
+incomplète** et **erreur d'authentification**. Les checks ne redémarrent aucun
+service, ne lisent pas les secrets Docker et ne génèrent pas de fan-out
+additionnel vers pfSense. Un rapport JSON compact peut être conservé pour
+les incidents après redémarrage.
+
+Code retour : `0` = aucun échec critique (des warnings restent possibles),
+`1` = au moins un échec critique, `2` = arguments invalides.
+Pour diagnostiquer une instance non standard, utiliser `--host`,
+`--fastapi-url` ou `--fastapi-script`.
+
 ## Homelab runtime probes
 
 The TrueNAS Compose deployment intentionally enables the internal observer path:
