@@ -2,7 +2,21 @@
 # shellcheck shell=bash
 set -euo pipefail
 
-ROOT="${1:-/mnt/cpool/compose/nabla-compose}"
+MODE="--check"
+ROOT="/mnt/cpool/compose/nabla-compose"
+for arg in "$@"; do
+  case "${arg}" in
+    --check|--repair) MODE="${arg}" ;;
+    /*) ROOT="${arg}" ;;
+    *) printf 'ERROR: unknown argument: %s\n' "${arg}" >&2; exit 2 ;;
+  esac
+done
+# Repair is opt-in and performed from the normal operator account.
+if [[ "${MODE}" == "--repair" ]]; then
+  [[ "$(id -un)" == "albandrieu" ]] || {
+    printf 'ERROR: run --repair as albandrieu, without sudo\n' >&2; exit 1;
+  }
+fi
 [[ -d "${ROOT}/.git" ]] || {
   printf 'ERROR: not a Git checkout: %s\n' "${ROOT}" >&2
   exit 2
@@ -13,6 +27,28 @@ printf 'operator=%s uid=%s gid=%s\n' "$(id -un)" "$(id -u)" "$(id -g)"
 stat -c 'git_dir owner=%U group=%G mode=%a path=%n' "${ROOT}/.git"
 if [[ -e "${ROOT}/.git/index" ]]; then
   stat -c 'git_index owner=%U group=%G mode=%a mtime=%y path=%n' "${ROOT}/.git/index"
+fi
+
+printf '\n==> Main index access\n'
+index="${ROOT}/.git/index"
+if [[ ! -f "${index}" || -L "${index}" ]]; then
+  printf 'ERROR: missing or symlinked main Git index\n' >&2
+  exit 1
+fi
+if [[ "${MODE}" == "--repair" ]]; then
+  # Only the main index. No recursive ownership change or submodule mutation.
+  # Verify the checkout path and avoid repairing an unexpected target.
+  [[ "${ROOT}" == "/mnt/cpool/compose/nabla-compose" ]] || {
+    printf 'ERROR: repair limited to canonical TrueNAS checkout\n' >&2; exit 1;
+  }
+  sudo chown albandrieu:apps -- "${index}"
+  sudo chmod 600 -- "${index}"
+  printf 'OK: main Git index repaired to albandrieu:apps 0600\n'
+fi
+if [[ -w "${index}" && -w "${ROOT}/.git" ]]; then
+  printf 'OK: main index and Git directory writable\n'
+else
+  printf 'WARNING: main index or Git directory not writable\n' >&2
 fi
 
 printf '\n==> Root-owned Git index files\n'
@@ -48,4 +84,4 @@ else
   printf 'INFO: journalctl unavailable\n'
 fi
 
-printf '\nThis diagnostic is read-only. Repair only the exact root-owned index files after reviewing the evidence; never recursively chown the checkout and never run sudo git.\n'
+printf '\nDefault --check is read-only. --repair adjusts only the main Git index to albandrieu:apps 0600; never recursively chown or run Git as root.\n'
