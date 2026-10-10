@@ -59,6 +59,43 @@ def test_checkout_provenance_is_local_and_non_blocking() -> None:
     assert "relation=behind-" in text
 
 
+def test_app_summary_renders_found_and_missing_apps_without_jq_errors() -> None:
+    found_script = """
+source "$1"
+truenas_app_query_by_id() {
+  printf '%s\\n' '[{"id":"crowdsec","state":"RUNNING","active_workloads":{"containers":1}}]'
+}
+truenas_app_summary crowdsec
+"""
+    found = subprocess.run(
+        ["bash", "-c", found_script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert found.returncode == 0, found.stderr
+    assert (
+        found.stdout.strip()
+        == "OK: TrueNAS app crowdsec state=RUNNING containers=1"
+    )
+
+    missing_script = """
+source "$1"
+truenas_app_query_by_id() {
+  printf '%s\\n' '[]'
+}
+truenas_app_summary "crowdsec-test"
+"""
+    missing = subprocess.run(
+        ["bash", "-c", missing_script, "bash", str(TRUENAS_LIB)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 0, missing.stderr
+    assert missing.stdout.strip() == "WARNING: TrueNAS app not found: crowdsec-test"
+
+
 def test_compact_job_helper_preserves_failed_exit_status() -> None:
     script = """
 source "$1"
