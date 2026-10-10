@@ -17,6 +17,12 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_generator_error_handler_imports_subprocess(self) -> None:
+        # Previously a stale icon raised NameError in the exception handler.
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("import subprocess", source)
+        self.assertNotIn('"openwebui-pipelines"', (ROOT / "catalog" / "service-icons.json").read_text(encoding="utf-8"))
+
     def test_tracked_compose_paths_include_root_suffix_variants(self) -> None:
         tracked = {path.as_posix() for path in MODULE.tracked_compose_paths()}
         self.assertIn("docker-compose-truenas.yml", tracked)
