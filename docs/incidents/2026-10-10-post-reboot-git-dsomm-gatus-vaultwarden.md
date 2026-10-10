@@ -258,6 +258,65 @@ run generators as the ordinary operator. If a subsequent generator
 write is denied by root-owned generated artifacts, inspect that file's
 exact ownership before any targeted repair.
 
+## 8. TrueNAS evidence: repeated submodule indices and unsupported ACL
+
+On 2026-10-10, ordinary `git status` failed in turn on the Git
+indices of `anything-llm`, `fastapi-sample` and `litellm`.
+`sudo git status` can re-own the main index again. The directory
+ownership was not the problem: a root-owned `index` in mode 0600 was.
+
+Run the following **as the ordinary operator** in the canonical checkout
+(no `sudo` preceding the shell itself). This touches **only** index
+files currently owned by root, not any submodule revision or other
+file. Inspect the list before confirming the repairs:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+find .git -type f -name index -user root -print
+# After reviewing the above list:
+while IFS= read -r -d '' index; do
+  sudo chown -- "$(id -u):$(id -g)" "$index" || exit
+done < <(find .git -type f -name index -user root -print0)
+git status --short --branch
+```
+
+If `git status` still cannot inspect some submodules, isolate the
+superproject changes with
+`git -c diff.ignoreSubmodules=all status --short --branch`
+temporarily; this deliberately **does not validate submodule changes**.
+Never reset or clean any submodule to silence the status.
+
+Gatus: the repo-generated file was confirmed `albandrieu:apps 0600`;
+`setfacl` failed with `Operation not supported`. The Compose drops
+all capabilities, so Docker root cannot rely on DAC override.
+The source change now regenerates this file as **0640**, and the
+Gatus Compose adds supplemental group
+`GATUS_CONFIG_GID` (default **568**, expected TrueNAS `apps` group).
+
+Verify first:
+
+```bash
+getent group apps
+stat -c '%g %a %n' apps/gatus/config/config.yml
+python3 scripts/generate-service-consumers.py
+stat -c '%g %a %n' apps/gatus/config/config.yml
+sudo docker compose -f apps/gatus/compose.yml config --quiet
+```
+
+If `getent group apps` returns a different GID, set
+`GATUS_CONFIG_GID` to the actual value for the TrueNAS App deployment;
+**do not** broaden configuration mode to 0644. The generator only
+changes mode for the Gatus config, never the other two consumer files.
+Use the supported TrueNAS `app.update` reconciliation path to apply
+the current Gatus Compose and re-create **only Gatus**; the
+`group_add` configuration does not affect an existing container
+without recreation. Then verify container UID/groups and HTTP health.
+Do not edit `/mnt/cpool/gatus` or reset its database.
+
+Both catalog generators completed `--check` on the operator host.
+The resulting generated artifacts were not yet committed or tested
+through the complete L3 gate; do not mistake that for CI acceptance.
+
 ## Acceptance
 
 - Checkout writable by operator without `sudo git` and nested
