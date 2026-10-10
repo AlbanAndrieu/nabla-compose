@@ -102,7 +102,17 @@ else
 fi
 
 printf '\n==> Current TrueNAS CrowdSec runtime\n'
-truenas_app_summary "${APP_ID}"
+current_state="$(truenas_app_state "${APP_ID}")"
+current_container="$(truenas_compose_container_id "${APP_ID}" crowdsec)"
+printf 'crowdsec_app_state=%s\n' "${current_state}"
+if [[ -n "${current_container}" ]]; then
+  current_image="$(docker inspect "${current_container}" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  current_health="$(docker inspect "${current_container}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true)"
+  printf 'crowdsec_container_id=%s image=%s health=%s\n' \
+    "${current_container:0:12}" "${current_image:-unknown}" "${current_health:-unknown}"
+else
+  printf 'crowdsec_container_id=<none> image=<none> health=<none>\n'
+fi
 
 if [[ "${MODE}" == '--check' ]]; then
   if ! "${DIAGNOSE}" --runtime; then
