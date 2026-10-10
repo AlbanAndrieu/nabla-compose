@@ -27,6 +27,12 @@ group_gid="$(getent group apps | cut -d: -f3)"
 [[ -s "${CONFIG}" ]] || fail "generated Gatus config is empty"
 container_groups="$(docker inspect gatus --format '{{json .HostConfig.GroupAdd}}' 2>/dev/null)" ||
   fail "Gatus container missing; verify TrueNAS app definition first"
+# Refuse to repair a source tree different from the bind mount actually read by
+# Gatus; TrueNAS may retain a previous Custom App Compose after updates.
+mount_source="$(docker inspect gatus --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{println .Source}}{{end}}{{end}}' 2>/dev/null)" ||
+  fail "cannot inspect Gatus configuration mount"
+[[ "${mount_source}" == "${CONFIG_DIR}" ]] ||
+  fail "Gatus /config mount is not the repository generated config directory; inspect mounted source before repairing"
 # Accept numeric IDs, not a guessed process UID. Never expose .Config.Env.
 if ! grep -Eq "(^|[^0-9])\"${EXPECTED_GID}\"([^0-9]|$)" <<<"${container_groups}"; then
   fail "running Gatus container has no supplemental apps GID ${EXPECTED_GID}; review/reconcile TrueNAS Compose, not filesystem permissions"
