@@ -5,7 +5,7 @@ set -euo pipefail
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
-  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--memory|--auth|--backup-check|--disable-irc]'
+  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--memory|--auth|--backup-check|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
@@ -20,6 +20,11 @@ diagnose_cron() {
   openclaw cron runs --id "${id}" --limit 50 |
     python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
 }
+diagnose_skill_review() {
+  local id="0363a286-4889-45b9-9a7b-aadf0285c42c"
+  openclaw cron runs --id "${id}" --limit 20 |
+    python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
+}
 diagnose_memory() {
   # Status is intentionally filtered: OpenClaw may include filesystem and provider metadata.
   openclaw memory status |
@@ -31,6 +36,8 @@ case "${mode}" in
     bash "${ROOT}/scripts/workstation/diagnose-openclaw-errors.sh" --since '24 hours ago'
     echo '==> Cron run statistics'
     diagnose_cron
+    echo '==> Failed main skill review (redacted)'
+    diagnose_skill_review
     echo '==> Memory index summary'
     diagnose_memory
     echo '==> CLI authentication presence (redacted)'
@@ -39,6 +46,7 @@ case "${mode}" in
     bash "${ROOT}/scripts/workstation/backup-openclaw.sh" --check
     ;;
   --cron) diagnose_cron ;;
+  --skill-review) diagnose_skill_review ;;
   --memory) diagnose_memory ;;
   --auth) python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py" ;;
   --backup-check) bash "${ROOT}/scripts/workstation/backup-openclaw.sh" --check ;;
