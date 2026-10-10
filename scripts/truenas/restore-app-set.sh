@@ -17,6 +17,8 @@ HEALTH_GATE="${NABLA_APP_HEALTH_GATE:-${SCRIPT_DIR}/verify-app-runtime-health.sh
 OPENSEARCH_PERMISSIONS="${NABLA_OPENSEARCH_PERMISSIONS_HELPER:-${SCRIPT_DIR}/repair-opensearch-security-permissions.sh}"
 DOCKER_PROXY_NETWORK="${NABLA_DOCKER_PROXY_NETWORK_HELPER:-${SCRIPT_DIR}/ensure-docker-socket-proxy-intranet.sh}"
 PIHOLE_SYNC_GATE="${NABLA_PIHOLE_SYNC_GATE:-${SCRIPT_DIR}/verify-pihole-dns-sync.sh}"
+OPTIONAL_APPS_FILE="${NABLA_OPTIONAL_APPS_FILE:-${SCRIPT_DIR}/../../config/truenas/restore-optional-apps.txt}"
+INCLUDE_OPTIONAL=false
 APP_JOB_TIMEOUT="${NABLA_APP_JOB_TIMEOUT_SECONDS:-900}"
 APP_WAIT="${NABLA_APP_START_WAIT_SECONDS:-600}"
 POLL_SECONDS="${NABLA_APP_START_POLL_SECONDS:-5}"
@@ -26,9 +28,9 @@ usage() {
   cat <<'EOF'
 usage:
   sudo bash scripts/truenas/restore-app-set.sh --check --apps-file <path> [--name <label>]
-  sudo bash scripts/truenas/restore-app-set.sh --apply --apps-file <path> [--name <label>]
+  sudo bash scripts/truenas/restore-app-set.sh --apply --apps-file <path> [--name <label>] [--include-optional]
 
-Reads one TrueNAS App id per line. Blank lines and # comments are ignored.
+Reads one TrueNAS App id per line. Blank lines and # comments are ignored.\nDefault LIGHT: the optional last wave is excluded. --include-optional opts in.\nFor explicit post-reboot stop/start: use restore-optional-apps.sh.
 
 --check
   Read-only: validate the App set against app.query, generate the topology-aware
@@ -66,6 +68,10 @@ while (($#)); do
       NAME="${2:-restore}"
       shift 2
       ;;
+    --include-optional)
+      INCLUDE_OPTIONAL=true
+      shift
+      ;;
     *)
       fail "unknown argument: $1"
       ;;
@@ -101,6 +107,24 @@ mapfile -t APPS < <(
 
 (("${#APPS[@]}" > 0)) || fail "Apps file contains no App ids"
 
+# LIGHT is the default after reboot: optional workloads are never restarted
+# implicitly, even when an older restore list includes them.
+[[ -r "${OPTIONAL_APPS_FILE}" ]] || fail "optional set missing: ${OPTIONAL_APPS_FILE}"
+mapfile -t OPTIONAL_APPS < <(
+  awk '{sub(/[[:space:]]*#.*/, ""); gsub(/^[[:space:]]+|[[:space:]]+$/, ""); if (length($0)) print}' "${OPTIONAL_APPS_FILE}" | LC_ALL=C sort -u
+)
+if [[ "${INCLUDE_OPTIONAL}" != true ]]; then
+  filtered_apps=()
+  for app in "${APPS[@]}"; do
+    skip=false
+    for optional in "${OPTIONAL_APPS[@]}"; do
+      [[ "$app" == "$optional" ]] && { skip=true; break; }
+    done
+    [[ "$skip" == true ]] || filtered_apps+=("$app")
+  done
+  APPS=("${filtered_apps[@]}")
+  printf 'LIGHT restore: optional apps excluded (%s configured); use --include-optional to opt in\n' "${#OPTIONAL_APPS[@]}"
+fi
 for app in "${APPS[@]}"; do
   [[ "${app}" =~ ^[a-z0-9][a-z0-9._-]*$ ]] ||
     fail "invalid App id in ${APPS_FILE}: ${app}"
