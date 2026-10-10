@@ -33,7 +33,7 @@ def test_context_pressure_reports_bounded_numbers_without_payloads():
     line = (
         "[context-pressure-diagnostic] "
         "estimatedPromptTokens=216281 promptBudgetBeforeReserve=108000 "
-        "secret=confidential-value\\n"
+        "secret=confidential-value\n"
     )
     result = subprocess.run(
         ["bash", str(SCRIPT), "--stdin"], input=line,
@@ -51,10 +51,10 @@ def test_context_pressure_ratio_is_paired_per_event():
     # invents a ratio that never occurred in any one request.
     log = (
         "[context-pressure-diagnostic] estimatedPromptTokens=500 "
-        "promptBudgetBeforeReserve=500\\n"
+        "promptBudgetBeforeReserve=500\n"
         "[context-pressure-diagnostic] estimatedPromptTokens=100 "
-        "promptBudgetBeforeReserve=20\\n"
-        "[context-pressure-diagnostic] estimatedPromptTokens=900\\n"
+        "promptBudgetBeforeReserve=20\n"
+        "[context-pressure-diagnostic] estimatedPromptTokens=900\n"
     )
     result = subprocess.run(
         ["bash", str(SCRIPT), "--stdin"],
