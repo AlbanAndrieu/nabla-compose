@@ -1,7 +1,7 @@
 """Static contracts for the read-only Vaultwarden compatibility probe."""
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/truenas/diagnose-vaultwarden-cli.sh"
 
@@ -26,3 +26,11 @@ def test_no_raw_secret_or_authentication_operations() -> None:
     assert 'printf \'%s\\n\' "${logs}"' in source
     for forbidden in ("bw login", "bw logout", "bw unlock", "bw sync", "bw list items", "docker logs --tail"):
         assert forbidden not in source
+
+
+def test_unavailable_docker_logs_are_not_reported_as_zero() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "logs_unavailable" in source
+    assert "zero errors cannot be inferred" in source
+    assert "cli_path=" in source
+    assert 'elif logs="$(' in source
