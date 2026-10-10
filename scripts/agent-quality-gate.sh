@@ -821,47 +821,56 @@ check_destructive_diff() {
 
 check_exec_bits() {
   local exec_bit_failed=0
-  local file first_line mode meta path current_mode
+  local file first_line mode meta path
 
-  # Git 100755 means the checked-out script must be executable by user/group/other.
-  # On TrueNAS, chmod +x on a 0600 file yields 0700, which breaks stat-based
-  # lifecycle contracts even though Git still records the correct executable bit.
+  # Git tracks only the executable bit; a private TrueNAS checkout may use
+  # 0700 even when the Git index records 100755. Never force chmod 755.
+  # Inspect the full Git index so a committed 100644 shebang cannot escape
+  # detection merely because it is unchanged in the current PR.
   while IFS=$'\t' read -r meta path; do
     mode="${meta%% *}"
-    [[ "${mode}" == "100755" ]] || continue
+    [[ "${mode}" == "100644" || "${mode}" == "100755" ]] || continue
     [[ -f "${path}" ]] || continue
-    current_mode="$(stat -c '%a' -- "${path}" 2>/dev/null || true)"
-    if [[ "${current_mode}" != "755" ]]; then
-      chmod 755 -- "${path}"
-      printf '🛠️  working-tree mode restored from Git index: %s %s->755\n' \
-        "${path}" "${current_mode:-unknown}"
+    IFS= read -r first_line <"${path}" || true
+    [[ "${first_line:-}" == '#!'* ]] || continue
+
+    if [[ "${mode}" != "100755" ]]; then
+      if [[ "${MODE}" == "fix" ]]; then
+        git add --chmod=+x -- "${path}"
+        printf '🛠️  Git executable bit staged for %s\n' "${path}"
+      else
+        printf '❌ QG_EXEC_BIT: tracked shebang %s has Git mode %s; run git add --chmod=+x %q\n' \
+          "${path}" "${mode}" "${path}" >&2
+        exec_bit_failed=1
+      fi
+    fi
+
+    if [[ ! -x "${path}" ]]; then
+      if [[ "${MODE}" == "fix" ]]; then
+        chmod u+x -- "${path}"
+        printf '🛠️  owner execute permission restored for %s\n' "${path}"
+      else
+        printf '❌ QG_EXEC_BIT: owner cannot execute tracked script %s; run chmod u+x %q\n' \
+          "${path}" "${path}" >&2
+        exec_bit_failed=1
+      fi
     fi
   done < <(git ls-files --stage)
 
+  # Newly created scripts must also be executable before entering the index.
   for file in "${CHANGED_FILES[@]}"; do
     [[ -f "${file}" ]] || continue
+    if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
+      continue
+    fi
     IFS= read -r first_line <"${file}" || true
     [[ "${first_line:-}" == '#!'* ]] || continue
-
-    if git ls-files --error-unmatch -- "${file}" >/dev/null 2>&1; then
-      mode="$(git ls-files --stage -- "${file}" | awk 'NR == 1 {print $1}')"
-      if [[ "${mode}" != "100755" ]]; then
-        if [[ "${MODE}" == "fix" ]]; then
-          git add --chmod=+x -- "${file}"
-          chmod 755 -- "${file}"
-          printf '🛠️  executable bit restored for %s\n' "${file}"
-        else
-          printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
-            "${file}" "${mode:-unknown}" "${file}" >&2
-          exec_bit_failed=1
-        fi
-      fi
-    elif [[ ! -x "${file}" ]]; then
+    if [[ ! -x "${file}" ]]; then
       if [[ "${MODE}" == "fix" ]]; then
-        chmod 755 -- "${file}"
-        printf '🛠️  executable bit restored for untracked %s\n' "${file}"
+        chmod u+x -- "${file}"
+        printf '🛠️  owner execute permission restored for untracked %s\n' "${file}"
       else
-        printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
+        printf '❌ QG_EXEC_BIT: untracked shebang %s is not executable\n' "${file}" >&2
         exec_bit_failed=1
       fi
     fi
