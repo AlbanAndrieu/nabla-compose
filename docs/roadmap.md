@@ -29,6 +29,47 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — parallèle qualité / DSOMM / Pi-hole (2026-10-10)
+
+- [x] **P0 catalogue** : `test_active_operator_truenas_services_are_projected`
+  s'arrêtait après **204 tests réussis**. Cause : `Plumber` et
+  `Vaultwarden` existaient dans `homelab-services.json` mais sans
+  `id` canonique alors que `catalog/services.json` les déclare
+  `truenas-app`, `presentationRole: service`. Les IDs ont été
+  ajoutés et un test protège unicité et noms. Aucun endpoint n'a
+  été changé.
+- [ ] **Plumber inventaire** : la ligne historique pointe vers
+  `172.17.0.57:3001` tandis que la nouvelle déclaration Compose
+  annonce `172.17.0.24:31070`. Ne pas modifier la cible
+  opérationnelle par hypothèse ; confirmer la migration/runtime et
+  ajuster le catalogue seulement après preuve.
+- [ ] **P0 validation** : `pytest -q
+  tests/test_homelab_external_services_contract.py`, puis
+  `just pre-push` sur le HEAD propre. Ne considérer la gate L3
+  réussie que lorsque toutes les étapes passent.
+- [ ] **P1 DSOMM parallèle (diagnostic en lecture seule)** :
+  le Compose versionné contient `NET_BIND_SERVICE`, mais le
+  conteneur existant a `CapAdd=null`, `CapDrop=["ALL"]`,
+  `no-new-privileges:true`, exit 255 et `exec /usr/bin/caddy:
+  operation not permitted`. Relever seulement `HostConfig.CapAdd`
+  / `HostConfig.CapDrop`, état Docker et configuration déclarée
+  TrueNAS **sans les secrets**. Proposer ensuite une réconciliation
+  limitée de la Custom App (pas `privileged:true`), avec sauvegarde
+  métadonnées, contrôle des fichiers d'état, smoke et rollback ;
+  **aucun apply automatique**.
+- [ ] **P1 Pi-hole DNS parallèle (diagnostic en lecture seule)** :
+  `verify-pihole-dns-sync.sh` vérifie le DNS du proxy Docker,
+  la stabilité du synchroniseur, `Initial sync done`,
+  `api_seats_exceeded`, la limite d'API 16 et son ENV.
+  Vérifier l'état réel via ce script et le réseau `intranet` ;
+  ne pas augmenter arbitrairement la limite de sessions, ne pas
+  donner le socket Docker brut au synchroniseur, ne pas redémarrer
+  Docker. Si le réseau ou la résolution est défaillant, rétablir
+  uniquement la connectivité proxy ↔ intranet avant une reprise
+  contrôlée du service.
+- [ ] **P1 ensuite** : Gatus, Sentry et Scrutiny un service à la fois,
+  en continuant les validations P0 indépendamment.
+
 ## PR #251 — Pi-hole DNS sync et contrôles délégués (2026-10-10)
 
 - [x] Échec L3 identifié : `test_pihole_dns_sync_acceptance_contract`,
