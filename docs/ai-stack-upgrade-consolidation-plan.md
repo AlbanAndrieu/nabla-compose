@@ -205,6 +205,44 @@ have been accepted.
   independent/offsite backup-and-restore capability is absent. ZFS local
   snapshots are not a substitute for offsite recovery. Evaluate encryption,
   credential scope, retention, object-store destination and recovery drills.
+### Trivy Operator — Talos Kubernetes security (not installed)
+
+Trivy Operator is an **operator/controller**, not merely the existing Trivy
+CLI. It observes Kubernetes workloads and produces CRD-backed vulnerability,
+configuration, secret, RBAC, SBOM and compliance reports. Scope an initial
+pilot to a dedicated namespace/workload; CRD installation and informer
+permissions may still be cluster-wide, so assess the precise Helm RBAC.
+Set reconciliation concurrency, memory/CPU budgets, scan image caches and
+scan frequency for TrueNAS/Talos constraints. Avoid duplicate admission
+blocking: this is discovery/reporting first, not an automatic pod deny rule.
+Reuse existing Grafana/Prometheus for result visibility where feasible.
+Official: https://aquasecurity.github.io/trivy-operator/latest/
+
+### Kopia versus Restic — offsite backup (one choice, not two daemons)
+
+Both provide encrypted, incremental/deduplicated backups and restore
+operations to supported backends such as S3, but their workflows differ:
+
+- **Kopia:** CLI, optional desktop GUI and server/API; repository policies,
+  compression, content-addressed deduplication, scheduling/maintenance,
+  snapshot mounting and integrity verification. Sharing one repository
+  shares its repository password/trust domain; isolate highly sensitive
+  datasets. https://kopia.io/docs/features/
+- **Restic:** smaller CLI-centered operational surface, S3/SFTP/REST
+  repositories, immutable-style encrypted snapshots, deduplication,
+  `backup`, `restore`, `check`, `forget` and `prune`. Scheduling is
+  normally external (systemd/cron/Kubernetes CronJob), which can reuse
+  existing homelab orchestration.
+  https://restic.readthedocs.io/en/stable/
+
+**Pilot choice:** Restic plus an existing scheduler for the lightest
+integration; choose Kopia if its built-in policy/GUI/server materially
+reduces backup operations. Use an **independent offsite target**, not only
+Garage on the same TrueNAS and not the Terraform state bucket. Ensure
+application-consistent PostgreSQL/ClickHouse exports, scoped read-only
+source access, write-only or deletion-restricted backup credentials and a
+measured restore drill before considering the policy accepted.
+
 - **No new vector DB, alternative Docling/Tika, telemetry collector, auth
   server or reverse proxy** until documented compatibility limitations
   justify it. Existing services already cover these roles.
