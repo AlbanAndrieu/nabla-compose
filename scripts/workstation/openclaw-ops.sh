@@ -42,6 +42,8 @@ case "${mode}" in
     diagnose_memory
     echo '==> CLI authentication presence (redacted)'
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
+    echo '==> OpenClaw dotenv credential syntax (redacted)'
+    python3 "${ROOT}/scripts/workstation/openclaw-dotenv-diagnostic.py"
     echo '==> Provider route metadata (redacted)'
     python3 "${ROOT}/scripts/workstation/openclaw-route-metadata.py"
     echo '==> Backup prerequisite'
@@ -50,7 +52,10 @@ case "${mode}" in
   --cron) diagnose_cron ;;
   --skill-review) diagnose_skill_review ;;
   --memory) diagnose_memory ;;
-  --auth) python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py" ;;
+  --auth)
+    python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
+    python3 "${ROOT}/scripts/workstation/openclaw-dotenv-diagnostic.py"
+    ;;
   --routes) python3 "${ROOT}/scripts/workstation/openclaw-route-metadata.py" ;;
   --backup-check) bash "${ROOT}/scripts/workstation/backup-openclaw.sh" --check ;;
   --disable-irc)
