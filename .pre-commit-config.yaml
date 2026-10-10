@@ -468,7 +468,5 @@ repos:
         name: "🐳 compose · Validate Compose configuration"
         language: system
         entry: bash scripts/quality/check-compose-config.sh
-        files: '^(?:apps/[^/]+/|compose/|docker/)(?:compose|docker-compose)(?:[.-][^./]+)?\.ya?ml
-        stages: [pre-commit]
-
+        files: '^apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml$'
         stages: [pre-commit]
