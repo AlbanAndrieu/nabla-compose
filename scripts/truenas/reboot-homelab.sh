@@ -33,6 +33,8 @@ RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reb
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
 GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
 DOCKER_STORAGE_AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
+FASTAPI_REBOOT_DIAGNOSTIC="${NABLA_FASTAPI_REBOOT_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-fastapi-integrations.py}"
+INGRESS_ROUTE_AUDIT="${NABLA_INGRESS_ROUTE_AUDIT:-${BUNDLE_ROOT}/scripts/ingress/audit-internal-routes.py}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
@@ -787,6 +789,25 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   done
   run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
   run_operator "${KUBECTL}" get nodes -o wide
+
+  # --resume restores Apps separately; this mode remains read-only.
+  postcheck_failed=0
+  if [[ -f "${FASTAPI_REBOOT_DIAGNOSTIC}" ]]; then
+    python3 "${FASTAPI_REBOOT_DIAGNOSTIC}" ||
+      { warn "FastAPI integration check failed"; postcheck_failed=1; }
+  else
+    warn "FastAPI integration script missing: ${FASTAPI_REBOOT_DIAGNOSTIC}"
+    postcheck_failed=1
+  fi
+  if [[ -f "${INGRESS_ROUTE_AUDIT}" ]]; then
+    python3 "${INGRESS_ROUTE_AUDIT}" --strict ||
+      { warn "strict internal ingress audit failed"; postcheck_failed=1; }
+  else
+    warn "strict ingress audit unavailable: ${INGRESS_ROUTE_AUDIT}"
+    postcheck_failed=1
+  fi
+  ((postcheck_failed == 0)) ||
+    fail "post-reboot integration/ingress acceptance failed (Apps may require --resume first)"
   printf 'SUCCESS: post-reboot acceptance passed.\n'
   exit 0
 fi
