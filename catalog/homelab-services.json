@@ -435,9 +435,9 @@
     {
       "name": "KaraKeep",
       "icons": [
-        "fas fa-microphone-lines"
+        "fas fa-bookmark"
       ],
-      "description": "Karaoke management",
+      "description": "Self-hosted bookmark manager and web archive",
       "internalHost": "172.17.0.24",
       "internalPort": 30147,
       "internalSecure": false,
