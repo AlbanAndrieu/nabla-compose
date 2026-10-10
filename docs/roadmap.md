@@ -29,6 +29,60 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Shared Docling, OpenRAG API/MCP, Open WebUI and Bababou POC (2026-10-10)
+
+Implementation and security gates: [`docs/runbooks/rag-bababou-poc-architecture.md`](./runbooks/rag-bababou-poc-architecture.md).
+This is a **planned** architecture, not evidence of runtime deployment or ingestion.
+
+- [x] **Architecture decision** : keep Open WebUI for chat and per-user
+  Knowledge; use OpenRAG + shared Langflow + OpenSearch as the
+  independently callable RAG service. LiteLLM is the LLM/embedding
+  gateway, **not** the RAG retrieval service.
+- [x] **Existing declared integration** : `apps/docling/compose.yml`
+  already defines a reusable Docling Serve at `docling:5001` /
+  `172.17.0.24:5001`, and OpenRAG already sets
+  `DOCLING_SERVE_URL=http://docling:5001`. Open WebUI currently has
+  no Docling extraction config and no explicit `intranet` network;
+  **shared Docling is not yet fully integrated or runtime-proven**.
+- [ ] **P0 — common Docling acceptance** : verify actual TrueNAS
+  App/image/health, OpenRAG extraction; connect Open WebUI to
+  the same Docling endpoint using version-supported settings
+  (`CONTENT_EXTRACTION_ENGINE=docling`, `DOCLING_SERVER_URL`),
+  network, trust boundary and PDF/table/OCR smoke. One Docling
+  runtime; independent document stores and ACL.
+- [ ] **P1 — OpenRAG connector** : on the running pinned OpenRAG
+  `0.7.1`, inspect supported API and whether MCP `/mcp` exists;
+  do **not** assume documentation from `main` applies to 0.7.1.
+  Prefer least-privilege MCP for Open WebUI when supported,
+  otherwise REST/OpenAPI adapter. Restrict tools to read/search
+  and scope by authorized corpus.
+- [ ] **P1 — fastapi-sample integration** : consume the same
+  restricted OpenRAG search API with separate service identity;
+  keep inference/embeddings behind TrueNAS LiteLLM with explicit
+  GPU workstation `172.17.0.57:4000/v1` proxy routing.
+  Do not expose OpenSearch/Docling/Langflow or a raw MCP endpoint
+  publicly. An external `fastapi-sample.fastapicloud.dev` caller
+  requires a reviewed Cloudflare Access/service-token boundary,
+  permission tests, rate limits and redacted telemetry.
+- [ ] **P2 — Bababou RAG POC** : locate and confirm the actual
+  `/mnt/cpool` dataset containing the previous Google Drive
+  Bababou extraction (exact path not yet verified); inventory
+  metadata first, use a **read-only** and authorized subset of
+  10–20 documents in separate `bababou-poc` index. Keep PII,
+  legal correspondence and private evidence away from Git,
+  public endpoints, default traces and externally hosted models.
+- [ ] **P2 — evaluation** : with identical documents, embeddings
+  and LLMs, compare Open WebUI Knowledge vs OpenRAG on
+  recall@5, MRR@10, citation page accuracy, faithfulness,
+  latency p95, indexing duration and CPU/RAM/GPU. Include
+  access-control, prompt-injection and deletion/erasure tests.
+  Store only redacted metrics and synthetic evaluation examples
+  in Git; do not commit corpus, chunks or derived private index.
+- [ ] **P3** : promote one RAG integration based on benchmark
+  evidence, wire Open WebUI plus fastapi-sample, monitor via
+  existing Langfuse/Prometheus with private prompts/chunks
+  excluded, then rehearse recovery and rollback.
+  
 ## PR #251 — Gatus crash, Sentry/Scrutiny accepted and secret/catalog cutover (2026-10-10)
 
 - [x] **Sentry** : TrueNAS `diagnose-sentry.sh --check`
