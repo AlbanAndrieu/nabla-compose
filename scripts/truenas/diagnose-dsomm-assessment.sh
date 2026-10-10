@@ -50,7 +50,7 @@ for asset in meta.yaml default/model.yaml team-progress.yaml team-evidence.yaml;
   if command -v curl >/dev/null 2>&1; then
     curl --silent --show-error --connect-timeout 3 --max-time 12 \
       --output /dev/null --write-out "asset=${asset} http=%{http_code} bytes=%{size_download} content_type=%{content_type}\n" \
-      "http://172.17.0.24:31088/YAML/${asset}" || true
+      "http://172.17.0.24:31088/assets/YAML/${asset}" || true
   fi
 done
 printf 'INFO: inspect browser DevTools Network/Console for failed YAML fetches; HTTP 200 on / alone proves only the UI shell is served.\n'
