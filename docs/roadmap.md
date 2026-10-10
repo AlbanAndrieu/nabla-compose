@@ -46,6 +46,14 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 A1/A2 evidence — 2026-10-10, PR #251
+
+- [x] Added `scripts/truenas/diagnose-gatus.sh`: bounded **read-only** container status, UID/GID and mount destination metadata, SQLite/config path metadata, and **aggregate log error categories only**. No raw log text, environment, secret value, chmod/chown, restart or database mutation.
+- [x] Added `tests/test_gatus_diagnostic_contract.py`; isolated agent fixture: **2 passed** (Bash parse and fake Docker log with canary secret). These are **targeted** tests, not full-HEAD L3 proof.
+- [ ] **Runtime root cause remains unknown:** the previous Gatus `exit 2`, missing HTTP 8085 and root-owned 770 dataset are observations, not proof of an ACL defect. Classify the bounded evidence before any UID/permission correction. Check the container's effective user and actual log failure without publishing raw logs.
+- [ ] Full local `just pre-push`, pre-commit, Compose config, BetterLeaks, SAST and generated topology on exact PR HEAD: **UNAVAILABLE/NOT RUN in this isolated agent environment** (GitHub archive DNS blocked, no complete repository checkout). Mandatory pre-merge gate unchanged. No automatic merge or runtime change.
+- [ ] After verified root cause, implement the smallest Gatus config/identity fix, preserve `/mnt/cpool/gatus/gatus.db`, then separately accept HTTP :8085, persistence/history and reboot recovery.
+
 ### Validation policy — agent local first, operator only for runtime acceptance
 
 - [ ] **Agent responsibility:** run and correct `shellcheck`,
