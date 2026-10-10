@@ -41,8 +41,6 @@ services:
   scanopy:
     image: ghcr.io/scanopy/scanopy/server:latest
     container_name: scanopy
-    labels:
-      com.albandrieu.nabla.entity-ref: component:default/scanopy
     x-nabla:
       id: scanopy
       name: Scanopy
@@ -86,6 +84,7 @@ services:
       SCANOPY_INTEGRATED_DAEMON_URL: http://host.docker.internal:60073
       TZ: ${TZ:-Europe/Paris}
     labels:
+      - "com.albandrieu.nabla.entity-ref=component:default/scanopy"
       # Private Traefik router; pihole-dns-sync publishes LAN-only DNS.
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"
