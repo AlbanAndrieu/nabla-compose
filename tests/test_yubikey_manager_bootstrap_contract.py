@@ -10,14 +10,14 @@ class YubiKeyManagerBootstrapContractTests(unittest.TestCase):
     def read(self, rel: str) -> str:
         return (ROOT / rel).read_text(encoding="utf-8")
 
-    def test_workstation_installs_pcsc_prerequisites_before_uv(self) -> None:
+    def test_workstation_uses_distribution_package_not_local_pyscard_build(self) -> None:
         text = self.read("scripts/workstation/bootstrap-yubikey-manager.sh")
         self.assertIn('VERSION="${NABLA_YKMAN_VERSION:-5.9.2}"', text)
-        self.assertIn("libpcsclite-dev pcscd pkg-config swig", text)
-        self.assertIn("pkg-config --exists libpcsclite", text)
-        self.assertIn("report_native_prereqs", text)
-        self.assertIn("pkg-config --cflags libpcsclite", text)
-        self.assertIn('tool install --force --python "${PYTHON_VERSION}"', text)
+        self.assertIn('SYSTEM_YKMAN="/usr/bin/ykman"', text)
+        self.assertIn("yubikey-manager pcscd libu2f-udev", text)
+        self.assertIn('ln -sfn "${SYSTEM_YKMAN}" "${LINK}"', text)
+        self.assertNotIn("uv tool install", text)
+        self.assertNotIn("libpcsclite-dev", text)
         self.assertNotIn("rm -f /usr/local/bin/ykman", text)
 
     def test_truenas_uses_container_not_host_python_or_apt(self) -> None:
@@ -32,12 +32,16 @@ class YubiKeyManagerBootstrapContractTests(unittest.TestCase):
         self.assertNotIn("python3 -m venv", text)
         self.assertNotIn("uv tool install", text)
 
-    def test_container_contains_native_build_dependencies_only_inside_image(self) -> None:
+    def test_container_build_has_libc_headers_and_retains_pcsc_runtime(self) -> None:
         text = self.read("tools/yubikey-manager/Dockerfile")
         self.assertIn("python:3.13.15-slim-bookworm", text)
+        self.assertIn("build-essential", text)
         self.assertIn("libpcsclite-dev", text)
+        self.assertIn("pcscd", text)
         self.assertIn("swig", text)
         self.assertIn('"yubikey-manager==${YKMAN_VERSION}"', text)
+        self.assertIn("apt-get purge -y --auto-remove", text)
+        self.assertNotIn("pcscd pkg-config swig \\\n    && rm", text)
         self.assertIn('ENTRYPOINT ["ykman"]', text)
 
 
