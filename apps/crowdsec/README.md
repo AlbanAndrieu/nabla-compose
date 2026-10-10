@@ -60,6 +60,34 @@ Before switching pfSense to the remote LAPI, materialize the required
 `BOUNCER_KEY_PFSENSE_FIREWALL` from the existing Vaultwarden manifest. Do not
 invent or rotate a key merely to make the runtime gate green.
 
+### Bitwarden CLI compatibility preflight (TrueNAS)
+
+As accepted on 2026-10-10, use the checksum-pinned `bw 2026.8.0`
+with Vaultwarden `1.37.3`. Bitwarden CLI `2026.9.0` repeatedly
+failed `POST /api/accounts/key-management/user-key-id` with 404
+(`KeyIdBackfillError`). Do not change Vaultwarden cryptographic data
+or treat a previous `unlocked` status as proof that a new unlock works.
+
+```bash
+NABLA_BITWARDEN_CLI_VERSION=2026.8.0 \
+  bash scripts/truenas/bootstrap-bitwarden-cli.sh --check
+bash scripts/truenas/configure-bitwarden-cli-local.sh --check
+bash scripts/truenas/diagnose-vaultwarden-cli.sh
+bw status | jq '{status,serverUrl}'
+# If locked: export BW_SESSION="$(bw unlock --raw)"
+python3 scripts/secrets/inventory_vaultwarden.py --app crowdsec
+```
+
+The observed inventory currently reports `crowdsec: missing`.
+This means the exact `nabla/prod/crowdsec` item is not present in
+the manifest's `TrueNAS` folder, **not** that the registered
+pfSense bouncer key can be recovered from CrowdSec. Halt secret
+rendering until the previously issued key has been sourced and
+stored through an approved operator-controlled procedure. The
+diagnostic never prints raw Docker logs or credential fields.
+On TrueNAS, use the canonical checkout `/mnt/cpool/compose/nabla-compose`;
+the workstation uses its own local checkout path.
+
 Run the renderer from the **unprivileged operator shell** that owns the unlocked
 `BW_SESSION`; never pass that session through `sudo -E`:
 
