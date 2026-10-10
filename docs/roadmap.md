@@ -29,6 +29,40 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — quality gate L3 et DSOMM restart 255 (2026-10-10)
+
+- [x] `tests/test_truenas_deploy_output_contract.py` : **8 passed** sur
+  TrueNAS. Le gate a également confirmé les contrats pfSense/CrowdSec,
+  les primitives runtime et les projections Homarr/Gatus/AutoKuma.
+- [x] Échec L3 suivant : `test_agent_error_excerpt_limits_remain_configurable`
+  dans `tests/test_agent_offline_check.py`, **1 failed, 6 passed,
+  1 skipped** (journal privé : `/tmp/tmp.CFWSNgh4sq`). Cause établie :
+  attentes obsolètes `QUALITY_LOG_TAIL:-32` et
+  `QUALITY_SUMMARY_LINES:-12`, valeurs réelles `12` et `10`.
+  Le test suit maintenant les valeurs publiées sans désactiver le
+  contrôle de bornage ni supprimer les diagnostics privés.
+- [ ] **P0 L3** : confirmer le contrat ciblé puis `just pre-push`
+  sur le dernier HEAD. Ne déclarer L3 vert qu'après un passage complet.
+- [x] **DSOMM runtime** : `app.query` indique `STOPPED`,
+  `active_workloads.containers=0`, tandis que `docker ps -a`
+  montre un conteneur `dsomm Restarting (255)`. État de fichiers :
+  dossier `/mnt/cpool/dsomm/state` `700 root:root`, `model.yaml`,
+  `team-progress.yaml` et `team-evidence.yaml` en
+  `600 root:root`. Cela établit l'existence des données, pas la santé
+  de l'application ni l'origine de l'exit code 255.
+- [ ] **DSOMM analyse ciblée et lecture seule** : obtenir
+  `docker inspect` avec `State.Error`, `ExitCode`, `OOMKilled`,
+  `RestartCount`, `Config.User`, `SecurityOpt`, `CapAdd`,
+  `CapDrop`, `HostConfig.Privileged` et les dernières lignes de logs,
+  sans valeurs d'environnement ni secrets. Vérifier les mounts en
+  mode metadata uniquement. Une défaillance Caddy/file-capability
+  `execve EPERM` a déjà été observée dans l'incident précédent :
+  **hypothèse prioritaire à revérifier**, sans conclure qu'elle cause
+  cette occurrence. Ne pas lancer `docker restart`, `app.start`,
+  `--apply` ni changer les ACL avant le diagnostic.
+- [ ] **P1 services** : ne reprendre Gatus puis Sentry et Scrutiny
+  qu'après traitement P0 et une décision explicite sur DSOMM.
+
 ## PR #251 — preuve opérateur DSOMM et provenance Git (2026-10-10)
 
 - [x] Vérifications TrueNAS : `pytest -q tests/test_opencre_contract.py`
