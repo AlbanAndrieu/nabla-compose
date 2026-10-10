@@ -8,7 +8,7 @@ usage() {
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
-((${#} <= 1)) || { usage >&2; exit 2; }
+(($# <= 1)) || { usage >&2; exit 2; }
 case "${mode}" in
   --check|--cron|--memory|--backup-check|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
