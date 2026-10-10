@@ -5,7 +5,7 @@ set -euo pipefail
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
-  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--memory|--backup-check|--disable-irc]'
+  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--memory|--auth|--backup-check|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
@@ -33,11 +33,14 @@ case "${mode}" in
     diagnose_cron
     echo '==> Memory index summary'
     diagnose_memory
+    echo '==> CLI authentication presence (redacted)'
+    python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
     echo '==> Backup prerequisite'
     bash "${ROOT}/scripts/workstation/backup-openclaw.sh" --check
     ;;
   --cron) diagnose_cron ;;
   --memory) diagnose_memory ;;
+  --auth) python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py" ;;
   --backup-check) bash "${ROOT}/scripts/workstation/backup-openclaw.sh" --check ;;
   --disable-irc)
     # Explicit opt-in; do not touch plugin allowlists, other channels or restart gateway.
