@@ -710,6 +710,33 @@ printf 'unbound_control_healthy=%s\n' "${UNBOUND_HEALTHY}"
 printf '\nService Watchdog entries (Unbound should remain absent during OOM remediation):\n'
 sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | egrep -i '<name>|<service>|<servicename>|<descr>|unbound' | head -80 || true
 
+printf '\nVaultwarden public-name DNS evidence (read-only):\n'
+if grep -qi 'vaultwarden\.albandrieu\.com' /conf/config.xml 2>/dev/null; then
+  printf 'vaultwarden_public_override=config_xml_match\n'
+  grep -ni -B 8 -A 12 'vaultwarden\.albandrieu\.com' /conf/config.xml 2>/dev/null | head -80 || true
+else
+  printf 'vaultwarden_public_override=config_xml_absent\n'
+fi
+if grep -qi 'vaultwarden\.albandrieu\.com' /var/unbound/unbound.conf 2>/dev/null; then
+  printf 'vaultwarden_public_unbound_generated=present\n'
+  grep -ni -B 4 -A 6 'vaultwarden\.albandrieu\.com' /var/unbound/unbound.conf 2>/dev/null | head -40 || true
+else
+  printf 'vaultwarden_public_unbound_generated=absent\n'
+fi
+if command -v drill >/dev/null 2>&1; then
+  printf 'vaultwarden_public_dns_answer='
+  drill -Q vaultwarden.albandrieu.com @127.0.0.1 2>/dev/null | awk '$4 == "A" {print $5; exit}' || true
+fi
+
+printf '\npfSense remote syslog configuration (read-only):\n'
+if grep -q '<syslog>' /conf/config.xml 2>/dev/null; then
+  sed -n '/<syslog>/,/<\/syslog>/p' /conf/config.xml 2>/dev/null |
+    egrep '<(format|enableremotelogging|ipprotocol|sourceip|remoteserver|remoteserver2|remoteserver3|logall|filter|dhcp|auth|vpn|dpinger|system|resolver)>' |
+    head -80 || true
+else
+  printf 'pfsense_remote_syslog_config=missing\n'
+fi
+
 section "CrowdSec / pfBlockerNG pressure indicators"
 CROWDSEC_ENGINE_PID="$(pgrep -x crowdsec 2>/dev/null | head -n 1 || true)"
 CROWDSEC_BOUNCER_PID="$(pgrep -f 'crowdsec-firewall-bouncer' 2>/dev/null | head -n 1 || true)"
