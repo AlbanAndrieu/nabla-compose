@@ -46,6 +46,25 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 DSOMM model and independent all-service checks — 2026-10-11
+
+- [x] Regression fixture fixed: former `b"...\\n..."` test used literal escaped
+  newlines, not YAML line breaks. DSOMM upstream `model.yaml` begins
+  with `meta.version: 5.0.2` followed by a separate activity document;
+  HTTP acceptance now requires that structure rather than root
+  `version`. Exact-head tests/runtime execution pending.
+- [x] Added `scripts/truenas/check-homelab-services.sh` to run
+  read-only app states, Docker health, DSOMM HTTP/YAML, FastAPI
+  integration and strict ingress audit **without a reboot manifest**.
+  Failure counters preserve gate failures; never restart services.
+- [ ] Old 2026-10-03 reboot manifest remains stale. Archive only
+  following operator review of its `phase`, boot IDs and evidence;
+  do not delete `latest`, fudge mtime or bypass freshness to
+  claim a historical reboot accepted. A future genuine reboot
+  requires `--prepare` and fresh state.
+- [ ] Run targeted pytest and standalone cross-service check on
+  TrueNAS; classify genuine failures and keep PR open.
+
 ### P0 DSOMM live post-reboot test — multi-document YAML and stale manifest
 
 - [x] Operator targeted tests: 4 passed, but standalone HTTP check
