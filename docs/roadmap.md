@@ -81,6 +81,64 @@ A `restore-app-set.sh --apply` defaults to LIGHT unless
 `--include-optional` is passed. Do not treat STOPPED optional Apps
 as a platform recovery failure.
 
+## Runtime evidence — 2026-10-10, post-reboot (user-provided)
+
+- [x] LIGHT review: `emby`, `graylog`, `lidarr`,
+  `transmission`, `zabbix` are STOPPED; the remaining optional
+  `*arr` names in the configured list are ABSENT. This is **expected**,
+  not a recovery failure. Do not bulk start them.
+- [x] Cyberbro: TrueNAS App `RUNNING`, two Compose containers running,
+  web healthy, MCP HTTP 400 reachable (not a standalone TrueNAS App),
+  zero restarts and canonical Cyberbro `.env`/`.env.secrets` contract
+  accepted. No Cyberbro redeploy required.
+- [ ] DSOMM: TrueNAS `STOPPED`, Docker `dsomm` restarting exit 255.
+  Seed check passed (22 activities/22 evidence), pinned image exists and
+  Compose validation passed. Fix catalog generator defect first (orphan
+  `openwebui-pipelines` icon + missing `subprocess` import; source fixes
+  in this PR), regenerate the catalog/consumers, then capture **bounded
+  DSOMM logs** and TrueNAS app job errors. Do **not** assume a catalog
+  error caused the Docker restart loop. Do not blindly redeploy.
+- [ ] Gatus: TrueNAS `STOPPED` but container `Restarting (2)`.
+  Diagnose its startup/config and regenerate Pipelines-derived monitors
+  before a controlled restart; do not classify as intentional LIGHT.
+- [ ] `bitwarden-api`: Docker restart exit 1; inspect owning project,
+  active consumers and its logs separately. Avoid rotating Vaultwarden
+  or upstream tokens without evidence.
+- [ ] Docling: `ABSENT` (not `DEPLOYING`); schedule explicit install
+  only once prior state and resources are verified.
+- [ ] Scrutiny secrets: **hard conflict** between
+  `/mnt/cpool/scrutiny/.env.secrets`, repository-local
+  `apps/scrutiny/.env.secrets`, and canonical
+  `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`.
+  Compare **key names and semantic equality without printing values**,
+  preserve historical InfluxDB token and do not issue `--restage` or
+  `--finalize` until source authority is reconciled.
+- [ ] `.env.secrets` global inventory: 8 declared missing-source apps,
+  empty placeholders including AutoKuma, CrowdSec, Joplin, PostgreSQL and
+  Scanopy, plus numerous staged/finalize-pending apps. Treat
+  intentionally disabled/not-installed services separately; no empty
+  secret placeholders accepted as production credentials. Finalize
+  individually after the runtime consumer passes.
+
+Safe next TrueNAS commands (bounded output, no raw secret values):
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/triage-post-reboot-apps.sh
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check scrutiny
+sudo python3 scripts/secrets/compare_dotenv_sources.py --app scrutiny \
+  --left /mnt/cpool/scrutiny/.env.secrets \
+  --right /mnt/cpool/compose/nabla-compose/apps/scrutiny/.env.secrets
+sudo docker logs --tail 50 dsomm 2>&1 | tail -50
+sudo docker logs --tail 40 gatus 2>&1 | tail -40
+sudo docker logs --tail 40 bitwarden-api 2>&1 | tail -40
+```
+
+**Quality gate distinction:** generator source defects fixed in PR; output
+catalog, topology, Gatus, Homarr and AutoKuma projections still require
+canonical regeneration and L3 exact-HEAD validation. No runtime changes
+have been made by the agent.
+
 ## Restart context — 2026-10-07
 
 PR #240 (`fix: stabiliser DSOMM, Sentry et les migrations runtime TrueNAS`) is
