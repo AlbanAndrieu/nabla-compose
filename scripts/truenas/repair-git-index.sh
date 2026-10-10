@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 # Bounded Git index repair for TrueNAS; do not run this script with sudo.
 set -euo pipefail
-MODE="$1"
-case "$MODE" in
+MODE="${1}"
+case "${MODE}" in
   --check|--repair|--restore-two|--stash-list|--audit) ;;
-  *) printf 'Usage: bash %s --check|--repair|--restore-two|--stash-list|--audit\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: bash %s --check|--repair|--restore-two|--stash-list|--audit\n' "${0}" >&2; exit 2 ;;
 esac
-ROOT="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
-cd "$ROOT"
+ROOT="$(cd -- "$(dirname -- "${0}")/../.." && pwd)"
+cd "${ROOT}"
 [[ "$(id -un)" == albandrieu ]] || { echo "ERROR: run as albandrieu, without sudo" >&2; exit 1; }
 GIT_DIR="$(git rev-parse --absolute-git-dir)"
-[[ "$GIT_DIR" == "$ROOT/.git" ]] || { echo "ERROR: unexpected git dir" >&2; exit 1; }
-INDEX="$GIT_DIR/index"
-[[ -f "$INDEX" && ! -L "$INDEX" ]] || { echo "ERROR: missing/symlink index" >&2; exit 1; }
-printf 'index=%s owner=%s mode=%s\n' "$INDEX" "$(stat -c '%U:%G' "$INDEX")" "$(stat -c '%a' "$INDEX")"
-case "$MODE" in
+[[ "${GIT_DIR}" == "${ROOT}/.git" ]] || { echo "ERROR: unexpected git dir" >&2; exit 1; }
+INDEX="${GIT_DIR}/index"
+[[ -f "${INDEX}" && ! -L "${INDEX}" ]] || { echo "ERROR: missing/symlink index" >&2; exit 1; }
+printf 'index=%s owner=%s mode=%s\n' "${INDEX}" "$(stat -c '%U:%G' "${INDEX}")" "$(stat -c '%a' "${INDEX}")"
+case "${MODE}" in
   --check)
-    [[ -w "$INDEX" && -w "$GIT_DIR" ]] || { echo "ERROR: index/directory not writable; inspect ACL" >&2; exit 1; }
+    [[ -w "${INDEX}" && -w "${GIT_DIR}" ]] || { echo "ERROR: index/directory not writable; inspect ACL" >&2; exit 1; }
     git status --short --branch
     ;;
   --repair)
-    [[ "$(stat -c '%u:%G' "$INDEX")" == '0:apps' ]] || { echo "ERROR: index not root:apps; inspect before mutation" >&2; exit 1; }
-    sudo chown albandrieu:apps -- "$INDEX"
-    sudo chmod 0644 -- "$INDEX"
-    [[ "$(stat -c '%U:%G %a' "$INDEX")" == 'albandrieu:apps 644' ]] || exit 1
+    [[ "$(stat -c '%u:%G' "${INDEX}")" == '0:apps' ]] || { echo "ERROR: index not root:apps; inspect before mutation" >&2; exit 1; }
+    sudo chown albandrieu:apps -- "${INDEX}"
+    sudo chmod 0644 -- "${INDEX}"
+    [[ "$(stat -c '%U:%G %a' "${INDEX}")" == 'albandrieu:apps 644' ]] || exit 1
     git status --short --branch
     ;;
   --restore-two)
