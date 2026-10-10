@@ -527,7 +527,8 @@ if [[ "${edge_security_contract_scope_changed}" == true ]]; then
     "${PYTHON_CMD[@]}" -m pytest -q --disable-warnings --maxfail=1 \
     --tb=short --show-capture=no \
     tests/test_pfsense_diagnose_recover_contract.py \
-    tests/test_crowdsec_cutover_contract.py
+    tests/test_crowdsec_cutover_contract.py \
+    tests/test_truenas_deploy_output_contract.py
 fi
 
 if [[ "${LOCAL_LOOP}" == true ]]; then

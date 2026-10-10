@@ -98,6 +98,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("pfSense/CrowdSec targeted contracts", text)
         self.assertIn("tests/test_pfsense_diagnose_recover_contract.py", text)
         self.assertIn("tests/test_crowdsec_cutover_contract.py", text)
+        self.assertIn("tests/test_truenas_deploy_output_contract.py", text)
         self.assertLess(
             text.index("pfSense/CrowdSec targeted contracts"),
             text.index('if [[ "${LOCAL_LOOP}" == true ]]'),
