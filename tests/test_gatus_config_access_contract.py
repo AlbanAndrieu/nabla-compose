@@ -17,7 +17,7 @@ def test_gatus_repair_script_is_bash_and_scoped() -> None:
     assert result.returncode == 0, result.stderr
     source = SCRIPT.read_text(encoding="utf-8")
     assert 'MODE="${1:---check}"' in source
-    assert '[[ "${MODE}" == "--check" ]]' in source
+    assert '[[ "${MODE}" == "--check" || "${MODE}" == "--apply" ]]' in source
     assert "getent group apps" in source
     assert "HostConfig.GroupAdd" in source
     assert 'eq .Destination "/config"' in source
