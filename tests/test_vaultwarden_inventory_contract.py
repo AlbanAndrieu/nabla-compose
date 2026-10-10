@@ -46,3 +46,34 @@ def test_folder_mismatch_fails_closed() -> None:
     )
     assert rows[0]["status"] == "missing"
     assert failures > 0
+
+
+def test_candidate_inventory_only_exposes_name_and_folder_scope() -> None:
+    manifest = {
+        "folder": {"name": "TrueNAS", "id": "folder-id"},
+        "items": [{"app": "crowdsec", "item": "nabla/prod/crowdsec"}],
+    }
+    items = [
+        {
+            "name": "CrowdSec pfSense bouncer",
+            "folderId": "elsewhere",
+            "login": {"password": "SECRET"},
+        },
+        {
+            "name": "nabla/prod/crowdsec-old",
+            "folderId": "folder-id",
+            "fields": [{"value": "SENSITIVE"}],
+        },
+        {
+            "name": "unrelated",
+            "folderId": "folder-id",
+            "notes": "crowdsec SECRET",
+        },
+    ]
+    rows = module.candidate_items(manifest, items, "crowdsec")
+    assert rows == [
+        {"name": "nabla/prod/crowdsec-old", "folder": "expected"},
+        {"name": "CrowdSec pfSense bouncer", "folder": "other"},
+    ]
+    assert "SECRET" not in str(rows)
+    assert "SENSITIVE" not in str(rows)
