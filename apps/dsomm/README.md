@@ -72,6 +72,46 @@ On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
 runtime state with mode `0600`. Existing runtime progress/evidence files are
 **never overwritten** by later deploys.
 
+## Empty UI versus repository assessments
+
+The DSOMM frontend at `http://172.17.0.24:31088/` is a static
+browser interface. A healthy HTTP 200 does not establish that the active
+browser has imported the persisted YAML assessment. It is possible for
+the reviewed YAML seed to be present on disk but the browser view to be
+empty (state/asset request failures, browser localStorage, or UI context
+selection). Diagnose these independently, without redeploying:
+
+```bash
+sudo bash scripts/truenas/diagnose-dsomm-assessment.sh
+sudo stat -c '%n %s bytes %a %U:%G' /mnt/cpool/dsomm/state/team-progress.yaml /mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+The existing `nabla-site-alban/nabla-dsomm-assessment.json` is a
+**repository producer document**, not a DSOMM frontend `team-progress.yaml`
+file. Importing its claims directly as completed UI progress would
+discard evidence provenance and could incorrectly increase the maturity
+score of the entire `Nabla Applications` assessment scope. Instead
+produce a separate review artifact:
+
+```bash
+python3 scripts/dsomm/aggregate-repository-assessments.py \\
+  --source AlbanAndrieu/nabla-site-alban=https://raw.githubusercontent.com/AlbanAndrieu/nabla-site-alban/master/nabla-dsomm-assessment.json \\
+  --check
+python3 scripts/dsomm/aggregate-repository-assessments.py \\
+  --source AlbanAndrieu/nabla-site-alban=https://raw.githubusercontent.com/AlbanAndrieu/nabla-site-alban/master/nabla-dsomm-assessment.json \\
+  --output /mnt/cpool/dsomm/reports/site-alban.repository-assessment.aggregate.json
+```
+
+A `nabla-compose` producer assessment JSON was not identified in the
+current repository; its reviewed, conservative maturity seed already
+contains platform evidence. **Do not fabricate a repository producer
+document** or overwrite persisted team assessment files just to make
+the UI show values. Import into the live YAML/browser requires a
+separate reviewed, additive migration with backup and explicit operator
+acceptance. If the UI is empty despite non-empty runtime YAML,
+troubleshoot asset mounts/browser requests before adjusting maturity
+claims.
+
 ## Repository assessment aggregation
 
 Portable producer contract: `config/repository-assessment.schema.json`.
