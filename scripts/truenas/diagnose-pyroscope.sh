@@ -45,7 +45,8 @@ if [[ -d "${DATA_ROOT}" ]]; then
   owner_uid="$(stat -c '%u' "${DATA_ROOT}")"
   owner_gid="$(stat -c '%g' "${DATA_ROOT}")"
   mode="$(stat -c '%a' "${DATA_ROOT}")"
-  container_uid="$(docker inspect "${CONTAINER}" --format '{{.Config.User}}' | cut -d: -f1)"
+  container_uid="$(docker top "${CONTAINER}" | awk 'NR == 2 {print $1}')"
+  # .Config.User may be a name (pyroscope), while docker top reports UID 10001."
   printf 'container_user=%s\n' "${container_uid}"
   if [[ "${container_uid}" =~ ^[0-9]+$ ]] && [[ "${owner_uid}" != "${container_uid}" ]]; then
     # Do not infer supplementary groups from a numeric UID. Report a potential
