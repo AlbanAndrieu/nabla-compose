@@ -46,6 +46,16 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 follow-up — redacted TrueNAS Git audit (2026-10-10)
+
+- [x] `scripts/truenas/diagnose-git-index-ownership.sh` now prints
+  aggregate sudo Git/root-script counters rather than raw privileged
+  command arguments. Default `--check` remains read-only and scoped
+  `--repair` does not run Git as root.
+- [ ] Confirm the compact output and correctness on TrueNAS, then identify
+  any remaining *actual* root Git callers before changing scheduled tasks.
+  Do not equate a `root_script_candidates` count with proven root Git writes.
+
 ### Execution checkpoint — 2026-10-10, operator evidence on PR #253
 
 - [x] **Git recovered (observed):** main index `albandrieu:apps 0600`,
