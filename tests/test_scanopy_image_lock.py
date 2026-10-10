@@ -32,7 +32,10 @@ class ScanopyImageLockContractTests(unittest.TestCase):
     def invoke(
         self, images: str, *, docker_exit: int = 0, override: str = "0"
     ) -> subprocess.CompletedProcess[str]:
-        with tempfile.TemporaryDirectory() as tmp:
+        # The TrueNAS /tmp mount may not permit executing a fake Docker binary.
+        # Keep the fixture on the repository filesystem, like the earlier
+        # diagnostic-wrapper regression.
+        with tempfile.TemporaryDirectory(prefix=".scanopy-test-", dir=ROOT) as tmp:
             directory = Path(tmp)
             compose = directory / "compose.yml"
             compose.write_text("services: {}\n", encoding="utf-8")
@@ -49,7 +52,11 @@ class ScanopyImageLockContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
             docker.chmod(0o755)
-            env = dict(os.environ)
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if key != "BASH_ENV" and not key.startswith("BASH_FUNC_")
+            }
             env.update(
                 {
                     "PATH": f"{directory}{os.pathsep}{env.get('PATH', '')}",
@@ -58,9 +65,6 @@ class ScanopyImageLockContractTests(unittest.TestCase):
                     "SCANOPY_ALLOW_MUTABLE_IMAGE": override,
                 }
             )
-            # A login/operator environment must not inject Bash startup
-            # commands that shadow the fake Docker executable.
-            env.pop("BASH_ENV", None)
             return subprocess.run(
                 ["bash", str(GATE), str(compose)],
                 env=env,
