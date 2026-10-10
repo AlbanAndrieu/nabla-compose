@@ -304,3 +304,25 @@ uptime
 ```
 
 Expected result: the firewall bouncer continues polling and populating PF tables, while the `crowdsec` Security Engine process no longer runs locally on pfSense.
+
+## pfSense tcsh-safe central LAPI authentication probe
+
+pfSense admin's interactive shell is `tcsh`, not POSIX `sh`.
+Never paste shell assignments such as `KEY=$(...)` directly into that
+prompt. Use the repository script through an explicitly selected
+POSIX interpreter **from the workstation checkout**:
+
+```bash
+ssh home.albandrieu.com /bin/sh -s < scripts/pfsense/check-central-crowdsec-bouncer.sh
+```
+
+The script reads the existing pfSense bouncer key locally, does **not**
+print it or include it in curl argv, and reports only
+`central_lapi_http=200` (authenticated) or a safe error/status.
+It sends one GET for test address `192.0.2.1`, does not change
+firewall configuration or PF tables, and may update LAPI polling
+metadata. Run only on trusted pfSense via the workstation's authenticated
+SSH channel. A 401/403 means the key is not accepted; do not infer
+matching credentials from the names `pfsense-firewall` and
+`PFSENSE_FIREWALL`.
+
