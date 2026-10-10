@@ -46,6 +46,25 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden CLI 2026.8.0 — TrueNAS acceptance (2026-10-10)
+
+- [x] Operator installed checksum-pinned `bw 2026.8.0` using
+  `scripts/truenas/bootstrap-bitwarden-cli.sh --apply` and
+  rechecked the exact version with `--check`; canonical HTTPS server
+  persisted.
+- [x] CLI initially `locked`, then `bw unlock --raw` successfully
+  produced an unlocked session and the manifest inventory executed:
+  `crowdsec: missing`. This is a proven successful unlock on 2026.8.0,
+  unlike the 2026.9.0 `KeyIdBackfillError/HTTP 404` observed previously.
+- [x] Diagnostic enhanced with active `bw` binary path and explicit
+  `logs_unavailable` if Docker permission/log retrieval fails;
+  unavailable logs must not be interpreted as zero HTTP 404.
+- [ ] Validate the amended diagnostic and targeted contracts on
+  TrueNAS. Full local quality gate still not evidenced.
+- [ ] CrowdSec bouncer key remains absent from exact Vaultwarden
+  TrueNAS folder inventory. Do not create/rotate secrets as a
+  side effect of successful CLI compatibility recovery.
+
 ### P0 Vaultwarden inventory acceptance — workstation and TrueNAS
 
 - [x] Workstation and TrueNAS returned the same manifest inventory: only
