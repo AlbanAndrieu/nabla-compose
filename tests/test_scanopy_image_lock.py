@@ -130,8 +130,8 @@ class ScanopyImageLockContractTests(unittest.TestCase):
         script = DEPLOY.read_text(encoding="utf-8")
         gate = 'check-scanopy-image-lock.sh" "${compose_path}"'
         self.assertIn(gate, script)
-        self.assertLess(script.index(gate), script.index("midclt call -j app.update"))
-        self.assertLess(script.index(gate), script.index("midclt call -j app.create"))
+        self.assertLess(script.index(gate), script.index("truenas_job_compact app.update"))
+        self.assertLess(script.index(gate), script.index("truenas_job_compact app.create"))
         self.assertLess(
             script.index(gate),
             script.index('bootstrap-repository-runtime.sh --apply'),
