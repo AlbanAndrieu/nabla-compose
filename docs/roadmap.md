@@ -103,8 +103,10 @@ of redeploying them.
   `hosts: files dns`. TrueNAS remains internally inconsistent: `getent hosts`
   returns Cloudflare IPv6 and Python `socket.getaddrinfo(AF_INET)` returns
   Cloudflare IPv4, while `getent ahostsv4` and curl still use `172.17.0.24`.
-  Investigate local resolver/cache and curl client overrides before changing
-  pfSense again or retrying Bitwarden CLI.
+  `nscd` is running and is now the primary suspected stale-cache layer.
+  `configure-bitwarden-cli-local.sh --flush-host-cache` invalidates only the
+  `hosts` cache through `nscd -i hosts`, then reruns the HTTPS/DNS checks.
+  Do not change pfSense again unless post-flush evidence points back to it.
 
 - [x] Source investigation: `docs/truenas-deployment-automation.md`
   records TrueNAS cron **ID 6**, hourly at minute 0, user
