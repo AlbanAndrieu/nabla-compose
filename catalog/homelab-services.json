@@ -475,20 +475,6 @@
       "external": true
     },
     {
-      "name": "Language Tool",
-      "icons": [
-        "fas fa-screwdriver-wrench"
-      ],
-      "description": "languagetool",
-      "internalHost": "172.17.0.24",
-      "internalPort": 8010,
-      "internalSecure": true,
-      "tunnelUrl": "https://languagetool.albandrieu.com",
-      "tunnelSecure": true,
-      "iconSrc": "assets/selfh-icons/languagetool.png",
-      "external": true
-    },
-    {
       "id": "languagetool",
       "name": "LanguageTool",
       "description": "Self-hosted grammar and style checking API.",
@@ -496,7 +482,11 @@
       "internalHost": "172.17.0.24",
       "internalPort": 8010,
       "internalSecure": false,
-      "internalPath": "/v2/check?language=en-US&text=healthcheck"
+      "internalPath": "/v2/check?language=en-US&text=healthcheck",
+      "icons": [
+        "fas fa-spell-check"
+      ],
+      "iconSrc": "assets/selfh-icons/languagetool.png"
     },
     {
       "name": "Lidarr",
