@@ -403,4 +403,3 @@ The default reboot gate is a deterministic HTTP/YAML data contract, **not**
 proof that Chromium rendered the circular heatmap. Do not install
 Playwright or browser binaries on the TrueNAS appliance. Run the browser
 smoke from an approved workstation/CI runner separately.
-
