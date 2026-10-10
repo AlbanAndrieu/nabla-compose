@@ -124,3 +124,33 @@ Run `python3 scripts/workstation/openclaw-auth-presence.py` on the workstation t
 ### Compose quality-gate diagnostics
 
 The repository's `compose-config` pre-commit hook is blocking and now reports `ERROR: compose-config failed: <file>` on failure. Use `grep -A 30 -B 4 'compose-config' /tmp/...log` privately to inspect Docker's underlying error and the precise file. A failing Compose validation is not automatically an OpenClaw defect. Never bypass the hook or mark the gate green without a full HEAD-specific test.
+
+## P0 confirmed — main skill-collection-review budget exhaustion (2026-10-10, PR #253)
+
+Workstation evidence for `skill-collection-review-main` (id `0363a286-4889-45b9-9a7b-aadf0285c42c`):
+- Scheduled every seven days, isolated session on `main`; enabled, **error (5x)**. Only **one** historical run was returned with `--limit 20` (do not infer five retained run records).
+- Last run status `error`, duration **272541 ms** (4m32.541s), delivery **not requested**. `delivery_not_delivered=1` is not evidence of a Discord/transport incident.
+- Error explicitly identifies `openclaw-main` **virtual-key budget exhausted**: reported current cost **10.046146** against maximum **10.0**, for both `litellm-main/gpt-4.1` and fallback `litellm-main/gpt-4.1-mini`. Both fail because they share the same exhausted key. This is a **budget-limit 429**, not proof of transient requests-per-minute throttling.
+- The LiteLLM amount is a key-budget snapshot, **not** the cost of this 272541 ms run. Do not blame the daily Discord digest, which uses a distinct `litellm-cron` model route and has delivered 7/7; actual underlying key association and spend still require verification.
+- Do **not** increase the budget, swap to an unlimited key, hide 429 warnings, change delivery settings, or replay this costly job while the cap remains exhausted.
+
+Workstation CLI, no UI and no raw error or credential output:
+
+```bash
+bash scripts/workstation/openclaw-ops.sh --skill-review
+# or run against the source job explicitly
+openclaw cron runs --id 0363a286-4889-45b9-9a7b-aadf0285c42c --limit 20 |
+  python3 scripts/workstation/openclaw-cron-runs-summary.py
+```
+
+New summary metrics include `failure_budget_429`, `failure_other_429`, `failure_auth_401`, `failure_agent_runner`, `failure_unknown`. The classification processes only known diagnostic fields and deliberately never prints the original error, key fragments, session identifiers or message content. Missing detail is **unknown**, not assumed budget-related.
+
+### Resolution procedure and gates
+
+1. Inspect LiteLLM's **read-only administrative usage and virtual-key budget records** for the `openclaw-main` key: budget-reset interval, actual token/cost attribution per model and time window, and whether the cron agent uses a separate key. Keep responses/headers and key identifiers private; do not dump them to console or Git.
+2. Check the intended role of both weekly `skill-collection-review` jobs (main failing, cron successful). They may be intentionally different; do not delete or move either without confirming tool permission, workspace ownership and output destination.
+3. Reduce the main job's prompt/context/tool workload and/or schedule under the existing authorized budget. A model fallback that uses the same exhausted virtual key provides no recovery. Test only when the budget period resets or a specifically authorized allocation is available.
+4. Accept after at least one *new* successfully completed main review within budget, with no 429 and an inspectable source-backed result. The historic successful cron-agent review does not satisfy main-agent acceptance.
+5. Independently investigate embedding 401 (Gateway has `OPENAI_API_KEY`, shell does not) and paused main/cron vector indexes; do not rebuild indexes until provider auth works and a backup is verified.
+
+`openclaw cron show` can print masked key prefixes. For sharing use only the aggregate summary; classify sensitive raw failure messages offline.
