@@ -46,6 +46,25 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden operational inventory tooling (2026-10-10)
+
+- [x] Added `scripts/secrets/inventory_vaultwarden.py` to verify
+  canonical CLI base URL, unlocked operator session, expected folder,
+  and exact manifest item names/folder membership. Default output only
+  includes app and presence status; `--json` is metadata-only.
+- [x] Added unit contracts for wrong-folder items, missing items, and
+  suppression of mock secret values.
+- [ ] **Operator test required:** `python3 scripts/secrets/inventory_vaultwarden.py --app crowdsec`
+  should report `crowdsec: missing` until the existing approved
+  bouncer key is **safely imported** as `nabla/prod/crowdsec` in
+  folder TrueNAS with field `CROWDSEC_PFSENSE_BOUNCER_KEY`.
+  Do not copy unrelated pfSense account password or generate key
+  implicitly. After inventory succeeds, run the existing renderer;
+  do not print generated .env contents.
+- [ ] Audit Bitwarden CLI 2026.9.0 / Vaultwarden 2026.6.0
+  `KeyIdBackfillError` HTTP 404 separately; successful unlocked
+  list operations are not proof that crypto migration succeeded.
+
 ### P0 Vaultwarden inventory evidence — CrowdSec (2026-10-10)
 
 - [x] Vaultwarden unlocked; expected `TrueNAS` folder exists and its
