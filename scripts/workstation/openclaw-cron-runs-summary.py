@@ -27,6 +27,22 @@ def main() -> int:
         statuses["ok" if entry.get("status") == "ok" else "non_ok"] += 1
         delivery["delivered" if entry.get("delivered") is True else "not_delivered"] += 1
         delivery["fallback_used" if isinstance(entry.get("delivery"), dict) and entry["delivery"].get("fallbackUsed") is True else "no_fallback"] += 1
+        # A fallback may resolve the same Discord destination, not fail delivery.
+        intended = entry.get("delivery", {})
+        intended = intended if isinstance(intended, dict) else {}
+        resolved = intended.get("resolved")
+        requested = intended.get("intended")
+        if isinstance(requested, dict) and isinstance(resolved, dict):
+            target = requested.get("to")
+            actual = resolved.get("to")
+            same = (
+                isinstance(target, str)
+                and bool(target)
+                and isinstance(actual, str)
+                and requested.get("channel") == resolved.get("channel")
+                and target == actual.removeprefix("channel:")
+            )
+            delivery["same_destination" if same else "different_destination"] += 1
         ms = entry.get("durationMs")
         if isinstance(ms, int) and not isinstance(ms, bool) and ms >= 0:
             durations.append(ms)
@@ -36,10 +52,13 @@ def main() -> int:
         print(f"status_{key}={statuses[key]}")
     for key in ("delivered", "not_delivered", "fallback_used"):
         print(f"delivery_{key}={delivery[key]}")
+    print(f'delivery_route_same_destination={delivery["same_destination"]}')
+    print(f'delivery_route_different_destination={delivery["different_destination"]}')
     if durations:
         print(f"duration_ms_min={min(durations)}")
         print(f"duration_ms_max={max(durations)}")
         print(f"duration_ms_total={sum(durations)}")
+    print("NOTE: fallbackUsed does not alone imply failed delivery or changed destination")
     print("NOTE: duration and delivery do not measure tokens, spend or content quality")
     return 0
 
