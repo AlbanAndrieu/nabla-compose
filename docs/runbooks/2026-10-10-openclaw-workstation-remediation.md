@@ -154,3 +154,13 @@ New summary metrics include `failure_budget_429`, `failure_other_429`, `failure_
 5. Independently investigate embedding 401 (Gateway has `OPENAI_API_KEY`, shell does not) and paused main/cron vector indexes; do not rebuild indexes until provider auth works and a backup is verified.
 
 `openclaw cron show` can print masked key prefixes. For sharing use only the aggregate summary; classify sensitive raw failure messages offline.
+
+### Workstation P0 runtime confirmation (2026-10-10, PR #253)
+
+The operator executed the new `openclaw-ops.sh --skill-review`, memory and auth checks. **Confirmed working CLI:** retained skill-review history has exactly one run, one non-OK result, `failure_budget_429=1`, no delivery requested and duration 272541 ms. These counters classify known error text without exposing credential fragments. The underlying job still reports five consecutive errors; do not confuse the one retained run with the consecutive-failure count.
+
+For the operator-selected two-hour journal window: `litellm_budget_429=50`, `embedding_auth_401=14`, `context_pressure=40`, `memory_sync_aborted=40`, `gateway_connection_refused=0`, paired over-budget context events `40/40`, estimated max prompt 198380 against minimum before-reserve budget 108000 (max paired ratio 1.84). Journal matches are not unique requests or provider billing data. The 429 classification is confirmed for the skill-review job, but not every journal occurrence can be attributed to that job.
+
+Memory: main 15/96 files, cron 0/63, both dirty with vector search paused; main `provenance_version` change, cron `metadata_missing`. CLI shell has `OPENAI_API_KEY`, `LITELLM_API_KEY`, `AZURE_OPENAI_API_KEY` all **absent**. An earlier read-only inspection showed `OPENAI_API_KEY` present in the **running Gateway** environment: these are different process contexts. Neither value presence nor index status proves API credential validity, model permission, or effective endpoint. Do not copy raw Gateway environments into reports. No new index attempt or restart performed.
+
+Next safe checks: inspect effective embedding provider/base URL and the Gateway's sanitized error category (not headers, keys or request bodies); inspect LiteLLM read-only key usage and reset policy. Maintain the existing spend cap, and defer memory reindex until authentication, budget authorization and backup are verified.
