@@ -325,4 +325,3 @@ metadata. Run only on trusted pfSense via the workstation's authenticated
 SSH channel. A 401/403 means the key is not accepted; do not infer
 matching credentials from the names `pfsense-firewall` and
 `PFSENSE_FIREWALL`.
-
