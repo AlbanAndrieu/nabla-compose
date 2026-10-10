@@ -19,6 +19,8 @@ usage: bash scripts/truenas/bootstrap-bitwarden-cli.sh [--check|--apply]
 
 Installs the pinned official Bitwarden Password Manager CLI into ~/.local/bin.
 Run as the unprivileged operator; this script never modifies the TrueNAS OS.
+The default remains 2026.9.0. Set NABLA_BITWARDEN_CLI_VERSION=2026.8.0 only
+for the documented Vaultwarden compatibility A/B test; both pins are checksummed.
 EOF
     exit 0
     ;;
@@ -31,14 +33,20 @@ case "$(uname -m)" in
   x86_64 | amd64)
     asset="bw-linux-${VERSION}.zip"
     default_sha=""
-    [[ "${VERSION}" != "2026.9.0" ]] ||
-      default_sha="580c1deec8345b19dbac7f8b02babb6cc4fe250c69c567e29061f727f1e40768"
+    case "${VERSION}" in
+      2026.9.0) default_sha="580c1deec8345b19dbac7f8b02babb6cc4fe250c69c567e29061f727f1e40768" ;;
+      2026.8.0) default_sha="367f618e9fcccaac4980ec12c7bafd01df739b5f3cb1af31bc9045cf75eea1d6" ;;
+      *) default_sha="" ;;
+    esac
     ;;
   aarch64 | arm64)
     asset="bw-linux-arm64-${VERSION}.zip"
     default_sha=""
-    [[ "${VERSION}" != "2026.9.0" ]] ||
-      default_sha="3f474cc34b701a1cebdd486009870038b034343afb83095607422cdad4c3653a"
+    case "${VERSION}" in
+      2026.9.0) default_sha="3f474cc34b701a1cebdd486009870038b034343afb83095607422cdad4c3653a" ;;
+      2026.8.0) default_sha="74d822a5dceda5896ed8fc07bc61925b29afd98d96a6a3e9e525ae556c3083a8" ;;
+      *) default_sha="" ;;
+    esac
     ;;
   *) fail "unsupported architecture: $(uname -m)" ;;
 esac
