@@ -46,6 +46,25 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden inventory acceptance — workstation and TrueNAS
+
+- [x] Workstation and TrueNAS returned the same manifest inventory: only
+  `n8n` and `cyberbro` present in the specified Vaultwarden folder;
+  all other declared items, including `crowdsec`, marked missing.
+  Missing means *exact item/folder mismatch*, not proven absence of a
+  credential anywhere.
+- [x] TrueNAS local validation: `python3 -m compileall -q
+  scripts/secrets/inventory_vaultwarden.py` succeeded and
+  `pytest -q tests/test_vaultwarden_inventory_contract.py`
+  reported 2 passed.
+- [ ] Next: metadata-only reconciliation with existing vault item names,
+  without copying credential values, creating placeholders, or rotating
+  keys. Prioritize CrowdSec's existing bouncer key before any pfSense
+  configuration change.
+- [ ] The TrueNAS absolute repository path is not portable to the
+  workstation; use its existing checkout directory rather than
+  `/mnt/cpool/compose/nabla-compose`.
+
 ### P0 Vaultwarden operational inventory tooling (2026-10-10)
 
 - [x] Added `scripts/secrets/inventory_vaultwarden.py` to verify
