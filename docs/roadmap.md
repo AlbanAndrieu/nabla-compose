@@ -81,6 +81,14 @@ of redeploying them.
   migrations, public endpoints, secret rotation or Bababou ingestion.
   Preserve rollback, version pinning and authoritative runtime evidence.
 
+### P1 security hardening — Cloudflare Security Audit Skill (planned)
+
+- [ ] **Evaluate and pin** [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill): review code, dependencies, permissions, upstream license and release/commit before installation; document provenance and reproducible bootstrap.
+- [ ] **Execute a first read-only audit** of Cloudflare configuration for `albandrieu.com`: Access applications/policies (including GitHub/YubiKey authentication boundary), Tunnels, public vs `*.int.albandrieu.com` DNS/routing, WAF, service tokens and API-token scopes. Never export or print credential values or change live settings without approval.
+- [ ] **Correlate findings** with Cloudflare API and actual topology in `nabla-compose` / external FastAPI exposure; identify false positives and document risk/severity, affected assets and reproducible redacted evidence.
+- [ ] **Integrate into STRIDE/DSOMM**: map validated threats, mitigations, responsible owners and verification checks. Add a non-blocking proof-of-concept to the local-first security workflow first; promote to a blocking quality gate only when deterministic and validated, without weakening existing checks.
+- [ ] **Acceptance:** pinned and reviewed skill, bounded audit report with no secrets, remediation/rollback decisions, automated regression contracts where feasible. This follows P0 A1–A3; no Cloudflare mutation and no automatic merge.
+
 ### Critical path — close started work first
 
 | Gate | Priority | Work | Exit condition |
