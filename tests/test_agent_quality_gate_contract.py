@@ -675,7 +675,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("Local-first validation", agents)
         self.assertIn("QG_AUTOFIX_APPLIED", agents)
         self.assertIn("Do not use remote CI as the edit/format/lint feedback loop", agents)
-        self.assertIn("before any network push", agents)
+        self.assertIn("Before every `git push`", agents)
 
 
 if __name__ == "__main__":
