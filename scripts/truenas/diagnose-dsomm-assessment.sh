@@ -49,7 +49,7 @@ for asset in meta.yaml default/model.yaml team-progress.yaml team-evidence.yaml;
   # does not imply that these YAML resources are publicly retrievable.
   if command -v curl >/dev/null 2>&1; then
     curl --silent --show-error --connect-timeout 3 --max-time 12 \
-      --output /dev/null --write-out "asset=${asset} http=%{http_code} bytes=%{size_download} content_type=%{content_type}\\n" \
+      --output /dev/null --write-out "asset=${asset} http=%{http_code} bytes=%{size_download} content_type=%{content_type}\n" \
       "http://172.17.0.24:31088/YAML/${asset}" || true
   fi
 done
