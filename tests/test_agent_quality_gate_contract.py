@@ -246,6 +246,17 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "bash -n syntax failures:\n" + "\n".join(failures),
         )
 
+    def test_truenas_bootstrap_exposes_pinned_node_for_audit_validators(self) -> None:
+        script = (ROOT / "scripts/truenas/bootstrap-dev-tools.sh").read_text(
+            encoding="utf-8"
+        )
+        mise = (ROOT / "mise.toml").read_text(encoding="utf-8")
+        self.assertIn('node = "24.18.1"', mise)
+        self.assertIn('NODE_VERSION="${NABLA_NODE_VERSION:-24.18.1}"', script)
+        self.assertIn('"node@${NODE_VERSION}"', script)
+        self.assertIn('ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"', script)
+        self.assertIn('"node@${NODE_VERSION}" node', script)
+
     def test_mise_exposes_local_fix_check_and_pre_push_workflow(self) -> None:
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
         self.assertIn("[tasks.agent-context]", config)
