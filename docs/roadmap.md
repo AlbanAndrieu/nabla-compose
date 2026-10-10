@@ -46,6 +46,23 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden unlocked acceptance — latest operator evidence
+
+- [x] On TrueNAS, pinned Bitwarden CLI `2026.8.0` successfully
+  unlocked with `bw unlock --raw`; exact manifest inventory completed
+  and returned `crowdsec: missing`. CLI state `unlocked`,
+  canonical HTTPS base URL, NTP synchronized and
+  Vaultwarden `1.37.3` running/healthy.
+- [x] Read-only compatibility diagnostic reports failures=0,
+  warnings=1 with five historical user-key-id requests and five
+  HTTP 404 lines in a two-hour window, plus one TOTP drift warning.
+  Do not interpret these historical counters as a failed 2026.8.0
+  unlock or as correlated request/response pairs.
+- [ ] CrowdSec remains blocked on locating the **existing** approved
+  pfSense bouncer key, adding its exact manifest item and then
+  securely rendering the runtime secret. No automatic key issuance,
+  pfSense config change or Vaultwarden upgrade.
+
 ### P0 Vaultwarden read-only diagnostic operator acceptance
 
 - [x] On TrueNAS, `git pull --ff-only` succeeded, Bash syntax passed
