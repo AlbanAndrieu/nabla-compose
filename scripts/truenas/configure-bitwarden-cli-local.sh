@@ -17,10 +17,10 @@ fail() {
 }
 
 case "${MODE}" in
-  --check | --apply) ;;
+  --check | --apply | --flush-host-cache) ;;
   -h | --help)
     cat <<'EOF'
-usage: bash scripts/truenas/configure-bitwarden-cli-local.sh [--check|--apply]
+usage: bash scripts/truenas/configure-bitwarden-cli-local.sh [--check|--apply|--flush-host-cache]
 
 Validate the local Vaultwarden origin, then configure the official Bitwarden
 CLI with the canonical HTTPS Vaultwarden server.
@@ -28,6 +28,9 @@ CLI with the canonical HTTPS Vaultwarden server.
 The local HTTP origin is a health probe only. Bitwarden CLI 2026.x intentionally
 rejects insecure API and identity URLs, including loopback URLs. Operational use
 requires a working HTTPS client endpoint before login or secret materialization.
+
+--flush-host-cache invalidates only the nscd hosts cache, then reruns the
+Vaultwarden HTTPS check. It does not restart networking, DNS, pfSense or Vaultwarden.
 EOF
     exit 0
     ;;
@@ -52,6 +55,17 @@ jq -e '
   (.environment.identity | type == "string")
 ' >/dev/null <<<"${local_config}" ||
   fail "native /api/config response is not a compatible Vaultwarden server config"
+
+if [[ "${MODE}" == "--flush-host-cache" ]]; then
+  command -v nscd >/dev/null 2>&1 ||
+    fail "nscd is not installed; no nscd hosts cache can be invalidated"
+  pgrep -x nscd >/dev/null 2>&1 ||
+    fail "nscd is installed but not running; investigate another resolver/cache layer"
+  printf 'Invalidating only the nscd hosts cache...\n'
+  sudo nscd -i hosts
+  printf 'OK: nscd hosts cache invalidated\n'
+  MODE="--check"
+fi
 
 diagnose_public_dns() {
   local system_ips=""
@@ -82,7 +96,11 @@ diagnose_public_dns() {
         printf 'ERROR: /etc/hosts contains a local override for %s. Remove it through the TrueNAS-supported configuration path rather than editing generated state blindly.\n' \
           "${PUBLIC_HOST}" >&2
       else
-        printf 'INFO: no matching /etc/hosts entry detected; inspect hosts: ordering in /etc/nsswitch.conf and any local resolver/cache before changing pfSense again.\n' >&2
+        if pgrep -x nscd >/dev/null 2>&1; then
+          printf 'INFO: nscd is running; a stale hosts cache can explain this mismatch. Run this helper with --flush-host-cache.\n' >&2
+        else
+          printf 'INFO: no matching /etc/hosts entry detected; inspect hosts: ordering in /etc/nsswitch.conf and any local resolver/cache before changing pfSense again.\n' >&2
+        fi
         grep -E '^[[:space:]]*hosts:' /etc/nsswitch.conf 2>/dev/null || true
         grep -E '^[[:space:]]*nameserver[[:space:]]+' /etc/resolv.conf 2>/dev/null || true
         if command -v resolvectl >/dev/null 2>&1; then
