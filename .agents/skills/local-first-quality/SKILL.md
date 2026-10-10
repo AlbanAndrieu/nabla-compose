@@ -153,6 +153,33 @@ If the Python dev venv is needed, invoke its interpreter through `mise exec`
 or activate the venv first. Do not skip the assertion requiring Node, and do
 not translate a missing runtime into a passing audit validation.
 
+## Mandatory reproduction before GitHub writes
+
+When a failure log names a deterministic pytest module, test function, or
+standalone shell helper, reproduce it in the **agent's own environment before
+editing or asking the operator to rerun it**. Prefer an exact-HEAD isolated
+checkout with the unchanged source, dependency fixtures and targeted pytest.
+If network access prevents that checkout, fetch files through the GitHub
+connector and reconstruct the exact test and helper in a disposable directory.
+First observe the failure on the original behavior, then run the corrected
+behavior, including a negative regression. Merely evaluating a string
+assertion in memory is **L1 partial reproduction**, not an executed pytest
+module, and must be reported as such.
+
+Before publishing a Python/test patch, compile or AST-parse the **entire
+modified file** and execute the affected test where dependencies are available.
+Avoid repeated connector edits that have not received even syntax validation.
+If the full test cannot be run locally, state the missing prerequisite and
+do not claim it was validated. Request operator validation only for behavior
+that genuinely depends on their TrueNAS/workstation runtime.
+
+For tests that mock external executables, especially on TrueNAS with
+`/tmp noexec`, do not assume a `chmod(0o755)` shim on `tmp_path` will
+be executed. Prefer Bash functions injected with `BASH_ENV` when invoking a
+Bash script, or a verified exec-capable fixture location. Confirm that the
+mock intercepts the intended command, so an unexpected success cannot
+silently bypass the negative test. Preserve the fail-closed assertion.
+
 ## TrueNAS noexec fixtures and branch divergence
 
 TrueNAS may mount `/tmp` as `tmpfs rw,nosuid,nodev,noexec` (confirmed
