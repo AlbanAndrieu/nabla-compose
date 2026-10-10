@@ -21,3 +21,23 @@ def test_no_secrets_exposed_by_classifier() -> None:
         output = module.classify(raw)
         assert raw not in output
         assert output in ("configured_key_shaped", "configured_unverified")
+
+
+def test_openai_cli_secret_parity_checks_values_without_emitting_them() -> None:
+    value = "example-private-value"
+    assert module.parity({
+        "NABLA_OPENAI_CLI_API_KEY": value,
+        "OPENAI_API_KEY": value,
+    }) == "match"
+    assert module.parity({
+        "NABLA_OPENAI_CLI_API_KEY": value,
+        "OPENAI_API_KEY": "different-value",
+    }) == "mismatch"
+    assert module.parity({
+        "NABLA_OPENAI_CLI_API_KEY": value,
+        "OPENAI_API_KEY": "${NABLA_OPENAI_CLI_API_KEY}",
+    }) == "unverifiable"
+    assert module.parity({
+        "NABLA_OPENAI_CLI_API_KEY": value,
+        "OPENAI_API_KEY": value + '"',
+    }) == "unverifiable"
