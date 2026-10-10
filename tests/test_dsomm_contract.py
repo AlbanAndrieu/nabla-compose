@@ -68,6 +68,7 @@ class DsommContractTests(unittest.TestCase):
         script = DEPLOY.read_text(encoding="utf-8")
         self.assertIn("--cap-drop ALL", script)
         self.assertIn("--cap-add NET_BIND_SERVICE", script)
+        self.assertIn('if [[ "${MODE}" == "--check" && "${state}" == "STOPPED" ]]', script)
         self.assertIn("--security-opt no-new-privileges=true", script)
         self.assertNotIn("--privileged", script)
 
