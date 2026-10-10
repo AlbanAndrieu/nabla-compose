@@ -9,9 +9,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 DEFAULT_MANIFEST = Path("config/secrets/manifest.json")
 
