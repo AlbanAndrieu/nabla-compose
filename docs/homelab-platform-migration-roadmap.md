@@ -2,23 +2,21 @@
 
 Ordre bloquant après la migration du moteur CrowdSec central en `v1.8.1` :
 
-1. **Identifier la source du split-DNS Vaultwarden** : prouver si
-   `vaultwarden.albandrieu.com -> 172.17.0.24` provient de
-   `/conf/config.xml`, de la configuration Unbound générée ou d'un autre
-   mécanisme. `scripts/pfsense/diagnose-recover.sh --check` collecte désormais
-   ces preuves en lecture seule.
+1. **Source du split-DNS Vaultwarden — confirmée** : un DNS Resolver Host
+   Override pfSense stocké sous `<host>vaultwarden</host>`,
+   `<domain>albandrieu.com</domain>`, `<ip>172.17.0.24</ip>` génère
+   `/var/unbound/host_entries.conf`. Ne jamais éditer le fichier dérivé.
 2. **Corriger le contrat DNS** : le hostname public tunnelé doit suivre la
    résolution Cloudflare ; l'accès LAN direct doit utiliser
    `vaultwarden.int.albandrieu.com` ou un contrat local explicitement
    équivalent. Ne pas supprimer un override avant d'en avoir identifié le
    propriétaire.
-3. **Rétablir pfSense -> Alloy -> Loki** : inspecter la configuration remote
-   syslog effective sur pfSense, conserver RFC5424/IPv4 et la cible
-   `172.17.0.24:1514`, puis valider séparément le smoke synthétique et les
-   événements réels.
-4. **Prouver l'acquisition CrowdSec** : exiger un événement réel
-   `{job="pfsense",device="pfsense"}` dans Loki puis la présence de
-   `cs_lokisource_hits_total`.
+3. **pfSense -> Alloy -> Loki — validé** : trafic réel observé
+   `172.17.0.1:514 -> 172.17.0.24:1514`, et
+   `verify-pfsense-syslog.sh --live-only` passe `exit=0 ok=10`.
+4. **Acquisition CrowdSec — validée** : événements
+   `{job="pfsense",device="pfsense"}` présents dans Loki et
+   `cs_lokisource_hits_total` croissant, jusqu'à `287` observé.
 5. **Cutover bouncer seulement après ces preuves** : conserver le moteur local
    pfSense arrêté et le bouncer actif jusqu'à validation des credentials, du
    bouncer LAPI central et de `last_pull`.
