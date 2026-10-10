@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import re
 
-KEYS = ("NABLA_FREE_OPENAI_API_KEY", "NABLA_PLUS_OPENAI_API_KEY", "OPENAI_API_KEY")
+KEYS = ("NABLA_FREE_OPENAI_API_KEY", "NABLA_PLUS_OPENAI_API_KEY", "NABLA_OPENAI_CLI_API_KEY", "OPENAI_API_KEY")
 ASSIGNMENT = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*=\s*(.*)$")
 REFERENCE = re.compile(r"^\$\{[A-Za-z_][A-Za-z_0-9]*\}$")
 
@@ -32,6 +32,29 @@ def classify(raw: str | None) -> str:
     return "configured_unverified"
 
 
+def decode(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value or REFERENCE.fullmatch(value):
+        return None
+    if value.startswith(('"', "'")):
+        if len(value) < 2 or value[-1] != value[0]:
+            return None
+        return value[1:-1]
+    if value.endswith(('"', "'")):
+        return None
+    return value
+
+
+def parity(values: dict[str, str]) -> str:
+    source = decode(values.get("NABLA_OPENAI_CLI_API_KEY"))
+    target = decode(values.get("OPENAI_API_KEY"))
+    if source is None or target is None:
+        return "unverifiable"
+    return "match" if source == target else "mismatch"
+
+
 def main() -> int:
     for filename in (".openclaw/.env", ".litellm/.env"):
         path = Path.home() / filename
@@ -46,6 +69,8 @@ def main() -> int:
                 values[match.group(1)] = match.group(2)
         for name in KEYS:
             print(f"{name}={classify(values.get(name))}")
+        if filename == ".openclaw/.env":
+            print(f"openai_cli_key_parity={parity(values)}")
     print("NOTE: dotenv file declarations are not necessarily the CLI or Gateway environment")
     print("NOTE: configured_key_shaped does not prove API authorization or validity")
     return 0
