@@ -44,6 +44,9 @@ class SecretMaterializationContractTests(unittest.TestCase):
             ROOT / "scripts" / "truenas" / "bootstrap-bitwarden-cli.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("2026.9.0", bootstrap)
+        self.assertIn("2026.8.0", bootstrap)
+        self.assertIn("367f618e9fcccaac4980ec12c7bafd01df739b5f3cb1af31bc9045cf75eea1d6", bootstrap)
+        self.assertIn("74d822a5dceda5896ed8fc07bc61925b29afd98d96a6a3e9e525ae556c3083a8", bootstrap)
         self.assertIn("sha256sum", bootstrap)
         self.assertIn("bw-linux-", bootstrap)
         self.assertIn("${HOME}/.local/bin", bootstrap)
