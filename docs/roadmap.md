@@ -29,6 +29,45 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — DNS Pi-hole accepté, DSOMM pas encore redémarrable (2026-10-10)
+
+- [x] **Pi-hole DNS Sync** : `sudo bash scripts/truenas/verify-pihole-dns-sync.sh`
+  a répondu `OK: Pi-hole DNS sync healthy`. Résolution du
+  `docker-socket-proxy` fonctionnelle (adresse IPv6 Docker
+  `fdd0:0:0:30::2`), synchronisation initiale achevée, sessions
+  API = **16**. `restart_count=1` reste un warning historique à
+  surveiller, non un défaut actuel. Pas de redémarrage requis.
+- [x] **Quality P0** : `tests/test_homelab_external_services_contract.py`
+  **4 passed** ; `just pre-push` a appliqué les droits exécutable
+  de `scripts/workstation/openclaw-cron-runs-summary.py`, convergé
+  en deux passes, puis buté sur
+  `test_openclaw_backup_contract.py::test_rejects_backup_when_gateway_active`
+  (**1 failed / 333 passed / 1 skipped / 154 subtests**).
+  Le test a été rendu hermétique vis-à-vis des variables d'environnement
+  exportées, `BASH_ENV` et des hooks utilisateur, en conservant
+  le refus strict de sauvegarde lorsque Gateway est actif.
+  **L'assertion exacte de cet échec reste non fournie** ; confirmer le
+  test ciblé sur TrueNAS avant de conclure à la cause.
+- [x] **DSOMM garde-fou applicatif** : le Compose versionné inclut
+  `cap_add: NET_BIND_SERVICE`, mais le conteneur actuel en est dépourvu ;
+  les logs montrent `exec /usr/bin/caddy: operation not permitted`.
+  Le déployeur vérifie maintenant la présence de cette capacité dans
+  le Compose rendu *avant* réconciliation et dans
+  `docker inspect` *après* attente d'un App RUNNING ; refuse de
+  déclarer le runtime sain sans capacité. Test de régression ajouté.
+- [ ] **DSOMM intervention distincte** : ne pas se limiter à
+  `docker restart dsomm` ou `app.start` (l'ancien HostConfig resterait
+  inchangé). Avant `deploy-dsomm.sh --apply`, vérifier la définition
+  Custom App TrueNAS, documenter un rollback, sauvegarder le modèle et
+  les deux fichiers d'évidence sans les divulguer, et contrôler l'effet
+  de `--apply` sur `model.yaml` (script actuellement susceptible de
+  le réinstaller). Réconciliation explicite seulement après ces vérifications.
+- [ ] **P0 L3** : tests OpenClaw et DSOMM ciblés puis `just pre-push`
+  à l'issue du pull sur HEAD propre. La validation locale de chaque
+  sous-contrat ne vaut pas acceptation L3 complète.
+- [ ] **P1 suivant** : Gatus, Sentry, Scrutiny après stabilisation
+  et qualification DSOMM.
+
 ## PR #251 — parallèle qualité / DSOMM / Pi-hole (2026-10-10)
 
 - [x] **P0 catalogue** : `test_active_operator_truenas_services_are_projected`
