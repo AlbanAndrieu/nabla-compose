@@ -111,7 +111,7 @@ Remote checks are evidence, not an editor:
   only when necessary;
 - do not weaken hooks, tests, security checks or generated-contract validation.
 
-## Git executable contract versus filesystem permissions
+For the October 2026 TrueNAS/Git permission anomalies, duplicated Bash functions,\nfailed mocked executables and local-first troubleshooting, see\n[`docs/incidents/2026-10-10-local-first-quality-truenas-git-permissions.md`](../../../docs/incidents/2026-10-10-local-first-quality-truenas-git-permissions.md).\n\n## Git executable contract versus filesystem permissions
 
 Git records executable files as `100755` regardless of actual checkout
 permissions, including `0700` on a locked-down TrueNAS dataset. In portable
