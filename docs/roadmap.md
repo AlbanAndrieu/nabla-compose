@@ -46,6 +46,25 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 blocker — Bitwarden CLI endpoint and crypto compatibility (2026-10-10)
+
+- [x] TrueNAS Vaultwarden local `http://127.0.0.1:30032/api/config`
+  and canonical public `https://vaultwarden.albandrieu.com/api/config`
+  pass the repository read-only check; pfSense and system resolver returned
+  the same Cloudflare IPv4 addresses. External `1.1.1.1` DNS timed out,
+  but the canonical HTTPS endpoint worked.
+- [ ] `bw config server` still returned `https://bitwarden.com`
+  after `configure-bitwarden-cli-local.sh --apply` reported success.
+  Diagnose CLI profile/config persistence and endpoint overrides before
+  any secret materialization; `bw status=unlocked` alone is insufficient.
+- [ ] Vaultwarden login with current CLI fails `KeyIdBackfillError`
+  (server HTTP 404 during user key-id backfill); determine CLI/Vaultwarden
+  version compatibility without altering vault data, disabling cryptography,
+  or guessing a downgrade.
+- [x] Cron #8 sanitized executable is `bash` following the
+  `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168` prefix.
+  Its script path and child Git use remain unverified.
+
 ### P0 follow-up — cron identity and CrowdSec secrets (2026-10-10)
 
 - [x] Cron #8 starts with `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168`.
