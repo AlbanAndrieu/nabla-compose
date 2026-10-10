@@ -31,9 +31,14 @@ def probe(base_url: str, *, timeout: float = 8.0) -> None:
         # Caddy may provide no YAML content-type, so validate actual document.
         if b"<html" in raw[:512].lower() or "text/html" in content_type.lower():
             raise ValueError(f"{path}: HTML fallback returned instead of YAML")
-        data = yaml.safe_load(raw)
-        if not isinstance(data, dict) or any(key not in data for key in required):
-            raise ValueError(f"{path}: wrong YAML structure")
+        # The pinned model may be a multi-document YAML stream.
+        documents = list(yaml.safe_load_all(raw))
+        if not documents or any(not isinstance(doc, dict) for doc in documents):
+            raise ValueError(f"{path}: malformed YAML document stream")
+        matches = [doc for doc in documents if all(key in doc for key in required)]
+        if len(matches) != 1:
+            raise ValueError(f"{path}: expected exactly one matching YAML document")
+        data = matches[0]
         payloads[path] = data
         print(f"OK asset={path} http=200 bytes={len(raw)}")
     contexts = set(payloads["meta.yaml"]["teams"])
