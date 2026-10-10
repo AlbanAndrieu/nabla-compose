@@ -86,7 +86,12 @@ else
   printf 'crowdsec_secret_file=%s metadata=%s\n' "${SECRET_FILE}" "${secret_metadata:-unknown}"
   [[ "${secret_metadata}" == 'root:root 600' ]] ||
     fail_check 'existing CrowdSec runtime file must be root:root 0600'
-  grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+
+  if grep -Eq '^BOUNCER_KEY_PFSENSE_FIREWALL=.+$' "${SECRET_FILE}"; then
+    ok 'pfSense bouncer credential is present (value redacted)'
+  else
+    warn_check 'BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty; pfSense cutover remains blocked'
+  fi
+fi
 
 printf '\n==> CrowdSec scoped Git cleanliness\n'
 if git -C "${ROOT}" diff --quiet -- apps/crowdsec scripts/truenas/deploy-crowdsec.sh scripts/truenas/diagnose-crowdsec-cutover.sh &&
@@ -128,44 +133,3 @@ printf 'OK: CrowdSec TrueNAS runtime reconciliation completed; pfSense was not m
 if ((warnings > 0)); then
   printf 'WARNING: CrowdSec runtime is reconciled but %s cutover prerequisite warning(s) remain\n' "${warnings}" >&2
 fi
- "${SECRET_FILE}" ||
-    warn_check 'BOUNCER_KEY_PFSENSE_FIREWALL is missing or empty; pfSense cutover remains blocked'
-fi
-
-printf '\n==> CrowdSec scoped Git cleanliness\n'
-if git -C "${ROOT}" diff --quiet -- apps/crowdsec scripts/truenas/deploy-crowdsec.sh scripts/truenas/diagnose-crowdsec-cutover.sh &&
-  git -C "${ROOT}" diff --cached --quiet -- apps/crowdsec scripts/truenas/deploy-crowdsec.sh scripts/truenas/diagnose-crowdsec-cutover.sh; then
-  ok 'CrowdSec deployment scope is clean'
-else
-  fail_check 'CrowdSec deployment scope is dirty; commit/stash only this scope before apply'
-fi
-
-printf '\n==> Current TrueNAS CrowdSec runtime\n'
-truenas_app_summary "${APP_ID}"
-
-if [[ "${MODE}" == '--check' ]]; then
-  if ! "${DIAGNOSE}" --check; then
-    fail_check 'CrowdSec runtime/cutover diagnostic is not ready'
-  fi
-  ((errors == 0))
-  exit
-fi
-
-((EUID == 0)) || {
-  printf 'ERROR: --apply requires root on TrueNAS\n' >&2
-  exit 2
-}
-if ((errors > 0)); then
-  printf 'ERROR: refusing CrowdSec apply with %s failed precondition(s)\n' "${errors}" >&2
-  exit 1
-fi
-
-printf '\n==> Reconcile only the CrowdSec TrueNAS Custom App\n'
-lifecycle_mark="$(truenas_lifecycle_mark)"
-truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
-truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
-truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 40
-
-printf '\n==> Post-reconcile CrowdSec validation\n'
-"${DIAGNOSE}" --check
-printf 'OK: CrowdSec TrueNAS reconciliation completed; pfSense was not modified\n'
