@@ -11,12 +11,14 @@ for arg in "$@"; do
     *) printf 'ERROR: unknown argument: %s\n' "${arg}" >&2; exit 2 ;;
   esac
 done
-# Repair is opt-in and performed from the normal operator account.
+
 if [[ "${MODE}" == "--repair" ]]; then
   [[ "$(id -un)" == "albandrieu" ]] || {
-    printf 'ERROR: run --repair as albandrieu, without sudo\n' >&2; exit 1;
+    printf 'ERROR: run --repair as albandrieu, without sudo\n' >&2
+    exit 1
   }
 fi
+
 [[ -d "${ROOT}/.git" ]] || {
   printf 'ERROR: not a Git checkout: %s\n' "${ROOT}" >&2
   exit 2
@@ -35,16 +37,46 @@ if [[ ! -f "${index}" || -L "${index}" ]]; then
   printf 'ERROR: missing or symlinked main Git index\n' >&2
   exit 1
 fi
+
 if [[ "${MODE}" == "--repair" ]]; then
-  # Only the main index. No recursive ownership change or submodule mutation.
-  # Verify the checkout path and avoid repairing an unexpected target.
   [[ "${ROOT}" == "/mnt/cpool/compose/nabla-compose" ]] || {
-    printf 'ERROR: repair limited to canonical TrueNAS checkout\n' >&2; exit 1;
+    printf 'ERROR: repair limited to canonical TrueNAS checkout\n' >&2
+    exit 1
   }
-  sudo chown albandrieu:apps -- "${index}"
-  sudo chmod 600 -- "${index}"
-  printf 'OK: main Git index repaired to albandrieu:apps 0600\n'
+
+  git_group="$(stat -c '%G' -- "${ROOT}/.git")"
+  [[ -n "${git_group}" ]] || {
+    printf 'ERROR: cannot determine canonical .git group\n' >&2
+    exit 1
+  }
+
+  printf '\n==> Repair root-owned Git index files\n'
+  repair_count=0
+  while IFS= read -r -d '' root_index; do
+    [[ -f "${root_index}" && ! -L "${root_index}" ]] || {
+      printf 'ERROR: refusing unsafe index path: %s\n' "${root_index}" >&2
+      exit 1
+    }
+    before_mode="$(stat -c '%a' -- "${root_index}")"
+    printf 'repair_index path=%s mode=%s target_owner=albandrieu:%s\n' \
+      "${root_index}" "${before_mode}" "${git_group}"
+    sudo chown -- "albandrieu:${git_group}" "${root_index}"
+    after_mode="$(stat -c '%a' -- "${root_index}")"
+    [[ "${after_mode}" == "${before_mode}" ]] || {
+      printf 'ERROR: index mode changed unexpectedly for %s: %s -> %s\n' \
+        "${root_index}" "${before_mode}" "${after_mode}" >&2
+      exit 1
+    }
+    repair_count=$((repair_count + 1))
+  done < <(find "${ROOT}/.git" -type f -name index -user root -print0 2>/dev/null)
+
+  if ((repair_count == 0)); then
+    printf 'OK: no root-owned Git index required repair\n'
+  else
+    printf 'OK: repaired %s root-owned Git index file(s); file modes preserved\n' "${repair_count}"
+  fi
 fi
+
 if [[ -w "${index}" && -w "${ROOT}/.git" ]]; then
   printf 'OK: main index and Git directory writable\n'
 else
@@ -84,4 +116,4 @@ else
   printf 'INFO: journalctl unavailable\n'
 fi
 
-printf '\nDefault --check is read-only. --repair adjusts only the main Git index to albandrieu:apps 0600; never recursively chown or run Git as root.\n'
+printf '\nDefault --check is read-only. --repair changes ownership only for root-owned Git index files under the canonical .git tree, preserves each file mode, never recursively chowns, resets, cleans or runs Git as root.\n'
