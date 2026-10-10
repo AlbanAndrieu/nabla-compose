@@ -45,7 +45,7 @@ def probe(monitoring: dict, timeout: float) -> tuple[bool, str]:
     return False, f"monitoring type {kind or 'absent'} unsupported"
 
 
-def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bool, timeout: float) -> int:
+def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bool, timeout: float, verbose: bool = False) -> int:
     by_id = {str(item["id"]): item for item in apps}
     nodes = topology.get("nodes", [])
     entries = {str(n.get("id")): n for n in nodes if isinstance(n, dict)}
@@ -75,22 +75,28 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
     states: dict[str, str] = {}
     for i, wave in enumerate(plan["start_waves"], 1):
         phase = plan.get("start_wave_phases", [])[i - 1]
-        print(f"\n🔗 Wave {i} · {phase} · {len(wave)} Apps")
+        wave_passed = wave_warnings = wave_errors = 0
+        if verbose:
+            print(f"\n🔗 Wave {i} · {phase} · {len(wave)} Apps")
         for name in wave:
             state = by_id[name].get("state", "UNKNOWN")
             blockers = sorted(parent for parent in predecessors[name] if states.get(parent) == "fail")
             if blockers:
                 render("warn", name, f"required dependency failed: {', '.join(blockers)}", color=color)
                 warnings += 1
+                wave_warnings += 1
             if state != "RUNNING":
                 render("fail", name, f"TrueNAS app state={state}", color=color)
                 states[name] = "fail"
                 errors += 1
+                wave_errors += 1
                 continue
             checks = monitoring_by_app.get(name, [])
             if not deep or not checks:
-                render("pass", name, "TrueNAS RUNNING" + ("; no declared network probe" if deep else ""), color=color)
+                if verbose:
+                    render("pass", name, "TrueNAS RUNNING" + ("; no declared network probe" if deep else ""), color=color)
                 passed += 1
+                wave_passed += 1
                 states[name] = "pass"
                 continue
             results = [(node, *probe(monitor, timeout)) for node, monitor in checks]
@@ -99,18 +105,26 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
                 # An unsupported/missing metadata check is not runtime proof of DOWN.
                 render("warn", name, "; ".join(failures[:3]), color=color)
                 warnings += 1
+                wave_warnings += 1
                 states[name] = "warn"
             else:
-                render("pass", name, f"RUNNING; {len(results)} network checks OK", color=color)
+                if verbose:
+                    render("pass", name, f"RUNNING; {len(results)} network checks OK", color=color)
                 passed += 1
                 states[name] = "pass"
 
-    print(f"\n⏹️  Intentional/non-selected STOPPED Apps: {len(stopped)}")
-    if stopped:
+        print(f"🔗 {i:02d} {phase}: ✅ {wave_passed}  ⚠️ {wave_warnings}  ❌ {wave_errors}")
+
+    print(f"\n⏹️  STOPPED Apps: {len(stopped)} (not tested)")
+    if stopped and verbose:
         print("   " + ", ".join(stopped))
-    for name in plan.get("unmapped_apps", []):
-        render("warn", name, "no declared service-topology mapping", color=color)
-        warnings += 1
+    unmapped = plan.get("unmapped_apps", [])
+    if unmapped:
+        print(f"⚠️  Catalog mapping missing: {len(unmapped)} Apps")
+        if verbose:
+            for name in unmapped:
+                render("warn", name, "no declared service-topology mapping", color=color)
+        warnings += len(unmapped)
     print(f"\n📊 SUMMARY apps_ok={passed} failures={errors} warnings={warnings} stopped={len(stopped)}")
     return 1 if errors else 0
 
@@ -121,6 +135,7 @@ def main() -> int:
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--topology", type=Path, default=ROOT / "catalog/service-topology.json")
     parser.add_argument("--deep", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--timeout", type=float, default=2.5)
     parser.add_argument("--no-color", action="store_true")
     args = parser.parse_args()
@@ -133,6 +148,7 @@ def main() -> int:
         deep=args.deep,
         color=not args.no_color and sys.stdout.isatty() and os.environ.get("NO_COLOR") is None,
         timeout=args.timeout,
+        verbose=args.verbose,
     )
 
 
