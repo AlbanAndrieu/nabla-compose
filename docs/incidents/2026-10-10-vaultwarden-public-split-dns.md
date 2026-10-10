@@ -213,3 +213,26 @@ Pour un hostname tunnelé, la vue LAN ne doit plus pointer directement vers
   `jsonschema` ;
 - ne pas utiliser ces dettes pour bloquer inutilement la stabilisation du moteur
   CrowdSec central déjà sain.
+
+
+## RCA affinée — source runtime pfSense
+
+Le diagnostic du 10 octobre 2026 a localisé l'entrée fautive dans :
+
+```text
+/var/unbound/host_entries.conf
+```
+
+Ce fichier est généré par pfSense lors de la génération Unbound. Le code pfSense
+`unbound_add_host_entries()` appelle `system_hosts_entries()`, qui agrège les
+entrées locales système, les DNS Resolver Host Overrides et, lorsque
+l'enregistrement des mappings statiques est actif, les mappings DHCP statiques.
+
+Conséquence opératoire : **ne jamais éditer `host_entries.conf` directement**.
+Il faut identifier l'objet de configuration source (Host Override, mapping DHCP
+statique ou entrée locale système), le corriger, puis laisser pfSense régénérer
+Unbound.
+
+La présence de l'entrée dans `host_entries.conf` avec absence du FQDN complet
+dans `/conf/config.xml` n'est pas contradictoire : pfSense peut stocker
+`host=vaultwarden` et `domain=albandrieu.com` dans des champs distincts.
