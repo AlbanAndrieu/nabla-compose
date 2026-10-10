@@ -55,3 +55,37 @@ Pour un service **désactivé par défaut**, l'automatisation JIT (just-in-time)
 - Évaluation de l'accès depuis le réseau de `cloudflared` vers `172.17.0.24:7000` et `172.17.0.1:10443`.
 - Tests automatisés : dry-run, idempotence, erreur 401/403/5xx, coupure réseau, expiration du bail, double demande concurrente et protection contre ouverture anonyme.
 - Corrélation DSOMM : activités officielles de threat modeling, contrôle d'accès, infrastructure hardening, segmentation et monitoring, avec UUID upstream et preuves de test référencées.
+
+## Contrôleur d'exposition — spécification du futur outil
+
+Le gestionnaire `cloudflare-jit-access` doit proposer `inventory`, `plan`, `create`, `enable`, `disable`, `delete`, `reconcile`. Aucune commande de mutation ne doit être exécutée par défaut ; `plan` et `--dry-run` sont la première étape.
+
+### Propriété DNS / ingress et contrôleurs concurrents
+
+Avant création, activation ou suppression, lire et croiser **tous** les propriétaires potentiels : Cloudflare DNS (A/AAAA/CNAME), Cloudflare Tunnel Public Hostnames (`config.ingress[]`), Cloudflare Access Applications/Policies, AutoXpose et ses états réconciliés, Traefik Docker labels, le legacy `dnsupdater` (Cloudflare companion), les exceptions pfSense HAProxy et le DNS privé `pihole-dns-sync`. Traefik route par labels ; son ACME DNS challenge crée aussi des enregistrements temporaires : ne pas le confondre avec le propriétaire normal d'un hostname.
+
+- Chaque hostname public possède un seul `exposureOwner` explicite : `cloudflare-tunnel`, `autoxpose`, `legacy-traefik-companion`, `direct-pfsense`, ou `none`.
+- Une route gérée par AutoXpose ou `dnsupdater` **bloque** `create` / `enable` Cloudflare Tunnel tant que sa migration contrôlée n'est pas confirmée.
+- Ne jamais écraser ou supprimer automatiquement un A/AAAA/CNAME existant appartenant à un autre contrôleur ; signaler `DNS_OWNER_CONFLICT` et exposer le plan de migration. Empêcher la recréation de l'ancienne entrée en retirant ou modifiant sa source déclarative **avant** de changer DNS.
+- Le namespace `*.int.albandrieu.com` reste privé et ne doit jamais être publié par le gestionnaire, sauf exception préexistante documentée, qui ne confère aucun droit de création JIT.
+- `delete` n'efface que les objets marqués comme gérés par le nouveau contrôleur, avec vérification d'identité (ID de l'objet + hostname + origine + empreinte du plan). Pour une route non gérée, action manuelle explicite hors automatisation ; ne pas supprimer des enregistrements ACME `_acme-challenge`.
+- L'application/politique Access protectrice est créée et vérifiée **avant** la publication de l'entrée Tunnel/DNS ; en suppression, couper la route **avant** de retirer d'éventuels objets Access. Le retrait automatique des protections Access est déconseillé.
+- Le plan doit décrire précisément les opérations et pouvoir être exécuté de manière idempotente, avec suivi des changements, contrôle d'optimistic locking et journal de rollback.
+
+### Machine à états souhaitée
+
+`private` → `access_prepared` → `tunnel_route_active` → `disabled` → `removed`.
+
+Les états d'erreur `conflict`, `unknown` et `partial_failure` bloquent toute nouvelle publication. L'outil doit prouver qu'une requête anonyme est interdite et qu'une identité FIDO2 autorisée accède à la vraie application. La sécurité de la route n'est pas déduite d'un simple HTTP 200 ni d'un `external: true`.
+
+### Diagnostic IT Tools / Karakeep
+
+Le catalogue déclare `ittools.albandrieu.com` (origine HTTP `172.17.0.24:30063`, `external: true`) et `karakeep.albandrieu.com` (origine HTTP `172.17.0.24:30147`, `external: true`). Si FastAPI déclare « dégradé », fournir pour chaque service : code HTTP et redirection sans suivi, résultat anonyme vs identité autorisée, âge du résultat, succès du probe LAN, présence de Tunnel Public Hostname, existence et application effective d'une politique Access, propriétaire DNS et erreur d'origine. Un challenge Access attendu n'est pas une indisponibilité prouvée. Ne pas convertir un simple HTTP 403 en diagnostic définitif.
+
+### Contrat des tests
+
+Ajouter des fixtures pour : hostname déjà présent dans DNS mais absent du Tunnel ; AutoXpose propriétaire ; `dnsupdater` propriétaire ; route Tunnel existante mais non protégée ; Access correct sans route ; origine inaccessible ; délai expiré après reboot ; deux contrôleurs agissant simultanément ; suppression d'un objet tiers ; échec API entre préparation Access et publication DNS. Refuser systématiquement toute activation si le propriétaire DNS ne peut être confirmé.
+
+### DSOMM
+
+Relier les tests et preuves de ce gestionnaire à `TM-TRUENAS-001` et aux UUID **existants** des activités DSOMM concernées. Le document représente un modèle de menaces et un plan d'implémentation ; aucune preuve opérationnelle validée ni score de maturité supérieur ne doit être affirmé avant exécution des tests.
