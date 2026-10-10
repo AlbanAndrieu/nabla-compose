@@ -564,6 +564,43 @@ if [[ -n "${PFSENSE_POSTURE_API_KEY:-}" ]]; then
     done
     probe_api "posture_hostname" "${API_URL}" false "/api/v2/diagnostics/table?id=snort2c" 403 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
     probe_api "posture_lan" "${LAN_API_URL}" true /api/v2/system/version 200 "${POSTURE_API_HEADER_FILE}" || api_failures=$((api_failures + 1))
+
+    # Optional read-only evidence. These endpoints use distinct privileges and
+    # must not turn the core posture matrix red when the least-privilege posture
+    # identity is intentionally not authorized for them.
+    optional_dns_overrides_body="$(mktemp)"
+    optional_dns_overrides_http="$(curl -k --silent --show-error --connect-timeout 5 --max-time 15 \
+      --output "${optional_dns_overrides_body}" --write-out '%{http_code}' \
+      --header "@${POSTURE_API_HEADER_FILE}" \
+      "${LAN_API_URL%/}/api/v2/services/dns_resolver/host_overrides" 2>/dev/null || true)"
+    if [[ "${optional_dns_overrides_http}" == "200" ]]; then
+      log "DNS host overrides via API (filtered for Vaultwarden):"
+      jq -c '.data[]? | select(((.host // "") + "." + (.domain // "")) == "vaultwarden.albandrieu.com" or (.domain // "") == "vaultwarden.albandrieu.com") | {id,host,domain,ip,descr}' \
+        "${optional_dns_overrides_body}" 2>/dev/null | tee -a "${REPORT}" || true
+      if ! jq -e '.data[]? | select(((.host // "") + "." + (.domain // "")) == "vaultwarden.albandrieu.com" or (.domain // "") == "vaultwarden.albandrieu.com")' \
+        "${optional_dns_overrides_body}" >/dev/null 2>&1; then
+        log "vaultwarden_public_override_api=absent"
+      else
+        log "vaultwarden_public_override_api=present"
+      fi
+    else
+      log "vaultwarden_public_override_api=unavailable http=${optional_dns_overrides_http:-000}"
+    fi
+    rm -f "${optional_dns_overrides_body}"
+
+    optional_syslog_body="$(mktemp)"
+    optional_syslog_http="$(curl -k --silent --show-error --connect-timeout 5 --max-time 15 \
+      --output "${optional_syslog_body}" --write-out '%{http_code}' \
+      --header "@${POSTURE_API_HEADER_FILE}" \
+      "${LAN_API_URL%/}/api/v2/status/logs/settings" 2>/dev/null || true)"
+    if [[ "${optional_syslog_http}" == "200" ]]; then
+      log "pfSense remote syslog settings via API:"
+      jq -c '.data | {format,enableremotelogging,ipprotocol,sourceip,remoteserver,remoteserver2,remoteserver3,logall,filter,dhcp,auth,vpn,dpinger,system,resolver}' \
+        "${optional_syslog_body}" 2>/dev/null | tee -a "${REPORT}" || true
+    else
+      log "pfsense_remote_syslog_api=unavailable http=${optional_syslog_http:-000}"
+    fi
+    rm -f "${optional_syslog_body}"
   fi
   rm -f "${posture_preflight_body}"
 else
