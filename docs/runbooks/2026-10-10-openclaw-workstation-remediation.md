@@ -78,3 +78,7 @@ openclaw config get channels.irc.enabled
 ### Cron summary accepted on workstation — 2026-10-10
 
 Operator executed `openclaw cron runs --id 7ed5dd9a-da30-479f-b0eb-4cc494fb4966 --limit 50 | python3 scripts/workstation/openclaw-cron-runs-summary.py` against the workstation runtime. Results: runs=7, status_ok=7, status_non_ok=0, delivered=7, not_delivered=0, fallback_used=7, duration_ms_min=9121, duration_ms_max=172807, duration_ms_total=464590 (mean approximately 66.4 seconds). The CLI aggregator is therefore runtime exercised, but it does not measure tokens, costs, or validate article authenticity. Follow-up: explain why every delivery uses a fallback before changing Discord policy; compare actual per-job provider usage, keeping `litellm-main` separate from `litellm-cron`.
+
+### Discord cron delivery validated on workstation (2026-10-10)
+
+The operator ran the exact cron-history summary on the workstation with 3/3 targeted pytest tests passing. Seven runs were successful and delivered; all seven reported `fallbackUsed=true`, but destination identity was preserved in all seven (`delivery_route_same_destination=7`, `delivery_route_different_destination=0`). Total run duration was 464590 ms (range 9121–172807 ms). **Do not treat fallbackUsed alone as a Discord incident** or change delivery settings. Successful delivery is separate from editorial correctness, token usage and cost attribution. The digest spend remains unmeasured; next priority is redacted per-key/per-model LiteLLM metrics.
