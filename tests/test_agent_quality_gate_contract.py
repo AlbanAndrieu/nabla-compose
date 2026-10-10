@@ -20,10 +20,11 @@ class AgentQualityGateContractTests(unittest.TestCase):
 
         self.assertIn("git ls-files --stage", text)
         self.assertIn('[[ "${mode}" == "100755" ]]', text)
-        self.assertIn('[[ ! -x "${path}" ]]', text)
-        self.assertIn('chmod +x -- "${path}"', text)
+        self.assertIn('current_mode="$(stat -c \'%a\' -- "${path}"', text)
+        self.assertIn('[[ "${current_mode}" != "755" ]]', text)
+        self.assertIn('chmod 755 -- "${path}"', text)
         self.assertIn(
-            "working-tree executable bit restored from Git index",
+            "working-tree mode restored from Git index",
             text,
         )
 
