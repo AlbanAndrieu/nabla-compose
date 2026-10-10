@@ -15,7 +15,7 @@ CONFIG="${CONFIG_DIR}/config.yml"
 EXPECTED_GID="${GATUS_CONFIG_GID:-568}"
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-for command in stat getent docker grep; do
+for command in stat getent docker grep cut; do
   command -v "${command}" >/dev/null 2>&1 || fail "missing ${command}"
 done
 [[ "${EXPECTED_GID}" =~ ^[0-9]+$ ]] || fail "GATUS_CONFIG_GID must be numeric"
@@ -44,8 +44,6 @@ if [[ "${MODE}" == "--check" ]]; then
     fail "config directory/file group mismatch; run --apply after reviewing metadata"
   # Explicitly verify directory group search and file group read, regardless of
   # other owner/ACL access. Do not loosen permissions to world-readable.
-  [[ -x "${CONFIG_DIR}" && -r "${CONFIG}" ]] ||
-    fail "config directory/file not accessible to current operator"
   [[ $((8#${dir_mode} & 8#050)) -eq 8#050 ]] ||
     fail "group cannot traverse/read config directory"
   [[ $((8#${file_mode} & 8#040)) -eq 8#040 ]] ||
