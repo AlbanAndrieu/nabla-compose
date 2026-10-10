@@ -1,5 +1,8 @@
 # Homelab roadmap
 
+- [ ] **P0 LAN ingress** — exécuter `python3 scripts/ingress/audit-internal-routes.py --strict`, trier les candidats du catalogue et proposer des `Host(*.int.albandrieu.com)` **uniquement** pour les interfaces web autorisées, au cas par cas. Scanopy est déclaré `scanopy.int.albandrieu.com` → Traefik `websecure` → `60072` (aucun port scanner `60073` publié). Valider `docker compose config`, publication `pihole-dns-sync`, DNS Pi-hole/Unbound, TLS/Host et surtout absence de bypass WAN pfSense/HAProxy. Ne pas auto-ajouter routes pour DB, APIs admin ou daemons.
+
+
 Last updated: 2026-10-10.
 
 This file is the **concise execution index and conversation restart point**.
