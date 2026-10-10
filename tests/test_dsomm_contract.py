@@ -185,6 +185,28 @@ class DsommContractTests(unittest.TestCase):
         self.assertIn("generate-service-consumers.py --check", text)
         self.assertIn("x-nabla.status remains planned", text)
 
+    def test_deployer_fails_closed_if_truenas_loses_caddy_capability(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn(
+            '(.services.dsomm.cap_add // [] | index("NET_BIND_SERVICE") != null)',
+            script,
+        )
+        self.assertIn(
+            '(.services.dsomm.cap_drop // [] | index("ALL") != null)',
+            script,
+        )
+        self.assertIn(
+            '(.services.dsomm.security_opt // [] | index("no-new-privileges=true") != null)',
+            script,
+        )
+        self.assertIn(
+            "live container lacks NET_BIND_SERVICE", script
+        )
+        self.assertIn(
+            "DSOMM runtime NET_BIND_SERVICE capability present", script
+        )
+        self.assertNotIn("--privileged", script)
+
     def test_assessment_seed_is_offline_validated_and_conservative(self) -> None:
         activities = yaml.safe_load(SEED_ACTIVITIES.read_text(encoding="utf-8"))
         progress = yaml.safe_load(SEED_PROGRESS.read_text(encoding="utf-8"))
