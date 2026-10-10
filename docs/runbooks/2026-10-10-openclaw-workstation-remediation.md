@@ -116,3 +116,11 @@ The operator executed `bash scripts/workstation/openclaw-ops.sh --disable-irc`. 
 The default read-only operator wrapper completed and reported 300 LiteLLM budget 429 journal matches, 115 embedding 401 matches, 267/267 paired context events over budget (max ratio 2.01), 275 memory sync aborts and zero gateway connection-refused matches in the operator's latest 24-hour window. These are journal matches, not independent requests. Cron: 7/7 delivered and same destination, zero destination drift. Memory remained main 15/96 files indexed, cron 0/63, both dirty and vector search paused. Backup prerequisite warns Gateway is running, so no consistent backup was created by this check. Slack migration warnings remain.
 
 Operator pytest found 1 pass, 1 failure: static test expected Bash `"$id"`, while the real helper uses the equally valid and explicitly quoted `"${id}"`. The assertion has been corrected; runtime retest on the new HEAD is still outstanding. Neither the gateway nor memory index was modified to address this test failure.
+
+### P0 read-only credentials triage (2026-10-10)
+
+Run `python3 scripts/workstation/openclaw-auth-presence.py` on the workstation to inspect the **CLI shell only**. It reports one of `absent`, `present`, `unexpanded_reference`, or `surrounding_whitespace` per `OPENAI_API_KEY`, `LITELLM_API_KEY`, and `AZURE_OPENAI_API_KEY`, without disclosing credential values, prefixes, lengths or hash fingerprints. A `present` result **does not verify authentication, authorized model, endpoint, or Gateway service environment**. Do not echo `systemctl --user show-environment`, process environments, `openclaw models status` or unredacted OpenClaw config into issue logs. Before the first controlled API probe, confirm which provider actually serves `text-embedding-3-small` and whether OpenClaw Gateway inherits the intended credential and base URL. Preserve vector index and budget limits.
+
+### Compose quality-gate diagnostics
+
+The repository's `compose-config` pre-commit hook is blocking and now reports `ERROR: compose-config failed: <file>` on failure. Use `grep -A 30 -B 4 'compose-config' /tmp/...log` privately to inspect Docker's underlying error and the precise file. A failing Compose validation is not automatically an OpenClaw defect. Never bypass the hook or mark the gate green without a full HEAD-specific test.
