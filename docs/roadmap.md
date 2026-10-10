@@ -339,6 +339,46 @@ owned by [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and
 the service README/runbook. Never bulk-finalize env files or recreate non-empty
 datasets just to change presets.
 
+### Backup incident and recovery — 2026-10-10
+
+- [x] Workstation operator created
+  `openclaw-20261010T113723Z-2100092.tar.gz` with 106886 archived files;
+  script reported a SHA-256 digest. The archive was readable during creation,
+  but a **separate restore test has not yet passed**.
+- [x] The first local pytest run reported 1 failure / 3 passes because the
+  fixture interrogated the **real** active systemd Gateway. The test now
+  substitutes a hermetic `systemctl` executable in a temporary PATH and
+  explicitly verifies that an active Gateway blocks backup creation.
+  Exact-HEAD workstation pytest rerun is still required.
+- [ ] Never pass the literal `<archive>.tar.gz` placeholder to the script;
+  supply the actual archive filename. Safe read-only commands:
+
+  ```bash
+  ARCHIVE="$HOME/Backups/openclaw/openclaw-20261010T113723Z-2100092.tar.gz"
+  test -f "$ARCHIVE"
+  bash scripts/workstation/backup-openclaw.sh --verify "$ARCHIVE"
+  # The restore test temporarily expands the archive: check free disk first.
+  df -h /tmp "$HOME"
+  bash scripts/workstation/backup-openclaw.sh --restore-test "$ARCHIVE"
+  ```
+
+- [ ] Confirm Gateway readiness after the earlier stop/start. The process was
+  active but the first WebSocket probe showed `ECONNREFUSED` during warm-up:
+
+  ```bash
+  systemctl --user is-active openclaw-gateway.service
+  ss -ltn '( sport = :18789 )'
+  openclaw gateway status --deep
+  # Only if still failing:
+  journalctl --user -u openclaw-gateway.service -n 80 --no-pager
+  ```
+
+  Do **not** restart repeatedly until logs explain continued probe failure.
+  Avoid sharing secrets, message payloads or verbose env content from logs.
+- [ ] Add application-level isolated restore/SQLite consistency validation
+  before declaring a full recoverability SLA. Temporary extraction integrity
+  is not a proof that all OpenClaw channels, credentials and sessions resume.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
