@@ -137,6 +137,22 @@ normalize a private `0700` TrueNAS file to `0755`. Examine the staged diff
 before committing; the publication gate must refuse dirty staged changes.
 
 
+## Node.js dependency for security audit contracts
+
+The vendored Cloudflare `security-audit` validation is an **enforced** Node.js
+quality gate: `tests/test_security_audit_skill_contract.py` invokes both
+`validate-findings.cjs` and `validate-coverage-ledger.cjs`. TrueNAS may have
+Python, Pre-commit and hook-isolated JavaScript tooling but **no `node` on
+the operator's effective PATH**. A passing Biome/Pre-commit hook is not proof
+that a system Node runtime is available to the Python subprocess.
+
+Node is pinned in `mise.toml`. From the TrueNAS operator checkout use
+`mise install node`, then verify `mise exec -- node --version` and run the
+targeted security-audit contract under `mise exec -- python -m pytest ...`.
+If the Python dev venv is needed, invoke its interpreter through `mise exec`
+or activate the venv first. Do not skip the assertion requiring Node, and do
+not translate a missing runtime into a passing audit validation.
+
 ## TrueNAS noexec fixtures and branch divergence
 
 TrueNAS may mount `/tmp` as `tmpfs rw,nosuid,nodev,noexec` (confirmed
