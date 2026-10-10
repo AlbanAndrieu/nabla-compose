@@ -1,0 +1,15 @@
+# Non-essential TrueNAS Apps. One exact TrueNAS App ID per line.
+# Restart policy after reboot: LIGHT by default; these remain stopped unless
+# explicitly requested. No wildcard service matching and no destructive cleanup.
+# Validate actual installed IDs with app.query before modifying this list.
+graylog
+zabbix
+transmission
+lidarr
+radarr
+sonarr
+readarr
+prowlarr
+bazarr
+whisparr
+emby
