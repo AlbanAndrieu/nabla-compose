@@ -29,6 +29,42 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — pre-push shebang et DSOMM après app.update (2026-10-10)
+
+- [x] **Hook shebang** : `openclaw-ops.sh` possède désormais
+  `#!/usr/bin/env bash` au HEAD distant, mais l'opérateur a constaté
+  `check-executables-have-shebangs` en échec au HEAD
+  `f5b67697ea4d`. Le journal compact ne donne pas le chemin exact ;
+  ne pas affirmer que l'échec porte sur ce script sans la liste des
+  fichiers incriminés. Contrôler le journal privé `/tmp/tmp.1UY6kFZI9X`
+  et les modes Git indexés, puis relancer L3 après `git pull`.
+- [x] **DSOMM --apply exécuté sur TrueNAS** : seed, image,
+  Compose, catalogue, stockage, modèle existant préservé et direct
+  smoke Docker ont réussi ; `app.update` et `app.start` ont répondu
+  succès. **L'acceptation a échoué** : conteneur réel sans
+  `NET_BIND_SERVICE`, malgré un Compose rendu valide. L'App n'est
+  donc pas considérée réparée.
+- [x] **Diagnostic durci** : le déployeur relève maintenant, en cas
+  de divergence de capacité, l'identité et la date de création Docker,
+  le projet/service Compose, l'exit code, les redémarrages et les
+  capacités appliquées, sans afficher l'environnement des secrets.
+  Ce diagnostic différencie une Custom App non réconciliée et un
+  conteneur ancien/orphelin ; il ne change pas l'état du système.
+- [ ] **DSOMM action prioritaire** : confirmer la provenance du
+  conteneur et la définition persistée TrueNAS, en ne révélant pas
+  les valeurs `Config.Env`, `custom_compose_config` ou secrets.
+  Comparer `Created`, `com.docker.compose.project`,
+  `com.docker.compose.service`, `HostConfig.CapAdd` et
+  `app.query`. Ne pas répéter `--apply` aveuglément.
+- [x] **Pourquoi préserver un état DSOMM** : Git versionne les
+  fichiers seed/config du dépôt, pas les trois fichiers runtime
+  `/mnt/cpool/dsomm/state/` (modèle externe pinné et preuves
+  utilisateur pouvant évoluer). Sauvegarder cet état avant les
+  mutations TrueNAS évite la perte de travaux d'évaluation.
+- [ ] **Gatus/Sentry/Scrutiny** : poursuivre les diagnostics en
+  lecture seule dans le runbook, sans démarrer de services depuis
+  la boucle de correction du pre-push.
+
 ## PR #251 — OpenClaw ShellCheck et préparation DSOMM/Gatus/Sentry/Scrutiny (2026-10-10)
 
 - [x] **P0** : l'opérateur a confirmé `15 passed / 22 subtests`
