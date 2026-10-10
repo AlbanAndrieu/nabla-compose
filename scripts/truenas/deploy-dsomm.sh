@@ -191,8 +191,11 @@ if [[ "${MODE}" == "--apply" ]]; then
     .services.dsomm.image != null
     and .services.dsomm.ports != null
     and .networks.intranet != null
+    and (.services.dsomm.cap_drop // [] | index("ALL") != null)
+    and (.services.dsomm.cap_add // [] | index("NET_BIND_SERVICE") != null)
+    and (.services.dsomm.security_opt // [] | index("no-new-privileges=true") != null)
   ' <<<"${runtime_compose_json}" >/dev/null ||
-    fail "rendered DSOMM runtime Compose is incomplete"
+    fail "rendered DSOMM runtime Compose lacks mandatory minimal Caddy capabilities/security posture"
   printf 'OK: rendered one-service DSOMM Compose for TrueNAS Custom App\n'
 
   printf '\n==> TrueNAS Custom App reconciliation\n'
@@ -258,6 +261,15 @@ fi
 
 printf '\n==> wait for DSOMM runtime\n'
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 4
+
+# The canonical Compose may be correct while an older TrueNAS Custom App
+# container still runs without Caddy's file-capability bounding-set exception.
+# Inspect only effective host configuration; never print container environment.
+if ! docker inspect "${APP_ID}" --format '{{json .HostConfig.CapAdd}}' 2>/dev/null |
+  jq -e 'type == "array" and index("NET_BIND_SERVICE") != null' >/dev/null; then
+  fail "${APP_ID}: live container lacks NET_BIND_SERVICE (Caddy execve EPERM risk); TrueNAS Custom App has not converged"
+fi
+printf 'OK: DSOMM runtime NET_BIND_SERVICE capability present\n'
 
 if probe_http_wait "${DSOMM_URL}" "${WAIT_SECONDS}" 4 3 8; then
   printf 'OK: DSOMM HTTP ready: %s\n' "${DSOMM_URL}"
