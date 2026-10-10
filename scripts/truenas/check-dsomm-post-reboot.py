@@ -11,7 +11,7 @@ import yaml
 
 ASSETS = {
     "meta.yaml": ("teams",),
-    "default/model.yaml": ("version",),
+    "default/model.yaml": ("meta",),
     "team-progress.yaml": ("progress",),
     "team-evidence.yaml": ("evidence",),
 }
@@ -39,6 +39,14 @@ def probe(base_url: str, *, timeout: float = 8.0) -> None:
         if len(matches) != 1:
             raise ValueError(f"{path}: expected exactly one matching YAML document")
         data = matches[0]
+        if path == "default/model.yaml":
+            if str(data["meta"].get("version")) != "5.0.2":
+                raise ValueError(f"{path}: unexpected DSOMM model version")
+            if len(documents) < 2 or not any(
+                "Agentic AI" in doc or "Build and Deployment" in doc
+                for doc in documents[1:]
+            ):
+                raise ValueError(f"{path}: missing DSOMM activities document")
         payloads[path] = data
         print(f"OK asset={path} http=200 bytes={len(raw)}")
     contexts = set(payloads["meta.yaml"]["teams"])
