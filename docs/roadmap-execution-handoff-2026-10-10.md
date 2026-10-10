@@ -20,6 +20,10 @@
 - **Final PR merge/readiness gate:** complete required local validation on the exact PR HEAD, review unresolved failures, preserve security checks, obtain the necessary TrueNAS/workstation runtime acceptance, and leave merging to the operator. GitHub Actions credit or network unavailability must not cause infinite speculative re-runs.
 - Treat external services, data changes, ZFS state, identity and secrets more strictly than documentation-only changes; never auto-restart/redeploy existing apps, expose a tunnel or index private data merely to complete an autonomous step.
 
+## Planned P1 — Cloudflare security-audit-skill
+
+After P0 stability work (A1–A3), inspect and pin [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) before installation. Run a least-privilege **read-only** audit of Access, Tunnel, DNS including internal `*.int.albandrieu.com`, WAF and token scopes. Reconcile findings against the declared Homelab topology and external FastAPI surface; record redacted reproducible evidence, map confirmed risks to STRIDE and DSOMM, and evaluate a non-blocking local-first POC before any deterministic enforcement. No secret values, no automatic Cloudflare changes, no merge. **Status: planned, not installed or executed.**
+
 ## Critical path (dependencies and done criteria)
 
 | Step | Task | Dependency | Closure criterion |
