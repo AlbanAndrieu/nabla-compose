@@ -162,12 +162,12 @@ truenas_app_summary() {
   local app_id="${1:?TrueNAS app id is required}"
 
   truenas_app_query_by_id "${app_id}" |
-    jq -r '
+    jq -r --arg app_id "${app_id}" '
       if length == 1 then
         .[0]
-        | "OK: TrueNAS app \(.id) state=\(.state // \"UNKNOWN\") containers=\(.active_workloads.containers // 0)"
+        | "OK: TrueNAS app \(.id) state=\(.state // "UNKNOWN") containers=\(.active_workloads.containers // 0)"
       else
-        "WARNING: TrueNAS app not found: '"${app_id}"'"
+        "WARNING: TrueNAS app not found: \($app_id)"
       end
     '
 }
