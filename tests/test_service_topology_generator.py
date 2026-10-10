@@ -17,6 +17,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_consumer_generator_error_handler_imports_subprocess(self) -> None:
+        # Git failure must be reported, not masked by NameError.
+        text = (ROOT / "scripts" / "generate-service-consumers.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("import subprocess", text)
+        self.assertIn("subprocess.CalledProcessError", text)
+
     def test_generator_error_handler_imports_subprocess(self) -> None:
         # Previously a stale icon raised NameError in the exception handler.
         source = SCRIPT.read_text(encoding="utf-8")
