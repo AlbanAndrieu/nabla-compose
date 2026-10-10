@@ -29,6 +29,31 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## Operator follow-up: Git-generated files and DSOMM check (2026-10-10)
+
+- [x] Operator repaired Git index ownership in the superproject and nested
+  submodules; ordinary `git status` now works without `sudo`. Preserve
+  unrelated `fastapi-sample` submodule HEAD drift.
+- [x] Both catalog generators and `--check` commands passed on TrueNAS.
+  Generated topology, services, Gatus, Homarr and AutoKuma changes are
+  **uncommitted**; preserve them while updating the source branch.
+- [ ] To integrate upstream changes without losing local artifacts:
+  `git stash push -m "pre-pull generated catalogs" --` for **only**
+  the five generated paths, followed by
+  `git -c pull.rebase=false pull --ff-only origin
+  fix/agent-compose-gate-offline-followup`; regenerate and re-check.
+  Keep the stash for rollback, do not pop stale generated outputs on
+  top of newer inputs. Inspect/commit the regenerated diff separately.
+- [x] DSOMM direct Docker smoke now uses the same minimal
+  `NET_BIND_SERVICE` exception as Compose; `--check` fails fast when
+  the TrueNAS App is STOPPED instead of waiting the entire timeout.
+- [ ] Validate DSOMM `--apply` only after reviewing the fresh generated
+  catalog diff, then accept actual health and stable restart count.
+- [ ] Gatus config mode fix (`0640` and group ID) is in PR but the
+  observed `0600` regeneration was from older local HEAD. Confirm
+  TrueNAS `apps` group GID and active file ownership, update generator
+  and Compose, reconcile Gatus only after checking runtime group access.
+
 ## Post-reboot LIGHT profile and runtime acceptance (2026-10-10)
 
 - [x] Define explicit optional app set in
