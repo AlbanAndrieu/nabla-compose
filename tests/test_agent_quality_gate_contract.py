@@ -87,6 +87,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertNotIn("-m unittest discover -s tests", text)
         self.assertIn('TARGETED_LABEL="CI fast"', text)
         self.assertIn("generated_contract_scope_changed", text)
+        # Nested app Compose edits must trigger topology/consumer regeneration.
+        self.assertIn("apps/*/compose.yml|apps/*/compose.yaml", text)
         self.assertIn("runtime_primitive_scope_changed", text)
         self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
