@@ -51,3 +51,7 @@ class RebootDiagnosticTests(TestCase):
             result = diagnostic.diagnose_fastapi(script, "http://127.0.0.1:8091", 2.0)
         self.assertEqual(result["state"], "incomplete")
         self.assertEqual(result["evidence_gaps"], ["sentry"])
+
+    def test_redis_uses_published_host_port_not_container_port(self):
+        self.assertIn(("redis", 30059), diagnostic.SERVICES)
+        self.assertNotIn(("redis", 6379), diagnostic.SERVICES)
