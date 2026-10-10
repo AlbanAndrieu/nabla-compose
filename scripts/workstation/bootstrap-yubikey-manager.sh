@@ -35,10 +35,23 @@ resolve_uv() {
 }
 
 native_prereqs_ready() {
-  command -v pkg-config >/dev/null 2>&1 &&
-  command -v swig >/dev/null 2>&1 &&
-  pkg-config --exists libpcsclite 2>/dev/null &&
-  [[ -r /usr/include/PCSC/winscard.h ]]
+  command -v pkg-config >/dev/null 2>&1 || return 1
+  command -v swig >/dev/null 2>&1 || return 1
+  pkg-config --exists libpcsclite 2>/dev/null || return 1
+  return 0
+}
+
+report_native_prereqs() {
+  command -v pkg-config >/dev/null 2>&1 ||
+    printf 'MISSING: pkg-config\n' >&2
+  command -v swig >/dev/null 2>&1 ||
+    printf 'MISSING: swig\n' >&2
+  if command -v pkg-config >/dev/null 2>&1; then
+    pkg-config --exists libpcsclite 2>/dev/null ||
+      printf 'MISSING: pkg-config module libpcsclite\n' >&2
+    pkg-config --cflags libpcsclite 2>/dev/null |
+      sed 's/^/pcsc_cflags=/' >&2 || true
+  fi
 }
 
 install_native_prereqs() {
@@ -49,8 +62,10 @@ install_native_prereqs() {
   sudo apt-get update
   sudo apt-get install -y --no-install-recommends \
     libpcsclite-dev pcscd pkg-config swig
-  native_prereqs_ready ||
+  if ! native_prereqs_ready; then
+    report_native_prereqs
     fail "PC/SC prerequisites still incomplete after package installation"
+  fi
 }
 
 resolve_uv
@@ -74,8 +89,10 @@ check_install() {
 
 if [[ "${MODE}" == "--check" ]]; then
   report_path
-  native_prereqs_ready ||
+  if ! native_prereqs_ready; then
     printf 'WARNING: workstation PC/SC development prerequisites are incomplete\n' >&2
+    report_native_prereqs
+  fi
   check_install || fail "isolated ykman ${VERSION} is not ready; run --apply"
   printf 'OK: isolated YubiKey Manager %s ready at %s\n' "${VERSION}" "${YKM}"
   exit 0
