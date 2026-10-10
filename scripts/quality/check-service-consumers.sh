@@ -2,7 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || cd "${SCRIPT_DIR}/../.." && pwd)"
+# Resolve exactly one root path: the previous 'cmd || cd && pwd' printed
+# both Git's root and pwd on success due to shell operator precedence.
+if ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+fi
 cd "${ROOT}"
 
 OUTPUTS=(
