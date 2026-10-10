@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import stat
+import tempfile
 import subprocess
 import unittest
 from pathlib import Path
@@ -130,6 +131,55 @@ class AgentQualityGateContractTests(unittest.TestCase):
             gate,
         )
         self.assertIn("QG_GIT_SCOPE", gate)
+
+    def test_git_scope_ignores_gitlinks_without_failing_pipeline(self) -> None:
+        """A staged submodule path is not a regular file, not a Git error."""
+        gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+        start = gate.index("collect_changed_files() {")
+        end = gate.index("\ncollect_deleted_files() {", start)
+        collect = gate[start:end]
+        self.assertIn('if [[ -f "${file}" ]]; then', collect)
+        self.assertNotIn('[[ -f "${file}" ]] && printf', collect)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            (repo / "README.md").write_text("baseline\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "README.md"], check=True)
+            subprocess.run(
+                [
+                    "git", "-C", str(repo), "-c", "user.name=Quality",
+                    "-c", "user.email=quality@example.com", "commit",
+                    "-qm", "baseline",
+                ],
+                check=True,
+            )
+            sha = subprocess.check_output(
+                ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+            ).strip()
+            subprocess.run(
+                [
+                    "git", "-C", str(repo), "update-index", "--add",
+                    "--cacheinfo", f"160000,{sha},fastapi-sample",
+                ],
+                check=True,
+            )
+            (repo / "fastapi-sample").mkdir()
+            run = subprocess.run(
+                [
+                    "bash", "-euo", "pipefail", "-c",
+                    'LOCAL_LOOP=true; BASE_REF=HEAD; ' + collect
+                    + '; collect_changed_files',
+                ],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(run.stdout, "")
 
     def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
         scripts = sorted((ROOT / "scripts").rglob("*.sh"))
