@@ -629,6 +629,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("dry_run: true", configure)
         self.assertIn("no PATCH request was sent", configure)
         self.assertIn("all three pfSense remote syslog slots are already occupied", configure)
+        self.assertIn('PFSENSE_SYSLOG_LEGACY_TARGET="${PFSENSE_SYSLOG_LEGACY_TARGET:-172.17.0.57:1514}"', configure)
+        self.assertIn("plan will remove legacy workstation syslog target", configure)
+        self.assertIn("canonicalize_legacy=true", configure)
+        self.assertIn("legacy workstation syslog target removed", configure)
         self.assertIn(
             'PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"',
             configure,
