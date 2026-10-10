@@ -83,6 +83,8 @@ else
   printf 'crowdsec_container_id=%s status=%s health=%s image=%s\n' \
     "${container_id:0:12}" "${runtime_status:-unknown}" "${runtime_health:-unknown}" "${runtime_image:-unknown}"
   [[ "${runtime_status}" == "running" ]] || error "CrowdSec container is not running"
+  [[ "${runtime_health}" == "healthy" ]] ||
+    error "CrowdSec container health is ${runtime_health:-unknown}; expected healthy"
   [[ "${runtime_image}" == "${EXPECTED_IMAGE}" ]] || error "CrowdSec runtime image is ${runtime_image:-unknown}; expected ${EXPECTED_IMAGE}"
 
   disabled_scenarios="$(docker inspect "${container_id}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^DISABLE_SCENARIOS=//p' | tail -n 1)"
