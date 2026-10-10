@@ -130,6 +130,40 @@ first failing test or job, its path, a bounded error excerpt and exact HEAD.
 Never send successful full logs or complete generated catalogs into context.
 Escalate from a concise failure to full logs only when required.
 
+## Mandatory executable validation in the agent environment
+
+For every Bash or Python patch, **execute the affected source locally before
+publishing through GitHub**. A GitHub connector supplies file bytes, not an
+excuse to stop at static inspection. In a network-isolated agent environment:
+
+1. Pin the PR HEAD; fetch the exact changed files with the GitHub connector.
+   Reconstruct them under a clean temporary working directory, including any
+   imports and minimal fixtures needed by the targeted test. Mark unavailable
+   dependencies explicitly. Do not modify the operator's live TrueNAS paths.
+2. Run `bash -n path.sh` on every changed Bash file and execute the matching
+   ShellCheck/shfmt versions if installed; **syntax-only does not equal lint**.
+   For Python run `python -m py_compile path.py` (or AST parsing when imports
+   are unavailable), then the smallest matching `pytest`/unittest module.
+   For scripts invoked in live mode, never run mutating `--apply` remotely:
+   exercise read-only checks and hermetic mocks/contracts instead.
+3. When a failure depends on Git semantics (submodules, missing paths,
+   detached HEAD, origin refs or index modes), create a **temporary Git
+   repository** and execute the exact helper/function against the failing
+   fixture. Cover the observed failure **and** a passing ordinary-file case.
+4. Report precisely what ran and where: "L1 exact-file local execution"
+   versus "L1 partial reproduction". Do not describe an isolated snippet
+   as proof that the full original file passed. If exact-file materialization
+   is impossible, say why and supply a reproducible operator command.
+5. Publish only after available L1 tests pass. Run pre-commit and the complete
+   repository gate when the checkout/dependencies exist; never claim L2/L3
+   based on L1, and never ask the operator to run checks that the agent can
+   execute itself. Preserve security hooks and avoid shell/CI bypasses.
+
+Do not use network failures as a reason to stop at L0: use fetched file
+contents to construct small reproducible tests, but **validate the actual
+changed behavior**, not unrelated illustrative code. If the user later
+provides full TrueNAS output, compare it with the L1 claim and correct gaps.
+
 ## Exact-HEAD source recovery when shell DNS is blocked
 
 Use the GitHub connector as a **control plane** when a local shell cannot
