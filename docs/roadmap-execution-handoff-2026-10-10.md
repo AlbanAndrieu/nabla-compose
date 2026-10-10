@@ -36,6 +36,35 @@
 
 **Deferrals:** Karmada/federation, broad AI upgrades, Trivy Operator, new observability daemons, S3 backend consolidation, native Grafana migration unless an active incident warrants it, and destructive cleanup of legacy services.
 
+## Latest execution addendum — 2026-10-10 21:04 CEST
+
+PR **#251 is already merged**. Active follow-up is the draft
+[PR #253](https://github.com/AlbanAndrieu/nabla-compose/pull/253)
+on `fix/gatus-config-permissions-and-runtime-closure`.
+Do not reopen or push new changes to the closed #251 branch.
+
+**Gatus root cause established:** the container logged
+`panic: error reading configuration from directory config/config.yml: open config/config.yml: permission denied`;
+its exit=2 and restart_count=564 are secondary effects.
+Host config YAML was `albandrieu:apps 640`; SQLite dataset/db
+are `root:root 770`. The confirmed fault is reading Gatus
+configuration, **not a SQLite error**. PR #253 introduces
+`scripts/truenas/repair-gatus-config-access.sh` (read-only
+`--check`, explicit `--apply`), which first compares Docker
+`/config` mount source against the repository path and verifies
+`HostConfig.GroupAdd` and group `apps` GID 568. It repairs
+only directory group/mode (0750) and YAML group/mode (0640),
+never database data. If mount source or group differs, stop and
+investigate TrueNAS Custom App config instead. Runtime
+application/HTTP acceptance is still pending.
+
+**Next execution:** check current PR head, verify scripts/contracts
+locally, obtain minimal non-secret operator-only mount/group/permissions
+evidence as needed; apply only a proven correction and check
+HTTP 8085 without deleting historical SQLite. Continue secrets
+manifest and Backstage descriptor parity in parallel, respecting
+the ratified priority sequence and no merge.
+
 ## Proven state / unresolved facts
 
 - **DSOMM:** `deploy-dsomm.sh --check` completed; capacity `CAP_NET_BIND_SERVICE` confirmed in `ix-dsomm`; HTTP 200 on `172.17.0.24:31088`. Declared `x-nabla.status: planned` and catalog descriptor still planned (needs intentional status reconciliation); `dsomm-baseline` stays planned; runtime evidence files are outside Git and must not be blindly committed.
