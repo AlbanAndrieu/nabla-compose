@@ -16,7 +16,11 @@ def test_fastapi_observability_smoke_covers_error_trace_and_profile() -> None:
     assert "eap_spans_local" in content
     assert "transactions_local" in content
     assert "trace mismatch" in content
-    assert "Pyroscope readiness" in content
+    # Runtime smoke validates HTTP, Prometheus exposition and real profile
+    # series; do not require the obsolete literal readiness log label.
+    assert 'probe_http_success "${PYROSCOPE_URL}/" 3 5' in content
+    assert '"${PYROSCOPE_URL}/metrics"' in content
+    assert "Pyroscope Prometheus metrics exposition" in content
     assert "/querier.v1.QuerierService/Series" in content
     assert "service_name" in content
     assert "fastapi-sample" in content
