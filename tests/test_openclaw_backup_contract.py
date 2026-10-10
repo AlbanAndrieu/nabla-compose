@@ -17,12 +17,12 @@ def run(tmp_path, *args):
     fake_bin.mkdir(exist_ok=True)
     fake_systemctl = fake_bin / "systemctl"
     fake_systemctl.write_text(
-        '#!/bin/sh\\n'
-        'if [ "$1" = "--user" ] && [ "$2" = "is-active" ]; then\\n'
-        '  printf "%s\\n" "${TEST_GATEWAY_STATE:-inactive}"\\n'
-        '  exit 0\\n'
-        'fi\\n'
-        'exit 2\\n'
+        '#!/bin/sh\n'
+        'if [ "$1" = "--user" ] && [ "$2" = "is-active" ]; then\n'
+        '  printf "%s\n" "${TEST_GATEWAY_STATE:-inactive}"\n'
+        '  exit 0\n'
+        'fi\n'
+        'exit 2\n'
     )
     fake_systemctl.chmod(0o755)
     env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
@@ -73,7 +73,7 @@ def test_rejects_backup_when_gateway_active(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     systemctl = fake_bin / "systemctl"
-    systemctl.write_text('#!/bin/sh\\nprintf "active\\n"\\n')
+    systemctl.write_text('#!/bin/sh\nprintf "active\n"\n')
     systemctl.chmod(0o755)
     env = {**os.environ, "HOME": str(home), "OPENCLAW_STATE_DIR": str(state),
            "OPENCLAW_BACKUP_DIR": str(home / "private-backup"),
