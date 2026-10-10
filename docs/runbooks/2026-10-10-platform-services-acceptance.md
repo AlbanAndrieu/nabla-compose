@@ -45,6 +45,35 @@ curl -fsS -o /dev/null -w 'dsomm_http=%{http_code}\n' \
 sudo stat -c '%a %U:%G %n' /mnt/cpool/dsomm/state 2>/dev/null || true
 ```
 
+### Preuve du 10 octobre : DSOMM STOPPED (read-only)
+
+Le `--check` opérateur a confirmé le seed 5.0.2 (22 activités et
+22 évidences), l'image 4.4.1 locale, le Compose et les projections
+synchronisés, le dataset non vide `cpool/dsomm` et un checkout propre.
+Il s'est arrêté explicitement sur : `ERROR: dsomm: TrueNAS App is
+STOPPED`. Aucune application n'a été démarrée, aucun état n'a été écrasé.
+
+Étape de diagnostic suivante, **avant** tout `--apply` ou `app.start` :
+
+```bash
+sudo midclt call app.query '[["id","=","dsomm"]]' |
+  jq '[.[] | {id, state, active_workloads, version}]'
+sudo docker ps -a --filter label=com.docker.compose.project=ix-dsomm \
+  --format '{{.Names}} {{.Status}}'
+sudo stat -c '%a %U:%G %n' /mnt/cpool/dsomm/state \
+  /mnt/cpool/dsomm/state/model.yaml \
+  /mnt/cpool/dsomm/state/team-progress.yaml \
+  /mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+La présence d'une App STOPPED **n'autorise pas** à remplacer sa
+configuration automatiquement. Examiner d'abord les jobs récents
+d'applications dans l'interface TrueNAS ou via `core.get_jobs` en
+masquant les arguments (susceptibles de contenir des secrets).
+Conserver les fichiers d'état et leurs empreintes pour comparaison.
+Une reprise nécessitant des mutations doit être décidée séparément,
+avec rollback des fichiers d'état et de la définition de l'App.
+
 L'état `STOPPED` ou `MISSING` est un **résultat bloquant attendu du
 --check**, pas un ordre de déploiement. Avant tout `--apply`, vérifier
 provenance de l'image, état des modèles/seeds, volume et rollback.
