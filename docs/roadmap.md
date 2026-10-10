@@ -520,6 +520,19 @@ Do this before enabling/reconciling Mimir / Loki / Tempo / Alloy.
 - [ ] Cyberbro free-engine baseline, then provider onboarding in bounded
   least-privilege batches; resolve Vaultwarden token-refresh/icon TLS debt.
 
+### Local-first follow-up after merged PR #250 (2026-10-10)
+
+- [x] Trigger topology and Homarr/Gatus/AutoKuma generator checks for
+  nested `apps/*/compose.yml` edits, not only files directly under `apps/`.
+- [x] Fail closed when local quality-gate Git path collection errors;
+  never interpret a broken `git diff` as zero changed files.
+- [ ] Regenerate and validate any stale Pipelines catalog, topology,
+  Gatus, Homarr or AutoKuma projections from the merged source change
+  using the canonical generators; preserve deterministic diffs.
+- [ ] Run exact-HEAD L3 after obtaining a full verified checkout/cache.
+  Offline L1 and source-level assertions remain limited evidence; do not
+  rerun GitHub Actions merely to discover the next error.
+
 ## P3.1 — AI stack upgrades and service consolidation (planning only)
 
 Execution plan: [AI stack upgrade and consolidation](./ai-stack-upgrade-consolidation-plan.md).
