@@ -20,6 +20,8 @@ def test_gatus_repair_script_is_bash_and_scoped() -> None:
     assert '[[ "${MODE}" == "--check" ]]' in source
     assert "getent group apps" in source
     assert "HostConfig.GroupAdd" in source
+    assert 'eq .Destination "/config"' in source
+    assert 'mount_source' in source
     assert 'chmod 0750 -- "${CONFIG_DIR}"' in source
     assert 'chmod 0640 -- "${CONFIG}"' in source
     assert "chgrp --" in source
