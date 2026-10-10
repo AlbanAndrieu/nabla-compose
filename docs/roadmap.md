@@ -379,6 +379,41 @@ datasets just to change presets.
   before declaring a full recoverability SLA. Temporary extraction integrity
   is not a proof that all OpenClaw channels, credentials and sessions resume.
 
+### Incident OpenClaw — 2026-10-10, runtime evidence
+
+- [x] Backup archive verified and isolated extraction passed:
+  106886 regular files, matching SHA-256 reported during creation
+  (`6f14f0572effc9dcedf08b0907412dd05b2651a51057c8b88d98b74685bf16bf`).
+  The archive is private; do not publish or ingest it in CI. Functional
+  restoration of channels/sessions is still untested.
+- [x] Gateway systemd active, loopback `:18789` listening and WebSocket
+  connectivity OK after warmup; **runtime still uses `/usr/bin/node`**.
+- [x] Eight targeted workstation/backup tests passed in the operator environment.
+- [ ] The local quality gate falsely reported executable-script success after
+  `line 356: for: command not found`. Fixed the malformed loop and added
+  behavioral regression: a 100644 script with shebang must fail, 100755 must
+  pass. Re-run exact-HEAD local checks.
+- [ ] Runtime logs show LiteLLM HTTP **429 budget exceeded** for the
+  `openclaw-main` virtual key (observed spend ~10.06 against budget 10.0),
+  not a network outage. Both GPT-4.1 and fallback GPT-4.1-mini consume the
+  same exhausted key, triggering repeated futile retries. Check budget,
+  effective key identity, reset period and spend accounting; **do not bypass
+  the cap or silently increase it**. Add bounded backoff/circuit breaker.
+- [ ] Embedding memory sync returns HTTP **401** because a key reference is
+  sent as a literal unexpanded value to the OpenAI embedding endpoint.
+  Preserve the existing `nomic-embed-text` vector index; check configured
+  provider and secure variable resolution before any reindex. Do not print
+  tokens or secret-bearing JSON.
+- [ ] Prompt ~215k tokens exceeded an advertised pre-reserve budget ~108k.
+  Review session compaction/summary lifecycle, history retention, provider
+  token budgets and private-message minimization; do not flush or delete
+  history as an implicit workaround.
+- [ ] Run `bash scripts/workstation/diagnose-openclaw-errors.sh` for
+  **aggregate-only** journal evidence (no original message or API key text).
+  Install the script's executable Git bit, then run its local pytest.
+- [ ] Preserve strict OpenClaw personal Gmail/WhatsApp vs Hermes technical
+  account/secrets isolation. No outbound message testing without approval.
+
 ## OpenClaw personal assistant — workstation stabilization
 
 **Scope:** OpenClaw manages personal Gmail/WhatsApp triage and proposed replies
