@@ -109,6 +109,15 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertNotIn("cscli bouncers delete", text)
         self.assertNotRegex(text, r"(?m)^\\s*ssh\\s+.*pfsense")
 
+    def test_deployer_reports_runtime_without_shared_app_summary_helper(self) -> None:
+        text = DEPLOY.read_text(encoding="utf-8")
+
+        self.assertNotIn("truenas_app_summary", text)
+        self.assertIn("truenas_app_state", text)
+        self.assertIn("truenas_compose_container_id", text)
+        self.assertIn("crowdsec_app_state=%s", text)
+        self.assertIn("crowdsec_container_id=%s image=%s health=%s", text)
+
     def test_deployer_keeps_executable_bit(self) -> None:
         self.assertTrue(DEPLOY.stat().st_mode & stat.S_IXUSR)
 
