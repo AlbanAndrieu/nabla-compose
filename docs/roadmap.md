@@ -29,6 +29,26 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## Local-first quality gate compact diagnostics — 2026-10-10
+
+- [x] Keep complete security/lint/test coverage, but print only failed
+  pre-commit hook identifiers and pytest failure summaries by default.
+  Preserve complete private `mktemp` logs (mode 0600) on failure; successful
+  logs are removed. The fallback tail is used only if no structured failure
+  lines are found. `QUALITY_LOG_TAIL` and `QUALITY_SUMMARY_LINES` remain
+  operator overrides.
+- [x] Fix stale agent contract tests: native ShellCheck no longer uses
+  docker.sock; aggregate hooks across both `repo: local` sections; align
+  the gate's changed-file message and canonical pre-push policy assertions.
+- [x] Restore syntactically valid CrowdSec scripts: remove duplicated tail
+  and repair the truncated secret check; restore Loki `curl` line
+  continuations. Validate with `bash -n` and the existing
+  `test_agent_quality_gate_contract.py` syntax preflight.
+- [ ] Operator: pull the branch after safely committing any indexed local
+  work, run `python -m pytest -q tests/test_agent_quality_gate_contract.py`,
+  and rerun pre-commit plus the strict local gate. Do not bypass pre-push
+  and do not stage the unrelated `fastapi-sample` gitlink.
+
 ## TrueNAS local ShellCheck pre-commit incident — 2026-10-10
 
 - [x] Root cause: official `shellcheck-precommit` hook invokes Docker;
