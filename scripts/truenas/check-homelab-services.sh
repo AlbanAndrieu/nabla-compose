@@ -23,7 +23,7 @@ failed=0
 warnings=0
 
 run_gate() {
-  local name="$1"
+  local name="${1}"
   shift
   if "${@}" >"${runtime_tmp}/${name}.log" 2>&1; then
     [[ "${VERBOSE}" == true ]] && cat "${runtime_tmp}/${name}.log"
