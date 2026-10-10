@@ -13,6 +13,13 @@ ok() { printf 'OK: %s\n' "$*"; }
 warn() { printf 'WARN: %s\n' "$*"; warnings=$((warnings + 1)); }
 fail() { printf 'ERROR: %s\n' "$*"; failures=$((failures + 1)); }
 
+if command -v midclt >/dev/null 2>&1 || [[ -r /etc/version ]]; then
+  SCOPE="truenas"
+else
+  SCOPE="workstation"
+fi
+printf 'scope=%s\n' "${SCOPE}"
+
 printf '==> Bitwarden CLI metadata (no session or secrets)\n'
 if command -v bw >/dev/null 2>&1; then
   cli_path="$(command -v bw)"
@@ -53,6 +60,9 @@ fi
 
 printf '\n==> Vaultwarden container metadata\n'
 DOCKER_CMD=()
+if [[ "${SCOPE}" != "truenas" ]]; then
+  printf 'container_scope=skipped-non-truenas\n'
+else
 if command -v docker >/dev/null 2>&1; then
   if docker info >/dev/null 2>&1; then
     DOCKER_CMD=(docker)
@@ -60,7 +70,8 @@ if command -v docker >/dev/null 2>&1; then
     DOCKER_CMD=(sudo docker)
   fi
 fi
-if (( ${#DOCKER_CMD[@]} > 0 )); then
+fi
+if [[ "${SCOPE}" == "truenas" ]] && (( ${#DOCKER_CMD[@]} > 0 )); then
   metadata="$("${DOCKER_CMD[@]}" inspect "${CONTAINER}" --format '{{.Config.Image}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' 2>/dev/null || true)"
   if [[ -n "${metadata}" ]]; then
     IFS='|' read -r image state health <<< "${metadata}"
@@ -73,12 +84,14 @@ if (( ${#DOCKER_CMD[@]} > 0 )); then
   else
     warn 'Vaultwarden container unavailable to current user; run with Docker-read access, not sudo bw'
   fi
-else
-  warn 'Docker unavailable'
+elif [[ "${SCOPE}" == "truenas" ]]; then
+  warn 'Docker unavailable on TrueNAS'
 fi
 
 printf '\n==> Key-ID API compatibility evidence (redacted counts)\n'
-if (( ${#DOCKER_CMD[@]} == 0 )); then
+if [[ "${SCOPE}" != "truenas" ]]; then
+  printf 'logs_scope=skipped-non-truenas\n'
+elif (( ${#DOCKER_CMD[@]} == 0 )); then
   warn 'logs_unavailable: Docker access denied; zero errors cannot be inferred'
 elif logs="$("${DOCKER_CMD[@]}" logs --since 2h "${CONTAINER}" 2>/dev/null)"; then
   # Never display raw container logs: they can contain authentication data.
@@ -87,7 +100,11 @@ elif logs="$("${DOCKER_CMD[@]}" logs --since 2h "${CONTAINER}" 2>/dev/null)"; th
   drift="$(printf '%s\n' "${logs}" | grep -Fc 'TOTP Time drift detected' || true)"
   printf 'logs_available=true user_key_id_requests=%s http_404_lines=%s totp_drift_warnings=%s window=2h\n' "${requests}" "${not_found}" "${drift}"
   if ((requests > 0 && not_found > 0)); then
-    warn 'Key-ID POST and HTTP 404 observed in same time window; correlate timestamps before attributing the 404'
+    if [[ "${version:-}" == "${ACCEPTED_CLI}" ]]; then
+      printf 'INFO: historical Key-ID POST/404 evidence matches the already-proven %s incompatibility; current CLI %s is accepted.\n' "${KNOWN_BAD_CLI}" "${ACCEPTED_CLI}"
+    else
+      warn 'Key-ID POST and HTTP 404 observed while current CLI is not the accepted compatibility pin'
+    fi
   fi
 else
   warn 'logs_unavailable: cannot read Vaultwarden Docker logs; zero errors cannot be inferred'
