@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -39,4 +40,4 @@ def test_consumer_gate_root_does_not_emit_two_paths() -> None:
             if with_git:
                 # No source control metadata should be necessary to resolve
                 # the archive fallback.
-                subprocess.run(["rm", "-rf", str(root / ".git")], check=True)
+                shutil.rmtree(root / ".git")
