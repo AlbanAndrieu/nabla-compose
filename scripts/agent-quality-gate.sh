@@ -347,12 +347,23 @@ check_destructive_diff() {
 
 check_exec_bits() {
   local exec_bit_failed=0
-  local tracked_exec mode path
+  local file first_line mode meta path current_mode
 
-  # Keep the working-tree permissions aligned with Git's executable contract.
-  # Some TrueNAS/filesystem setups can preserve index mode 100755 while the
-  # checked-out path itself loses +x, which makes runtime/stat-based contracts
-  # fail even though git ls-files reports the correct mode.
+  # Git 100755 means the checked-out script must be executable by user/group/other.
+  # On TrueNAS, chmod +x on a 0600 file yields 0700, which breaks stat-based
+  # lifecycle contracts even though Git still records the correct executable bit.
+  while IFS=$'\t' read -r meta path; do
+    mode="${meta%% *}"
+    [[ "${mode}" == "100755" ]] || continue
+    [[ -f "${path}" ]] || continue
+    current_mode="$(stat -c '%a' -- "${path}" 2>/dev/null || true)"
+    if [[ "${current_mode}" != "755" ]]; then
+      chmod 755 -- "${path}"
+      printf '🛠️  working-tree mode restored from Git index: %s %s->755\n' \
+        "${path}" "${current_mode:-unknown}"
+    fi
+  done < <(git ls-files --stage)
+
   for file in "${CHANGED_FILES[@]}"; do
     [[ -f "${file}" ]] || continue
     IFS= read -r first_line <"${file}" || true
@@ -363,6 +374,7 @@ check_exec_bits() {
       if [[ "${mode}" != "100755" ]]; then
         if [[ "${MODE}" == "fix" ]]; then
           git add --chmod=+x -- "${file}"
+          chmod 755 -- "${file}"
           printf '🛠️  executable bit restored for %s\n' "${file}"
         else
           printf '❌ QG_EXEC_BIT: %s has a shebang but Git mode is %s; run git add --chmod=+x %q\n' \
@@ -372,7 +384,7 @@ check_exec_bits() {
       fi
     elif [[ ! -x "${file}" ]]; then
       if [[ "${MODE}" == "fix" ]]; then
-        chmod +x -- "${file}"
+        chmod 755 -- "${file}"
         printf '🛠️  executable bit restored for untracked %s\n' "${file}"
       else
         printf '❌ QG_EXEC_BIT: untracked %s has a shebang but is not executable\n' "${file}" >&2
