@@ -37,6 +37,8 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual("planned", service["x-nabla"]["status"])
         self.assertIn("healthcheck", service)
         self.assertEqual(["ALL"], service["cap_drop"])
+        self.assertEqual(["NET_BIND_SERVICE"], service["cap_add"])
+        self.assertNotIn("privileged", service)
         self.assertIn("no-new-privileges=true", service["security_opt"])
         self.assertEqual("truenas-app", service["x-nabla"]["runtime"]["provider"])
         self.assertEqual(31088, service["x-nabla"]["monitoring"]["port"])
