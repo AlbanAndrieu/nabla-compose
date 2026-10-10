@@ -46,6 +46,26 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 Vaultwarden read-only diagnostic operator acceptance
+
+- [x] On TrueNAS, `git pull --ff-only` succeeded, Bash syntax passed
+  and targeted Vaultwarden diagnostic/inventory contracts **5 passed**.
+- [x] `diagnose-vaultwarden-cli.sh` reported active CLI
+  `2026.8.0`, canonical HTTPS URL, NTP synchronized,
+  `vaultwarden/server:1.37.3` running/healthy, Docker logs
+  accessible.
+- [x] Historic 2h log counts: `user_key_id_requests=5`,
+  `http_404_lines=5`, `totp_drift_warnings=1`.
+  These counters are not a current CLI 2026.8.0 login failure,
+  and do not correlate individual requests/responses.
+- [ ] The CLI status at check time was `locked`; a prior
+  successful `bw unlock --raw` on 2026.8.0 proves the
+  version can unlock, but this run does not prove an active
+  unlocked session. Inventory still reports `crowdsec: missing`.
+- [ ] No CrowdSec pfSense cutover until the existing bouncer
+  key is accounted for. No Vaultwarden upgrade necessary
+  solely on historical 404 evidence.
+
 ### P0 Vaultwarden CLI 2026.8.0 — TrueNAS acceptance (2026-10-10)
 
 - [x] Operator installed checksum-pinned `bw 2026.8.0` using
