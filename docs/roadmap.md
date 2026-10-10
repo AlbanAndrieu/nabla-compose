@@ -46,6 +46,45 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### Execution checkpoint — 2026-10-10, operator evidence on PR #253
+
+- [x] **Git recovered (observed):** main index `albandrieu:apps 0600`,
+  `git ls-files` succeeded; root-owned index scan clear after scoped repair.
+  The unprivileged ownership diagnostic is working.
+- [ ] **Git recurrence prevention:** eliminate remaining root-context Git
+  operations in other TrueNAS scripts. A successful repair is not proof that
+  all root Git writers have disappeared. Cron ID 6 runs as albandrieu;
+  root cron ID 8 remains to be audited by command/child process, without
+  printing secret-bearing arguments.
+- [x] **Gatus runtime accepted:** TrueNAS `app.update` plus explicit
+  `app.redeploy` recreated the container with `GroupAdd=["568"]`;
+  `RUNNING`, exit 0, restarts 0, HTTP /health OK, zero recent
+  config/permission/database/fatal errors. Existing SQLite inode
+  `139:2` preserved; file size 2260992 bytes at acceptance.
+- [ ] **Gatus long-term acceptance:** verify stored monitoring history
+  via application/API and recovery after a later planned reboot.
+  Do not modify or recreate `/mnt/cpool/gatus/gatus.db`.
+- [x] **DSOMM/Sentry/Scrutiny runtime checks:** DSOMM HTTP 200,
+  22 assessment activities/evidence records; Sentry 14 diagnostics OK;
+  Scrutiny web/InfluxDB/collector healthy, four SMART devices accessible.
+  Remaining: DSOMM reboot, Sentry fresh end-to-end event,
+  Scrutiny `/dev/sde` EPERM classification, Pi-hole reboot.
+- [x] **Cyberbro transport baseline:** HTTP 5100 ready; MCP endpoint
+  responds HTTP 400 (transport reachable, *not* MCP authentication/tool
+  acceptance).
+- [ ] **CrowdSec pfSense cutover:** engine and LAPI healthy, Loki
+  hits=9124, no active decisions (not a failure); canonical bouncer
+  secret absent/empty, `PFSENSE_FIREWALL last_pull=<none>`.
+  Render existing key directly from approved Vaultwarden source and
+  validate on TrueNAS before workstation-only pfSense cutover;
+  do not generate/rotate credentials implicitly.
+- [x] **Catalog generators:** operator confirmed declared catalog and
+  topology synchronized after Git-index recovery. The separately invoked
+  consumer `--check` did not print an acceptance result; recheck in a
+  consolidated gate before marking its validation complete.
+- [ ] **Quality gate:** full exact-HEAD L3 remains unproven. No bypass
+  and no automatic merge.
+
 ### P0 — Git index ownership: evidence of root Git access, not proven cron (2026-10-10)
 
 - [ ] **Git index recurrence after DNS work:** operator again hit
