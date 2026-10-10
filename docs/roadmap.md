@@ -29,6 +29,28 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## PR #251 — Pi-hole DNS sync et contrôles délégués (2026-10-10)
+
+- [x] Échec L3 identifié : `test_pihole_dns_sync_acceptance_contract`,
+  après **191 tests réussis, 1 ignoré et 91 sous-tests réussis**.
+  Le test demandait la chaîne `getent hosts` dans
+  `verify-pihole-dns-sync.sh`, alors que le script appelle
+  `probe_container_dns_success` et `probe_container_dns_records`.
+  L'implémentation `docker exec ... getent hosts` appartient au
+  helper partagé `scripts/lib/probe.sh`.
+- [x] Test modifié pour vérifier la source du helper, ses deux appels
+  avec les paramètres bornés et l'instruction `getent hosts` dans le
+  helper réel. Aucun contournement du DNS, des erreurs Pi-hole
+  `api_seats_exceeded` ou du contrôle `webserver.api.max_sessions`.
+- [x] Reproduction locale isolée de l'ancienne assertion : **1 échec** ;
+  même fixture après correction : **1 succès**. Le test du checkout
+  complet exact-HEAD n'a pas été exécuté localement.
+- [ ] P0 : relancer le test de contrat puis `just pre-push` sur TrueNAS,
+  traiter le prochain échec sans ignorer de hook. P1 service :
+  DSOMM `STOPPED` et Caddy `execve EPERM` sur une configuration
+  runtime dépourvue de `NET_BIND_SERVICE` ; diagnostiquer sa
+  définition TrueNAS avant toute réconciliation.
+
 ## PR #251 — Smoke FastAPI/Pyroscope et dérive runtime DSOMM (2026-10-10)
 
 - [x] **P0 test de contrat FastAPI** : `just pre-push` a dépassé les
