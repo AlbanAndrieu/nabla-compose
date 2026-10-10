@@ -27,3 +27,20 @@ def test_redacted_aggregate():
     assert "sqlite_integrity_ok=1" in p.stdout
     assert "sk-private-value" not in p.stdout
     assert "sk-private-value" not in p.stderr
+
+
+def test_context_pressure_reports_bounded_numbers_without_payloads():
+    line = (
+        "[context-pressure-diagnostic] "
+        "estimatedPromptTokens=216281 promptBudgetBeforeReserve=108000 "
+        "secret=confidential-value\\n"
+    )
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--stdin"], input=line,
+        text=True, capture_output=True, check=True,
+    )
+    assert "estimated_prompt_tokens_max=216281" in result.stdout
+    assert "prompt_budget_before_reserve_min=108000" in result.stdout
+    assert "estimated_prompt_to_budget_ratio_max=2.00" in result.stdout
+    assert "not billable LiteLLM usage" in result.stdout
+    assert "confidential-value" not in result.stdout
