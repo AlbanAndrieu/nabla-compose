@@ -64,6 +64,13 @@ class DsommContractTests(unittest.TestCase):
             )
         )
 
+    def test_direct_smoke_keeps_caddy_file_capability(self) -> None:
+        script = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn("--cap-drop ALL", script)
+        self.assertIn("--cap-add NET_BIND_SERVICE", script)
+        self.assertIn("--security-opt no-new-privileges=true", script)
+        self.assertNotIn("--privileged", script)
+
     def test_baseline_is_manual_pinned_and_secret_backed(self) -> None:
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm-baseline"]
