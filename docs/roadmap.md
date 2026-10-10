@@ -142,7 +142,7 @@ of redeploying them.
   rollback. Do not compare or print raw secrets and do not assume
   keys match based on name alone. Keep legacy pfSense bouncer
   untouched until central authentication is proven.
-- [ ] Continue exact Vaultwarden item reconciliation; 
+- [ ] Continue exact Vaultwarden item reconciliation;
   `nabla/prod/crowdsec` is still missing.
 
 ### P0 Vaultwarden unlocked acceptance — latest operator evidence
@@ -608,7 +608,7 @@ This is a **planned** architecture, not evidence of runtime deployment or ingest
   evidence, wire Open WebUI plus fastapi-sample, monitor via
   existing Langfuse/Prometheus with private prompts/chunks
   excluded, then rehearse recovery and rollback.
-  
+
 ## PR #251 — Gatus crash, Sentry/Scrutiny accepted and secret/catalog cutover (2026-10-10)
 
 - [x] **Sentry** : TrueNAS `diagnose-sentry.sh --check`
