@@ -48,7 +48,7 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
 
     def test_cutover_diagnostic_is_read_only_bounded_and_secret_safe(self) -> None:
         text = DIAGNOSE.read_text(encoding="utf-8")
-        for expected in ("--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "CROWDSEC_LOKI_URL", "/loki/api/v1/query_range", "172.17.0.24", "8084", "6060", "timeout 12"):
+        for expected in ("--runtime", "--check", "--accept", "truenas_app_state", "truenas_compose_container_id", "cscli lapi status", "DISABLE_SCENARIOS", "firewallservices/pf-scan-multi_ports", "BOUNCER_KEY_PFSENSE_FIREWALL", "cscli bouncers list -o json", "PFSENSE_FIREWALL", "CROWDSEC_LOKI_URL", "/loki/api/v1/query_range", "172.17.0.24", "8084", "6060", "timeout 12"):
             self.assertIn(expected, text)
         self.assertIn("value redacted", text)
         self.assertNotRegex(
@@ -80,12 +80,18 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "/mnt/cpool/secrets/runtime/crowdsec/.env.secrets",
             "DISABLE_SCENARIOS: firewallservices/pf-scan-multi_ports",
             'git -C "${ROOT}" diff --quiet -- apps/crowdsec',
-            '"${DIAGNOSE}" --check',
+            '"${DIAGNOSE}" --runtime',
+            "warn_check",
+            "pfSense cutover remains blocked",
         ):
             self.assertIn(expected, text)
 
         self.assertNotIn("git fetch", text)
         self.assertNotIn("docker pull", text)
+        self.assertNotIn(
+            'fail_check "canonical CrowdSec runtime file missing or empty',
+            text,
+        )
         self.assertNotIn("cscli bouncers add", text)
         self.assertNotIn("cscli bouncers delete", text)
         self.assertNotRegex(text, r"(?m)^\\s*ssh\\s+.*pfsense")
@@ -98,6 +104,7 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
 
     def test_runbook_requires_preflight_before_pfsense_small_cutover(self) -> None:
         text = " ".join(README.read_text(encoding="utf-8").split())
+        self.assertIn("diagnose-crowdsec-cutover.sh --runtime", text)
         self.assertIn("diagnose-crowdsec-cutover.sh --check", text)
         self.assertIn("diagnose-crowdsec-cutover.sh --accept", text)
         self.assertIn("DISABLE_SCENARIOS", text)
