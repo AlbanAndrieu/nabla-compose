@@ -45,6 +45,46 @@ curl -fsS -o /dev/null -w 'dsomm_http=%{http_code}\n' \
 sudo stat -c '%a %U:%G %n' /mnt/cpool/dsomm/state 2>/dev/null || true
 ```
 
+### Diagnostic du conteneur existant — Caddy et capabilities
+
+Preuves opérateur du 10 octobre : `dsomm` redémarre avec exit 255
+(1109 redémarrages), `OOMKilled=false`, `CapDrop=["ALL"]`,
+`CapAdd=null`, `no-new-privileges:true`; logs répétés :
+`exec /usr/bin/caddy: operation not permitted`.
+
+Le Compose canonique conserve `cap_drop: [ALL]` et
+`cap_add: [NET_BIND_SERVICE]` car Caddy embarque une file capability.
+Cela **n'apparaît pas dans le conteneur inspecté**, ce qui justifie un
+contrôle de divergence entre **source**, **Custom App persistée** et
+**runtime**. Aucun besoin établi de `privileged:true`.
+
+```bash
+# Source déclarée (configuration uniquement ; ne pas imprimer les variables).
+python3 - <<'PY'
+import yaml
+with open("apps/dsomm/compose.yml", encoding="utf-8") as source:
+    service = yaml.safe_load(source)["services"]["dsomm"]
+for key in ("image", "cap_drop", "cap_add", "security_opt", "restart"):
+    print(f"declared.{key}={service.get(key)}")
+PY
+
+# Config réellement appliquée, sans Env ni mounts sensibles.
+sudo docker inspect dsomm --format \
+  'runtime.name={{.Name}} image={{.Config.Image}} exit={{.State.ExitCode}} error={{.State.Error}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} cap_add={{json .HostConfig.CapAdd}} cap_drop={{json .HostConfig.CapDrop}} security_opt={{json .HostConfig.SecurityOpt}}'
+
+# Connaître l'App TrueNAS, sans exposer custom_compose_config (peut contenir
+# des substitutions de secrets). L'état STOPPED est distinct du restart Docker.
+sudo midclt call app.query '[["id","=","dsomm"]]' |
+  jq '[.[] | {id,state,version,active_workloads:{containers:(.active_workloads.containers // 0)}}]'
+```
+
+**Arrêt de sécurité** : ne pas appliquer de `docker update`,
+`docker restart`, `midclt app.start` ou `deploy-dsomm.sh --apply`
+avant d'avoir confirmé l'origine de la définition qui ne contient
+pas `NET_BIND_SERVICE`. L'action de réconciliation doit être explicite,
+maintenir les fichiers `/mnt/cpool/dsomm/state`, et démontrer
+`CapAdd=["NET_BIND_SERVICE"]` au runtime puis HTTP 31088 sain.
+
 ### Preuve du 10 octobre : DSOMM STOPPED (read-only)
 
 Le `--check` opérateur a confirmé le seed 5.0.2 (22 activités et
