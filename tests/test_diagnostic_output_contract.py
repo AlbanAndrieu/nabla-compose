@@ -75,7 +75,9 @@ class DiagnosticOutputContractTest(unittest.TestCase):
     def test_shared_bootstrap_delegates_when_compact_output_is_requested(self) -> None:
         library = ROOT / "scripts/lib/diagnostic.sh"
 
-        with tempfile.TemporaryDirectory() as tmp:
+        # On TrueNAS /tmp may be noexec. Execute the mocked shell wrapper
+        # from the checked-out filesystem, where repository scripts run.
+        with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
             base = Path(tmp)
             scripts = base / "scripts"
             target_dir = scripts / "truenas"
@@ -96,11 +98,12 @@ class DiagnosticOutputContractTest(unittest.TestCase):
             # shell. The fixture must exercise fresh, unwrapped invocation.
             env.pop("NABLA_DIAGNOSTIC_WRAPPED", None)
             env.pop("DIAGNOSTIC_FULL_OUTPUT", None)
+            env.pop("BASH_ENV", None)
             env["DIAGNOSTIC_COMPACT_OUTPUT"] = "1"
             result = subprocess.run(
                 [
                     "bash",
-                    "-c",
+                    "-ec",
                     (
                         f"source {library}; "
                         f"nabla_diagnostic_maybe_wrap {target} alpha beta; "
@@ -114,6 +117,7 @@ class DiagnosticOutputContractTest(unittest.TestCase):
             )
 
         self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("", result.stderr)
         self.assertIn(
             f"WRAPPED target={target} arg1=alpha arg2=beta",
             result.stdout,
