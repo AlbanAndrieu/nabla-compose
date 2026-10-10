@@ -46,6 +46,24 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 follow-up — cron identity and CrowdSec secrets (2026-10-10)
+
+- [x] Cron #8 starts with `env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168`.
+  This resembles an image-pruning task, but its executed binary/script and
+  any nested Git calls remain **unverified**. Inspect sanitized executable
+  identity before modifying it; do not infer cron caused earlier `sudo git status`.
+- [x] `render_from_bitwarden.py --check` validated only
+  `config/secrets/manifest.json`; it did not unlock Vaultwarden,
+  retrieve the bouncer key or materialize any runtime file.
+- [ ] CrowdSec canonical secret file remains absent; legacy source
+  `/mnt/cpool/crowdsec/.env.secrets` is an empty placeholder.
+  Perform user-context `--app crowdsec --output-file` only with an
+  unlocked `BW_SESSION`, install with owner root and mode 0600,
+  and test the strict LAPI check before pfSense changes.
+- [x] CrowdSec central runtime healthy, Loki hits=10431,
+  `PFSENSE_FIREWALL last_pull=<none>` and no active decisions.
+  pfSense preflight previously passed with legacy URL still configured.
+
 ### P0 operator evidence — Git and CrowdSec (2026-10-10 late)
 
 - [x] Privileged Git calls on the appliance were specifically
