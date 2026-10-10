@@ -14,8 +14,8 @@ case "${MODE}" in
 usage: bash scripts/workstation/bootstrap-yubikey-manager.sh [--check|--apply]
 
 Install pinned YubiKey Manager CLI with uv in an isolated tool environment.
-Python 3.13 is requested explicitly to avoid the current pyscard/Python 3.14
-source-build path. No system Python package or global ykman launcher is removed.
+On Debian/Ubuntu workstations, --apply installs the native PC/SC build/runtime
+prerequisites required by pyscard when they are missing.
 EOF
     exit 0
     ;;
@@ -32,6 +32,25 @@ resolve_uv() {
   else
     fail "uv or mise is required; install/bootstrap uv first"
   fi
+}
+
+native_prereqs_ready() {
+  command -v pkg-config >/dev/null 2>&1 &&
+  command -v swig >/dev/null 2>&1 &&
+  pkg-config --exists libpcsclite 2>/dev/null &&
+  [[ -r /usr/include/PCSC/winscard.h ]]
+}
+
+install_native_prereqs() {
+  native_prereqs_ready && return 0
+  command -v apt-get >/dev/null 2>&1 ||
+    fail "missing PC/SC development prerequisites and no apt-get is available"
+  printf 'Installing workstation-only PC/SC prerequisites for pyscard...\n'
+  sudo apt-get update
+  sudo apt-get install -y --no-install-recommends \
+    libpcsclite-dev pcscd pkg-config swig
+  native_prereqs_ready ||
+    fail "PC/SC prerequisites still incomplete after package installation"
 }
 
 resolve_uv
@@ -55,11 +74,14 @@ check_install() {
 
 if [[ "${MODE}" == "--check" ]]; then
   report_path
+  native_prereqs_ready ||
+    printf 'WARNING: workstation PC/SC development prerequisites are incomplete\n' >&2
   check_install || fail "isolated ykman ${VERSION} is not ready; run --apply"
   printf 'OK: isolated YubiKey Manager %s ready at %s\n' "${VERSION}" "${YKM}"
   exit 0
 fi
 
+install_native_prereqs
 "${UV_CMD[@]}" tool install --force --python "${PYTHON_VERSION}" "yubikey-manager==${VERSION}"
 check_install || fail "uv-installed ykman failed self-check"
 printf 'OK: installed YubiKey Manager %s with managed Python %s\n' "${VERSION}" "${PYTHON_VERSION}"
