@@ -181,6 +181,23 @@ class AgentQualityGateContractTests(unittest.TestCase):
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertEqual(run.stdout, "")
 
+            # Ordinary source files still pass through the same filter.
+            source = repo / "script.sh"
+            source.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            rerun = subprocess.run(
+                [
+                    "bash", "-euo", "pipefail", "-c",
+                    'LOCAL_LOOP=true; BASE_REF=HEAD; ' + collect
+                    + '\ncollect_changed_files',
+                ],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(rerun.returncode, 0, rerun.stderr)
+            self.assertEqual(rerun.stdout.splitlines(), ["script.sh"])
+
     def test_repository_shell_scripts_pass_bash_syntax_preflight(self) -> None:
         scripts = sorted((ROOT / "scripts").rglob("*.sh"))
         self.assertTrue(scripts)
