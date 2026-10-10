@@ -89,6 +89,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("generated_contract_scope_changed", text)
         # Nested app Compose edits must trigger topology/consumer regeneration.
         self.assertIn("apps/*/compose.yml|apps/*/compose.yaml", text)
+        self.assertIn("QG_GIT_SCOPE", text)
+        self.assertIn('changed_output="$(collect_changed_files)"', text)
+        self.assertIn('deleted_output="$(collect_deleted_files)"', text)
+        self.assertNotIn("mapfile -t CHANGED_FILES < <(collect_changed_files)", text)
         self.assertIn("runtime_primitive_scope_changed", text)
         self.assertIn("migrated runtime primitive ownership is unique", text)
         self.assertIn("no generator input changed", text)
