@@ -46,6 +46,44 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P0 — Git index ownership: evidence of root Git access, not proven cron (2026-10-10)
+
+- [x] Source investigation: `docs/truenas-deployment-automation.md`
+  records TrueNAS cron **ID 6**, hourly at minute 0, user
+  `albandrieu`, running `scripts/cron.sh`.
+  The script checks the current branch and only fetches/
+  fast-forwards the configured `master` checkout; on PR
+  branches it is a no-op. This documented cron is **not**
+  evidence of root-origin Git metadata writes.
+- [x] Earlier incident
+  `docs/incidents/2026-10-10-post-reboot-git-dsomm-gatus-vaultwarden.md`
+  explicitly records `sudo git status` followed by a new
+  `.git/index` owned by `root:apps 0600` at 12:16.
+  Git `status` can refresh and rewrite the index.
+  Therefore **root Git invocation is an evidenced cause**
+  of the recurring symptom, but attribution of every later
+  occurrence to a specific cron/service is still unproven.
+- [ ] Verify **actual** TrueNAS cron schedule, root/user
+  crontabs, systemd timers and `sudo` journal entries
+  around the affected index timestamps. Avoid dumping
+  secret-bearing command lines or changing cron jobs
+  without evidence. Do not run `sudo git`, repository
+  generators or quality gates as root. TrueNAS middleware
+  or dataset-specific commands may still need sudo.
+- [x] Operator explicitly elected to **discard** staged
+  modifications to `scripts/quality/check-compose-config.sh`
+  and `scripts/workstation/openclaw-auth-presence.py`.
+  Recommended exact restore is `git restore --source=HEAD
+  --staged --worktree -- <both paths>`; no stash,
+  no repository reset/clean, no submodule overwrite.
+- [x] Gatus `repair-gatus-config-access.sh --check`
+  rejected the running container because it lacks
+  `HostConfig.GroupAdd` GID 568. This is **runtime
+  TrueNAS Custom App Compose drift**. Correct/redeploy
+  the Custom App definition before the isolated config
+  permission `--apply`; do not widen YAML readability
+  or mutate SQLite as a substitute.
+
 ### P0 A2 — Gatus root cause confirmed, follow-up branch (2026-10-10)
 
 - [x] **Definitive failure evidence:** Gatus container `restarting`,
