@@ -12,6 +12,12 @@ groups:
       - record: nabla:telemetry:redis_exporter_up
         expr: max(up{job="redis_exporter"})
 
+      - record: nabla:service:postgres_up
+        expr: max(pg_up{job="postgres_exporter"})
+
+      - record: nabla:service:redis_up
+        expr: max(redis_up{job="redis_exporter"})
+
       - record: nabla:telemetry:fastapi_sample_up
         expr: max(up{job="fastapi_sample"})
 
