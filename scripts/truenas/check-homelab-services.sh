@@ -96,6 +96,16 @@ else
   warnings=$((warnings + 1))
 fi
 
+# Observe profiling as a dependency, not just an open TCP port.
+if jq -e '.[] | select(.id == "pyroscope" and .state == "RUNNING")' <<<"${apps_json}" >/dev/null; then
+  if [[ -f "${ROOT}/scripts/truenas/diagnose-pyroscope.sh" ]]; then
+    run_gate pyroscope bash "${ROOT}/scripts/truenas/diagnose-pyroscope.sh"
+  else
+    echo 'WARN Pyroscope diagnostic unavailable'
+    warnings=$((warnings + 1))
+  fi
+fi
+
 if [[ -f "${ROOT}/scripts/truenas/diagnose-fastapi-integrations.py" ]]; then
   run_gate fastapi-integrations python3 "${ROOT}/scripts/truenas/diagnose-fastapi-integrations.py"
 else
