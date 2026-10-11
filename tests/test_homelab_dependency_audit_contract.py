@@ -56,6 +56,7 @@ def test_portracker_monitor_matches_observed_published_port() -> None:
     monitor = service["x-nabla"]["monitoring"]
     published = service["ports"][0]
     assert monitor["type"] == "http"
+    assert monitor["target"] == "http://172.17.0.24:30233/metrics"
     assert monitor["host"] == "172.17.0.24"
     assert monitor["port"] == 30233
     assert monitor["path"] == "/metrics"
