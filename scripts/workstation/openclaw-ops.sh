@@ -11,7 +11,7 @@ fi
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
-  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--memory|--auth|--routes|--backup-check|--disable-irc]'
+  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
@@ -47,6 +47,8 @@ case "${mode}" in
   --check)
     echo '==> OpenClaw error counters (24h)'
     bash "${ROOT}/scripts/workstation/diagnose-openclaw-errors.sh" --since '24 hours ago'
+    echo '==> Application file-log evidence (30m, redacted)'
+    python3 "${ROOT}/scripts/workstation/openclaw-application-log-summary.py" 30
     echo '==> Cron run statistics'
     diagnose_cron
     echo '==> Main heartbeat runs (redacted)'
@@ -67,6 +69,7 @@ case "${mode}" in
   --cron) diagnose_cron ;;
   --skill-review) diagnose_skill_review ;;
   --heartbeat) diagnose_heartbeat ;;
+  --recent-errors) python3 "${ROOT}/scripts/workstation/openclaw-application-log-summary.py" 30 ;;
   --memory) diagnose_memory ;;
   --auth)
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
