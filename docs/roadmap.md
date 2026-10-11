@@ -1,3 +1,30 @@
+## P1/P2 — Shell UX, shared primitives, and OpenClaw hourly heartbeat (2026-10-11)
+
+- [x] Introduce a shared TTY-only status presentation helper (colors and icons)
+  and document its use for agents in `.agents/skills/local-first-quality/SKILL.md`.
+  Keep `NO_COLOR`, non-TTY output, exit codes and machine-readable data stable.
+- [x] Start replacing duplicated inline ANSI terminal setup in
+  `scripts/truenas/check-homelab-services.sh`.
+- [ ] Inventory repeated Shell function signatures and callers; rank by reuse,
+  mutation risks and tests. Candidate owners:
+  `scripts/lib/truenas.sh` (app lifecycle, job and Git provenance),
+  `scripts/lib/probe.sh` (bounded network checks),
+  `scripts/lib/diagnostic.sh` (compact output), and
+  `scripts/agent-quality-gate.sh` (local-first summary/formatters).
+- [ ] Refactor repeated error reporting, command preflights, safe temp-file
+  handling and bounded log summaries only after preserving CLI/exit contracts.
+- [ ] Add TTY, piped output, NO_COLOR, TERM=dumb and ASCII-mode unit contracts
+  for shared status output; avoid forcing ANSI codes into CI logs.
+- [ ] Correlate hourly `Agent couldn't generate a response. Please try again.`
+  reports with OpenClaw cron/heartbeat run IDs, start times, duration,
+  gateway logs and LiteLLM HTTP status. User-visible message by itself does
+  **not** prove a heartbeat failure.
+- [ ] Distinguish queue concurrency/timeouts, LiteLLM upstream errors,
+  missing API credentials, cron delivery failures and context/memory payload
+  before adjusting timeouts or provider routing; no automatic paid smokes.
+- [ ] Keep unrelated FastAPI/Gatus/CSI runtime work and CI gates intact.
+  Do not merge the active PR automatically.
+
 ## P1 — TrueNAS resource-heavy services audit (2026-10-11)
 
 - [x] Implement a read-only, bounded `docker stats --no-stream` collector with
