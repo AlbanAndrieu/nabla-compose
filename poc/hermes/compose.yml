@@ -1,0 +1,59 @@
+# Experimental Hermes service. NOT the existing TrueNAS hermes-agent app.
+# IMPORTANT: stop the old gateway before reusing its Telegram/Discord bot tokens.
+# Run ONLY with --profile hermes-poc after a runtime security preflight.
+name: hermes-poc
+services:
+  hermes:
+    profiles: [hermes-poc]
+    image: nousresearch/hermes-agent:${HERMES_IMAGE_TAG:-stable}
+    container_name: hermes-poc
+    restart: unless-stopped
+    command: ["gateway", "run"]
+    # The official image starts an s6 supervisor and drops gateway execution to
+    # UID 10000. Check /proc effective IDs, do not assume image USER=root means
+    # the agent runs as root. Do not override entrypoint before smoke testing.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 4g
+    cpus: 2.0
+    environment:
+      HERMES_HOME: /opt/data
+      HERMES_DASHBOARD: "0"
+      API_SERVER_ENABLED: "false"
+      HERMES_SKIP_CONFIG_MIGRATION: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/hermes/.env.secrets
+        required: true
+    volumes:
+      - type: bind
+        source: /mnt/cpool/hermes/poc
+        target: /opt/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /mnt/cpool/compose/nabla-compose/config/hermes/poc-config.yaml
+        target: /opt/data/config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /mnt/cpool/compose/nabla-compose/scripts/hermes/readonly_mcp.py
+        target: /opt/hermes-policy/readonly_mcp.py
+        read_only: true
+        bind:
+          create_host_path: false
+    # No host ports / dashboard / admin API. Outgoing Telegram/Discord and
+    # LiteLLM/Prometheus need an explicit host firewall egress policy at cutover.
+    # An ordinary Docker bridge does NOT enforce deny-by-default egress.
+    networks: [hermes_poc]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+networks:
+  hermes_poc:
+    driver: bridge
