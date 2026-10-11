@@ -103,7 +103,21 @@ def run_integration(args: argparse.Namespace) -> int:
             "elapsed_ms": round(result.elapsed_ms, 2),
         }
         if result.status != 200:
-            failures.append(f"{path}: expected HTTP 200, got {result.status}")
+            # An application-level 404 may be a deliberate camouflage
+            # response, a wrong deployment, or a proxy routing error.
+            # Never declare the service healthy or parse non-200 HTML as JSON.
+            item["evidence"] = "unverified_route"
+            if result.status in (401, 403, 404):
+                item["possible_causes"] = [
+                    "protected_or_concealed_route",
+                    "deployment_or_ingress_mismatch",
+                ]
+            failures.append(
+                f"{path}: expected HTTP 200, got {result.status}; "
+                "verify deployment, route exposure and authentication policy"
+            )
+            evidence.append(item)
+            continue
         try:
             payload = _json_body(result)
             item["json_type"] = type(payload).__name__
