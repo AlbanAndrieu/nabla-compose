@@ -120,7 +120,11 @@ else
 fi
 
 printf '\n=== Recent logs ===\n'
-docker logs --tail 200 "${CONTAINER}" 2>&1 || true
+# Avoid emitting unrestricted log lines through aggregated health reports.
+docker logs --tail 80 "${CONTAINER}" 2>&1 |
+  grep -Ei 'metastore|raft|permission denied|failed|error|recovery started' |
+  sed -E 's#https?://[^[:space:]]+#<URL_REDACTED>#g; s#(password|token|secret|api[_-]?key)[=:][^[:space:]]+#<SECRET_REDACTED>#Ig' |
+  tail -n 12 || true
 
 printf '\nREAD-ONLY: no container, dataset, Raft or TrueNAS App state changed.\n'
 if ((contract_failed > 0)); then fail "Pyroscope runtime/storage/readiness contract incomplete"; fi
