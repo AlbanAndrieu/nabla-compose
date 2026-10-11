@@ -12,7 +12,11 @@ services:
     # The official image starts an s6 supervisor and drops gateway execution to
     # UID 10000. Check /proc effective IDs, do not assume image USER=root means
     # the agent runs as root. Do not override entrypoint before smoke testing.
+    # s6 starts as root and must drop privileges to UID 10000. Explicitly
+    # keep only the bootstrap UID/GID/ownership capabilities; confirm the
+    # gateway's effective UID/CapEff are zero/non-root respectively at runtime.
     cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
     security_opt:
       - no-new-privileges:true
     pids_limit: 128
