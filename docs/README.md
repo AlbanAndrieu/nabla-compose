@@ -29,6 +29,9 @@ place for current priorities.
 
 ## Current runbooks and diagnostics
 
+- [Hermes TrueNAS via Telegram/Discord — feasibility, trust boundaries, read-only audit](./runbooks/hermes-homelab-gateway-feasibility.md)
+
+
 Keep supported operator procedures in focused runbooks, for example:
 
 - [TrueNAS reboot](./homelab-reboot-runbook.md)
