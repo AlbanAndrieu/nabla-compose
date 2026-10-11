@@ -12,14 +12,17 @@ SCRIPT = ROOT / "scripts/truenas/diagnose-hermes-agent.sh"
 
 
 @pytest.mark.parametrize(
-    ("privileged", "mount", "expected_status", "expected_text"),
+    ("privileged", "mount", "health", "expected_status", "expected_text"),
     [
-        ("false", "/opt/data|true", 0, "summary failures=0"),
-        ("true", "/opt/data|true", 1, "Privileged container"),
-        ("false", "/var/run/docker.sock|true", 1, "Docker socket mounted"),
+        ("false", "/opt/data|true", "healthy", 0, "summary failures=0"),
+        ("true", "/opt/data|true", "healthy", 1, "Privileged container"),
+        ("false", "/var/run/docker.sock|true", "healthy", 1, "Docker socket mounted"),
+        ("false", "/opt/data|true", "unhealthy", 1, "Hermes container health=unhealthy"),
     ],
 )
-def test_hermes_check_does_not_mutate_or_leak(tmp_path, privileged, mount, expected_status, expected_text):
+def test_hermes_check_does_not_mutate_or_leak(
+    tmp_path, privileged, mount, health, expected_status, expected_text
+):
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     binaries = {
@@ -50,9 +53,17 @@ esac
         "PATH": f"{fakebin}:{os.environ['PATH']}",
         "FAKE_PRIVILEGED": privileged,
         "FAKE_MOUNT": mount,
+        "FAKE_HEALTH": health,
         "TEST_SECRET_NOT_FOR_OUTPUT": "token-super-secret-fixture",
     }
-    result = subprocess.run(["bash", str(SCRIPT), "--check"], capture_output=True, text=True, env=env, timeout=15, check=False)
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--check"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=15,
+        check=False,
+    )
     assert result.returncode == expected_status, result.stdout + result.stderr
     assert expected_text in result.stdout
     assert "token-super-secret-fixture" not in result.stdout + result.stderr
