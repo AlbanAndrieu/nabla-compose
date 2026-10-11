@@ -18,6 +18,7 @@ for each kind of information. Prefer links over duplicated procedures.
 
 All date-specific incidents belong under [`incidents/`](./incidents/).
 
+- [2026-09-08/10 · pfSense WebConfigurator/API 502](./incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
 - [2026-09-11 · TrueNAS controlled reboot](./incidents/2026-09-11-truenas-reboot.md)
 - [2026-09-11 · Sentry Taskbroker / project-config](./incidents/2026-09-11-sentry-taskbroker-project-config.md)
 - [2026-09-11 · post-reboot runtime recovery notes](./incidents/2026-09-11-runtime-service-recovery.md)
