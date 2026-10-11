@@ -1,3 +1,15 @@
+## P0/P1/P2 — Hermes Secure by Design : barrières à l'activation (2026-10-11)
+
+- [x] ADR [Hermes Secure by Design](./security/hermes-secure-by-design.md) : frontières de confiance, STRIDE/OWASP Agentic, PII, secrets, réseaux, skills, exécuteurs et tests de non-exfiltration ; **étude uniquement**.
+- [x] Profil de référence `config/hermes/secure-profile.example.yaml` + contrats statiques : approbations manual/deny, skills et mémoire avec revue, non-root worker SSH, SearXNG fixé, **pas de keyless fallback ni rescue**. Profil non appliqué sur TrueNAS.
+- [ ] **P0 : corriger avant raccordement** le risque de confidentialité de LiteLLM : `store_prompts_in_spend_logs: true`, `turn_off_message_logging: false`, `langfuse_otel`, identifiants forwardés et Redis cache. Séparer la route Hermes/virtual key et imposer guardrails/quotas/fail closed **sans modifier aveuglément les autres consommateurs**.
+- [ ] **P0 : valider l'authentification et les secrets** : UID effectif non-root, aucun socket Docker/root/sudo, aucune lecture des secrets globaux, politique d'egress réellement imposée, bot IDs allowlistés, mode pairing désactivé ou contrôlé ; distinguer Vaultwarden de Bitwarden Secrets Manager.
+- [ ] **P1 : évaluer LLM Guard/Presidio local** aux frontières chat, LLM, outils et réponse ; mesurer PII français/anglais/allemand, faux négatifs et latence ; interdiction de désanonymiser vers Telegram/Discord.
+- [ ] **P1 : SearXNG et web** : vérifier runtime JSON, requêtes publiquement admissibles, proxy de redaction, extraction isolée, aucun appel implicite vers fournisseurs gratuits tiers, SSRF/redirect/DNS rebinding bloqués.
+- [ ] **P1 : skills/MCP/mémoire** : source privée revue/signée/épinglée, `skills.guard_agent_created`, `skills.write_approval`, `memory.write_approval`, pas d'installation depuis messages ni auto-update, least-privileged tools.
+- [ ] **P2 : preuves d'exploitation** : exercices non autorisé/PII/secrets/prompt injection via Docker/Loki/SearXNG/README, fail-closed d'un guardrail indisponible, coupure des permissions, alertes Loki/Prometheus et continuité après reboot.
+- [ ] Pas de nouveau service/port/exposition/secret/déploiement Hermes, LiteLLM ou SearXNG tant que ces gates ne sont pas fermés. Préserver la priorité stabilité/Gatus/pfSense du chemin critique et ne pas merger automatiquement.
+
 ## P1/P2 — Hermes TrueNAS : agent DevSecOps via Telegram/Discord (2026-10-11)
 
 - [x] Étudier la faisabilité : gateway Hermes natif Telegram/Discord, Loki déjà déclaré sur TrueNAS, commandes shell possibles mais trop privilégiées sans frontière externe.
