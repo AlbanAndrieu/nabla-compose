@@ -29,6 +29,29 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## P1 — Prometheus telemetry evidence before FastAPI consumers (2026-10-11)
+
+- [x] Inventory declared Prometheus targets for Gatus, FastAPI Sample,
+  PostgreSQL, Redis, pfSense, CrowdSec and Cloudflare; do not confuse job
+  configuration with live scrape success.
+- [x] Add bounded read-only static/live audit
+  `scripts/prometheus/audit-telemetry-coverage.py` and offline contracts.
+- [x] Record exporter scrape availability and functional Postgres/Redis
+  signals, preserving an absent/unknown state instead of synthesizing zero.
+- [ ] In the deferred batch, confirm Prometheus target `up`, sample series,
+  scrape errors, Gatus monitor cardinality and PostgreSQL/Redis authentication
+  using only trusted internal Prometheus access.
+- [ ] Deploy the missing dedicated PostgreSQL exporter only after runtime
+  secret migration and least-privilege identity acceptance.
+- [ ] Determine whether Cloudflare telemetry should use a bounded exporter
+  or API sampling; no new broad API token and no Cloudflare polling from
+  pfSense.
+- [ ] Add Postgres/Redis/CrowdSec exporter-state **blind-spot** fields to the
+  FastAPI Sample platform telemetry consumer in its own repository, followed
+  by consumer-contract tests; do not mark services DOWN for absent metrics.
+- [ ] Establish cAdvisor/host resource availability before activating
+  topology CPU/RAM overlays or resource saturation alerts.
+
 ## CURRENT FOCUS — stabilize and finish migrations (2026-10-11)
 
 **Operator reprioritization:** deliver service recovery, runtime migrations and
