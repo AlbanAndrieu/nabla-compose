@@ -1,3 +1,28 @@
+## Acceptance update — Gatus / PostgreSQL monitoring (2026-10-11)
+
+- [x] Gatus TrueNAS App RUNNING; container running, exit 0, no restarts,
+  config 0640 uid 1000/gid 568, SQLite data present. Recent error category
+  counts: 0 permission, 0 database, 0 config, 0 fatal.
+- [x] Gatus UI / and /api/v1/endpoints/statuses HTTP 200 from TrueNAS.
+  This confirms transport and basic API availability, **not** completeness
+  of expected endpoint monitoring or FastAPI observer evidence.
+- [x] Extend read-only Gatus diagnostics with API JSON shape and entry counts
+  without leaking monitored URLs. Do not infer UP for all endpoints.
+- [ ] Compare concrete API endpoint IDs to generated Gatus YAML, report
+  absent IDs and reconcile missing 11 external evidence checks.
+- [ ] Validate Gatus synthetic checks from actual outcomes and timestamps,
+  not from UI 200 alone; integrate into FastAPI evidence contract.
+- [x] PostgreSQL running, exporter absent and no eligible materialized
+  POSTGRES_EXPORTER_DSN secret found. Keep separate from database health.
+- [ ] Materialize a dedicated read-only exporter DSN at the runtime path
+  after operator approval; do not print existing postgres credentials.
+- [ ] Deploy isolated PostgreSQL exporter and verify pg_up=1 and Prometheus
+  scrape success. No postgres app recreation or secret guesses.
+- [ ] Reconcile Portracker :30233 actual runtime with generated catalog and
+  Gatus/AutoKuma/Homarr before runtime smoke acceptance.
+- [ ] Investigate ingress-audit script location/owner; missing audit code is
+  a coverage gap, not runtime service failure.
+
 ## FastAPI external evidence and Gatus / PostgreSQL exporter alignment — 2026-10-11
 
 - [x] TrueNAS local audit: 62 running accepted, zero runtime failures,
