@@ -46,3 +46,18 @@ def test_docker_only_dns_requires_in_network_check() -> None:
     assert '"kafka", "sentry-clickhouse"' in source
     assert "requires in-network probe" in source
     assert "uncovered += len(host_only)" in source
+
+
+def test_portracker_monitor_matches_observed_published_port() -> None:
+    import yaml
+
+    compose = yaml.safe_load((ROOT / "apps/portracker/compose.yml").read_text())
+    service = compose["services"]["portracker"]
+    monitor = service["x-nabla"]["monitoring"]
+    published = service["ports"][0]
+    assert monitor["type"] == "http"
+    assert monitor["host"] == "172.17.0.24"
+    assert monitor["port"] == 30233
+    assert monitor["path"] == "/metrics"
+    assert int(published["published"]) == monitor["port"]
+    assert published["target"] == 30233
