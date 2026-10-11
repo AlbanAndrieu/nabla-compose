@@ -1,3 +1,13 @@
+## PostgreSQL exporter restoration — runtime evidence (2026-10-11)
+
+- [x] PostgreSQL TrueNAS App RUNNING; primary container running and :5432 published.
+- [x] PostgreSQL exporter is absent from `docker ps -a`; :9187 refuses connections; expected `/mnt/cpool/postgres/.env.secrets` is missing.
+- [x] Add read-only `scripts/truenas/diagnose-postgres-exporter.sh` preflight with no DSN disclosure.
+- [ ] Isolate the exporter as its own TrueNAS custom App or explicitly scoped Compose project; do **not** update/redeploy shared PostgreSQL just to add monitoring.
+- [ ] Provision a dedicated read-only monitoring SQL role and exporter DSN via established secrets management, without logging or committing credentials.
+- [ ] Verify exporter container, HTTP /metrics with `pg_up=1`, Prometheus target health and queryable PostgreSQL metrics.
+- [ ] Reconcile its service-topology monitoring ownership and remove false warnings only after functional acceptance.
+
 ## Runtime/catalog reconciliation — Portracker and PostgreSQL exporter (2026-10-11)
 
 - [x] Correlate Portracker active Docker bindings and direct HTTP probe:
