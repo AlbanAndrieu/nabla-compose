@@ -83,7 +83,7 @@ case "${mode}" in
     # Portable flock guards races; reserve cooldown BEFORE invoking OpenClaw.
     command -v flock >/dev/null 2>&1 || { echo 'ERROR: flock required for smoke cooldown' >&2; exit 2; }
     state_root="${XDG_STATE_HOME:-${HOME}/.local/state}/nabla-compose"
-    mkdir -p -m 700 -- "${state_root}"
+    mkdir -p -- "${state_root}"
     chmod 700 -- "${state_root}"
     marker="${state_root}/openclaw-main-smoke-last-attempt"
     exec 9>"${state_root}/openclaw-main-smoke.lock"
