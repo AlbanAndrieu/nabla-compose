@@ -44,6 +44,10 @@ def status(line: str) -> str | None:
         if value.isdigit() and int(value) > 0 :
             return "bad"
         return "ok" if value == "0" else None
+    if name in ("heartbeat_recent_failed", "heartbeat_consecutive_failures_at_head"):
+        return "bad" if value.isdigit() and int(value) > 0 else "ok" if value == "0" else None
+    if name == "heartbeat_last_status":
+        return "ok" if value == "ok" else "bad" if value == "error" else None
     if name == "sqlite_integrity_ok":
         return "ok" if value.isdigit() and int(value) > 0 else None
     if name == "openai_cli_key_parity":
