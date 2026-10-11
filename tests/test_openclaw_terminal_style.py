@@ -51,3 +51,18 @@ def test_zero_failures_are_green_and_missing_integrity_check_is_neutral() -> Non
     assert style.status("failure_agent_runner=33") == "bad"
     assert style.status("ERROR: provider down") == "bad"
     assert style.status("FAIL: validation") == "bad"
+
+
+def test_litellm_audit_status_and_budget_colors() -> None:
+    assert style.status("proxy=workstation") == "info"
+    assert style.status("  health_readiness_http=200") == "ok"
+    assert style.status("  health_liveliness_http=503") == "bad"
+    assert style.status("key=openclaw-main http=200") == "ok"
+    assert style.status("key=ide http=403") == "bad"
+    assert style.status("  budget_usage_pct=44.6") == "ok"
+    assert style.status("  budget_usage_pct=85.0") == "warn"
+    assert style.status("  budget_usage_pct=100.0") == "bad"
+    assert style.status("  budget_usage_pct=not_reported") == "warn"
+    assert style.status("  max_budget=not_reported") == "warn"
+    assert style.status("  tpm_limit=200000") == "info"
+    assert style.decorate("key=openclaw-main http=200\\n", False) == "key=openclaw-main http=200\\n"
