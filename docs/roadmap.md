@@ -1,3 +1,14 @@
+## P1/P2 — Hermes TrueNAS : agent DevSecOps via Telegram/Discord (2026-10-11)
+
+- [x] Étudier la faisabilité : gateway Hermes natif Telegram/Discord, Loki déjà déclaré sur TrueNAS, commandes shell possibles mais trop privilégiées sans frontière externe.
+- [x] Ajouter le runbook de sécurité `docs/runbooks/hermes-homelab-gateway-feasibility.md` et un diagnostic read-only `scripts/truenas/diagnose-hermes-agent.sh --check`.
+- [ ] **P1**, après les incidents prioritaires : auditer l'App TrueNAS `hermes-agent` réellement déployée (image/digest, gateway, UID/GID, mounts, stockage, ACL, secrets et canaux). Aucune migration/redéploiement avant preuve runtime.
+- [ ] **P2** : DM Telegram puis Discord, allowlist d'identité, aucun ingress, aucun accès root ou Docker socket ; réutiliser LiteLLM et secrets runtime uniquement après contrôle des identités.
+- [ ] **P2** : connecteurs de diagnostic indépendants et bornés pour Gatus/Prometheus, Loki et logs Docker ; vérifier la présence réelle des logs d'applications dans Loki, l'absence d'exfiltration et le filtrage côté API.
+- [ ] **P2/P3** : PR GitHub avec tests local-first et non-merge, puis actions correctives via exécuteur distinct allowlisté et validation opérateur hors canal du bot. Aucun shell root via Telegram/Discord.
+- [ ] Vérifier sur TrueNAS les tests fonctionnels, la prévention prompt injection, le compte non autorisé, la révocation des accès, la récupération après redémarrage ; laisser les changements runtime non appliqués d'ici là.
+
+
 # Homelab roadmap
 
 Last updated: 2026-10-10.
