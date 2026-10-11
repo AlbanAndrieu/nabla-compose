@@ -9,8 +9,11 @@ recovery logic.
 **First failing layer:** a native nginx HTTP 502 proves that DNS/TCP/TLS and
 the HTTP listener responded, while the PHP-FPM/webConfigurator upstream did not
 serve the request. It does **not** prove an invalid API key, a PF block, or an
-Unbound failure. See the application observer's dated evidence in
-[fastapi-sample incidents](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/incidents.md).
+Unbound failure. See the
+[dated pfSense platform incident](./incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
+for the historical evidence and the
+[FastAPI incident register](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/incidents.md)
+for the original observer chronology.
 
 ### Collect evidence before any recovery
 
