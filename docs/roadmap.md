@@ -46,6 +46,41 @@ Docling diagnostics may run earlier; (5) finalize already operational
 DSOMM/Sentry/Scrutiny/Pi-hole statuses and acceptance evidence instead
 of redeploying them.
 
+### P1 Pyroscope recovery and TrueNAS apps UID/GID normalization — 2026-10-11
+
+- [ ] **Pyroscope runtime acceptance after storage/identity change:** the
+  Compose manifest now declares `user: "568:568"`, but deployment and
+  recovery remain **UNVERIFIED**. Verify the effective container UID/GID and
+  ownership/ACL of `/mnt/cpool/pyroscope/data`; confirm that Raft WAL and
+  metastore state persist at the configured path, that the leader stays stable,
+  `/ready` returns HTTP 200, and a real FastAPI profile can be ingested and
+  queried. Current operator evidence: UID 10001 could write to the bind mount
+  inside Docker, but the directory stayed empty; `/ready` remained HTTP 503
+  with recurring `node is not the leader` / Raft write timeout errors.
+  **Do not mark recovered based on HTTP / or /metrics alone.**
+- [ ] **Post-reboot Pyroscope acceptance:** exercise
+  `scripts/truenas/diagnose-pyroscope.sh` and
+  `reboot-homelab.sh --post-reboot-check`; validate permissions,
+  declared-versus-effective mounts, persistent Raft files, leader stability,
+  readiness, and ingestion. Read-only diagnosis; no automatic Raft reset.
+- [ ] **Evaluate and migrate LiteLLM to `568:568`:** determine current
+  effective UID, container writable paths, runtime secrets and config mounts,
+  then provision storage ACL/ownership, stage the Compose `user` change,
+  verify startup, proxy/API completion and persistence, and retain rollback.
+  Existing LiteLLM `568:568` line is commented, not deployed.
+- [ ] **Evaluate and migrate Ollama to `568:568`:** audit model-cache
+  ownership and the `/root/.ollama` mount, writable `HOME`/`OLLAMA_MODELS`,
+  optional GPU device access and group permissions; only then deploy as
+  `apps`, prove model discovery, generation and persistence after recreation.
+- [ ] **Audit remaining TrueNAS services for `568:568` suitability:**
+  compare actual image/process UID/GID with ZFS mount ACLs and writable
+  paths; classify already compatible, migration candidates, and image-native
+  identities to preserve (e.g. MinIO `473:473`). Never apply global
+  `chown -R` or bulk UID replacements.
+- [ ] **Acceptance gate:** validate each migration independently with
+  local-first checks and rollback evidence before marking any runtime
+  accepted or merging; avoid GitHub Actions credit consumption.
+
 ### P0 health audit evidence — 2026-10-11
 
 - [x] Operator confirmed DSOMM accepted; 4,170-byte progress and
