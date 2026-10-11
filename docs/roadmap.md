@@ -1,3 +1,25 @@
+## Runtime/catalog reconciliation — Portracker and PostgreSQL exporter (2026-10-11)
+
+- [x] Correlate Portracker active Docker bindings and direct HTTP probe:
+  container exposes 4999/tcp without a host binding, and publishes
+  30233/tcp on 0.0.0.0 and ::. The operator received HTTP 200 from
+  `http://172.17.0.24:30233/metrics`, while :4999 was unreachable.
+- [x] Correct the canonical `apps/portracker/compose.yml` declaration:
+  published target/host port 30233 and HTTP /metrics monitoring. Regenerate
+  catalog/service-topology, Gatus, AutoKuma and Homarr via canonical
+  generators and inspect their diffs before publishing.
+- [ ] Verify Portracker still responds on 30233 after any future redeploy.
+  This change reconciles source declarations; it does not claim a runtime
+  redeployment took place.
+- [ ] PostgreSQL exporter: primary PostgreSQL remains healthy on :5432,
+  while no exporter container was shown in the operator's Docker inventory
+  and :9187 refused connections. Check its active TrueNAS App version/rendered
+  Compose, DSN secret presence without printing values, exporter logs, and
+  Prometheus scrape targets. Restore only the exporter, not PostgreSQL.
+- [ ] Improve service dependency audits to distinguish an optional/absent
+  exporter from a broken required database, without masking missing metrics.
+  Follow up on 80 observed probe gaps and 16 unmapped TrueNAS Apps.
+
 ## Runtime update — Bichon accepted, OpenArchiver removed, Pyroscope blocked (2026-10-11)
 
 - [x] Operator removed the OpenArchiver TrueNAS application. Do not attempt
