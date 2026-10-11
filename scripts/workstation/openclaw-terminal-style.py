@@ -26,8 +26,10 @@ def status(line: str) -> str | None:
     if not stripped or stripped.startswith(("{", "}", "[", "]", '"')):
         return None
     upper = stripped.upper()
-    if upper.startswith(("ERROR", "FAIL", "ACTION:")):
-        return "bad" if not upper.startswith("ACTION:") else "warn"
+    if upper.startswith(("ERROR:", "ERROR ", "FAIL:", "FAIL ")):
+        return "bad"
+    if upper.startswith("ACTION:"):
+        return "warn"
     if upper.startswith(("WARN", "NOTE:")):
         return "warn" if upper.startswith("WARN") else "info"
     if upper.startswith(("OK ", "VERIFIED ", "CREATED ", "RESTORE_TEST_OK")):
@@ -38,10 +40,12 @@ def status(line: str) -> str | None:
         return None
     name, value = stripped.split("=", 1)
     name, value = name.strip().lower(), value.strip().lower()
-    if name.startswith(("failure_", "litellm_budget_", "embedding_auth_", "context_over_budget_", "context_pressure", "memory_sync_aborted", "gateway_connection_refused", "status_non_ok", "sqlite_integrity_")):
-        if value.isdigit() and int(value) > 0 and not name.startswith("sqlite_integrity_"):
+    if name.startswith(("failure_", "litellm_budget_", "embedding_auth_", "context_over_budget_", "context_pressure", "memory_sync_aborted", "gateway_connection_refused", "status_non_ok")):
+        if value.isdigit() and int(value) > 0 :
             return "bad"
         return "ok" if value == "0" else None
+    if name == "sqlite_integrity_ok":
+        return "ok" if value.isdigit() and int(value) > 0 else None
     if name == "openai_cli_key_parity":
         return "ok" if value == "match" else "bad"
     if value in ("unbalanced_quotes", "unbalanced_quotes_or_reference", "mismatch", "unexpanded_reference"):
