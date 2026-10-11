@@ -2,6 +2,12 @@
 # shellcheck shell=bash
 # Safe, content-free OpenClaw workstation triage. No service mutation or raw config output.
 set -euo pipefail
+# Add emoji/color only for interactive operator output; preserve machine-readable pipes.
+if [[ -z "${OPENCLAW_STYLE_ACTIVE:-}" && -z "${NO_COLOR+x}" && "${OPENCLAW_COLOR:-auto}" != never && ( -t 1 || "${OPENCLAW_COLOR:-auto}" == always ) ]]; then
+  export OPENCLAW_STYLE_ACTIVE=1
+  bash "${BASH_SOURCE[0]}" "$@" | python3 "$(dirname -- "${BASH_SOURCE[0]}")/openclaw-terminal-style.py"
+  exit "${PIPESTATUS[0]}"
+fi
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
