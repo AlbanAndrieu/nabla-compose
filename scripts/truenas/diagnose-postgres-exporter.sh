@@ -18,7 +18,11 @@ SECRET_FILE="${SECRET_FILE:-/mnt/cpool/secrets/runtime/postgres-exporter/.env.se
 printf 'PostgreSQL exporter runtime check host=%s port=%s\n' "${HOST}" "${PORT}"
 
 if [[ -s "${SECRET_FILE}" ]]; then
-  printf 'PASS exporter secret materialized at %s (contents not read)\n' "${SECRET_FILE}"
+  if grep -Eq '^[[:space:]]*(export[[:space:]]+)?POSTGRES_EXPORTER_DSN=' "${SECRET_FILE}"; then
+    printf 'PASS exporter DSN key is materialized at %s (value hidden)\n' "${SECRET_FILE}"
+  else
+    echo 'WARN runtime file exists but POSTGRES_EXPORTER_DSN is not declared'
+  fi
 else
   echo 'WARN exporter secret file absent or empty; do not deploy until provisioned'
 fi
