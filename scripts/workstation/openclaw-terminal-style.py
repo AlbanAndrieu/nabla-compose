@@ -44,6 +44,25 @@ def status(line: str) -> str | None:
         if value.isdigit() and int(value) > 0 :
             return "bad"
         return "ok" if value == "0" else None
+    if name.startswith(("health_liveliness_http", "health_readiness_http")):
+        return "ok" if value == "200" else "bad" if value != "unreachable" else "warn"
+    if name == "key" and " http=" in value:
+        code = value.rsplit(" http=", 1)[-1]
+        return "ok" if code == "200" else "warn" if code == "unreachable" else "bad"
+    if name == "proxy":
+        return "info"
+    if name == "budget_usage_pct":
+        if value == "not_reported":
+            return "warn"
+        try:
+            fraction = float(value)
+        except ValueError:
+            return None
+        return "bad" if fraction >= 100 else "warn" if fraction >= 80 else "ok"
+    if name in ("max_budget", "tpm_limit", "rpm_limit"):
+        return "warn" if value == "not_reported" else "info"
+    if name.startswith("admin_audit") and value.startswith("skipped"):
+        return "warn"
     if name in ("heartbeat_recent_failed", "heartbeat_consecutive_failures_at_head"):
         return "bad" if value.isdigit() and int(value) > 0 else "ok" if value == "0" else None
     if name == "heartbeat_last_status":
