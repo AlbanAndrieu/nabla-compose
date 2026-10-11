@@ -44,7 +44,10 @@ class RejectRedirects(HTTPRedirectHandler):
 TOOLS = [
     {
         "name": "homelab_scrape_status",
-        "description": "Return bounded aggregate Prometheus up status for a predefined service. No target labels, logs, credentials or private topology.",
+        "description": (
+            "Return bounded aggregate Prometheus up status for a predefined service. "
+            "No target labels, logs, credentials or private topology."
+        ),
         "inputSchema": {
             "type": "object", "properties": {"service": {"type": "string", "enum": sorted(JOBS)}},
             "required": ["service"], "additionalProperties": False,
@@ -52,7 +55,10 @@ TOOLS = [
     },
     {
         "name": "hermes_litellm_cost",
-        "description": "Report existing LiteLLM Prometheus cost/token counters for Hermes alias; no keys or other tenants.",
+        "description": (
+            "Report LiteLLM Prometheus cost/token counters for the Hermes alias; "
+            "no keys or other tenants."
+        ),
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -70,7 +76,8 @@ def _prom_query(query: str) -> dict:
             or target.path not in ("", "/")):
         raise ValueError("Prometheus upstream origin not allowlisted")
     url = PROMETHEUS_URL.rstrip("/") + "/api/v1/query?" + urlencode({"query": query})
-    with build_opener(RejectRedirects()).open(Request(url, headers={"Accept": "application/json"}), timeout=5) as response:
+    request = Request(url, headers={"Accept": "application/json"})
+    with build_opener(RejectRedirects()).open(request, timeout=5) as response:
         if response.status != 200:
             raise ValueError("Prometheus unavailable")
         payload = response.read(MAX_UPSTREAM_BYTES + 1)
@@ -140,13 +147,24 @@ def _handle(method: str, params: dict) -> object:
             for metric in ("litellm_spend_metric", "litellm_total_tokens_metric"):
                 query = metric + '{api_key_alias="' + HERMES_COST_ALIAS + '"}'
                 samples = _prom_query(query)["data"]["result"]
-                counters[metric] = round(sum(_finite_sample(sample) for sample in samples), 6) if samples else None
-            result = {"alias": HERMES_COST_ALIAS, "spend_usd": counters["litellm_spend_metric"],
-                      "tokens": counters["litellm_total_tokens_metric"], "data_status": "observed" if all(v is not None for v in counters.values()) else "incomplete"}
+                counters[metric] = (
+                    round(sum(_finite_sample(sample) for sample in samples), 6)
+                    if samples else None
+                )
+            result = {
+                "alias": HERMES_COST_ALIAS,
+                "spend_usd": counters["litellm_spend_metric"],
+                "tokens": counters["litellm_total_tokens_metric"],
+                "data_status": (
+                    "observed" if all(v is not None for v in counters.values())
+                    else "incomplete"
+                ),
+            }
         elif name == "homelab_overview":
             if args:
                 raise ValueError("No arguments allowed")
-            result = {"services": [scrape_status(s) for s in ("prometheus", "gatus", "loki", "pfsense", "fastapi")]}
+            overview = ("prometheus", "gatus", "loki", "pfsense", "fastapi")
+            result = {"services": [scrape_status(s) for s in overview]}
         else:
             raise ValueError("Tool not allowed")
         return {"content": [{"type": "text", "text": json.dumps(result, sort_keys=True)}]}
@@ -166,7 +184,11 @@ def process(payload: dict) -> dict | None:
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
     except (ValueError, KeyError, TypeError, OSError, TimeoutError, json.JSONDecodeError):
         # Do not expose upstream URLs, response bodies or internal tracebacks.
-        return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32000, "message": "Observation unavailable or denied"}}
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {"code": -32000, "message": "Observation unavailable or denied"},
+        }
 
 
 def main() -> None:
