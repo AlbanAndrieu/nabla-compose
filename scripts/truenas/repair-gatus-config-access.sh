@@ -50,9 +50,9 @@ if [[ "${MODE}" == "--check" ]]; then
     fail "config directory/file group mismatch; run --apply after reviewing metadata"
   # Explicitly verify directory group search and file group read, regardless of
   # other owner/ACL access. Do not loosen permissions to world-readable.
-  [[ $((8#${dir_mode} & 8#050)) -eq 8#050 ]] ||
+  (( (8#${dir_mode} & 8#050) == 8#050 )) ||
     fail "group cannot traverse/read config directory"
-  [[ $((8#${file_mode} & 8#040)) -eq 8#040 ]] ||
+  (( (8#${file_mode} & 8#040) == 8#040 )) ||
     fail "group cannot read Gatus configuration"
   printf '%s\n' 'OK: Gatus config group read/traversal contract satisfied (read-only)'
   exit 0
