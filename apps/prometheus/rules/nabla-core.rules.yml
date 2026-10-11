@@ -40,6 +40,29 @@ groups:
             up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|pfsense_exporter|crowdsec|cloudflare_exporter|truenas_node|kafka_exporter|clickhouse|opensearch|opensearch-security|grafana|alloy|loki|mimir|tempo|alertmanager|pyroscope|keycloak|pihole_exporter|haproxy|n8n|docling"}
           )
 
+      # Compatibility contract used by fastapi-sample PR #338.
+      # No target => no sample, never an invented healthy zero/one.
+      - record: nabla:telemetry:postgres_exporter_up
+        expr: max(up{job="postgres_exporter"})
+
+      - record: nabla:telemetry:redis_exporter_up
+        expr: max(up{job="redis_exporter"})
+
+      - record: nabla:telemetry:fastapi_sample_up
+        expr: max(up{job="fastapi_sample"})
+
+      - record: nabla:telemetry:pyroscope_up
+        expr: max(up{job="pyroscope"})
+
+      - record: nabla:telemetry:alertmanager_up
+        expr: max(up{job="alertmanager"})
+
+      - record: nabla:service:postgres_up
+        expr: max(pg_up{job="postgres_exporter"})
+
+      - record: nabla:service:redis_up
+        expr: max(redis_up{job="redis_exporter"})
+
       - record: nabla:telemetry:postgres_functional_up
         expr: max(pg_up{job="postgres_exporter"})
 
