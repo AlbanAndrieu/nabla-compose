@@ -29,3 +29,9 @@ def test_routes_option_is_accepted_and_dispatched() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "--auth|--routes|--backup-check|--disable-irc) ;;" in text
     assert '--routes) python3 "${ROOT}/scripts/workstation/openclaw-route-metadata.py" ;;' in text
+
+
+def test_recent_errors_option_is_accepted_and_dispatched() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--heartbeat|--recent-errors|--memory|--auth" in text
+    assert '--recent-errors) python3 "${ROOT}/scripts/workstation/openclaw-application-log-summary.py" 30 ;;' in text
