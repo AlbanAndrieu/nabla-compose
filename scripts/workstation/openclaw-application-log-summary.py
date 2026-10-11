@@ -14,6 +14,7 @@ PATTERNS = {
     "rate_limit_429": ("rate limit", "ratelimit", "too many requests"),
     "embedding_401": ("embeddings failed (401)", "invalid_api_key"),
     "agent_runner": ("agent-runner-failure", "agent run failed"),
+    "agent_response_unavailable": ("agent couldn\u0027t generate a response", "agent could not generate a response"),
     "context_pressure": ("context-pressure-diagnostic", "context overflow"),
     "memory_sync_aborted": ("memory sync aborted", "memory-sync-aborted"),
     "timeout": ("timed out", "timeout"),
