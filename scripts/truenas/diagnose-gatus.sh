@@ -2,7 +2,7 @@
 # Read-only Gatus crash triage. Never emit config, environment or raw logs.
 set -euo pipefail
 
-for binary in docker stat; do
+for binary in docker stat curl; do
   command -v "${binary}" >/dev/null 2>&1 || { printf 'ERROR: missing %s\n' "${binary}" >&2; exit 2; }
 done
 
@@ -36,3 +36,14 @@ if ! docker logs --tail 80 gatus 2>&1 | awk '
   exit 1
 fi
 printf '%s\n' 'Diagnostic only; no restart or permission change performed.'
+
+printf '%s\n' '==> Gatus HTTP functional evidence (no response bodies)'
+GATUS_URL="${GATUS_URL:-http://172.17.0.24:8085}"
+for endpoint in / /api/v1/endpoints/statuses; do
+  status="$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' "${GATUS_URL}${endpoint}" || true)"
+  printf 'endpoint=%s http=%s\n' "${endpoint}" "${status:-000}"
+  if [[ "${status}" == 000 ]]; then
+    printf 'WARN Gatus HTTP unreachable on %s\n' "${endpoint}"
+  fi
+done
+printf '%s\n' 'HTTP 200 is transport evidence only; API contract and monitored endpoint status require separate acceptance.'
