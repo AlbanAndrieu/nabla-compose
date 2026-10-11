@@ -5,7 +5,7 @@ name: hermes-poc
 services:
   hermes:
     profiles: [hermes-poc]
-    image: nousresearch/hermes-agent:${HERMES_IMAGE_TAG:-stable}
+    image: ${HERMES_IMAGE_REF:-nousresearch/hermes-agent:stable}
     container_name: hermes-poc
     restart: unless-stopped
     command: ["gateway", "run"]
