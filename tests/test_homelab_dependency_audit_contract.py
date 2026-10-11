@@ -39,3 +39,10 @@ def test_monitoring_coverage_not_equated_to_runtime_outage() -> None:
     assert "probe_gaps={uncovered}" in source
     assert "missing host/port metadata\" not in detail" in source
     assert "Catalog mapping to complete:" in source
+
+
+def test_docker_only_dns_requires_in_network_check() -> None:
+    source = AUDIT.read_text(encoding="utf-8")
+    assert '"kafka", "sentry-clickhouse"' in source
+    assert "requires in-network probe" in source
+    assert "uncovered += len(host_only)" in source
