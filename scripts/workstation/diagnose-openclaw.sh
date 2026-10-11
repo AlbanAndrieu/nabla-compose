@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Read-only OpenClaw workstation diagnostic; no doctor or secret output.
 set -euo pipefail
+# Add emoji/color only for interactive operator output; preserve machine-readable pipes.
+if [[ -z "${OPENCLAW_STYLE_ACTIVE:-}" && -z "${NO_COLOR+x}" && "${OPENCLAW_COLOR:-auto}" != never && ( -t 1 || "${OPENCLAW_COLOR:-auto}" == always ) ]]; then
+  export OPENCLAW_STYLE_ACTIVE=1
+  bash "${BASH_SOURCE[0]}" "$@" | python3 "$(dirname -- "${BASH_SOURCE[0]}")/openclaw-terminal-style.py"
+  exit "${PIPESTATUS[0]}"
+fi
 export LC_ALL=C
 NODE_ROOT="${OPENCLAW_NODE_ROOT:-${HOME}/.local/share/mise/installs/node/24.18.1}"
 UNIT="${OPENCLAW_UNIT:-openclaw-gateway.service}"
