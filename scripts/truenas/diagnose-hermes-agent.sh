@@ -27,6 +27,10 @@ printf 'app=%s state=%s\n' "$APP_ID" "${app_state:-unknown}"
 
 if docker inspect --type container "$CONTAINER" >/dev/null 2>&1; then
   docker inspect --type container --format 'container={{.Name}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}not-defined{{end}} image={{.Config.Image}}' "$CONTAINER"
+  runtime_status="$(docker inspect --type container --format '{{.State.Status}}' "$CONTAINER")"
+  runtime_health="$(docker inspect --type container --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}not-defined{{end}}' "$CONTAINER")"
+  [[ "$runtime_status" == running ]] || fail "Hermes container status=${runtime_status:-unknown}"
+  [[ "$runtime_health" != unhealthy ]] || fail 'Hermes container health=unhealthy'
   image_id="$(docker inspect --type container --format '{{.Image}}' "$CONTAINER")"
   printf 'image_id=%s\n' "$image_id"
   user="$(docker inspect --type container --format '{{.Config.User}}' "$CONTAINER")"
