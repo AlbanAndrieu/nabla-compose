@@ -60,7 +60,14 @@ def audit() -> None:
         print("admin_audit=skipped_master_key_not_in_environment")
         print("NOTE: key IDs alone do not authorize administrative queries")
         return
-    for name, key_id in KEYS.items():
+    cron_id = os.environ.get("LITELLM_OPENCLAW_CRON_KEY_ID", "").strip()
+    key_ids = dict(KEYS)
+    if len(cron_id) == 64 and all(char in "0123456789abcdefABCDEF" for char in cron_id):
+        key_ids["openclaw-cron"] = cron_id
+    else:
+        print("key=openclaw-cron metadata=missing_key_id")
+        print("NOTE: set LITELLM_OPENCLAW_CRON_KEY_ID to the 64-character hashed ID, not a sk- token")
+    for name, key_id in key_ids.items():
         code, data = get(LOCAL + "/key/info?" + urlencode({"key": key_id}), master)
         print(f"key={name} http={code or 'unreachable'}")
         if code != 200:
