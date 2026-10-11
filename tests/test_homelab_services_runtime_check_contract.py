@@ -55,4 +55,3 @@ def test_pyroscope_functional_storage_and_metrics_contract() -> None:
         assert required in source
     orchestrator = (ROOT / "scripts/truenas/check-homelab-services.sh").read_text()
     assert "run_gate pyroscope" in orchestrator
-
