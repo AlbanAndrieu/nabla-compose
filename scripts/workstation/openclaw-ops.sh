@@ -17,7 +17,7 @@ usage() {
 mode="${1:---check}"
 (($# <= 1)) || { usage >&2; exit 2; }
 case "${mode}" in
-  --check|--cron|--skill-review|--heartbeat|--memory|--auth|--routes|--backup-check|--disable-irc) ;;
+  --check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
 esac
 command -v openclaw >/dev/null 2>&1 || { echo 'ERROR: openclaw CLI missing' >&2; exit 2; }
