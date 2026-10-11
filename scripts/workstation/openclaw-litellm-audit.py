@@ -75,6 +75,17 @@ def audit() -> None:
                 print(f"  {field}={value}")
             else:
                 print(f"  {field}=not_reported")
+        spend, budget = info.get("spend"), info.get("max_budget")
+        if (
+            type(spend) in (int, float)
+            and type(budget) in (int, float)
+            and 0 < budget < float("inf")
+            and 0 <= spend < float("inf")
+        ):
+            print(f"  budget_usage_pct={100 * spend / budget:.1f}")
+            print(f"  budget_remaining={max(0.0, budget - spend):.4f}")
+        else:
+            print("  budget_usage_pct=not_reported")
         print("  NOTE: limits may also apply at team/model/upstream level")
     print("NOTE: TPM means tokens per minute; a 200000 TPM quota is not a monetary budget")
     print("NOTE: this is read-only; no chat, embedding, key creation or spend reset")
