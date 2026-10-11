@@ -81,6 +81,31 @@ of redeploying them.
   local-first checks and rollback evidence before marking any runtime
   accepted or merging; avoid GitHub Actions credit consumption.
 
+### Runtime migration and service stabilization — 2026-10-11 operator evidence
+
+- **P0 Obsidian:** TrueNAS App `CRASHED`; collect `midclt app.query`,
+  stopped-container states, bounded logs and mounts before redeployment.
+- **P0 OpenArchiver:** TrueNAS App `DEPLOYING`; inspect actual
+  service health, Postgres/Redis dependencies and the running TrueNAS job
+  before any restart. Do not conflate a transient deploy with a crash.
+- **P0 FastAPI staging:** container check was running while the host
+  `/api/health-board` probe became unreachable. Validate published 8091,
+  local `/health`, healthcheck evidence and origin routing separately.
+- **Accepted Vaultwarden migration:** `vaultwarden` and
+  `bitwarden-api` both healthy, one adapter restart,
+  active `BW_HOST=https://vaultwarden.albandrieu.com`; no further
+  redispatch of the old HTTP configuration fix.
+- **P1 monitoring:** Kafka `kafka:9092` and Sentry ClickHouse
+  `sentry-clickhouse:9000` are Docker DNS-only endpoints; do not probe
+  from the TrueNAS host. In-network readiness probes remain to be
+  implemented. `portracker` is published on 30233, not 4999;
+  PostgreSQL exporter :9187 is not present in the Docker published
+  ports snapshot. Reconcile the deployment before editing monitors.
+- **P2** Complete monitoring mappings and retire pending migrations.
+- **P3 quality gate** follows runtime fixes, without disabling
+  security checks; the last local gate had 220 passed / 1 failed
+  (`test_gatus_diagnostic_contract.py::test_diagnostic_does_not_leak_raw_logs`).
+
 ### P0 health audit evidence — 2026-10-11
 
 - [x] Operator confirmed DSOMM accepted; 4,170-byte progress and
