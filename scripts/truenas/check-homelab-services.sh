@@ -89,6 +89,17 @@ else
   warnings=$((warnings + 1))
 fi
 
+# Optional one-shot resource snapshot. Diagnostics only: no stop/restart actions.
+if [[ "${DEEP}" == true ]]; then
+  printf '\\n📊 Docker resource consumers (CPU and memory)\\n'
+  if command -v docker >/dev/null 2>&1; then
+    python3 "${ROOT}/scripts/truenas/diagnose-resource-consumers.py" --top 10 ||
+      { echo '⚠️ WARN resource snapshot unavailable'; warnings=$((warnings + 1)); }
+  else
+    echo '⚠️ WARN resource snapshot skipped: Docker unavailable'
+  fi
+fi
+
 if jq -e '.[] | select(.id == "dsomm" and .state == "RUNNING")' <<<"${apps_json}" >/dev/null; then
   run_gate dsomm python3 "${ROOT}/scripts/truenas/check-dsomm-post-reboot.py"
 else
