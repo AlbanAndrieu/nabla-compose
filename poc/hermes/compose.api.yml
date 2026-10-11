@@ -1,0 +1,19 @@
+# Optional API overlay. Do not enable until API_SERVER_KEY has been
+# materialized for the Hermes POC identity; the API grants the toolset.
+# Only Docker intranet peers can reach the endpoint; no host ports/WAN ingress.
+# Users must explicitly opt in with -f poc/hermes/compose.api.yml.
+services:
+  hermes:
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: "0.0.0.0"
+      API_SERVER_PORT: "8642"
+      API_SERVER_CORS_ORIGINS: ""
+    expose: ["8642"]
+    networks:
+      - hermes_poc
+      - intranet
+networks:
+  intranet:
+    name: intranet
+    external: true
