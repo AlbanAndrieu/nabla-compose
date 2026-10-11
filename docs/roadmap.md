@@ -1,3 +1,26 @@
+## P1 — TrueNAS resource-heavy services audit (2026-10-11)
+
+- [x] Implement a read-only, bounded `docker stats --no-stream` collector with
+  top CPU, resident/container-accounted memory and percentage-of-limit ranking.
+  Integrate into `check-homelab-services.sh --deep` without restarting Apps.
+- [x] Define snapshot interpretation: CPU percentages can exceed 100% on
+  multicore hosts; memory limit percentages depend on configured cgroup limits.
+  A single snapshot is not proof of sustained pressure or of service failure.
+- [ ] Capture real TrueNAS evidence and correlate top consumers to canonical
+  App IDs and x-nabla criticality. Capture host memory/swap and storage
+  pressure alongside container peaks without leaking runtime credentials.
+- [ ] Add repeated samples / time-series evidence through existing Prometheus
+  node-exporter/cAdvisor where available; avoid inventing a ranking from
+  currently unobserved workloads.
+- [ ] Define workload-specific SLOs and remediation thresholds for the
+  observed heaviest consumers; prioritize database (Postgres/ClickHouse),
+  search (OpenSearch), observability (Sentry/Prometheus) and AI workloads
+  only when actual measurements confirm resource pressure.
+- [ ] Address remaining probe coverage, PostgreSQL exporter isolation and
+  missing ingress audit as separate gaps; do not conflate pressure with DOWN.
+- [ ] Preserve local-first static tests and CI blocking controls, and keep
+  the PR unmerged pending acceptance.
+
 ## P0/P2 — OpenClaw cron et audit différé des coûts LiteLLM (11/10/2026)
 
 **Autorité :** [runbook coûts LiteLLM](runbooks/litellm-cost-governance-audit.md) ; conserver la PR #253 ouverte.
