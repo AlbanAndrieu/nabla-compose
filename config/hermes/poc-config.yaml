@@ -42,7 +42,7 @@ mcp_servers:
     connect_timeout: 10
     supports_parallel_tool_calls: false
     tools:
-      include: [homelab_scrape_status, homelab_overview]
+      include: [homelab_scrape_status, homelab_overview, hermes_litellm_cost]
       resources: false
       prompts: false
 
