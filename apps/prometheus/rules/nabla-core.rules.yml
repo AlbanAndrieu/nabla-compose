@@ -32,6 +32,20 @@ groups:
       - record: nabla:observability:prometheus_up
         expr: max(up{job="prometheus"})
 
+      # Scrape success is evidence about telemetry collection, not service health.
+      # Missing/nonexistent targets intentionally remain absent, not healthy.
+      - record: nabla:telemetry:service_exporter_up
+        expr: |
+          max by (job) (
+            up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|pfsense_exporter|crowdsec|cloudflare_exporter|truenas_node"}
+          )
+
+      - record: nabla:telemetry:postgres_functional_up
+        expr: max(pg_up{job="postgres_exporter"})
+
+      - record: nabla:telemetry:redis_functional_up
+        expr: max(redis_up{job="redis_exporter"})
+
       - alert: NablaObservabilityTargetDown
         expr: >-
           up{job=~"prometheus|grafana|alloy|loki|mimir|tempo|alertmanager"} == 0
@@ -48,7 +62,7 @@ groups:
 
       - alert: NablaExporterTargetDown
         expr: >-
-          up{job=~"pihole_exporter|postgres_exporter|pfsense_exporter|haproxy|sybase|opensearch|opensearch-security|crowdsec|truenas_node"} == 0
+          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node"} == 0
         for: 2m
         labels:
           severity: warning
