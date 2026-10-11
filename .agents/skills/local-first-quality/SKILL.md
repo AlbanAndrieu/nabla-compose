@@ -405,3 +405,20 @@ Prefer existing widely adopted tooling over new repository-specific code:
 
 Do not add another task runner, formatter or test selector if the existing stack
 already expresses the required contract.
+
+## Shell operator experience and refactoring
+
+When creating or refactoring operator-facing Shell scripts, use
+`scripts/lib/terminal-ui.sh` and `nabla_ui_init` / `nabla_ui_status`
+for consistent ✅/⚠️/❌/ℹ️ statuses and green/yellow/red/cyan terminal colors.
+Preserve plain, stable text in CI, logs and redirected output; respect
+`NO_COLOR`, `TERM=dumb`, and `NABLA_UI_ASCII=1`. Never color JSON, probes,
+machine-readable records or secrets. Do not pipe errors through a coloring
+filter that changes exit status.
+
+Prefer reuse of existing `scripts/lib/truenas.sh` job/provenance/lifecycle
+helpers, `scripts/lib/diagnostic.sh` wrapper, and `scripts/lib/probe.sh`
+network primitives over another local copy. Before moving a widely used
+function, search call sites and record signatures/error codes; preserve
+public CLI switches and outputs and test them locally. Refactor in small
+batches with ShellCheck, shfmt and targeted contracts before widening scope.

@@ -51,3 +51,20 @@ class RebootDiagnosticTests(TestCase):
             result = diagnostic.diagnose_fastapi(script, "http://127.0.0.1:8091", 2.0)
         self.assertEqual(result["state"], "incomplete")
         self.assertEqual(result["evidence_gaps"], ["sentry"])
+
+    def test_redis_uses_published_host_port_not_container_port(self):
+        self.assertIn(("redis", 30059), diagnostic.SERVICES)
+        self.assertNotIn(("redis", 6379), diagnostic.SERVICES)
+
+    def test_docker_permission_denied_is_not_missing_container(self):
+        completed = mock.Mock(returncode=1, stderr="permission denied", stdout="")
+        with mock.patch.object(diagnostic.subprocess, "run", return_value=completed):
+            result = diagnostic.check_container("fastapi-sample", 1.0)
+        self.assertEqual(result["state"], "unknown")
+        self.assertEqual(result["reason"], "docker_permission_denied")
+
+    def test_missing_docker_container_is_detected(self):
+        completed = mock.Mock(returncode=1, stderr="Error: No such object: fastapi-sample", stdout="")
+        with mock.patch.object(diagnostic.subprocess, "run", return_value=completed):
+            result = diagnostic.check_container("fastapi-sample", 1.0)
+        self.assertEqual(result["state"], "not_found")

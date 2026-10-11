@@ -72,6 +72,77 @@ On the first `deploy-dsomm.sh --apply`, the seed is copied into the protected
 runtime state with mode `0600`. Existing runtime progress/evidence files are
 **never overwritten** by later deploys.
 
+## Safely restoring the empty runtime assessment
+
+An operator check on 2026-10-10 found valid `model.yaml` but
+`team-progress.yaml` and `team-evidence.yaml` were both 10 bytes and
+contained no activity records. DSOMM returns HTTP 200 but consequently
+shows no assessment progress.
+
+To initialize only **recognized empty YAML** from the reviewed seed,
+run on TrueNAS after syncing the PR branch:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/truenas/repair-empty-dsomm-assessment.py --check
+sudo python3 scripts/truenas/repair-empty-dsomm-assessment.py --apply
+sudo python3 scripts/dsomm/validate-seed.py \\
+  --progress /mnt/cpool/dsomm/state/team-progress.yaml \\
+  --evidence /mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+The repair refuses nonempty or unexpected YAML, symlink/hardlink files,
+and backs up both empty originals under a timestamped, mode-0700 folder
+within `/mnt/cpool/dsomm/state/`. It does **not** change the upstream
+model, aggregate repository JSON claims, or restart the DSOMM app.
+
+**Important:** the running Docker frontend has file bind mounts. An
+atomic replacement changes the host file inode but an already-running
+container can retain the original inode. After validating the restored
+files, use an explicit, controlled app redeploy to remount the new
+inodes; back up first and check container health and browser assets
+afterwards. Never write into `model.yaml`.
+
+## Empty UI versus repository assessments
+
+The DSOMM frontend at `http://172.17.0.24:31088/` is a static
+browser interface. A healthy HTTP 200 does not establish that the active
+browser has imported the persisted YAML assessment. It is possible for
+the reviewed YAML seed to be present on disk but the browser view to be
+empty (state/asset request failures, browser localStorage, or UI context
+selection). Diagnose these independently, without redeploying:
+
+```bash
+sudo bash scripts/truenas/diagnose-dsomm-assessment.sh
+sudo stat -c '%n %s bytes %a %U:%G' /mnt/cpool/dsomm/state/team-progress.yaml /mnt/cpool/dsomm/state/team-evidence.yaml
+```
+
+The existing `nabla-site-alban/nabla-dsomm-assessment.json` is a
+**repository producer document**, not a DSOMM frontend `team-progress.yaml`
+file. Importing its claims directly as completed UI progress would
+discard evidence provenance and could incorrectly increase the maturity
+score of the entire `Nabla Applications` assessment scope. Instead
+produce a separate review artifact:
+
+```bash
+python3 scripts/dsomm/aggregate-repository-assessments.py \\
+  --source AlbanAndrieu/nabla-site-alban=https://raw.githubusercontent.com/AlbanAndrieu/nabla-site-alban/master/nabla-dsomm-assessment.json \\
+  --check
+python3 scripts/dsomm/aggregate-repository-assessments.py \\
+  --source AlbanAndrieu/nabla-site-alban=https://raw.githubusercontent.com/AlbanAndrieu/nabla-site-alban/master/nabla-dsomm-assessment.json \\
+  --output /mnt/cpool/dsomm/reports/site-alban.repository-assessment.aggregate.json
+```
+
+A `nabla-compose` producer assessment JSON was not identified in the
+current repository; its reviewed, conservative maturity seed already
+contains platform evidence. **Do not fabricate a repository producer
+document** or overwrite persisted team assessment files just to make
+the UI show values. Import into the live YAML/browser requires a
+separate reviewed, additive migration with backup and explicit operator
+acceptance. If the UI is empty despite non-empty runtime YAML,
+troubleshoot asset mounts/browser requests before adjusting maturity
+claims.
+
 ## Repository assessment aggregation
 
 Portable producer contract: `config/repository-assessment.schema.json`.
@@ -305,3 +376,30 @@ The baseline image is pinned to commit
 Python dependencies are also pinned locally to `PyYAML==6.0.3` and
 `tabulate==0.10.0` so rebuilding that commit does not silently change the
 runtime.
+
+## Post-reboot acceptance (read-only)
+
+The TrueNAS reboot orchestrator invokes the same DSOMM YAML HTTP
+check in `--post-reboot-check` **when DSOMM is RUNNING**. It
+rejects Caddy's 200/HTML fallback, missing assessment contexts and
+empty progress/evidence; it does not modify the app or reset browser
+storage. Run its standalone check without rebooting:
+
+```bash
+python3 scripts/truenas/check-dsomm-post-reboot.py
+python3 -m pytest -q tests/test_dsomm_post_reboot_contract.py
+```
+
+Optional frontend smoke, only when Playwright/Chromium are installed
+in the execution environment:
+
+```bash
+python3 scripts/truenas/check-dsomm-post-reboot.py --browser
+# Require real browser validation (fails if Playwright unavailable):
+python3 scripts/truenas/check-dsomm-post-reboot.py --require-browser
+```
+
+The default reboot gate is a deterministic HTTP/YAML data contract, **not**
+proof that Chromium rendered the circular heatmap. Do not install
+Playwright or browser binaries on the TrueNAS appliance. Run the browser
+smoke from an approved workstation/CI runner separately.

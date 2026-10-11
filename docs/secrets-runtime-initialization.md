@@ -90,13 +90,26 @@ python scripts/secrets/materialize_runtime.py --app netbox --verify
 The root helper receives only the already-rendered temporary file. It cannot
 authenticate to Vaultwarden.
 
-### Runtime cache is not the secret authority
+### Runtime pool is the operational secret authority
 
-`/mnt/cpool/secrets/runtime/<service>/` is a reproducible runtime cache.
-Vaultwarden remains the transitional source of truth.
+The root-owned ZFS file at `/mnt/cpool/secrets/runtime/<service>/.env.secrets`
+is the operative secret source for TrueNAS Apps. Compose reads it locally;
+starting, redeploying and recovering services must not depend on a live
+Vaultwarden API or an unlocked `BW_SESSION`. Unlike an ephemeral cache,
+the runtime file is protected operational state requiring an independent
+encrypted backup, tested restore and restrictive ACLs.
 
-Do not copy runtime caches into Git, application datasets or general-purpose
-backup exports without an explicit secrets recovery policy.
+Vaultwarden is an **optional operator vault / recovery copy**, not a mandatory
+online source and not a runtime single point of failure (SPOF).
+A missing vault item cannot justify overwriting, deleting or rotating a valid
+runtime secret. Manifest entries describe optional inventory / import mappings,
+not proof of existing vault credentials.
+
+Migration order: inventory key names without values; establish the canonical
+runtime-pool file; update Compose consumers; validate service operation and
+offline-vault recovery; optionally synchronize a vault backup; remove legacy
+delivery only after acceptance. Keep secrets out of Git, unencrypted exports,
+and application datasets.
 
 ### Vaultwarden bootstrap is different
 
@@ -153,13 +166,13 @@ The cutover is:
 
 ```text
 legacy source
-  -> inspect key names
-  -> import exact values to Vaultwarden
-  -> materialize canonical cache
+  -> inspect key names without values
+  -> establish canonical runtime-pool secret
   -> update Compose to canonical env_file
   -> deploy one service
-  -> functional acceptance
+  -> functional and offline-vault acceptance
   -> reboot acceptance
+  -> optional vault backup
   -> remove legacy baseline entry
 ```
 

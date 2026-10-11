@@ -134,6 +134,19 @@ python scripts/check-service-migration-bundle.py --app <service>
 Keep transitional `x-nabla` compatibility metadata until the coordinated v2
 cutover; do not independently remove it during P0.3.
 
+## Documentation ownership across Nabla repositories
+
+`nabla-compose` is the canonical owner of infrastructure operations:
+pfSense/WebConfigurator recovery, Cloudflare Tunnel/Access routes, and
+self-hosted Sentry operations/ingestion. Keep operational procedures and
+acceptance criteria in `docs/pfsense-diagnose-recover.md` and
+`docs/cloudflare-sentry-platform-diagnostics.md`; keep dated platform
+evidence under `docs/incidents/`. `fastapi-sample` owns only its application
+observer, cache, health classification, Sentry SDK/DSN fallback and regression
+tests. Reference the other repository by URL; do not duplicate appliance
+administration commands or drift-prone provider configurations. When moving
+documentation, preserve the old URL as a short link/compatibility entry.
+
 ## Protected default-branch policy
 
 Agents must **never** commit, push, create, update, delete, or otherwise mutate files directly on `master`, and must never move, force-update, or write the `master` ref directly.

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Read-only review of a proposed systemd override; nothing is installed.
 set -euo pipefail
+# Add emoji/color only for interactive operator output; preserve machine-readable pipes.
+if [[ -z "${OPENCLAW_STYLE_ACTIVE:-}" && -z "${NO_COLOR+x}" && "${OPENCLAW_COLOR:-auto}" != never && ( -t 1 || "${OPENCLAW_COLOR:-auto}" == always ) ]]; then
+  export OPENCLAW_STYLE_ACTIVE=1
+  bash "${BASH_SOURCE[0]}" "$@" | python3 "$(dirname -- "${BASH_SOURCE[0]}")/openclaw-terminal-style.py"
+  exit "${PIPESTATUS[0]}"
+fi
 NODE_ROOT="${OPENCLAW_NODE_ROOT:-${HOME}/.local/share/mise/installs/node/24.18.1}"
 UNIT="${OPENCLAW_UNIT:-openclaw-gateway.service}"
 [[ "${NODE_ROOT}" == "${HOME}/"* && -x "${NODE_ROOT}/bin/node" && -f "${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js" ]] || { echo 'Invalid or missing mise runtime' >&2; exit 1; }

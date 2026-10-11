@@ -56,35 +56,64 @@ The central engine can bootstrap without a bouncer secret. The optional
 `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` file is loaded only when present, so a
 missing secret file no longer makes the entire TrueNAS Compose model invalid.
 
-Before switching pfSense to the remote LAPI, materialize the required
-`BOUNCER_KEY_PFSENSE_FIREWALL` from the existing Vaultwarden manifest. Do not
-invent or rotate a key merely to make the runtime gate green.
+The **TrueNAS runtime pool** is the service's operative secret source:
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`. CrowdSec never needs
+Vaultwarden to start, restart, redeploy or recover after an outage. The file is
+optional during engine bootstrap but **required before accepting the pfSense
+bouncer cutover**. A missing file is not proof that the engine itself is down.
 
-Run the renderer from the **unprivileged operator shell** that owns the unlocked
-`BW_SESSION`; never pass that session through `sudo -E`:
+Vaultwarden is an **optional operator-managed vault and recovery copy**, not
+a mandatory live dependency or a prerequisite for an already-populated runtime
+secret. Neither Compose nor the CrowdSec deployment/diagnostic scripts connect
+to Vaultwarden to obtain the key. Preserve the runtime materialization on ZFS
+with a separately controlled backup and recovery plan, especially while
+Vaultwarden is offline.
+
+### Complete the runtime-pool migration first
+
+1. Confirm the local runtime path, restrictive permissions and presence of
+   `BOUNCER_KEY_PFSENSE_FIREWALL` using the **read-only** diagnostic; never
+   print the value or source the dotenv into the operator's shell.
+2. If absent, restore or transfer the **previously issued bouncer key** into
+   a private file through an approved, audited operator process. Optionally
+   retrieve it from Vaultwarden if it exists there, but do not make this
+   mandatory and do not invent or rotate it automatically.
+3. Install the reviewed material into
+   `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` with `root:root 0600`
+   and directory `0700`. Avoid storing staging copies in shared `/tmp` or
+   the Git checkout. The runtime file is an operating asset, not a Git artifact.
+4. Run the read-only `--check` acceptance. Only then perform an explicitly
+   authorized CrowdSec redeploy and pfSense bouncer reconfiguration from the
+   workstation's existing administrative boundary.
+
+The runtime file is the contract: it must define the container-facing
+`BOUNCER_KEY_PFSENSE_FIREWALL`. The inventory manifest's legacy
+`CROWDSEC_PFSENSE_BOUNCER_KEY` alias applies **only when importing** a secret
+from the optional vault workflow. A registered CrowdSec bouncer does not
+reveal its existing API key; if the key cannot be recovered, an explicitly
+reviewed rotation is required, not an automated silent replacement.
 
 ```bash
-python scripts/secrets/render_from_bitwarden.py --check
-python scripts/secrets/render_from_bitwarden.py \
-  --app crowdsec \
-  --output-file /tmp/crowdsec.env.secrets
-
-sudo install -d -o root -g root -m 700 \
-  /mnt/cpool/secrets/runtime/crowdsec
-sudo install -o root -g root -m 600 \
-  /tmp/crowdsec.env.secrets \
-  /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
-rm -f /tmp/crowdsec.env.secrets
-
-sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check crowdsec
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime
 sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+# After a reviewed cutover, run --accept
 ```
 
-The repository manifest maps legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` to the
-container-facing `BOUNCER_KEY_PFSENSE_FIREWALL`. If Vaultwarden cannot render
-that field, stop the cutover: an existing CrowdSec bouncer registration does not
-reveal its API key. Rotation is a separate explicit operator transaction and is
-never performed by `deploy-crowdsec.sh`.
+Keep the pfSense-side verification separate: the workstation must acquire
+the same credential via an approved provisioning channel, which may be the
+vault or a controlled transfer. Never automatically copy a TrueNAS runtime
+secret to the workstation, print it, pass it as a CLI argument, or grant TrueNAS
+administrative SSH/API access to pfSense.
+
+#### Optional vault backup or materialization (not a runtime prerequisite)
+
+When Vaultwarden **is available**, the unprivileged operator may maintain a
+recoverable copy with `scripts/secrets/materialize_runtime.py`, following
+`docs/secrets-runtime-initialization.md`. If the CrowdSec item is missing in
+the vault, **do not overwrite or remove the existing valid runtime file**.
+Do not use the vault import as proof of the running bouncer identity; validate
+the identity and cutover separately. Bitwarden CLI compatibility is relevant
+only for this optional vault interaction, not normal CrowdSec operation.
 
 Optional:
 
@@ -102,7 +131,8 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 ## TrueNAS Custom App deployment
 
 The app may be installed before the bouncer secret exists. For the final
-pfSense cutover, render `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` and redeploy it.
+pfSense cutover, confirm the approved key is already materialized in
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` before the controlled redeploy.
 Register the missing Custom App with the canonical repository include:
 
 ```bash
@@ -172,11 +202,19 @@ sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
 
 TrueNAS never SSHes to pfSense.
 
-**On the workstation only** — validate pfSense Small mode over the workstation's
-existing SSH path:
+**On the workstation only** — run the pre-cutover gate over the workstation's
+existing SSH path. This checks that pfSense can reach the TrueNAS LAPI without
+requiring the bouncer to have switched yet:
 
 ```bash
-bash scripts/workstation/verify-crowdsec-pfsense.sh
+bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
+```
+
+The current legacy URL `http://172.17.0.1:8089` is a warning in preflight
+mode. After changing the CrowdSec package settings, use the strict gate:
+
+```bash
+bash scripts/workstation/verify-crowdsec-pfsense.sh --accept
 ```
 
 It verifies that the local Security Engine is absent, the firewall bouncer is
@@ -194,8 +232,11 @@ becomes a failure. Do not run `docker exec` from the workstation.
 2. Deploy the central TrueNAS CrowdSec container and verify that
    `firewallservices/pf-scan-multi_ports` is absent while the remaining
    `crowdsecurity/pfsense` collection is installed.
-3. Generate a new strong `BOUNCER_KEY_PFSENSE_FIREWALL` and configure it in the
-   TrueNAS application environment, then redeploy only the CrowdSec App.
+3. Recover the **existing approved** `PFSENSE_FIREWALL` bouncer key from an
+   operator-controlled source, store it as the manifest field
+   `CROWDSEC_PFSENSE_BOUNCER_KEY`, then materialize it for TrueNAS. If the key
+   cannot be recovered, stop: creating/rotating a bouncer key is a separate
+   explicitly approved transaction, not part of this cutover.
 4. Run `diagnose-crowdsec-cutover.sh --check`; require zero failures before
    touching pfSense.
 5. From pfSense, verify that `172.17.0.24:8084` is reachable over the trusted LAN.
@@ -255,3 +296,24 @@ uptime
 ```
 
 Expected result: the firewall bouncer continues polling and populating PF tables, while the `crowdsec` Security Engine process no longer runs locally on pfSense.
+
+## pfSense tcsh-safe central LAPI authentication probe
+
+pfSense admin's interactive shell is `tcsh`, not POSIX `sh`.
+Never paste shell assignments such as `KEY=$(...)` directly into that
+prompt. Use the repository script through an explicitly selected
+POSIX interpreter **from the workstation checkout**:
+
+```bash
+ssh -T home.albandrieu.com 'sudo /bin/sh -s' < scripts/pfsense/check-central-crowdsec-bouncer.sh
+```
+
+The script reads the existing pfSense bouncer key locally, does **not**
+print it or include it in curl argv, and reports only
+`central_lapi_http=200` (authenticated) or a safe error/status.
+It sends one GET for test address `192.0.2.1`, does not change
+firewall configuration or PF tables, and may update LAPI polling
+metadata. Run only on trusted pfSense via the workstation's authenticated
+SSH channel. A 401/403 means the key is not accepted; do not infer
+matching credentials from the names `pfsense-firewall` and
+`PFSENSE_FIREWALL`.

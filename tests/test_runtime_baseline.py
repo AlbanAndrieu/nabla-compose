@@ -77,6 +77,27 @@ class RuntimeBaselineTests(unittest.TestCase):
         self.assertEqual(report["mode"], "integration")
         self.assertEqual([item["status"] for item in report["checks"]], [200, 200])
 
+    def test_concealed_or_missing_route_remains_blocking_and_unverified(self) -> None:
+        result = self.run_baseline(
+            "integration",
+            "--url",
+            self.url,
+            "--health-path",
+            "/concealed",
+            "--version-path",
+            "/missing-version",
+        )
+        self.assertEqual(result.returncode, 1)
+        report = json.loads(result.stdout)
+        self.assertEqual([item["status"] for item in report["checks"]], [404, 404])
+        self.assertTrue(
+            all(item["evidence"] == "unverified_route" for item in report["checks"])
+        )
+        self.assertTrue(
+            all("possible_causes" in item for item in report["checks"])
+        )
+        self.assertNotIn("did not return valid JSON", result.stderr)
+
     def test_non_destructive_pentest_baseline(self) -> None:
         result = self.run_baseline(
             "pentest",
