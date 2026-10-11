@@ -45,3 +45,34 @@ def test_precommit_quality_gate_runs_promtool_for_prometheus_changes() -> None:
     assert "id: prometheus-config" in config
     assert "entry: bash scripts/prometheus/check-config.sh" in config
     assert "apps/prometheus/" in config
+
+
+def test_fastapi_observability_recording_rules_match_consumer_contract() -> None:
+    import yaml
+
+    rules = yaml.safe_load(
+        (ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    records = {
+        rule["record"]: rule["expr"]
+        for group in rules["groups"]
+        for rule in group["rules"]
+        if "record" in rule
+    }
+    expected = {
+        "nabla:telemetry:service_exporter_up",
+        "nabla:telemetry:postgres_exporter_up",
+        "nabla:telemetry:redis_exporter_up",
+        "nabla:telemetry:fastapi_sample_up",
+        "nabla:telemetry:pyroscope_up",
+        "nabla:telemetry:alertmanager_up",
+        "nabla:service:postgres_up",
+        "nabla:service:redis_up",
+        "nabla:core:pfsense_memory_available_ratio",
+    }
+    assert expected <= set(records)
+    assert 'pg_up{job="postgres_exporter"}' in records["nabla:service:postgres_up"]
+    assert 'redis_up{job="redis_exporter"}' in records["nabla:service:redis_up"]
+    assert 'max by (job)' in records["nabla:telemetry:service_exporter_up"]
