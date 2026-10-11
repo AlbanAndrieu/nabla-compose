@@ -185,3 +185,76 @@ repair live Taskbroker config / stop exit=101 restart loop
 ```
 
 No Kafka offset reset, topic purge, Taskbroker SQLite deletion or full Sentry redeploy is justified by the current evidence.
+
+
+## Prometheus → FastAPI Sample: couverture contractuelle (2026-10-11)
+
+Le dépôt déclare les cibles `gatus` (`172.17.0.24:8085/metrics`),
+`fastapi_sample` (`:8091/metrics`), `postgres_exporter` (`:9187`),
+`redis_exporter` (`redis_exporter:9121`), `pfsense_exporter` (proxy
+`:9945` vers pfSense, 300 s), `crowdsec` (`:6060`) et
+`truenas_node` (`:9100`). Ceci est **un état déclaré**, non une preuve
+de scrapes réussis. Aucun job `cloudflare_exporter` n'est actuellement
+déclaré : ne pas inventer de données Cloudflare ni exposer un token API.
+
+FastAPI Sample (code inspecté dans `nabla/api/platform_metrics.py` et
+`nabla/api/topology_telemetry.py`) lit déjà les règles `nabla:core:*`,
+`nabla:telemetry:gatus_up`, les métriques de sondes synthétiques Gatus,
+le `pfsense_metrics_up`, et les flux Akvorado/cAdvisor. La vue de
+plateforme ne consomme pas encore les données de fonctionnement Postgres/Redis,
+ni un état de collecte CrowdSec/Cloudflare normalisé. Cette lacune de
+**consommation** est différente d'un exporter absent ou cassé.
+
+### Contrat ajouté côté producteur
+
+`apps/prometheus/rules/nabla-core.rules.yml` exporte maintenant :
+
+- `nabla:telemetry:service_exporter_up{job=...}` : état de scrape pour
+  Gatus, FastAPI, PostgreSQL, Redis, pfSense, CrowdSec, Cloudflare (lorsqu'un
+  job existe) et node-exporter ;
+- `nabla:telemetry:postgres_functional_up` basé sur `pg_up` ;
+- `nabla:telemetry:redis_functional_up` basé sur `redis_up`.
+
+Ces règles ne produisent aucune série pour un exporter non déployé.
+`up=1` prouve seulement que l'endpoint de métriques répond ; les séries
+fonctionnelles et les contrôles end-to-end restent indispensables.
+
+### Audit reproductible, non intrusif
+
+```bash
+python3 scripts/prometheus/audit-telemetry-coverage.py
+# Optionnel, lors du lot de vérifications runtime ultérieur :
+python3 scripts/prometheus/audit-telemetry-coverage.py \
+  --prometheus-url http://172.17.0.24:9090
+```
+
+Le mode live limite les requêtes aux noms de métriques fixés, à des origines
+HTTP internes explicitement autorisées et à des délais courts. Il ne lit ni
+variables secrètes, ni labels utilisateurs, ni corps HTTP/logs. Il ne modifie
+pas Prometheus et ne fait aucun appel pfSense direct.
+
+### Lacunes et chantiers suivants
+
+1. **Gatus :** vérifier l'existence effective de
+   `gatus_results_total` avec les labels attendus
+   `nabla_service_id` et `type` ; confronter au nombre de moniteurs
+   réels pour éviter une série vide malgré `up=1`.
+2. **PostgreSQL :** `:9187` est déclaré mais l'exporter était absent
+   au dernier diagnostic. Déployer un exporter dédié avec identité SQL
+   lecture seule, sans ajouter de dépendance de démarrage à PostgreSQL.
+3. **Redis :** vérifier que `redis_exporter:9121` est résolu et
+   joignable depuis le réseau du conteneur Prometheus ; relever `redis_up`.
+4. **pfSense :** conserver le scrape à 300 s pour éviter le fan-out
+   pfREST sur le Netgate. Un exporter indisponible = angle mort, pas
+   panne avérée du pare-feu.
+5. **Cloudflare :** pas de job dédié constaté. Comparer d'abord avec
+   Cloudflare API/Access et les métriques déjà présentes, puis envisager
+   un collecteur minimisé à permissions et cardinalité bornées. Aucun
+   token Cloudflare ne doit être rendu public dans /metrics.
+6. **FastAPI Sample :** intégrer ultérieurement ces trois règles et
+   les catégories `not_declared`/`no_up_series`/`scrape_down`/
+   `metric_present` comme preuves d'observabilité, **sans** convertir
+   une absence de télémétrie en DOWN d'un service. Les changements
+   consommateurs relèvent du dépôt `fastapi-sample`.
+7. **cAdvisor :** `topology_telemetry.py` l'utilise mais sa collecte
+   demeure à confirmer ; ne pas inventer des métriques CPU/RAM conteneur.
