@@ -37,3 +37,22 @@ def test_exited_legacy_adapter_is_visible() -> None:
     assert ".State.Status" in source
     assert "bitwarden-api" in source
     assert "warnings=$((warnings + 1))" in source
+
+
+def test_pyroscope_functional_storage_and_metrics_contract() -> None:
+    script = ROOT / "scripts/truenas/diagnose-pyroscope.sh"
+    subprocess.run(["bash", "-n", str(script)], check=True)
+    source = script.read_text()
+    for required in (
+        ".Config.WorkingDir",
+        '"/var/lib/pyroscope"',
+        "storage_mount=",
+        "METRICS_URL",
+        "METRICS HTTP",
+        "contract_failed",
+        "READ-ONLY",
+    ):
+        assert required in source
+    orchestrator = (ROOT / "scripts/truenas/check-homelab-services.sh").read_text()
+    assert "run_gate pyroscope" in orchestrator
+
