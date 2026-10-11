@@ -56,73 +56,64 @@ The central engine can bootstrap without a bouncer secret. The optional
 `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` file is loaded only when present, so a
 missing secret file no longer makes the entire TrueNAS Compose model invalid.
 
-Before switching pfSense to the remote LAPI, materialize the required
-`BOUNCER_KEY_PFSENSE_FIREWALL` from the existing Vaultwarden manifest. Do not
-invent or rotate a key merely to make the runtime gate green.
+The **TrueNAS runtime pool** is the service's operative secret source:
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`. CrowdSec never needs
+Vaultwarden to start, restart, redeploy or recover after an outage. The file is
+optional during engine bootstrap but **required before accepting the pfSense
+bouncer cutover**. A missing file is not proof that the engine itself is down.
 
-### Bitwarden CLI compatibility preflight (TrueNAS)
+Vaultwarden is an **optional operator-managed vault and recovery copy**, not
+a mandatory live dependency or a prerequisite for an already-populated runtime
+secret. Neither Compose nor the CrowdSec deployment/diagnostic scripts connect
+to Vaultwarden to obtain the key. Preserve the runtime materialization on ZFS
+with a separately controlled backup and recovery plan, especially while
+Vaultwarden is offline.
 
-As accepted on 2026-10-10, use the checksum-pinned `bw 2026.8.0`
-with Vaultwarden `1.37.3`. Bitwarden CLI `2026.9.0` repeatedly
-failed `POST /api/accounts/key-management/user-key-id` with 404
-(`KeyIdBackfillError`). Do not change Vaultwarden cryptographic data
-or treat a previous `unlocked` status as proof that a new unlock works.
+### Complete the runtime-pool migration first
 
-```bash
-NABLA_BITWARDEN_CLI_VERSION=2026.8.0 \
-  bash scripts/truenas/bootstrap-bitwarden-cli.sh --check
-bash scripts/truenas/configure-bitwarden-cli-local.sh --check
-bash scripts/truenas/diagnose-vaultwarden-cli.sh
-bw status | jq '{status,serverUrl}'
-# If locked: export BW_SESSION="$(bw unlock --raw)"
-python3 scripts/secrets/inventory_vaultwarden.py --app crowdsec
-python3 scripts/secrets/inventory_vaultwarden.py \
-  --app crowdsec --discover-candidates
-```
+1. Confirm the local runtime path, restrictive permissions and presence of
+   `BOUNCER_KEY_PFSENSE_FIREWALL` using the **read-only** diagnostic; never
+   print the value or source the dotenv into the operator's shell.
+2. If absent, restore or transfer the **previously issued bouncer key** into
+   a private file through an approved, audited operator process. Optionally
+   retrieve it from Vaultwarden if it exists there, but do not make this
+   mandatory and do not invent or rotate it automatically.
+3. Install the reviewed material into
+   `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` with `root:root 0600`
+   and directory `0700`. Avoid storing staging copies in shared `/tmp` or
+   the Git checkout. The runtime file is an operating asset, not a Git artifact.
+4. Run the read-only `--check` acceptance. Only then perform an explicitly
+   authorized CrowdSec redeploy and pfSense bouncer reconfiguration from the
+   workstation's existing administrative boundary.
 
-The observed inventory currently reports `crowdsec: missing`. The optional
-candidate discovery command prints only matching **item names** plus whether
-an item is in the `expected`, `other` or `unfiled` folder scope; it never
-prints item IDs, usernames, URLs, fields, notes, passwords or secret values.
-This means the exact `nabla/prod/crowdsec` item is not present in
-the manifest's `TrueNAS` folder, **not** that the registered
-pfSense bouncer key can be recovered from CrowdSec. Halt secret
-rendering until the previously issued key has been sourced and
-stored through an approved operator-controlled procedure. The
-diagnostic never prints raw Docker logs or credential fields.
-On TrueNAS, use the canonical checkout `/mnt/cpool/compose/nabla-compose`;
-the workstation uses its own local checkout path.
-
-Run the renderer from the **unprivileged operator shell** that owns the unlocked
-`BW_SESSION`; never pass that session through `sudo -E`:
+The runtime file is the contract: it must define the container-facing
+`BOUNCER_KEY_PFSENSE_FIREWALL`. The inventory manifest's legacy
+`CROWDSEC_PFSENSE_BOUNCER_KEY` alias applies **only when importing** a secret
+from the optional vault workflow. A registered CrowdSec bouncer does not
+reveal its existing API key; if the key cannot be recovered, an explicitly
+reviewed rotation is required, not an automated silent replacement.
 
 ```bash
-python scripts/secrets/render_from_bitwarden.py --check
-python scripts/secrets/render_from_bitwarden.py \
-  --app crowdsec \
-  --output-file /tmp/crowdsec.env.secrets
-
-sudo install -d -o root -g root -m 700 \
-  /mnt/cpool/secrets/runtime/crowdsec
-sudo install -o root -g root -m 600 \
-  /tmp/crowdsec.env.secrets \
-  /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
-rm -f /tmp/crowdsec.env.secrets
-
-sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check crowdsec
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime
 sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+# After a reviewed cutover, run --accept
 ```
 
-The repository manifest maps legacy `CROWDSEC_PFSENSE_BOUNCER_KEY` to the
-container-facing `BOUNCER_KEY_PFSENSE_FIREWALL`. If Vaultwarden cannot render
-that field, stop the cutover: an existing CrowdSec bouncer registration does not
-reveal its API key. Rotation is a separate explicit operator transaction and is
-never performed by `deploy-crowdsec.sh`.
+Keep the pfSense-side verification separate: the workstation must acquire
+the same credential via an approved provisioning channel, which may be the
+vault or a controlled transfer. Never automatically copy a TrueNAS runtime
+secret to the workstation, print it, pass it as a CLI argument, or grant TrueNAS
+administrative SSH/API access to pfSense.
 
-The same bouncer key must be obtained **directly from Vaultwarden** when
-configuring pfSense from the workstation/operator session. Do not `cat`, copy
-or SCP the TrueNAS runtime secret to the workstation, and do not grant TrueNAS
-SSH/API access to pfSense merely for this migration.
+#### Optional vault backup or materialization (not a runtime prerequisite)
+
+When Vaultwarden **is available**, the unprivileged operator may maintain a
+recoverable copy with `scripts/secrets/materialize_runtime.py`, following
+`docs/secrets-runtime-initialization.md`. If the CrowdSec item is missing in
+the vault, **do not overwrite or remove the existing valid runtime file**.
+Do not use the vault import as proof of the running bouncer identity; validate
+the identity and cutover separately. Bitwarden CLI compatibility is relevant
+only for this optional vault interaction, not normal CrowdSec operation.
 
 Optional:
 
@@ -140,7 +131,8 @@ The LAPI port must remain reachable from trusted LAN hosts only. Do not publish 
 ## TrueNAS Custom App deployment
 
 The app may be installed before the bouncer secret exists. For the final
-pfSense cutover, render `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` and redeploy it.
+pfSense cutover, confirm the approved key is already materialized in
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` before the controlled redeploy.
 Register the missing Custom App with the canonical repository include:
 
 ```bash
