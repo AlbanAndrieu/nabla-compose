@@ -1,3 +1,21 @@
+## P0/P2 — OpenClaw cron et audit différé des coûts LiteLLM (11/10/2026)
+
+**Autorité :** [runbook coûts LiteLLM](runbooks/litellm-cost-governance-audit.md) ; conserver la PR #253 ouverte.
+
+### P0 — Stabilisation prioritaire
+
+- [ ] Corréler les heartbeats `main` en échec autour de 68 s avec le runner / logs applicatifs / contexte; génération isolée `litellm-main/gpt-4.1` déjà validée, mais heartbeat non rétabli.
+- [ ] Confirmer la route et l'authentification réelles de `openclaw-cron` (`litellm-cron/gpt-4.1-mini`), auditer son propre budget virtuel de 2 et ses quotas TPM/RPM sans exposer de clés.
+- [ ] Préserver la séparation `litellm-main` / `litellm-cron`; aucun reset, hausse de budget ou smoke facturable automatique.
+- [ ] Corriger/valider la CI PR #253 : ShellCheck et smoke de production 404; garder les contrôles sécurité bloquants.
+
+### P2 — Audit des coûts plus tard
+
+- [ ] Consolider coûts, plafonds et taux d'usage des clés workstation/TrueNAS avec déduplication, budget effectif et hiérarchie clé/équipe/modèle.
+- [ ] Valider la collecte Prometheus réelle (callback défini dans `apps/litellm/config.yaml`, scrape non vérifié), concevoir dashboard Grafana, alertes 50/80/95 % et attribution par modèle.
+- [ ] Revoir `ide` (100/7d), modèles, tarifs, fallbacks, stockage des prompts/logs et rétention; vérifier le diff config Git/DB TrueNAS.
+- [ ] Reporter l'audit des budgets `n8n` tant que n8n n'est pas consommateur OpenClaw; ne pas en faire un blocage P0.
+
 ## Production smoke evidence classification (2026-10-11)
 
 - [x] Source review of `AlbanAndrieu/fastapi-sample`: the application
