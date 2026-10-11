@@ -60,7 +60,7 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:30032", helper)
         self.assertIn("/api/config", helper)
         self.assertIn("requires a working HTTPS client endpoint", helper)
-        self.assertIn("bw config server \\", helper)
+        self.assertIn('bw config server "${PUBLIC_BASE}" \\', helper)
         self.assertIn('--api "${PUBLIC_BASE}/api"', helper)
         self.assertIn('--identity "${PUBLIC_BASE}/identity"', helper)
         self.assertIn('--notifications "${PUBLIC_BASE}/notifications"', helper)
