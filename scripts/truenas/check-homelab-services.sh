@@ -74,7 +74,7 @@ if command -v docker >/dev/null 2>&1; then
     docker ps --format '{{.Names}}\t{{.Status}}'
   fi
   unhealthy_containers="$(docker ps --format '{{.Names}} {{.Status}}' | grep -Ei 'unhealthy|restarting' || true)"
-  if [[ -n "${unhealthy}_containers" ]]; then
+  if [[ -n "${unhealthy_containers}" ]]; then
     printf '%s\n' "${unhealthy}_containers"
     printf '%s❌ FAIL Docker unhealthy/restarting containers detected%s\n' "${RED}" "${RESET}"
     failed=$((failed + 1))
