@@ -22,7 +22,7 @@ Les unités `spend/max_budget` sont celles de LiteLLM, normalement USD si le pro
 ## P0 — Stabiliser OpenClaw et auditer la route cron
 
 - [ ] Vérifier via `openclaw models status` et les métadonnées de route (sans afficher les clés) que le cron isolé utilise réellement `litellm-cron/gpt-4.1-mini`, avec sa **propre clé virtuelle** et le budget déclaré par l'opérateur à 2 ; ne jamais le basculer vers `litellm-main` automatiquement.
-- [ ] Recueillir l'**ID haché** de la clé virtuelle `openclaw-cron` de manière sécurisée/localement pour `/key/info` ; ne pas inventer un ID ni enregistrer une valeur secrète ou un préfixe de token dans le dépôt.
+- [ ] Recueillir l'**ID haché** de la clé virtuelle `openclaw-cron` de manière sécurisée/localement pour `/key/info` via `LITELLM_OPENCLAW_CRON_KEY_ID` (64 caractères hexadécimaux, jamais `sk-...`) ; ne pas inventer un ID ni enregistrer une valeur secrète ou un préfixe de token dans le dépôt.
 - [ ] Auditer `spend/max_budget/tpm_limit/rpm_limit/budget_duration/budget_reset_at`, le rattachement équipe/modèle et la réinitialisation. Contrôler que la liste de modèles de la clé autorise le modèle cron attendu.
 - [ ] Confirmer un smoke de conversation principale **déjà réussi** avec `litellm-main/gpt-4.1` (`OK`), tout en conservant la limite manuelle d'un test facturable toutes les 24 heures.
 - [ ] Diagnostiquer les heartbeats `main` en échec consécutif autour de 68 secondes avec le journal applicatif, contexte/session et routage effectif, sans compacter ni effacer l'historique, augmenter les budgets ou redémarrer des services.
