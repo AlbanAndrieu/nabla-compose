@@ -1,3 +1,36 @@
+## P1 — Email archiving consolidation: Bichon replaces OpenArchiver (2026-10-11)
+
+**Decision:** use Bichon as the canonical email-archive service. Keep
+OpenArchiver STOPPED; do not attempt further runtime repair unless migration
+evidence reveals a missing capability. Operator explicitly stopped the
+OpenArchiver TrueNAS App; Docker containers were then absent. This is expected,
+not a fresh container failure.
+
+- [x] Mark OpenArchiver for **planned decommission**, not active recovery.
+- [ ] Validate Bichon IMAP sync, indexed message/attachment search, restore or
+  export, and authentication using representative accounts; confirm backup and
+  recovery against actual archived data.
+- [ ] Inventory OpenArchiver source accounts, archived message counts, unique
+  messages, attachments, export formats and any retained eDiscovery requirements;
+  compare with Bichon coverage before signing off the migration.
+- [ ] Preserve OpenArchiver application metadata, TrueNAS datasets, PostgreSQL,
+  Redis, Meilisearch and Tika data/configuration until backups and required
+  exports are verified. No `app.delete`, data removal or volume prune yet.
+- [ ] Identify OpenArchiver consumers and remove its ingress, DNS, monitoring,
+  Homarr, Gatus, AutoKuma and service-topology projections through canonical
+  source declarations/generators **only after** consumer-free evidence; avoid
+  touching Bichon and shared services.
+- [ ] After backup, restore and consumer checks, retire the TrueNAS App and
+  document the reversible rollback window and final data-retention decision.
+- [ ] Do not classify deliberately STOPPED OpenArchiver as an active P0 incident
+  in the service-stabilization queue; keep it visible as decommission pending.
+
+**Scope distinction:** both products support IMAP mail archiving and search,
+but OpenArchiver may cover dedicated Google Workspace / Microsoft 365
+connectors, PST/MBOX ingestion and commercial compliance/eDiscovery workflows
+that Bichon does not necessarily replace. Treat feature equivalence as
+conditional on the actual homelab use cases.
+
 # Homelab roadmap
 
 Last updated: 2026-10-10.
