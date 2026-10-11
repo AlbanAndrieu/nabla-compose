@@ -5,13 +5,13 @@ set -euo pipefail
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
-  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--memory|--auth|--routes|--backup-check|--disable-irc]'
+  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--memory|--auth|--routes|--backup-check|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
 (($# <= 1)) || { usage >&2; exit 2; }
 case "${mode}" in
-  --check|--cron|--skill-review|--memory|--auth|--routes|--backup-check|--disable-irc) ;;
+  --check|--cron|--skill-review|--heartbeat|--memory|--auth|--routes|--backup-check|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
 esac
 command -v openclaw >/dev/null 2>&1 || { echo 'ERROR: openclaw CLI missing' >&2; exit 2; }
@@ -25,6 +25,13 @@ diagnose_skill_review() {
   openclaw cron runs --id "${id}" --limit 20 |
     python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
 }
+diagnose_heartbeat() {
+  # A single recurring heartbeat can generate many historical task failures.
+  # Summarize retained runs rather than echoing task text or credentials.
+  local id="bb9757db-9559-4960-bb23-9b9770929ff1"
+  openclaw cron runs --id "${id}" --limit 100 |
+    python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
+}
 diagnose_memory() {
   # Status is intentionally filtered: OpenClaw may include filesystem and provider metadata.
   openclaw memory status |
@@ -36,6 +43,8 @@ case "${mode}" in
     bash "${ROOT}/scripts/workstation/diagnose-openclaw-errors.sh" --since '24 hours ago'
     echo '==> Cron run statistics'
     diagnose_cron
+    echo '==> Main heartbeat runs (redacted)'
+    diagnose_heartbeat
     echo '==> Failed main skill review (redacted)'
     diagnose_skill_review
     echo '==> Memory index summary'
@@ -51,6 +60,7 @@ case "${mode}" in
     ;;
   --cron) diagnose_cron ;;
   --skill-review) diagnose_skill_review ;;
+  --heartbeat) diagnose_heartbeat ;;
   --memory) diagnose_memory ;;
   --auth)
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
