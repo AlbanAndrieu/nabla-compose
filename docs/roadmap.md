@@ -1,3 +1,28 @@
+## FastAPI external evidence and Gatus / PostgreSQL exporter alignment — 2026-10-11
+
+- [x] TrueNAS local audit: 62 running accepted, zero runtime failures,
+  2 catalog monitoring warnings (postgres-exporter and Portracker) and
+  80 probe gaps. Separate internal health from external observer evidence.
+- [ ] FastAPI observer may report `evidence_incomplete` for pfSense, Sentry,
+  Gatus and PostgreSQL/Redis despite healthy local services. Map each to
+  an explicit collection failure / missing observer permissions / missing
+  external evidence; do not mark the internal service DOWN on absence alone.
+- [ ] Gatus: inspect TrueNAS App lifecycle, effective supplemental group
+  access to config (0640/apps GID 568), HTTP homepage, API/status evidence,
+  and generated endpoint parity. HTTP 200 or Prometheus `up=1` alone does
+  not prove successful monitoring of the expected services.
+- [ ] Cross-check FastAPI's claimed 11 missing Gatus checks against
+  generated Gatus config and the canonical topology; reconcile via source
+  generators rather than manual generated-file editing.
+- [x] PostgreSQL exporter: discover centrally materialized runtime secret
+  candidate paths; require `POSTGRES_EXPORTER_DSN` key without logging value.
+- [ ] If the runtime file exists, validate exporter-only identity and
+  separately deploy exporter; never redeploy the healthy PostgreSQL App.
+- [ ] Audit Portracker's previously reconciled :30233 target against
+  regenerated topology/consumers before claiming the warning fixed.
+- [ ] Finish runtime migrations and acceptance before revisiting the full
+  quality gate, without disabling the latter.
+
 ## PostgreSQL exporter restoration — runtime evidence (2026-10-11)
 
 - [x] PostgreSQL TrueNAS App RUNNING; primary container running and :5432 published.
