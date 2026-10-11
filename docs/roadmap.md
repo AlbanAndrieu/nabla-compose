@@ -1,3 +1,16 @@
+## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
+
+- [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
+- [x] **MCP observation read-only codé** : `scripts/hermes/readonly_mcp.py` via stdio, seulement `up` Prometheus pour jobs connus, vue globale et coût LiteLLM par alias. Pas de logs bruts ni HTTP/PromQL arbitraire ; SSRF/redirect rejetés, erreurs non détaillées, aucune valeur de secret renvoyée. Tests offline ajoutés.
+- [x] **LiteLLM coût** : politique key `hermes-poc`, modèle `qwen`, budget souhaité **2 USD / 30 jours**, 5 RPM, 1 requête parallèle et 10k TPM ; job `litellm_hermes` 60 s et règles de coûts dans Prometheus. Les métriques réelles et la création de la virtual key sont **non vérifiées/non effectuées**.
+- [x] **Interopérabilité contrôlée préparée** : overlay privé `poc/hermes/compose.api.yml` pour OpenWebUI/FastAPI/n8n via `intranet`, clé API dédiée. **Désactivé par défaut** ; aucune exposition Internet, modèle ou permission ajoutée aux consommateurs existants.
+- [x] **Préflight fail closed codé** : `scripts/hermes/poc_preflight.py` bloque digest non épinglé, secrets trop permissifs, UID/dataset incohérent, `ALLOW_ALL`, manque d'allowlist, clé maître et API sans secret. Ne remplace pas un contrôle effectif des droits Unix/egress.
+- [ ] **P0 runtime/security** : inspecter le TrueNAS App et l'image/digest réels ; installer seulement après test de conformité YAML Hermes, s6 UID10000/CapEff, snapshot/rollback, bot tokens exclusifs et véritable filtrage egress DNS/IPv4/IPv6. Ne pas supposer la protection d'un simple Docker bridge.
+- [ ] **P0 confidentialité LiteLLM** : protéger les contenus Hermes contre le `store_prompts_in_spend_logs`, le `turn_off_message_logging: false`, Langfuse et le cache Redis du proxy partagé. Activer guardrails/PII et vérifier le fail-closed avant incidents/logs sensibles, sans casser OpenWebUI/OpenRAG.
+- [ ] **P1 intégrations** : tester SearXNG derrière proxy de recherche, connecteurs Loki agrégés, Gatus, Docker states limités et GitHub PR avec identité propre ; ne pas connecter directement l'OpenTerminal existant sans worker non privilégié et API fortement limitée.
+- [ ] **P2 opérabilité** : tester sous TrueNAS Telegram/Discord ID allowlists, API interne, Grafana/Mimir coût et consommation token, reprise reboot, révocation, tests adversariaux et canaris secrets ; autoriser ensuite un POC d'édition GitHub en PR sans merge.
+- [ ] **Validation** : tests pytest ciblés + qualité L3 HEAD, `docker compose config --quiet`, exécution sur TrueNAS et mesures réelles restent à effectuer. Aucun déploiement/redémarrage/secret/merge automatique.
+
 ## P0/P1/P2 — Hermes Secure by Design : barrières à l'activation (2026-10-11)
 
 - [x] ADR [Hermes Secure by Design](./security/hermes-secure-by-design.md) : frontières de confiance, STRIDE/OWASP Agentic, PII, secrets, réseaux, skills, exécuteurs et tests de non-exfiltration ; **étude uniquement**.
