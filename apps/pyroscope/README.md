@@ -98,3 +98,26 @@ data path, not merely TCP/HTTP reachability:
 A running container with an unavailable HTTP service, or a ready Pyroscope
 server that receives no usable FastAPI profiles, is still degraded and must not
 be reported as healthy.
+
+
+## TrueNAS runtime identity (UID/GID 568)
+
+The Compose service now runs as `568:568` (the TrueNAS `apps` identity).
+Before deploying this revision, stop the existing Pyroscope App and provision
+`/mnt/cpool/pyroscope/data` for `568:568` using the TrueNAS dataset ACL
+management interface or a deliberate ownership change. Do not change owner on
+a live Raft store. Keep the previous dataset archive for rollback.
+
+```bash
+sudo chown -R 568:568 /mnt/cpool/pyroscope/data
+sudo chmod 770 /mnt/cpool/pyroscope/data
+sudo docker inspect pyroscope --format '{{.Config.User}}'
+curl -sS -o /dev/null -w 'ready HTTP=%{http_code}\n' --max-time 8 http://172.17.0.24:4040/ready
+```
+
+**Do not treat the UID change as a proven repair for Raft.** A disposable
+container sharing the previous volumes could write as UID 10001, while the
+Pyroscope metastore was still failing. Recheck the Raft data path, persistence,
+`/ready`, and actual profile ingestion. The three image-declared Docker
+volumes at `/data`, `/data-compactor`, and `/data-metastore` are separate
+from the explicit `/var/lib/pyroscope` bind mount; never prune them blindly.
