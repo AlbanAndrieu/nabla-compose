@@ -1,0 +1,15 @@
+{
+  "key_alias": "hermes-poc",
+  "models": ["qwen"],
+  "max_budget": 2,
+  "budget_duration": "30d",
+  "rpm_limit": 5,
+  "tpm_limit": 10000,
+  "max_parallel_requests": 1,
+  "metadata": {
+    "workload": "hermes",
+    "environment": "poc",
+    "managed_by": "nabla-compose",
+    "identity": "service"
+  }
+}
