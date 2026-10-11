@@ -21,11 +21,17 @@ def main() -> int:
     delivery: Counter[str] = Counter()
     durations: list[int] = []
     failures: Counter[str] = Counter()
+    heartbeat_records: list[dict] = []
+    delivery_not_requested = 0
     for entry in entries:
         if not isinstance(entry, dict):
             print("ERROR: malformed cron run entry", file=sys.stderr)
             return 2
         statuses["ok" if entry.get("status") == "ok" else "non_ok"] += 1
+        if entry.get("deliveryStatus") == "not-requested":
+            delivery_not_requested += 1
+        if entry.get("jobName") == "heartbeat-main" or "heartbeat failed:" in str(entry.get("error", "")):
+            heartbeat_records.append(entry)
         delivery["delivered" if entry.get("delivered") is True else "not_delivered"] += 1
         delivery["fallback_used" if isinstance(entry.get("delivery"), dict) and entry["delivery"].get("fallbackUsed") is True else "no_fallback"] += 1
         # A fallback may resolve the same Discord destination, not fail delivery.
@@ -73,6 +79,7 @@ def main() -> int:
         print(f"status_{key}={statuses[key]}")
     for key in ("delivered", "not_delivered", "fallback_used"):
         print(f"delivery_{key}={delivery[key]}")
+    print(f"delivery_not_requested={delivery_not_requested}")
     print(f'delivery_route_same_destination={delivery["same_destination"]}')
     print(f'delivery_route_different_destination={delivery["different_destination"]}')
     for category in ("budget_429", "other_429", "auth_401", "agent_runner", "unknown"):
@@ -81,6 +88,34 @@ def main() -> int:
         print(f"duration_ms_min={min(durations)}")
         print(f"duration_ms_max={max(durations)}")
         print(f"duration_ms_total={sum(durations)}")
+    if heartbeat_records:
+        ordered = sorted(
+            heartbeat_records,
+            key=lambda entry: entry.get("runAtMs") if type(entry.get("runAtMs")) is int
+            else (entry.get("ts") if type(entry.get("ts")) is int else -1),
+            reverse=True,
+        )
+        recent = ordered[:3]
+        recent_failures = sum(entry.get("status") != "ok" for entry in recent)
+        consecutive_failures = 0
+        for entry in ordered:
+            if entry.get("status") == "ok":
+                break
+            consecutive_failures += 1
+        print(f"heartbeat_recent_sample={len(recent)}")
+        print(f"heartbeat_recent_failed={recent_failures}")
+        print(f"heartbeat_consecutive_failures_at_head={consecutive_failures}")
+        print(f"heartbeat_last_status={'ok' if ordered[0].get('status') == 'ok' else 'error'}")
+        recent_ms = [
+            entry["durationMs"] for entry in recent
+            if type(entry.get("durationMs")) is int and entry["durationMs"] >= 0
+        ]
+        if recent_ms:
+            print(f"heartbeat_recent_duration_ms_min={min(recent_ms)}")
+            print(f"heartbeat_recent_duration_ms_max={max(recent_ms)}")
+        if recent_failures:
+            print("ACTION: heartbeat still failing in most recent runs; correlate agent execution with application file logs")
+    print("NOTE: delivery_not_requested means no delivery was requested; not a delivery failure")
     print("NOTE: fallbackUsed does not alone imply failed delivery or changed destination")
     print("NOTE: duration and delivery do not measure tokens, spend or content quality")
     return 0
