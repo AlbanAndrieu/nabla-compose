@@ -1,3 +1,13 @@
+## P0 — Migration des secrets CrowdSec vers le pool runtime (2026-10-11)
+
+- [x] Confirmer le contrat Compose : `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` est lu localement, `required: false` pour le bootstrap moteur ; aucune connexion Vaultwarden au démarrage.
+- [x] Corriger README, politique globale et description de la PR : **source opérationnelle = pool ZFS runtime**, Vaultwarden = coffre/copie de récupération facultative et non SPOF.
+- [ ] Vérifier sans afficher les valeurs la présence de `BOUNCER_KEY_PFSENSE_FIREWALL`, les droits du répertoire 0700 et du fichier 0600, les propriétaires et le backup chiffré indépendamment du coffre.
+- [ ] Si absent, restaurer la clé existante via une opération approuvée ; ne pas inventer/faire tourner la clé automatiquement et ne pas dépendre d'un item Vaultwarden non existant.
+- [ ] Valider le LAPI central, `PFSENSE_FIREWALL` enregistré, puis les checks TrueNAS `--check` et `--accept` une fois le bouncer pfSense reconfiguré depuis la workstation ; ne jamais administrer pfSense depuis TrueNAS.
+- [ ] Tester un redémarrage/recovery de l'App sans Vaultwarden joignable, puis éventuellement synchroniser une copie dans le coffre. Ne retirer aucun secret legacy avant acceptance.
+- [ ] Appliquer progressivement la même séparation coffre optionnel / runtime local aux autres Apps, avec tests et contrôles de dette existants.
+
 ## P1/P2 — Shell UX, shared primitives, and OpenClaw hourly heartbeat (2026-10-11)
 
 - [x] Introduce a shared TTY-only status presentation helper (colors and icons)
