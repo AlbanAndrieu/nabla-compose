@@ -102,6 +102,24 @@ def audit(apps: list[dict], plan: dict, topology: dict, *, deep: bool, color: bo
                 wave_passed += 1
                 states[name] = "pass"
                 continue
+            # Docker DNS-only endpoints must be tested from a container network.
+            host_only = [
+                (node, monitor) for node, monitor in checks
+                if monitor.get("host") in {"kafka", "sentry-clickhouse"}
+            ]
+            checks = [
+                (node, monitor) for node, monitor in checks
+                if monitor.get("host") not in {"kafka", "sentry-clickhouse"}
+            ]
+            uncovered += len(host_only)
+            wave_uncovered += len(host_only)
+            if verbose:
+                for node, monitor in host_only:
+                    render(
+                        "skip", node,
+                        f"Docker-only endpoint {monitor['host']} requires in-network probe",
+                        color=color,
+                    )
             results = [(node, *probe(monitor, timeout)) for node, monitor in checks]
             failures = [
                 f"{node} ({detail})"
