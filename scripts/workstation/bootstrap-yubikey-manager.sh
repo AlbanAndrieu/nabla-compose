@@ -69,5 +69,5 @@ ln -sfn "${SYSTEM_YKMAN}" "${LINK}"
 check_install || fail "packaged ykman failed post-install self-check"
 
 printf 'OK: installed YubiKey Manager %s from the workstation distribution\n' "${VERSION}"
-printf 'INFO: export PATH="%s:$PATH"; hash -r\n' "${BIN_DIR}"
+# shellcheck disable=SC2016 # Print literal $PATH for the operator to evaluate.\nprintf 'INFO: export PATH="%s:$PATH"; hash -r\n' "${BIN_DIR}"
 report_path
