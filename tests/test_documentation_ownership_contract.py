@@ -19,6 +19,10 @@ def test_platform_runbook_ownership() -> None:
     assert "pfSense" in pfsense and "WebConfigurator" in pfsense
     assert "HTTP 502" in pfsense and "--unblock-sources" in pfsense
     assert "nabla-compose" in agents and "fastapi-sample" in agents
+    incident = (
+        ROOT / "docs/incidents/2026-09-08-pfsense-webconfigurator-http-502.md"
+    ).read_text(encoding="utf-8")
+    assert "HTTP **502**" in incident
     assert "Sentry" in platform and "Cloudflare" in platform
     assert "synthetic event ID" in platform
     assert "fastapi-sample/blob/master/docs/" in platform
