@@ -6,6 +6,9 @@ services:
     container_name: pyroscope
     # TrueNAS apps identity; provision the bind mount for UID/GID 568 before redeploy.
     user: "568:568"
+    # Pyroscope v2 also creates ./data/v2 relative to its working directory.
+    # Keep that implicit metastore DB path on the writable persistent dataset.
+    working_dir: /var/lib/pyroscope
     x-nabla:
       id: pyroscope
       name: Grafana Pyroscope
