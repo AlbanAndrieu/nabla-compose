@@ -10,15 +10,13 @@ for arg in "${@}"; do
     *) printf 'usage: %s [--deep] [--verbose]\n' "${0}" >&2; exit 2 ;;
   esac
 done
-GREEN='' RED='' YELLOW='' RESET=''
-if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  GREEN="$(printf '\033[32m')"
-  RED="$(printf '\033[31m')"
-  YELLOW="$(printf '\033[33m')"
-  RESET="$(printf '\033[0m')"
-fi
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../lib/terminal-ui.sh
+source "${ROOT}/scripts/lib/terminal-ui.sh"
+nabla_ui_init
+GREEN="${NABLA_UI_GREEN}" RED="${NABLA_UI_RED}"
+YELLOW="${NABLA_UI_YELLOW}" RESET="${NABLA_UI_RESET}"
+
 failed=0
 warnings=0
 
