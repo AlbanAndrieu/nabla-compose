@@ -80,3 +80,22 @@ def test_preflight_parser_refuses_duplicate_secret_keys(fixture_paths):
         fd.write("HERMES_LITELLM_API_KEY=again\n")
     with pytest.raises(ValueError, match="duplicated"):
         m.parse_names(env)
+
+
+@pytest.mark.parametrize("line", [
+    "TELEGRAM_ALLOWED_USERS=*",
+    "GATEWAY_ALLOWED_USERS=12345678",
+    "DISCORD_ALLOWED_CHANNELS=111222333",
+])
+def test_preflight_rejects_broad_authorization(fixture_paths, line):
+    m = load_module()
+    env, state, image = fixture_paths
+    if line.startswith("TELEGRAM_ALLOWED_USERS="):
+        original = env.read_text(encoding="utf-8")
+        original = original.replace("TELEGRAM_ALLOWED_USERS=12345678", line)
+        env.write_text(original, encoding="utf-8")
+    else:
+        with env.open("a", encoding="utf-8") as fd:
+            fd.write(line + "\n")
+    problems = m.validate(env, state, image, False)
+    assert any("Allowlist" in text or "identity surface" in text for text in problems)
