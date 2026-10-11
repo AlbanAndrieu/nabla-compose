@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import stat
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV = Path("/mnt/cpool/secrets/runtime/hermes/.env.secrets")
 DEFAULT_STATE = Path("/mnt/cpool/hermes/poc")
 REQUIRED = {"HERMES_LITELLM_API_KEY"}
