@@ -29,6 +29,50 @@ Primary references:
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
 
+## CURRENT FOCUS — stabilize and finish migrations (2026-10-11)
+
+**Operator reprioritization:** deliver service recovery, runtime migrations and
+cross-repository catalog adoption first. Quality-gate optimization, agent-output
+tuning and speculative Dagger work are **deferred** until these finish. Existing
+security checks remain mandatory **before merge**: no bypass of BetterLeaks,
+SAST, pytest, Playwright/ZAP or pre-commit, and no automatic merge.
+
+Execution sequence (observed service state must be reconfirmed before action):
+
+1. **Gatus:** read-only root-cause diagnosis (exit 2 / HTTP 8085 unavailable
+   in last evidence); inspect effective UID/GID, actual config and SQLite mount
+   without exposing secrets. Preserve `/mnt/cpool/gatus/gatus.db`. Only apply a
+   minimal correction when supported by runtime evidence; require HTTP 8085,
+   monitoring history persistence, and recovery after restart/reboot.
+2. **pfSense / CrowdSec:** confirm Unbound DNS, WebGUI/API auth, memory and
+   CrowdSec stability with bounded read-only probes. Avoid broad restart,
+   firewall-policy edits or extra request fan-out. A successful API/TCP check is
+   not equivalent to a recovered security function.
+3. **Close service acceptances:** retain already proven DSOMM, Sentry,
+   Scrutiny and Pi-hole evidence; collect only missing fresh-event,
+   SMART /dev/sde classification and reboot acceptance where required.
+   Include Pyroscope readiness and actual profile ingestion in the service
+   acceptance batch; inspect UID/GID 568 migration compatibility only after
+   verifying actual dataset ACLs. Do not blanket-chown services.
+4. **Migrate secrets transactionally:** one active app at a time under
+   `/mnt/cpool/secrets/runtime/<app>/`; match manifest, Vaultwarden recovery,
+   least-privilege consumer, Backstage descriptor, and rollback proof.
+5. **Prepare catalog v2** using `nabla-compose` as sole author for identity,
+   relations, desired exposure and BIA criticality. Verify `fastapi-sample`
+   and `nabla-site-alban` projections against the same revision.
+6. **Coordinated direct cutover:** migrate the three consumers as one reviewed
+   transaction, then validate outside-in FastAPI Cloud and inside-out Gatus/
+   Prometheus independently. Retire legacy JSON only after runtime, health,
+   security, rollback and reboot evidence.
+
+**Deferred, not deleted:** Dagger, quality-gate ergonomics, broad dependency
+and image upgrades, speculative new probes, optional AI features, P2 RAG
+expansion and destructive service cleanup. Fix introduced regressions promptly,
+but do not loop on unrelated known environmental gate failures. Report exact
+`PASS/FAIL/NOT RUN`; never claim an L3 pass without executing it.
+Operator-only appliance changes require reviewed acceptance, not remote
+guesswork.
+
 ## CURRENT AUTHORITATIVE EXECUTION ORDER — operator-approved (2026-10-10)
 
 **Use this section rather than superseded chronological entries below.**
