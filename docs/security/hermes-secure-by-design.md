@@ -177,6 +177,14 @@ masque plutôt l'IP, cookies et fingerprint du client.
   Conserver Vaultwarden comme coffre/récupération ; ne pas rendre
   son API ou CLI accessible au modèle et éviter une dépendance bloquante
   au redémarrage. Rotation et révocation testées.
+- Skills : activer explicitement `skills.guard_agent_created: true`
+  et **`skills.write_approval: true`** (ces protections sont désactivées
+  par défaut dans Hermes). Activer aussi `memory.write_approval: true`
+  pour empêcher l'empoisonnement persistant de mémoire depuis les logs et
+  pages web. Les modifications doivent être contrôlées hors du canal bot :
+  les commandes de chat permettant de désactiver ces gates ne constituent
+  pas une politique immuable. Valider un `managed scope` ou une
+  configuration montée en lecture seule avec l'image exacte.
 - Skills : désactiver auto-install/auto-update depuis les chats ;
   registry interne de skills revus, ref/digest figés, provenance,
   SBOM/SCA/secret scan/SAST, revue des dépendances, actions non
@@ -219,6 +227,11 @@ masque plutôt l'IP, cookies et fingerprint du client.
   après reboot, reprise offline sans vault, mise à jour/rollback et
   négation d'un utilisateur Telegram/Discord non autorisé. Déployer
   un contrôle à la fois après acceptation locale et rollback vérifié.
+
+Exemple non déployé : [profil secure](../../config/hermes/secure-profile.example.yaml).
+La configuration YAML et les tests statiques sont des **templates**, pas des
+preuves de sécurité du conteneur TrueNAS. Les `skills.write_approval` et
+`memory.write_approval` doivent être vérifiés depuis chaque canal.
 
 ## Références vérifiables
 
