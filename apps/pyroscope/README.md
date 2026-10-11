@@ -121,3 +121,32 @@ Pyroscope metastore was still failing. Recheck the Raft data path, persistence,
 `/ready`, and actual profile ingestion. The three image-declared Docker
 volumes at `/data`, `/data-compactor`, and `/data-metastore` are separate
 from the explicit `/var/lib/pyroscope` bind mount; never prune them blindly.
+
+## Recovery: implicit v2 metastore working directory (2026-10-11)
+
+TrueNAS reported `pyroscope` repeatedly restarting (exit 1, no OOM) with:
+
+```text
+metastore: failed to initialize store: db dir: mkdir ./data/v2: permission denied
+```
+
+The persistent `/mnt/cpool/pyroscope/data` dataset already had owner
+`568:568`, mode `770`, free space available. The explicit Raft and storage
+paths alone do not override this **relative** v2 metastore directory.
+Compose therefore sets `working_dir: /var/lib/pyroscope`, making
+`./data/v2` resolve inside the mounted, writable dataset. This remains a
+runtime hypothesis until the new config is applied and accepted.
+
+Read-only preflight on TrueNAS:
+
+```bash
+sudo docker inspect pyroscope --format 'workdir={{.Config.WorkingDir}} user={{.Config.User}}'
+sudo stat -c '%u:%g %a %n' /mnt/cpool/pyroscope/data
+sudo midclt call app.query | jq -r '.[] | select(.id == "pyroscope") | .state'
+```
+
+After applying the revised Compose using the existing TrueNAS App workflow,
+validate the effective workdir, sustained running state, and HTTP `/` and
+`/metrics`. Historical anonymous volumes `/data`, `/data-metastore`, and
+`/data-compactor` must not be pruned without explicit migration sign-off.
+Do not recursively chown data or delete Raft state to address this error.
