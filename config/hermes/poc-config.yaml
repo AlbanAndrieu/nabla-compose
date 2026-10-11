@@ -1,0 +1,77 @@
+# POC Hermes profile: NEVER mount it in production before runtime schema validation.
+# Hermes uses this config through a read-only bind in the POC Compose.
+model:
+  provider: custom
+  default: qwen
+  base_url: http://172.17.0.24:4000/v1
+  key_env: HERMES_LITELLM_API_KEY
+
+# Authorize ONLY a verified MCP toolset, across every incoming surface.
+platform_toolsets:
+  telegram: [mcp-nabla_observe]
+  discord: [mcp-nabla_observe]
+  api_server: [mcp-nabla_observe]
+  cli: [mcp-nabla_observe]
+
+agent:
+  disabled_toolsets:
+    - terminal
+    - file
+    - code_execution
+    - browser
+    - computer_use
+    - connections
+    - cronjob
+    - delegation
+    - discord_admin
+    - web
+    - search
+    - skills
+    - memory
+    - session_search
+    - x_search
+    - catalog
+    - kanban
+
+mcp_servers:
+  nabla_observe:
+    command: python3
+    args: [/opt/hermes-policy/readonly_mcp.py]
+    enabled: true
+    timeout: 10
+    connect_timeout: 10
+    supports_parallel_tool_calls: false
+    tools:
+      include: [homelab_scrape_status, homelab_overview]
+      resources: false
+      prompts: false
+
+approvals:
+  mode: manual
+  cron_mode: deny
+  single_query_mode: deny
+  unattended_mode: deny
+  mcp_reload_confirm: true
+  destructive_slash_confirm: true
+
+skills:
+  guard_agent_created: true
+  write_approval: true
+memory:
+  write_approval: true
+
+security:
+  redact_secrets: true
+
+unauthorized_dm_behavior: ignore
+
+# Deliberately disabled by agent.disabled_toolsets until a sanitized proxy
+# exists; no keyless free-provider fallback, even when another profile enables web.
+web:
+  backend: searxng
+  search_backend: searxng
+  keyless_fallback: false
+  keyless_rescue: false
+
+tool_loop_guardrails:
+  non_interactive_hard_stop_enabled: true
