@@ -28,6 +28,8 @@ printf '[{"id":"hermes-agent","state":"RUNNING"}]\\n'
 """,
         "docker": """#!/bin/sh
 case "$*" in
+  *'{{.State.Status}}'*) echo "${FAKE_STATUS:-running}" ;;
+  *'{{if .State.Health}}'*) echo "${FAKE_HEALTH:-healthy}" ;;
   *'{{.Config.User}}'*) echo 10000:10000 ;;
   *'{{.HostConfig.Privileged}}'*) echo "${FAKE_PRIVILEGED:-false}" ;;
   *'{{.HostConfig.ReadonlyRootfs}}'*) echo true ;;
