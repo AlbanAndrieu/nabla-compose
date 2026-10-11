@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:9d3834b7098546b86766bfd9b14287d3cbf26884d43964d6e30982d97ecd7a98",
+  "catalogRevision": "sha256:3824a22e8d0cc3a8a5d68b8c38ef629f15e6b1de72cd5c3ddfbb5d3b5d4c5635",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1888,9 +1888,10 @@
       "presentationRole": "support",
       "criticality": "medium",
       "monitoring": {
-        "type": "port",
+        "type": "http",
+        "target": "http://172.17.0.24:30233/metrics",
         "host": "172.17.0.24",
-        "port": 4999
+        "port": 30233
       },
       "runtime": {
         "provider": "truenas-app",

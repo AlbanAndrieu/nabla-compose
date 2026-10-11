@@ -562,9 +562,10 @@ endpoints:
   extra-labels:
     nabla_monitor_id: portracker
     nabla_service_id: portracker
-  url: tcp://172.17.0.24:4999
+  url: http://172.17.0.24:30233/metrics
   conditions:
-  - '[CONNECTED] == true'
+  - '[STATUS] >= 200'
+  - '[STATUS] < 400'
 - name: PostgreSQL Exporter
   group: observability
   interval: 60s
