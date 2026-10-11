@@ -38,3 +38,16 @@ def test_bash_entrypoints_parse() -> None:
                  "backup-openclaw.sh", "diagnose-openclaw.sh",
                  "prepare-openclaw-systemd.sh"):
         subprocess.run(["bash", "-n", str(SCRIPT.parent / name)], check=True)
+
+
+def test_zero_failures_are_green_and_missing_integrity_check_is_neutral() -> None:
+    for name in ("failure_budget_429", "failure_auth_401", "failure_unknown",
+                 "litellm_budget_429", "status_non_ok", "context_pressure"):
+        assert style.status(f"{name}=0") == "ok"
+        assert style.status(f"{name}=2") == "bad"
+    assert style.status("sqlite_integrity_ok=0") is None
+    assert style.status("sqlite_integrity_ok=1") == "ok"
+    assert style.status("delivery_not_delivered=100") is None
+    assert style.status("failure_agent_runner=33") == "bad"
+    assert style.status("ERROR: provider down") == "bad"
+    assert style.status("FAIL: validation") == "bad"
