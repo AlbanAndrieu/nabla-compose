@@ -27,6 +27,24 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertIn("healthcheck", service)
         self.assertIn("cscli lapi status", " ".join(service["healthcheck"]["test"]))
 
+    def test_runtime_pool_is_operational_secret_source_without_vault_spof(self) -> None:
+        compose = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
+        service = compose["services"]["crowdsec"]
+        runtime_file = service["env_file"][0]
+        self.assertEqual(
+            "/mnt/cpool/secrets/runtime/crowdsec/.env.secrets",
+            runtime_file["path"],
+        )
+        self.assertFalse(runtime_file["required"])
+        for script in (DIAGNOSE, DEPLOY):
+            source = script.read_text(encoding="utf-8").lower()
+            self.assertNotIn("bw unlock", source)
+            self.assertNotIn("render_from_bitwarden", source)
+            self.assertNotIn("vaultwarden/api", source)
+        readme = README.read_text(encoding="utf-8")
+        self.assertIn("optional operator-managed vault", readme)
+        self.assertIn("operative secret source", readme)
+
     def test_lapi_and_metrics_remain_lan_bound(self) -> None:
         text = COMPOSE.read_text(encoding="utf-8")
         self.assertIn('"${CROWDSEC_LAPI_BIND_ADDRESS:-172.17.0.24}:${CROWDSEC_LAPI_PORT:-8084}:8080"', text)
