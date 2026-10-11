@@ -73,8 +73,18 @@ def validate(env: Path, state: Path, image: str, api: bool) -> list[str]:
     if not any(data.get(bot) for bot in BOTS):
         errors.append("No Telegram/Discord bot identity present")
     for bot, allowlist in BOTS.items():
-        if data.get(bot) and not data.get(allowlist):
-            errors.append("Missing allowlist: " + allowlist)
+        if data.get(bot):
+            allowed_ids = data.get(allowlist, "")
+            if not allowed_ids:
+                errors.append("Missing allowlist: " + allowlist)
+            elif not re.fullmatch(r"[0-9]{5,22}(,[0-9]{5,22})*", allowed_ids):
+                errors.append("Allowlist must contain only numeric user IDs: " + allowlist)
+    # Global cross-platform users, Discord channel/role grants and permissive
+    # pairing can bypass a seemingly narrow platform-specific user allowlist.
+    for name in ("GATEWAY_ALLOWED_USERS", "DISCORD_ALLOWED_CHANNELS",
+                 "DISCORD_ALLOWED_ROLES"):
+        if data.get(name):
+            errors.append("Non-owner identity surface forbidden in PoC: " + name)
     if any(data.get(k, "").strip("\"' ").lower() in ("true", "1", "yes", "on") for k in UNSAFE_TRUE):
         errors.append("Unsafe allow-all or YOLO setting enabled")
     if api and (not data.get("API_SERVER_KEY") or len(data["API_SERVER_KEY"]) < 32):
