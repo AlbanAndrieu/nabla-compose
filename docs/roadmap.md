@@ -229,7 +229,7 @@ This is a **planned** architecture, not evidence of runtime deployment or ingest
   evidence, wire Open WebUI plus fastapi-sample, monitor via
   existing Langfuse/Prometheus with private prompts/chunks
   excluded, then rehearse recovery and rollback.
-  
+
 ## PR #251 — Gatus crash, Sentry/Scrutiny accepted and secret/catalog cutover (2026-10-10)
 
 - [x] **Sentry** : TrueNAS `diagnose-sentry.sh --check`
