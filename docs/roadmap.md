@@ -1,3 +1,21 @@
+## Runtime update — Bichon accepted, OpenArchiver removed, Pyroscope blocked (2026-10-11)
+
+- [x] Operator removed the OpenArchiver TrueNAS application. Do not attempt
+  OpenArchiver startup or continue classifying its absence as a runtime fault.
+- [x] Bichon is RUNNING, Docker healthy for seven days and HTTP / returns 200.
+  IMAP import/search and recovery acceptance remain separate outstanding checks.
+- [ ] Reconcile and retire residual OpenArchiver canonical declarations,
+  DNS/Traefik/Gatus/Homarr/AutoKuma references after reviewing active
+  consumers; preserve or separately inventory any remaining datasets/backups.
+- [ ] **P0 Pyroscope:** collect TrueNAS state, current container ID/status,
+  bounded redacted logs, actual effective command/mounts/user, host dataset
+  owner and mode, and HTTP / + /metrics. Determine whether the failure is
+  mount access, OOM, port collision or v2 Raft/metastore before any change.
+- [ ] Pyroscope fix is accepted only when runtime is stable, / and /metrics
+  work, and fresh FastAPI profiles are queryable in Grafana/Pyroscope.
+- [ ] Keep quality-gate cleanup after service stabilization; do not disable
+  security or lint checks.
+
 ## P1 — Email archiving consolidation: Bichon replaces OpenArchiver (2026-10-11)
 
 **Decision:** use Bichon as the canonical email-archive service. Keep
