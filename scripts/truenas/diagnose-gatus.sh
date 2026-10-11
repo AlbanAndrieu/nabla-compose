@@ -53,9 +53,9 @@ printf '%s\n' '==> Gatus API structural evidence (counts only, no endpoint URLs)
 api_summary="$(curl --silent --show-error --fail --max-time 8 "${GATUS_URL}/api/v1/endpoints/statuses" |
   jq -er '
     if type == "array" then
-      "shape=array entries=\\(length)"
+      "shape=array entries=\(length)"
     elif type == "object" then
-      "shape=object top_level_entries=\\(keys | length)"
+      "shape=object top_level_entries=\(keys | length)"
     else
       error("unexpected API payload shape")
     end
