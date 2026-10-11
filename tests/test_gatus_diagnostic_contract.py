@@ -27,10 +27,27 @@ elif [[ "$1" == "logs" ]]; then
 else exit 1; fi
 """)
     docker.chmod(0o755)
+    # Mock new HTTP/API evidence too: this is an offline, deterministic test.
+    curl = tmp_path / "curl"
+    curl.write_text("""#!/usr/bin/env bash
+if [[ "$*" == *--write-out* ]]; then
+  printf '200'
+else
+  printf '[{"name":"example","results":[]}]'
+fi
+""")
+    curl.chmod(0o755)
+    jq = tmp_path / "jq"
+    jq.write_text("""#!/usr/bin/env bash
+cat >/dev/null
+printf 'shape=array entries=1\\n'
+""")
+    jq.chmod(0o755)
     env = os.environ | {"PATH": f"{tmp_path}:{os.environ['PATH']}"}
     result = subprocess.run(["bash", str(SCRIPT)], cwd=ROOT, env=env, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
     assert "permission=1" in result.stdout
     assert "database=1" in result.stdout
     assert "fatal=1" in result.stdout
+    assert "shape=array entries=1" in result.stdout
     assert "TOKEN_SUPER_SECRET" not in result.stdout + result.stderr
