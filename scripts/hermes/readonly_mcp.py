@@ -11,7 +11,7 @@ import math
 import os
 import sys
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 MAX_UPSTREAM_BYTES = 32768
 MAX_REQUEST_BYTES = 8192
@@ -35,6 +35,12 @@ JOBS = {
 }
 PROMETHEUS_URL = os.environ.get("HERMES_OBS_PROMETHEUS_URL", "http://172.17.0.24:9090")
 ALLOWED_HOSTS = frozenset({"172.17.0.24", "prometheus"})
+HERMES_COST_ALIAS = "hermes-poc"
+
+
+class RejectRedirects(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        raise ValueError("Prometheus redirects forbidden")
 TOOLS = [
     {
         "name": "homelab_scrape_status",
@@ -43,6 +49,11 @@ TOOLS = [
             "type": "object", "properties": {"service": {"type": "string", "enum": sorted(JOBS)}},
             "required": ["service"], "additionalProperties": False,
         },
+    },
+    {
+        "name": "hermes_litellm_cost",
+        "description": "Report existing LiteLLM Prometheus cost/token counters for Hermes alias; no keys or other tenants.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "homelab_overview",
@@ -59,7 +70,7 @@ def _prom_query(query: str) -> dict:
             or target.path not in ("", "/")):
         raise ValueError("Prometheus upstream origin not allowlisted")
     url = PROMETHEUS_URL.rstrip("/") + "/api/v1/query?" + urlencode({"query": query})
-    with urlopen(Request(url, headers={"Accept": "application/json"}), timeout=5) as response:
+    with build_opener(RejectRedirects()).open(Request(url, headers={"Accept": "application/json"}), timeout=5) as response:
         if response.status != 200:
             raise ValueError("Prometheus unavailable")
         payload = response.read(MAX_UPSTREAM_BYTES + 1)
@@ -71,6 +82,16 @@ def _prom_query(query: str) -> dict:
     return body
 
 
+def _finite_sample(item: dict) -> float:
+    try:
+        value = float(item["value"][1])
+    except (IndexError, KeyError, TypeError, ValueError):
+        raise ValueError("Unexpected Prometheus sample") from None
+    if not math.isfinite(value):
+        raise ValueError("Non-finite Prometheus sample")
+    return value
+
+
 def scrape_status(service: str) -> dict:
     if type(service) is not str or service not in JOBS:
         raise ValueError("Unknown service")
@@ -78,13 +99,7 @@ def scrape_status(service: str) -> dict:
     samples = _prom_query(query)["data"]["result"]
     values = []
     for item in samples:
-        try:
-            value = float(item["value"][1])
-        except (IndexError, KeyError, TypeError, ValueError):
-            raise ValueError("Unexpected Prometheus sample") from None
-        if not math.isfinite(value):
-            raise ValueError("Non-finite Prometheus sample")
-        values.append(value)
+        values.append(_finite_sample(item))
     if not values:
         status = "no_data"
     elif all(v == 1 for v in values):
@@ -108,6 +123,8 @@ def _handle(method: str, params: dict) -> object:
     if method == "tools/list":
         return {"tools": TOOLS}
     if method == "tools/call":
+        if not isinstance(params, dict):
+            raise ValueError("Invalid params")
         name = params.get("name")
         args = params.get("arguments", {})
         if not isinstance(args, dict):
@@ -116,6 +133,16 @@ def _handle(method: str, params: dict) -> object:
             if set(args) != {"service"}:
                 raise ValueError("Only service is allowed")
             result = scrape_status(args["service"])
+        elif name == "hermes_litellm_cost":
+            if args:
+                raise ValueError("No arguments allowed")
+            counters = {}
+            for metric in ("litellm_spend_metric", "litellm_total_tokens_metric"):
+                query = metric + '{api_key_alias="' + HERMES_COST_ALIAS + '"}'
+                samples = _prom_query(query)["data"]["result"]
+                counters[metric] = round(sum(_finite_sample(sample) for sample in samples), 6) if samples else None
+            result = {"alias": HERMES_COST_ALIAS, "spend_usd": counters["litellm_spend_metric"],
+                      "tokens": counters["litellm_total_tokens_metric"], "data_status": "observed" if all(v is not None for v in counters.values()) else "incomplete"}
         elif name == "homelab_overview":
             if args:
                 raise ValueError("No arguments allowed")
