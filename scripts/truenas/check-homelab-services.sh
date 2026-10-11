@@ -91,7 +91,7 @@ fi
 
 # Optional one-shot resource snapshot. Diagnostics only: no stop/restart actions.
 if [[ "${DEEP}" == true ]]; then
-  printf '\\n📊 Docker resource consumers (CPU and memory)\\n'
+  printf '\n📊 Docker resource consumers (CPU and memory)\n'
   if command -v docker >/dev/null 2>&1; then
     python3 "${ROOT}/scripts/truenas/diagnose-resource-consumers.py" --top 10 ||
       { echo '⚠️ WARN resource snapshot unavailable'; warnings=$((warnings + 1)); }
