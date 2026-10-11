@@ -4,6 +4,8 @@ services:
   pyroscope:
     image: grafana/pyroscope:2.3.0
     container_name: pyroscope
+    # TrueNAS apps identity; provision the bind mount for UID/GID 568 before redeploy.
+    user: "568:568"
     x-nabla:
       id: pyroscope
       name: Grafana Pyroscope
