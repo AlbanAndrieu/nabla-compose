@@ -1,3 +1,21 @@
+## Production smoke evidence classification (2026-10-11)
+
+- [x] Source review of `AlbanAndrieu/fastapi-sample`: the application
+  declares `/health` in `nabla/api/demo/sensor.py` and
+  `/v2/version` in `nabla/api/v2.py`; its deployment workflow itself
+  validates both paths. Code inspection has not established intentional
+  public 404 concealment.
+- [x] Keep Production Security CI fail-closed on HTTP 404, but report
+  `unverified_route` and distinguish possible authentication concealment
+  from deployment/ingress mismatch. Do not misinterpret 404 as JSON failure.
+- [ ] Correlate FastAPI Cloud deployment/revision, edge routing and
+  authentication/WAF policy; fix wrong upstream or document deliberate
+  public concealment with an authenticated alternate proof, before
+  changing the acceptance policy.
+- [ ] Continue independent Gatus / monitoring / catalog repairs in PR #253
+  even while the externally owned production route contract is unresolved.
+  Do not disable the production smoke, CodeQL, ShellCheck or other gates.
+
 ## Acceptance update — Gatus / PostgreSQL monitoring (2026-10-11)
 
 - [x] Gatus TrueNAS App RUNNING; container running, exit 0, no restarts,
