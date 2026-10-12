@@ -43,6 +43,14 @@ class FreshRSSHandoffContract(unittest.TestCase):
         self.assertNotIn("url", server)
         self.assertNotIn("FRESHRSS_GREADER_AUTH", server.get("env", {}))
 
+    def test_token_bootstrap_script_has_no_stdout_secrets(self):
+        script = (ROOT / "scripts/security/freshrss-greader-auth.py").read_text(encoding="utf-8")
+        self.assertIn("FRESHRSS_AUTH_APPROVED", script)
+        self.assertIn("validate_subscriptions", script)
+        self.assertIn("NoRedirect", script)
+        self.assertIn("root:root 0600", script)
+        self.assertNotIn("print(token)", script)
+
     def test_safe_defaults_for_runtime_mutations(self):
         fresh = SCRIPTS[0].read_text(encoding="utf-8")
         dojo = SCRIPTS[2].read_text(encoding="utf-8")

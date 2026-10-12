@@ -124,3 +124,16 @@ Sources :
 - https://docs.defectdojo.com/automation/api/api-v2-docs/
 - https://docs.defectdojo.com/import_data/import_scan_files/api_pipeline_modelling/
 - https://docs.defectdojo.com/supported_tools/parsers/
+
+
+## Lien avec FreshRSS : réseau et segmentation
+
+La publication RSS du site est **indépendante** du pipeline DefectDojo.
+Les appels Google Reader passent par les seuls comptes FreshRSS publics ;
+**aucune** donnée SBOM ni finding DefectDojo ne doit être placée dans
+ces abonnements. Les jobs Syft/Trivy et l'importeur `reimport-scan`
+restent dans le domaine interne TrueNAS/runner privé : un token d'ingestion
+DefectDojo n'autorise **pas** le serveur Next.js, FreshRSS ou un agent MCP
+à lire les résultats. L'authentification du futur reporting doit être
+séparée (jeton read-only, minimisation, revue des exports) avant toute
+mise en ligne.

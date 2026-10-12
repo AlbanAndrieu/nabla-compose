@@ -1,3 +1,30 @@
+## P1 — Bootstrap de jetons FreshRSS sans exposition CLI (2026-10-12)
+
+- [x] Ajouter `scripts/security/freshrss-greader-auth.py` pour
+  récupérer `Auth` via `ClientLogin` **dans le corps HTTPS POST**,
+  en forçant TLS, origine fixe, refus des redirections et bornes de taille.
+  Aucune valeur de secret n'est imprimée ni passée sur `argv`.
+- [x] Autoriser uniquement `securitypublic` (Vercel) et
+  `securityagent` (MCP privé) ; comparer **exactement** dix abonnements
+  GReader à `config/freshrss/security-sources.json` avant d'écrire
+  atomiquement les tokens `root:root 0600` dans le pool secret 0700.
+- [x] Fournir `--check` sans lecture de secret ni réseau, `--verify`
+  lecture seule, `--apply` explicitement approuvé, et tests offline
+  `tests/test_freshrss_greader_auth_contract.py`.
+  **État des tests : à exécuter** lors de la quality gate ; ne pas
+  confondre code livré et acceptation runtime.
+- [ ] Après sauvegarde TrueNAS et création des utilisateurs via
+  `freshrss-ops.sh`, exécuter `--apply` pour les deux comptes,
+  puis `--verify`, avec preuve de zéro abonnement non approuvé.
+- [ ] Injecter par canal protégé des jetons **distincts** :
+  `securitypublic.greader-auth` vers Vercel serveur uniquement,
+  `securityagent.greader-auth` vers le MCP local. Aucun token
+  dans des Terraform states, PR, console ou dossiers publics.
+- [ ] Activer la publication du site **seulement** après le test
+  fonctionnel des flux, Playwright/ZAP, approbation privacy, et
+  validation du profil Cloudflare Access. Ne jamais ouvrir DefectDojo
+  pour cette opération.
+
 ## P1–P3 — Site Alban Helm, Cloudflare IaC et secrets (décisions du 12 octobre 2026)
 
 - [ ] **P1 — Build OCI Site Alban** : créer un Dockerfile Next.js standalone multi-stage, utilisateur non-root, FS en lecture seule avec volumes temporaires si nécessaires ; construire linux/amd64, SBOM CycloneDX, provenance SLSA, signature d'image, scans Trivy/grype ; publier sur GHCR uniquement après quality gates avec digest immutable `@sha256:` ; **Vercel reste la production principale**, pas de bascule DNS implicite.

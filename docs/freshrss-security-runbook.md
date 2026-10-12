@@ -206,3 +206,57 @@ Références :
 - https://github.com/FreshRSS/FreshRSS/blob/edge/cli/README.md
 - https://freshrss.github.io/FreshRSS/en/developers/06_GoogleReader_API.html
 - https://github.com/ChrisLAS/freshrss-mcp
+
+
+## 3 bis — Automatiser ClientLogin sans afficher Auth
+
+`scripts/security/freshrss-greader-auth.py` remplace la récupération
+manuelle du résultat `ClientLogin` : HTTPS strict, refus des redirections,
+POST du mot de passe API dans le corps, vérification du préfixe du compte,
+contrôle de la liste des dix abonnements autorisés, puis écriture atomique
+d'un fichier `root:root 0600` dans un répertoire `root:root 0700`.
+**La sortie standard n'affiche jamais de jeton.**
+
+```bash
+# Inspection locale seule : ni réseau ni secret, utilisable en CI
+python3 scripts/security/freshrss-greader-auth.py --check
+
+# Après --apply comptes/OPML et --enable-api, depuis TrueNAS :
+# Lancer ces opérations séparément, une fois par identité.
+sudo -E env FRESHRSS_AUTH_APPROVED=YES \
+  python3 scripts/security/freshrss-greader-auth.py --apply --user securitypublic
+sudo -E env FRESHRSS_AUTH_APPROVED=YES \
+  python3 scripts/security/freshrss-greader-auth.py --apply --user securityagent
+
+# Lecture seule de la parité réelle, sans réauthentifier :
+sudo python3 scripts/security/freshrss-greader-auth.py --verify --user securitypublic
+sudo python3 scripts/security/freshrss-greader-auth.py --verify --user securityagent
+
+# Tests contractuels offline
+python3 -m unittest tests/test_freshrss_greader_auth_contract.py -v
+```
+
+Les deux fichiers nouvellement créés sont
+`/mnt/cpool/secrets/runtime/freshrss/securitypublic.greader-auth`
+et `securityagent.greader-auth`. Ne les ajouter **jamais** dans Git,
+n'enregistrer ni mot de passe ni token dans Terraform state. Les
+variables `FRESHRSS_CF_ACCESS_CLIENT_ID` et
+`FRESHRSS_CF_ACCESS_CLIENT_SECRET` sont optionnelles, mais doivent
+être fournies **ensemble** lorsque Cloudflare Access protège l'API.
+
+Pour Vercel, injecter *uniquement* l'Auth `securitypublic` dans le
+secret serveur `FRESHRSS_GREADER_AUTH`. Le MCP n'utilise que l'Auth
+`securityagent` sous `FRESHRSS_MCP_AUTH`, jamais le même fichier.
+La distribution du jeton vers Vercel ou le client MCP est **une étape
+séparée**, manuelle/secret manager, sans commande affichant sa valeur.
+
+Un fichier Auth existant identique est préservé ; une modification
+nécessite `FRESHRSS_ROTATION_APPROVED=YES` en plus de l'accord
+de provisionnement. **Attention :** l'Auth FreshRSS est dérivé du
+mot de passe API et sa révocation nécessite de modifier ce mot
+de passe API (et les consommateurs). Le script n'effectue pas
+de rotation de compte.
+
+En cas de réponse non conforme, d'abonnement supplémentaire ou de
+connexion impossible, la procédure **échoue sans écrire de jeton**.
+Cette garde est plus stricte qu'un simple contrôle de santé HTTP.
