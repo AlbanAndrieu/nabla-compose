@@ -25,14 +25,41 @@ def test_declared_jobs_are_independent_of_live_evidence() -> None:
 
 def test_live_status_does_not_conflate_scrape_and_metric() -> None:
     config = {"scrape_configs": [{"job_name": "gatus"}]}
+
     def fake_query(_origin: str, expression: str, _timeout: float) -> list[dict]:
         if expression.startswith("up{"):
             return [{"value": [0, "1"]}]
         return []
+
     with patch.object(audit, "query", side_effect=fake_query):
         result = audit.assess(config, "http://127.0.0.1:9090", 1)
     assert result[0]["state"] == "scrape_up"
     assert result[0]["metric_present"] is False
+
+
+def test_partially_failed_scrape_is_not_reported_as_healthy() -> None:
+    config = {"scrape_configs": [{"job_name": "gatus"}]}
+
+    def fake_query(_origin: str, expression: str, _timeout: float) -> list[dict]:
+        if expression.startswith("up{"):
+            return [{"value": [0, "1"]}, {"value": [0, "0"]}]
+        return [{"value": [0, "100"]}]
+
+    with patch.object(audit, "query", side_effect=fake_query):
+        result = audit.assess(config, "http://127.0.0.1:9090", 1)
+    assert result[0]["state"] == "scrape_partial"
+    assert result[0]["targets_up"] == 1
+    assert result[0]["targets_total"] == 2
+    assert result[0]["metric_present"] is True
+
+
+def test_nonfinite_scrape_sample_is_unknown_not_up() -> None:
+    config = {"scrape_configs": [{"job_name": "gatus"}]}
+    with patch.object(
+        audit, "query", return_value=[{"value": [0, "NaN"]}],
+    ):
+        result = audit.assess(config, "http://127.0.0.1:9090", 1)
+    assert result[0]["state"] == "query_unavailable"
 
 
 def test_query_errors_remain_unknown() -> None:
