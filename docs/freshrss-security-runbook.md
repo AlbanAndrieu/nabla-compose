@@ -1,5 +1,17 @@
 # FreshRSS — runbook d'activation CISO/CTID (préparation, non exécutée)
 
+## Contrat des sources OPML entre Site Alban et FreshRSS
+
+Le site `nabla-site-alban` possède désormais l'OPML de référence de **ses 78 flux historiques**, versionné dans `apps/nabla-site-alban/data/security/security-feeds.opml` via le git submodule. Ce fichier génère `public/ciso-rss-feeds.json` grâce à `scripts/generate-security-rss.mjs` et un contrôle local-first dans la PR du site.
+
+**La sélection FreshRSS actuelle reste différente** : `config/freshrss/security-sources.json` et `config/freshrss/public-security.opml` contiennent 10 flux soigneusement choisis, dont des sources homelab non nécessairement présentes dans le site. Importer les 78 flux sans validation changerait silencieusement les abonnements, la charge réseau et la classification public/privé.
+
+- Utiliser `python3 scripts/security/audit-freshrss-opml-source.py` pour comparer le submodule OPML du site à la sélection FreshRSS **sans import, réseau ni secret**. `--strict` doit être activé uniquement après réconciliation des URL et validation de leur appartenance au catalogue.
+- Garder `FRESHRSS_OPML` pointant vers `config/freshrss/public-security.opml` pendant la transition. N'utiliser l'OPML complet du site pour une importation que si l'opérateur approuve explicitement le changement de périmètre et que les sauvegardes FreshRSS sont validées.
+- Cible P1 : enrichir l'OPML Site Alban de métadonnées de profil/scope pour générer **deux sorties filtrées** à partir d'une autorité commune : JSON du site et OPML FreshRSS de sélection, en conservant les 10 sources actuelles tant qu'elles n'ont pas été réconciliées. Éviter tout fetch arbitraire de `master` en production ; choisir un gitlink/pin SHA audité.
+- Les scripts de mise à jour des submodules ne sont pas des déploiements et n'importent jamais de comptes ou abonnements dans FreshRSS.
+
+
 > Statut : **SOURCE READY / RUNTIME NOT VALIDATED**. Aucun redémarrage
 > TrueNAS, changement de DNS, compte, secret ou API publique effectué ici.
 > Les PR concernées : `nabla-compose#254` puis `nabla-site-alban#220`.
