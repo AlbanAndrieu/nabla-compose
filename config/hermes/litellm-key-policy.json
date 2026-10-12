@@ -1,6 +1,8 @@
 {
   "key_alias": "hermes-poc",
-  "models": ["qwen"],
+  "models": [
+    "qwen"
+  ],
   "max_budget": 2,
   "budget_duration": "30d",
   "rpm_limit": 5,
