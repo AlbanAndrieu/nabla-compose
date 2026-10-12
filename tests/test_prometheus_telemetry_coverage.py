@@ -72,7 +72,7 @@ def test_query_errors_remain_unknown() -> None:
 
 def test_report_does_not_expose_secrets() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    assert "build_opener(ProxyHandler({}))" in source
+    assert "build_opener(ProxyHandler({}), NoRedirect())" in source
     assert "response.read(1024 * 1024 + 1)" in source
     assert '"timeout"' not in source
     assert "print(json.dumps(" in source
@@ -127,3 +127,26 @@ def test_query_disallows_non_vector_result() -> None:
     with patch.object(audit, "build_opener", return_value=opener):
         with __import__("pytest").raises(ValueError, match="result type"):
             audit.query("http://127.0.0.1:9090", 'up{job="gatus"}', 1)
+
+
+def test_redirects_are_rejected_to_prevent_internal_query_leaks() -> None:
+    import urllib.request
+
+    from urllib.error import HTTPError
+
+    request = urllib.request.Request("http://127.0.0.1:9090/api/v1/query")
+    handler = audit.NoRedirect()
+    assert (
+        handler.redirect_request(
+            request, None, 302, "Found",
+            {"Location": "https://untrusted.invalid/"}, "https://untrusted.invalid/",
+        )
+        is None
+    )
+    with patch.object(audit, "build_opener") as build:
+        build.return_value.open.side_effect = HTTPError(
+            request.full_url, 302, "Found", None, None,
+        )
+        with __import__("pytest").raises(HTTPError):
+            audit.query("http://127.0.0.1:9090", "up", 1)
+        assert isinstance(build.call_args.args[1], audit.NoRedirect)
