@@ -11,7 +11,7 @@ INGRESS_CLASS="${SITE_ALBAN_K8S_INGRESS_CLASS:-traefik}"
 DEPLOY_NAME=nabla-site-alban
 MANIFEST="$(mktemp)"
 trap 'rm -f "$MANIFEST"' EXIT
-case "$MODE" in --render|--preflight|--server-dry-run|--apply) ;; *) echo "Usage: $0 [--render|--preflight|--server-dry-run|--apply]" >&2; exit 2;; esac
+case "$MODE" in --render|--preflight|--server-dry-run|--apply) ;; *) echo "Usage: ${0} [--render|--preflight|--server-dry-run|--apply]" >&2; exit 2;; esac
 if [[ "$MODE" != "--preflight" ]]; then
   [[ "$IMAGE" =~ @sha256:[a-f0-9]{64}$ ]] || {
     echo "SITE_ALBAN_K8S_IMAGE must be pinned to an immutable sha256 digest" >&2
