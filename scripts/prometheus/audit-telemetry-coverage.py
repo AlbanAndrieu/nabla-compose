@@ -11,7 +11,7 @@ import math
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 import yaml
 
@@ -37,12 +37,21 @@ def declared(config: dict) -> set[str]:
 def query(base: str, expression: str, timeout: float) -> list[dict]:
     url = base.rstrip("/") + "/api/v1/query?" + urlencode({"query": expression})
     request = Request(url, headers={"Accept": "application/json"})
-    with urlopen(request, timeout=timeout) as response:
-        payload = json.load(response)
-    if payload.get("status") != "success":
+    # Ignore ambient HTTP(S)_PROXY: this audit must contact the selected LAN
+    # endpoint directly and must not leak internal query expressions to a proxy.
+    opener = build_opener(ProxyHandler({}))
+    with opener.open(request, timeout=timeout) as response:
+        raw = response.read(1024 * 1024 + 1)
+    if len(raw) > 1024 * 1024:
+        raise ValueError("Prometheus query response exceeds 1 MiB")
+    payload = json.loads(raw)
+    if not isinstance(payload, dict) or payload.get("status") != "success":
         raise ValueError("query did not succeed")
-    result = payload.get("data", {}).get("result", [])
-    if not isinstance(result, list):
+    data = payload.get("data")
+    if not isinstance(data, dict) or data.get("resultType") != "vector":
+        raise ValueError("invalid query result type")
+    result = data.get("result")
+    if not isinstance(result, list) or any(not isinstance(item, dict) for item in result):
         raise ValueError("invalid query response")
     return result
 
@@ -60,7 +69,7 @@ def assess(config: dict, origin: str | None, timeout: float) -> list[dict]:
                 for sample in vector:
                     raw = sample.get("value")
                     if not isinstance(raw, list) or len(raw) != 2:
-                        continue
+                        raise ValueError("invalid Prometheus target sample")
                     value = float(raw[1])
                     if not math.isfinite(value) or value not in (0.0, 1.0):
                         raise ValueError("invalid Prometheus target status")
