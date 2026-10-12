@@ -150,3 +150,10 @@ def test_redirects_are_rejected_to_prevent_internal_query_leaks() -> None:
         with __import__("pytest").raises(HTTPError):
             audit.query("http://127.0.0.1:9090", "up", 1)
         assert isinstance(build.call_args.args[1], audit.NoRedirect)
+
+
+
+def test_prometheus_audit_only_accepts_approved_port() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "if uri.port != 9090:" in source
+    assert "prometheus-url must use the dedicated Prometheus port 9090" in source
