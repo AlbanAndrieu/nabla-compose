@@ -1,3 +1,13 @@
+## P1 — Audit de dérive DNS public, HAProxy et Garage (2026-10-12)
+
+- [ ] Auditer en lecture seule les enregistrements publics A/AAAA/CNAME de `*.int.albandrieu.com` contre `config/public-int-dns-exceptions.txt`, sans assimiler l'absence de DNS à l'absence d'exposition par IP/Host/SNI.
+- [ ] Croiser la configuration *active* des frontends, backends, ACL Host/SNI et NAT pfSense/HAProxy avec Traefik, Cloudflare Tunnel et la topologie canonique ; marquer tout écart non autorisé comme drift.
+- [ ] Réutiliser/améliorer les contrôles existants `tests/test_public_ingress_contract.py`, `scripts/truenas/check-homelab-services.sh` et les scripts d'audit ingress existants ; produire un rapport JSON stable avec `declared`, `observed`, `reason`, `evidence`, sans secrets ni corrections automatiques.
+- [ ] Confirmer la suppression effective des DNS publics et accès WAN de `s3.int.albandrieu.com` et `vaultwarden.int.albandrieu.com`, tout en conservant la résolution LAN et en validant OpenTofu avant retrait des routes actives.
+- [ ] Auditer les deux hostnames `garage.albandrieu.com` et `garage-admin.albandrieu.com` : le premier renvoie actuellement une erreur XML S3 selon l'observation utilisateur, signe d'une mauvaise destination possible ; le second fournit une UI, mais le port réel du backend Cloudflare est à vérifier. Comparer les origines attendues : S3 `:3900`, Admin API `:3903`, WebUI `:3909`. Ne pas exposer l'API S3 ni conclure à une UI sur la seule base du nom DNS.
+- [ ] Conserver `hello.int.albandrieu.com` comme canari public intentionnel HAProxy → Traefik ; contrôler son périmètre sans lui appliquer la politique des services privés.
+- [ ] Faire fonctionner des sondes LAN sur TrueNAS et workstation pour les services `external=false` et une vérification outside-in indépendante depuis FastAPI Cloud ; affichage bleu « Interne » pour la *politique*, vert pour la *santé*, warning pour l'exposition inattendue.
+
 ## P1 — DefectDojo : ingestion locale, sans proxy (2026-10-12)
 
 - [x] L'importeur `scripts/security/import-scan-defectdojo.sh` cible
