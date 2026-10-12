@@ -42,3 +42,14 @@ SENTRY_ACCESS_TOKEN=
 # not replace application-level credentials such as SENTRY_ACCESS_TOKEN.
 CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
+
+
+# FreshRSS MCP is an opt-in local stdio process: no network port/listener.
+# Use only the separate securityagent FreshRSS account (NOT securitypublic
+# publication or a personal account). Auth is obtained from ClientLogin and
+# kept in a local 0600 secrets mechanism, not checked into Git.
+# Never use a NEXT_PUBLIC_ variable for this token.
+FRESHRSS_MCP_AUTH=
+# Optional Cloudflare Access service-token identity for GReader API access:
+FRESHRSS_CF_ACCESS_CLIENT_ID=
+FRESHRSS_CF_ACCESS_CLIENT_SECRET=
