@@ -17,6 +17,15 @@ metadata:
     - devsecops
   annotations:
     albandrieu.com/bia-mtpd: P2D
+    albandrieu.com/bia-mbco: restore-public-site-and-dsomm-assessment-within-1-day
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: medium
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
     albandrieu.com/bia-rto: P1D
     albandrieu.com/bia-rpo: P1D
     albandrieu.com/bia-status: provisional
