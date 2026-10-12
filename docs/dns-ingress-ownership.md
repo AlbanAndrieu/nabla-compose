@@ -268,3 +268,12 @@ For a LAN-only `*.int.albandrieu.com` hostname resolving directly to
 HAProxy path. A public `*.int` record is forbidden by default. Any temporary
 legacy exception must be declared explicitly, monitored as security debt and
 migrated to a non-`.int` public hostname.
+
+## Garage S3 and Vaultwarden legacy public-DNS retirement (2026-10-12)
+
+The approved exception list now keeps only the deliberate Hello direct-ingress canary.
+`s3.int.albandrieu.com` and `vaultwarden.int.albandrieu.com` are **not** approved for public DNS or WAN HAProxy/NAT exposure. Garage S3 still needs an internal `https://s3.int.albandrieu.com` LAN/VPN path, including OpenTofu callers.
+
+A repository list change is **not** deletion of an existing Cloudflare DNS record, HAProxy frontend/backend, NAT rule or cached DNS result. Verify and retire the active public records/routes under separate reviewed changes; check OpenTofu state connectivity and rollback before any WAN routing changes. Use public DNS and an independent outside-in HTTP/SNI probe to confirm absence of exposure, while LAN FastAPI/TrueNAS TCP checks continue independent of `external=false`. Lack of a DNS answer alone does not prove a protected origin.
+
+The observed S3 XML `AccessDenied` at `garage.albandrieu.com` means that hostname currently routes to an S3 API response. The declared WebUI is the separate `garage-webui` service on port 3909, while port 3903 is the Garage Admin API and 3900 is the S3 API. Audit Cloudflare Tunnel public hostname origin mapping before changing the displayed WebUI URL; do not presume that the Admin API hostname is a browser UI.
