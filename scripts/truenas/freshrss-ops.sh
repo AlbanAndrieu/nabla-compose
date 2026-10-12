@@ -13,8 +13,8 @@ OPML="${FRESHRSS_OPML:-${ROOT}/config/freshrss/public-security.opml}"
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 info() { printf 'INFO: %s\n' "$*"; }
 case "${MODE}" in
-  --check|--apply|--import-opml) ;;
-  *) die "usage: bash scripts/truenas/freshrss-ops.sh [--check|--apply|--import-opml]" ;;
+  --check|--apply|--import-opml|--enable-api) ;;
+  *) die "usage: bash scripts/truenas/freshrss-ops.sh [--check|--apply|--import-opml|--enable-api]" ;;
 esac
 command -v docker >/dev/null || die "docker required"
 [[ "${CONTAINER}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}$ ]] || die "invalid container name"
@@ -45,6 +45,14 @@ fi
 [[ "${EUID}" == 0 ]] || die "apply must be run as root on TrueNAS"
 [[ "${FRESHRSS_APPROVE_APPLY:-}" == YES ]] ||
   die "explicit approval required: FRESHRSS_APPROVE_APPLY=YES"
+# Global API enablement is an independent and explicitly approved operation.
+if [[ "${MODE}" == --enable-api ]]; then
+  [[ "${FRESHRSS_ENABLE_GLOBAL_API:-}" == YES ]] ||
+    die "FRESHRSS_ENABLE_GLOBAL_API=YES required; review instance-wide API exposure"
+  docker exec --user "${CLI_USER}" "${CONTAINER}" cli/reconfigure.php --api-enabled >/dev/null
+  info "global API enable request applied; verify protections and GReader auth independently"
+  exit 0
+fi
 # A native CLI must receive passwords as argv: short-lived exposure to privileged
 # process observers remains possible. For stronger isolation create passwords in UI.
 check_secret() {
@@ -60,9 +68,13 @@ import_one() {
   local user="$1" target="/tmp/nabla-security-${user}-$$.opml"
   # Import only explicit opt-in or once on a newly created account.
   docker cp "${OPML}" "${CONTAINER}:${target}" >/dev/null
-  trap 'docker exec "${CONTAINER}" rm -f "/tmp/nabla-security-${user}-$$.opml" >/dev/null 2>&1 || true' RETURN
-  docker exec --user "${CLI_USER}" "${CONTAINER}" cli/import-for-user.php \
-    --user "${user}" --filename "${target}" >/dev/null
+  if ! docker exec --user "${CLI_USER}" "${CONTAINER}" cli/import-for-user.php \
+    --user "${user}" --filename "${target}" >/dev/null; then
+    docker exec "${CONTAINER}" rm -f "${target}" >/dev/null 2>&1 || true
+    die "FreshRSS import failed for ${user}"
+  fi
+  docker exec "${CONTAINER}" rm -f "${target}" >/dev/null 2>&1 ||
+    die "temporary OPML cleanup failed for ${user}"
   info "import submitted for ${user}; verify subscriptions via GReader before publication"
 }
 if [[ "${MODE}" == --import-opml ]]; then
