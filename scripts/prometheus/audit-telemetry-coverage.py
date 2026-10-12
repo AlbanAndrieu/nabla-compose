@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
@@ -55,14 +56,26 @@ def assess(config: dict, origin: str | None, timeout: float) -> list[dict]:
         if job in names and origin:
             try:
                 vector = query(origin, f'up{{job="{job}"}}', timeout)
-                values = [float(x["value"][1]) for x in vector if isinstance(x.get("value"), list)]
+                values = []
+                for sample in vector:
+                    raw = sample.get("value")
+                    if not isinstance(raw, list) or len(raw) != 2:
+                        continue
+                    value = float(raw[1])
+                    if not math.isfinite(value) or value not in (0.0, 1.0):
+                        raise ValueError("invalid Prometheus target status")
+                    values.append(value)
                 if not values:
                     state = "no_up_series"
-                elif any(value == 1 for value in values):
+                elif all(value == 1.0 for value in values):
                     state = "scrape_up"
+                elif any(value == 1.0 for value in values):
+                    state = "scrape_partial"
                 else:
                     state = "scrape_down"
-                if state == "scrape_up" and metric:
+                entry["targets_up"] = sum(value == 1.0 for value in values)
+                entry["targets_total"] = len(values)
+                if state in ("scrape_up", "scrape_partial") and metric:
                     samples = query(origin, f'{metric}{{job="{job}"}}', timeout)
                     entry["metric_present"] = bool(samples)
                 elif metric:
