@@ -14,7 +14,14 @@ def test_hermes_poc_budget_and_model_allowlist_are_bounded() -> None:
     assert policy["metadata"]["environment"] == "poc"
     assert policy["metadata"]["managed_by"] == "nabla-compose"
     assert policy["models"] == ["qwen"]
-    assert policy["monthly_budget"] == {\n        "amount": 20,\n        "currency": "EUR",\n        "period": "calendar_month",\n        "enforcement": "convert_to_litellm_usd_at_provisioning",\n    }\n    assert "max_budget" not in policy\n    assert "budget_duration" not in policy
+    assert policy["monthly_budget"] == {
+        "amount": 20,
+        "currency": "EUR",
+        "period": "calendar_month",
+        "enforcement": "convert_to_litellm_usd_at_provisioning",
+    }
+    assert "max_budget" not in policy
+    assert "budget_duration" not in policy
     assert 0 < policy["rpm_limit"] <= 5
     assert 0 < policy["tpm_limit"] <= 10000
     assert policy["max_parallel_requests"] == 1
