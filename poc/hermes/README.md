@@ -14,7 +14,7 @@ OpenTerminal, SearXNG, Vaultwarden or Grafana. See
 | Read-only policy configuration and no terminal/browser/file/code/web tools | `config/hermes/poc-config.yaml` | not deployed |
 | Local stdio MCP with allowlisted Prometheus jobs | `scripts/hermes/readonly_mcp.py` | source only |
 | Cost/token query scoped to the Hermes LiteLLM key alias | MCP + Prometheus scrape/recording rules | no real samples yet |
-| Virtual key budget of $2 per 30 days, one model, 5 RPM | `config/hermes/litellm-key-policy.json` | not provisioned |
+| Target budget of €20 per calendar month, one model, 5 RPM | `config/hermes/litellm-key-policy.json` | not provisioned |
 | Private, API-key protected OpenAI-compatible Hermes API | `compose.api.yml` | **off** |
 | Vaultwarden-only operator provisioning | planned | no automatic secret reads |
 | OpenTerminal, Loki logs, SearXNG search | evaluated and deferred to scoped adapters | **not connected** |
@@ -56,8 +56,7 @@ Before any activation:
    pair (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_ALLOWED_USERS` or
    `DISCORD_BOT_TOKEN` + `DISCORD_ALLOWED_USERS`). Do not set `ALLOW_ALL`,
    `HERMES_YOLO_MODE`, cloud provider keys or API master credentials.
-6. Create the LiteLLM key with the reviewed
-   [key budget contract](../../config/hermes/litellm-key-policy.json).
+6. Review the [key budget contract](../../config/hermes/litellm-key-policy.json):\n   **€20 per calendar month** is an operator spending ceiling, not a token\n   price and not yet enforced. LiteLLM virtual-key `max_budget` accounting\n   is USD-denominated; convert the EUR limit to a conservative USD ceiling\n   at key provisioning using a documented FX rate and period/reset policy.\n   Do not send `monthly_budget` directly to LiteLLM as though it were a\n   recognized API field. No automated conversion or key provisioning is\n   implemented by this POC. Create the LiteLLM key only after that review.
    It must have `key_alias=hermes-poc`, a restricted model list and
    management routes blocked. **Do not pass LiteLLM master key to Hermes**.
    Before sending anything non-public, eliminate/validate the existing
