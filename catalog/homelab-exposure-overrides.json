@@ -41,12 +41,13 @@
     },
     {
       "name": "Garage Admin API",
-      "external": true,
-      "tunnelSecure": true,
-      "cloudflareAccessRequired": true,
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "endpointEnabled": true,
-      "healthNote": "Garage Admin API is exposed through Cloudflare Tunnel at https://garage-admin.albandrieu.com and forwards directly to 172.17.0.24:3903 without Traefik."
+      "healthNote": "Garage Admin API :3903 must be LAN/VPN only. Existing garage-admin.albandrieu.com public Tunnel mapping is suspected drift until live Cloudflare config is audited.",
+      "securityException": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API."
     },
     {
       "name": "Bichon",
