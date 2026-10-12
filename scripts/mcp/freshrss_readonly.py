@@ -184,7 +184,7 @@ def main() -> None:
             try:
                 result = dispatch(request.get("method"), request.get("params"))
                 response = {"jsonrpc": "2.0", "id": request["id"], "result": result}
-            except (OSError, ValueError, KeyError, TypeError):
+            except (OSError, RuntimeError, ValueError, KeyError, TypeError):
                 # No raw HTTP exception, token, URL or server response escapes.
                 response = {
                     "jsonrpc": "2.0", "id": request["id"],
