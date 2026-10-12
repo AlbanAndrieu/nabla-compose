@@ -257,14 +257,14 @@
     {
       "name": "Garage S3",
       "icons": ["fas fa-database"],
-      "description": "Garage S3-compatible object-storage API exposed through the direct HAProxy/TLS re-encryption/Traefik path.",
+      "description": "Garage S3-compatible object-storage API intended for internal LAN/VPN access only; public exposure is prohibited.",
       "internalHost": "172.17.0.24",
       "internalPort": 3900,
       "internalSecure": false,
       "tunnelUrl": "https://s3.int.albandrieu.com",
       "tunnelSecure": false,
       "iconSrc": "assets/selfh-icons/garage.png",
-      "external": true,
+      "external": false,
       "id": "garage"
     },
     {
