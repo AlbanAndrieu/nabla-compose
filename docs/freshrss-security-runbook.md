@@ -44,7 +44,8 @@ Depuis le checkout canonique `/mnt/cpool/compose/nabla-compose` :
 # FRESHRSS_CONTAINER doit viser le conteneur TrueNAS réel.
 FRESHRSS_CONTAINER=freshrss bash scripts/truenas/freshrss-ops.sh --check
 python3 -m unittest tests/test_freshrss_mcp_contract.py
-python3 -m py_compile scripts/mcp/freshrss_readonly.py
+python3 -m py_compile scripts/mcp/freshrss_readonly.py scripts/security/audit-freshrss-subscriptions.py
+python3 scripts/security/audit-freshrss-subscriptions.py --check
 ```
 
 Préflight refuse : conteneur absent/arrêté, image non FreshRSS,
@@ -92,8 +93,17 @@ Ne pas auto-supprimer des flux supplémentaires sur des comptes existants.
 ## 3 — API GReader et identités séparées
 
 Si l'API n'est pas activée, examiner puis activer `api-enabled` via
-l'interface administrateur (ou `cli/reconfigure.php --api-enabled`,
-après approbation). La CLI `--api-password` est distincte du login.
+l'interface administrateur ou le script **explicitement approuvé** :
+
+```bash
+sudo -E env FRESHRSS_APPROVE_APPLY=YES FRESHRSS_ENABLE_GLOBAL_API=YES \
+  FRESHRSS_CONTAINER=freshrss \
+  bash scripts/truenas/freshrss-ops.sh --enable-api
+```
+
+Cette étape active l'API **au niveau de l'instance**, pas uniquement
+pour les comptes spécifiques : vérifier Cloudflare Access et les droits
+avant de la lancer. La CLI `--api-password` est distincte du login.
 Pour chaque compte, obtenir **son propre** `Auth` en appelant
 `ClientLogin` avec le nom et le mot de passe API dans le **corps POST**,
 et conserver le jeton dans le gestionnaire de secrets correspondant.
@@ -133,6 +143,35 @@ HTTP Streamable et propose aussi `mark_as_read`, `star_article`, etc.
 Ne pas l'exposer publiquement ni le substituer sans revue de code,
 pinnage du commit, tests SAST, contrôle d'authentification et
 autorisation explicite des outils d'écriture.
+
+
+### Contrôle automatique des dix abonnements
+
+Avec le jeton du compte à auditer injecté par le coffre local (valeur
+`Auth` provenant de `ClientLogin`, jamais à afficher) :
+
+```bash
+# Même commande à exécuter séparément pour securitypublic et securityagent.
+python3 scripts/security/audit-freshrss-subscriptions.py --check
+python3 scripts/security/audit-freshrss-subscriptions.py --verify
+```
+
+`--verify` exige `FRESHRSS_AUDIT_AUTH` et, si nécessaire, les
+en-têtes Cloudflare Access. Il signale **uniquement les nombres**
+d'abonnements attendus, absents et inattendus. Tout écart est bloquant :
+ne pas activer `FRESHRSS_PUBLICATION_ENABLED`.
+
+### Génération et ingestion privées de SBOM/SCA
+
+`scripts/security/generate-homelab-sbom.sh` exige une image épinglée
+`@sha256`, Syft/Trivy déjà installés et approuvés, un utilisateur
+**non root**, et un répertoire privé writable en mode `0700`.
+`--check` ne lance pas de scan ni d'appel réseau ; `--apply`
+nécessite `NABLA_SBOM_APPROVED=YES` et produit un CycloneDX JSON
+ainsi qu'un rapport Trivy. L'import est une deuxième étape distincte
+`scripts/security/import-scan-defectdojo.sh` et un autre opt-in.
+Voir `docs/defectdojo-private-scan-ingestion.md` pour les commandes
+et le contrôle réseau.
 
 ## 5 — Recette et cutover vers le site Next.js
 
