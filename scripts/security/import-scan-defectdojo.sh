@@ -9,7 +9,7 @@ SCAN_TYPE="${DEFECTDOJO_SCAN_TYPE:-Trivy Scan}"
 SERVICE_ID="${DEFECTDOJO_SERVICE_ID:-}"
 ENGAGEMENT="${DEFECTDOJO_ENGAGEMENT_ID:-}"
 TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdojo/import-token}"
-API="http://172.17.0.24:31085/api/v2/reimport-scan/"
+API="http://127.0.0.1:31085/api/v2/reimport-scan/"
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 case "$MODE" in --check|--apply) ;; *) fail "usage: bash $0 [--check|--apply] /absolute/report.json" ;; esac
 [[ -n "$REPORT" && -f "$REPORT" && ! -L "$REPORT" && "$REPORT" == /* ]] || fail "report must be an absolute regular path"
@@ -29,6 +29,10 @@ if [[ "$MODE" == --check ]]; then
 fi
 [[ "$EUID" == 0 && "${DEFECTDOJO_IMPORT_APPROVED:-}" == YES ]] || fail "root and DEFECTDOJO_IMPORT_APPROVED=YES required"
 command -v curl >/dev/null || fail "curl required"
+# Fail closed if invoked on a remote workstation where localhost could be
+# an unintended service; only the canonical TrueNAS host has this dataset.
+[[ -d /mnt/cpool/compose/nabla-compose ]] ||
+  fail "import only from TrueNAS host; no remote fallback to a public endpoint"
 [[ -f "$TOKEN_FILE" && ! -L "$TOKEN_FILE" && -s "$TOKEN_FILE" ]] || fail "token file missing"
 [[ "$(stat -c %u:%g "$TOKEN_FILE")" == 0:0 && "$(stat -c %a "$TOKEN_FILE")" == 600 ]] ||
   fail "token file must be root:root 0600"
@@ -39,7 +43,9 @@ config="$(mktemp)"
 trap 'rm -f "$config"' EXIT
 printf 'header = "Authorization: Token %s"\n' "$token" > "$config"
 unset token
-http="$(curl --config "$config" --silent --show-error --connect-timeout 5 --max-time 90 \
+http="$(curl --config "$config" --silent --show-error \
+  --noproxy '*' --proto '=http' --max-redirs 0 \
+  --connect-timeout 5 --max-time 90 \
   --output /dev/null --write-out '%{http_code}' \
   --request POST "$API" \
   --form-string "engagement=$ENGAGEMENT" \
