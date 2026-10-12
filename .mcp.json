@@ -122,6 +122,10 @@
         "FRESHRSS_CF_ACCESS_CLIENT_ID": "${FRESHRSS_CF_ACCESS_CLIENT_ID}",
         "FRESHRSS_CF_ACCESS_CLIENT_SECRET": "${FRESHRSS_CF_ACCESS_CLIENT_SECRET}"
       }
+    },
+    "cloudflare-api": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp"
     }
   }
 }
