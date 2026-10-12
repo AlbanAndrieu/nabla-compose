@@ -11,7 +11,7 @@ import math
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 import yaml
 
@@ -34,12 +34,19 @@ def declared(config: dict) -> set[str]:
     }
 
 
+class NoRedirect(HTTPRedirectHandler):
+    """Reject redirect responses instead of following to an untrusted host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def query(base: str, expression: str, timeout: float) -> list[dict]:
     url = base.rstrip("/") + "/api/v1/query?" + urlencode({"query": expression})
     request = Request(url, headers={"Accept": "application/json"})
     # Ignore ambient HTTP(S)_PROXY: this audit must contact the selected LAN
     # endpoint directly and must not leak internal query expressions to a proxy.
-    opener = build_opener(ProxyHandler({}))
+    opener = build_opener(ProxyHandler({}), NoRedirect())
     with opener.open(request, timeout=timeout) as response:
         raw = response.read(1024 * 1024 + 1)
     if len(raw) > 1024 * 1024:
