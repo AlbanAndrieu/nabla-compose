@@ -98,3 +98,55 @@ data path, not merely TCP/HTTP reachability:
 A running container with an unavailable HTTP service, or a ready Pyroscope
 server that receives no usable FastAPI profiles, is still degraded and must not
 be reported as healthy.
+
+
+## TrueNAS runtime identity (UID/GID 568)
+
+The Compose service now runs as `568:568` (the TrueNAS `apps` identity).
+Before deploying this revision, stop the existing Pyroscope App and provision
+`/mnt/cpool/pyroscope/data` for `568:568` using the TrueNAS dataset ACL
+management interface or a deliberate ownership change. Do not change owner on
+a live Raft store. Keep the previous dataset archive for rollback.
+
+```bash
+sudo chown -R 568:568 /mnt/cpool/pyroscope/data
+sudo chmod 770 /mnt/cpool/pyroscope/data
+sudo docker inspect pyroscope --format '{{.Config.User}}'
+curl -sS -o /dev/null -w 'ready HTTP=%{http_code}\n' --max-time 8 http://172.17.0.24:4040/ready
+```
+
+**Do not treat the UID change as a proven repair for Raft.** A disposable
+container sharing the previous volumes could write as UID 10001, while the
+Pyroscope metastore was still failing. Recheck the Raft data path, persistence,
+`/ready`, and actual profile ingestion. The three image-declared Docker
+volumes at `/data`, `/data-compactor`, and `/data-metastore` are separate
+from the explicit `/var/lib/pyroscope` bind mount; never prune them blindly.
+
+## Recovery: implicit v2 metastore working directory (2026-10-11)
+
+TrueNAS reported `pyroscope` repeatedly restarting (exit 1, no OOM) with:
+
+```text
+metastore: failed to initialize store: db dir: mkdir ./data/v2: permission denied
+```
+
+The persistent `/mnt/cpool/pyroscope/data` dataset already had owner
+`568:568`, mode `770`, free space available. The explicit Raft and storage
+paths alone do not override this **relative** v2 metastore directory.
+Compose therefore sets `working_dir: /var/lib/pyroscope`, making
+`./data/v2` resolve inside the mounted, writable dataset. This remains a
+runtime hypothesis until the new config is applied and accepted.
+
+Read-only preflight on TrueNAS:
+
+```bash
+sudo docker inspect pyroscope --format 'workdir={{.Config.WorkingDir}} user={{.Config.User}}'
+sudo stat -c '%u:%g %a %n' /mnt/cpool/pyroscope/data
+sudo midclt call app.query | jq -r '.[] | select(.id == "pyroscope") | .state'
+```
+
+After applying the revised Compose using the existing TrueNAS App workflow,
+validate the effective workdir, sustained running state, and HTTP `/` and
+`/metrics`. Historical anonymous volumes `/data`, `/data-metastore`, and
+`/data-compactor` must not be pruned without explicit migration sign-off.
+Do not recursively chown data or delete Raft state to address this error.

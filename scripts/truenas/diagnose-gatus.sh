@@ -2,7 +2,7 @@
 # Read-only Gatus crash triage. Never emit config, environment or raw logs.
 set -euo pipefail
 
-for binary in docker stat; do
+for binary in docker stat curl jq; do
   command -v "${binary}" >/dev/null 2>&1 || { printf 'ERROR: missing %s\n' "${binary}" >&2; exit 2; }
 done
 
@@ -36,3 +36,32 @@ if ! docker logs --tail 80 gatus 2>&1 | awk '
   exit 1
 fi
 printf '%s\n' 'Diagnostic only; no restart or permission change performed.'
+
+printf '%s\n' '==> Gatus HTTP functional evidence (no response bodies)'
+GATUS_URL="${GATUS_URL:-http://172.17.0.24:8085}"
+for endpoint in / /api/v1/endpoints/statuses; do
+  status="$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' "${GATUS_URL}${endpoint}" || true)"
+  printf 'endpoint=%s http=%s\n' "${endpoint}" "${status:-000}"
+  if [[ "${status}" == 000 ]]; then
+    printf 'WARN Gatus HTTP unreachable on %s\n' "${endpoint}"
+  fi
+done
+printf '%s\n' 'HTTP 200 is transport evidence only; API contract and monitored endpoint status require separate acceptance.'
+
+printf '%s\n' '==> Gatus API structural evidence (counts only, no endpoint URLs)'
+# API response is not printed: endpoints can contain tokens/secret query strings.
+api_summary="$(curl --silent --show-error --fail --max-time 8 "${GATUS_URL}/api/v1/endpoints/statuses" |
+  jq -er '
+    if type == "array" then
+      "shape=array entries=\(length)"
+    elif type == "object" then
+      "shape=object top_level_entries=\(keys | length)"
+    else
+      error("unexpected API payload shape")
+    end
+  ' 2>/dev/null)" || {
+  echo 'WARN Gatus API evidence cannot be parsed; availability is not functional completeness'
+  exit 2
+}
+printf '%s\n' "${api_summary}"
+echo 'INFO: compare the expected monitor IDs to actual API identities separately; counts alone cannot prove parity.'

@@ -596,14 +596,13 @@
     "port": 31071
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Portracker",
     "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 4999
+    "url": "http://172.17.0.24:30233/metrics"
   },
   {
     "type": "port",

@@ -4,6 +4,66 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
+## Incident 502 WebConfigurator / REST API (September 2026)
+
+**First failing layer:** a native nginx HTTP 502 proves that DNS/TCP/TLS and
+the HTTP listener responded, while the PHP-FPM/webConfigurator upstream did not
+serve the request. It does **not** prove an invalid API key, a PF block, or an
+Unbound failure. See the
+[dated pfSense platform incident](./incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
+for the historical evidence and the
+[FastAPI incident register](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/incidents.md)
+for the original observer chronology.
+
+### Collect evidence before any recovery
+
+Use `scripts/pfsense/diagnose-recover.sh --check` **from the operator
+workstation**. The helper captures bounded nginx/PHP-FPM sockets and process
+status, filesystem/swap/RSS/OOM evidence, Unbound, Snort/pfBlockerNG/PF tables,
+the management port 10443 and independent UI/REST vantage points.
+Do not repeat a rejected KeyAuth request: the helper fails fast on HTTP 401.
+
+If additional on-appliance evidence is necessary, use a reviewed pfSense shell
+session and run the following **read-only, single-line** commands individually:
+
+```text
+sockstat | egrep 'nginx|php-fpm|unbound'
+pgrep -laf 'nginx|php-fpm|unbound'
+df -h
+df -i
+swapinfo -h
+tail -n 250 /var/log/system.log
+```
+
+Preserve failure-time logs and OOM details before restarting a service.
+Review `/crash_reporter.php` for embedded configuration/secrets before sharing
+any report. A concurrent Unbound failure must be assessed separately with
+`unbound-control -c /var/unbound/unbound.conf status`.
+
+### Recovery boundary and acceptance
+
+Use the canonical helper's explicit `--apply` mode only after reviewing
+`--check` evidence and confirming the SSH management path. The bounded
+recovery may restart PHP-FPM/webConfigurator and, only if indicated, Unbound.
+Do **not** reboot the firewall as the first response. Do not flush PF tables,
+weaken firewall/Snort/pfBlockerNG policy or bulk-unblock sources;
+`--unblock-sources` is a separate exact-host opt-in.
+
+Close the incident only after verifying:
+
+1. WebGUI/PHP-FPM recovered without an unnecessary firewall reboot;
+2. authenticated `GET /api/v2/system/version` returns 2xx JSON from the
+   trusted LAN/TrueNAS observer, not merely an HTTP listener response;
+3. Unbound is evaluated independently;
+4. `pfsense_exporter` metrics are independent of REST control-plane health;
+5. Gatus/Uptime Kuma/FastAPI probes are low-frequency, offset and bounded
+   (no synchronous deep-status probes or immediate retry storms on HTTP 5xx);
+6. the recurrence evidence preserves process/socket/log/OOM observations.
+
+FastAPI probe caching, stale/unknown semantics and source-specific timeout
+contracts remain in
+[fastapi-sample's observer note](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/pfsense-webconfigurator-recovery.md).
+
 ## Normal read-only check
 
 From the workstation:

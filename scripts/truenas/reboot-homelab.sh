@@ -35,6 +35,8 @@ GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-aft
 DOCKER_STORAGE_AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
 FASTAPI_REBOOT_DIAGNOSTIC="${NABLA_FASTAPI_REBOOT_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-fastapi-integrations.py}"
 INGRESS_ROUTE_AUDIT="${NABLA_INGRESS_ROUTE_AUDIT:-${BUNDLE_ROOT}/scripts/ingress/audit-internal-routes.py}"
+DSOMM_POST_REBOOT_CHECK="${NABLA_DSOMM_POST_REBOOT_CHECK:-${BUNDLE_ROOT}/scripts/truenas/check-dsomm-post-reboot.py}"
+PYROSCOPE_POST_REBOOT_CHECK="${NABLA_PYROSCOPE_POST_REBOOT_CHECK:-${BUNDLE_ROOT}/scripts/truenas/diagnose-pyroscope.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
@@ -804,6 +806,47 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
       { warn "strict internal ingress audit failed"; postcheck_failed=1; }
   else
     warn "strict ingress audit unavailable: ${INGRESS_ROUTE_AUDIT}"
+    postcheck_failed=1
+  fi
+  # Pyroscope post-reboot evidence: inspect process, persistent mounts and readiness.
+  # This check is read-only; never attempt Raft recovery or alter its WAL.
+  if [[ -f "${PYROSCOPE_POST_REBOOT_CHECK}" ]]; then
+    if [[ "$(app_state pyroscope)" == RUNNING ]]; then
+      pyroscope_report="$(mktemp)"
+      if bash "${PYROSCOPE_POST_REBOOT_CHECK}" >"${pyroscope_report}" 2>&1; then
+        grep -E '^(Pyroscope diagnostic|HTTP |owner=|container_user=|WARNING:|ERROR:|MISSING:)' "${pyroscope_report}" || true
+      else
+        tail -n 30 "${pyroscope_report}"
+        warn "Pyroscope diagnostic failed"
+        postcheck_failed=1
+      fi
+      rm -f "${pyroscope_report}"
+      # Diagnostic evidence alone is not acceptance: readiness must succeed.
+      if ! curl --silent --show-error --fail --max-time 8 \
+        --output /dev/null "http://127.0.0.1:4040/ready"; then
+        warn "Pyroscope metastore/ingester/segment-writer readiness failed"
+        postcheck_failed=1
+      fi
+    else
+      warn "Pyroscope is not RUNNING; runtime readiness cannot be accepted"
+      postcheck_failed=1
+    fi
+  else
+    warn "Pyroscope diagnostic unavailable: ${PYROSCOPE_POST_REBOOT_CHECK}"
+    postcheck_failed=1
+  fi
+  # Run after App resume: DSOMM must serve real YAML, not the Caddy SPA HTML fallback.
+  # No reboot/restart or change to persisted assessment data.
+  if [[ -f "${DSOMM_POST_REBOOT_CHECK}" ]]; then
+    if [[ "$(app_state dsomm)" == RUNNING ]]; then
+      python3 "${DSOMM_POST_REBOOT_CHECK}" ||
+        { warn "DSOMM YAML/context acceptance failed"; postcheck_failed=1; }
+    else
+      warn "DSOMM is not RUNNING; runtime assessment cannot be accepted yet"
+      postcheck_failed=1
+    fi
+  else
+    warn "DSOMM acceptance script missing: ${DSOMM_POST_REBOOT_CHECK}"
     postcheck_failed=1
   fi
   ((postcheck_failed == 0)) ||

@@ -124,3 +124,135 @@ Run `python3 scripts/workstation/openclaw-auth-presence.py` on the workstation t
 ### Compose quality-gate diagnostics
 
 The repository's `compose-config` pre-commit hook is blocking and now reports `ERROR: compose-config failed: <file>` on failure. Use `grep -A 30 -B 4 'compose-config' /tmp/...log` privately to inspect Docker's underlying error and the precise file. A failing Compose validation is not automatically an OpenClaw defect. Never bypass the hook or mark the gate green without a full HEAD-specific test.
+
+## P0 confirmed — main skill-collection-review budget exhaustion (2026-10-10, PR #253)
+
+Workstation evidence for `skill-collection-review-main` (id `0363a286-4889-45b9-9a7b-aadf0285c42c`):
+- Scheduled every seven days, isolated session on `main`; enabled, **error (5x)**. Only **one** historical run was returned with `--limit 20` (do not infer five retained run records).
+- Last run status `error`, duration **272541 ms** (4m32.541s), delivery **not requested**. `delivery_not_delivered=1` is not evidence of a Discord/transport incident.
+- Error explicitly identifies `openclaw-main` **virtual-key budget exhausted**: reported current cost **10.046146** against maximum **10.0**, for both `litellm-main/gpt-4.1` and fallback `litellm-main/gpt-4.1-mini`. Both fail because they share the same exhausted key. This is a **budget-limit 429**, not proof of transient requests-per-minute throttling.
+- The LiteLLM amount is a key-budget snapshot, **not** the cost of this 272541 ms run. Do not blame the daily Discord digest, which uses a distinct `litellm-cron` model route and has delivered 7/7; actual underlying key association and spend still require verification.
+- Do **not** increase the budget, swap to an unlimited key, hide 429 warnings, change delivery settings, or replay this costly job while the cap remains exhausted.
+
+Workstation CLI, no UI and no raw error or credential output:
+
+```bash
+bash scripts/workstation/openclaw-ops.sh --skill-review
+# or run against the source job explicitly
+openclaw cron runs --id 0363a286-4889-45b9-9a7b-aadf0285c42c --limit 20 |
+  python3 scripts/workstation/openclaw-cron-runs-summary.py
+```
+
+New summary metrics include `failure_budget_429`, `failure_other_429`, `failure_auth_401`, `failure_agent_runner`, `failure_unknown`. The classification processes only known diagnostic fields and deliberately never prints the original error, key fragments, session identifiers or message content. Missing detail is **unknown**, not assumed budget-related.
+
+### Resolution procedure and gates
+
+1. Inspect LiteLLM's **read-only administrative usage and virtual-key budget records** for the `openclaw-main` key: budget-reset interval, actual token/cost attribution per model and time window, and whether the cron agent uses a separate key. Keep responses/headers and key identifiers private; do not dump them to console or Git.
+2. Check the intended role of both weekly `skill-collection-review` jobs (main failing, cron successful). They may be intentionally different; do not delete or move either without confirming tool permission, workspace ownership and output destination.
+3. Reduce the main job's prompt/context/tool workload and/or schedule under the existing authorized budget. A model fallback that uses the same exhausted virtual key provides no recovery. Test only when the budget period resets or a specifically authorized allocation is available.
+4. Accept after at least one *new* successfully completed main review within budget, with no 429 and an inspectable source-backed result. The historic successful cron-agent review does not satisfy main-agent acceptance.
+5. Independently investigate embedding 401 (Gateway has `OPENAI_API_KEY`, shell does not) and paused main/cron vector indexes; do not rebuild indexes until provider auth works and a backup is verified.
+
+`openclaw cron show` can print masked key prefixes. For sharing use only the aggregate summary; classify sensitive raw failure messages offline.
+
+### Workstation P0 runtime confirmation (2026-10-10, PR #253)
+
+The operator executed the new `openclaw-ops.sh --skill-review`, memory and auth checks. **Confirmed working CLI:** retained skill-review history has exactly one run, one non-OK result, `failure_budget_429=1`, no delivery requested and duration 272541 ms. These counters classify known error text without exposing credential fragments. The underlying job still reports five consecutive errors; do not confuse the one retained run with the consecutive-failure count.
+
+For the operator-selected two-hour journal window: `litellm_budget_429=50`, `embedding_auth_401=14`, `context_pressure=40`, `memory_sync_aborted=40`, `gateway_connection_refused=0`, paired over-budget context events `40/40`, estimated max prompt 198380 against minimum before-reserve budget 108000 (max paired ratio 1.84). Journal matches are not unique requests or provider billing data. The 429 classification is confirmed for the skill-review job, but not every journal occurrence can be attributed to that job.
+
+Memory: main 15/96 files, cron 0/63, both dirty with vector search paused; main `provenance_version` change, cron `metadata_missing`. CLI shell has `OPENAI_API_KEY`, `LITELLM_API_KEY`, `AZURE_OPENAI_API_KEY` all **absent**. An earlier read-only inspection showed `OPENAI_API_KEY` present in the **running Gateway** environment: these are different process contexts. Neither value presence nor index status proves API credential validity, model permission, or effective endpoint. Do not copy raw Gateway environments into reports. No new index attempt or restart performed.
+
+Next safe checks: inspect effective embedding provider/base URL and the Gateway's sanitized error category (not headers, keys or request bodies); inspect LiteLLM read-only key usage and reset policy. Maintain the existing spend cap, and defer memory reindex until authentication, budget authorization and backup are verified.
+
+### Provider configuration inventory — CLI evidence (2026-10-10, PR #253)
+
+The operator's redacted JSON inventory reports configured `models.providers.litellm-main`, `litellm-cron` and `litellm` base URL entries, and separate `apiKey` entries for main/cron; Ollama has its own provider entry. The output **does not show effective embedding routing**: memory status requests provider `openai` / `text-embedding-3-small`, while the main chat model is `litellm-main/gpt-4.1`. Do not conflate chat provider selection with embedding provider resolution. Shell API-key absence and previous Gateway OpenAI key presence are independently observed.
+
+Run `bash scripts/workstation/openclaw-ops.sh --routes` to report only which provider keys and base URLs are configured, scheme, whether URL contains embedded credentials, and loopback status. It intentionally hides endpoint hostname, ports, path, key values and lengths. It parses strict JSON and fails without printing content on non-JSON config; this is an inspection limitation, not proof of broken OpenClaw configuration. For 401 remediation, review resolved Gateway embedding provider and auth status privately (never raw token/config), and make a controlled embedding request only with explicit cost authorization. Do not reindex until a successful single-request validation and backup.
+
+The 429 skill-review issue remains separately confirmed as exhaustion of the `openclaw-main` virtual-key budget; do not raise the cap or confuse model fallback with a new key.
+
+### Provider route diagnostics accepted on workstation (2026-10-10)
+
+Both `python3 scripts/workstation/openclaw-route-metadata.py` and `bash scripts/workstation/openclaw-ops.sh --routes` completed with identical sanitized output. `litellm-main` and `litellm-cron` have non-loopback HTTP base URLs and configured API keys without detected simple environment-reference syntax. Generic `litellm` has a loopback HTTP URL and no API key in this provider entry; `ollama` has a non-loopback HTTP URL and configured key. No embedded URL credentials were detected. `agents.defaults.memorySearch` is not declared in the inspected JSON. **This does not determine effective memory-core embedding credentials, provider routing, or HTTP authentication success.** The OpenClaw memory status still declares `openai/text-embedding-3-small`, and Gateway process inspection previously found `OPENAI_API_KEY` present while the shell did not. Do not infer that generic `litellm` carries embeddings or automatically change memorySearch routing. Next: inspect the OpenClaw `memory-core` plugin's effective settings and sanitized 401 request target; preserve state and avoid index rebuild until the route and credentials are validated.
+
+### P0 embedding 401 root-cause evidence: invalid key and unresolved reference (2026-10-10)
+
+Two `openclaw memory status --deep` invocations returned `openai embeddings failed (401)`, `code=invalid_api_key` for model `text-embedding-3-small`. Main returned a redacted key-like value; a subsequent cron-only invocation displayed a **literal placeholder** matching `${NABLA_…KEY}`. Do not record, compare, or reproduce key fragments. This is direct proof that OpenAI rejects the effective credential and, in the cron-only CLI path, that a reference was not expanded. An earlier combined invocation returned a different masked value for cron; do not assume all CLI/service processes resolve secrets identically.
+
+The Gateway's process environment had an OpenAI key, while the interactive shell lacked one. The API caller in these observations is the OpenClaw CLI; **the Gateway's key presence does not validate the CLI's embedding credentials**. Existing `models.providers.litellm-main.apiKey` and `litellm-cron.apiKey` relate to chat routes, not automatically to OpenAI memory embeddings.
+
+Both vector stores reported `ready` and loaded sqlite-vec; semantic embeddings were unavailable due to provider auth. Main 15/96 and cron 0/63 remain dirty/paused. The provider error, not missing sqlite-vec, is the immediate blocker.
+
+Read-only investigation sequence:
+1. Inspect secret-reference syntax and effective variable availability in the precise CLI and user-systemd contexts **without printing values or variable names**; cross-check the OpenClaw memory-core/provider configuration sources.
+2. Ensure the authorized credential for the intended OpenAI embeddings endpoint is actually resolved and scoped for `text-embedding-3-small`. Avoid hardcoding, logging or copying API keys into Git. When correcting systemd SecretRefs, review a restart separately.
+3. Run one deliberately bounded `openclaw memory status --agent main --deep` and confirm `Embeddings: available`; probe `cron` separately only if the first passes. Deep probes may make provider calls and incur charges.
+4. Only after authorization, consistent state backup and confirmed embeddings, review `memory index` for main then cron, keeping SQLite/JSONL snapshots and their 768-dimensional prior vectors safe.
+
+Do **not** run `memory reset`, `memory index --force`, `memory status --fix` or `doctor --fix` to resolve 401. A 401 with `invalid_api_key` requires credential routing correction, not indexing.
+
+### P0 dotenv credential regression after manual key substitution (2026-10-10)
+
+Operator confirmed `~/.openclaw/.env` originally declared `OPENAI_API_KEY` as an unresolved `${...}` reference, while both `NABLA_FREE_OPENAI_API_KEY` and `NABLA_PLUS_OPENAI_API_KEY` were defined. The operator then copied a candidate key into `OPENAI_API_KEY` with a script stripping quote characters from both ends indiscriminately (`strip('\"\'')`). The next OpenAI 401 `invalid_api_key` response contained a masked key ending in an extra `"`, consistent with **an unmatched trailing quote**. This is a strong hypothesis, not proof that a corrected key would be authorized. `OPENAI_API_KEY=absent` in the shell remains expected if `.env` is not sourced; the CLI can load it independently.
+
+CLI remediation workflow: after syncing the PR, run `bash scripts/workstation/openclaw-ops.sh --auth` or `python3 scripts/workstation/openclaw-dotenv-diagnostic.py`. The latter checks `~/.openclaw/.env` and `~/.litellm/.env` for key declarations, unresolved `${...}` references and broken quote boundaries, without displaying key material. On `OPENAI_API_KEY=trailing_quote` or `unbalanced_quotes`, repair the **single assignment** in a private editor after verifying the intended source key's quoting. Preserve a secure file backup and mode 0600; do not use broad `strip` or print the key. If OpenClaw's live Gateway has a separate systemd environment, schedule reloading it independently only after a verified backup. Run one `openclaw memory status --agent main --deep` after syntax correction; the provider probe can incur a small charge. Reindex only after embeddings are available and a consistent backup is verified. No mutation or online validation is performed by this diagnostic.
+
+### Credential parity and inconsistent cron indexing (2026-10-10, PR #253)
+
+The operator assigned the credential named `NABLA_OPENAI_CLI_API_KEY` to `OPENAI_API_KEY` in `~/.openclaw/.env` and corrected quoting. Deep status returned `Embeddings: ready` for both main and cron, indicating provider probe success at those moments, but a subsequent `openclaw memory status --index --agent cron` failed with an `invalid_api_key` 401 for a masked credential that the operator associates with a **different Azure OpenAI account/endpoint**. This proves differing credential/endpoint selection **between the successful deep probe and attempted indexing**, not that the index or SQLite is broken. Do not retry indexing until the chosen provider, credential and base URL are consistently resolved. The operator also reports a distinct `OPENAI_BASE_URL` associated with the Azure OpenAI v1-compatible API; do not assume an Azure credential works with the default public OpenAI base URL. Never copy API values, host secrets, or the raw 401 key fragment into the repository.
+
+New read-only check: `bash scripts/workstation/openclaw-ops.sh --auth` includes `openclaw-dotenv-diagnostic.py`, which now reports `openai_cli_key_parity=match|mismatch|unverifiable` by comparing the parsed values of `NABLA_OPENAI_CLI_API_KEY` and `OPENAI_API_KEY` **inside `~/.openclaw/.env` only**. No value, key fingerprint or length is printed. A match proves equality of those two file declarations, not that OpenClaw CLI, the live Gateway, or the index job uses the same credential; the dotenv parser accepts simple assignments and quoted values, not arbitrary shell expansions.
+
+Next read-only diagnostics: examine CLI vs Gateway process environments and configured `OPENAI_BASE_URL` presence/scheme (redacted); inspect effective memory-core provider routing and profiles; check if indexing subprocess uses a different credential/endpoint from `--deep`. Do not change providers or force a new index until the endpoint and secret pair have been tested through the **same execution path** as indexing. Keep the existing SQLite/JSONL state and take a consistent backup before mutation.
+
+### 2026-10-10: dotenv syntax triage and possible parser false positives
+
+On workstation, `openclaw-ops.sh --auth` reported all four OpenClaw `.env` OpenAI variables as `unbalanced_quotes` and `openai_cli_key_parity=unverifiable`; the corresponding LiteLLM file had two key-shaped values. This **does not prove four malformed secrets**: the earlier diagnostic only accepted a closing quote at the very end of a value and could misclassify a valid quoted assignment followed by an inline comment. The parser now recognizes a matched quote followed by whitespace/comment, checks parity after parsing, and continues to print no secret content. Re-run `bash scripts/workstation/openclaw-ops.sh --auth`. If any entry remains `unbalanced_quotes_or_reference`, inspect only that assignment privately, checking quote closure, comments and unexpected suffix characters; do not paste raw `.env` or reset/force index. `openai_cli_key_parity=match` establishes equality only within `~/.openclaw/.env`, not effective CLI/Gateway authentication. The separate index 401 for the Azure-associated credential remains unresolved until consistent endpoint/credential routing is proven.
+
+### TrueNAS-first LiteLLM routing — target architecture (2026-10-10)
+
+Operator decision: OpenClaw should use **TrueNAS central LiteLLM** at `172.17.0.24:4000/v1` today on the workstation and after future migration to TrueNAS. This central proxy already declares `embedding` -> workstation LiteLLM (`LITELLM_WORKSTATION_API_BASE` and virtual `LITELLM_IDE_API_KEY`) in `apps/litellm/config.yaml`, plus an explicit `embedding-local` fallback. Workstation LiteLLM keeps sensitive upstream OpenAI/Azure API credentials; do **not** replicate upstream keys into TrueNAS or OpenClaw. Config declaration != demonstrated runtime readiness.
+
+Prerequisites (read-only, masked output): check authenticated TrueNAS `/v1/models` for alias `embedding`, validate TrueNAS -> workstation connectivity and credentials through the already configured proxy, then submit **one** tiny embedding request with a dedicated budget-capped virtual key (never print vector or prompt). Verify model identity and embedding dimension; main store previously recorded 768 dimensions. `/health/readiness` returning HTTP 200 proves liveness only, not authenticated model routing. A 401 on unauthenticated `/v1/models` is expected. Avoid reusing exhausted `openclaw-main` budget or creating budget-free keys.
+
+After parity and budget review, configure OpenClaw memory independently of chat models to use the TrueNAS LiteLLM OpenAI-compatible base URL and an **OpenClaw-only virtual key**. Validate `main` and `cron` with deep read-only probes under both CLI and Gateway identities; verify Gateway systemd environment before any approved restart. Require a consistent verified backup before indexing or changing embedding dimensions, keep session/SQLite/JSONL intact and roll back on divergence.
+
+Data-protection gate: existing `apps/litellm/config.yaml` has `store_prompts_in_spend_logs: true` and Langfuse callbacks, which could retain sensitive texts/telemetry. Review central/workstation LiteLLM, Redis cache, and Langfuse logging and retention **before** routing personal OpenClaw memory through them. Avoid capturing payloads, credential fragments or corpus text in runbooks and logs. This is architecture planning; no live routing or secret change has been performed.
+
+### P0 heartbeat failure amplification in Workspace board (2026-10-11)
+
+Operator's `openclaw tasks list` shows **223 retained background task records**, `0 queued`, `0 running` and **122 reported issues**. Numerous distinct task IDs share the same `cron:bb9757db-9559-4960-bb23-9b9770929ff1` run source and `heartbeat failed: agent-runner-failure`, with successful `heartbeat completed` runs interspersed. Treat this as repeated executions of **one heartbeat cron job**, not 122 separate schedulers and not proof of 122 distinct root causes. The application journal sample (102 records) yielded two `agent_runner`, two `embedding_auth`, one `rate_limit` and three `context_pressure` matches; counters may overlap, and the generic `litellm` provider match is not an error classifier.
+
+Safe triage: `bash scripts/workstation/openclaw-ops.sh --heartbeat` aggregates retained job runs with no prompt or key output. Correlate recent heartbeat failures with `/tmp/openclaw/openclaw-2026-10-11.log` **without printing raw records**; check whether they precede or follow the operator's spend reset and shell credential cleanup. Verify a minimal main model generation through the same OpenClaw execution route only after confirming existing virtual-key budget is intact. Preserve separate `litellm-main` and `litellm-cron` virtual identities/budgets; cron model budget is intentionally independent. Check large main conversation/context pressure and investigate why OpenClaw agent generation fails when Gateway socket probe succeeds.
+
+Do not purge history, modify SQLite task tables, reset sessions, raise budget caps, disable heartbeat or invoke `doctor --fix` automatically; first prove the failure mechanism and a successful main run. Consider heartbeat interval or non-LLM health-probe separation only after validating the semantics of the current job. Current work is diagnostics and operator guidance; remediation is **not** yet confirmed on workstation.
+
+### Operator-facing terminal UI (2026-10-11)
+
+Interactive OpenClaw operator shell entrypoints (`openclaw-ops.sh`, `diagnose-openclaw-errors.sh`, `diagnose-openclaw.sh`, `backup-openclaw.sh`, `prepare-openclaw-systemd.sh`) now pipe sanitized messages through `openclaw-terminal-style.py` for ✅ green success, ⚠️ amber warnings, ❌ red failures and ℹ️ cyan notes. Machine-readable outputs from non-TTY pipelines are preserved byte-for-byte; `NO_COLOR=1` or `OPENCLAW_COLOR=never` disables styling; `OPENCLAW_COLOR=always` enables operator rendering for testing. Errors remain errors: the renderer does not alter command exit codes, API budgets, secrets or the Gateway. Standalone Python diagnostics remain unstyled when called independently; use `openclaw-ops.sh` for consistently styled interactive aggregates.
+
+Latest workstation samples: heartbeat retained runs `runs=100`, `status_ok=67`, `status_non_ok=33`, all 33 non-ok classified `agent_runner` (not 33 different cron jobs). Last 30-minute Gateway counters `embedding_auth_401=2`, `context_pressure=3`, `memory_sync_aborted=3`, `litellm_budget_429=0`, maximum estimated prompt size `236088` tokens against a minimum budget `108000`, max ratio `2.19`. These journal matches may overlap and are not billable requests. Last 20 heartbeat runs include failures at approximately 68 seconds and earlier short failures near 5–8 seconds; mechanism remains undetermined. Prioritize restoring main model generation and reducing context size with non-destructive session strategies, then confirm heartbeat success; never erase private session state or silently raise model budgets.
+
+### Heartbeat recurrent failures: new diagnostic acceptance (2026-10-11)
+
+The operator's last 100 retained heartbeat runs report 67 successes and 33 `agent-runner-failure` errors, while the latest three reports are **0 successes / 3 failures**, each approximately 68 seconds. A simultaneous rolling 30-minute systemd journal query reports zero 401, 429, context-pressure, memory-sync and gateway-refusal matches. **Zero systemd matches does not indicate recovery when the cron history still shows failing runs.** The recurring job produces historical task entries in Workspace board; `deliveryStatus=not-requested` means no delivery was requested, not an error.
+
+`bash scripts/workstation/openclaw-ops.sh --heartbeat` now adds `heartbeat_recent_sample`, `heartbeat_recent_failed`, `heartbeat_consecutive_failures_at_head`, `heartbeat_last_status` and recent duration range, using chronological `runAtMs` ordering. `bash scripts/workstation/openclaw-ops.sh --recent-errors` inspects OpenClaw's dated application JSONL log (last 30 minutes, ISO timestamp filter) and prints only category counts, never raw payloads. The full `--check` now includes both the systemd and application-file diagnostics. These counters are sampled differently and can overlap; a missing or empty log is not a green status.
+
+Next P0 gate: correlate a fresh failed heartbeat's time (without sharing sensitive fields) to application-log categories and inspect effective model path; run one deliberately short main-model generation with explicit cost cap and preserve the two existing LiteLLM virtual key budgets. No session truncation, Gateway restart, history removal or index rebuild performed.
+
+### Explicit billable smoke test for main (2026-10-11)
+
+An operator manually confirmed a short `openclaw agent --agent main --session-key p0-litellm-smoke-20261011 --model litellm-main/gpt-4.1 --thinking off --message 'Réponds uniquement OK.' --timeout 90` returns `OK`. **This proves basic main-model generation works in an isolated diagnostic session, not that the recurring heartbeat succeeds.** Historical heartbeat failures near 68 seconds should next be investigated for session-specific context or runner behavior rather than assuming proxy-wide model failure.
+
+The test is available in `bash scripts/workstation/openclaw-ops.sh --smoke-model`. This flag is **never included in `--check`** and performs at most one attempted invocation per 24 hours per workstation state directory, using a nonblocking `flock` and a preflight timestamp marker at `${XDG_STATE_HOME:-$HOME/.local/state}/nabla-compose/`. Errors still consume the 24-hour cooldown to prevent expensive retries. It uses a dedicated daily smoke session and a fixed short prompt, and suppresses raw model/API output. Requires `flock`; a missing lock tool fails closed. This is a local cap on test attempts, **not an upstream token/spend ceiling**; LiteLLM's distinct `litellm-main` and `litellm-cron` budgets remain authoritative. The guard only coordinates callers sharing this local state directory. Do not run during an outage or invoke manually in rapid succession to bypass budget monitoring. Inspect results with the read-only heartbeat diagnostics; never index memory, restart Gateway, alter budgets, or erase session state as part of this test.
+
+### LiteLLM workstation ↔ TrueNAS read-only status and key controls (2026-10-11)
+
+Run `bash scripts/workstation/openclaw-ops.sh --litellm-audit` **only from the workstation**. The opt-in audit GETs liveliness/readiness from both `http://127.0.0.1:4000` and `http://172.17.0.24:4000`; when `LITELLM_MASTER_KEY` is already available as a workstation environment variable, the script GETs local `/key/info?key=...` for the operator-provided `openclaw`, `ide`, `n8n`, `openclaw-main` key IDs. Output is a whitelist of `spend`, `max_budget`, `tpm_limit`, `rpm_limit`, `budget_duration`, `budget_reset_at`, plus HTTP status. Key secrets, full JSON, spend logs and request prompts are never printed. Some LiteLLM versions may require a virtual token rather than a stored hashed ID on `/key/info`; any 4xx is shown as unavailable rather than interpreted as a zero budget.
+
+Workstation master key is used **only when the configured workstation URL is exactly one of three approved loopback forms**, never transmitted to TrueNAS over plaintext LAN HTTP. The TrueNAS side currently validates only unauthenticated liveness/readiness, not privileged key metadata; a separate TrueNAS-scoped credential over a secured transport is needed to audit its budgets. Upstream routing and authenticated calls are not proved by a healthy endpoint. `TPM` (tokens/minute), including a purported limit of `200000`, is **not** a USD budget; compare `tpm_limit` and `max_budget` separately, and remember that team, model and provider limits may also apply.
+
+No credentials created, no reset or changes to budgets, no model completion requests by the audit.

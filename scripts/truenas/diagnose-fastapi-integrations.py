@@ -11,7 +11,8 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-SERVICES = (("postgres", 5432), ("redis", 6379), ("prometheus", 9090))
+SERVICES = (("postgres", 5432), ("redis", 30059), ("prometheus", 9090))
+# Redis uses published host port 30059 (container-internal 6379).
 DEFAULT_HOST = "172.17.0.24"
 FASTAPI_URL = "http://172.17.0.24:8091"
 PROMETHEUS_READY = "http://172.17.0.24:9090/-/ready"
@@ -45,7 +46,12 @@ def check_container(name: str, timeout: float) -> dict[str, object]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"state": "unknown", "error_type": type(exc).__name__}
     if completed.returncode != 0:
-        return {"state": "not_found"}
+        stderr = completed.stderr.lower()
+        if "permission denied" in stderr:
+            return {"state": "unknown", "reason": "docker_permission_denied"}
+        if "no such object" in stderr or "not found" in stderr:
+            return {"state": "not_found"}
+        return {"state": "unknown", "reason": "docker_inspect_failed"}
     return {"state": "running" if completed.stdout.strip() == "true" else "stopped"}
 
 

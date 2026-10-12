@@ -72,19 +72,29 @@ truenas_app_state() {
 
 truenas_repo_provenance() {
   local repo_root="${1:-.}"
-  local head upstream dirty relation counts left right
+  local head upstream dirty relation counts left right owner
+  local -a git_cmd=(git -C "${repo_root}")
+  if ((EUID == 0)); then
+    owner="$(stat -c '%U' -- "${repo_root}")"
+    if [[ -z "${owner}" || "${owner}" == root || "${owner}" == UNKNOWN ]] ||
+      ! command -v runuser >/dev/null 2>&1; then
+      printf 'ERROR: privileged Git provenance requires non-root checkout owner and runuser\n' >&2
+      return 1
+    fi
+    git_cmd=(runuser -u "${owner}" -- git -C "${repo_root}")
+  fi
 
-  head="$(git -C "${repo_root}" rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')"
-  if [[ -n "$(git -C "${repo_root}" status --porcelain 2>/dev/null || true)" ]]; then
+  head="$("${git_cmd[@]}" rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')"
+  if [[ -n "$("${git_cmd[@]}" status --porcelain 2>/dev/null || true)" ]]; then
     dirty="dirty"
   else
     dirty="clean"
   fi
 
-  upstream="$(git -C "${repo_root}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  upstream="$("${git_cmd[@]}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
   relation="no-upstream"
   if [[ -n "${upstream}" ]]; then
-    counts="$(git -C "${repo_root}" rev-list --left-right --count "HEAD...${upstream}" 2>/dev/null || true)"
+    counts="$("${git_cmd[@]}" rev-list --left-right --count "HEAD...${upstream}" 2>/dev/null || true)"
     left="${counts%%[[:space:]]*}"
     right="${counts##*[[:space:]]}"
     if [[ "${left}" =~ ^[0-9]+$ && "${right}" =~ ^[0-9]+$ ]]; then

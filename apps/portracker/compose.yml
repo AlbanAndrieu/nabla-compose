@@ -16,9 +16,11 @@ services:
         provider: truenas-app
         containerService: portracker
       monitoring:
-        type: port
+        type: http
+        target: http://172.17.0.24:30233/metrics
         host: 172.17.0.24
-        port: 4999
+        port: 30233
+        path: /metrics
     restart: unless-stopped
     labels:
       com.albandrieu.nabla.entity-ref: component:default/portracker
@@ -36,8 +38,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - name: web
-        target: 4999
-        published: "4999"
+        target: 30233
+        published: "30233"
         host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http

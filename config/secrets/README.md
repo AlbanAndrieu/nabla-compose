@@ -119,7 +119,7 @@ bw --version
 ```
 
 The bootstrap verifies the upstream SHA-256 before installing
-`~/.local/bin/bw`. The repository currently pins CLI `2026.9.0`.
+`~/.local/bin/bw`. The runtime-accepted default is CLI `2026.8.0` because the operator A/B test proved login/unlock/inventory work against the current Vaultwarden. CLI `2026.9.0` remains checksum-pinned only for controlled compatibility retesting; it currently fails login with `KeyIdBackfillError`/HTTP 404.
 
 On the TrueNAS host, use the bounded client preflight:
 
