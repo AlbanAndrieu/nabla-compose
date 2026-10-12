@@ -21,7 +21,7 @@ class GoogleReaderAuthContracts(unittest.TestCase):
                 self.assertIn("no network", mod.run("securitypublic", "check"))
 
     def test_login_rejects_cross_account_or_malformed_responses(self):
-        good = ("Auth=securitypublic/" + "a" * 32 + "\\n").encode()
+        good = ("Auth=securitypublic/" + "a" * 32 + "\n").encode()
         self.assertTrue(mod.parse_login(good, "securitypublic").startswith("securitypublic/"))
         with self.assertRaises(ValueError):
             mod.parse_login(good, "securityagent")
