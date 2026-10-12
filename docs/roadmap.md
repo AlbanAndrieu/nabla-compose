@@ -1,3 +1,83 @@
+## P1/P2 — FreshRSS, SBOM et CTI/DefectDojo pour la veille CISO (2026-10-12)
+
+**Chaîne cible :** services déclarés/réellement déployés → inventaire privé et
+SBOM → SCA / vulnérabilités vérifiées → DefectDojo → projection publique
+approuvée → Next.js CTID/CISO. En parallèle : sources CERT/KEV/CVE →
+FreshRSS → actualités classées mais **non présentées comme findings confirmés**.
+
+### P1 — Activer FreshRSS et qualifier les flux publics
+
+- [ ] Diagnostiquer l'App TrueNAS FreshRSS (status, uid/gid, volumes,
+  health, TLS/Cloudflare Access, réseau, backups) **en lecture seule**,
+  sans redémarrage prématuré ni exposition WAN supplémentaire.
+- [ ] Après acceptation, activer le compte FreshRSS `security-public` dédié
+  exclusivement aux **10 abonnements publics** de
+  `nabla-site-alban/public/ciso-security-sources.json`. Import OPML
+  à proposer; ne jamais mélanger le compte personnel et un compte publiable.
+- [ ] Valider API Google Reader `/api/greader.php/reader/api/0/stream/contents/reading-list`
+  sur compte dédié, lecture seule par convention, secret API runtime
+  séparé (pas de `NEXT_PUBLIC_`, ni dans le catalogue), politique
+  Cloudflare Access *service token* et redirections interdites.
+- [ ] Autoriser l'appel sortant Vercel→FreshRSS uniquement après revue
+  de la frontière réseau, de la rétention et de l'anonymisation.
+  Contrôler la publication **zéro PII/hostname/IP/version**, cache,
+  réponse 503 si non configuré, refus 5xx sans fuite de secret.
+- [ ] Vérifier FreshRSS en tant qu'agrégateur RSS/Atom, catégories,
+  filtres, marquage/favoris, OPML import-export, partage natif HTML/RSS/OPML,
+  et API mobile ; choisir **une seule surface de publication contrôlée**.
+  MCP communautaire non requis pour le site; ne pas exposer MCP public.
+- [ ] Synchroniser la sélection de flux avec les deux pages Next.js
+  `/ciso`, `/ctid` et `/security-feed.xml`, en conservant
+  `/feed.xml` historique intact. Valider Playwright, ZAP et accessibilité.
+
+### P2 — SBOM automatisés et findings DefectDojo
+
+- [ ] Construire un job `inventory-sbom` non privilégié, sans
+  `/var/run/docker.sock` brut : syft/trivy (versions épinglées),
+  SBOM **CycloneDX JSON** (plus SPDX si utile), hash, timestamp,
+  propriétaire/service ID, provenance SHA/image digest,
+  environnement (planned ≠ running). Exclure caches, secrets et PII.
+- [ ] Collecter aussi npm/pip/Go/container digests des repos et
+  TrueNAS/Talos/K8s via API read-only approuvées et snapshots,
+  sans scan agressif de LAN ; réconcilier aux entités Backstage et
+  `catalog/services.json`, avec CPE/purl, versions et criticité
+  **seulement dans le catalogue privé**.
+- [ ] Scanner les artefacts avec Trivy/Grype et/ou Dependency-Track,
+  enrichir par OSV, NVD et CISA KEV. Dédupliquer par
+  `service + purl/CPE + CVE + version + environnement` et gérer les
+  corrections, VEX et faux positifs.
+- [ ] Ingérer vers l'API **DefectDojo /api/v2/import-scan/** via
+  compte/token ingestion *scoped* dédié, TLS vérifié, egress restreint,
+  secrets pool ZFS runtime 0600, suppression des payloads logs, imports
+  idempotents et `close_old_findings` validé avant activation;
+  tests sur environnement de démonstration avant la production.
+  **Un SBOM seul n'est pas un scan de vulnérabilités** : vérifier
+  les parsers/formats effectivement disponibles, ne pas le déclarer
+  importable sans test.
+- [ ] Enrichir les findings avec preuves et confiance :
+  `verified / potential / informational`, sévérité du scanner,
+  EPSS/KEV, exploitabilité et statut correction, sans
+  requalifier une *headline* RSS en vulnérabilité confirmée.
+- [ ] Publier vers Next.js **uniquement un agrégat allowlisté**
+  (approuvé, horodaté, sans identifiants internes, détails
+  d'attaque, données personnelles ou CVE contextuels sensibles).
+  Préférer CTID interne authentifié pour les vrais findings :
+  **aucun accès navigateur direct à DefectDojo**.
+- [ ] Tests de contrat d'export, fuite de secrets, RBAC, revue STRIDE,
+  rollback de job, dashboards Prometheus/Grafana (couverture SBOM,
+  âge, taux de mapping, ingestion, faux positifs), puis acceptance.
+
+**DORA :** règlement UE 2022/2554, art. 5-16/10 (gestion/détection des
+risques TIC) et art. 45 (dispositifs volontaires de partage CTI).
+Un site de veille public n'établit pas à lui seul la conformité DORA;
+le champ d'application dépend de la qualité d'entité financière concernée.
+Référence : https://eur-lex.europa.eu/eli/reg/2022/2554/oj
+
+**Dépendances et ordre :** phase FreshRSS P1 après stabilité des services
+socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
+acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
+privacy review; ne pas déployer automatiquement par cette PR.
+
 ## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
 
 - [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
