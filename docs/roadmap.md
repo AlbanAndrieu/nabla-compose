@@ -1,3 +1,20 @@
+## P1–P3 — Site Alban Helm, Cloudflare IaC et secrets (décisions du 12 octobre 2026)
+
+- [ ] **P1 — Build OCI Site Alban** : créer un Dockerfile Next.js standalone multi-stage, utilisateur non-root, FS en lecture seule avec volumes temporaires si nécessaires ; construire linux/amd64, SBOM CycloneDX, provenance SLSA, signature d'image, scans Trivy/grype ; publier sur GHCR uniquement après quality gates avec digest immutable `@sha256:` ; **Vercel reste la production principale**, pas de bascule DNS implicite.
+- [ ] **P1 — Helm chart et Helmfile pour Talos/K8s** : chart versionné `nabla-site-alban`, values `homelab` sans secret, helmfile avec image épinglée, Ingress Traefik **interne uniquement**, PodSecurity restricted, non-root, seccomp RuntimeDefault, drop ALL, ServiceAccount token off, NetworkPolicy egress contrôlé, probes, resources, rollout et rollback ; finaliser runtime de Next.js et TLS interne avant apply. Le script expérimental `scripts/talos/deploy-site-alban.sh` reste une maquette jusqu'au remplacement par le chart.
+- [ ] **P1 — Gate Helm sécurisée local-first** : `helm lint --strict`, `helm template` déterministe, `helmfile template`, validation kubeconform sur version du cluster Talos, schema values, chart-testing (`ct lint`), Checkov ou Trivy config/misconfig avec exceptions tracées, tests helm-unittest des securityContexts/NetworkPolicies ; tester rendu offline en CI **avant** tout pipeline de déploiement, sans contournement des gates SAST/ZAP existantes.
+- [ ] **P1 — Cloudflare Terraform/OpenTofu** : créer `terraform/cloudflare/` (versions verrouillées, variables non sensibles, import/découverte des objets existants) ; gestion déclarative des **tunnels existants** et des public hostnames, DNS et politiques Access ; **attendre la liste des applications Access et leurs IDs fournie par l'opérateur** avant import ou changement ; `plan` seul par défaut, `apply` à approbation manuelle et état chiffré externalisé ; aucun tunnel/route créé par supposition.
+- [ ] **P1 — Accès CI DefectDojo via Cloudflare Access** : après import des ressources existantes, ajouter la route autorisée `defectdojo.albandrieu.com` (si validée) via tunnel existant ; politique distincte UI humaine / API service, avec contrôle des chevauchements de chemins, Service Token dédié ; provisionner `CF_ACCESS_CLIENT_ID` et `CF_ACCESS_CLIENT_SECRET` dans environnement GitHub protégé seulement après création et validation ; ne pas les présumer existants.
+- [ ] **P2 — MCP Cloudflare local** : `.mcp.json` déclare le MCP officiel `https://mcp.cloudflare.com/mcp`, OAuth interactif et moindre privilège ; activer en lecture seule en première phase, laisser les changements de configuration à Terraform et à la revue de plan ; pas de token Cloudflare commité.
+- [ ] **P2 — DefectDojo simple** : conserver un **jeton API dédié DefectDojo** dans les secrets d'environnement GitHub pour ingestion/lecture selon RBAC ; rotation manuelle documentée avec test avant révocation, sans ajouter une GitHub App ou un moteur de rotation Vaultwarden à ce stade.
+- [ ] **P3 — Flux RSS sécurité et OPML** : clarifier les deux sources actuelles : `nabla-site-alban/public/ciso-rss-feeds.json` pour la page historique, `nabla-compose/config/freshrss/security-sources.json` et OPML à 10 sources pour la nouvelle chaîne FreshRSS ; ne remplacer le JSON du site qu'après migration, tests de contrat, sans dépendance directe navigateur à une API privée.
+
+### Architecture cible
+
+`GitHub (build/gates) → GHCR (image signée/digest) → Helmfile → Talos/Kubernetes (Ingress interne)` ; **Vercel conserve le service public de référence**.
+`Terraform/OpenTofu → Cloudflare Tunnel existant + Access + DNS` après import, approbation et validation de la liste des applications.
+`GitHub Actions master (secrets protégés) → Cloudflare Access Service Auth → Tunnel existant → DefectDojo API` ; aucun accès DefectDojo anonyme ni port LAN ouvert sur WAN.
+
 ## P1/P2 — FreshRSS/SBOM/DefectDojo : reprise après merge (2026-10-12)
 
 - [x] **Sources préparées** : scripts `scripts/truenas/freshrss-ops.sh`
