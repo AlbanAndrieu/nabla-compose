@@ -8,7 +8,8 @@ CONTAINER="${FRESHRSS_CONTAINER:-freshrss}"
 CLI_USER="${FRESHRSS_CLI_USER:-www-data}"
 ROOT="${FRESHRSS_REPO_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRETS="${FRESHRSS_SECRET_ROOT:-/mnt/cpool/secrets/runtime/freshrss}"
-OPML="${FRESHRSS_OPML:-${ROOT}/config/freshrss/public-security.opml}"
+OPML="${ROOT}/apps/nabla-site-alban/data/security/security-feeds.opml"
+SUBMODULE="apps/nabla-site-alban"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 info() { printf 'INFO: %s\n' "$*"; }
@@ -19,7 +20,26 @@ esac
 command -v docker >/dev/null || die "docker required"
 [[ "${CONTAINER}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}$ ]] || die "invalid container name"
 [[ "${CLI_USER}" == www-data || "${CLI_USER}" == apache ]] || die "CLI user must be www-data or apache"
-[[ -r "${OPML}" ]] || die "missing OPML file: ${OPML}"
+# Verify the exact submodule commit pinned by the superproject; never fetch latest master.
+command -v git >/dev/null || die "git required to verify pinned OPML"
+[[ -z "${FRESHRSS_OPML:-}" || "${FRESHRSS_OPML}" == "${OPML}" ]] || die "OPML override outside pinned submodule refused"
+[[ -r "${OPML}" && ! -L "${OPML}" ]] || die "pinned Site Alban OPML missing; initialize git submodule"
+PINNED_SHA="$(git -C "${ROOT}" rev-parse "HEAD:${SUBMODULE}" 2>/dev/null)" || die "missing Site Alban gitlink"
+ACTUAL_SHA="$(git -C "${ROOT}/${SUBMODULE}" rev-parse HEAD 2>/dev/null)" || die "submodule not initialized"
+[[ "${PINNED_SHA}" == "${ACTUAL_SHA}" ]] || die "Site Alban submodule revision differs from committed gitlink"
+[[ -z "$(git -C "${ROOT}/${SUBMODULE}" status --porcelain --untracked-files=no)" ]] || die "submodule has uncommitted tracked changes"
+command -v python3 >/dev/null || die "python3 required"
+python3 - "${OPML}" <<'PY'
+import sys
+from urllib.parse import urlsplit
+from xml.etree import ElementTree
+root = ElementTree.parse(sys.argv[1]).getroot()
+if root.tag != "opml": raise SystemExit("Invalid OPML")
+urls = [n.get("xmlUrl") for n in root.iter("outline") if n.get("xmlUrl")]
+if not urls or len(urls) != len(set(urls)): raise SystemExit("Empty or duplicate OPML URLs")
+if any(urlsplit(url).scheme != "https" or urlsplit(url).username or urlsplit(url).password for url in urls): raise SystemExit("Unsafe feed URL")
+print(f"OK: pinned OPML with {len(urls)} sources")
+PY
 docker inspect "${CONTAINER}" >/dev/null 2>&1 ||
   die "FreshRSS container not found; inspect midclt app.query and choose FRESHRSS_CONTAINER explicitly"
 image="$(docker inspect -f '{{.Config.Image}}' "${CONTAINER}")"
