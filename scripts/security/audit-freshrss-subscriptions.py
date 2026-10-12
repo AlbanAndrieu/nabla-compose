@@ -66,11 +66,12 @@ def verify(expected: set[str]) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", nargs="?", choices=("--check", "--verify"), default="--check")
+    parser.add_argument("--check", action="store_true", help="validate manifest and OPML only")
+    parser.add_argument("--verify", action="store_true", help="query private GReader subscription list")
     args = parser.parse_args()
     try:
         expected = expected_urls()
-        if args.mode == "--check":
+        if not args.verify:
             print(f"OK: manifest and OPML contain {len(expected)} approved public sources; no network call")
             return 0
         if verify(expected):
