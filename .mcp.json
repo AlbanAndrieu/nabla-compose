@@ -114,9 +114,7 @@
     "freshrss-security-readonly": {
       "type": "stdio",
       "command": "python3",
-      "args": [
-        "scripts/mcp/freshrss_readonly.py"
-      ],
+      "args": ["scripts/mcp/freshrss_readonly.py"],
       "env": {
         "FRESHRSS_MCP_AUTH": "${FRESHRSS_MCP_AUTH}",
         "FRESHRSS_CF_ACCESS_CLIENT_ID": "${FRESHRSS_CF_ACCESS_CLIENT_ID}",
