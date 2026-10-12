@@ -1,3 +1,12 @@
+## P1 — Lever l'ambiguïté Garage Web UI / Admin API (2026-10-13)
+
+- [x] Normaliser les libellés de catalogue : `Garage Web UI` (:3909), `Garage Admin API` (:3903), `Garage S3 API` (:3900), sans renommer les identifiants de services.
+- [ ] Auditer les origines *actives* Cloudflare Tunnel pour `garage.albandrieu.com` et `garage-admin.albandrieu.com`. Selon le constat utilisateur, le premier présente actuellement une réponse XML S3, le second une UI ; identifier le conteneur/port réellement desservi sans supposer que le hostname décrit l'origine.
+- [ ] Faire correspondre les URL publiques aux fonctions réelles après validation, puis aligner le catalogue et les liens du site. Documenter l'authentification, les ACL et les preuves d'absence d'accès anonyme à l'administration et aux données S3.
+- [ ] Politique cible : Garage Web UI privée (LAN ou réseau overlay). Exception transitoire validée : garder un accès extérieur à l'UI tant qu'un accès distant ergonomique et sécurisé (par exemple Tailscale/WireGuard avec SSO/MFA et ACL) n'est pas disponible ; ne pas rendre les API S3/Admin publiques par simple commodité.
+- [ ] Comparer les options de bascule rapide exposition publique / accès privé dans le catalogue, Cloudflare Access/Tunnel et Tailscale, avec rollback et contrôles outside-in.
+- [ ] Exécuter les tests de catalogue, réconciliation et publication locaux avant merge ; préserver les identités historiques `garage`, `garage-admin`, `garage-webui` pour les consommateurs existants.
+
 ## P1 — Audit de dérive DNS public, HAProxy et Garage (2026-10-12)
 
 - [ ] Auditer en lecture seule les enregistrements publics A/AAAA/CNAME de `*.int.albandrieu.com` contre `config/public-int-dns-exceptions.txt`, sans assimiler l'absence de DNS à l'absence d'exposition par IP/Host/SNI.
