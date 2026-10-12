@@ -258,3 +258,18 @@ pas Prometheus et ne fait aucun appel pfSense direct.
    consommateurs relèvent du dépôt `fastapi-sample`.
 7. **cAdvisor :** `topology_telemetry.py` l'utilise mais sa collecte
    demeure à confirmer ; ne pas inventer des métriques CPU/RAM conteneur.
+
+### Multi-target Prometheus scrape interpretation
+
+The read-only coverage audit now treats each job as a **set of targets**,
+not a single Boolean. It reports `targets_up` and `targets_total`
+when Prometheus supplies valid `up` samples. If a job has both reachable
+and unreachable targets, the state is `scrape_partial` rather than
+`scrape_up`; malformed or nonfinite samples give `query_unavailable`.
+An empty vector is `no_up_series`, not evidence of health.
+
+An exporter metric may exist while only some instances remain reachable:
+`metric_present=true` does not override `scrape_partial`. These distinctions
+matter when FastAPI Sample displays missing telemetry independently of service
+status. No service is declared DOWN solely because of a scrape failure.
+
