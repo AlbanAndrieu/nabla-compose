@@ -1,3 +1,62 @@
+## P1/P2 — FreshRSS/SBOM/DefectDojo : reprise après merge (2026-10-12)
+
+- [x] **Sources préparées** : scripts `scripts/truenas/freshrss-ops.sh`
+  (`--check` lecture seule, `--apply` explicite, `--import-opml`
+  séparé), compte FreshRSS `securitypublic` + `securityagent`,
+  copies du manifeste `config/freshrss/security-sources.json`
+  et de l'OPML à dix sources. **Compte/instance non modifiés**.
+- [x] **MCP local préparé** : `.mcp.json` →
+  `scripts/mcp/freshrss_readonly.py`, stdio sans HTTP entrant,
+  deux outils de lecture, filtrage des sources par ID/URL, jeton
+  propre au compte `securityagent` ; tests unitaires hors-ligne.
+  À distinguer d'un serveur upstream HTTP avec outils d'écriture.
+- [x] **Scan privé préparé** :
+  `scripts/security/generate-homelab-sbom.sh` produit CycloneDX
+  et rapport SCA Trivy sur image **@sha256 immuable**, non-root,
+  sortie privée 0700/0600, sans Docker socket brut ;
+  `scripts/security/import-scan-defectdojo.sh` ingère via
+  `/api/v2/reimport-scan/` interne TrueNAS, identité ingestion
+  distincte, engagement existant, réponse non journalisée,
+  `auto_create_context=false`, `verified=false`,
+  `close_old_findings=false`. **Aucun import effectué**.
+- [x] **Runbooks et passation** :
+  `docs/freshrss-security-runbook.md`,
+  `docs/defectdojo-private-scan-ingestion.md`,
+  `docs/roadmap.md`. Les deux PR #254 et site-alban #220
+  peuvent être mergées **uniquement selon leurs quality gates** ;
+  merge de source ≠ activation runtime.
+- [ ] **P1 runtime** : confirmer conteneur FreshRSS réel/UID, état
+  API/stockage, sauvegarde et secret paths 0600; préflight sans
+  modification puis activation CLI opt-in. Les usernames FreshRSS
+  doivent être **alphanumériques** : remplacer tout ancien
+  `security-public` par `securitypublic`.
+- [ ] **P1 acceptance** : activer API GReader de manière contrôlée,
+  compter 10 sources publiques par identité, tester authentification
+  Cloudflare Access si pertinente ; aucun compte personnel exposé ;
+  connecter MCP par stdio aux seuls agents approuvés.
+- [ ] **P1 Next.js** : passer la CI incluant
+  Playwright/ZAP/CodeQL/Semgrep ; activer Vercel avec les secrets de
+  `securitypublic` après recette, vérifier `/security-feed.xml`
+  et `/api/ciso/threat-feed`; garder la publication désactivée
+  jusqu'alors.
+- [ ] **P2 scan et ingestion** : épingler et vérifier versions
+  Syft/Trivy à l'exécution ; préflight sur une image non critique ;
+  scanner localement et importer après approbation sous produit et
+  engagement DefectDojo réel, vérifier parsing/déduplication finale.
+  Aucun endpoint DefectDojo WAN nécessaire.
+- [ ] **P3 CTID/DefectDojo** : construire un export privé
+  read-only filtré/agrégé et revu, jamais exposer les findings bruts,
+  noms/versions des actifs, PII et API DefectDojo au navigateur.
+- [ ] **Qualité restantes** : bash -n, ShellCheck, unittest MCP,
+  contrats JSON/OPML, protection des secrets, CI et acceptation
+  homelab *NOT RUN* tant que non constatées.
+
+**Ordre de reprise :** stabilité & sauvegardes → FreshRSS CLI →
+abonnements API → MCP → site en preview → publication publique
+approuvée → SBOM/SCA/DefectDojo privé → CTID authentifié.
+Ne pas laisser les nouveautés FreshRSS devenir un bloqueur des
+priorités P0 existantes. Les scripts n'effectuent rien sans opt-in.
+
 ## P1/P2 — FreshRSS, SBOM et CTI/DefectDojo pour la veille CISO (2026-10-12)
 
 **Chaîne cible :** services déclarés/réellement déployés → inventaire privé et
@@ -10,7 +69,7 @@ FreshRSS → actualités classées mais **non présentées comme findings confir
 - [ ] Diagnostiquer l'App TrueNAS FreshRSS (status, uid/gid, volumes,
   health, TLS/Cloudflare Access, réseau, backups) **en lecture seule**,
   sans redémarrage prématuré ni exposition WAN supplémentaire.
-- [ ] Après acceptation, activer le compte FreshRSS `security-public` dédié
+- [ ] Après acceptation, activer le compte FreshRSS `securitypublic` dédié
   exclusivement aux **10 abonnements publics** de
   `nabla-site-alban/public/ciso-security-sources.json`. Import OPML
   à proposer; ne jamais mélanger le compte personnel et un compte publiable.
