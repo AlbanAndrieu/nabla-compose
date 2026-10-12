@@ -26,7 +26,8 @@ fi
 [[ "$(stat -c %a "$DIR")" == 700 ]] || fail "output directory must be mode 0700"
 umask 077
 digest="${IMAGE##*@sha256:}"
-prefix="$DIR/$SERVICE-$digest"
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+prefix="$DIR/$SERVICE-$digest-$stamp"
 sbom="$prefix.cdx.json"
 report="$prefix.trivy.json"
 [[ ! -e "$sbom" && ! -e "$report" ]] || fail "artifacts exist: use a new immutable image or archive existing reports"
