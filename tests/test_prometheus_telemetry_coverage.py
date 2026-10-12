@@ -72,6 +72,58 @@ def test_query_errors_remain_unknown() -> None:
 
 def test_report_does_not_expose_secrets() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    assert "urlopen(" in source
+    assert "build_opener(ProxyHandler({}))" in source
+    assert "response.read(1024 * 1024 + 1)" in source
     assert '"timeout"' not in source
     assert "print(json.dumps(" in source
+
+
+def test_bad_target_sample_is_unknown_not_silently_ignored() -> None:
+    config = {"scrape_configs": [{"job_name": "gatus"}]}
+    with patch.object(
+        audit, "query", return_value=[{"value": [0, "1"]}, {"value": None}],
+    ):
+        result = audit.assess(config, "http://127.0.0.1:9090", 1)
+    assert result[0]["state"] == "query_unavailable"
+    assert result[0]["metric_present"] is None
+
+
+def test_query_rejects_oversized_response_without_exposing_contents() -> None:
+    from unittest.mock import MagicMock
+
+    class BoundedResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            pass
+
+        def read(self, length: int) -> bytes:
+            assert length == 1024 * 1024 + 1
+            return b"x" * length
+
+    opener = MagicMock()
+    opener.open.return_value = BoundedResponse()
+    with patch.object(audit, "build_opener", return_value=opener):
+        with __import__("pytest").raises(ValueError, match="exceeds 1 MiB"):
+            audit.query("http://127.0.0.1:9090", 'up{job="gatus"}', 1)
+
+
+def test_query_disallows_non_vector_result() -> None:
+    from unittest.mock import MagicMock
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            pass
+
+        def read(self, _length: int) -> bytes:
+            return b'{"status":"success","data":{"resultType":"matrix","result":[]}}'
+
+    opener = MagicMock()
+    opener.open.return_value = FakeResponse()
+    with patch.object(audit, "build_opener", return_value=opener):
+        with __import__("pytest").raises(ValueError, match="result type"):
+            audit.query("http://127.0.0.1:9090", 'up{job="gatus"}', 1)
