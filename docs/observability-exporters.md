@@ -273,3 +273,16 @@ An exporter metric may exist while only some instances remain reachable:
 matter when FastAPI Sample displays missing telemetry independently of service
 status. No service is declared DOWN solely because of a scrape failure.
 
+
+
+### Internal Prometheus query boundary (2026-10-12)
+
+`scripts/prometheus/audit-telemetry-coverage.py` is an opt-in, read-only
+diagnostic, not an Internet-facing general PromQL client. Its approved
+origin is an explicit loopback/TrueNAS LAN HTTP endpoint; it disables
+ambient HTTP proxy settings and **does not follow redirects**. This
+prevents an internal query expression being forwarded to an untrusted
+endpoint via a proxy or a 30x response. Responses are capped at 1 MiB,
+must contain a Prometheus instant vector, and are aggregated without
+printing the returned labels or time series. A redirect, non-vector
+payload or connection failure means `query_unavailable`, not service DOWN.
