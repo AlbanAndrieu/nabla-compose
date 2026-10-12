@@ -24,10 +24,10 @@
     },
     {
       "name": "Garage S3",
-      "external": true,
+      "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "Garage S3 at s3.int.albandrieu.com retains the temporary direct-public HAProxy -> TLS re-encryption -> Traefik exception for the OpenTofu state backend. Garage WebUI and Garage Admin use dedicated Cloudflare Tunnel hostnames and are not routed by Traefik.",
+      "securityException": "Garage S3 s3.int.albandrieu.com is internal-only; public DNS and WAN HAProxy/NAT routes are unauthorized. Verify OpenTofu state backend connectivity before the infrastructure-side cutover.",
       "tunnelUrl": "https://s3.int.albandrieu.com"
     },
     {
