@@ -1,3 +1,4 @@
+- [ ] **P1 — FreshRSS et OPML Site Alban canonique** : les 10 sources `config/freshrss/security-sources.json` sont déjà incluses dans les 78 flux de `nabla-site-alban/data/security/security-feeds.opml` (comparaison vérifiée). Après validation/merge de la PR Site Alban #221, mettre à jour le gitlink `apps/nabla-site-alban`, rendre bloquant `python3 scripts/security/audit-freshrss-opml-source.py --strict` et générer l'OPML FreshRSS par filtrage explicite des dix URL ; interdire un import automatique des 78 sources et préserver les comptes `securitypublic`/`securityagent`.
 ## P1 — Clarifier les rôles Garage et préparer un accès privé à la WebUI (2026-10-13)
 
 - [x] Distinguer explicitement **Garage S3 API :3900**, **Garage Admin API :3903** et **Garage Web UI :3909** dans le catalogue et le Compose source, sans fusionner les identités de composants.
