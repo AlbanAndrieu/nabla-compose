@@ -46,6 +46,17 @@ FreshRSS → actualités classées mais **non présentées comme findings confir
   enrichir par OSV, NVD et CISA KEV. Dédupliquer par
   `service + purl/CPE + CVE + version + environnement` et gérer les
   corrections, VEX et faux positifs.
+- [ ] **Déterminer l'édition DefectDojo installée** avant de choisir l'API SBOM.
+  L'API OSS `/api/v2/import-scan/` accepte notamment les parsers
+  `Syft`, `CycloneDX`, `Trivy`, `Anchore Grype` et `Generic Findings Import`.
+  Le parseur SBOM peut créer des entrées d'inventaire **Info** sans
+  vulnérabilités. L'endpoint Asset/Locations `/api/v2/sbom-import/`
+  est documenté pour **DefectDojo Pro** et ne doit pas être présumé
+  disponible sur l'instance OSS. Vérifier en sandbox les types de scan
+  réellement installés et préférer un flux SBOM + résultats scanner
+  séparés, sans dépendre des fonctions Pro non autorisées.
+  Docs : https://docs.defectdojo.com/supported_tools/parsers/
+  et https://docs.defectdojo.com/supported_tools/parsers/file/syft/
 - [ ] Ingérer vers l'API **DefectDojo /api/v2/import-scan/** via
   compte/token ingestion *scoped* dédié, TLS vérifié, egress restreint,
   secrets pool ZFS runtime 0600, suppression des payloads logs, imports
