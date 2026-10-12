@@ -1,3 +1,5 @@
+> **Décision mise à jour (12/10/2026)** : le hostname cible est `defectdojo.albandrieu.com` **sous réserve d'inventaire Cloudflare** ; l'ancien `defectdojo-ci.albandrieu.com` ci-dessous est un exemple historique, **pas une route à créer**. Les règles d'accès UI humaine et API de service doivent être séparées avec test de priorité et de chevauchement. `CF_ACCESS_CLIENT_ID` et `CF_ACCESS_CLIENT_SECRET` **n'existent pas encore** dans les secrets GitHub du dépôt et ne seront provisionnés qu'après Terraform + validation des applications Access. Le MCP Cloudflare local est un outil d'exploration, **Terraform/OpenTofu devient la source de vérité** pour Tunnel, DNS et Access. DefectDojo utilise un jeton API de service simple, pas de GitHub App ni de rotation Vaultwarden automatisée pour l'instant. Aucun `apply` Cloudflare n'a été réalisé.
+
 # DefectDojo — accès CI GitHub via Cloudflare Tunnel et Access
 
 ## Architecture retenue (préparation, non déployée)
