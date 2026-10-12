@@ -110,6 +110,18 @@
         "DEFECTDOJO_URL": "${DEFECTDOJO_URL}",
         "DEFECTDOJO_API_KEY": "${DEFECTDOJO_API_KEY}"
       }
+    },
+    "freshrss-security-readonly": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "scripts/mcp/freshrss_readonly.py"
+      ],
+      "env": {
+        "FRESHRSS_MCP_AUTH": "${FRESHRSS_MCP_AUTH}",
+        "FRESHRSS_CF_ACCESS_CLIENT_ID": "${FRESHRSS_CF_ACCESS_CLIENT_ID}",
+        "FRESHRSS_CF_ACCESS_CLIENT_SECRET": "${FRESHRSS_CF_ACCESS_CLIENT_SECRET}"
+      }
     }
   }
 }
