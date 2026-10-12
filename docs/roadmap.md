@@ -1,3 +1,12 @@
+## P1 — Clarifier les rôles Garage et préparer un accès privé à la WebUI (2026-10-13)
+
+- [x] Distinguer explicitement **Garage S3 API :3900**, **Garage Admin API :3903** et **Garage Web UI :3909** dans le catalogue et le Compose source, sans fusionner les identités de composants.
+- [ ] Auditer les hostnames publics et les origines réelles du tunnel Cloudflare : la WebUI est déclarée sur `garage.albandrieu.com` mais ce nom a répondu comme une API S3 ; `garage-admin.albandrieu.com` affiche une UI selon un test navigateur utilisateur alors que sa destination déclarée est l'API Admin :3903. Confirmer les routes effectives avant de modifier les hostnames ou leurs permissions.
+- [ ] Corriger l'association entre UI et hostname *après* inspection des origines, puis ajouter un contrôle de non-régression refusant une réponse XML S3 sur l'URL WebUI.
+- [ ] Conserver provisoirement une **WebUI Garage accessible depuis l'extérieur**, protégée par authentification/Cloudflare Access ; sa cible à terme est **LAN/VPN uniquement**. Évaluer Tailscale/WireGuard ou un autre accès distant privé avec ACL, MFA et traçabilité ; documenter une bascule réversible pour publier/dépublier les services.
+- [ ] Ne jamais exposer volontairement l'API S3 `s3.int.albandrieu.com` sur le WAN ; distinguer la politique privée de la preuve réseau réelle, tout en validant les consommateurs OpenTofu.
+- [ ] Contrôler les liaisons entre noms dans les overrides, le catalogue FastAPI distant et le fallback `nabla-site-alban` ; ne pas supposer qu'une API admin est une interface utilisateur.
+
 ## P1 — Lever l'ambiguïté Garage Web UI / Admin API (2026-10-13)
 
 - [x] Normaliser les libellés de catalogue : `Garage Web UI` (:3909), `Garage Admin API` (:3903), `Garage S3 API` (:3900), sans renommer les identifiants de services.
