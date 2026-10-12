@@ -3,7 +3,7 @@ name: garage
 x-nabla:
   nodes:
     - id: garage-admin
-      name: Garage Admin
+      name: Garage Admin API
       kind: api
       category: data
       url: https://garage-admin.albandrieu.com
@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
     x-nabla:
       id: garage
-      name: Garage S3
+      name: Garage S3 API
       kind: object-storage
       category: data
       url: https://s3.int.albandrieu.com
@@ -108,7 +108,7 @@ services:
     restart: unless-stopped
     x-nabla:
       id: garage-webui
-      name: Garage
+      name: Garage Web UI
       kind: application
       category: data
       url: https://garage.albandrieu.com
