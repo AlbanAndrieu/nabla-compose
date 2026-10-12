@@ -119,6 +119,8 @@ def main() -> int:
             parser.error("prometheus-url must be an internal credential-free HTTP origin")
         if uri.hostname not in {"localhost", "127.0.0.1", "172.17.0.24"}:
             parser.error("prometheus-url host is not an approved internal origin")
+        if uri.port != 9090:
+            parser.error("prometheus-url must use the dedicated Prometheus port 9090")
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     evidence = assess(config, args.prometheus_url, args.timeout)
     print(json.dumps({"schema_version": 1, "mode": "live" if args.prometheus_url else "static", "services": evidence}, indent=2))
