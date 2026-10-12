@@ -1,5 +1,14 @@
 # FreshRSS — runbook d'activation CISO/CTID (préparation, non exécutée)
 
+## Décision d'architecture — OPML commun épinglé
+
+**Source canonique unique** : `apps/nabla-site-alban/data/security/security-feeds.opml`, dans le submodule Git de `nabla-site-alban` à la révision déclarée par le gitlink de `nabla-compose`. Le script `scripts/truenas/freshrss-ops.sh` utilise désormais directement ce fichier lors d'un import expressément autorisé ; il refuse une révision différente et les modifications non commitées. **Aucun téléchargement de `master` au déploiement, aucun import automatique.**
+
+**Pourquoi 10 auparavant ?** Les dix flux étaient une sélection initiale `securitypublic`/homelab créée pour le POC FreshRSS, et non une limite de FreshRSS ni une exigence de sécurité. Tous ces dix flux sont déjà présents parmi les 78 flux du site. **Pas de filtre arbitraire FreshRSS dans l'architecture retenue** : les futures importations explicites depuis l'OPML canonique portent sur les 78 flux, après acceptation des coûts, de la disponibilité des URL et des droits d'accès. Les fichiers `config/freshrss/security-sources.json` et `config/freshrss/public-security.opml` restent des *snapshots historiques du POC*, non l'autorité de déploiement.
+
+L'import n'est pas une opération de synchronisation destructive : selon la version de FreshRSS, des abonnements anciens peuvent subsister. Pour garantir un état exact, comparer les abonnements via API GReader, préparer une réconciliation explicite et une sauvegarde validée avant tout retrait. Les comptes `securitypublic` et `securityagent` ne doivent pas diffuser d'articles privés.
+
+
 ## Contrat des sources OPML entre Site Alban et FreshRSS
 
 Le site `nabla-site-alban` possède désormais l'OPML de référence de **ses 78 flux historiques**, versionné dans `apps/nabla-site-alban/data/security/security-feeds.opml` via le git submodule. Ce fichier génère `public/ciso-rss-feeds.json` grâce à `scripts/generate-security-rss.mjs` et un contrôle local-first dans la PR du site.
