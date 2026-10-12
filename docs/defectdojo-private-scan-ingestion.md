@@ -15,7 +15,7 @@ Build/CI interne / scanner Syft + Trivy (sans socket Docker brut)
   v
 Job importateur à privilèges minimaux sur TrueNAS / réseau intranet
   POST /api/v2/reimport-scan/ (Authorization: Token ...)
-  → http://172.17.0.24:31085 → DefectDojo existant (interne)
+  → http://127.0.0.1:31085 → DefectDojo existant (interne)
   → PostgreSQL/Redis internes
   ↛ Cloudflare Access / Tunnel / Internet / navigateur public
 ```
@@ -49,7 +49,7 @@ La documentation officielle recommande le **réimport** :
 doublons. L'import `/api/v2/import-scan/` crée plutôt des Tests nouveaux.
 Avant d'utiliser `reimport-scan`, vérifier les noms des scanners et les
 permissions dans l'OpenAPI de l'instance :
-`http://172.17.0.24:31085/api/v2/oa3/swagger-ui/`.
+`http://127.0.0.1:31085/api/v2/oa3/swagger-ui/`.
 
 Créer dans DefectDojo une identité *ingestion* spécifique avec droits
 seulement sur le produit et l'engagement retenus. Garder une identité
@@ -137,3 +137,30 @@ DefectDojo n'autorise **pas** le serveur Next.js, FreshRSS ou un agent MCP
 à lire les résultats. L'authentification du futur reporting doit être
 séparée (jeton read-only, minimisation, revue des exports) avant toute
 mise en ligne.
+
+
+### Durcissement de l'import : loopback uniquement (12/10/2026)
+
+Le script `scripts/security/import-scan-defectdojo.sh` utilise
+**exclusivement** `http://127.0.0.1:31085/api/v2/reimport-scan/`
+depuis l'hôte **TrueNAS**. Il refuse de s'exécuter depuis une machine
+sans le checkout canonique `/mnt/cpool/compose/nabla-compose`,
+désactive explicitement tous les proxys avec `curl --noproxy '*'`,
+interdit les redirections et n'envoie jamais le token ailleurs.
+L'import HTTP loopback ne traverse pas le LAN, mais la recette doit
+**prouver** que l'App existante publie bien le port côté loopback.
+
+**Ne pas confondre** sécurisation de l'importeur avec suppression de
+l'exposition du serveur : le Compose actuel déclare également le port
+hôte `31085`, dont le bind effectif et les règles WAN ne sont pas
+validés. Vérifier `docker inspect`, `ss -ltn`, pfSense NAT/ACL,
+Cloudflare Tunnel/Access, Traefik et Gatus, sans supposer « privé »
+sur la seule base d'une adresse RFC1918. En cible, limiter l'écoute
+à `127.0.0.1` ou au réseau interne isolé avec TLS si d'autres runners
+en ont réellement besoin. Ne jamais ouvrir l'interface ni l'API sans
+contrôle d'accès.
+
+Si le job doit tourner **dans un autre conteneur** ou dans Kubernetes,
+il ne peut pas utiliser cette route loopback : prévoir un importeur
+dédié sur réseau privé avec TLS vérifié et RBAC, plutôt que
+remplacer le hostname par une IP LAN dans ce script.

@@ -1,3 +1,16 @@
+## P1 — DefectDojo : ingestion locale, sans proxy (2026-10-12)
+
+- [x] L'importeur `scripts/security/import-scan-defectdojo.sh` cible
+  `http://127.0.0.1:31085/api/v2/reimport-scan/` **depuis TrueNAS**,
+  avec `curl --noproxy '*'`, interdiction de redirection et garde
+  de présence du checkout TrueNAS. Ni failover LAN ni WAN.
+- [ ] Valider en lecture seule le bind réel du port, la configuration
+  NAT/ACL pfSense, Traefik et Cloudflare; ne pas inférer l'absence
+  d'exposition Internet de l'adresse interne déclarée.
+- [ ] Premier import : utiliser produit/engagement existants,
+  scan non sensible et jeton dédié; vérifier le traitement final
+  de l'import et la déduplication avant toute planification cron.
+
 ## P1 — Bootstrap de jetons FreshRSS sans exposition CLI (2026-10-12)
 
 - [x] Ajouter `scripts/security/freshrss-greader-auth.py` pour

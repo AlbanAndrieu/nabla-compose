@@ -63,6 +63,8 @@ class FreshRSSHandoffContract(unittest.TestCase):
         self.assertIn("close_old_findings=false", dojo)
         self.assertIn("auto_create_context=false", dojo)
         self.assertIn("/api/v2/reimport-scan/", dojo)
+        self.assertIn("http://127.0.0.1:31085", dojo)
+        self.assertIn("--noproxy", dojo)
         self.assertIn("NABLA_SBOM_APPROVED", sbom)
         self.assertIn("@sha256:", sbom)
         self.assertNotIn("/var/run/docker.sock", sbom)

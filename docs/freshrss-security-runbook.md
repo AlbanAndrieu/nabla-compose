@@ -260,3 +260,14 @@ de rotation de compte.
 En cas de réponse non conforme, d'abonnement supplémentaire ou de
 connexion impossible, la procédure **échoue sans écrire de jeton**.
 Cette garde est plus stricte qu'un simple contrôle de santé HTTP.
+
+
+### Recette d'ingestion DefectDojo sans WAN
+
+Depuis **TrueNAS uniquement**, utiliser le script d'import privé
+`scripts/security/import-scan-defectdojo.sh` sur loopback
+`127.0.0.1:31085`, en deux étapes `--check` puis `--apply`
+explicitement approuvé. Les autres consommateurs (Vercel, FreshRSS,
+MCP) n'ont ni le jeton ni un accès à cette API. Contrôler l'écoute
+réelle du port 31085 et les ACL/NAT avant de conclure à l'absence
+d'exposition Internet. Voir `docs/defectdojo-private-scan-ingestion.md`.
