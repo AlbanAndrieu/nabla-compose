@@ -21,7 +21,7 @@ warn() { printf 'WARN %s\n' "$*"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$*"; errors=$((errors + 1)); }
 
 printf '%s\n' '==> TrueNAS application and Docker runtime (metadata only)'
-app_state="$(midclt call app.query | jq -r --arg app "${APP_ID}" '[.[] | select(.id == ${app} or .name == ${app}) | .state][0] // "absent"')" || fail 'TrueNAS app.query failed'
+app_state="$(midclt call app.query | jq -r --arg app "${APP_ID}" '[.[] | select(.id == $app or .name == $app) | .state][0] // "absent"')" || fail 'TrueNAS app.query failed'
 printf 'app=%s state=%s\n' "${APP_ID}" "${app_state:-unknown}"
 [[ "${app_state}" == RUNNING ]] || fail 'Hermes TrueNAS App is not RUNNING'
 
