@@ -24,7 +24,7 @@ if [[ "${MODE}" == "--preflight" || "${MODE}" == "--server-dry-run" || "${MODE}"
   kubectl get ingressclass "${INGRESS_CLASS}" >/dev/null
   # Refuse any hostname already assigned to another ingress.
   command -v jq >/dev/null
-  claims="$(kubectl get ingress -A -o json | jq -r --arg host "${HOST}" --arg ns "${NAMESPACE}" '.items[] | select(any(.spec.rules[]?; .host == $host)) | select(.metadata.namespace != $ns or .metadata.name != "nabla-site-alban") | "\\(.metadata.namespace)/\\(.metadata.name)"')"
+  claims="$(kubectl get ingress -A -o json | jq -r --arg host "${HOST}" --arg ns "${NAMESPACE}" '.items[] | select(any(.spec.rules[]?; .host == ${host})) | select(.metadata.namespace != ${ns} or .metadata.name != "nabla-site-alban") | "\\(.metadata.namespace)/\\(.metadata.name)"')"
   [[ -z "${claims}" ]] || { echo "Ingress host already claimed: ${claims}" >&2; exit 1; }
 fi
 [[ "${MODE}" == "--preflight" ]] && { echo "Ingress preflight passed"; exit 0; }
