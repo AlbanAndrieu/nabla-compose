@@ -273,14 +273,14 @@
       "icons": [
         "fas fa-lock"
       ],
-      "description": "Garage administration API on :3903 (not the dedicated Web UI); current public hostname may be misrouted to a browser UI, pending tunnel audit.",
+      "description": "Private Garage administration API :3903, not WebUI. Public hostname mapping must be audited and retired if targeting this API.",
       "internalHost": "172.17.0.24",
       "internalPort": 3903,
       "internalSecure": false,
       "tunnelUrl": "https://garage-admin.albandrieu.com",
-      "tunnelSecure": true,
+      "tunnelSecure": false,
       "iconSrc": "assets/selfh-icons/garage.png",
-      "external": true
+      "external": false
     },
     {
       "name": "Garage S3 API",
