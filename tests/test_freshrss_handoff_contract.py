@@ -70,5 +70,11 @@ class FreshRSSHandoffContract(unittest.TestCase):
         self.assertNotIn("/var/run/docker.sock", sbom)
 
 
+    def test_import_is_blocked_for_unfiltered_site_opml(self):
+        script = (ROOT / "scripts/truenas/freshrss-ops.sh").read_text(encoding="utf-8")
+        self.assertIn('if [[ "${MODE}" == --apply || "${MODE}" == --import-opml ]]', script)
+        self.assertIn('[[ "${opml_count}" == 10 ]]', script)
+        self.assertIn('local target="/tmp/nabla-security-${user}-$$.opml"', script)
+
 if __name__ == "__main__":
     unittest.main()
