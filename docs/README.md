@@ -12,6 +12,8 @@ for each kind of information. Prefer links over duplicated procedures.
 | Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |
 | Platform migration architecture | [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md) |
 | Security tooling architecture | [`security-tooling-control-architecture.md`](./security-tooling-control-architecture.md) |
+| Hermes Secure by Design | [`security/hermes-secure-by-design.md`](./security/hermes-secure-by-design.md) |
+| Hermes DevSecOps POC (isolation, LiteLLM cost, MCP) | [`../poc/hermes/README.md`](../poc/hermes/README.md) |
 | Service catalog / graph architecture | [`service-catalog-security-graph.md`](./service-catalog-security-graph.md) |
 
 ## Incidents and historical evidence
@@ -29,6 +31,9 @@ observations, root cause, recovery boundary and acceptance. They are not the
 place for current priorities.
 
 ## Current runbooks and diagnostics
+
+- [Hermes TrueNAS via Telegram/Discord — feasibility, trust boundaries, read-only audit](./runbooks/hermes-homelab-gateway-feasibility.md)
+
 
 Keep supported operator procedures in focused runbooks, for example:
 

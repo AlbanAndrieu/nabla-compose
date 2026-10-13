@@ -40,6 +40,29 @@ minute=37 hour=4 dom=* month=* dow=0
 command=env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168 bash /mnt/cpool/compose/nabla-compose/scripts/truenas/prune-docker-images.sh --apply
 ```
 
+### Cron command quoting incident — 2026-10-12
+
+The TrueNAS cron command was entered on **one line** with a stray
+backslash followed by spaces before `bash`:
+
+```text
+env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168 \\   bash /mnt/cpool/compose/nabla-compose/scripts/truenas/prune-docker-images.sh --apply
+```
+
+That is **not** a line continuation: the backslash escapes the first space,
+causing `env` to try to execute a program whose name is a space.
+Observed error: `env: ‘ ’: No such file or directory`. Docker pruning never
+started, so this is a **cron command configuration failure**, not a Docker
+daemon or cleanup-script failure.
+
+Use the single-line canonical command already documented above, with
+**no backslash before `bash`**. The cron entry on TrueNAS is **not yet
+confirmed repaired**; updating this repository does not update an appliance
+cron job. During the deferred runtime verification batch, review that entry's
+command and its next execution. The script keeps the existing safety
+controls: dangling images only, age ≥168 h, exclusive lock, reboot-phase guard,
+and no volume/container/network pruning.
+
 This keeps the existing `scripts/cron.sh` single-purpose and prevents routine
 Git synchronization from mutating the Docker store.
 

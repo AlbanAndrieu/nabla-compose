@@ -1,0 +1,45 @@
+# Hermes Secure by Design — reference profile only
+# DO NOT deploy blindly: reconcile the TrueNAS App's exact installed Hermes
+# version, HERMES_HOME, command/entrypoint and an isolated SSH sandbox first.
+# Neither credentials nor privileged tool permissions belong in this file.
+
+approvals:
+  mode: manual
+  timeout: 300
+  cron_mode: deny
+  single_query_mode: deny
+  unattended_mode: deny
+  mcp_reload_confirm: true
+  destructive_slash_confirm: true
+
+unauthorized_dm_behavior: ignore
+
+security:
+  redact_secrets: true
+
+# The gateway's search output still requires an independent query firewall:
+# SearXNG sends sanitized query terms to external search engines.
+# Keep web_extract unavailable until a private fetch proxy is implemented.
+web:
+  backend: searxng
+  search_backend: searxng
+  keyless_fallback: false
+  keyless_rescue: false
+
+# Distinct non-root, no-sudo, socket-free worker VM only.
+# Never point this at TrueNAS or pfSense.
+# Without an isolated worker, disable terminal tools entirely.
+terminal:
+  backend: ssh
+  home_mode: profile
+  env_passthrough: []
+  timeout: 30
+
+# Prevent learning unreviewed instructions from chats, logs or web pages.
+# These in-agent approvals supplement, not replace, OS-enforced protections.
+skills:
+  guard_agent_created: true
+  write_approval: true
+
+memory:
+  write_approval: true

@@ -1,0 +1,21 @@
+{
+  "key_alias": "hermes-poc",
+  "models": [
+    "qwen"
+  ],
+  "rpm_limit": 5,
+  "tpm_limit": 10000,
+  "max_parallel_requests": 1,
+  "metadata": {
+    "workload": "hermes",
+    "environment": "poc",
+    "managed_by": "nabla-compose",
+    "identity": "service"
+  },
+  "monthly_budget": {
+    "amount": 20,
+    "currency": "EUR",
+    "period": "calendar_month",
+    "enforcement": "convert_to_litellm_usd_at_provisioning"
+  }
+}

@@ -55,3 +55,25 @@ def test_diagnostic_does_not_leak_raw_logs() -> None:
         assert "fatal=1" in result.stdout
         assert "shape=array entries=1" in result.stdout
         assert "TOKEN_SUPER_SECRET" not in result.stdout + result.stderr
+
+
+def test_deploy_check_does_not_comment_out_runuser_provenance_call() -> None:
+    deploy = (ROOT / "scripts/truenas/deploy-gatus.sh").read_text(encoding="utf-8")
+    assert "\\n  runuser -u albandrieu" not in deploy
+    assert "  runuser -u albandrieu -- bash -c" in deploy
+    assert subprocess.run(
+        ["bash", "-n", str(ROOT / "scripts/truenas/deploy-gatus.sh")],
+        check=False,
+    ).returncode == 0
+
+
+def test_gatus_apply_repairs_config_before_readiness_wait() -> None:
+    deploy = (ROOT / "scripts/truenas/deploy-gatus.sh").read_text(encoding="utf-8")
+    apply_section = deploy.split('truenas_job_compact app.redeploy "${APP_ID}"', 1)[1]
+    assert apply_section.index('"${REPAIR}" --apply') < apply_section.index("truenas_wait_app_running")
+    assert "chmod" not in apply_section
+    assert "chown" not in apply_section
+    assert subprocess.run(
+        ["bash", "-n", str(ROOT / "scripts/truenas/deploy-gatus.sh")],
+        check=False,
+    ).returncode == 0

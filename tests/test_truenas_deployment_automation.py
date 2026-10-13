@@ -248,3 +248,19 @@ def test_docker_image_cleanup_is_separate_bounded_maintenance() -> None:
         check=False,
     )
     assert syntax.returncode == 0, syntax.stderr
+
+
+def test_docker_prune_cron_uses_single_line_without_escaped_spaces() -> None:
+    document = DOC.read_text(encoding="utf-8")
+    canonical = (
+        "env NABLA_DOCKER_IMAGE_PRUNE_MIN_AGE_HOURS=168 "
+        "bash /mnt/cpool/compose/nabla-compose/scripts/truenas/prune-docker-images.sh --apply"
+    )
+    assert "command=" + canonical in document
+    assert "env: ‘ ’: No such file or directory" in document
+    assert "not yet" in document.lower() or "not confirmed repaired" in document
+    script = DOCKER_PRUNE.read_text(encoding="utf-8")
+    assert "docker image prune -f --filter" in script
+    assert "flock -n 9" in script
+    assert "PREPARING | PREPARED | RESUMED" in script
+    assert "docker system prune" not in script

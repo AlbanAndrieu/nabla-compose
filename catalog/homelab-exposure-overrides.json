@@ -23,15 +23,15 @@
       "securityException": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. This source-aware policy permits only approved stable administration sources; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used."
     },
     {
-      "name": "Garage S3",
-      "external": true,
+      "name": "Garage S3 API",
+      "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
-      "securityException": "Garage S3 at s3.int.albandrieu.com retains the temporary direct-public HAProxy -> TLS re-encryption -> Traefik exception for the OpenTofu state backend. Garage WebUI and Garage Admin use dedicated Cloudflare Tunnel hostnames and are not routed by Traefik.",
+      "securityException": "Garage S3 s3.int.albandrieu.com is internal-only; public DNS and WAN HAProxy/NAT routes are unauthorized. Verify OpenTofu state backend connectivity before the infrastructure-side cutover.",
       "tunnelUrl": "https://s3.int.albandrieu.com"
     },
     {
-      "name": "Garage",
+      "name": "Garage Web UI",
       "external": true,
       "tunnelSecure": true,
       "cloudflareAccessRequired": true,
@@ -40,13 +40,14 @@
       "healthNote": "Garage WebUI is exposed through Cloudflare Tunnel at https://garage.albandrieu.com and forwards directly to 172.17.0.24:3909 without Traefik."
     },
     {
-      "name": "Garage Admin",
-      "external": true,
-      "tunnelSecure": true,
-      "cloudflareAccessRequired": true,
+      "name": "Garage Admin API",
+      "external": false,
+      "tunnelSecure": false,
+      "cloudflareAccessRequired": false,
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "endpointEnabled": true,
-      "healthNote": "Garage Admin API is exposed through Cloudflare Tunnel at https://garage-admin.albandrieu.com and forwards directly to 172.17.0.24:3903 without Traefik."
+      "healthNote": "Garage Admin API :3903 must be LAN/VPN only. Existing garage-admin.albandrieu.com public Tunnel mapping is suspected drift until live Cloudflare config is audited.",
+      "securityException": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API."
     },
     {
       "name": "Bichon",

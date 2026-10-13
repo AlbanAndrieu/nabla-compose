@@ -49,7 +49,8 @@ done
 # Git index must never be refreshed as root: root git status rewrites .git/index.
 if ((EUID == 0)); then
   command -v runuser >/dev/null 2>&1 || fail 'runuser is required for unprivileged Git metadata inspection'
-  # shellcheck disable=SC2016 # Positional args expand in the child shell, not here.\n  runuser -u albandrieu -- bash -c 'source "$1"; truenas_repo_provenance "$2"' \
+  # shellcheck disable=SC2016 # Positional args expand in the child shell, not here.
+  runuser -u albandrieu -- bash -c 'source "$1"; truenas_repo_provenance "$2"' \
     _ "${ROOT}/scripts/lib/truenas.sh" "${ROOT}"
   GIT_CMD=(runuser -u albandrieu -- git -C "${ROOT}")
 else
@@ -107,14 +108,18 @@ truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
 # app.update may succeed without recreating an existing restarting container.
 # The explicit --apply transaction must reinstantiate the app to receive GroupAdd.
 truenas_job_compact app.redeploy "${APP_ID}"
-truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 3
-truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 30 || true
 
-printf '\n==> Repair generated config access only when required\n'
+# The generated config may be 0600, unreadable by Gatus even with apps GID.
+# Repair ONLY the config dir/file before waiting for the App to become RUNNING.
+# In particular, never alter /mnt/cpool/gatus/gatus.db.
+printf '\\n==> Repair generated config access before readiness wait\\n'
 if ! "${REPAIR}" --check; then
   "${REPAIR}" --apply
 fi
 "${REPAIR}" --check
+
+truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 3
+truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 30 || true
 
 printf '\n==> Wait for stable Gatus process and HTTP health\n'
 deadline=$((SECONDS + WAIT_SECONDS))

@@ -1,3 +1,286 @@
+## P1 — Cloudflare DNS/Tunnel as code et réconciliation Garage (2026-10-13)
+
+- [x] Marquer **Garage Admin API :3903** comme strictement `external=false` dans le catalogue canonique et les overrides ; **Garage Web UI :3909** demeure temporairement accessible à distance.
+- [ ] Migrer les zones/records DNS Cloudflare approuvés et les routes `cloudflare_zero_trust_tunnel_cloudflared_config` pertinentes vers Terraform/OpenTofu sous contrôle de version, avec import des ressources existantes, `plan` sans destruction et gestion des secrets hors Git. Vérifier les noms et ressources selon la version exacte du provider Cloudflare.
+- [ ] Rapprocher `terraform plan -refresh-only` / état API Cloudflare avec le catalogue : hostname, type DNS, cible Tunnel, `service` origin URL/port, règle Access et propriétaire de la route. Un plan sans changement n'établit pas à lui seul l'absence de drift hors périmètre géré.
+- [ ] Comparer séparément Cloudflare Tunnel, HAProxy pfSense, NAT, Traefik et sondes externes réelles ; Terraform Cloudflare ne découvre pas les routes pfSense non gérées.
+- [ ] Identifier quel hostname sert réellement la **WebUI** (image `garage-webui`, port :3909) et lequel cible les **API** (:3903 Admin, :3900 S3). Retirer toute exposition publique de l'Admin API et de S3 sans retirer par erreur l'accès distant temporaire à la WebUI.
+- [ ] Valider l'accès LAN des API privées depuis FastAPI sur TrueNAS/workstation et détecter toute exposition Internet inattendue avec une sonde outside-in distincte. Le badge bleu indique la politique déclarée, pas une isolation prouvée.
+
+- [x] **FreshRSS OPML canonique épinglé (sources)** : `scripts/truenas/freshrss-ops.sh` référence directement `apps/nabla-site-alban/data/security/security-feeds.opml` (gitlink vérifié, sans fetch). La sélection de 10 flux est un vestige du POC, **pas** une politique de filtrage ; import manuel futur des 78 flux uniquement après préflight et validation. Les OPML/JSON de 10 sources dans `config/freshrss/` sont historiques et ne pilotent plus le script d'import.
+- [ ] **Acceptance FreshRSS** : contrôler l'existence du submodule sur TrueNAS, confirmer le comportement d'import incrémental de la version installée, sauvegarder la base, inventorier les abonnements actuels des deux comptes, puis exécuter un import approuvé et vérifier le résultat via GReader ; ne supprimer aucun abonnement silencieusement.
+- [ ] **P1 — FreshRSS et OPML Site Alban canonique** : les 10 sources `config/freshrss/security-sources.json` sont déjà incluses dans les 78 flux de `nabla-site-alban/data/security/security-feeds.opml` (comparaison vérifiée). Après validation/merge de la PR Site Alban #221, mettre à jour le gitlink `apps/nabla-site-alban`, rendre bloquant `python3 scripts/security/audit-freshrss-opml-source.py --strict` et générer l'OPML FreshRSS par filtrage explicite des dix URL ; interdire un import automatique des 78 sources et préserver les comptes `securitypublic`/`securityagent`.
+## P1 — Clarifier les rôles Garage et préparer un accès privé à la WebUI (2026-10-13)
+
+- [x] Distinguer explicitement **Garage S3 API :3900**, **Garage Admin API :3903** et **Garage Web UI :3909** dans le catalogue et le Compose source, sans fusionner les identités de composants.
+- [ ] Auditer les hostnames publics et les origines réelles du tunnel Cloudflare : la WebUI est déclarée sur `garage.albandrieu.com` mais ce nom a répondu comme une API S3 ; `garage-admin.albandrieu.com` affiche une UI selon un test navigateur utilisateur alors que sa destination déclarée est l'API Admin :3903. Confirmer les routes effectives avant de modifier les hostnames ou leurs permissions.
+- [ ] Corriger l'association entre UI et hostname *après* inspection des origines, puis ajouter un contrôle de non-régression refusant une réponse XML S3 sur l'URL WebUI.
+- [ ] Conserver provisoirement une **WebUI Garage accessible depuis l'extérieur**, protégée par authentification/Cloudflare Access ; sa cible à terme est **LAN/VPN uniquement**. Évaluer Tailscale/WireGuard ou un autre accès distant privé avec ACL, MFA et traçabilité ; documenter une bascule réversible pour publier/dépublier les services.
+- [ ] Ne jamais exposer volontairement l'API S3 `s3.int.albandrieu.com` sur le WAN ; distinguer la politique privée de la preuve réseau réelle, tout en validant les consommateurs OpenTofu.
+- [ ] Contrôler les liaisons entre noms dans les overrides, le catalogue FastAPI distant et le fallback `nabla-site-alban` ; ne pas supposer qu'une API admin est une interface utilisateur.
+
+## P1 — Lever l'ambiguïté Garage Web UI / Admin API (2026-10-13)
+
+- [x] Normaliser les libellés de catalogue : `Garage Web UI` (:3909), `Garage Admin API` (:3903), `Garage S3 API` (:3900), sans renommer les identifiants de services.
+- [ ] Auditer les origines *actives* Cloudflare Tunnel pour `garage.albandrieu.com` et `garage-admin.albandrieu.com`. Selon le constat utilisateur, le premier présente actuellement une réponse XML S3, le second une UI ; identifier le conteneur/port réellement desservi sans supposer que le hostname décrit l'origine.
+- [ ] Faire correspondre les URL publiques aux fonctions réelles après validation, puis aligner le catalogue et les liens du site. Documenter l'authentification, les ACL et les preuves d'absence d'accès anonyme à l'administration et aux données S3.
+- [ ] Politique cible : Garage Web UI privée (LAN ou réseau overlay). Exception transitoire validée : garder un accès extérieur à l'UI tant qu'un accès distant ergonomique et sécurisé (par exemple Tailscale/WireGuard avec SSO/MFA et ACL) n'est pas disponible ; ne pas rendre les API S3/Admin publiques par simple commodité.
+- [ ] Comparer les options de bascule rapide exposition publique / accès privé dans le catalogue, Cloudflare Access/Tunnel et Tailscale, avec rollback et contrôles outside-in.
+- [ ] Exécuter les tests de catalogue, réconciliation et publication locaux avant merge ; préserver les identités historiques `garage`, `garage-admin`, `garage-webui` pour les consommateurs existants.
+
+## P1 — Audit de dérive DNS public, HAProxy et Garage (2026-10-12)
+
+- [ ] Auditer en lecture seule les enregistrements publics A/AAAA/CNAME de `*.int.albandrieu.com` contre `config/public-int-dns-exceptions.txt`, sans assimiler l'absence de DNS à l'absence d'exposition par IP/Host/SNI.
+- [ ] Croiser la configuration *active* des frontends, backends, ACL Host/SNI et NAT pfSense/HAProxy avec Traefik, Cloudflare Tunnel et la topologie canonique ; marquer tout écart non autorisé comme drift.
+- [ ] Réutiliser/améliorer les contrôles existants `tests/test_public_ingress_contract.py`, `scripts/truenas/check-homelab-services.sh` et les scripts d'audit ingress existants ; produire un rapport JSON stable avec `declared`, `observed`, `reason`, `evidence`, sans secrets ni corrections automatiques.
+- [ ] Confirmer la suppression effective des DNS publics et accès WAN de `s3.int.albandrieu.com` et `vaultwarden.int.albandrieu.com`, tout en conservant la résolution LAN et en validant OpenTofu avant retrait des routes actives.
+- [ ] Auditer les deux hostnames `garage.albandrieu.com` et `garage-admin.albandrieu.com` : le premier renvoie actuellement une erreur XML S3 selon l'observation utilisateur, signe d'une mauvaise destination possible ; le second fournit une UI, mais le port réel du backend Cloudflare est à vérifier. Comparer les origines attendues : S3 `:3900`, Admin API `:3903`, WebUI `:3909`. Ne pas exposer l'API S3 ni conclure à une UI sur la seule base du nom DNS.
+- [ ] Conserver `hello.int.albandrieu.com` comme canari public intentionnel HAProxy → Traefik ; contrôler son périmètre sans lui appliquer la politique des services privés.
+- [ ] Faire fonctionner des sondes LAN sur TrueNAS et workstation pour les services `external=false` et une vérification outside-in indépendante depuis FastAPI Cloud ; affichage bleu « Interne » pour la *politique*, vert pour la *santé*, warning pour l'exposition inattendue.
+
+## P1 — DefectDojo : ingestion locale, sans proxy (2026-10-12)
+
+- [x] L'importeur `scripts/security/import-scan-defectdojo.sh` cible
+  `http://127.0.0.1:31085/api/v2/reimport-scan/` **depuis TrueNAS**,
+  avec `curl --noproxy '*'`, interdiction de redirection et garde
+  de présence du checkout TrueNAS. Ni failover LAN ni WAN.
+- [ ] Valider en lecture seule le bind réel du port, la configuration
+  NAT/ACL pfSense, Traefik et Cloudflare; ne pas inférer l'absence
+  d'exposition Internet de l'adresse interne déclarée.
+- [ ] Premier import : utiliser produit/engagement existants,
+  scan non sensible et jeton dédié; vérifier le traitement final
+  de l'import et la déduplication avant toute planification cron.
+
+## P1 — Bootstrap de jetons FreshRSS sans exposition CLI (2026-10-12)
+
+- [x] Ajouter `scripts/security/freshrss-greader-auth.py` pour
+  récupérer `Auth` via `ClientLogin` **dans le corps HTTPS POST**,
+  en forçant TLS, origine fixe, refus des redirections et bornes de taille.
+  Aucune valeur de secret n'est imprimée ni passée sur `argv`.
+- [x] Autoriser uniquement `securitypublic` (Vercel) et
+  `securityagent` (MCP privé) ; comparer **exactement** dix abonnements
+  GReader à `config/freshrss/security-sources.json` avant d'écrire
+  atomiquement les tokens `root:root 0600` dans le pool secret 0700.
+- [x] Fournir `--check` sans lecture de secret ni réseau, `--verify`
+  lecture seule, `--apply` explicitement approuvé, et tests offline
+  `tests/test_freshrss_greader_auth_contract.py`.
+  **État des tests : à exécuter** lors de la quality gate ; ne pas
+  confondre code livré et acceptation runtime.
+- [ ] Après sauvegarde TrueNAS et création des utilisateurs via
+  `freshrss-ops.sh`, exécuter `--apply` pour les deux comptes,
+  puis `--verify`, avec preuve de zéro abonnement non approuvé.
+- [ ] Injecter par canal protégé des jetons **distincts** :
+  `securitypublic.greader-auth` vers Vercel serveur uniquement,
+  `securityagent.greader-auth` vers le MCP local. Aucun token
+  dans des Terraform states, PR, console ou dossiers publics.
+- [ ] Activer la publication du site **seulement** après le test
+  fonctionnel des flux, Playwright/ZAP, approbation privacy, et
+  validation du profil Cloudflare Access. Ne jamais ouvrir DefectDojo
+  pour cette opération.
+
+## P1–P3 — Site Alban Helm, Cloudflare IaC et secrets (décisions du 12 octobre 2026)
+
+- [ ] **P1 — Build OCI Site Alban** : créer un Dockerfile Next.js standalone multi-stage, utilisateur non-root, FS en lecture seule avec volumes temporaires si nécessaires ; construire linux/amd64, SBOM CycloneDX, provenance SLSA, signature d'image, scans Trivy/grype ; publier sur GHCR uniquement après quality gates avec digest immutable `@sha256:` ; **Vercel reste la production principale**, pas de bascule DNS implicite.
+- [ ] **P1 — Helm chart et Helmfile pour Talos/K8s** : chart versionné `nabla-site-alban`, values `homelab` sans secret, helmfile avec image épinglée, Ingress Traefik **interne uniquement**, PodSecurity restricted, non-root, seccomp RuntimeDefault, drop ALL, ServiceAccount token off, NetworkPolicy egress contrôlé, probes, resources, rollout et rollback ; finaliser runtime de Next.js et TLS interne avant apply. Le script expérimental `scripts/talos/deploy-site-alban.sh` reste une maquette jusqu'au remplacement par le chart.
+- [ ] **P1 — Gate Helm sécurisée local-first** : `helm lint --strict`, `helm template` déterministe, `helmfile template`, validation kubeconform sur version du cluster Talos, schema values, chart-testing (`ct lint`), Checkov ou Trivy config/misconfig avec exceptions tracées, tests helm-unittest des securityContexts/NetworkPolicies ; tester rendu offline en CI **avant** tout pipeline de déploiement, sans contournement des gates SAST/ZAP existantes.
+- [ ] **P1 — Cloudflare Terraform/OpenTofu** : créer `terraform/cloudflare/` (versions verrouillées, variables non sensibles, import/découverte des objets existants) ; gestion déclarative des **tunnels existants** et des public hostnames, DNS et politiques Access ; **attendre la liste des applications Access et leurs IDs fournie par l'opérateur** avant import ou changement ; `plan` seul par défaut, `apply` à approbation manuelle et état chiffré externalisé ; aucun tunnel/route créé par supposition.
+- [ ] **P1 — Accès CI DefectDojo via Cloudflare Access** : après import des ressources existantes, ajouter la route autorisée `defectdojo.albandrieu.com` (si validée) via tunnel existant ; politique distincte UI humaine / API service, avec contrôle des chevauchements de chemins, Service Token dédié ; provisionner `CF_ACCESS_CLIENT_ID` et `CF_ACCESS_CLIENT_SECRET` dans environnement GitHub protégé seulement après création et validation ; ne pas les présumer existants.
+- [ ] **P2 — MCP Cloudflare local** : `.mcp.json` déclare le MCP officiel `https://mcp.cloudflare.com/mcp`, OAuth interactif et moindre privilège ; activer en lecture seule en première phase, laisser les changements de configuration à Terraform et à la revue de plan ; pas de token Cloudflare commité.
+- [ ] **P2 — DefectDojo simple** : conserver un **jeton API dédié DefectDojo** dans les secrets d'environnement GitHub pour ingestion/lecture selon RBAC ; rotation manuelle documentée avec test avant révocation, sans ajouter une GitHub App ou un moteur de rotation Vaultwarden à ce stade.
+- [ ] **P3 — Flux RSS sécurité et OPML** : clarifier les deux sources actuelles : `nabla-site-alban/public/ciso-rss-feeds.json` pour la page historique, `nabla-compose/config/freshrss/security-sources.json` et OPML à 10 sources pour la nouvelle chaîne FreshRSS ; ne remplacer le JSON du site qu'après migration, tests de contrat, sans dépendance directe navigateur à une API privée.
+
+### Architecture cible
+
+`GitHub (build/gates) → GHCR (image signée/digest) → Helmfile → Talos/Kubernetes (Ingress interne)` ; **Vercel conserve le service public de référence**.
+`Terraform/OpenTofu → Cloudflare Tunnel existant + Access + DNS` après import, approbation et validation de la liste des applications.
+`GitHub Actions master (secrets protégés) → Cloudflare Access Service Auth → Tunnel existant → DefectDojo API` ; aucun accès DefectDojo anonyme ni port LAN ouvert sur WAN.
+
+## P1/P2 — FreshRSS/SBOM/DefectDojo : reprise après merge (2026-10-12)
+
+- [x] **Sources préparées** : scripts `scripts/truenas/freshrss-ops.sh`
+  (`--check` lecture seule, `--apply` explicite, `--import-opml`
+  séparé), compte FreshRSS `securitypublic` + `securityagent`,
+  copies du manifeste `config/freshrss/security-sources.json`
+  et de l'OPML à dix sources. **Compte/instance non modifiés**.
+- [x] **MCP local préparé** : `.mcp.json` →
+  `scripts/mcp/freshrss_readonly.py`, stdio sans HTTP entrant,
+  deux outils de lecture, filtrage des sources par ID/URL, jeton
+  propre au compte `securityagent` ; tests unitaires hors-ligne.
+  À distinguer d'un serveur upstream HTTP avec outils d'écriture.
+- [x] **Scan privé préparé** :
+  `scripts/security/generate-homelab-sbom.sh` produit CycloneDX
+  et rapport SCA Trivy sur image **@sha256 immuable**, non-root,
+  sortie privée 0700/0600, sans Docker socket brut ;
+  `scripts/security/import-scan-defectdojo.sh` ingère via
+  `/api/v2/reimport-scan/` interne TrueNAS, identité ingestion
+  distincte, engagement existant, réponse non journalisée,
+  `auto_create_context=false`, `verified=false`,
+  `close_old_findings=false`. **Aucun import effectué**.
+- [x] **Runbooks et passation** :
+  `docs/freshrss-security-runbook.md`,
+  `docs/defectdojo-private-scan-ingestion.md`,
+  `docs/roadmap.md`. Les deux PR #254 et site-alban #220
+  peuvent être mergées **uniquement selon leurs quality gates** ;
+  merge de source ≠ activation runtime.
+- [ ] **P1 runtime** : confirmer conteneur FreshRSS réel/UID, état
+  API/stockage, sauvegarde et secret paths 0600; préflight sans
+  modification puis activation CLI opt-in. Les usernames FreshRSS
+  doivent être **alphanumériques** : remplacer tout ancien
+  `security-public` par `securitypublic`.
+- [ ] **P1 acceptance** : activer API GReader de manière contrôlée,
+  compter 10 sources publiques par identité, tester authentification
+  Cloudflare Access si pertinente ; aucun compte personnel exposé ;
+  connecter MCP par stdio aux seuls agents approuvés.
+- [ ] **P1 Next.js** : passer la CI incluant
+  Playwright/ZAP/CodeQL/Semgrep ; activer Vercel avec les secrets de
+  `securitypublic` après recette, vérifier `/security-feed.xml`
+  et `/api/ciso/threat-feed`; garder la publication désactivée
+  jusqu'alors.
+- [ ] **P2 scan et ingestion** : épingler et vérifier versions
+  Syft/Trivy à l'exécution ; préflight sur une image non critique ;
+  scanner localement et importer après approbation sous produit et
+  engagement DefectDojo réel, vérifier parsing/déduplication finale.
+  Aucun endpoint DefectDojo WAN nécessaire.
+- [ ] **P3 CTID/DefectDojo** : construire un export privé
+  read-only filtré/agrégé et revu, jamais exposer les findings bruts,
+  noms/versions des actifs, PII et API DefectDojo au navigateur.
+- [ ] **Qualité restantes** : bash -n, ShellCheck, unittest MCP,
+  contrats JSON/OPML, protection des secrets, CI et acceptation
+  homelab *NOT RUN* tant que non constatées.
+
+**Ordre de reprise :** stabilité & sauvegardes → FreshRSS CLI →
+abonnements API → MCP → site en preview → publication publique
+approuvée → SBOM/SCA/DefectDojo privé → CTID authentifié.
+Ne pas laisser les nouveautés FreshRSS devenir un bloqueur des
+priorités P0 existantes. Les scripts n'effectuent rien sans opt-in.
+
+## P1/P2 — FreshRSS, SBOM et CTI/DefectDojo pour la veille CISO (2026-10-12)
+
+**Chaîne cible :** services déclarés/réellement déployés → inventaire privé et
+SBOM → SCA / vulnérabilités vérifiées → DefectDojo → projection publique
+approuvée → Next.js CTID/CISO. En parallèle : sources CERT/KEV/CVE →
+FreshRSS → actualités classées mais **non présentées comme findings confirmés**.
+
+### P1 — Activer FreshRSS et qualifier les flux publics
+
+- [ ] Diagnostiquer l'App TrueNAS FreshRSS (status, uid/gid, volumes,
+  health, TLS/Cloudflare Access, réseau, backups) **en lecture seule**,
+  sans redémarrage prématuré ni exposition WAN supplémentaire.
+- [ ] Après acceptation, activer le compte FreshRSS `securitypublic` dédié
+  exclusivement aux **10 abonnements publics** de
+  `nabla-site-alban/public/ciso-security-sources.json`. Import OPML
+  à proposer; ne jamais mélanger le compte personnel et un compte publiable.
+- [ ] Valider API Google Reader `/api/greader.php/reader/api/0/stream/contents/reading-list`
+  sur compte dédié, lecture seule par convention, secret API runtime
+  séparé (pas de `NEXT_PUBLIC_`, ni dans le catalogue), politique
+  Cloudflare Access *service token* et redirections interdites.
+- [ ] Autoriser l'appel sortant Vercel→FreshRSS uniquement après revue
+  de la frontière réseau, de la rétention et de l'anonymisation.
+  Contrôler la publication **zéro PII/hostname/IP/version**, cache,
+  réponse 503 si non configuré, refus 5xx sans fuite de secret.
+- [ ] Vérifier FreshRSS en tant qu'agrégateur RSS/Atom, catégories,
+  filtres, marquage/favoris, OPML import-export, partage natif HTML/RSS/OPML,
+  et API mobile ; choisir **une seule surface de publication contrôlée**.
+  MCP communautaire non requis pour le site; ne pas exposer MCP public.
+- [ ] Synchroniser la sélection de flux avec les deux pages Next.js
+  `/ciso`, `/ctid` et `/security-feed.xml`, en conservant
+  `/feed.xml` historique intact. Valider Playwright, ZAP et accessibilité.
+
+### P2 — SBOM automatisés et findings DefectDojo
+
+- [ ] Construire un job `inventory-sbom` non privilégié, sans
+  `/var/run/docker.sock` brut : syft/trivy (versions épinglées),
+  SBOM **CycloneDX JSON** (plus SPDX si utile), hash, timestamp,
+  propriétaire/service ID, provenance SHA/image digest,
+  environnement (planned ≠ running). Exclure caches, secrets et PII.
+- [ ] Collecter aussi npm/pip/Go/container digests des repos et
+  TrueNAS/Talos/K8s via API read-only approuvées et snapshots,
+  sans scan agressif de LAN ; réconcilier aux entités Backstage et
+  `catalog/services.json`, avec CPE/purl, versions et criticité
+  **seulement dans le catalogue privé**.
+- [ ] Scanner les artefacts avec Trivy/Grype et/ou Dependency-Track,
+  enrichir par OSV, NVD et CISA KEV. Dédupliquer par
+  `service + purl/CPE + CVE + version + environnement` et gérer les
+  corrections, VEX et faux positifs.
+- [ ] **Déterminer l'édition DefectDojo installée** avant de choisir l'API SBOM.
+  L'API OSS `/api/v2/import-scan/` accepte notamment les parsers
+  `Syft`, `CycloneDX`, `Trivy`, `Anchore Grype` et `Generic Findings Import`.
+  Le parseur SBOM peut créer des entrées d'inventaire **Info** sans
+  vulnérabilités. L'endpoint Asset/Locations `/api/v2/sbom-import/`
+  est documenté pour **DefectDojo Pro** et ne doit pas être présumé
+  disponible sur l'instance OSS. Vérifier en sandbox les types de scan
+  réellement installés et préférer un flux SBOM + résultats scanner
+  séparés, sans dépendre des fonctions Pro non autorisées.
+  Docs : https://docs.defectdojo.com/supported_tools/parsers/
+  et https://docs.defectdojo.com/supported_tools/parsers/file/syft/
+- [ ] Ingérer vers l'API **DefectDojo /api/v2/import-scan/** via
+  compte/token ingestion *scoped* dédié, TLS vérifié, egress restreint,
+  secrets pool ZFS runtime 0600, suppression des payloads logs, imports
+  idempotents et `close_old_findings` validé avant activation;
+  tests sur environnement de démonstration avant la production.
+  **Un SBOM seul n'est pas un scan de vulnérabilités** : vérifier
+  les parsers/formats effectivement disponibles, ne pas le déclarer
+  importable sans test.
+- [ ] Enrichir les findings avec preuves et confiance :
+  `verified / potential / informational`, sévérité du scanner,
+  EPSS/KEV, exploitabilité et statut correction, sans
+  requalifier une *headline* RSS en vulnérabilité confirmée.
+- [ ] Publier vers Next.js **uniquement un agrégat allowlisté**
+  (approuvé, horodaté, sans identifiants internes, détails
+  d'attaque, données personnelles ou CVE contextuels sensibles).
+  Préférer CTID interne authentifié pour les vrais findings :
+  **aucun accès navigateur direct à DefectDojo**.
+- [ ] Tests de contrat d'export, fuite de secrets, RBAC, revue STRIDE,
+  rollback de job, dashboards Prometheus/Grafana (couverture SBOM,
+  âge, taux de mapping, ingestion, faux positifs), puis acceptance.
+
+**DORA :** règlement UE 2022/2554, art. 5-16/10 (gestion/détection des
+risques TIC) et art. 45 (dispositifs volontaires de partage CTI).
+Un site de veille public n'établit pas à lui seul la conformité DORA;
+le champ d'application dépend de la qualité d'entité financière concernée.
+Référence : https://eur-lex.europa.eu/eli/reg/2022/2554/oj
+
+**Dépendances et ordre :** phase FreshRSS P1 après stabilité des services
+socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
+acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
+privacy review; ne pas déployer automatiquement par cette PR.
+
+## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
+
+- [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
+- [x] **MCP observation read-only codé** : `scripts/hermes/readonly_mcp.py` via stdio, seulement `up` Prometheus pour jobs connus, vue globale et coût LiteLLM par alias. Pas de logs bruts ni HTTP/PromQL arbitraire ; SSRF/redirect rejetés, erreurs non détaillées, aucune valeur de secret renvoyée. Tests offline ajoutés.
+- [x] **LiteLLM coût** : politique key `hermes-poc`, modèle `qwen`, budget souhaité **2 USD / 30 jours**, 5 RPM, 1 requête parallèle et 10k TPM ; job `litellm_hermes` 60 s et règles de coûts dans Prometheus. Les métriques réelles et la création de la virtual key sont **non vérifiées/non effectuées**.
+- [x] **Interopérabilité contrôlée préparée** : overlay privé `poc/hermes/compose.api.yml` pour OpenWebUI/FastAPI/n8n via `intranet`, clé API dédiée. **Désactivé par défaut** ; aucune exposition Internet, modèle ou permission ajoutée aux consommateurs existants.
+- [x] **Préflight fail closed codé** : `scripts/hermes/poc_preflight.py` bloque digest non épinglé, secrets trop permissifs, UID/dataset incohérent, `ALLOW_ALL`, manque d'allowlist, clé maître et API sans secret. Ne remplace pas un contrôle effectif des droits Unix/egress.
+- [ ] **P0 runtime/security** : inspecter le TrueNAS App et l'image/digest réels ; installer seulement après test de conformité YAML Hermes, s6 UID10000/CapEff, snapshot/rollback, bot tokens exclusifs et véritable filtrage egress DNS/IPv4/IPv6. Ne pas supposer la protection d'un simple Docker bridge.
+- [ ] **P0 confidentialité LiteLLM** : protéger les contenus Hermes contre le `store_prompts_in_spend_logs`, le `turn_off_message_logging: false`, Langfuse et le cache Redis du proxy partagé. Activer guardrails/PII et vérifier le fail-closed avant incidents/logs sensibles, sans casser OpenWebUI/OpenRAG.
+- [ ] **P1 intégrations** : tester SearXNG derrière proxy de recherche, connecteurs Loki agrégés, Gatus, Docker states limités et GitHub PR avec identité propre ; ne pas connecter directement l'OpenTerminal existant sans worker non privilégié et API fortement limitée.
+- [ ] **P2 opérabilité** : tester sous TrueNAS Telegram/Discord ID allowlists, API interne, Grafana/Mimir coût et consommation token, reprise reboot, révocation, tests adversariaux et canaris secrets ; autoriser ensuite un POC d'édition GitHub en PR sans merge.
+- [ ] **Validation** : tests pytest ciblés + qualité L3 HEAD, `docker compose config --quiet`, exécution sur TrueNAS et mesures réelles restent à effectuer. Aucun déploiement/redémarrage/secret/merge automatique.
+
+## P0/P1/P2 — Hermes Secure by Design : barrières à l'activation (2026-10-11)
+
+- [x] ADR [Hermes Secure by Design](./security/hermes-secure-by-design.md) : frontières de confiance, STRIDE/OWASP Agentic, PII, secrets, réseaux, skills, exécuteurs et tests de non-exfiltration ; **étude uniquement**.
+- [x] Profil de référence `config/hermes/secure-profile.example.yaml` + contrats statiques : approbations manual/deny, skills et mémoire avec revue, non-root worker SSH, SearXNG fixé, **pas de keyless fallback ni rescue**. Profil non appliqué sur TrueNAS.
+- [ ] **P0 : corriger avant raccordement** le risque de confidentialité de LiteLLM : `store_prompts_in_spend_logs: true`, `turn_off_message_logging: false`, `langfuse_otel`, identifiants forwardés et Redis cache. Séparer la route Hermes/virtual key et imposer guardrails/quotas/fail closed **sans modifier aveuglément les autres consommateurs**.
+- [ ] **P0 : valider l'authentification et les secrets** : UID effectif non-root, aucun socket Docker/root/sudo, aucune lecture des secrets globaux, politique d'egress réellement imposée, bot IDs allowlistés, mode pairing désactivé ou contrôlé ; distinguer Vaultwarden de Bitwarden Secrets Manager.
+- [ ] **P1 : évaluer LLM Guard/Presidio local** aux frontières chat, LLM, outils et réponse ; mesurer PII français/anglais/allemand, faux négatifs et latence ; interdiction de désanonymiser vers Telegram/Discord.
+- [ ] **P1 : SearXNG et web** : vérifier runtime JSON, requêtes publiquement admissibles, proxy de redaction, extraction isolée, aucun appel implicite vers fournisseurs gratuits tiers, SSRF/redirect/DNS rebinding bloqués.
+- [ ] **P1 : skills/MCP/mémoire** : source privée revue/signée/épinglée, `skills.guard_agent_created`, `skills.write_approval`, `memory.write_approval`, pas d'installation depuis messages ni auto-update, least-privileged tools.
+- [ ] **P2 : preuves d'exploitation** : exercices non autorisé/PII/secrets/prompt injection via Docker/Loki/SearXNG/README, fail-closed d'un guardrail indisponible, coupure des permissions, alertes Loki/Prometheus et continuité après reboot.
+- [ ] Pas de nouveau service/port/exposition/secret/déploiement Hermes, LiteLLM ou SearXNG tant que ces gates ne sont pas fermés. Préserver la priorité stabilité/Gatus/pfSense du chemin critique et ne pas merger automatiquement.
+
+## P1/P2 — Hermes TrueNAS : agent DevSecOps via Telegram/Discord (2026-10-11)
+
+- [x] Étudier la faisabilité : gateway Hermes natif Telegram/Discord, Loki déjà déclaré sur TrueNAS, commandes shell possibles mais trop privilégiées sans frontière externe.
+- [x] Ajouter le runbook de sécurité `docs/runbooks/hermes-homelab-gateway-feasibility.md` et un diagnostic read-only `scripts/truenas/diagnose-hermes-agent.sh --check`.
+- [ ] **P1**, après les incidents prioritaires : auditer l'App TrueNAS `hermes-agent` réellement déployée (image/digest, gateway, UID/GID, mounts, stockage, ACL, secrets et canaux). Aucune migration/redéploiement avant preuve runtime.
+- [ ] **P2** : DM Telegram puis Discord, allowlist d'identité, aucun ingress, aucun accès root ou Docker socket ; réutiliser LiteLLM et secrets runtime uniquement après contrôle des identités.
+- [ ] **P2** : connecteurs de diagnostic indépendants et bornés pour Gatus/Prometheus, Loki et logs Docker ; vérifier la présence réelle des logs d'applications dans Loki, l'absence d'exfiltration et le filtrage côté API.
+- [ ] **P2/P3** : PR GitHub avec tests local-first et non-merge, puis actions correctives via exécuteur distinct allowlisté et validation opérateur hors canal du bot. Aucun shell root via Telegram/Discord.
+- [ ] Vérifier sur TrueNAS les tests fonctionnels, la prévention prompt injection, le compte non autorisé, la révocation des accès, la récupération après redémarrage ; laisser les changements runtime non appliqués d'ici là.
+
+
 ## P0 — Migration des secrets CrowdSec vers le pool runtime (2026-10-11)
 
 - [x] Confirmer le contrat Compose : `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` est lu localement, `required: false` pour le bootstrap moteur ; aucune connexion Vaultwarden au démarrage.
@@ -257,6 +540,73 @@ Primary references:
 - migrations are one service at a time and remain rollback-safe until acceptance;
 - warning/unknown external dependencies stay distinguishable from application DOWN;
 - roadmap = status/order/next action; runbook = procedure; incident = evidence.
+
+## P1 — Prometheus telemetry evidence before FastAPI consumers (2026-10-11)
+
+- [x] Inventory declared Prometheus targets for Gatus, FastAPI Sample,
+  PostgreSQL, Redis, pfSense, CrowdSec and Cloudflare; do not confuse job
+  configuration with live scrape success.
+- [x] Add bounded read-only static/live audit
+  `scripts/prometheus/audit-telemetry-coverage.py` and offline contracts.
+- [x] Record exporter scrape availability and functional Postgres/Redis
+  signals, preserving an absent/unknown state instead of synthesizing zero.
+- [ ] In the deferred batch, confirm Prometheus target `up`, sample series,
+  scrape errors, Gatus monitor cardinality and PostgreSQL/Redis authentication
+  using only trusted internal Prometheus access.
+- [ ] Deploy the missing dedicated PostgreSQL exporter only after runtime
+  secret migration and least-privilege identity acceptance.
+- [ ] Determine whether Cloudflare telemetry should use a bounded exporter
+  or API sampling; no new broad API token and no Cloudflare polling from
+  pfSense.
+- [ ] Add Postgres/Redis/CrowdSec exporter-state **blind-spot** fields to the
+  FastAPI Sample platform telemetry consumer in its own repository, followed
+  by consumer-contract tests; do not mark services DOWN for absent metrics.
+- [ ] Establish cAdvisor/host resource availability before activating
+  topology CPU/RAM overlays or resource saturation alerts.
+
+## CURRENT FOCUS — stabilize and finish migrations (2026-10-11)
+
+**Operator reprioritization:** deliver service recovery, runtime migrations and
+cross-repository catalog adoption first. Quality-gate optimization, agent-output
+tuning and speculative Dagger work are **deferred** until these finish. Existing
+security checks remain mandatory **before merge**: no bypass of BetterLeaks,
+SAST, pytest, Playwright/ZAP or pre-commit, and no automatic merge.
+
+Execution sequence (observed service state must be reconfirmed before action):
+
+1. **Gatus:** read-only root-cause diagnosis (exit 2 / HTTP 8085 unavailable
+   in last evidence); inspect effective UID/GID, actual config and SQLite mount
+   without exposing secrets. Preserve `/mnt/cpool/gatus/gatus.db`. Only apply a
+   minimal correction when supported by runtime evidence; require HTTP 8085,
+   monitoring history persistence, and recovery after restart/reboot.
+2. **pfSense / CrowdSec:** confirm Unbound DNS, WebGUI/API auth, memory and
+   CrowdSec stability with bounded read-only probes. Avoid broad restart,
+   firewall-policy edits or extra request fan-out. A successful API/TCP check is
+   not equivalent to a recovered security function.
+3. **Close service acceptances:** retain already proven DSOMM, Sentry,
+   Scrutiny and Pi-hole evidence; collect only missing fresh-event,
+   SMART /dev/sde classification and reboot acceptance where required.
+   Include Pyroscope readiness and actual profile ingestion in the service
+   acceptance batch; inspect UID/GID 568 migration compatibility only after
+   verifying actual dataset ACLs. Do not blanket-chown services.
+4. **Migrate secrets transactionally:** one active app at a time under
+   `/mnt/cpool/secrets/runtime/<app>/`; match manifest, Vaultwarden recovery,
+   least-privilege consumer, Backstage descriptor, and rollback proof.
+5. **Prepare catalog v2** using `nabla-compose` as sole author for identity,
+   relations, desired exposure and BIA criticality. Verify `fastapi-sample`
+   and `nabla-site-alban` projections against the same revision.
+6. **Coordinated direct cutover:** migrate the three consumers as one reviewed
+   transaction, then validate outside-in FastAPI Cloud and inside-out Gatus/
+   Prometheus independently. Retire legacy JSON only after runtime, health,
+   security, rollback and reboot evidence.
+
+**Deferred, not deleted:** Dagger, quality-gate ergonomics, broad dependency
+and image upgrades, speculative new probes, optional AI features, P2 RAG
+expansion and destructive service cleanup. Fix introduced regressions promptly,
+but do not loop on unrelated known environmental gate failures. Report exact
+`PASS/FAIL/NOT RUN`; never claim an L3 pass without executing it.
+Operator-only appliance changes require reviewed acceptance, not remote
+guesswork.
 
 ## CURRENT AUTHORITATIVE EXECUTION ORDER — operator-approved (2026-10-10)
 
