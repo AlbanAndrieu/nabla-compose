@@ -49,7 +49,8 @@ done
 # Git index must never be refreshed as root: root git status rewrites .git/index.
 if ((EUID == 0)); then
   command -v runuser >/dev/null 2>&1 || fail 'runuser is required for unprivileged Git metadata inspection'
-  # shellcheck disable=SC2016 # Positional args expand in the child shell, not here.\n  runuser -u albandrieu -- bash -c 'source "$1"; truenas_repo_provenance "$2"' \
+  # shellcheck disable=SC2016 # Positional args expand in the child shell, not here.
+  runuser -u albandrieu -- bash -c 'source "$1"; truenas_repo_provenance "$2"' \
     _ "${ROOT}/scripts/lib/truenas.sh" "${ROOT}"
   GIT_CMD=(runuser -u albandrieu -- git -C "${ROOT}")
 else
