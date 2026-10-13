@@ -1,3 +1,12 @@
+## P0/P1 — Reprise PR #255 : Gatus et import FreshRSS sûr (2026-10-13)
+
+- [x] Préserver le script de récupération Gatus et son test de formatage ; ne pas confondre le préflight avec une acceptation runtime (App précédemment STOPPED, HTTP 8085 indisponible).
+- [ ] **P0 Gatus runtime** : exécuter `sudo bash scripts/truenas/repair-gatus-config-access.sh --check`, vérifier le `GroupAdd=568`, le montage exact `/config`, puis réparer uniquement la configuration après sauvegarde. Préserver inode/historique de `/mnt/cpool/gatus/gatus.db`. Accepter HTTP, endpoints et Prometheus après rétablissement.
+- [x] **P1 garde-fou FreshRSS** : interdire `--apply` et `--import-opml` lorsque l'OPML épinglé ne compte pas exactement dix sources ; corriger le chemin temporaire d'import. Les 78 flux du site ne doivent pas entrer accidentellement dans les comptes `securitypublic` et `securityagent`.
+- [ ] **P1 implémentation suivante** : produire un OPML filtré par les dix URLs explicitement approuvées (et tester l'égalité des ensembles URL, pas uniquement la cardinalité), sauvegarder FreshRSS, vérifier l'idempotence de l'import puis accepter via GReader avant autorisation runtime.
+- [ ] **P0/P1 télémétrie et CrowdSec** : conserver les preuves du 13 octobre (Redis/pfSense/CrowdSec up ; PostgreSQL exporter/FastAPI Sample/Gatus down ; clé bouncer pfSense absente, pas de poll), et diagnostiquer sans régénération de secrets ni faux statut DOWN applicatif.
+- [ ] **P0 quality gate** : Pre-commit et CodeQL de la PR #255 ; exécuter localement les contrats concernés lorsque le checkout et les dépendances sont disponibles ; aucun merge automatique.
+
 ## P1 — Cloudflare DNS/Tunnel as code et réconciliation Garage (2026-10-13)
 
 - [x] Marquer **Garage Admin API :3903** comme strictement `external=false` dans le catalogue canonique et les overrides ; **Garage Web UI :3909** demeure temporairement accessible à distance.
