@@ -112,7 +112,7 @@ truenas_job_compact app.redeploy "${APP_ID}"
 # The generated config may be 0600, unreadable by Gatus even with apps GID.
 # Repair ONLY the config dir/file before waiting for the App to become RUNNING.
 # In particular, never alter /mnt/cpool/gatus/gatus.db.
-printf '\\n==> Repair generated config access before readiness wait\\n'
+printf '\n==> Repair generated config access before readiness wait\n'
 if ! "${REPAIR}" --check; then
   "${REPAIR}" --apply
 fi
