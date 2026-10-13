@@ -103,8 +103,14 @@ if [[ "${MODE}" == --import-opml ]]; then
   # GReader token provisioning currently enforces exactly ten subscriptions.
   # Never import the full site-wide OPML (currently 78 sources) into these
   # identities while its contract still expects ten.
-  [[ "${FRESHRSS_PUBLIC_ALLOWLIST_IMPORT_APPROVED:-}" == YES ]] ||
-    die "blocked: canonical OPML contains more than the approved ten feeds; implement a filtered allowlist import first"
+  opml_count="$(python3 - "${OPML}" <<'PY'
+import sys
+from xml.etree import ElementTree
+print(sum(bool(node.get("xmlUrl")) for node in ElementTree.parse(sys.argv[1]).iter("outline")))
+PY
+  )"
+  [[ "${opml_count}" == 10 ]] ||
+    die "blocked: pinned OPML contains ${opml_count} feeds, but public GReader contract requires exactly 10"
   for user in securitypublic securityagent; do
     docker exec --user "${CLI_USER}" "${CONTAINER}" cli/list-users.php |
       grep -Fxq "${user}" || die "account does not exist: ${user}"
