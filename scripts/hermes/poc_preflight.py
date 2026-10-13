@@ -48,16 +48,26 @@ def validate(env: Path, state: Path, image: str, api: bool) -> list[str]:
     errors = []
     if not DIGEST.fullmatch(image):
         errors.append("Image must be pinned to nousresearch/hermes-agent@sha256:<digest>")
-    if not env.is_file() or env.is_symlink():
+    try:
+        secret_available = env.is_file() and not env.is_symlink()
+        state_available = state.is_dir() and not state.is_symlink()
+    except PermissionError:
+        errors.append("Cannot inspect Hermes POC paths: run read-only check with sudo")
+        return errors
+    if not secret_available:
         errors.append("Dedicated runtime secret file missing or unsafe symlink")
         return errors
-    if not state.is_dir() or state.is_symlink():
+    if not state_available:
         errors.append("Dedicated isolated POC state directory missing or unsafe symlink")
         return errors
-    e_stat = env.stat()
+    try:
+        e_stat = env.stat()
+        s_stat = state.stat()
+    except PermissionError:
+        errors.append("Cannot stat Hermes POC paths: run read-only check with sudo")
+        return errors
     if stat.S_IMODE(e_stat.st_mode) != 0o600 or e_stat.st_uid != 0:
         errors.append("Runtime secret file must be root-owned mode 0600")
-    s_stat = state.stat()
     if stat.S_IMODE(s_stat.st_mode) & 0o077:
         errors.append("POC state directory must not be accessible to group/others")
     if s_stat.st_uid != 10000:
