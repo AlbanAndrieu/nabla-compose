@@ -100,6 +100,11 @@ import_one() {
 }
 if [[ "${MODE}" == --import-opml ]]; then
   [[ "${FRESHRSS_IMPORT_APPROVED:-}" == YES ]] || die "FRESHRSS_IMPORT_APPROVED=YES required"
+  # GReader token provisioning currently enforces exactly ten subscriptions.
+  # Never import the full site-wide OPML (currently 78 sources) into these
+  # identities while its contract still expects ten.
+  [[ "${FRESHRSS_PUBLIC_ALLOWLIST_IMPORT_APPROVED:-}" == YES ]] ||
+    die "blocked: canonical OPML contains more than the approved ten feeds; implement a filtered allowlist import first"
   for user in securitypublic securityagent; do
     docker exec --user "${CLI_USER}" "${CONTAINER}" cli/list-users.php |
       grep -Fxq "${user}" || die "account does not exist: ${user}"
