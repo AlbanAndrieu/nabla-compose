@@ -77,3 +77,9 @@ def test_gatus_apply_repairs_config_before_readiness_wait() -> None:
         ["bash", "-n", str(ROOT / "scripts/truenas/deploy-gatus.sh")],
         check=False,
     ).returncode == 0
+
+
+def test_gatus_recovery_status_header_is_not_double_escaped() -> None:
+    deploy = (ROOT / "scripts/truenas/deploy-gatus.sh").read_text(encoding="utf-8")
+    assert "printf '\\\\n==> Repair generated config access before readiness wait\\\\n'" not in deploy
+    assert "printf '\\n==> Repair generated config access before readiness wait\\n'" in deploy
