@@ -2,18 +2,18 @@
 # Read-only resource inventory for Linux workstation or TrueNAS.
 set -uo pipefail
 MODE="${1:---all}"
-case "$MODE" in
+case "${MODE}" in
   --all|--docker|--host|-h|--help) ;;
-  *) echo "Usage: bash $0 [--all|--docker|--host]" >&2; exit 2 ;;
+  *) echo "Usage: ${0} [--all|--docker|--host]" >&2; exit 2 ;;
 esac
-if [[ "$MODE" == "-h" || "$MODE" == "--help" ]]; then
+if [[ "${MODE}" == "-h" || "${MODE}" == "--help" ]]; then
   echo "Read-only CPU/memory/disk/container inventory. No restart or config changes."
   exit 0
 fi
-section() { printf '\n==> %s\n' "$*"; }
-has() { command -v "$1" >/dev/null 2>&1; }
+section() { printf '\n==> %s\n' "${*}"; }
+has() { command -v "${1}" >/dev/null 2>&1; }
 
-if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
+if [[ "${MODE}" == "--all" || "${MODE}" == "--host" ]]; then
   section "Host identity"
   hostname 2>/dev/null || true
   uname -a 2>/dev/null || true
@@ -29,7 +29,7 @@ if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
   if has df; then df -hT -x tmpfs -x devtmpfs 2>/dev/null | head -n 25; fi
 fi
 
-if [[ "$MODE" == "--all" || "$MODE" == "--docker" ]]; then
+if [[ "${MODE}" == "--all" || "${MODE}" == "--docker" ]]; then
   section "Docker daemon"
   if ! has docker; then
     echo "Docker CLI unavailable in this environment (expected on workstation or some TrueNAS contexts)."
