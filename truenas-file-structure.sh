@@ -280,21 +280,8 @@ services:
   #     - /var/run/docker.sock:/var/run/docker.sock
   #     - /mnt/${CONFIG_POOL}/dozzle/${CONFIG_DIR}:/data
 
-  watchtower:
-    container_name: watchtower
-    image: nickfedor/watchtower
-    # image: containrrr/watchtower
-    restart: unless-stopped
-    environment:
-      - TZ=${CONFIG_TZ}
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_NOTIFICATIONS_HOSTNAME=truenas
-      - WATCHTOWER_INCLUDE_STOPPED=true
-      - WATCHTOWER_DISABLE_CONTAINERS=ix*
-      - WATCHTOWER_NO_STARTUP_MESSAGE=true
-      - WATCHTOWER_SCHEDULE=0 0 3 * * *
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+  # Watchtower now has a single declarative owner: apps/watchtower/compose.yml.
+  # Do not generate an unrestricted second controller here.
     # security_opt:
     #   - apparmor=unconfined
 
