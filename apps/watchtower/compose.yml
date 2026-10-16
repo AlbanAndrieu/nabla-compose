@@ -1,0 +1,37 @@
+---
+name: watchtower
+services:
+  watchtower:
+    # Archived upstream (2025-12-17): evaluation-only until the compatibility
+    # and Docker socket security gates in docs/watchtower-service-units.md pass.
+    image: containrrr/watchtower:1.7.1
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_MONITOR_ONLY: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_INCLUDE_RESTARTING: "false"
+      WATCHTOWER_CLEANUP: "false"
+      WATCHTOWER_POLL_INTERVAL: "86400"
+      WATCHTOWER_NO_STARTUP_MESSAGE: "true"
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+      com.albandrieu.nabla.entity-ref: component:default/watchtower
+    volumes:
+      # :ro prevents socket file replacement, NOT Docker API write access.
+      # Mounting this socket grants effectively host-root privileges.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    x-nabla:
+      id: watchtower
+      name: Watchtower (audit only)
+      kind: update-monitor
+      category: operations
+      criticality: high
+      presentationRole: support
+      description: Label-only image monitoring; upgrades disabled pending service-unit orchestrator.
+      runtime:
+        provider: truenas-app
+        containerService: watchtower
