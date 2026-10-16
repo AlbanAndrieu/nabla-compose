@@ -99,7 +99,9 @@ services:
     x-nabla: {id: tool}
 """,
     )
-    assert module.collect(tmp_path)["units"][0]["watchtowerAutoEligible"] is True
+    (unit,) = module.collect(tmp_path)["units"]
+    assert unit["watchtowerAutoCandidate"] is True
+    assert unit["watchtowerAutoEligible"] is False
 
 
 @pytest.mark.parametrize("unit", [
