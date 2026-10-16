@@ -216,7 +216,9 @@ def collect(root: Path) -> dict:
             "businessCriticality": business,
             "stateful": stateful,
             "upgradePolicy": policy,
-            "watchtowerAutoEligible": eligible,
+            # Risk classification is not a signed deploy approval.
+            "watchtowerAutoCandidate": eligible,
+            "watchtowerAutoEligible": False,
             "evidence": "declared-only",
         })
     return {"schemaVersion": 1, "source": "x-nabla-compose", "units": entries}
@@ -241,10 +243,10 @@ def main() -> int:
     else:
         units = report["units"]
         unknown = sum(unit["operationalCriticality"] is None for unit in units)
-        automatic = sum(unit["watchtowerAutoEligible"] for unit in units)
+        candidates = sum(unit["watchtowerAutoCandidate"] for unit in units)
         print(
             f"units={len(units)} unclassified={unknown} "
-            f"automatic_eligible={automatic}"
+            f"automatic_candidates={candidates}"
         )
         for unit in units:
             if unit["deploymentUnitId"] in {"truenas:garage", "truenas:homarr"}:
