@@ -40,11 +40,18 @@ services:
     (folder / "compose.yml").write_text(body)
 
 
-def test_low_stateless_single_can_opt_in(tmp_path):
+def test_low_stateless_single_still_cannot_auto_update_during_poc(tmp_path):
     write_compose(tmp_path)
     findings, selected = policy.audit(tmp_path)
-    assert not findings
+    assert any("monitor-only label required" in msg for msg in findings)
     assert selected == ["apps/sample/compose.yml:web [automatic]"]
+
+
+def test_low_stateless_single_can_monitor(tmp_path):
+    write_compose(tmp_path, monitor=True, mode="observe")
+    findings, selected = policy.audit(tmp_path)
+    assert not findings
+    assert selected == ["apps/sample/compose.yml:web [observe]"]
 
 
 def test_unknown_business_criticality_blocks_auto_update(tmp_path):
