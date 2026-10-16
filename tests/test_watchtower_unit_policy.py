@@ -4,14 +4,20 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts/security/check-watchtower-unit-policy.py"
+SCRIPT = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "scripts/security/check-watchtower-unit-policy.py"
+)
 spec = importlib.util.spec_from_file_location("watchtower_policy", SCRIPT)
 assert spec is not None and spec.loader is not None
 policy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 
 
-def write_compose(tmp_path, *, criticality="low", stateful=False, mode="automatic", extra=False, monitor=False):
+def write_compose(
+    tmp_path, *, criticality="low", stateful=False,
+    mode="automatic", extra=False, monitor=False
+):
     folder = tmp_path / "apps" / "sample"
     folder.mkdir(parents=True, exist_ok=True)
     body = f'''name: sample
@@ -56,7 +62,10 @@ def test_multi_container_cannot_auto_upgrade(tmp_path):
 
 
 def test_multi_container_monitor_only_allowed(tmp_path):
-    write_compose(tmp_path, extra=True, criticality="medium", stateful=True, mode="observe", monitor=True)
+    write_compose(
+        tmp_path, extra=True, criticality="medium",
+        stateful=True, mode="observe", monitor=True
+    )
     assert not policy.audit(tmp_path)[0]
 
 
@@ -68,7 +77,12 @@ def test_excluded_unit_cannot_opt_in(tmp_path):
 def test_unlabeled_containers_are_not_selected(tmp_path):
     write_compose(tmp_path)
     p = tmp_path / "apps/sample/compose.yml"
-    p.write_text(p.read_text().replace('com.centurylinklabs.watchtower.enable: "true"', 'com.centurylinklabs.watchtower.enable: "false"'))
+    p.write_text(
+        p.read_text().replace(
+            'com.centurylinklabs.watchtower.enable: "true"',
+            'com.centurylinklabs.watchtower.enable: "false"',
+        )
+    )
     assert policy.audit(tmp_path) == ([], [])
 
 
