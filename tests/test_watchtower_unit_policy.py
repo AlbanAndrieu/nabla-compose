@@ -48,7 +48,7 @@ def test_low_stateless_single_can_opt_in(tmp_path):
 
 def test_critical_cannot_auto_upgrade(tmp_path):
     write_compose(tmp_path, criticality="critical")
-    assert "automatic upgrade requires" in policy.audit(tmp_path)[0][0]
+    assert "unsafe automatic upgrade" in policy.audit(tmp_path)[0][0]
 
 
 def test_stateful_cannot_auto_upgrade(tmp_path):
