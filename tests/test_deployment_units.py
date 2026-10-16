@@ -114,6 +114,41 @@ def test_probe_order_fails_closed(tmp_path, unit):
         module.collect(tmp_path)
 
 
+def test_dependency_graph_orders_garage_without_manual_order(tmp_path):
+    compose(
+        tmp_path, "garage",
+        GARAGE.replace(
+            "    probeOrder: [garage, garage-admin, garage-webui]\\n", ""
+        ),
+    )
+    (unit,) = module.collect(tmp_path)["units"]
+    assert unit["endpointIds"][0] == "garage"
+    assert unit["probePlan"]["maxConcurrentPerUnit"] == 1
+    assert unit["probePlan"]["execution"] == "serialized-on-demand"
+
+
+def test_invalid_explicit_order_cannot_reverse_dependency(tmp_path):
+    compose(
+        tmp_path, "garage",
+        GARAGE.replace(
+            "[garage, garage-admin, garage-webui]",
+            "[garage-webui, garage, garage-admin]",
+        ),
+    )
+    with pytest.raises(ValueError, match="probeOrder violates"):
+        module.collect(tmp_path)
+
+
+def test_dependency_cycle_is_rejected():
+    nodes = ["a", "b"]
+    containers = [
+        {"composeService": "a", "endpointId": "a", "dependsOn": ["b"]},
+        {"composeService": "b", "endpointId": "b", "dependsOn": ["a"]},
+    ]
+    with pytest.raises(ValueError, match="cycle"):
+        module.infer_probe_order(nodes, containers, [])
+
+
 def test_unresolved_compose_dependency_rejected(tmp_path):
     compose(tmp_path, "garage", GARAGE.replace(
         "depends_on: [garage]", "depends_on: [not-there]",
