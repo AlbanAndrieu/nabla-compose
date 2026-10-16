@@ -66,6 +66,7 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
             criticality = unit.get("criticality")
             policy = unit.get("upgradePolicy")
             stateful = unit.get("stateful")
+            business_criticality = unit.get("businessCriticality")
             if (
                 criticality not in CRITICALITY
                 or policy not in POLICIES
@@ -79,6 +80,7 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 or criticality != "low"
                 or stateful is not False
                 or policy != "automatic"
+                or business_criticality != "low"
             ):
                 findings.append(
                     f"{entry}: unsafe automatic upgrade of stateful/critical/multi-container unit"
@@ -87,6 +89,39 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 findings.append(
                     f"{entry}: excluded unit cannot opt in even for monitoring"
                 )
+    # Unattended execution must remain impossible for the proposed POC.
+    # The API proxy is read-only because POST=0, not because of a :ro socket.
+    watchtower = root / "apps/watchtower/compose.yml"
+    if watchtower.exists():
+        conf = yaml.safe_load(watchtower.read_text(encoding="utf-8"))
+        app = (conf.get("services") or {}).get("watchtower") or {}
+        environment = app.get("environment") or {}
+        required = {
+            "WATCHTOWER_LABEL_ENABLE": "true",
+            "WATCHTOWER_MONITOR_ONLY": "true",
+            "WATCHTOWER_NO_PULL": "true",
+            "WATCHTOWER_LABEL_TAKE_PRECEDENCE": "false",
+            "WATCHTOWER_INCLUDE_STOPPED": "false",
+            "DOCKER_HOST": "tcp://docker-socket-proxy:2375",
+        }
+        for key, value in required.items():
+            if str(environment.get(key, "")).lower() != value:
+                findings.append(f"watchtower: unsafe {key} setting")
+        if "manual-audit" not in app.get("profiles", []):
+            findings.append("watchtower: manual-audit profile required")
+        if app.get("volumes") or app.get("ports") or app.get("privileged"):
+            findings.append("watchtower: socket/ports/privileged not permitted")
+        if labels_for(app).get(ENABLE) != "false":
+            findings.append("watchtower: self-update label must be false")
+        proxy_compose = root / "docker-compose.yml"
+        if proxy_compose.exists():
+            proxy_doc = yaml.safe_load(proxy_compose.read_text(encoding="utf-8"))
+            proxy = (proxy_doc.get("services") or {}).get("docker-socket-proxy") or {}
+            proxy_env = proxy.get("environment", {})
+            if str(proxy_env.get("POST", "")).lower() not in {"0", "false"}:
+                findings.append("docker-socket-proxy: POST must be disabled")
+            if str(proxy_env.get("IMAGES", "")).lower() not in {"1", "true"}:
+                findings.append("docker-socket-proxy: IMAGES GET must be enabled")
     return findings, selected
 
 
