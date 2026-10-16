@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fail closed for Watchtower container selection and Compose deployment units.
 
 Selection is derived from Compose labels; a multi-container Compose project is
@@ -73,7 +72,7 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 or not isinstance(stateful, bool)
             ):
                 findings.append(
-                    f"{entry}: incomplete/invalid unit criticality, stateful or upgradePolicy"
+                    f"{entry}: invalid unit criticality/stateful/upgradePolicy"
                 )
             if not readonly and (
                 len(services) != 1
@@ -82,7 +81,7 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 or policy != "automatic"
             ):
                 findings.append(
-                    f"{entry}: automatic upgrade requires one low-risk stateless service in an automatic unit"
+                    f"{entry}: unsafe automatic upgrade of stateful/critical/multi-container unit"
                 )
             if readonly and policy == "excluded":
                 findings.append(
