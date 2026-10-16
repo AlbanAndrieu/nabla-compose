@@ -32,6 +32,43 @@ def ordered_members(components: list[str], requested: object, source: str) -> li
     return requested
 
 
+def infer_probe_order(
+    endpoints: list[str], containers: list[dict], relations: list[dict]
+) -> list[str]:
+    """Topologically schedule declared prerequisites before their consumers."""
+    deps: dict[str, set[str]] = {endpoint: set() for endpoint in endpoints}
+    by_service = {
+        container["composeService"]: container["endpointId"]
+        for container in containers if container["endpointId"]
+    }
+    for container in containers:
+        consumer = container["endpointId"]
+        if consumer not in deps:
+            continue
+        for dependency in container["dependsOn"]:
+            prerequisite = by_service.get(dependency)
+            if prerequisite in deps and prerequisite != consumer:
+                deps[consumer].add(prerequisite)
+    for relation in relations:
+        source, target = relation.get("source"), relation.get("target")
+        if (
+            relation.get("type") in {"partOf", "consumesApi", "dependsOn"}
+            and source in deps and target in deps and source != target
+        ):
+            deps[source].add(target)
+    result: list[str] = []
+    while deps:
+        ready = sorted(key for key, required in deps.items() if not required)
+        if not ready:
+            raise ValueError("cycle in declared probe dependencies")
+        result.extend(ready)
+        for key in ready:
+            del deps[key]
+        for required in deps.values():
+            required.difference_update(ready)
+    return result
+
+
 def collect(root: Path) -> dict:
     """Return proposed units with known/unknown differentiated explicitly."""
     entries: list[dict] = []
@@ -105,6 +142,10 @@ def collect(root: Path) -> dict:
             })
 
         # Logical endpoints, like garage-admin, are nodes instead of containers.
+        if not isinstance(ext.get("nodes", []), list):
+            raise ValueError(f"{path}: x-nabla.nodes must be a list")
+        if not isinstance(ext.get("relations", []), list):
+            raise ValueError(f"{path}: x-nabla.relations must be a list")
         for node in ext.get("nodes", []):
             if not isinstance(node, dict):
                 raise ValueError(f"{path}: invalid logical node")
@@ -120,7 +161,10 @@ def collect(root: Path) -> dict:
                 for rel in ext.get("relations", [])
                 if isinstance(rel, dict)
             )
-            if part_of or node_id in raw_unit.get("probeOrder", []):
+            requested = raw_unit.get("probeOrder") or []
+            if not isinstance(requested, list):
+                raise ValueError(f"{path}: invalid probeOrder")
+            if part_of or node_id in requested:
                 endpoints.append(node_id)
                 level = node.get("criticality")
                 if level is not None:
@@ -130,7 +174,21 @@ def collect(root: Path) -> dict:
 
         if len(set(endpoints)) != len(endpoints):
             raise ValueError(f"{path}: duplicate endpoint IDs")
-        probe_order = ordered_members(endpoints, raw_unit.get("probeOrder"), str(path))
+        inferred = infer_probe_order(
+            endpoints, containers, ext.get("relations", [])
+        )
+        probe_order = ordered_members(inferred, raw_unit.get("probeOrder"), str(path))
+        order_map = {endpoint: index for index, endpoint in enumerate(probe_order)}
+        for relation in ext.get("relations", []):
+            if not isinstance(relation, dict):
+                raise ValueError(f"{path}: invalid relation")
+            source, target = relation.get("source"), relation.get("target")
+            if (
+                relation.get("type") in {"partOf", "consumesApi", "dependsOn"}
+                and source in order_map and target in order_map
+                and order_map[target] > order_map[source]
+            ):
+                raise ValueError(f"{path}: probeOrder violates {target} before {source}")
         max_level = max(levels, key=LEVELS.index) if levels else None
         # Future BIA dataset must provide this independently; never infer low.
         business = raw_unit.get("businessCriticality")
@@ -146,6 +204,12 @@ def collect(root: Path) -> dict:
             "composePath": path.relative_to(root).as_posix(),
             "containers": containers,
             "endpointIds": probe_order,
+            "probePlan": {
+                "maxConcurrentPerUnit": 1,
+                "primaryEndpointId": probe_order[0] if probe_order else None,
+                "secondaryEndpointIds": probe_order[1:],
+                "execution": "serialized-on-demand",
+            },
             "operationalCriticality": max_level,
             "businessCriticality": business,
             "stateful": stateful,
