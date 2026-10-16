@@ -188,7 +188,9 @@ def collect(root: Path) -> dict:
                 and source in order_map and target in order_map
                 and order_map[target] > order_map[source]
             ):
-                raise ValueError(f"{path}: probeOrder violates {target} before {source}")
+                raise ValueError(
+                    f"{path}: probeOrder violates {target} before {source}"
+                )
         max_level = max(levels, key=LEVELS.index) if levels else None
         # Future BIA dataset must provide this independently; never infer low.
         business = raw_unit.get("businessCriticality")
