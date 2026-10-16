@@ -1,6 +1,11 @@
 ---
 name: homarr
 x-nabla:
+  deploymentUnit:
+    id: homarr
+    criticality: medium
+    stateful: true
+    upgradePolicy: observe
   nodes:
     - id: docker
       name: Docker
@@ -22,12 +27,6 @@ x-nabla:
       strength: required
       description: Docker runtime is hosted on the TrueNAS platform.
 
-x-nabla:
-  deploymentUnit:
-    id: homarr
-    criticality: medium
-    stateful: true
-    upgradePolicy: observe
 services:
   homarr:
     image: ghcr.io/homarr-labs/homarr:v1.76.2
