@@ -60,28 +60,43 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
             entry = f"{path.relative_to(root)}:{name}"
             selected.append(f"{entry} [{'observe' if readonly else 'automatic'}]")
             if not unit:
-                findings.append(f"{entry}: selected container requires x-nabla.deploymentUnit")
+                findings.append(
+                    f"{entry}: selected container requires x-nabla.deploymentUnit"
+                )
                 continue
             criticality = unit.get("criticality")
             policy = unit.get("upgradePolicy")
             stateful = unit.get("stateful")
-            if criticality not in CRITICALITY or policy not in POLICIES or not isinstance(stateful, bool):
-                findings.append(f"{entry}: incomplete/invalid unit criticality, stateful or upgradePolicy")
+            if (
+                criticality not in CRITICALITY
+                or policy not in POLICIES
+                or not isinstance(stateful, bool)
+            ):
+                findings.append(
+                    f"{entry}: incomplete/invalid unit criticality, stateful or upgradePolicy"
+                )
             if not readonly and (
                 len(services) != 1
                 or criticality != "low"
                 or stateful is not False
                 or policy != "automatic"
             ):
-                findings.append(f"{entry}: automatic upgrade requires one low-risk stateless service in an automatic unit")
+                findings.append(
+                    f"{entry}: automatic upgrade requires one low-risk stateless service in an automatic unit"
+                )
             if readonly and policy == "excluded":
-                findings.append(f"{entry}: excluded unit cannot opt in even for monitoring")
+                findings.append(
+                    f"{entry}: excluded unit cannot opt in even for monitoring"
+                )
     return findings, selected
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[2])
+    parser.add_argument(
+        "--root", type=pathlib.Path,
+        default=pathlib.Path(__file__).resolve().parents[2],
+    )
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     violations, selected = audit(args.root)
