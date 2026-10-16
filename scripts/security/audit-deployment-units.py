@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Build a read-only, fail-closed view of Compose deployment and probe units.
 
 This is a preview projection from the canonical x-nabla source, not a second
