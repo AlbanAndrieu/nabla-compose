@@ -184,11 +184,16 @@ def test_deterministic_output(tmp_path):
     assert module.collect(tmp_path) == module.collect(tmp_path)
 
 
-def test_repo_garage_and_homarr_contracts():
+def test_repo_garage_and_homarr_contracts(tmp_path):
     root = Path(__file__).resolve().parents[1]
+    for name in ("garage", "homarr"):
+        compose(
+            tmp_path, name,
+            (root / f"apps/{name}/compose.yml").read_text(encoding="utf-8"),
+        )
     items = {
         item["deploymentUnitId"]: item
-        for item in module.collect(root)["units"]
+        for item in module.collect(tmp_path)["units"]
     }
     garage = items["truenas:garage"]
     assert garage["endpointIds"] == ["garage", "garage-admin", "garage-webui"]
