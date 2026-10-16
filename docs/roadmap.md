@@ -1,3 +1,13 @@
+## P1 — Catalogue de criticité, sondes par unité et Watchtower (2026-10-17)
+
+- [x] Ajouter `apps/watchtower/compose.yml` en allowlist explicite (`WATCHTOWER_LABEL_ENABLE=true`) et `WATCHTOWER_MONITOR_ONLY=true` initialement ; **aucune mise à jour ni déploiement appliqué**.
+- [x] Documenter l'unité de déploiement Garage, la séparation des trois endpoints et le plan dans [docs/watchtower-service-units.md](watchtower-service-units.md).
+- [ ] **Demain 2026-10-17 — priorité P1** : auditer/réconcilier le catalogue canonique `x-nabla`, la topologie TrueNAS réelle et le catalogue FastAPI Sample, notamment les services absents `it-tools` et `karakeep`. Introduire `deploymentUnitId`, `criticality`, `stateful`, `upgradePolicy`, `probePolicy` et l'ordre des dépendances ; ne pas inventer les services/labels.
+- [ ] Générer la projection du catalogue vers FastAPI Sample (y compris `garage`, `garage-admin`, `garage-webui`), et dédupliquer les sondes par unité : cache TTL, budget, file d'attente, concurrence limitée, probe primaire puis secondaires selon nécessité.
+- [ ] Tester la règle d'upgrade « une unité Compose = une décision » ; n'admettre en auto-update que les unités autonomes, peu critiques et sans état ; examiner `it-tools`, `karakeep`, `homarr` et `homarr-sync` après inventaire.
+- [ ] Évaluer les risques du socket Docker et la maintenance du projet Watchtower archivé, puis ajouter préflight/backup/smoke/rollback manuel avant toute activation de l'automatisation.
+- [ ] Exécuter quality gate locale et contrats FastAPI/Nabla sur le schéma partagé, puis tests runtime en lecture seule ; pas de merge ni redéploiement sans approbation.
+
 ## P1 — Cloudflare DNS/Tunnel as code et réconciliation Garage (2026-10-13)
 
 - [x] Marquer **Garage Admin API :3903** comme strictement `external=false` dans le catalogue canonique et les overrides ; **Garage Web UI :3909** demeure temporairement accessible à distance.
