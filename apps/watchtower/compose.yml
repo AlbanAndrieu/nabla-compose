@@ -15,8 +15,10 @@ services:
     container_name: watchtower
     restart: unless-stopped
     environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
       WATCHTOWER_LABEL_ENABLE: "true"
       WATCHTOWER_MONITOR_ONLY: "true"
+      WATCHTOWER_NO_PULL: "true"
       WATCHTOWER_LABEL_TAKE_PRECEDENCE: "false"
       WATCHTOWER_INCLUDE_STOPPED: "false"
       WATCHTOWER_INCLUDE_RESTARTING: "false"
@@ -26,9 +28,14 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "false"
       com.albandrieu.nabla.entity-ref: component:default/watchtower
-    volumes:
-      # :ro prevents socket file replacement, NOT Docker API write access.
-      # Mounting this socket grants effectively host-root privileges.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Audit-only Docker GET boundary: the existing proxy has POST=0.
+    # No raw engine socket, host ports or update capabilities here.
+    networks:
+      - intranet
     security_opt:
       - no-new-privileges:true
+
+networks:
+  intranet:
+    external: true
+    name: intranet
