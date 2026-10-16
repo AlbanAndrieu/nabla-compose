@@ -10,7 +10,6 @@ import argparse
 import json
 import re
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import yaml
@@ -159,8 +158,12 @@ def collect(root: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
-    parser.add_argument("--json", action="store_true", help="print preview JSON to stdout")
+    parser.add_argument(
+        "--root", type=Path, default=Path(__file__).resolve().parents[2]
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="print preview JSON to stdout"
+    )
     args = parser.parse_args()
     try:
         report = collect(args.root)
@@ -173,7 +176,10 @@ def main() -> int:
         units = report["units"]
         unknown = sum(unit["operationalCriticality"] is None for unit in units)
         automatic = sum(unit["watchtowerAutoEligible"] for unit in units)
-        print(f"units={len(units)} unclassified={unknown} automatic_eligible={automatic}")
+        print(
+            f"units={len(units)} unclassified={unknown} "
+            f"automatic_eligible={automatic}"
+        )
         for unit in units:
             if unit["deploymentUnitId"] in {"truenas:garage", "truenas:homarr"}:
                 print(f"{unit['deploymentUnitId']}: {','.join(unit['endpointIds'])}")
