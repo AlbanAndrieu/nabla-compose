@@ -75,6 +75,8 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 findings.append(
                     f"{entry}: invalid unit criticality/stateful/upgradePolicy"
                 )
+            if not readonly:
+                findings.append(f"{entry}: monitor-only label required during POC")
             if not readonly and (
                 len(services) != 1
                 or criticality != "low"
