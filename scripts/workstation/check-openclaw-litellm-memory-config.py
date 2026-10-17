@@ -52,7 +52,7 @@ def check():
     print("file_secret_provider_schema=" + ("compatible" if single_value_file_provider else "incompatible"))
     required = (
         single_value_file_provider
-        and         "openai-compatible" in provider_description
+        and "openai-compatible" in provider_description
         and {"model", "sources", "extraPaths"}.issubset(properties)
         and {"baseUrl", "apiKey", "batch"}.issubset(remote)
         and any(item.get("const") == "memory" for item in sources)
@@ -74,12 +74,35 @@ def check():
     return 0 if required and key_ok else 2
 
 
+def audit():
+    """Run the built-in read-only audit without displaying its potentially sensitive findings."""
+    process = subprocess.run(
+        ["openclaw", "secrets", "audit", "--json"],
+        capture_output=True, text=True, timeout=60, check=False,
+    )
+    try:
+        data = json.loads(process.stdout)
+    except ValueError:
+        print("secret_audit=unavailable")
+        return 2
+    if not isinstance(data, (dict, list)):
+        print("secret_audit=unexpected_format")
+        return 2
+    print("secret_audit=completed" if process.returncode == 0 else "secret_audit=findings_or_error")
+    print("secret_audit_raw_output=suppressed")
+    print("file_secret_resolution=unverified")
+    print("configuration_changed=false")
+    return 0 if process.returncode == 0 else 2
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", required=True)
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--check", action="store_true")
+    modes.add_argument("--audit", action="store_true", help="Read-only secrets audit; suppress sensitive findings")
     args = parser.parse_args()
     try:
-        return check()
+        return audit() if args.audit else check()
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
         print("ERROR: cannot verify schema; no configuration changed", file=sys.stderr)
         return 2
