@@ -19,3 +19,20 @@ LiteLLM UI reports **Environment-credential login is enabled**. Shared `UI_USERN
 The workstation `/key/list` returned **5** keys and TrueNAS **0** at audit time; the endpoints are not a full inventory of team/user budgets. Historical spend, counters, spend logs, key hashes and reset timestamps are **not** to be migrated. Preserve source historical data for audit. Desired state: consumer identity, model allowlist, max budget, budget duration, RPM, TPM, expiry and team assignment; create new scoped TrueNAS virtual keys via authenticated encrypted admin transport, distribute through secret manager, validate one consumer at a time, then revoke retired keys. Never copy master keys into applications.
 
 Use `python3 scripts/workstation/audit-litellm-budget-migration.py --truenas-transport tunnel` as a **read-only authorization preflight**, not as a migration. No Terraform/provider is assumed: prefer a reviewed, idempotent API reconciler with dry-run and explicit apply gate. Avoid resetting live budgets without approved cutover.
+
+## Acceptance after named admin creation (2026-10-17)
+
+Operator confirmed `aa@albandrieu.com` has `proxy_admin`, a separately configured password, and can access models, users and budgets. Operator also confirmed Cloudflare Access on the public hostname. This is not independent proof of the Access policy's MFA, bypass exceptions, or full endpoint coverage.
+
+Git configuration now declares `disable_env_credential_login: true`; **runtime application is not confirmed**. Before deployment, back up database/config, ensure a recovery path and validate the running LiteLLM version accepts the setting. After deployment, verify a fresh named-admin login and failure of the former shared environment login; verify virtual-key API consumers. Never test login by supplying the master key to the public hostname.
+
+Read-only checks from the workstation:
+
+```bash
+python3 scripts/workstation/check-litellm-ui-hardening.py
+python3 scripts/workstation/check-litellm-ui-hardening.py --probe-public --probe-tunnel
+```
+
+The second command requires the optional SSH forward `127.0.0.1:14000 -> 127.0.0.1:4000` for its tunnel check. A redirect to Cloudflare Access is a **positive signal only**, not proof of an adequate Access policy. Review the Cloudflare Zero Trust application policy for identity, MFA, service tokens, bypass rules, and all admin/API paths.
+
+Budget migration remains a separate change: copy policy intent only; **do not transfer historical consumption or reset state**.
