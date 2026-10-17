@@ -20,27 +20,27 @@ services:
     alias: redis
 
 include:
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/default.gitlab-ci.yml"
 
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/deploy-nomad.gitlab-ci.yml"
 
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/test-python.gitlab-ci.yml"
 
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/javascript.gitlab-ci.yml"
 
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/data.gitlab-ci.yml"
 
-  - project: jusmundi-group/infrastructure/ci-templates
+  - project: nabla-group/infrastructure/ci-templates
     ref: main
     file: "/templates/mega-linter.gitlab-ci.yml"
 
@@ -113,7 +113,7 @@ variables:
   OCI_REGISTRY: ${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}
   TYPE_TRAINING: ""
   # MOUNT_POINT: "/builds/$CI_PROJECT_PATH/mnt"
-  CI_IMAGE_NAME: ${CI_REGISTRY}/jusmundi-group/web/templates/jm-oci/jm-ubuntu
+  CI_IMAGE_NAME: ${CI_REGISTRY}/nabla-group/web/templates/jm-oci/jm-ubuntu
   CI_IMAGE_TAG: latest
   # GIT_STRATEGY: fetch
   GIT_DEPTH: "3"
@@ -138,7 +138,7 @@ variables:
   DD_CLOSE_OLD_FINDINGS_PRODUCT_SCOPE: "True"
   DD_DO_NOT_REACTIVATE: "False"
   DD_BRANCH_TAG: "${CI_COMMIT_TAG}" # CI_COMMIT_BRANCH CI_IMAGE_TAG
-  # DOCKER_BUILD_OPT: " -f Dockerfile --secret id=read-package-token,env=CI_PIP_GITLABJUSMUNDI_TOKEN"
+  # DOCKER_BUILD_OPT: " -f Dockerfile --secret id=read-package-token,env=CI_PIP_GITLABNABLA_TOKEN"
   CLOC_SOURCE: "nabla"
   # RUNNER_GENERATE_ARTIFACTS_METADATA: "true"
   # FF_NETWORK_PER_BUILD: "true" # enable network per build so all services can communicate on the same network
@@ -337,11 +337,11 @@ test-pytest-poetry:
   allow_failure: false
   variables:
     DEFAULT_COV_ARGS: "--no-ddtrace --no-cov"
-    DEFAULT_PIPENV_ARGS: "--system --dev --ignore-pipfile" # --dev  --verbose --index=https://package_read:${CI_PIP_GITLABJUSMUNDI_TOKEN}@gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple
+    DEFAULT_PIPENV_ARGS: "--system --dev --ignore-pipfile" # --dev  --verbose --index=https://package_read:${CI_PIP_GITLABNABLA_TOKEN}@gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple
     DEFAULT_PYTEST_PACKAGES: "pytest pytest-cov pytest-env"
     KEYCLOAK_SERVER_URL: "https://keycloak-https.service.gra.uat.consul"
-    KEYCLOAK_REALM: "jus_mundi"
-    KEYCLOAK_CLIENT_ID: "jusmundi_uat"
+    KEYCLOAK_REALM: "nabla"
+    KEYCLOAK_CLIENT_ID: "nabla_uat"
     # KEYCLOAK_CLIENT_SECRET: ""
     # BELOW is needed as we do not use jm-ubuntu but python:3.10
   before_script:
@@ -354,7 +354,7 @@ test-pytest-poetry:
     - python3 -m pipenv install --dev --site-packages --ignore-pipfile
     - export DB_URL=${DB_URL}
     - export POSTGRES_DRIVER="postgresql"
-    - export POSTGRES_HOST="pg-gra.service.gra.dev.consul"
+    - export POSTGRES_HOST="postgres.service.gra.dev.consul"
     - export POSTGRES_PORT="5432"
     - export POSTGRES_DB="fastapi_sample_gitlab"
     - export POSTGRES_USER=${POSTGRES_USER}
@@ -371,11 +371,11 @@ test-pytest:
   allow_failure: false
   variables:
     DEFAULT_COV_ARGS: "--no-ddtrace --cov-fail-under=70"
-    DEFAULT_PIPENV_ARGS: "--system --dev --ignore-pipfile" # --dev  --verbose --index=https://package_read:${CI_PIP_GITLABJUSMUNDI_TOKEN}@gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple
+    DEFAULT_PIPENV_ARGS: "--system --dev --ignore-pipfile" # --dev  --verbose --index=https://package_read:${CI_PIP_GITLABNABLA_TOKEN}@gitlab.com/api/v4/groups/7364654/-/packages/pypi/simple
     DEFAULT_PYTEST_PACKAGES: "pytest pytest-cov pytest-env"
     KEYCLOAK_SERVER_URL: "https://keycloak-https.service.gra.uat.consul"
-    KEYCLOAK_REALM: "jus_mundi"
-    KEYCLOAK_CLIENT_ID: "jusmundi_uat"
+    KEYCLOAK_REALM: "nabla"
+    KEYCLOAK_CLIENT_ID: "nabla_uat"
     # KEYCLOAK_CLIENT_SECRET: ""
     REDIS_PORT: 6379
     REDIS_HOST: redis
@@ -386,7 +386,7 @@ test-pytest:
     - if [ -n "${DEFAULT_POETRY_OPT_GROUPS}" ]; then ${POETRY_HOME}/bin/poetry install --no-root --with ${DEFAULT_POETRY_OPT_GROUPS}; else ${POETRY_HOME}/bin/poetry install --no-root; fi
     - export DB_URL=${DB_URL}
     - export POSTGRES_DRIVER="postgresql"
-    - export POSTGRES_HOST="pg-gra.service.gra.dev.consul"
+    - export POSTGRES_HOST="postgres.service.gra.dev.consul"
     - export POSTGRES_PORT="5432"
     - export POSTGRES_DB="fastapi_sample_gitlab"
     - export POSTGRES_USER=${POSTGRES_USER}
@@ -405,10 +405,10 @@ install-npm:
   extends: .install-npm
   script:
     # - npm config set @scope:registry=git@gitlab.com:api/v4/groups/2454528/-/packages/npm/
-    # - npm config set '@jusmundi-group:registry=git@gitlab.com:api/v4/projects/60435718/packages/npm/'
-    # - npm config set '@jusmundi-group:registry=git@gitlab.com:api/v4/packages/npm/:_authToken='"${CI_JOB_TOKEN}"
+    # - npm config set '@nabla-group:registry=git@gitlab.com:api/v4/projects/60435718/packages/npm/'
+    # - npm config set '@nabla-group:registry=git@gitlab.com:api/v4/packages/npm/:_authToken='"${CI_JOB_TOKEN}"
     # - echo "@scope:registry=https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" > ~/.npmrc
-    - echo "@jusmundi-group:registry=git@gitlab.com:api/v4/packages/npm/" > ~/.npmrc
+    - echo "@nabla-group:registry=git@gitlab.com:api/v4/packages/npm/" > ~/.npmrc
     # - echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> ~/.npmrc
     - echo "//${CI_SERVER_HOST}/api/v4/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> ~/.npmrc
     # - rm -rf node_modules package-lock.json
@@ -472,7 +472,7 @@ mega_linter:
 .build-image-dockefile-pre: &build-image-dockefile-pre
   script:
     # --target builder-base
-    - export DOCKER_BUILD_OPT="--pull --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${TEST_CACHE_TAG} -f Dockerfile --secret id=read-package-token,env=CI_PIP_GITLABJUSMUNDI_TOKEN --secret id=read-npm-token,env=CI_JOB_TOKEN --build-arg ENV=${ENV} -t ${CONTAINER_IMAGE}"
+    - export DOCKER_BUILD_OPT="--pull --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${TEST_CACHE_TAG} -f Dockerfile --secret id=read-package-token,env=CI_PIP_GITLABNABLA_TOKEN --secret id=read-npm-token,env=CI_JOB_TOKEN --build-arg ENV=${ENV} -t ${CONTAINER_IMAGE}"
     - echo -e "\e[35mOverriden on purpose as Sample docker build need explicit \e[0m FOR \e[43m${ENV} - ${DOCKER_BUILD_OPT}.\e[0m"
 
 code_quality:
