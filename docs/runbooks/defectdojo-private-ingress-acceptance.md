@@ -70,3 +70,9 @@ curl --noproxy '*' -sS -D - -o /dev/null --max-time 10 \
 ```
 
 Do not use `curl -k` for acceptance. A missing DNS A record should be corrected in the existing label-driven Pi-hole sync path, after confirming the sync's container selection, labels and successful reconciliation. Do not create an unrelated pfSense override or public record. The `--apply` importer remains gated on approved authenticated API validation and a reviewed scan report.
+
+## Unified read-only diagnostic
+
+Run `sudo bash scripts/truenas/diagnose-defectdojo.sh --check` on TrueNAS. It checks the local interface, Docker networks and published port, unauthenticated HTTP reachability, internal/public DNS A answers, and verified HTTPS with SNI. It does not query API tokens, retrieve application logs, modify containers or create DNS records. Nonzero exit means at least one acceptance failure. No restart or deployment is performed automatically.
+
+Observed failure baseline: `defectdojo` has only `intranet`, while `traefik` has `traefik_network`; both internal DNS resolvers returned NOERROR/NODATA and public DNS had no A record; HTTPS SNI returned 404. Reconcile the declared `traefik_network` attachment through an approved TrueNAS app deployment and fix Pi-hole sync before considering the service accepted. Preserve LAN-only publication and do not create a public route.
