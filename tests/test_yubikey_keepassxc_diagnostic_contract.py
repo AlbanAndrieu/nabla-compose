@@ -45,6 +45,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "gpgconf --kill", "systemctl stop", "set -x"):
             self.assertNotIn(forbidden, content)
 
+    def test_reader_port_plan_is_read_only(self):
+        script = ROOT / "scripts/workstation/plan-gpg-reader-port.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--check", result.stdout)
+        content = script.read_text()
+        self.assertIn("before-reader-port", content)
+        self.assertIn("pcsc_scan", content)
+        for forbidden in ("gpgconf --kill", "keytocard", "piv reset",
+                          "systemctl restart", ">> ${cfg}", "sudo "):
+            self.assertNotIn(forbidden, content)
+
     def test_no_destructive_operations(self):
         text = SCRIPT.read_text()
         for forbidden in ("otp chalresp", "otp delete", "piv reset", "piv keys import",
