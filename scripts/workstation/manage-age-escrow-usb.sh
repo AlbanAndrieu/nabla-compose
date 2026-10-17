@@ -34,74 +34,74 @@ done
 device="/dev/disk/by-uuid/${uuid}"
 [[ -b "${device}" ]] || { echo 'LUKS UUID device not found' >&2; exit 1; }
 # Unprivileged blkid may return no TYPE for a block device: use lsblk/udev.
-physical_device="$(readlink -f -- "$device")"
-fstype="$(lsblk -dn -o FSTYPE "$physical_device" | tr -d '[:space:]')"
-actual_uuid="$(lsblk -dn -o UUID "$physical_device" | tr -d '[:space:]')"
-[[ "$fstype" == crypto_LUKS && "${actual_uuid,,}" == "${uuid,,}" ]] || {
+physical_device="$(readlink -f -- "${device}")"
+fstype="$(lsblk -dn -o FSTYPE "${physical_device}" | tr -d '[:space:]')"
+actual_uuid="$(lsblk -dn -o UUID "${physical_device}" | tr -d '[:space:]')"
+[[ "${fstype}" == crypto_LUKS && "${actual_uuid,,}" == "${uuid,,}" ]] || {
   echo 'Selected partition TYPE/UUID does not match LUKS escrow' >&2; exit 1;
 }
 # Resolve child crypt device from the UUID-selected partition, not a fixed mapper name.
-mapfile -t children < <(lsblk -nr -o PATH,TYPE "$device" | awk '$2=="crypt" {print $1}')
+mapfile -t children < <(lsblk -nr -o PATH,TYPE "${device}" | awk '$2=="crypt" {print $1}')
 if (( ${#children[@]} > 1 )); then
   echo 'Ambiguous multiple unlocked crypt mappings; refusing' >&2; exit 2
 fi
 active_mapper="${children[0]:-}"
 active_mount=''
-if [[ -n "$active_mapper" ]]; then
-  active_mount="$(lsblk -nr -o MOUNTPOINTS "$active_mapper" | grep '^/' | head -n 1 || true)"
+if [[ -n "${active_mapper}" ]]; then
+  active_mount="$(lsblk -nr -o MOUNTPOINTS "${active_mapper}" | grep '^/' | head -n 1 || true)"
 fi
-if [[ "$action" == check ]]; then
+if [[ "${action}" == check ]]; then
   echo 'LUKS UUID verified; current state:'
-  lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS "$device"
-  if [[ -n "$active_mount" ]]; then
+  lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS "${device}"
+  if [[ -n "${active_mount}" ]]; then
     echo 'Unlocked and mounted; auto-mount path detected.'
-  elif [[ -n "$active_mapper" ]]; then
+  elif [[ -n "${active_mapper}" ]]; then
     echo 'Unlocked but not mounted.'
   else
     echo 'Locked.'
   fi
   exit 0
 fi
-if [[ "$action" == open ]]; then
-  if [[ -n "$active_mount" ]]; then
+if [[ "${action}" == open ]]; then
+  if [[ -n "${active_mount}" ]]; then
     echo 'Existing unlocked USB mount detected; no changes made.'
     exit 0
   fi
-  [[ -z "$active_mapper" ]] || {
+  [[ -z "${active_mapper}" ]] || {
     echo 'Already unlocked but unmounted; manual inspection required' >&2; exit 2;
   }
-  sudo mkdir -p "$mountpoint"
-  sudo cryptsetup open "$device" "$mapper"
-  if ! sudo mount "/dev/mapper/$mapper" "$mountpoint"; then
+  sudo mkdir -p "${mountpoint}"
+  sudo cryptsetup open "${device}" "${mapper}"
+  if ! sudo mount "/dev/mapper/${mapper}" "${mountpoint}"; then
     echo 'Mount failed; mapper remains open for inspection' >&2; exit 1
   fi
   echo 'Escrow unlocked and mounted.'
   exit 0
 fi
-[[ -n "$active_mapper" && -n "$active_mount" ]] || {
+[[ -n "${active_mapper}" && -n "${active_mount}" ]] || {
   echo 'Escrow device is not mounted; refusing' >&2; exit 2;
 }
-[[ "$(findmnt -rn -o FSTYPE -T "$active_mount")" == ext4 ]] || {
+[[ "$(findmnt -rn -o FSTYPE -T "${active_mount}")" == ext4 ]] || {
   echo 'Unexpected escrow filesystem type; refusing' >&2; exit 2;
 }
-if [[ "$action" == close ]]; then
+if [[ "${action}" == close ]]; then
   sync
-  if [[ "$active_mount" == /run/media/"$(id -un)"/* ]]; then
+  if [[ "${active_mount}" == /run/media/"$(id -un)"/* ]]; then
     command -v udisksctl >/dev/null || { echo 'udisksctl required for automount close' >&2; exit 1; }
-    udisksctl unmount -b "$active_mapper"
-    udisksctl lock -b "$device"
-  elif [[ "$active_mount" == "$mountpoint" && "$active_mapper" == "/dev/mapper/$mapper" ]]; then
-    sudo umount "$active_mount"
-    sudo cryptsetup close "$mapper"
+    udisksctl unmount -b "${active_mapper}"
+    udisksctl lock -b "${device}"
+  elif [[ "${active_mount}" == "${mountpoint}" && "${active_mapper}" == "/dev/mapper/${mapper}" ]]; then
+    sudo umount "${active_mount}"
+    sudo cryptsetup close "${mapper}"
   else
     echo 'Unexpected mount/mapping; refuse automatic close' >&2; exit 2;
   fi
   echo 'Escrow closed.'
   exit 0
 fi
-[[ "$action" == init-identity ]] || exit 2
-folder="$active_mount/age-escrow"
-identity="$folder/recovery-identity.txt"
+[[ "${action}" == init-identity ]] || exit 2
+folder="${active_mount}/age-escrow"
+identity="${folder}/recovery-identity.txt"
 if [[ -e "${identity}" || -L "${identity}" ]]; then
   derived="$(age-keygen -y "${identity}")" || { echo 'Existing identity unreadable' >&2; exit 1; }
   [[ "${derived}" == "${expected_recipient}" ]] || {
