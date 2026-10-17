@@ -557,3 +557,35 @@ les protections du noyau. Préférer ensuite un diagnostic isolé
 `GNUPGHOME` temporaire pour comparer transport CCID intégré et
 PC/SC, sans importer de clés privées, sans toucher aux slots, et
 sans interrompre le profil GnuPG utilisateur.
+
+### P0 — Comparatif isolé PC/SC / CCID intégré
+
+`scripts/workstation/compare-gpg-card-transports.sh` compare deux
+profils GnuPG temporaires (`GNUPGHOME`) sans clé importée :
+- `pcsc` avec `disable-ccid` ;
+- `ccid` sans `disable-ccid` (pilote CCID intégré).
+
+`--check` valide les prérequis ; `--run` effectue deux lectures
+`gpg --batch --card-status` bornées à 18 secondes chacune.
+Les résultats masquent les identifiants de carte. À la fin,
+les agents des **profils temporaires uniquement** sont arrêtés,
+les répertoires temporaires supprimés, et le vrai profil
+`~/.gnupg` reste inchangé. Ce test ne touche pas aux clés ni
+aux PIN ; il accède cependant à la même interface USB physique,
+donc ne pas effectuer en parallèle de signature ou déchiffrement.
+
+```bash
+./scripts/workstation/compare-gpg-card-transports.sh --check
+./scripts/workstation/compare-gpg-card-transports.sh --run
+```
+
+Résultats à interpréter :
+- PC/SC OK, CCID KO : défaut plutôt côté accès CCID intégré ;
+- PC/SC KO, CCID OK : défaut probablement dans le chemin PC/SC ;
+- tous deux KO : examiner contention, permissions du lecteur,
+  configuration GnuPG, journal des erreurs scdaemon ;
+- tous deux OK : défaut propre au profil utilisateur.
+
+Le succès de `--run` ne migre aucune clé GPG. Ne pas
+exécuter `keytocard`. En cas d'arrêt non interceptable, des
+agents temporaires peuvent nécessiter une inspection avant nettoyage.
