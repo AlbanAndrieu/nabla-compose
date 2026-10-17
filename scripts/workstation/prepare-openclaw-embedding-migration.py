@@ -25,7 +25,9 @@ def discover():
     roots = [BASE / "memory", BASE / "agents" / "main" / "memory",
              BASE / "agents" / "cron" / "memory"]
     result = set()
+    print("openclaw_state_root=" + str(BASE))
     for root in roots:
+        print("memory_search_root=" + str(root.relative_to(BASE)) + " exists=" + str(root.is_dir()).lower())
         if not root.is_dir() or root.is_symlink():
             continue
         for directory, dirs, files in os.walk(root, followlinks=False):
@@ -36,7 +38,7 @@ def discover():
                     continue
                 try:
                     with path.open("rb") as handle:
-                        if handle.read(16) == b"SQLite format 3\\x00":
+                        if handle.read(16) == b"SQLite format 3\x5cx00":
                             result.add(path)
                 except OSError:
                     continue
