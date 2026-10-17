@@ -32,6 +32,16 @@ case "$free_pages:$inactive_pages:$page_size" in
 esac
 echo '==> Largest resident processes (KiB)'
 ps axo pid,rss,pcpu,command | sort -nr -k2 | head -18 || true
+echo '==> pfBlockerNG cron pressure (read-only)'
+cron_lines=$(ps axo pid,rss,pcpu,command 2>/dev/null | grep '[p]fblockerng.php cron' || true)
+if [ -n "$cron_lines" ]; then
+  echo 'WARN: pfBlockerNG cron is active; defer pflow activation and DNSBL rebuild'
+  printf '%s\n' "$cron_lines"
+else
+  echo 'PASS: no pfBlockerNG cron process observed'
+fi
+echo '==> pfBlockerNG DNSBL helper processes'
+ps axo pid,rss,pcpu,command 2>/dev/null | grep -E '[a]wk .*pfbtemp|[a]wk .*pfblockerng/dnsbl' | head -8 || true
 echo '==> Unbound health and memory'
 unbound-control -c /var/unbound/unbound.conf status 2>&1 || true
 unbound-control -c /var/unbound/unbound.conf stats_noreset 2>/dev/null | grep -E '^(mem[.]|total[.]num[.]queries|total[.]num[.]recursivereplies)' | head -22 || true
