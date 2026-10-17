@@ -2154,7 +2154,7 @@ one YubiKey matching requested serial`. Assertion corrigée dans la PR
 Commande envisagée **seulement après cette gate**, avec **une seule**
 YubiKey secondaire connectée et après une seconde vérification PIV82 :
 ```bash
-age-plugin-yubikey --generate --serial 22916048 --slot 82 \
+age-plugin-yubikey --generate --serial 22916048 --slot 1 \
   --pin-policy always --touch-policy always \
   --name nabla-age-backup
 ```
@@ -2164,3 +2164,15 @@ Collecter **uniquement** le destinataire public/identité plugin,
 puis tester une fixture age synthétique séparément.
 Procéder à la principale après le test de la secondaire.
 Conserver OTP2, PIV9A et l'identité SOPS X25519 existants.
+
+### Correctif de numérotation age-plugin-yubikey 0.5.1 (17 octobre 2026)
+
+Le contrôle `ykman piv keys info 82` désigne le slot matériel PIV hexadécimal **82** (`RETIRED1`). En revanche `age-plugin-yubikey --slot` n'accepte **que l'index décimal de 1 à 20** des slots retired : `--slot 1` correspond à PIV 82, `--slot 2` à PIV 83, etc. La tentative `--generate --slot 82` a échoué en validation `Invalid slot '82' (expected number between 1 and 20)` et **n'a pas créé de clé**. Les 18 tests locaux `unittest` sont maintenant PASS.
+
+Avant génération, vérifier que le plugin `--list` est toujours vide et que PIV82 est encore libre sur la seule carte connectée. La commande corrigée de la secondaire est :
+```bash
+age-plugin-yubikey --generate --serial 22916048 --slot 1 \\
+  --pin-policy always --touch-policy always --name nabla-age-backup
+```
+
+ATTENTION : la clé de gestion PIV existante est **AES256 PIN-protected** ; le plugin 0.5.1 peut ne pas supporter certains formats de management key. En cas d'erreur, arrêter, documenter et rechercher une option compatible ; **ne pas** réinitialiser PIV, convertir sa clé de gestion, utiliser `--force`, ni modifier le slot 9A ou OTP2 pour contourner l'échec. Une éventuelle écriture doit être confirmée après opération avec `ykman piv keys info 82`, puis test sur fixture de chiffrement avant tout usage SOPS.
