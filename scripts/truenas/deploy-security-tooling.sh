@@ -69,7 +69,7 @@ app_url() {
 
 wait_http() {
   local app="$1" url="$2" timeout_seconds=300
-  local status='' attempts=0 started=$SECONDS
+  local status='' attempts=0 started=${SECONDS}
   case "${app}" in
     netbox | dependency-track | defectdojo) timeout_seconds=600 ;;
   esac
