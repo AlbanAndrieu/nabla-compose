@@ -42,8 +42,8 @@ nabla_status ok 'PASS: selected single YubiKey and PIV 82 appears empty (read-on
 # PIN vault references are labels only: never store or print the PIN itself.
 case "$serial" in
   22916048)
-    nabla_status info 'Secondary YubiKey: check its OWN PIV PIN entry in LastPass; do not assume the primary PIN applies.'
-    nabla_status warn 'LastPass entry "yubikey-5-nabla principal" refers to the PRIMARY key, not necessarily this secondary.'
+    nabla_status info 'Secondary YubiKey PIV PIN reference: LastPass "yubikey-5-nabla backup" (never print the secret).'
+    nabla_status warn 'Use the backup PIN entry, not LastPass "yubikey-5-nabla principal".'
     ;;
   23501671)
     nabla_status info 'Primary YubiKey PIV PIN reference: LastPass "yubikey-5-nabla principal" (verify label; never print the secret).'
