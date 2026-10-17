@@ -2131,3 +2131,7 @@ Lors du PIV82 preflight : `Connect exactly the selected single YubiKey` sur le s
 ### Correctif PIV 82 : principale vérifiée vide (17 octobre 2026)
 
 Avec la principale seule branchée, `ykman list --serials` a retourné `23501671` et `ykman --device 23501671 piv keys info 82` a répondu `ERROR: No key stored in slot 82 (RETIRED1).` C'est un constat direct de slot **vide** ; aucune identité n'a été créée et les slots OTP2/9A restent intouchés. Le précontrôle rejetait cette carte à cause de deux défauts logiciels : backreference `sed` échappée deux fois et message d'absence de clé non reconnu. Correctifs dans la PR #259, à vérifier sur la workstation après fetch. La YubiKey de secours devra être vérifiée séparément avec **une seule carte branchée**, sans présumer le résultat des diagnostics précédents.
+
+### PIV 82 — les deux précontrôles matériels PASS
+
+Les deux YubiKeys ont **PASS** au script non destructif `preflight-age-yubikey-piv82.sh`, avec chacune son numéro de série et une seule carte connectée : principale `23501671`, secours `22916048`. Les slots PIV 82 sont donc vérifiés vides au moment du contrôle ; ni génération, ni écriture, ni modification des OTP2 et PIV9A. Il reste à provisionner séparément les identités age matérielles puis à effectuer les tests de déchiffrement synthétique. Les sorties des scripts shell interactifs suivent désormais `AGENTS.md` : états colorés et icônes si TTY UTF-8, repli texte pour CI/NO_COLOR/non-TTY, sans secrets dans les sorties.
