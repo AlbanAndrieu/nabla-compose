@@ -1,3 +1,13 @@
+## P0/P1 — YubiKey / GnuPG / Vault PKI (2026-10-16)
+
+- [x] Diagnostiquer les deux clés KeePassXC sur slot OTP 2, réponses HMAC identiques.
+- [x] Préparer un diagnostic GnuPG/PCSC en lecture seule : `scripts/workstation/diagnose-gpg-smartcard.sh --check`.
+- [ ] **P0** Corriger `gpg --card-status: No such device` sur GnuPG 2.4.8 malgré `disable-ccid`, avec tests sur les deux clés et retour arrière.
+- [ ] **P0** Protéger la clé de signature Git / git-crypt et les sous-clés de déchiffrement PostgreSQL; valider une restauration isolée avant toute migration de clés sur carte.
+- [ ] **P1** Créer une nouvelle CA racine hors ligne compatible Vault PKI intermédiaire; l'ancienne CA slot 9A est expirée, `CA:TRUE,pathlen:0`, à préserver pendant l'audit.
+- [ ] **P2** Étudier SSH FIDO2, PAM U2F dual-key, age-plugin-yubikey et GNOME Keyring.
+- **Détails et critères d'acceptation :** [roadmap YubiKey / GPG / Vault](workstation-yubikey-gpg-vault-roadmap.md).
+
 ## P0/P1 — Reprise PR #255 : Gatus, diagnostics ressources et import FreshRSS sûr (mise à jour 2026-10-15)
 
 - [x] Préserver le script de récupération Gatus et son test de formatage ; ne pas confondre le préflight avec une acceptation runtime (App précédemment STOPPED, HTTP 8085 indisponible).
