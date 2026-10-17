@@ -1869,3 +1869,35 @@ tout `chmod -R` destructif.
 
 Aucune génération age, aucun `keytocard`, aucun reset PIV,
 aucune modification d'un slot OTP ou de fichier secret.
+
+### P2 — Audit PIV lié au numéro de série (PR #258)
+
+Sur la **YubiKey principale**, l'opérateur a exécuté
+`ykman piv keys info` pour chacun des 23 slots
+`9C 9D 9E` et `82–95` : les **23 réponses indiquent
+`No key stored`**. Cela complète l'inventaire de la
+carte de secours, qui avait les mêmes 23 slots sans clé.
+Les slots PIV `9A` sont historiques et **à préserver**.
+
+Le script `scripts/workstation/audit-yubikey-capabilities.sh`
+identifie maintenant l'appareil **avant** les diagnostics,
+refuse zéro, plusieurs ou une YubiKey inconnue, et propose :
+```bash
+./scripts/workstation/audit-yubikey-capabilities.sh --primary
+./scripts/workstation/audit-yubikey-capabilities.sh --backup
+# ou explicitement --serial NUMERO
+```
+Une seule carte doit être connectée. Les commandes `ykman`
+sont liées au numéro de série vérifié via `--device` ;
+les 23 slots sont classés **EMPTY / OCCUPIED / UNKNOWN** sans
+publier les métadonnées cryptographiques détaillées. Tout
+état `UNKNOWN` interdit de déduire qu'un slot est libre.
+Le mode `--challenge` reste optionnel pour l'OTP HMAC.
+L'inventaire ne génère ni ne déplace de clé, et ne modifie
+ni PIV ni OTP.
+
+**Allocation P2 proposée** : slot retired `82` sur
+chaque YubiKey pour deux identités age indépendantes ;
+`83` réservé à la rotation. La preuve de récupération
+logicielle X25519, la fixture SOPS et l'acceptation des
+politiques PIN/touch restent des conditions préalables.
