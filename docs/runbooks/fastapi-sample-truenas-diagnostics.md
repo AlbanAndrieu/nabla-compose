@@ -44,12 +44,23 @@ TrueNAS app.update/redeploy. Confirm reviewed ref and rollback state first.
 
 ## Non-destructive diagnostic
 
-After updating the `nabla-compose` PR branch, run:
+After updating the `nabla-compose` PR branch, run as its regular
+repository owner (avoid running Git as root):
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only origin feat/watchtower-zero-trust-service-units-20261016
+sudo -v
 bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3
 ```
+
+The existing `M fastapi-sample` Gitlink may remain after this fast-forward.
+Do not reset it or automatically stage it just to silence `git status`.
+If the fast-forward refuses due to unrelated local changes, resolve that
+state separately before using the updated script. The diagnostic invokes
+`sudo -n docker` only if the current user lacks direct Docker access; the
+`sudo -v` step refreshes the authorization ticket without exporting
+credentials.
 
 Option `--cycles 1` is a quick check; `--cycles 3` samples cached
 `/api/health-board` at 31-second intervals (two waits). Option
@@ -58,7 +69,9 @@ request uses no redirect following and a 12-second maximum; the
 health-board is bounded to 30 seconds/cycle.
 
 The diagnostic collects:
-1. parent/submodule SHAs, TrueNAS app and Docker state, runtime `/v2/version`;
+1. parent/submodule SHAs (Git commands executed as the repository owner),
+   TrueNAS app and Docker state, runtime `/v2/version`, and a sanitized
+   count of LanguageTool/ Garage records in the canonical catalog;
 2. the same three public HTTP timing probes from TrueNAS and inside Docker;
 3. sanitized Docker resolver metadata (no environment dump);
 4. internal/public health-board summary plus Garage member evidence;
