@@ -2184,3 +2184,9 @@ Sur la YubiKey secondaire `22916048`, `age-plugin-yubikey 0.5.1 --generate --slo
 **Aucune génération réussie confirmée.** Avant toute autre action, effectuer un inventaire PIV 82 et des compteurs PIN en lecture seule. Ne pas suivre automatiquement la suggestion du plugin de migrer la management key vers TDES : rétrogradation crypto pour contourner une incompatibilité logicielle, avec risques opérationnels pour le slot historique 9A. Conserver PIV 9A et OTP2. Chercher prioritairement une version/fork du plugin prenant en charge AES ou un processus compatible et contrôlé, puis tester sur fixture avec une carte uniquement. La génération de l'identité age matérielle reste **BLOCKED** tant que compatibilité et PIN de secours ne sont pas validés.
 
 Le préflight affiche maintenant un **rappel non sensible de la référence LastPass** selon le numéro de série ; jamais la valeur du PIN.
+
+### PIN secondaire et compatibilité AES — contrôle matériel
+
+Le diagnostic en lecture seule de la carte secondaire indique PIN 3/3 et PUK 3/3, management key AES256 protégée par PIN, ancien certificat 9A inchangé et slot 82 vide. L'échec du plugin ne démontre pas un PIN erroné : il annonce une incompatibilité avec AES.
+
+Références LastPass confirmées par l'opérateur : principale `yubikey-5-nabla principal` ; secondaire `yubikey-5-nabla backup`. Ne conserver que les libellés, jamais les valeurs. Ne pas migrer la management key vers TDES et ne pas réinitialiser PIV ; recherche d'un chemin AES-compatible requise avant toute génération.
