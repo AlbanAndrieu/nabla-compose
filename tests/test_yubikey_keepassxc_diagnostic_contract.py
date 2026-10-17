@@ -97,6 +97,20 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "parted -s", "reset PIV"):
             self.assertNotIn(forbidden, body)
 
+    def test_age_escrow_restore_script_contract(self):
+        script = ROOT / "scripts/workstation/verify-sops-age-escrow.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_text = subprocess.run(
+            ["bash", str(script), "--help"], capture_output=True,
+            text=True, check=True
+        ).stdout
+        self.assertIn("--backup", help_text)
+        self.assertIn("--identity", help_text)
+        body = script.read_text()
+        for marker in ("umask 077", "/dev/shm", "tmpfs", "trap cleanup EXIT",
+                       "age -d -i", "age-keygen -y", "PASS:"):
+            self.assertIn(marker, body)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
