@@ -4,16 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/probe.sh
 source "${SCRIPT_DIR}/../lib/probe.sh"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 
 LANGFLOW_CONTAINER="${LANGFLOW_CONTAINER:-langflow}"
 OPENRAG_SECRET_FILE="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
 LANGFLOW_KEY_NAME="${LANGFLOW_KEY_NAME:-openrag-global}"
 rotate=false
-
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
 
 if [[ "${1:-}" == "--rotate" ]]; then
   rotate=true

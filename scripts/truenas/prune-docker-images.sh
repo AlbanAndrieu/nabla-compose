@@ -9,11 +9,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
 skip() {
   printf 'SKIP: %s\n' "$*"
   exit 0

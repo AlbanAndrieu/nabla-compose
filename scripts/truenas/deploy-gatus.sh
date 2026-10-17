@@ -31,6 +31,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# shellcheck source=../lib/common.sh
+source "${ROOT}/scripts/lib/common.sh"
 
 APP_ID="${GATUS_APP_ID:-gatus}"
 SERVICE="${GATUS_SERVICE:-gatus}"
@@ -41,7 +43,6 @@ URL="${GATUS_HEALTH_URL:-http://172.17.0.24:8085/health}"
 DB="${GATUS_DB_PATH:-/mnt/cpool/gatus/gatus.db}"
 WAIT_SECONDS="${GATUS_WAIT_SECONDS:-180}"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 for command in curl docker git jq midclt stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "missing ${command}"
 done

@@ -48,8 +48,8 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             "Exactly one YubiKey must be connected",
             "Connected YubiKey does not match requested serial",
             "Unrecognized YubiKey",
-            'args=(--device "$connected")',
-            'ykman "${args[@]}" piv keys info "$slot"',
+            'args=(--device "${connected}")',
+            'ykman "${args[@]}" piv keys info "${slot}"',
             "PIV slot summary", "UNKNOWN", "No key stored",
             "9C 9D 9E 82 83 84 85 86 87 88 89 8A 8B 8C 8D 8E 8F 90 91 92 93 94 95",
         ):
@@ -70,7 +70,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         for marker in (
             "umask 077", "age -e -r", "findmnt",
             "independent", "CHECK ONLY", "OFFLINE DECRYPTION",
-            "chmod 600", "ln \"$temp\" \"$output\"",
+            "chmod 600", "ln \"${temp}\" \"${output}\"",
         ):
             self.assertIn(marker, content)
         for dangerous in (
@@ -112,7 +112,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("Clé secrète de signature Git", content)
         self.assertIn("ykman-gui actif", content)
         self.assertIn("usbfs sur CCID est attendu", content)
-        self.assertIn("Ne pas répéter reader-port", content)
+        self.assertIn("ne pas répéter reader-port", content)
         for forbidden in ("piv reset", "keytocard", "rm -rf", "gpg --delete-secret-key",
                           "gpgconf --kill", "systemctl stop", "set -x"):
             self.assertNotIn(forbidden, content)

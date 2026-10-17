@@ -18,7 +18,9 @@ class YubiKeyManagerBootstrapContractTests(unittest.TestCase):
         self.assertIn("yubikey-manager pcscd libu2f-udev", text)
         self.assertIn('ln -sfn "${SYSTEM_YKMAN}" "${LINK}"', text)
         self.assertNotIn("uv tool install", text)
-        self.assertNotIn("libpcsclite-dev", text)
+        # libpcsclite-dev serves only the age-plugin-yubikey Cargo build (pcsc-sys),
+        # never a local pyscard build for ykman.
+        self.assertIn("pcsc-sys discovers libpcsclite through pkg-config", text)
         self.assertNotIn("rm -f /usr/local/bin/ykman", text)
 
 

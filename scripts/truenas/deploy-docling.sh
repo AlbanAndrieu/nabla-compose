@@ -4,15 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 APP_ID="${DOCLING_APP_ID:-docling}"
 CANONICAL_ROOT="${DOCLING_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
 for command in docker git jq midclt; do

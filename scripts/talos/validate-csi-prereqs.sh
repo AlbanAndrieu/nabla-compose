@@ -12,6 +12,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 # shellcheck source=scripts/lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# shellcheck source=../lib/common.sh
+source "${ROOT}/scripts/lib/common.sh"
 # shellcheck source=scripts/lib/probe.sh
 source "${ROOT}/scripts/lib/probe.sh"
 # Shared TrueNAS helper owns the pool.dataset.query call used by this preflight.
@@ -29,11 +31,6 @@ EXPECTED_CSI_VERSION="v1.0.3"
 CONTROLLER_CLUSTERROLE="truenas-csi-controller-role"
 CONTROLLER_SERVICE_ACCOUNT="system:serviceaccount:truenas-csi:truenas-csi-controller-sa"
 VOLUME_ATTACHMENT_RESOURCE="volumeattachments.storage.k8s.io"
-
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
 
 ok() {
   printf '✅ %s\n' "$*"

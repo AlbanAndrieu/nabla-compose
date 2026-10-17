@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=scripts/lib/probe.sh
 source "${ROOT}/scripts/lib/probe.sh"
+# shellcheck source=../lib/common.sh
+source "${ROOT}/scripts/lib/common.sh"
 
 TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
 PUBLIC_HOST="${PUBLIC_HOST:-sample.albandrieu.com}"
@@ -18,11 +20,6 @@ PFSENSE_DNS="${PFSENSE_DNS:-172.17.0.1}"
 PIHOLE_DNS="${PIHOLE_DNS:-172.17.0.24}"
 
 warnings=0
-
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
 
 resolve_a_with_server() {
   local server="$1"
