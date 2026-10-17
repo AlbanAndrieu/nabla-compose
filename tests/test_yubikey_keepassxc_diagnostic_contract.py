@@ -288,6 +288,18 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv_python_sdk_capability_gate_is_read_only(self):
+        script = ROOT / "scripts/workstation/check-yubikey-piv-python-sdk.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("offline", result.stdout)
+        body = script.read_text()
+        self.assertIn("sign_certificate_builder", body)
+        for forbidden in ("piv keys generate", "piv certificates import",
+                          "change-management-key", "ykman piv reset"):
+            self.assertNotIn(forbidden, body)
+
     def test_offline_quality_gate_contract(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
