@@ -19,7 +19,7 @@ jq -r '.[] | select((.state // "UNKNOWN") != "RUNNING") | [.id, .state] | @tsv' 
   LC_ALL=C sort | awk 'NR<=80 {print "⚪ " $0} END {if(NR>80) printf "... %d supplémentaires\n",NR-80}'
 section 'Applications prioritaires'
 for app in dsomm cyberbro sentry scrutiny openrag langflow docling; do
-  state="$(jq -r --arg app "${app}" '[.[] | select(.id==${app}) | (.state // "UNKNOWN")] | if length==0 then "ABSENT" else .[0] end' "${tmp}")"
+  state="$(jq -r --arg app "${app}" '[.[] | select(.id==$app) | (.state // "UNKNOWN")] | if length==0 then "ABSENT" else .[0] end' "${tmp}")"
   if [[ "${state}" == RUNNING ]]; then
     printf '%b✅ %-20s %s%b\n' "${GREEN}" "${app}" "${state}" "${RESET}"
   else
