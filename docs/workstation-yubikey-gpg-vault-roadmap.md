@@ -236,3 +236,22 @@ aucune panne persistante du lecteur. Une nouvelle tentative
 Ne pas demander d'autres cycles de débranchement ni redémarrer
 `pcscd` sans justification. La procédure réversible `reader-port`
 reste une hypothèse à tester, non une correction confirmée.
+
+### Préflight automatisé, strictement en lecture seule
+
+Avant l'essai manuel de `reader-port`, exécuter sur la workstation :
+
+```bash
+bash scripts/workstation/plan-gpg-reader-port.sh --check
+```
+
+Ce préflight vérifie `disable-ccid`, l'absence de `reader-port` déjà
+configuré, l'absence de sauvegarde homonyme et la visibilité du lecteur
+YubiKey avec carte insérée. Il **ne modifie rien**, n'émet aucun
+identifiant de carte et ne lance pas `gpgconf --kill`. Il refuse
+également d'agir comme root ou de remplacer une ancienne sauvegarde.
+
+Le journal USB observé à 12:33 correspond à une reconnexion volontaire,
+pas à une panne USB prouvée. Une réussite du préflight ne garantit
+pas la correction de `SCD SERIALNO`; elle autorise seulement la
+préparation d'un essai supervisé et réversible.
