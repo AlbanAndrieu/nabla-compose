@@ -310,3 +310,28 @@ Le journal USB observé à 12:33 correspond à une reconnexion volontaire,
 pas à une panne USB prouvée. Une réussite du préflight ne garantit
 pas la correction de `SCD SERIALNO`; elle autorise seulement la
 préparation d'un essai supervisé et réversible.
+
+### Corrélation coredump — 17 octobre 2026
+
+L'opérateur confirme `errexit` inactif après restauration de la
+configuration et présence du backup `scdaemon.conf.before-reader-port`.
+Ne pas recommencer un essai de configuration avant examen du backup.
+
+`coredumpctl list --since '2026-10-16 00:00:00'` identifie :
+- Seahorse (`/usr/bin/seahorse`) SIGSEGV à 00:23:19, 09:02:49, 09:12:17 ;
+- Nemo SIGSEGV à 02:39:18 et VS Code SIGSEGV à 18:40:09.
+
+Le `dmesg` observait un segfault dans `libpcsclite_real.so.1`
+**exactement à 00:23:19** : le processus correspondant est Seahorse.
+Cette corrélation suggère un défaut ou usage problématique de la
+bibliothèque PC/SC côté client GNOME. Elle ne démontre pas
+que Seahorse bloque scdaemon lors des échecs GnuPG du 17 octobre.
+
+Investigation non intrusive :
+```bash
+pgrep -a -u "$(id -u)" -f 'seahorse|scdaemon|gpg-agent' || true
+coredumpctl info 2655324 --no-pager | grep -E 'Executable:|Signal:|Stack trace|libpcsclite' || true
+```
+Ne pas lancer `coredumpctl dump` ni partager la mémoire du processus.
+Éviter `killall`, `gpgconf --kill all` et les redémarrages systemd
+avant d'avoir identifié les clients concurrents.
