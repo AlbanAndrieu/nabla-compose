@@ -316,3 +316,38 @@ un adaptateur spécifique et des tests de non-régression avant toute écriture.
 Critère de fin par service : contrat documenté, Vaultwarden vérifié,
 matérialisation correcte, consommateur actif confirmé, rollback testé et
 aucun secret exposé dans Git, logs ou arguments de processus.
+
+### DefectDojo : acceptation du premier déploiement (17 octobre 2026)
+
+L'opérateur a confirmé : Vaultwarden 5/5 importé et vérifié, base PostgreSQL
+`defectdojo` et rôle dédiés, application TrueNAS RUNNING, initialiseur
+`Exited (0)`, uWSGI stable sans redémarrage, `migrate --check` réussi,
+HTTP 302 vers `/login?next=/`. Les réponses HTTP 502 étaient transitoires
+pendant l'initialisation ; elles ne constituent pas un incident persistant.
+
+Durcissement préparé dans la branche (non encore appliqué au runtime) :
+- images Django et Nginx épinglées sur les digests observés en production ;
+- `DD_ALLOWED_HOSTS` restreint à `172.17.0.24,defectdojo.int.albandrieu.com` ;
+- cible PostgreSQL par défaut `172.17.0.24` pour les attentes de disponibilité.
+
+Avant redéploiement, vérifier les variables persistantes de l'application
+TrueNAS : une surcharge `DD_ALLOWED_HOSTS=*` annulerait le durcissement.
+Contrôler la résolution DNS du nom interne avant de l'utiliser, et conserver
+l'accès LAN pendant la bascule. Ne pas exposer DefectDojo publiquement.
+
+Validation opérateur, après `git pull --ff-only` :
+```bash
+bash -n scripts/truenas/deploy-security-tooling.sh
+sudo docker compose -f apps/defectdojo/compose.yml config --quiet --no-interpolate --no-env-resolution
+sudo bash scripts/truenas/deploy-security-tooling.sh --check defectdojo
+# Après revue des paramètres persistants, sur fenêtre contrôlée :
+# sudo bash scripts/truenas/deploy-security-tooling.sh --apply defectdojo
+sudo docker exec defectdojo-uwsgi python manage.py migrate --check
+sudo docker exec defectdojo-uwsgi python manage.py check
+curl -sS -D - -o /dev/null --max-time 10 http://172.17.0.24:31085/
+```
+
+Critère P0 : disparition de `dojo.W004`, absence de nouvelles migrations,
+redirection attendue, workers Celery stables et images réellement résolues
+aux digests épinglés. L'acceptation métier (authentification, MFA,
+premier import SAST/SCA/DAST, déduplication) reste distincte.
