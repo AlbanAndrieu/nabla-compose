@@ -771,3 +771,22 @@ après fermeture des sessions GPG, reconnecter la YubiKey
 et comparer `gpg --card-status`. Conserver les résultats
 et les versions installées. Toute mise à niveau majeure de
 GnuPG requiert un test séparé en environnement isolé.
+
+### P0 — Mise à niveau Ubuntu indisponible (17 octobre 2026)
+
+L'opérateur a confirmé Ubuntu **26.04.1 LTS resolute**.
+`gnupg`, `gpg`, `gpg-agent` et `scdaemon` sont déjà installés
+en **2.4.8-4ubuntu3.1**. `apt-cache policy` montre la même version
+comme candidate depuis `resolute-updates`/`resolute-security`.
+La simulation puis la commande effective
+`apt-get --only-upgrade install scdaemon gpg-agent` retournent
+`0 upgraded, 0 newly installed, 0 to remove` ;
+**aucun paquet GnuPG n'a été changé**.
+
+**Décision :** fermer l'action « mettre à niveau scdaemon via apt »
+comme *sans objet* sur ce poste. Ne pas répéter l'installation,
+ne pas rétrograder globalement GnuPG, ni installer un paquet/ppa non
+validé. Garder 19 autres mises à jour en attente hors périmètre P0.
+Continuer par une investigation scdaemon à faible exposition
+des données ; envisager une version alternative uniquement dans
+un environnement isolé et vérifié.
