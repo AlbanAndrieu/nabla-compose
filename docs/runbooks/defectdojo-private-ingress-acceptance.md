@@ -134,3 +134,21 @@ unbound-control -c /var/unbound/unbound.conf stats_noreset | egrep '^mem[.]'
 ```
 
 From workstation run the existing read-only `scripts/pfsense/diagnose-recover.sh --check` and `scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com` with existing SSH configuration. Redact secrets and avoid pasting `/conf/config.xml` wholesale. Do not add HAProxy WAN routing for private DefectDojo; DNS must be fixed first. No appliance mutation or recovery action is approved by this runbook.
+
+## Confirmed pfSense OOM and absent generated override — operator evidence, October 17
+
+The operator reports Unbound 1.26.1 currently running (PID 87675, uptime 45004 seconds), Python/validator/iterator modules. The generated `/var/unbound/unbound.conf` produced **no matches** for the expected `int.albandrieu.com`, Pi-hole address, forward-zone/forward-addr or split-domain directives. Combined with `unbound-control lookup` selecting Cloudflare nameservers, the active private-zone forwarding contract is absent. Verify whether the persisted pfSense Domain Override exists and why the generated config differs before modifying it. Do not add a DefectDojo-specific HAProxy route or Cloudflare record.
+
+The current kernel ring buffer explicitly contains `pid 84666 (unbound) ... was killed: failed to reclaim memory`, alongside two PHP processes and netstat killed for the same reason. This **confirms a global memory-reclaim failure** during the observed incident, though the precise timestamp and trigger require logs. Current Unbound RSS was 131704 KiB (~129 MiB); Snort ~59 MiB, php_pfb ~50 MiB, and multiple PHP-FPM workers ~45–50 MiB each. Do not conflate process RSS totals with unique physical memory. Capture memory headroom, OOM log timestamps and pfBlockerNG/CrowdSec states before recovery. See `docs/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md` for a prior confirmed OOM and mitigations; do not assume the same trigger.
+
+The operator executed `scripts/pfsense/diagnose-recover.sh --check` from the TrueNAS checkout. HTTPS/API probes passed, but SSH on default port 22 timed out (exit 255), so deep evidence was **not collected**. `audit-posture.sh --ssh home.albandrieu.com` likewise timed out on port 22. Do not report the partial API diagnosis as a complete pfSense audit. The suggested workstation path `~/w/nabla-compose` did not exist on TrueNAS; on TrueNAS use `/mnt/cpool/compose/nabla-compose` and on the workstation use its actual checkout path.
+
+New bounded read-only script (run from a host with working pfSense SSH alias/port):
+
+```bash
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandrieu.com
+# If the SSH service uses a nonstandard port:
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandrieu.com --port YOUR_SSH_PORT
+```
+
+This script collects Unbound status, effective forward directives, lookup selection, kernel OOM evidence, top memory processes and Unbound counters without dumping credentials or modifying pfSense. If SSH remains blocked, use the already available pfSense console to run the documented individual read-only commands. Do not attempt brute-force port discovery or enable WAN SSH for this audit.
