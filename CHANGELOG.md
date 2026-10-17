@@ -1,3 +1,15 @@
+# [0.47.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.46.1...0.47.0) (2026-10-17)
+
+
+### Bug Fixes
+
+* **defectdojo:** close private Traefik/DNS acceptance after PR [#257](https://github.com/AlbanAndrieu/nabla-compose/issues/257) ([#258](https://github.com/AlbanAndrieu/nabla-compose/issues/258)) ([8b96e83](https://github.com/AlbanAndrieu/nabla-compose/commit/8b96e83e1319503b1e47c02e6921567051c73b6c))
+
+
+### Features
+
+* Watchtower read-only POC and deployment-unit catalog preview ([#257](https://github.com/AlbanAndrieu/nabla-compose/issues/257)) ([6f7ebb3](https://github.com/AlbanAndrieu/nabla-compose/commit/6f7ebb3faf3929c4319c579891e47cf871df4c27)), closes [#255](https://github.com/AlbanAndrieu/nabla-compose/issues/255) [#256](https://github.com/AlbanAndrieu/nabla-compose/issues/256) [#253](https://github.com/AlbanAndrieu/nabla-compose/issues/253) [#254](https://github.com/AlbanAndrieu/nabla-compose/issues/254)
+
 ## [0.46.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.46.0...0.46.1) (2026-10-17)
 
 
