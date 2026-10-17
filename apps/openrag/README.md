@@ -469,3 +469,81 @@ bash scripts/truenas/audit-app-lifecycle.sh
 
 Do not loop `app.redeploy` while TrueNAS is under sustained I/O pressure.
 Diagnose the failing dependency first.
+
+
+## Shared embedding contract with OpenClaw (planned; not deployed)
+
+OpenRAG **already** uses `OPENRAG_LITELLM_EMBEDDING_MODEL=embedding` through the
+OpenAI-wire-compatible `openai` provider. This is the same **model alias** being
+prepared for OpenClaw `main` and `cron`. Do not create a second independent
+OpenRAG embedding model or a second Langflow stack.
+
+### Routing and identity
+
+```text
+OpenClaw main + cron -- per-application embeddings virtual key --┐
+                                                                 ├--> LiteLLM stable alias "embedding"
+OpenRAG + shared Langflow -- OpenRAG-scoped virtual key ----------┘          |
+                                                    primary: workstation LiteLLM
+                                                    standby: TrueNAS LiteLLM/Ollama
+```
+
+The **fallback policy** is shared, **credentials are not**. Use scoped LiteLLM
+virtual keys for OpenClaw and OpenRAG respectively, with model allowlist
+`embedding`, per-consumer budget and rate limits; never copy the OpenClaw
+private key from the workstation into TrueNAS or give either service the
+LiteLLM master key. The existing `LITELLM_IDE_API_KEY` is used by OpenRAG
+for *both chat and embeddings* in release 0.7.1; **do not replace it with an
+embedding-only key** until the provider configuration supports independent
+chat/embedding credentials, or a dedicated least-privilege routing proxy is
+validated. The current runtime configuration is not yet isolated by purpose.
+
+### Fallback, availability, consistency (fail closed)
+
+1. Keep the existing `embedding` alias stable at each application's
+   configured LiteLLM endpoint. Primary: workstation `172.17.0.57:4000/v1`.
+   A TrueNAS endpoint is a candidate only after it is reachable from the
+   OpenRAG backend and shared Langflow and presents the expected alias.
+2. Validate both endpoints separately with real embedding requests. Record
+   actual upstream deployment/model identifier, model revision/digest,
+   normalization and preprocessing parameters, output dimension and, when
+   supported, a deterministic sentinel-vector comparison. Dimensions alone
+   (including 768) **do not** prove vector-space equivalence.
+3. Permit automatic upstream failover only between proven equivalent instances
+   of the **same embedding model/version/configuration** and while identical
+   query and document embedding semantics are retained. Test with indexed
+   retrieval before enablement. Retry/timeouts must be bounded and must not
+   introduce a cloud-model provider silently.
+4. If fallback points to a **different** model (for example TrueNAS
+   `nomic-embed-text` versus a non-identical workstation model), fail closed:
+   do not query or append to the original OpenSearch vector index. Either
+   restore primary or deliberately re-embed into an isolated/versioned index
+   and switch collection/query routing as one reviewed operation.
+5. Chat-model fallbacks are separately controlled; they must never change
+   the embedding alias or vector space. On backend failure, report embedding
+   retrieval/indexing **degraded/unavailable**, not a healthy silent fallback.
+6. Trace model alias, effective upstream (with no credential), failover reason,
+   latency and errors through LiteLLM/Langfuse/Prometheus where available.
+   Remove or redact document bodies, query PII and auth tokens from telemetry.
+
+### Acceptance before activation
+
+- [ ] Verify workstation `embedding` upstream and TrueNAS standby model
+      identity, dimensionality, vector equivalence and deterministic test
+      fixtures with no user documents or personal data.
+- [ ] Validate failover with forced primary unavailability and recovery,
+      bounded retry, no unapproved SaaS egress, no mixed-space OpenSearch index.
+- [ ] Validate an indexed OpenRAG test document and query return expected
+      retrieval results before/after failover, plus a separate OpenClaw
+      `main`/`cron` smoke using the same embedding-space identity.
+- [ ] Introduce an OpenRAG-scoped key when release compatibility allows;
+      enforce model allowlists and budgets without breaking chat `qwen`.
+- [ ] Confirm OpenRAG, Langflow and OpenClaw exhibit the same explicit
+      unavailable/degraded semantics when no compatible embedding backend
+      remains. Keep a tested rollback and no automatic reindex.
+- [ ] Ensure no actual consumer configuration or index is changed until
+      runtime endpoint reachability and isolation are verified.
+
+See `docs/runbooks/openclaw-embedding-secret-remediation.md` for the
+OpenClaw SecretRef work. This section describes a **target design**; it
+does not claim the shared fallback is currently enabled.
