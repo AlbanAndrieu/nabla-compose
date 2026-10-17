@@ -1195,3 +1195,29 @@ aucun changement de PIN, aucune écriture sur carte.
 **Statut :** P0 accès OpenPGP **PASS pour la carte connectée** ;
 P1 signature Git, récupération git-crypt et chiffrement/
 restauration PostgreSQL **non validés**.
+
+### P1 — Inventaire clés GnuPG et disponibilité de la carte (17 octobre 2026)
+
+Sur la workstation, `gpg --list-secret-keys --keyid-format LONG`
+pour l'identité Git configurée renvoie une clé principale
+`sec rsa4096` de capacité `[SC]` (créée en avril 2022),
+et une sous-clé `ssb rsa4096` de capacité `[E]`.
+**Les marqueurs `sec` et `ssb` (sans `#` ni `>`)
+indiquent la présence des composants secrets dans le trousseau
+GnuPG habituel**, non un stub exclusif de smartcard.
+`manage-gpg-pcsc-shared.sh --verify` renvoie toujours
+`Live OpenPGP selection operational`.
+
+La carte YubiKey de secours précédemment inspectée dispose
+de trois slots OpenPGP vides. La clé logicielle Git et la
+détection de l'applet YubiKey sont **deux faits distincts**.
+
+**P1 — étape suivante :** valider une signature GPG locale sur
+un message de test non sensible, puis vérifier cryptographiquement
+sa signature avec la clé publique (sans faire de commit Git
+ni écrire dans le dépôt). Cette opération peut exiger la
+phrase de passe GPG et doit être explicitement supervisée.
+Vérifier séparément la capacité à déchiffrer une fixture de test
+pour la sous-clé `[E]` ; ne pas utiliser de sauvegarde
+PostgreSQL de production ni de secret réel comme fixture.
+Ne pas exporter les clés secrètes ni effectuer `keytocard`.
