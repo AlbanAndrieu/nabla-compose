@@ -2972,3 +2972,12 @@ current runtime evidence can answer it.
 Operator ran `scripts/pfsense/diagnose-memory-pflow.sh --check` and `scripts/pfsense/audit-posture.sh` on workstation. pfSense uptime 13d, Unbound 1.26.1 PID 18989 uptime 816s RSS 123744 KiB, memory available 233580 KiB (free 219640 + inactive 13940), swap used 0, DNS public and private DefectDojo/S3 PASS. Kernel last OOM timestamp remains 2026-10-17 02:11:32+02:00 (historical, not a new OOM). Snort RSS 60896 KiB, pfBlocker helper 51268 KiB. pfBlocker Python loader 11809988 bytes, last DNSBL PASSED 225631 at 00:04:29; RAM swap gate missing WARN, loaded entries 0 WARN with legacy-counter semantics. pflow TrueNAS domain 1 to 172.17.0.24:2055 FAIL, Cloudflare domain 2 to 162.159.65.1:2055 FAIL, connected exporters 0 WARN. Zabbix agent stopped WARN. No services restarted.
 
 Next: confirm desired pflow destinations and whether UDP/2055 collectors exist before any pflow configuration change. Collect a second memory baseline after 24h and compare OOM timestamps. Investigate pfBlockerNG guard without package patching or DNSBL rebuild. Read-only pflow inspection reported no interfaces, but this alone cannot establish whether collector or exporter configuration is the root cause.
+
+### pfSense pflow investigation — 2026-10-17 23:53 CEST
+
+Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/pflow.ko` present (62984 bytes) but `kldstat` shows no pflow module and `ifconfig -l` shows no pflow interface. `pflowctl -v -l` fails `pflow.ko is not loaded`. TrueNAS Akvorado 2026.8.0 inlet publishes UDP 172.17.0.24:2055; inlet logs over last 15 minutes were empty. These establish missing pfSense exporter, not Akvorado ingestion health or the reason for missing module.
+
+- [ ] Inspect read-only pfSense pflow configuration and boot persistence, confirm native pflow support on installed pfSense Plus build and available rollback before any `kldload`.
+- [ ] Validate Akvorado inlet container health, receiver settings and counters without generating artificial traffic.
+- [ ] Review pflow TrueNAS destination first; keep Cloudflare domain 2 export disabled until recipient and data privacy requirements confirmed.
+- [ ] After explicit approval, activate in a controlled window with baseline memory/DNS and rollback checks. Do not start softflowd or restart Unbound.
