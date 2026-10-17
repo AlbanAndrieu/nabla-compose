@@ -105,6 +105,22 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                       "systemctl restart pcscd", "set -x"):
             self.assertNotIn(token, body)
 
+    def test_managed_pcsc_shared_apply_rollback_contract(self):
+        script = ROOT / "scripts/workstation/manage-gpg-pcsc-shared.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_out = subprocess.run(["bash", str(script), "--help"],
+                                  capture_output=True, text=True, check=True)
+        for name in ("--check", "--apply", "--rollback"):
+            self.assertIn(name, help_out.stdout)
+        content = script.read_text()
+        for marker in ("cmp -s --", "trap cleanup EXIT", "before-reader-port",
+                       "gpgconf --kill scdaemon", "No change", "pcsc-shared"):
+            if marker != "No change":
+                self.assertIn(marker, content)
+        for forbidden in ("keytocard", "piv reset", "gpgconf --kill all",
+                          "systemctl restart pcscd", "set -x"):
+            self.assertNotIn(forbidden, content)
+
     def test_no_destructive_operations(self):
         text = SCRIPT.read_text()
         for forbidden in ("otp chalresp", "otp delete", "piv reset", "piv keys import",
