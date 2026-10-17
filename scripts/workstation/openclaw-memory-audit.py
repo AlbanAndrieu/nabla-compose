@@ -95,7 +95,7 @@ def summarize(data):
                 print(f"memory_{name}_{key}={str(value).lower() if isinstance(value, bool) else value}")
         if provider in ("openai", "openai-compatible", "ollama", "local", "gemini", "voyage", "mistral", "bedrock", "deepinfra", "github-copilot", "lmstudio"):
             print(f"memory_{name}_provider={provider}")
-        if model in ("text-embedding-3-small", "text-embedding-3-large"):
+        if model in ("text-embedding-3-small", "text-embedding-3-large", "embedding", "nomic-embed-text"):
             print(f"memory_{name}_model={model}")
         if type(indexed) is int and type(total) is int and total > 0:
             print(f"memory_{name}_coverage_pct={100 * indexed / total:.1f}")
@@ -127,6 +127,12 @@ def main():
             print("memory_search_schema=" + ("available" if props else "unresolved"))
             if props:
                 print("memory_search_supports_openai_compatible=" + str("provider" in props and "remote" in props).lower())
+                for field in ("provider", "model", "fallback", "remote"):
+                    print(f"memory_search_field_{field}=" + str(field in props).lower())
+                remote = props.get("remote", {})
+                remote_props = remote.get("properties", {}) if isinstance(remote, dict) else {}
+                for field in ("baseUrl", "apiKey"):
+                    print(f"memory_search_remote_{field}=" + str(field in remote_props).lower())
         except (ValueError, AttributeError):
             print("memory_search_schema=invalid_json")
     else:
