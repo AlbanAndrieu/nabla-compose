@@ -52,6 +52,29 @@ class AuditSummaryTests(unittest.TestCase):
         self.assertNotIn("password", result)
         self.assertNotIn("secret", result)
 
+    def test_documented_audit_schema_counts_only(self):
+        data = {
+            "status": "findings",
+            "summary": {
+                "plaintextCount": 7, "unresolvedRefCount": 0,
+                "shadowedRefCount": 1, "storeResidueCount": 2,
+                "legacyResidueCount": 0,
+            },
+            "resolution": {"resolvabilityComplete": True},
+            "findings": [{"path": "/private", "value": "sk-secret"}],
+        }
+        result = module.audit_v2_summary(data)
+        self.assertEqual(result["status"], "findings")
+        self.assertEqual(result["categories"]["plaintext"], 7)
+        self.assertEqual(result["categories"]["shadowed"], 1)
+        self.assertNotIn("sk-secret", str(result))
+        self.assertNotIn("/private", str(result))
+
+    def test_documented_audit_schema_rejects_missing_counts(self):
+        data = {"status": "clean", "summary": {"plaintextCount": 0},
+                "resolution": {"resolvabilityComplete": True}}
+        self.assertIsNone(module.audit_v2_summary(data))
+
     def test_invalid_or_boolean_counts_not_accepted(self):
         result = module.audit_summary({"plaintext": True})
         self.assertEqual(result["schema"], "unknown")
