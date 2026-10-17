@@ -8,10 +8,8 @@ EXPECTED_PORT="${SCANOPY_POSTGRES_PORT:-5432}"
 EXPECTED_DB="${SCANOPY_POSTGRES_DB:-scanopy}"
 EXPECTED_USER="${SCANOPY_POSTGRES_USER:-scanopy}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

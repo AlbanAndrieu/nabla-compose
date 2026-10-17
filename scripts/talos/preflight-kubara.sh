@@ -16,10 +16,8 @@ HOST="${K8S_FASTAPI_SMOKE_HOST:-test.int.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
 MODE="${1:---pre-bootstrap}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 usage() {
   cat <<'EOF'

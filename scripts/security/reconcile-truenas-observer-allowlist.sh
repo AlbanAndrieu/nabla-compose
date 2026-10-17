@@ -7,10 +7,8 @@ ROLLBACK_TIMEOUT="${TRUENAS_UI_ROLLBACK_TIMEOUT_SECONDS:-60}"
 RESTART_DELAY="${TRUENAS_UI_RESTART_DELAY_SECONDS:-1}"
 ACTIVE_WAIT_ATTEMPTS="${TRUENAS_UI_ACTIVE_WAIT_ATTEMPTS:-30}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

@@ -55,10 +55,8 @@ VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
 FALCO_NAMESPACE="${FALCO_NAMESPACE:-falco}"
 KUBARA_WORKDIR="${KUBARA_WORKDIR:-${ROOT}}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 warn() {
   printf '⚠️  %s\n' "$*" >&2

@@ -14,7 +14,8 @@ CONFIG_DIR="${ROOT}/apps/gatus/config"
 CONFIG="${CONFIG_DIR}/config.yml"
 EXPECTED_GID="${GATUS_CONFIG_GID:-568}"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 for command in stat getent docker grep cut; do
   command -v "${command}" >/dev/null 2>&1 || fail "missing ${command}"
 done

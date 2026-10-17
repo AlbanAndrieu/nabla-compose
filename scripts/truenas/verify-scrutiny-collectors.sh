@@ -8,10 +8,8 @@ SUMMARY_ATTEMPTS="${SCRUTINY_SUMMARY_ATTEMPTS:-3}"
 SUMMARY_MAX_TIME="${SCRUTINY_SUMMARY_MAX_TIME_SECONDS:-35}"
 SUMMARY_RETRY_DELAY="${SCRUTINY_SUMMARY_RETRY_DELAY_SECONDS:-2}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 ok() {
   printf '✅ %s\n' "$*"

@@ -6,10 +6,8 @@ DATA_DIR="${NABLA_OPENSEARCH_SECURITY_DATA_DIR:-/mnt/cpool/opensearch-security/d
 EXPECTED_UID="${NABLA_OPENSEARCH_SECURITY_UID:-1000}"
 EXPECTED_GID="${NABLA_OPENSEARCH_SECURITY_GID:-1000}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

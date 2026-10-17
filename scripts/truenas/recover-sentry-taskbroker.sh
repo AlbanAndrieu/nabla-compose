@@ -9,10 +9,8 @@ WAIT_ATTEMPTS="${SENTRY_TASKBROKER_RECOVERY_ATTEMPTS:-36}"
 WAIT_DELAY="${SENTRY_TASKBROKER_RECOVERY_DELAY_SECONDS:-5}"
 TASKBROKER_DEFAULT_STATSD_ADDR="127.0.0.1:8126"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
 

@@ -15,10 +15,8 @@ PROJECT="${SENTRY_COMPOSE_PROJECT:-ix-sentry}"
 EDGE_URL="${SENTRY_EDGE_HEALTH_URL:-http://172.17.0.24:9005/_health/}"
 MODE="${1:---check}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "$1 is required"

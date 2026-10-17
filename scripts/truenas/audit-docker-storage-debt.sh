@@ -10,10 +10,8 @@ WARN_OVERLAY_DIRS="${NABLA_DOCKER_AUDIT_WARN_OVERLAY_DIRS:-5000}"
 WARN_IMAGES="${NABLA_DOCKER_AUDIT_WARN_IMAGES:-500}"
 WARN_USED_GIB="${NABLA_DOCKER_AUDIT_WARN_USED_GIB:-400}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --deep) ;;

@@ -7,10 +7,8 @@ NETWORK_ROLE="fastapi-sample-observer"
 NETWORK_CONTRACT="v2"
 MODE="${1:---prepare}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so Docker network creation is deterministic"

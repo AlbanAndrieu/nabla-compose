@@ -22,10 +22,8 @@ TARGETS=(
   ix-sentry-sentry-post-process-forwarder-errors-1
 )
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
 

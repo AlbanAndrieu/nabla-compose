@@ -6,10 +6,8 @@ set -euo pipefail
 compose_path="${1:?usage: check-scanopy-image-lock.sh COMPOSE_PATH}"
 allow_mutable="${SCANOPY_ALLOW_MUTABLE_IMAGE:-0}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${allow_mutable}" == "0" || "${allow_mutable}" == "1" ]] ||
   fail "SCANOPY_ALLOW_MUTABLE_IMAGE must be 0 or 1"

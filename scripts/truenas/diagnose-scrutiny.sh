@@ -11,10 +11,8 @@ MODE="${1:---check}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 CAPTURE_SECONDS="${SCRUTINY_CAPTURE_SECONDS:-20}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --capture-startup) ;;

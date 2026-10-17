@@ -22,10 +22,8 @@ LETSENCRYPT_ROOT="${NPM_LETSENCRYPT_ROOT:-${ROOT}/apps/nginx-proxy-manager/letse
 UI_URL="${NPM_UI_URL:-http://172.17.0.24:30021/}"
 MODE="${1:---check}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 usage() {
   cat <<'EOF'

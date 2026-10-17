@@ -6,7 +6,8 @@ MODE="${1:---check}"
 IMAGE="${2:-}"
 SERVICE="${NABLA_SBOM_SERVICE_ID:-}"
 DIR="${NABLA_SBOM_OUTPUT_DIR:-/mnt/cpool/security/sbom}"
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in --check|--apply) ;; *) fail "usage: bash ${0} [--check|--apply] image@sha256:digest" ;; esac
 [[ "${IMAGE}" =~ ^[a-zA-Z0-9._:/-]+@sha256:[a-f0-9]{64}$ ]] ||
   fail "image reference must use immutable @sha256:<64-hex> digest"

@@ -117,6 +117,9 @@ _minted-*/
 *.swp
 
 lib/
+# Repository shell libraries are source code, not build output.
+!/scripts/lib/
+!/scripts/talos/lib/
 .grunt/
 dist/
 *.iml

@@ -12,7 +12,8 @@ MAX_APPLY_APPS="${TRUENAS_APP_RECONCILE_MAX_APPS:-6}"
 ALLOW_IMAGE_UPDATES="${TRUENAS_APP_RECONCILE_ALLOW_IMAGE_UPDATES:-0}"
 CALL_TIMEOUT="${TRUENAS_APP_RECONCILE_CALL_TIMEOUT:-45}"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 [[ "${EUID}" -eq 0 ]] || fail "run as root on TrueNAS"
 for command in midclt jq docker date timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"

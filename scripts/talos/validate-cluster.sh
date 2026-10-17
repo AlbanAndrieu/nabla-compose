@@ -15,10 +15,8 @@ CONTROL_PLANE_IP="${TALOS_CONTROL_PLANE_IP:-172.17.0.50}"
 EXPECTED_NODE_COUNT="${TALOS_EXPECTED_NODE_COUNT:-3}"
 WORKER_IPS="${TALOS_WORKER_IPS:-172.17.0.51 172.17.0.52}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 
 check_node_transport() {

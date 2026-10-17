@@ -5,10 +5,8 @@ MODE="${1:---check}"
 APP="${2:-}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

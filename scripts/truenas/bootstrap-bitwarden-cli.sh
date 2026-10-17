@@ -6,10 +6,8 @@ VERSION="${NABLA_BITWARDEN_CLI_VERSION:-2026.8.0}"
 INSTALL_DIR="${NABLA_BITWARDEN_CLI_INSTALL_DIR:-${HOME}/.local/bin}"
 BW_BIN="${NABLA_BITWARDEN_CLI_BIN:-${INSTALL_DIR}/bw}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

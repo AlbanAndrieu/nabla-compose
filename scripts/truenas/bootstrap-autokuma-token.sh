@@ -8,10 +8,8 @@ URL="${AUTOKUMA__KUMA__URL:-${UPTIME_KUMA_URL:-}}"
 USERNAME="${AUTOKUMA__KUMA__USERNAME:-${UPTIME_KUMA_USERNAME:-}}"
 TLS_VERIFY=true
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 usage() {
   cat <<'EOF'

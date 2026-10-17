@@ -6,10 +6,8 @@ CANONICAL_ROOT="${CYBERBRO_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 CYBERBRO_URL="${CYBERBRO_URL:-http://172.17.0.24:5100/}"
 WAIT_SECONDS="${CYBERBRO_WAIT_SECONDS:-240}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo -E so TrueNAS middleware, ZFS and runtime env files can be managed"
 for command in docker git jq midclt curl python3; do

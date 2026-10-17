@@ -10,10 +10,8 @@ INDEXER_UID="${WAZUH_INDEXER_UID:-1000}"
 DASHBOARD_UID="${WAZUH_DASHBOARD_UID:-1000}"
 LEGACY_CERT_DIR="${ROOT}/apps/wazuh/config/wazuh_indexer_ssl_certs"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
 --check | --apply) ;;

@@ -11,10 +11,8 @@ ROTATE="${SCRUTINY_TOKEN_ROTATE:-0}"
 TOKEN_SCOPE_VERSION="2"
 AUTH_DESCRIPTION="scrutiny - runtime token v2"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

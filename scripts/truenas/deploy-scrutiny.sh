@@ -10,10 +10,8 @@ WAIT_DELAY="${SCRUTINY_WAIT_DELAY_SECONDS:-2}"
 RECONCILE_INFLUXDB="${SCRUTINY_RECONCILE_INFLUXDB:-0}"
 RESET_SQLITE="${SCRUTINY_RESET_SQLITE:-0}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

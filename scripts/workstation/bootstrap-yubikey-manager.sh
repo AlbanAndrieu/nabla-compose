@@ -10,7 +10,8 @@ AGE_PLUGIN_VERSION="${NABLA_AGE_PLUGIN_YUBIKEY_VERSION:-0.5.1}"
 AGE_PLUGIN_BIN="${HOME}/.cargo/bin/age-plugin-yubikey"
 AGE_PLUGIN_LINK="${BIN_DIR}/age-plugin-yubikey"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check|--apply) ;;

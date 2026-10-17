@@ -23,10 +23,8 @@ credential_changed=false
 controller_existed_before_apply=false
 node_existed_before_apply=false
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 ok() {
   printf '✅ %s\n' "$*"

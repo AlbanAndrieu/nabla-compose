@@ -10,10 +10,8 @@ TOOLS_BIN="${TOOLS_BIN:-${TOOLS_ROOT}/bin}"
 TOOLS_DOWNLOADS="${TOOLS_DOWNLOADS:-${TOOLS_ROOT}/downloads}"
 TOOLS_CACHE="${TOOLS_CACHE:-${TOOLS_ROOT}/cache}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 ok() {
   printf '✅ %s\n' "$*"
