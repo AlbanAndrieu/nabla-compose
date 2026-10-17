@@ -1,5 +1,9 @@
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
+- [x] Operator inspected installed `openclaw config schema --json`: top-level `memory.search` exists and exposes `provider`, `model`, `remote`, `outputDimensionality`, `sources`, `extraPaths`, `store`, `enabled`; this confirms property names only, not permitted values or effective runtime configuration.
+- [ ] Inspect schema of `memory.search.provider`, `.model`, `.remote`, `.sources`, `.extraPaths`, `.store` without printing effective secrets; confirm how remote OpenAI-compatible LiteLLM URL and dedicated virtual key are represented. Validate `memory.search` settings with OpenClaw before applying.
+
+
 - [x] Operator executed `backup-openclaw-memory-markdown.py --check` and `--apply`: 2 workspaces, 617 Markdown files, `backup_verified=true`, `source_files_modified=false`. Archive checksums were verified locally; backup remains unencrypted and should be kept on encrypted private storage.
 - [x] Operator ran `python3 scripts/workstation/backup-openclaw-memory-markdown.py --verify-restore`: `isolated_restore_verified=true markdown_files=617` and `active_workspaces_modified=false`; isolated archive restoration and SHA-256 verification succeeded.
 - [ ] Confirm OpenClaw memory-source auto-indexing is disabled or isolated before any reset; do not delete source files or active indexes yet.
