@@ -137,8 +137,9 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         for marker in ("piv keys info 82", "ykman list --serials",
                        "Connect exactly the selected single YubiKey"):
             self.assertIn(marker, text)
-        # Regression: ykman prints a bare serial; sed must use a real backref.
-        self.assertIn("s/^[[:space:]]*([0-9]+)[[:space:]]*$/\\1/p", text)
+        # A single exact matching serial is required; avoid fragile sed backrefs.
+        self.assertIn("mapfile -t detected_serials", text)
+        self.assertIn("detected_serials[0]", text)
         self.assertIn("no key( (stored )?in slot)?", text)
         for forbidden in ("--generate", "piv reset", "piv keys import",
                           "otp chalresp", "ykman otp", "set -x"):
