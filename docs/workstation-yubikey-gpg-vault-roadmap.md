@@ -790,3 +790,26 @@ validé. Garder 19 autres mises à jour en attente hors périmètre P0.
 Continuer par une investigation scdaemon à faible exposition
 des données ; envisager une version alternative uniquement dans
 un environnement isolé et vérifié.
+
+### P0 — Nouvelle session scdaemon sans effet (17 octobre 2026)
+
+Après la vérification que tous les paquets GnuPG et scdaemon sont
+à jour sur Ubuntu 26.04.1 (`2.4.8-4ubuntu3.1`), l'opérateur a
+exécuté `gpgconf --kill scdaemon` puis
+`timeout 15 gpg --card-status`. La nouvelle session répond encore
+`gpg: selecting card failed: No such device` et
+`gpg: OpenPGP card not available: No such device`.
+
+**Conclusion :** redémarrer scdaemon ne corrige pas la sélection
+OpenPGP. Ne pas recommander une répétition des tests
+`reader-port`, PC/SC contre CCID, fermeture GUI, mise à niveau APT
+ou simple relance du démon sans nouvelle hypothèse.
+
+**Prochaine piste :** comparer de façon contrôlée les capacités
+de découverte / ouverture de l'applet OpenPGP de `ykman` avec
+celles de GnuPG, en évitant toute écriture, APDU sensible, PIN,
+dumps ou journalisation de secrets. Si une trace scdaemon est
+nécessaire, configurer un home temporaire avec une journalisation
+minimale et des résultats filtrés, sans toucher aux fichiers du
+profil utilisateur. Ne pas conclure à une régression 2.4.8 sans
+preuve expérimentale.
