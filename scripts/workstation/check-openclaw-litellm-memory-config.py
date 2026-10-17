@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Read-only OpenClaw LiteLLM memory configuration readiness checks.
+
+Never prints key values, current OpenClaw config, or indexed document content.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+
+KEY = Path.home() / ".local/share/nabla-compose/openclaw-embeddings.key"
+URL = "http://127.0.0.1:4000/v1"
+
+
+def schema():
+    process = subprocess.run(
+        ["openclaw", "config", "schema", "--json"],
+        capture_output=True, text=True, timeout=30, check=False,
+    )
+    if process.returncode:
+        raise RuntimeError("OpenClaw schema command failed")
+    return json.loads(process.stdout)
+
+
+def check():
+    properties = (
+        schema().get("properties", {}).get("memory", {})
+        .get("properties", {}).get("search", {}).get("properties", {})
+    )
+    remote = properties.get("remote", {}).get("properties", {})
+    provider_description = properties.get("provider", {}).get("description", "")
+    sources = properties.get("sources", {}).get("items", {}).get("anyOf", [])
+    secret_variants = remote.get("apiKey", {}).get("anyOf", [])
+    file_secret = any(
+        choice.get("properties", {}).get("source", {}).get("const") == "file"
+        and {"source", "provider", "id"}.issubset(choice.get("required", []))
+        for variant in secret_variants
+        for choice in variant.get("oneOf", [])
+    )
+    required = (
+        "openai-compatible" in provider_description
+        and {"model", "sources", "extraPaths"}.issubset(properties)
+        and {"baseUrl", "apiKey", "batch"}.issubset(remote)
+        and any(item.get("const") == "memory" for item in sources)
+        and file_secret
+    )
+    print("memory_search_schema=" + ("compatible" if required else "incompatible"))
+    try:
+        metadata = KEY.lstat()
+        key_ok = stat.S_ISREG(metadata.st_mode) and metadata.st_mode & 0o077 == 0
+    except OSError:
+        key_ok = False
+    print("virtual_key_file=" + ("private" if key_ok else "missing_or_insecure"))
+    print("target_provider=openai-compatible")
+    print("target_model=embedding")
+    print("target_endpoint=loopback")
+    print("source_reindex_guard=pending")
+    print("file_secret_resolution=unverified")
+    print("configuration_changed=false")
+    return 0 if required and key_ok else 2
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", required=True)
+    args = parser.parse_args()
+    try:
+        return check()
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
+        print("ERROR: cannot verify schema; no configuration changed", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
