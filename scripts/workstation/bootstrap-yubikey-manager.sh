@@ -48,7 +48,7 @@ check_age_plugin() {
   [[ "$(readlink -f "${AGE_PLUGIN_LINK}")" == "${AGE_PLUGIN_BIN}" ]] || return 1
   local version
   version="$("${AGE_PLUGIN_BIN}" --version 2>/dev/null || true)"
-  [[ "$version" == *"${AGE_PLUGIN_VERSION}"* ]]
+  [[ "${version}" == *"${AGE_PLUGIN_VERSION}"* ]]
 }
 
 report_path() {
