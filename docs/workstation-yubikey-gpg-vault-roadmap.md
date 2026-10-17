@@ -335,3 +335,20 @@ coredumpctl info 2655324 --no-pager | grep -E 'Executable:|Signal:|Stack trace|l
 Ne pas lancer `coredumpctl dump` ni partager la mémoire du processus.
 Éviter `killall`, `gpgconf --kill all` et les redémarrages systemd
 avant d'avoir identifié les clients concurrents.
+
+### Résultat 17 octobre, 13:18 — Seahorse non actif
+
+`pgrep` ne trouve que `scdaemon --multi-server` et
+`gpg-agent --supervised`. Aucun processus Seahorse actif.
+`coredumpctl info 2655324` confirme le crash de Seahorse dans
+`libpcsclite_real.so.1`, fonction `SCardGetStatusChange`.
+Les plantages antérieurs du client Seahorse sont avérés, mais ne
+constituent pas une explication établie du `No such device` actuel.
+
+Le diagnostic GPG a toujours les résultats suivants :
+`ykman openpgp info` OK, `pcsc_scan` OK, `SCD SERIALNO` échoue.
+Prochaine étape : contrôler les options applicables de `scdaemon`
+et, si l'opérateur le souhaite, un essai contrôlé du seul `reader-port`
+après inspection du backup préexistant. Ne pas lancer `set -e`
+dans le terminal interactif. Éviter les opérations sur les clés
+et les modifications PAM/USB.
