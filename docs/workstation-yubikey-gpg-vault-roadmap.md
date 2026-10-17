@@ -1925,3 +1925,50 @@ Le contrôle `age-keygen -y ~/.config/sops/age/keys.txt` a produit le destinatai
 Sur la workstation, SOPS 3.13.3 a chiffré une fixture YAML synthétique pour le destinataire age `age1t8wn2gqcpzxwvwhjwxwtdwp0tvr6k2z9j39v4q2fr55qhmqz7f2qvn25cp`, puis `sops decrypt` a produit exactement `message: yubikey-sops-recovery-test`. Résultat **PASS** : chiffrement et déchiffrement de bout en bout avec l'identité logicielle présente localement. La fixture a été supprimée après l'essai.
 
 **Gates encore ouverts avant PIV 82 :** confirmer `stat` mode `600` sur `~/.config/sops/age/keys.txt` et mode `700` sur son dossier ; établir une copie de secours chiffrée hors workstation, vérifier sa lisibilité et son moyen de récupération indépendant. Ensuite seulement tester deux destinataires YubiKey matériels distincts (sans supprimer le destinataire age X25519, sans modifier OTP2 ou PIV 9A). Aucune identité matérielle provisionnée à cette date.
+
+### Acceptation des permissions de la clé SOPS et coffre de secours (17 octobre 2026)
+
+L'opérateur a confirmé sur la workstation :
+```text
+700 albandrieu:albandrieu ~/.config/sops/age
+600 albandrieu:albandrieu ~/.config/sops/age/keys.txt
+```
+P0 permissions **PASS**. Le chiffrement/déchiffrement de
+fixture SOPS avec le destinataire X25519 existant est également
+PASS ; la sauvegarde de récupération indépendante **reste à faire**.
+
+Nouvel utilitaire workstation
+`scripts/workstation/backup-sops-age-identity.sh` :
+mode `--check` implicite, `--apply` explicite.
+Il vérifie la source 600/700, le destinataire age public
+indépendant du destinataire de la source, un répertoire de
+destination déjà monté sur un autre système de fichiers,
+puis chiffre côté client avec `age -e -r` avant toute
+écriture de la copie chiffrée sur le stockage de secours.
+Il refuse l'écrasement et n'affiche ni clé privée ni contenu.
+Aucune clé escrow n'est générée automatiquement ;
+le propriétaire doit avoir **déjà créé** et mis hors machine
+la clé privée de récupération associée au destinataire
+public utilisé. Ne pas utiliser la même identité X25519
+pour chiffrer sa propre sauvegarde : risque de circularité.
+Vérifier séparément la sécurité des métadonnées/fichiers
+temporaires et des exports NFS.
+
+Exemple, seulement après validation d'un **destinataire de
+récupération distinct** et de sa clé privée hors machine :
+```bash
+bash scripts/workstation/backup-sops-age-identity.sh \
+  --destination /media/backup/lab/secret/keepass \
+  --recipient 'age1DESTINATAIRE_DE_RECUPERATION'  # check only
+# Recommencer avec --apply pour créer la copie chiffrée.
+```
+L'emplacement sous `keepass/` est une option, pas un
+choix obligé : réserver de préférence un dossier spécifique
+`secret/sops-escrow` avec ACL NFSv4 strictes et jamais
+de fichier en clair. Éviter de partager les chemins réels
+et métadonnées de récupération. L'opération n'est **pas**
+une preuve de récupération : réaliser un test de déchiffrement
+sur un poste isolé avec la **clé privée escrow**, comparer le
+destinataire public dérivé, et confirmer l'ouverture d'une
+fixture SOPS sans exfiltrer d'identité privée.
+Ne pas modifier les deux YubiKeys avant cette preuve.
