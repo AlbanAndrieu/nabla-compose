@@ -15,7 +15,7 @@ case "${MODE}" in
     cat <<'EOF'
 usage: bash scripts/workstation/bootstrap-yubikey-manager.sh [--check|--apply]
 
-Install the distro-packaged YubiKey Manager CLI on an Ubuntu/Debian workstation.
+Install the distro-packaged YubiKey Manager CLI and PC/SC reader diagnostics\n(pcsc-tools / pcsc_scan) on an Ubuntu/Debian workstation.
 Ubuntu Resolute currently ships yubikey-manager 5.9.2, avoiding local pyscard
 compilation. ~/.local/bin/ykman points to /usr/bin/ykman so a stale
 /usr/local/bin/ykman cannot shadow the packaged executable.
@@ -29,6 +29,7 @@ esac
 
 check_install() {
   [[ -x "${SYSTEM_YKMAN}" ]] || return 1
+  command -v pcsc_scan >/dev/null 2>&1 || return 1
   actual="$("${SYSTEM_YKMAN}" --version 2>/dev/null | awk '{print $NF}')"
   [[ "${actual}" == "${VERSION}" ]] || {
     printf 'ERROR: packaged ykman version=%s expected=%s\n' "${actual:-<unknown>}" "${VERSION}" >&2
@@ -49,14 +50,14 @@ report_path() {
 if [[ "${MODE}" == "--check" ]]; then
   report_path
   check_install || fail "packaged ykman ${VERSION} is not ready; run --apply"
-  printf 'OK: YubiKey Manager %s ready at %s\n' "${VERSION}" "${SYSTEM_YKMAN}"
+  printf 'OK: YubiKey Manager %s ready at %s (pcsc_scan disponible)\n' "${VERSION}" "${SYSTEM_YKMAN}"
   exit 0
 fi
 
 command -v apt-get >/dev/null 2>&1 ||
   fail "apt-get is required on this workstation path"
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends yubikey-manager pcscd libu2f-udev
+sudo apt-get install -y --no-install-recommends yubikey-manager pcscd pcsc-tools libu2f-udev
 
 [[ -x "${SYSTEM_YKMAN}" ]] ||
   fail "package installation completed but ${SYSTEM_YKMAN} is missing"
