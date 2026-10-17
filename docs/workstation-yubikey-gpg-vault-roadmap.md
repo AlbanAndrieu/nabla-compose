@@ -647,3 +647,17 @@ une seule fois `gpg --card-status`. Ne pas débrancher la clé,
 ne pas redémarrer `pcscd`, ne pas modifier les PIN ni
 répéter les essais `reader-port`. Si toujours KO, investiguer
 les journaux scdaemon et permissions USB, avec collecte expurgée.
+
+### P0 — ykman-gui fermé, échec GnuPG persistant (17 octobre 2026)
+
+Après fermeture normale de `ykman-gui`, `pgrep -a -u "$(id -u)" -f '[y]kman-gui'` est vide ; une nouvelle exécution de `timeout 15 gpg --card-status` retourne toujours :
+`selecting card failed: No such device` et
+`OpenPGP card not available: No such device`.
+
+**Conclusion :** `ykman-gui` actif n'est pas une condition nécessaire de l'échec. Ne pas le désigner comme cause démontrée. Les hypothèses `reader-port`, comparatif PC/SC/CCID et fermeture GUI ont été testées sans résolution.
+
+**Prochaines observations sûres :**
+- Droits et type du nœud USB : `stat -c '%A %U:%G %n' /dev/bus/usb/001/044` (numéro de device susceptible de changer).
+- Identité des clients actifs via `pgrep`, et messages `journalctl -u pcscd` (sans assurance que le journal soit rempli).
+- Journal du démon GnuPG à capturer de manière bornée et expurgée, de préférence avec un homedir GnuPG isolé ; ne pas activer un niveau de trace qui expose les APDU, PIN, numéros de série ou secrets.
+- Ne pas exécuter de nouvelle manipulation des slots, réinitialisation, redémarrage `pcscd`, ou changement de permissions globales.
