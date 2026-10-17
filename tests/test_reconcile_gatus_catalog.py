@@ -43,3 +43,23 @@ def test_missing_results_remain_unknown():
     report = module.reconcile({"services": []}, config,
                               [{"name": "a", "group": "ops", "results": []}])
     assert report["monitors"][0]["classification"] == "no_recent_evidence"
+
+
+def test_canonical_topology_resolves_technical_component():
+    config = {"endpoints": [{"name": "Exporter", "group": "observability",
+              "extra-labels": {"nabla_monitor_id": "postgres-exporter",
+                               "nabla_service_id": "postgres-exporter"}}]}
+    topology = {"nodes": [{"id": "postgres-exporter"}]}
+    report = module.reconcile({"services": []}, config, topology=topology)
+    row = report["monitors"][0]
+    assert row["mapping_source"] == "canonical_topology"
+    assert row["classification"] == "not_checked"
+    assert report["unresolved_monitor_ids"] == []
+
+
+def test_unknown_service_remains_unresolved():
+    config = {"endpoints": [{"name": "Unknown",
+              "extra-labels": {"nabla_monitor_id": "unknown",
+                               "nabla_service_id": "unknown"}}]}
+    report = module.reconcile({"services": []}, config, topology={"nodes": []})
+    assert report["unresolved_monitor_ids"] == ["unknown"]
