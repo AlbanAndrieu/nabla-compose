@@ -3,11 +3,7 @@
   "title": "Derived read-only Nabla deployment unit preview (not authoritative)",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "source",
-    "units"
-  ],
+  "required": ["schemaVersion", "source", "units"],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -24,17 +20,8 @@
   },
   "$defs": {
     "level": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "enum": [
-        "low",
-        "medium",
-        "high",
-        "critical",
-        null
-      ]
+      "type": ["string", "null"],
+      "enum": ["low", "medium", "high", "critical", null]
     },
     "endpoint": {
       "type": "string",
@@ -43,11 +30,7 @@
     "container": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "composeService",
-        "endpointId",
-        "dependsOn"
-      ],
+      "required": ["composeService", "endpointId", "dependsOn"],
       "properties": {
         "composeService": {
           "$ref": "#/$defs/endpoint"
@@ -156,18 +139,10 @@
           "$ref": "#/$defs/level"
         },
         "stateful": {
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "upgradePolicy": {
-          "enum": [
-            "excluded",
-            "observe",
-            "controlled",
-            "automatic"
-          ]
+          "enum": ["excluded", "observe", "controlled", "automatic"]
         },
         "watchtowerAutoCandidate": {
           "type": "boolean"
