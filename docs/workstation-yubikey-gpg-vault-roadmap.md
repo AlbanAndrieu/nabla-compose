@@ -890,3 +890,27 @@ le nouveau facteur expérimental est **le mode d'ouverture PC/SC**.
 **Ne pas** modifier OpenPGP/PIV/OTP, installer de PPA,
 changer les ACL USB, tenter un PIN, activer `debug-level guru`
 ou désactiver les mécanismes de protection.
+
+### P0 — Correction du contrôle de disponibilité pcsc-shared
+
+La commande initiale `scdaemon --dump-options | grep -E
+'^pcsc-shared$|^disable-ccid$'` a retourné une sortie vide.
+**Ce résultat ne permet pas de conclure que l'option est absente :**
+`--dump-options` peut afficher le préfixe `--` que le filtre
+rejetait. La source GnuPG documente explicitement
+`--pcsc-shared` et `--disable-ccid` :
+https://gnupg.org/documentation/manuals/gnupg26/scdaemon.1.html
+
+Contrôles corrigés **lecture seule**, compatibles avec les deux
+formes de sortie et sans risquer `set -e` interactif :
+
+```bash
+/usr/lib/gnupg/scdaemon --dump-options 2>&1 |
+  grep -E -- '(^|[[:space:]])--?(pcsc-shared|disable-ccid)([[:space:]]|$)'
+gpgconf --list-options scdaemon | grep -E '^(pcsc-shared|disable-ccid):'
+```
+
+Ne lancer aucun essai `pcsc-shared` avant d'avoir vérifié la
+disponibilité sur le binaire installé. Sa documentation signale
+des risques d'incohérence d'état et de cache PIN en mode partagé :
+préférer, si applicable, un `GNUPGHOME` jetable sans clé.
