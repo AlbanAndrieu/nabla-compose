@@ -1800,3 +1800,72 @@ de compromission si lisibles largement.
 des clés sur la base du seul listing. Le premier livrable est
 un audit non destructif des ACL et du chiffrement existant,
 suivi d'une stratégie de secrets hors ligne.
+
+## Reprise dans la PR #258 — inventaire des deux YubiKeys (17 octobre 2026)
+
+La PR #257 est fusionnée ; poursuivre les travaux uniquement sur
+la branche de la PR #258, sans fusion automatique. Cette PR traite
+également DefectDojo : les changements YubiKey restent limités
+à leur documentation et aux scripts workstation dédiés.
+
+### État matériel vérifié
+
+| Constat | YubiKey principale | YubiKey de secours |
+| --- | --- | --- |
+| Numéro de série d'identification locale | 23501671 | 22916048 |
+| Firmware et application PIV | 5.4.3 | 5.4.3 |
+| PIV PIN / PUK | 3/3 et 3/3 | 3/3 et 3/3 |
+| Management key PIV | AES256, protégée par PIN | AES256, protégée par PIN |
+| PIV 9A | RSA2048, certificat « Nabla Root CA » expiré 2025-01-22 | RSA2048 importée, même certificat historique déclaré |
+| PIV 9C / 9D / 9E | **Inconnus** | **Vides**, testés par `ykman piv keys info` |
+| PIV retired 82–95 | **Inconnus** | **20/20 vides**, testés par `ykman piv keys info` |
+| age-plugin-yubikey --list | Aucune identité listée | Aucune identité listée |
+| OTP slot 2 | HMAC KeePassXC historique : préserver | HMAC KeePassXC historique : préserver |
+
+Les deux cartes affichent les mêmes éléments de certificat
+X.509 en PIV 9A, dont empreinte et numéro de certificat.
+Cela **ne démontre pas** que leurs clés privées soient identiques,
+ni même que le certificat corresponde à une clé privée utilisable
+sur les deux cartes. Une vérification cryptographique distincte,
+non destructive, serait nécessaire. Ne pas publier CHUID ni
+certificats bruts.
+
+### TrueNAS — durcissement confirmé
+
+Dataset `cpool/backup/lab` : `acltype=nfsv4`,
+`aclmode=passthrough`, `aclinherit=passthrough`.
+Le répertoire `lab/` est passé de 777 à 750 ;
+`secret/`, `secret/keepass/`, `secret/ssh/` sont en
+700. Les ACL natives relevées via `nfs4xdr_getfacl`
+pour les trois dossiers sensibles sont triviales :
+`owner@` a lecture/écriture/traversée ;
+`group@` et `everyone@` ne disposent pas des droits
+de contenu/traversée `r/w/x`. Les ACL des fichiers et
+l'export NFS `sec=sys` restent à auditer. Éviter
+tout `chmod -R` destructif.
+
+### P2 — Prochain ordre d'exécution
+
+1. Sur la **principale uniquement**, une seule clé branchée,
+   inventorier PIV 9C/9D/9E puis 82–95 avec
+   `ykman piv keys info SLOT` sans générer de clé.
+2. Valider une fixture de chiffrement/déchiffrement SOPS
+   avec l'identité X25519 existante, indépendamment de TrueNAS ;
+   aucune sortie de `.env.secret` en clair.
+3. Confirmer une sauvegarde **chiffrée hors ligne** de l'identité
+   de récupération existante. Ne jamais supposer que les deux
+   YubiKeys, ni TrueNAS, constituent une copie de la clé X25519.
+4. Une fois les deux inventaires et la récupération validés,
+   proposer une identité age P-256 différente dans le
+   premier slot retired libre (préférence 82) de **chaque** clé,
+   avec PIN/touch et vérification d'une fixture.
+5. Ajouter les deux destinataires matériels aux règles SOPS
+   **sans retirer** le destinataire X25519 ni casser
+   les automatisations de déploiement. Tester la lecture avec
+   chacune des trois identités séparément.
+6. Poursuivre ensuite SSH/FIDO2, signatures Git/OpenPGP,
+   PIV X.509/PDF, e-mails, récupération Vault et backups selon
+   l'architecture globale déjà documentée.
+
+Aucune génération age, aucun `keytocard`, aucun reset PIV,
+aucune modification d'un slot OTP ou de fichier secret.
