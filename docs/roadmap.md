@@ -17,10 +17,16 @@
 ### P1 — Operator-approved pflow trial (2026-10-18; review tomorrow)
 
 - [x] Operator authorized enabling pflow now, with review tomorrow; **approval is not evidence that it has been activated**.
-- [ ] Preflight on pfSense: confirm `pflowctl` supported syntax, kernel/module compatibility, current `ifconfig` and pfSense config persistence, no pfBlockerNG cron, free+inactive memory safely above 128 MiB, no fresh OOM, DNS and Unbound healthy. Record baseline.
-- [ ] Enable **only** the TrueNAS Akvorado collector `172.17.0.24:2055/udp` via supported persistent pfSense configuration. Avoid manual kernel/module hacks or unreviewed boot config; Cloudflare flow collector remains off. Capture configuration backup and exact rollback before mutation.
+- [x] Preflight evidence at 2026-10-18 00:44 CEST: pflow.ko exists (not loaded), pflowctl usage `[-lc] [-d id] [-s id ...] [-v]`, no pflow interfaces; free+inactive 232244 KiB (~226.8 MiB), no active pfBlockerNG cron, Unbound and internal DNS healthy; historical OOM in dmesg. Integration found in `/etc/inc/filter.inc` (also `.orig`). Still inspect relevant function and persistence semantics before activation.
+- [ ] Review `/etc/inc/filter.inc` pflow integration and associated pfSense configuration (redact secrets); establish supported persistence and rollback, then enable **only** the TrueNAS Akvorado collector `172.17.0.24:2055/udp` via supported persistent pfSense configuration. Avoid manual kernel/module hacks or unreviewed boot config; Cloudflare flow collector remains off. Capture configuration backup and exact rollback before mutation.
 - [ ] Verify pflow interface/exporter status and actual UDP flow ingestion via Akvorado metrics (counter deltas, not just `up`), plus pfSense memory/CPU, Unbound, DNS and pfBlockerNG after activation; stop and revert for memory below 128 MiB, fresh OOM, DNS failure or sustained CPU pressure.
 - [ ] Tomorrow: compare 24h before/after resource trends, collector packet deltas, dropped flows and gateway health. Decide keep/revert, document outcome. Do not call the trial complete without observed traffic and stability.
+
+### OpenClaw backup and gateway restoration — operator, 2026-10-18
+
+- [x] Gateway quiesced before backup; archive `openclaw-20261017T223508Z-121931.tar.gz` verified (106934 files, SHA-256 recorded in operator output), temporary restore test successful.
+- [x] Gateway restarted and `systemctl --user is-active` returned active; control UI WebSocket requests succeeded.
+- [ ] Investigate gateway systemd cgroup memory ~5.8 GiB (peak 6.3 GiB), Codex app-server child processes, and one delayed heartbeat (overdue 2852ms; elapsed 32852ms); measure trend before changing limits. No restart warranted by current evidence.
 
 ### DefectDojo LAN runtime evidence — operator, 2026-10-18
 
