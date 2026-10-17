@@ -104,6 +104,37 @@ def audit_summary(data):
     }
 
 
+
+def audit_v2_summary(data):
+    """Parse documented OpenClaw audit schema; never expose finding details."""
+    if not isinstance(data, dict):
+        return None
+    summary = data.get("summary")
+    status = data.get("status")
+    if not isinstance(summary, dict) or status not in ("clean", "findings", "unresolved"):
+        return None
+    mapping = {
+        "plaintextCount": "plaintext",
+        "unresolvedRefCount": "unresolved",
+        "shadowedRefCount": "shadowed",
+        "storeResidueCount": "store_residue",
+        "legacyResidueCount": "legacy_residue",
+    }
+    counts = {}
+    for original, safe in mapping.items():
+        value = summary.get(original)
+        if type(value) is not int or value < 0:
+            return None
+        counts[safe] = value
+    resolution = data.get("resolution")
+    if not isinstance(resolution, dict):
+        return None
+    if type(resolution.get("resolvabilityComplete")) is not bool:
+        return None
+    return {"status": status, "categories": counts,
+            "complete": resolution["resolvabilityComplete"]}
+
+
 def audit_shape(data):
     """Emit only type distribution; arbitrary JSON property names and values stay private."""
     if not isinstance(data, dict):
@@ -177,19 +208,25 @@ def audit():
         print("secret_audit=unexpected_format")
         return 2
     print("secret_audit_json_type=" + ("object" if isinstance(data, dict) else "array"))
-    summary = audit_summary(data)
+    v2 = audit_v2_summary(data)
+    summary = audit_summary(data) if v2 is None else {"schema": "openclaw_v2", "categories": v2["categories"], "unclassified": False}
     print("secret_audit_category_schema=" + summary["schema"])
+    if v2 is not None:
+        print("secret_audit_reported_status=" + v2["status"])
+        print("secret_audit_resolvability_complete=" + str(v2["complete"]).lower())
     print("secret_audit_top_level_shape=" + audit_shape(data))
     print("secret_audit_nested_shape=" + audit_structure(data))
     for category, count in summary["categories"].items():
         print("secret_audit_" + category + "_count=" + str(count))
     print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
-    print("secret_audit=" + ("clean" if process.returncode == 0 and not summary["unclassified"] else "findings_or_error"))
+    clean = (v2 is not None and process.returncode == 0 and v2["status"] == "clean"
+             and v2["complete"] and all(value == 0 for value in v2["categories"].values()))
+    print("secret_audit=" + ("clean" if clean else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
     print("secret_audit_strict_check=true")
     print("file_secret_resolution=unverified")
     print("configuration_changed=false")
-    return 0 if process.returncode == 0 and not summary["unclassified"] else 2
+    return 0 if clean else 2
 
 
 def main():
