@@ -145,6 +145,23 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "otp chalresp", "ykman otp", "set -x"):
             self.assertNotIn(forbidden, text)
 
+    def test_workstation_status_formatter_plain_output(self):
+        helper = ROOT / "scripts/workstation/shell-status.sh"
+        command = (f'source "{helper}"; '
+                   'nabla_status ok "ready"; nabla_status warn "careful"')
+        result = subprocess.run(["bash", "-c", command], capture_output=True,
+                                text=True, env={**os.environ, "NO_COLOR": "1"},
+                                check=True)
+        self.assertIn("[OK] ready", result.stdout)
+        self.assertIn("[WARN] careful", result.stderr)
+        self.assertNotIn("\\x1b", result.stdout + result.stderr)
+        for relative in ("preflight-age-yubikey-piv82.sh",
+                         "backup-sops-age-identity.sh",
+                         "test-sops-usb-recovery.sh"):
+            script = ROOT / "scripts/workstation" / relative
+            subprocess.run(["bash", "-n", str(script)], check=True)
+            self.assertIn("shell-status.sh", script.read_text())
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
