@@ -140,9 +140,11 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertFalse(by_name["Garage Admin API"]["external"])
 
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
-        script = (
-            ROOT / "scripts" / "security" / "verify-truenas-observer-access.sh"
-        ).read_text(encoding="utf-8")
+        security = ROOT / "scripts" / "security"
+        shell = (security / "verify-truenas-observer-access.sh").read_text(encoding="utf-8")
+        self.assertIn('<"${NABLA_SCRIPT_DIR}/truenas-observer-identity-probe.py"', shell)
+        # The container-side identity probe lives in its own Python file.
+        script = shell + (security / "truenas-observer-identity-probe.py").read_text(encoding="utf-8")
 
         self.assertIn("system.general.config", script)
         self.assertIn("system.general.get_ui_allowlist", script)

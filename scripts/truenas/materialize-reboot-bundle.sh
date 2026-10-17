@@ -63,10 +63,15 @@ FILES=(
   catalog/services.json
   catalog/service-topology.json
   scripts/lib/common.sh
+  scripts/lib/diagnostic.sh
   scripts/lib/docker.sh
+  scripts/lib/probe.sh
+  scripts/lib/truenas.sh
+  scripts/run-diagnostic.sh
   scripts/truenas/plan-app-lifecycle-order.py
   scripts/truenas/reconcile-talos-vm-policy.sh
   scripts/truenas/migrate-docker-address-pool.sh
+  scripts/truenas/check-docker-address-pool.py
   scripts/truenas/audit-docker-network-migration.sh
   scripts/truenas/audit-docker-storage-debt.sh
   scripts/truenas/diagnose-docker-orphan-shims.sh

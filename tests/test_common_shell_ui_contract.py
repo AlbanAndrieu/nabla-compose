@@ -62,6 +62,15 @@ def test_interactive_terminal_gets_icons_and_color_unless_no_color() -> None:
     assert "OK: done" in plain
 
 
+def test_ui_init_colors_stay_empty_when_redirected() -> None:
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; nabla_ui_init; printf "[%s%s]" "${NABLA_UI_RED}" "${NABLA_UI_RESET}"', "_", str(COMMON)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0
+    assert result.stdout == "[]"
+
+
 def test_scripts_sourcing_common_do_not_redefine_fail() -> None:
     sources_common = re.compile(r'^source ".*lib/common\.sh"$', re.M)
     offenders = [

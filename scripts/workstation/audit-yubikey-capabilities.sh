@@ -37,9 +37,12 @@ args=(--device "${connected}")
 printf 'Selected YubiKey: %s (serial %s), verified single device\n' "${role}" "${connected}"
 diag_args=(--serial "${connected}")
 if "${challenge}"; then diag_args+=(--challenge); fi
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != "dumb" ]]; then
-  green=$'\033[32m'; yellow=$'\033[33m'; blue=$'\033[36m'; reset=$'\033[0m'
-else green=''; yellow=''; blue=''; reset=''; fi
+# Colors honour TTY, NO_COLOR and TERM=dumb through common.sh.
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
+nabla_ui_init
+green="${NABLA_UI_GREEN}" yellow="${NABLA_UI_YELLOW}"
+blue="${NABLA_UI_BLUE}" reset="${NABLA_UI_RESET}"
 heading() { printf '\n%s🔐 %s%s\n' "${blue}" "$1" "${reset}"; }
 ok() { printf '%s✅ %s%s\n' "${green}" "$1" "${reset}"; }
 warn() { printf '%s⚠️  %s%s\n' "${yellow}" "$1" "${reset}"; }

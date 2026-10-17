@@ -2,10 +2,12 @@
 # Read-only GnuPG smartcard transport triage; never restart services or edit config.
 set -euo pipefail
 export LC_ALL=C
-green=''; yellow=''; cyan=''; host_only=false
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb ]]; then
-  green=$'\033[32m'; yellow=$'\033[33m'; cyan=$'\033[36m'; reset=$'\033[0m'
-else reset=''; fi
+host_only=false
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
+nabla_ui_init
+green="${NABLA_UI_GREEN}" yellow="${NABLA_UI_YELLOW}"
+cyan="${NABLA_UI_BLUE}" reset="${NABLA_UI_RESET}"
 heading() { printf '\n%s🔐 %s%s\n' "${cyan}" "$1" "${reset}"; }
 warn() { printf '%s⚠️  %s%s\n' "${yellow}" "$1" "${reset}"; }
 ok() { printf '%s✅ %s%s\n' "${green}" "$1" "${reset}"; }

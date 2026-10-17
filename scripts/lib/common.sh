@@ -6,10 +6,29 @@
 
 # Decorate only interactive terminals. Logs, pipes, CI and NO_COLOR keep the
 # stable plain-text prefixes that tests and log parsers rely on.
+nabla_ui_color_enabled() {
+  # no-color.org: a non-empty NO_COLOR disables color.
+  [[ -t "${1:-1}" && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb ]]
+}
+
+# Color variables for scripts that compose their own lines; empty when the
+# stdout is not an interactive terminal.
+# shellcheck disable=SC2034 # NABLA_UI_* are read by the sourcing script
+nabla_ui_init() {
+  NABLA_UI_RESET='' NABLA_UI_GREEN='' NABLA_UI_YELLOW='' NABLA_UI_RED='' NABLA_UI_BLUE=''
+  if nabla_ui_color_enabled 1; then
+    NABLA_UI_RESET=$'\033[0m'
+    NABLA_UI_GREEN=$'\033[32m'
+    NABLA_UI_YELLOW=$'\033[33m'
+    NABLA_UI_RED=$'\033[31m'
+    NABLA_UI_BLUE=$'\033[36m'
+  fi
+}
+
 nabla_tty_style() {
   local fd="$1" color="$2" icon="$3" label="$4"
   shift 4
-  if [[ -t "${fd}" && -z "${NO_COLOR+x}" && "${TERM:-dumb}" != dumb ]]; then
+  if nabla_ui_color_enabled "${fd}"; then
     case "${NABLA_UI_ASCII:-0}:${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
       0:*UTF-8* | 0:*utf8* | 0:*utf-8*) label="${icon} ${label}" ;;
       *) ;;

@@ -4,11 +4,11 @@ set -euo pipefail
 for cmd in midclt jq docker; do
   command -v "${cmd}" >/dev/null || { printf '❌ Commande absente : %s\n' "${cmd}" >&2; exit 2; }
 done
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb ]]; then
-  BLUE=$'\e[36m'; GREEN=$'\e[32m'; YELLOW=$'\e[33m'; RESET=$'\e[0m'
-else
-  BLUE='' GREEN='' YELLOW='' RESET=''
-fi
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
+nabla_ui_init
+BLUE="${NABLA_UI_BLUE}" GREEN="${NABLA_UI_GREEN}"
+YELLOW="${NABLA_UI_YELLOW}" RESET="${NABLA_UI_RESET}"
 section() { printf '\n%b🔎 %s%b\n' "${BLUE}" "$1" "${RESET}"; }
 tmp="$(mktemp)"
 trap 'rm -f "${tmp}"' EXIT
