@@ -352,3 +352,19 @@ et, si l'opérateur le souhaite, un essai contrôlé du seul `reader-port`
 après inspection du backup préexistant. Ne pas lancer `set -e`
 dans le terminal interactif. Éviter les opérations sur les clés
 et les modifications PAM/USB.
+
+### Validation opérateur : configuration restaurée (17 octobre 2026)
+
+`cmp -s scdaemon.conf scdaemon.conf.before-reader-port` : **identiques**.
+`gpgconf --check-options scdaemon` : entrée
+`scdaemon:Smartcards:/usr/lib/gnupg/scdaemon:1:1:` (pas de
+message d'erreur explicite). Le rollback précédent a restauré les
+octets du fichier ; cela ne valide pas l'accès matériel OpenPGP.
+
+Pour éviter qu'une erreur n'interrompe le terminal interactif,
+**ne jamais coller `set -e` dans le shell de l'opérateur**. Utiliser
+un script dédié en sous-processus avec contrôle des préconditions,
+pas une séquence interactive qui continue après l'échec d'un
+`test`. La sauvegarde existante est à conserver ; aucune routine
+ne doit l'écraser. Avant un essai réel, confirmer que le poste
+n'effectue ni signature Git ni déchiffrement GPG.
