@@ -112,8 +112,7 @@ def main() -> int:
     topology = json.loads((args.root / "catalog/service-topology.json").read_text())
     statuses = json.loads(args.statuses.read_text()) if args.statuses else None
     report = reconcile(catalog, config, statuses, topology)
-    payload = json.dumps(report, indent=2, sort_keys=True) + "
-"
+    payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.write_text(payload)
         print(f"wrote {args.output}")
