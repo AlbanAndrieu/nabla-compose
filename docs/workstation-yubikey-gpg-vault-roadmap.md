@@ -2348,3 +2348,7 @@ bash scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh --apply
 ```
 
 Aucune carte requise, aucun PIN et aucune commande de génération/import PIV. Un contrat ajouté porte le total attendu à **27 tests**, à confirmer localement. **Ne pas confondre capacité Python et GO matériel** ; le chemin CSR/certificat signé par PIV82 et le déchiffrement age ne sont pas encore validés.
+
+### SDK isolé accepté par l'opérateur (2026-10-18)
+
+Le retour workstation confirme **27/27 tests PASS**. L'opérateur a exécuté `bootstrap-yubikey-piv-python-sdk.sh --apply` avec succès : environnement isolé `~/.local/share/nabla/piv-sdk-venv` sous Python 3.14.8, `yubikey-manager==5.8.0`, `cryptography==46.0.3`, et dépendances résolues. `check-yubikey-piv-python-sdk.sh` rapporte `Python SDK imports and signing-builder capability available` puis `SDK capability gate ... available without downgrading AES`. C'est une validation d'import/API, **pas** une validation de session PIV ni de signature sur carte. Aucun PIN, aucune écriture matérielle ni altération AES256 confirmés par ces commandes. Avant opération matérielle : figer dépendances transitives, inspecter les signatures exactes de `PivSession`, du constructeur X.509 et de `sign_certificate_builder`, puis vérifier l'authentification AES256 dans un mode strictement contrôlé. Les YubiKeys restent NO-GO matériel jusqu'à procédure signée et interopérabilité age validées.
