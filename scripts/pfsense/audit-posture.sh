@@ -12,7 +12,7 @@ readonly DEFAULT_FREE_WARN_KB=131072
 readonly DEFAULT_FREE_FAIL_KB=65536
 
 mode=""
-ssh_target="${PFSENSE_SSH_TARGET:-}"
+ssh_target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 ssh_port="${PFSENSE_SSH_PORT:-}"
 api_url="${PFSENSE_FASTAPI_URL:-${DEFAULT_API_URL}}"
 output_format="text"
@@ -32,6 +32,7 @@ usage() {
 Audit the pfSense posture established after the Netgate 1100 memory incident.
 
 Usage:
+  scripts/pfsense/audit-posture.sh [--json] [--strict]  # defaults to SSH alias home.albandrieu.com
   scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com [--json] [--strict]
   scripts/pfsense/audit-posture.sh --ssh HOST --port PORT [--json] [--strict]
   scripts/pfsense/audit-posture.sh --api [URL] [--json] [--strict]
@@ -117,8 +118,7 @@ if [[ -z "${mode}" ]]; then
   if [[ -n "${ssh_target}" ]]; then
     mode="ssh"
   else
-    echo "ERROR: choose --ssh, --api, or --local" >&2
-    exit 64
+    mode="ssh"
   fi
 fi
 
