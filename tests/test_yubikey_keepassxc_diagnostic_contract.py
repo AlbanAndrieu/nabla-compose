@@ -81,6 +81,8 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         out = subprocess.run(["bash", str(script), "--help"],
                              capture_output=True, text=True, check=True)
         self.assertIn("--run", out.stdout)
+        self.assertIn("--pcsc-shared", out.stdout)
+        self.assertIn("pcsc-shared) printf", script.read_text())
         body = script.read_text()
         for required in ("GNUPGHOME=", "disable-ccid", "timeout 18", "trap cleanup EXIT"):
             self.assertIn(required, body)
