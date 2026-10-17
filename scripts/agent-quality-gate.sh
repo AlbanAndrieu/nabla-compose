@@ -186,7 +186,8 @@ run_compact() {
   shift
   local log
   local rc
-  log="$(mktemp)"\n  chmod 600 "${log}"
+  log="$(mktemp)"
+  chmod 600 "${log}"
   if "$@" >"${log}" 2>&1; then
     rm -f "${log}"
     printf '✅ %s\n' "${label}"
