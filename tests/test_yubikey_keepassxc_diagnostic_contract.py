@@ -199,9 +199,12 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                 with self.subTest(name=name):
                     key = root / (name + ".key")
                     cert = root / (name + ".pem")
-                    subprocess.run(["openssl", "req", "-x509", "-newkey", *opts,
-                                    "-nodes", "-days", "1", "-subj", subject,
-                                    "-keyout", str(key), "-out", str(cert)],
+                    subprocess.run(["openssl", "genpkey", *opts, "-out", str(key)],
+                                   stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, check=True)
+                    subprocess.run(["openssl", "req", "-x509", "-new",
+                                    "-key", str(key), "-days", "1",
+                                    "-subj", subject, "-out", str(cert)],
                                    stdout=subprocess.DEVNULL,
                                    stderr=subprocess.DEVNULL, check=True)
                     result = subprocess.run(
