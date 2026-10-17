@@ -2208,3 +2208,7 @@ Investigation plan before any write:
 4. Document rollback, slot 83 rotation reservation, and migration impact for unattended SOPS/CI before new production recipients.
 
 No automatic TDES downgrade, no PIN guessing, no PIV reset, no wildcard `--force`. Existing SOPS X25519 and TrueNAS/SanDisk recovery remain operational.
+
+### Acceptation locale AES guard — 17 octobre 2026
+
+L'opérateur a synchronisé le worktree PR #259 au commit `9464f03d`, puis exécuté `bash -n scripts/workstation/check-age-yubikey-aes-compat.sh` et `python3 -m unittest discover -s tests -p test_yubikey_keepassxc_diagnostic_contract.py -v` : **19 tests PASS / 19**. Avec la YubiKey secondaire `22916048` connectée, `check-age-yubikey-aes-compat.sh --serial 22916048` a affiché le blocage attendu AES PIV management key et retourné **3**, par politique de sécurité. Cela valide le garde-fou local en lecture seule, pas la compatibilité age-plugin-yubikey ni le provisionnement matériel. PIV82 reste non provisionné ; ne pas convertir en TDES, ne pas saisir de PIN pour refaire ce diagnostic. Prochaine tâche : analyser les métadonnées d'un certificat compatible age-plugin-yubikey et un chemin de génération P-256 via ykman compatible AES, d'abord sans écriture.
