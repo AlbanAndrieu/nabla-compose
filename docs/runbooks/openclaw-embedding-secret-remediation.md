@@ -61,3 +61,17 @@ python3 scripts/workstation/classify-openclaw-secret-findings.py
 ```
 
 The classifier returns nonzero while findings remain even if grouping succeeds; this is expected and must not be bypassed. Do not upload raw `openclaw secrets audit --json` output.
+
+
+## Workstation handoff — gateway stopped and migration preflight (2026-10-18)
+
+Operator reports `systemctl --user is-active openclaw-gateway.service` = `inactive` after intentional stop; unit was previously `enabled`. Existing backups are operator-accepted; the new `backup-openclaw.sh --create` invocation emitted only the state-directory banner, so **do not claim it has completed or that restore-test passed**. Avoid making another backup a prerequisite for read-only planning, but verify existing recovery media before irreversible credential deletion. The stopped gateway should remain stopped during this maintenance; no remote service action is possible via GitHub.
+
+Changes in current PR: `scripts/workstation/plan-openclaw-secret-migration.py --check` reports only counts, file ownership and modes, and the observed gateway state. It never prints raw credential names, paths, JSON entries or secrets; unsupported audit results fail closed. Synthetic tests in `tests/test_openclaw_secret_migration_plan.py`.
+
+Next actions:
+1. Run the planner and tests on the workstation.
+2. Perform local-only review of **each** finding. Audit location counts are 5 config, 3 dotenv and 10 other; summary counts are 16 plaintext and 2 legacy. They are not cross-tabulated, so do not equate "other" with legacy.
+3. Establish consumers of the 3 dotenv findings through systemd `EnvironmentFile` and OpenClaw configuration, but do not print environment contents or `systemctl show -p Environment`; never upload full systemd unit values.
+4. Use supported OpenClaw secret-management commands in a supervised plan; evaluate providers and references against locally installed CLI version. No automatic substitutions, `secrets apply`, reload, session revocation or service restart until a validated file-by-file plan and rollback exist.
+5. Recheck audits and authentication before permitting embeddings migration or index rebuild.
