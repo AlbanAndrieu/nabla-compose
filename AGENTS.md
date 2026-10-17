@@ -12,6 +12,29 @@ mise run hooks
 
 This explicitly installs the configured `pre-commit`, `commit-msg`, and `pre-push` hooks. CI is a remote safety net; deterministic formatting, linting, generators and the full repository unit/contract suite must be completed locally before a push.
 
+## Shell UX: colored status and icons
+
+For newly written or modified **interactive** Bash scripts, prefer the shared
+`scripts/workstation/shell-status.sh` (when in workstation scope) over
+reimplementing ANSI escape sequences, icons or terminal detection.
+Source it **after** `set -euo pipefail` and show stable, concise statuses using
+`nabla_status ok|info|warn|error "message"`.
+
+- Success: ✅ green; warning: ⚠️ yellow; error: ❌ red; informational: ℹ️ blue.
+- Respect `NO_COLOR`, `TERM=dumb`, non-TTY CI logs and `LC_ALL=C` with
+  plain `[OK]`, `[WARN]`, `[ERROR]`, `[INFO]` fallback. Never require
+  Unicode or colors to understand whether an operation succeeded.
+- Don't color secret contents, tokens, certificates, private keys, PINs,
+  or other sensitive values; never enable `set -x` on secret-handling scripts.
+- Colors and icons must not change process exit status or stdout contracts
+  consumed by `jq`, `grep`, JSON parsers or other automation.
+  Print diagnostic warnings/errors on stderr; machine-readable output
+  must remain undecorated.
+- Preserve the normal `--help` and shell syntax checks and add
+  lightweight tests covering both TTY behavior and `NO_COLOR`/pipe fallback.
+- Do not refactor all historical scripts just for presentation: adapt scripts
+  in-scope for the current task and avoid introducing new dependencies.
+
 ## Before editing
 
 1. Inspect `git status`, the task, and only relevant files.
