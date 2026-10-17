@@ -74,7 +74,7 @@ if command -v gpg-connect-agent >/dev/null && command -v timeout >/dev/null; the
     if [[ "$probe" == *'ERR '* ]]; then
       warn "$scd_command: refusé ou lecteur inaccessible"
     elif [[ "$scd_command" == 'SCD GETINFO reader_list' && "$probe" == *'card or a reader'* ]]; then
-      warn 'scdaemon signale un lecteur présent mais possiblement aucune carte sélectionnable'
+      warn 'scdaemon retourne un message sans lecteur exploitable; OK confirme seulement le protocole'
     elif [[ "$probe" == *'OK'* ]]; then
       ok "$scd_command: requête acceptée (données masquées)"
     else
@@ -102,7 +102,11 @@ fi
 if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --check-programs 2>/dev/null | awk -F: '$1 ~ /scdaemon/ { if ($3 == "1") print "⚠️ scdaemon signale une erreur de programme"; else print "ℹ️ scdaemon référencé dans GnuPG" }' || true
 fi
-warn 'Piste : scdaemon/PCSC, lecteur obsolète en cache ou accès concurrent; aucune modification automatique'
+if [[ -r "$cfg" ]] && grep -Eq '^[[:space:]]*disable-ccid([[:space:]]|$)' "$cfg" && ! grep -Eq '^[[:space:]]*reader-port([[:space:]]|$)' "$cfg"; then
+  warn 'disable-ccid présent mais reader-port absent : piste connue GnuPG T4998 (PC/SC No such device)'
+  printf 'ℹ️ Examiner https://dev.gnupg.org/T4998 ; ne pas écrire reader-port automatiquement.\n'
+fi
+warn 'Piste : scdaemon/PCSC, sélection de lecteur ou accès concurrent; aucune modification automatique'
 heading 'Diagnostic matériel GPG (sans sortie brute)'
 if command -v gpg >/dev/null; then
   if output="$(timeout 15 gpg --card-status 2>&1)"; then
