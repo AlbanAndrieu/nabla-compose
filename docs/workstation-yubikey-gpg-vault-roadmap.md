@@ -140,3 +140,68 @@ Known relevant upstream reports:
 - https://dev.gnupg.org/T4998
 - https://github.com/LudovicRousseau/PCSC/issues/215
 - https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
+
+## P0 — Test réversible du choix du lecteur PC/SC (17 octobre 2026)
+
+Constat confirmé sur la workstation : `pcsc_scan` voit un lecteur
+`Yubico YubiKey OTP+FIDO+CCID 00 00` avec carte insérée ; `ykman`
+lit l'applet OpenPGP ; `gpg-connect-agent 'SCD GETINFO version'`
+réussit, mais `SCD SERIALNO` et `gpg --card-status` renvoient
+`No such device`. Un processus `scdaemon` tourne ; `disable-ccid`
+est déjà activé. L'erreur de sélection n'est **pas** encore expliquée.
+
+**Ne pas confondre** `SCD GETINFO reader_list` terminé par `OK`
+avec une preuve que l'applet OpenPGP est sélectionnée. Ne pas
+automatiser une correction non vérifiée sur le serveur TrueNAS.
+
+### Préparation sur Linux (lecture seule)
+
+```bash
+gpgconf --list-dirs homedir
+gpg-connect-agent 'SCD GETINFO app_list' /bye
+gpg-connect-agent 'SCD GETINFO reader_list' /bye
+timeout 5 pcsc_scan -n
+grep -nE '^[[:space:]]*(disable-ccid|reader-port|pcsc-driver)' \
+  ~/.gnupg/scdaemon.conf
+```
+
+La liste de lecteurs peut révéler un identifiant matériel ; ne pas
+transmettre la sortie brute. Le lecteur PC/SC observé est
+`Yubico YubiKey OTP+FIDO+CCID 00 00` ; vérifier le nom **exact**
+localement avant tout essai de `reader-port`. D'après le manuel GnuPG,
+`reader-port` accepte un nom de lecteur pour PC/SC ; son absence
+n'est pas intrinsèquement une erreur, car le lecteur par défaut est
+normalement le premier trouvé.
+
+### Essai supervisé (modifie uniquement scdaemon.conf local)
+
+Ce test est à exécuter seulement après avoir terminé les opérations
+Git signées ou les sauvegardes qui utilisent GPG :
+
+```bash
+umask 077
+cp -p ~/.gnupg/scdaemon.conf \
+  ~/.gnupg/scdaemon.conf.before-reader-port
+# Vérifier que le nom du lecteur correspond exactement à pcsc_scan.
+printf '%s\n' 'reader-port Yubico YubiKey OTP+FIDO+CCID 00 00' \
+  >> ~/.gnupg/scdaemon.conf
+gpgconf --kill scdaemon
+gpg --card-status
+```
+
+Si le test échoue, **rollback** après vérification que le fichier
+`.before-reader-port` est bien la sauvegarde de cet essai :
+
+```bash
+cp -p ~/.gnupg/scdaemon.conf.before-reader-port ~/.gnupg/scdaemon.conf
+gpgconf --kill scdaemon
+gpg --card-status
+```
+
+Ne pas utiliser `gpgconf --kill all`, `systemctl restart pcscd`,
+`keytocard`, ni reprogrammer la carte dans le cadre de cet essai.
+Ne pas répéter ce test si la configuration contient déjà un
+`reader-port` ou si une sauvegarde du même nom existe : préserver
+les modifications précédentes et arbitrer manuellement.
+
+Source : https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
