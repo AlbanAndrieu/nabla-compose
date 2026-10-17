@@ -163,6 +163,20 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             subprocess.run(["bash", "-n", str(script)], check=True)
             self.assertIn("shell-status.sh", script.read_text())
 
+    def test_aes_compat_gate_is_read_only(self):
+        script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        output = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--serial", output.stdout)
+        body = script.read_text()
+        for marker in ("piv info", "Management key algorithm:", "exit 3",
+                       "age-plugin-yubikey 0.5.1 generation is BLOCKED"):
+            self.assertIn(marker, body)
+        for forbidden in ("luksFormat", "piv reset", "piv keys generate",
+                          "change-management-key", "--generate", "ykman otp"):
+            self.assertNotIn(forbidden, body)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
