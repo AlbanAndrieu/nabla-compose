@@ -25,6 +25,9 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("CHUID: [REDACTED]", content.replace('\\1 [REDACTED]', 'CHUID: [REDACTED]'))
         self.assertIn("NO_COLOR", content)
         self.assertIn("EXPIRED", content)
+        self.assertIn("SSH local", content)
+        self.assertIn("Signature key", content)
+        self.assertIn("OTP slot 2 HMAC-SHA1", content)
         for forbidden in ("piv reset", "otp chalresp 2", "gpg --export-secret-keys"):
             self.assertNotIn(forbidden, "\\n".join(line for line in content.splitlines()
                                                       if not line.lstrip().startswith("#")))
@@ -41,6 +44,8 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         content = script.read_text()
         self.assertIn("gpg --card-status", content)
         self.assertIn("disable-ccid", content)
+        self.assertIn("pcsc-shared", content)
+        self.assertIn("Clé secrète de signature Git", content)
         self.assertIn("ykman-gui actif", content)
         self.assertIn("usbfs sur CCID est attendu", content)
         self.assertIn("Ne pas répéter reader-port", content)
