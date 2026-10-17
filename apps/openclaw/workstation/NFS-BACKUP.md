@@ -45,3 +45,12 @@ python3 scripts/workstation/prepare-openclaw-embedding-migration.py --apply
 ```
 
 `--apply` here means **backup only**: SQLite online backups are written under `~/.local/share/nabla-compose/openclaw-memory-migration/<UTC timestamp>/` with 0700 directories and 0600 files, checked with `PRAGMA integrity_check`. It does not migrate OpenClaw, run embeddings, index, or restart services. Discoverability is deliberately limited to conventional state paths; if the tool finds no SQLite files, do not force anything. Review the OpenClaw runtime paths and extend the script before proceeding. This local backup is not a substitute for verified NFS/offsite and restore procedures. A later separately reviewed change must implement supported secret injection, model test (768 dimensions), model-specific fresh index migration and rollback. Never copy an OpenAI embedding index directly into the Ollama vector space.
+
+
+## Verified local embeddings and next migration gate (2026-10-17)
+
+Operator successfully executed `test-openclaw-litellm-embedding.py`: the dedicated virtual key authenticated to loopback LiteLLM alias `embedding` and returned **768 numeric dimensions**. This does **not** mean the old OpenAI vectors can be reused; `nomic-embed-text` requires a fresh index. The NFS backup completed successfully with ten verified artifacts and a SHA-256 manifest, including Workboard; isolated restore testing remains pending.
+
+Next gate: inspect the **installed** OpenClaw 2026.9.5 schema and effective configuration for `memory.search.provider=openai-compatible`, `model=embedding`, `remote.baseUrl=http://127.0.0.1:4000/v1`, `remote.apiKey` SecretRef support, and explicit fallback disablement. Do not assume a file-path value is automatically dereferenced as a secret. Never place the virtual key literal in a tracked config or CLI argument. Avoid setting OpenAI fallback. After confirming secret support and an isolated restore, prepare a separately reviewed config cutover and a fresh index for **both** agents, with rollback to the saved original DBs.
+
+Deferred security debt: NFS encryption at rest and immutable retention / ZFS snapshots; these are not blockers for the embedding repair but must remain on the roadmap.
