@@ -731,3 +731,43 @@ temporaire, ou comparer une version GnuPG distribuée et
 supportée dans un environnement totalement isolé sans modifier
 les binaires système. Ne pas conseiller downgrade global, compilation
 non contrôlée ou `debug-level guru`.
+
+### P0 — Proposition de mise à niveau scdaemon, YubiKey débranchée
+
+L'utilisateur autorise la préparation d'une mise à niveau `scdaemon`
+et peut débrancher la YubiKey. **Aucune intervention sur son poste
+n'a été exécutée à distance.** Version runtime actuelle
+`scdaemon` / `gpg` : 2.4.8.
+
+Ubuntu 26.04 (`resolute-updates`) publie le paquet `scdaemon`
+`2.4.8-4ubuntu3.1` (même version GnuPG amont 2.4.8).
+Ne pas promettre que ce rafraîchissement corrigera
+`ERR 100696144 No such device <SCD>`.
+Sources : https://packages.ubuntu.com/resolute-updates/scdaemon
+et https://ubuntu.com/security/notices/USN-8720-1 .
+
+**Gate de préinstallation sur workstation, clé retirée, sans modifier :**
+```bash
+. /etc/os-release
+printf 'OS: %s (%s)\n' "$PRETTY_NAME" "$VERSION_CODENAME"
+dpkg-query -W -f='${Package} ${Version}\n' scdaemon gpg-agent gnupg gpg 2>/dev/null || true
+apt-cache policy scdaemon gpg-agent gnupg gpg
+sudo apt-get -s --only-upgrade install scdaemon gpg-agent
+```
+Vérifier que le solveur ne planifie ni suppression ni changement
+de distribution, et que `scdaemon` et `gpg-agent` ont des
+versions compatibles. Si aucune version candidate supérieure,
+**STOP** : ne pas forcer un downgrade/upgrade externe.
+
+Après validation explicite de la simulation uniquement, procéder
+à une mise à jour via paquets officiels Ubuntu :
+`sudo apt-get --only-upgrade install scdaemon gpg-agent`.
+Reporter toute signature/déchiffrement GPG pendant
+l'opération. Ne pas remplacer manuellement le binaire,
+ne pas changer PIN, slots OpenPGP, OTP HMAC ou PIV.
+Une fois les paquets installés, redémarrer seulement
+`scdaemon` si nécessaire (`gpgconf --kill scdaemon`)
+après fermeture des sessions GPG, reconnecter la YubiKey
+et comparer `gpg --card-status`. Conserver les résultats
+et les versions installées. Toute mise à niveau majeure de
+GnuPG requiert un test séparé en environnement isolé.
