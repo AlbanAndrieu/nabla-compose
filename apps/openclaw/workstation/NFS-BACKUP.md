@@ -86,3 +86,20 @@ Execution order:
 5. Later: benchmark relevance, prioritize fully local `nomic-embed-text`, then change primary after a controlled reindex.
 
 Current evidence: `main` remains `text-embedding-3-small` at 15/105 files and dirty; `cron` remains `text-embedding-3-small` at 0/63 and dirty. Local alias `embedding` was tested successfully with 768 dimensions. No large-model test or runtime cutover has been confirmed.
+
+
+## LiteLLM as the single embeddings gateway; personal API as last resort
+
+The user confirmed the intended order: `text-embedding-3-large`, `text-embedding-ada-002`, Ollama `nomic-embed-text`, and **personal OpenAI API** `text-embedding-3-small` strictly last. All requests should traverse LiteLLM, with scoped keys, per-model budgets, rate limits, audit and cost visibility. Do not confuse a ChatGPT subscription with OpenAI API billing. Keep the personal OpenAI API key in a protected runtime secret, not Git, CLI arguments, or OpenClaw config. Do not silently activate it as an automatic cross-model fallback.
+
+The workstation LiteLLM `/v1/models` endpoint returned HTTP 401 for an unauthenticated request. Having `LITELLM_MASTER_KEY` in the environment does **not** attach an Authorization header automatically. Use the redacted authenticated diagnostic:
+
+```bash
+python3 scripts/workstation/audit-openclaw-litellm-models.py --auth master
+# Least privilege catalog check (will only show aliases allowed to that key):
+python3 scripts/workstation/audit-openclaw-litellm-models.py --auth local
+```
+
+This diagnostic prints only visibility of four expected model aliases; it does not test provider credentials. One-shot embedding tests require **distinct** 0600 virtual key files for each profile: `--profile large`, `--profile ada`, `--profile local`, and `--profile small`. The `small` profile is deliberately not provisioned or enabled. Never use the master key as an OpenClaw runtime key.
+
+Future implementation: inspect actual workstation LiteLLM configuration and secret injection mechanism before declaring new model aliases deployed. Add personal `text-embedding-3-small` with its own OpenAI API secret reference and tight budget only after the operator explicitly enables that last-resort profile. Maintain independent model-specific indexes; do not mix embedding providers within one vector database.
