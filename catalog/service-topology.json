@@ -786,7 +786,7 @@
     },
     {
       "id": "garage",
-      "name": "Garage S3",
+      "name": "Garage S3 API",
       "kind": "object-storage",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
@@ -803,7 +803,7 @@
     },
     {
       "id": "garage-admin",
-      "name": "Garage Admin",
+      "name": "Garage Admin API",
       "kind": "api",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
@@ -815,7 +815,7 @@
     },
     {
       "id": "garage-webui",
-      "name": "Garage",
+      "name": "Garage Web UI",
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
