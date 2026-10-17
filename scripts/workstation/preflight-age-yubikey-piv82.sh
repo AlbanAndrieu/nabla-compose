@@ -39,6 +39,19 @@ else
   fi
 fi
 nabla_status ok 'PASS: selected single YubiKey and PIV 82 appears empty (read-only).'
+# PIN vault references are labels only: never store or print the PIN itself.
+case "$serial" in
+  22916048)
+    nabla_status info 'Secondary YubiKey: check its OWN PIV PIN entry in LastPass; do not assume the primary PIN applies.'
+    nabla_status warn 'LastPass entry "yubikey-5-nabla principal" refers to the PRIMARY key, not necessarily this secondary.'
+    ;;
+  23501671)
+    nabla_status info 'Primary YubiKey PIV PIN reference: LastPass "yubikey-5-nabla principal" (verify label; never print the secret).'
+    ;;
+esac
+nabla_status warn 'age-plugin-yubikey 0.5.1 cannot authenticate AES PIN-protected PIV management keys (issue #92).'
+nabla_status warn 'Do NOT switch management key to TDES, reset PIV, or retry PINs repeatedly; use a compatible tool/version after review.'
+
 nabla_status warn 'Before any provisioning: keep OTP2 and PIV9A unchanged; never pass --force.'
 nabla_status info 'Review age-plugin-yubikey --help and plan PIN=always, touch=always.'
 nabla_status info 'Manual provisioning must be separately initiated and tested with synthetic data.'
