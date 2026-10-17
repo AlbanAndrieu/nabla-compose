@@ -2785,6 +2785,15 @@ authorized by this entry.** Declared Compose versions are not runtime proof.
 - [ ] Add a new service only after documenting a missing capability and
   verifying reuse of the existing stack is insufficient.
 
+## P3 — Deferred shared data-network and Redis credential hardening (planning only)
+
+**Deferred; no runtime network change, credential rotation or restart is authorized by this item.**
+
+- [ ] Design a persistent, least-privilege Docker network for shared data services (PostgreSQL/Redis), rather than depending on PostgreSQL's current host-wide `0.0.0.0:5432` publication. Inventory every consumer, network, TrueNAS app lifecycle and firewall rule; plan a canary, rollback and cold-reboot acceptance before changing connectivity. Keep DefectDojo's initial rollout independent of this migration.
+- [ ] Audit the effective Redis password **without printing it** and inventory all clients and Redis DB/ACL ownership. The Redis Compose currently uses `${REDIS_AUTH:-myredissecret}` in command interpolation but does not export `REDIS_AUTH` into the container; an in-container `$REDIS_AUTH` lookup is therefore not authoritative. Preserve the current credential; do not rotate it during DefectDojo onboarding.
+- [ ] Register the existing Redis credential in Vaultwarden and materialize a root-only canonical runtime secret at `/mnt/cpool/secrets/runtime/redis/.env.secrets`; migrate the Redis deployment and exporter to consume it without leaking the password through Compose rendering, command-line arguments, environment inspection or logs. Remove the insecure fallback only after all consumers are accepted.
+- [ ] Repair Redis readiness checks to authenticate safely (and check actual `PONG`, not merely process health), then verify the PostgreSQL shared service's startup/reboot readiness checks and dependent-service ordering. Include a cold-reboot acceptance runbook, not only Docker's `restart: unless-stopped` behavior.
+
 ## P4 — Kubernetes and multi-cluster
 
 - [ ] Vault/OpenBao after single-cluster storage/recovery acceptance.
