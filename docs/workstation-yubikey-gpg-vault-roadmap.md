@@ -2081,3 +2081,43 @@ et efface le fichier temporaire au retour. Ne pas utiliser
 avec un autre dossier temporaire sur disque ou exposer la
 clé en sortie. Le test du déchiffrement SOPS de fixture reste
 une étape indépendante.
+
+### Gate SOPS USB → TrueNAS → fixture validée (17 octobre 2026)
+
+L'opérateur a obtenu `message: sops-recovery-ok` puis
+`PASS: SOPS recovery with USB-backed escrow` en relançant
+manuellement le test avec la SanDisk déverrouillée.
+Ce résultat valide le chemin de récupération de l'identité
+logicielle et le déchiffrement d'une fixture SOPS. Ne pas
+assimiler ce contrôle à une seconde copie de la **clé privée
+d'escrow USB** : celle-ci demeure un risque de point unique
+de défaillance.
+
+La première tentative a entraîné la fermeture de la fenêtre
+de terminal. Cause non démontrée : un bloc avec
+`set -euo pipefail` et `trap ... EXIT` peut fermer le shell
+interactif lorsqu'il est collé/exécuté dans ce contexte.
+Utiliser désormais **un fichier Bash exécuté en sous-processus**
+(`bash scripts/workstation/test-sops-usb-recovery.sh`),
+sans `source`. Le script refuse explicitement le sourcing,
+valide une fixture SOPS et n'utilise la copie déchiffrée
+que sous `/dev/shm` (tmpfs).
+
+```bash
+bash scripts/workstation/test-sops-usb-recovery.sh \
+  --backup /media/backup/lab/secret/keepass/sops-age-identity-20261017T183615Z.age \
+  --usb-identity "/run/media/$USER/NABLA_ESCROW/age-escrow/recovery-identity.txt"
+```
+
+**Prochaines portes de sécurité matérielles :**
+- [x] Sauvegarde SOPS age chiffrée sur TrueNAS ; restauration et
+  fixture SOPS validées avec SanDisk.
+- [ ] Deuxième copie hors ligne chiffrée de l'identité privée
+  SanDisk (ne jamais la publier ni la copier en clair sur TrueNAS).
+- [ ] Inventaire PIV 82 confirmé juste avant chaque écriture ;
+  OTP2 KeePassXC et ancien PIV 9A intouchables.
+- [ ] Une identité age PIV 82 distincte sur chaque YubiKey,
+  avec preuve de déchiffrement synthétique par clé.
+- [ ] Intégration multi-recipient SOPS uniquement après
+  démonstration de recovery et identification des contraintes
+  des environnements CI et headless.
