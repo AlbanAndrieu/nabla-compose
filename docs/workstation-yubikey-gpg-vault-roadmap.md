@@ -661,3 +661,25 @@ Après fermeture normale de `ykman-gui`, `pgrep -a -u "$(id -u)" -f '[y]kman-gui
 - Identité des clients actifs via `pgrep`, et messages `journalctl -u pcscd` (sans assurance que le journal soit rempli).
 - Journal du démon GnuPG à capturer de manière bornée et expurgée, de préférence avec un homedir GnuPG isolé ; ne pas activer un niveau de trace qui expose les APDU, PIN, numéros de série ou secrets.
 - Ne pas exécuter de nouvelle manipulation des slots, réinitialisation, redémarrage `pcscd`, ou changement de permissions globales.
+
+### P0 — ACL USB validées, pas de concurrent identifié (17 octobre 2026)
+
+`lsusb -d 1050:0407` : YubiKey détectée sur bus 001 device 044.
+Nœud `/dev/bus/usb/001/044` : `crw-rw-r-- root:pcscd` et
+ACL explicite `user:albandrieu:rw-` (masque `rw-`).
+`pgrep` : seulement `pcscd` PID 4605 et `scdaemon`
+PID 1053989 parmi les clients recherchés.
+
+Les permissions DAC/ACL du nœud USB sont suffisantes pour
+l'utilisateur ; ne pas modifier les ACL, groupes ou règles udev
+sans autre indice. Cette constatation ne prouve pas l'absence
+d'un éventuel blocage LSM ou protocolaire.
+
+**Prochaine étape discriminante :** déployer un diagnostic
+`scdaemon` sur home GnuPG isolé, journaux de statut minimaux,
+sans `debug-level guru`, `debug-ccid-driver`, `log-file`
+contenant des APDU ni traces d'authentification. Tester
+`SCD SERIALNO` et sa valeur de retour dans une session bornée
+sans divulguer le numéro de série. Prioriser la vérification
+de la pile GnuPG/pcsc-lite et des anomalies du processus,
+pas de changements aux clés ou à l'interface USB.
