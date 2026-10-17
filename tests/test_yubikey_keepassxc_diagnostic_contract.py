@@ -260,6 +260,21 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             self.assertIn(bytes.fromhex("2b0601040182c40a0308"), der)
             self.assertIn(bytes.fromhex("04020302"), der)
 
+    def test_aes256_enrollment_plan_is_read_only(self):
+        script = ROOT / "scripts/workstation/plan-age-yubikey-piv82-enrollment.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_result = subprocess.run(["bash", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("--serial", help_result.stdout)
+        content = script.read_text()
+        self.assertIn("Management key algorithm:", content)
+        self.assertIn("yubikey-5-nabla backup", content)
+        self.assertIn("yubikey-5-nabla principal", content)
+        self.assertIn("piv keys info 82", content)
+        for command in ("--force", "change-management-key -a TDES",
+                        "ykman --device \\"$serial\\" piv keys generate"):
+            self.assertNotIn(command, content)
+
     def test_aes_compat_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
