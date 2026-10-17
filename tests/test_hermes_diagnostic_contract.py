@@ -49,7 +49,12 @@ esac
         program = fakebin / name
         program.write_text(content, encoding="utf-8")
         program.chmod(0o755)
-    env = os.environ | {
+    # A TrueNAS operator shell may export BASH_ENV with docker/midclt
+    # functions. Bash functions take precedence over the fake PATH binaries.
+    # Keep the diagnostic fixture independent of operator shell initialization.
+    env = {key: value for key, value in os.environ.items()
+           if key not in {"BASH_ENV", "ENV"} and not key.startswith("BASH_FUNC_")}
+    env |= {
         "PATH": f"{fakebin}:{os.environ['PATH']}",
         "FAKE_PRIVILEGED": privileged,
         "FAKE_MOUNT": mount,
