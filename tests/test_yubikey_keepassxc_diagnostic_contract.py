@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 import subprocess
+import shutil
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -179,6 +181,36 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "age-plugin-yubikey --generate"):
             self.assertNotIn(forbidden, body)
         self.assertIn("exit 3", body)
+
+    @unittest.skipUnless(shutil.which("openssl"), "openssl is required")
+    def test_offline_age_certificate_synthetic_ec_and_rsa(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-certificate.sh"
+        with tempfile.TemporaryDirectory(prefix="age-cert-contract-") as tmp:
+            root = Path(tmp)
+            fixtures = (
+                ("ec", ["-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:prime256v1"],
+                 "/CN=synthetic/O=age-plugin-yubikey", "EC P-256"),
+                ("rsa", ["-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"],
+                 "/CN=synthetic/O=age-plugin-yubikey", "does not expose an EC P-256"),
+                ("wrong-org", ["-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:prime256v1"],
+                 "/CN=synthetic/O=unrelated", "Subject lacks O=age-plugin-yubikey"),
+            )
+            for name, opts, subject, expected in fixtures:
+                with self.subTest(name=name):
+                    key = root / (name + ".key")
+                    cert = root / (name + ".pem")
+                    subprocess.run(["openssl", "req", "-x509", "-newkey", *opts,
+                                    "-nodes", "-days", "1", "-subj", subject,
+                                    "-keyout", str(key), "-out", str(cert)],
+                                   stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, check=True)
+                    result = subprocess.run(
+                        ["bash", str(script), "--certificate", str(cert)],
+                        capture_output=True, text=True,
+                        env={**os.environ, "NO_COLOR": "1"})
+                    self.assertEqual(result.returncode, 3, result.stderr)
+                    self.assertIn(expected, result.stdout + result.stderr)
+                    self.assertNotIn("\\x1b", result.stdout + result.stderr)
 
     def test_aes_compat_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
