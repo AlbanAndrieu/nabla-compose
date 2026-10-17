@@ -73,6 +73,8 @@ if command -v gpg-connect-agent >/dev/null && command -v timeout >/dev/null; the
     # Never print device serials or raw smartcard IDs.
     if [[ "$probe" == *'ERR '* ]]; then
       warn "$scd_command: refusé ou lecteur inaccessible"
+    elif [[ "$scd_command" == 'SCD GETINFO reader_list' && "$probe" == *'card or a reader'* ]]; then
+      warn 'scdaemon signale un lecteur présent mais possiblement aucune carte sélectionnable'
     elif [[ "$probe" == *'OK'* ]]; then
       ok "$scd_command: requête acceptée (données masquées)"
     else
@@ -92,7 +94,15 @@ if command -v pcsc_scan >/dev/null 2>&1 && command -v timeout >/dev/null; then
 else
   warn 'pcsc_scan absent : installer pcsc-tools sur la workstation si nécessaire'
 fi
-warn 'Piste : reader-port, conflits avec navigateur/autres clients PCSC; aucun réglage automatique'
+heading 'Conflits potentiels et état scdaemon'
+if command -v pgrep >/dev/null 2>&1; then
+  scd_count="$(pgrep -u "$(id -u)" -xc scdaemon 2>/dev/null || true)"
+  printf 'Instances scdaemon utilisateur : %s\n' "${scd_count:-0}"
+fi
+if command -v gpgconf >/dev/null 2>&1; then
+  gpgconf --check-programs 2>/dev/null | awk -F: '$1 ~ /scdaemon/ { if ($3 == "1") print "⚠️ scdaemon signale une erreur de programme"; else print "ℹ️ scdaemon référencé dans GnuPG" }' || true
+fi
+warn 'Piste : scdaemon/PCSC, lecteur obsolète en cache ou accès concurrent; aucune modification automatique'
 heading 'Diagnostic matériel GPG (sans sortie brute)'
 if command -v gpg >/dev/null; then
   if output="$(timeout 15 gpg --card-status 2>&1)"; then
