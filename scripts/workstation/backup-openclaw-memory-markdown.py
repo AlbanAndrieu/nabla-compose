@@ -10,6 +10,8 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
+import shutil
 
 ROOT = Path.home() / ".local/share/nabla-compose/openclaw-memory-migration"
 OPENCLAW = Path.home() / ".openclaw"
@@ -35,14 +37,76 @@ def workspaces():
     return paths
 
 
+def verify_isolated_restore():
+    """Reconstruct the newest private archive into an isolated temporary directory."""
+    if ROOT.is_symlink() or not ROOT.is_dir() or ROOT.stat().st_mode & 0o077:
+        raise RuntimeError("Private backup root unavailable")
+    snapshots = sorted(
+        (p for p in ROOT.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("markdown-")),
+        reverse=True,
+    )
+    if not snapshots:
+        raise RuntimeError("No Markdown snapshot found")
+    snapshot = snapshots[0]
+    archive, manifest_file = snapshot / "memory-markdown.tar.gz", snapshot / "manifest.json"
+    for path in (snapshot, archive, manifest_file):
+        if path.is_symlink() or path.stat().st_mode & 0o077:
+            raise RuntimeError("Insecure backup artifact")
+    expected = json.loads(manifest_file.read_text(encoding="utf-8"))
+    if not isinstance(expected, list) or not expected:
+        raise RuntimeError("Invalid backup manifest")
+    entries = {}
+    for item in expected:
+        if not isinstance(item, dict):
+            raise RuntimeError("Invalid manifest entry")
+        name = item.get("path")
+        if not isinstance(name, str):
+            raise RuntimeError("Invalid manifest path")
+        parts = Path(name).parts
+        if len(parts) < 2 or parts[0] not in ("main", "cron") or any(part in ("", ".", "..") for part in parts) or Path(name).is_absolute():
+            raise RuntimeError("Unsafe archive path")
+        if name in entries or not isinstance(item.get("size"), int) or item["size"] < 0:
+            raise RuntimeError("Duplicate or invalid manifest entry")
+        entries[name] = item
+    with tempfile.TemporaryDirectory(prefix="openclaw-markdown-restore-") as temporary:
+        root = Path(temporary)
+        root.chmod(0o700)
+        with tarfile.open(archive, "r:gz") as tar:
+            members = tar.getmembers()
+            if len(members) != len(entries):
+                raise RuntimeError("Archive/manifest count mismatch")
+            seen = set()
+            for member in members:
+                item = entries.get(member.name)
+                if item is None or member.name in seen or not member.isfile() or member.size != item["size"]:
+                    raise RuntimeError("Unexpected archive member")
+                seen.add(member.name)
+                target = root.joinpath(*Path(member.name).parts)
+                target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                source = tar.extractfile(member)
+                if source is None:
+                    raise RuntimeError("Unreadable archive member")
+                with target.open("xb") as output:
+                    shutil.copyfileobj(source, output)
+                target.chmod(0o600)
+                if hashlib.sha256(target.read_bytes()).hexdigest() != item["sha256"]:
+                    raise RuntimeError("Restored content checksum mismatch")
+    print(f"isolated_restore_verified=true markdown_files={len(entries)}")
+    print("active_workspaces_modified=false")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--verify-restore", action="store_true")
     args = parser.parse_args()
-    if args.check == args.apply:
-        parser.error("choose exactly one of --check or --apply")
+    if sum((args.check, args.apply, args.verify_restore)) != 1:
+        parser.error("choose exactly one of --check, --apply or --verify-restore")
     try:
+        if args.verify_restore:
+            return verify_isolated_restore()
         paths = workspaces()
         if set(paths) != {"main", "cron"}:
             raise RuntimeError("Workspace paths missing; refusing guessed paths")
