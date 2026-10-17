@@ -813,3 +813,25 @@ nécessaire, configurer un home temporaire avec une journalisation
 minimale et des résultats filtrés, sans toucher aux fichiers du
 profil utilisateur. Ne pas conclure à une régression 2.4.8 sans
 preuve expérimentale.
+
+### P0 — RESTART scdaemon accepté, SERIALNO échoue (17 octobre 2026)
+
+Sur la workstation, `ykman openpgp info` confirme que l'applet
+OpenPGP 3.4 répond (firmware/app 5.4.3, compteurs PIN et Admin
+PIN à 3). Dans la même session,
+`gpg-connect-agent 'SCD RESTART' 'SCD SERIALNO' /bye`
+retourne `OK`, puis
+`ERR 100696144 No such device <SCD>`.
+
+Il s'agit d'un différentiel confirmé entre deux clients :
+`ykman` dialogue avec l'application OpenPGP mais
+`scdaemon` ne parvient pas à la sélectionner.
+`SCD RESTART OK` indique que la commande a été acceptée,
+non que la sélection a réussi.
+
+**Décision :** arrêter les essais redondants de redémarrage,
+`reader-port`, basculement PC/SC/CCID et mise à niveau apt.
+Ne pas changer les PIN ni réinitialiser l'applet. Préparer une
+instrumentation minimale et isolée de `scdaemon` avant
+toute nouvelle manipulation de la carte, sans logs APDU
+ni extraction de secrets.
