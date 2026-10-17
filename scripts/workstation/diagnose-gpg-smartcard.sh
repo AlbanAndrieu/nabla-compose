@@ -139,12 +139,12 @@ printf '%s\n' 'ℹ️ GnuPG logiciel et OpenPGP sur YubiKey sont indépendants ;
 heading 'Référence P1 GPG logiciel (sans export de clé)'
 if command -v gpg >/dev/null 2>&1; then
   key_info="$(gpg --batch --with-colons --list-secret-keys F4C4B79A80826A5E5ADAD2C8B12DECD437E9E1C8 2>/dev/null || true)"
-  if printf '%s\n' "$key_info" | grep -q '^sec:'; then
+  if printf '%s\n' "${key_info}" | grep -q '^sec:'; then
     ok 'Clé secrète de signature Git présente dans le trousseau local (usage déjà testé avec Good signature)'
   else warn 'Clé secrète Git de référence non présente'; fi
-  if printf '%s\n' "$key_info" | grep -q '^ssb:.*:e:'; then
+  if printf '%s\n' "${key_info}" | grep -q '^ssb:.*:e:'; then
     ok 'Sous-clé secrète de chiffrement répertoriée (roundtrip de fixture déjà testé)'
-  elif printf '%s\n' "$key_info" | grep -q '^ssb:'; then
+  elif printf '%s\n' "${key_info}" | grep -q '^ssb:'; then
     ok 'Sous-clé secrète répertoriée ; vérifier les capacités séparément'
   else warn 'Sous-clé secrète de chiffrement non trouvée'; fi
 fi
