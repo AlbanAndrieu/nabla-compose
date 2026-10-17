@@ -63,7 +63,7 @@ Environment:
   QUALITY_BASE_REF                 override comparison base
   QUALITY_LOG_TAIL                 failure log lines to print (default: 32)
   QUALITY_LOG_LINE_MAX             maximum characters per emitted failure line (default: 320)
-  QUALITY_SUMMARY_LINES            maximum failure-summary lines (default: 12)
+  QUALITY_SUMMARY_LINES            maximum failure-summary lines (default: 8)\n  QUALITY_VERBOSE=1               print full failure log on error
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   NABLA_TRUENAS_DEV_VENV           preferred local dev venv (default: ~/.cache/nabla-compose/dev-venv)
   QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
@@ -146,38 +146,38 @@ print_bounded_log_lines() {
 }
 
 print_compact_log() {
-  local log="$1"
-  local summary=""
+  local log="${1}"
+  local summary_limit="${QUALITY_SUMMARY_LINES:-8}"
+  [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=8
 
-  # Summarize only failure IDs/statuses, not verbose pytest assertion
-  # dumps, file diffs, successful hooks, or source code containing ERROR.
-  # Full untruncated evidence remains in a private on-disk log.
-  summary="$(grep -E '^(- hook id: |FAILED tests/|ERROR tests/|FAIL: |ERROR: |.*[.]{3,}Failed$|[0-9]+ failed|[0-9]+ error|=+ (FAILURES|ERRORS) =+|❌ QG_|\[ERROR\])' "${log}" || true)"
-  local shellcheck_summary
-  shellcheck_summary="$(grep -E '^(In .* line [0-9]+:|.*SC[0-9]{4}.*)' "${log}" || true)"
-  if [[ -n "${shellcheck_summary}" ]]; then
-    if [[ -n "${summary}" ]]; then
-      summary+=$'\\n'
-    fi
-    summary+="${shellcheck_summary}"
-  fi
-  if [[ -n "${summary}" ]]; then
-    local summary_limit="${QUALITY_SUMMARY_LINES:-10}"
-    local summary_count
-    [[ "${summary_limit}" =~ ^[1-9][0-9]*$ ]] || summary_limit=12
-    summary_count="$(printf '%s\n' "${summary}" | wc -l)"
-    printf '%s\n' '--- failure summary ---' >&2
-    printf '%s\n' "${summary}" | awk -v max="${summary_limit}" 'NR <= max' |
-      print_bounded_log_lines >&2
-    if ((summary_count > summary_limit)); then
-      printf '... %d additional summary lines omitted; inspect full local log if needed\n' \
-        "$((summary_count - summary_limit))" >&2
-    fi
-  fi
+  printf '%s\n' '--- concise failures ---' >&2
+  # Collapse ShellCheck's repeated source excerpts and suggestions to one
+  # file:line/code entry; preserve the complete original log on disk.
+  awk -v limit="${summary_limit}" '
+    /^In .* line [0-9]+:/ {
+      location=$0
+      sub(/^In /, "", location)
+      sub(/:$/, "", location)
+      next
+    }
+    /SC[0-9][0-9][0-9][0-9]/ && location != "" {
+      if (match($0, /SC[0-9][0-9][0-9][0-9]/)) {
+        code=substr($0,RSTART,RLENGTH)
+        key=location " " code
+        if (!seen[key]++ && count++ < limit) print "  " key
+      }
+      next
+    }
+    /^FAILED tests\// || /^ERROR tests\// || /^FAIL: / || /^ERROR: / ||
+    /^❌ QG_/ || /^- hook id:/ {
+      if (count++ < limit) print "  " $0
+    }
+    END { if (count > limit) printf "  ... %d additional findings (see log)\n", count-limit }
+  ' "${log}" | print_bounded_log_lines >&2
   printf 'Full failure log: %s (private, mode 0600)\n' "${log}" >&2
-  if [[ -z "${summary}" ]]; then
-    printf '%s\n' "--- last ${LOG_TAIL} log lines (no recognizable summary) ---" >&2
-    tail -n "${LOG_TAIL}" "${log}" | print_bounded_log_lines >&2 || true
+  if [[ "${QUALITY_VERBOSE:-0}" == "1" ]]; then
+    printf '%s\n' '--- verbose failure log ---' >&2
+    cat -- "${log}" >&2
   fi
 }
 
@@ -186,7 +186,7 @@ run_compact() {
   shift
   local log
   local rc
-  log="$(mktemp)"
+  log="$(mktemp)"\n  chmod 600 "${log}"
   if "$@" >"${log}" 2>&1; then
     rm -f "${log}"
     printf '✅ %s\n' "${label}"
