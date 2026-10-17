@@ -1684,3 +1684,119 @@ des parts de recovery et des politiques d'accès.
   doivent être validées selon **édition/version déployée** ;
   une YubiKey 5 NFC n'est pas supposée être un HSM d'auto-unseal
   ou une solution PKI serveur autonome.
+
+## Plan de récupération à deux YubiKeys et sauvegarde TrueNAS (17 octobre 2026)
+
+### Inventaire déclaré du stockage existant
+
+L'opérateur dispose d'un répertoire de sauvegarde monté sur
+la workstation : `/media/backup/lab/secret/`.
+L'extrait `ll` fourni contient `Login.xlsx.zip`,
+`NETGEAR_R7000-01-02-2022.cfg`,
+`expressvpn_router_3.4.1.8614_release_netgear-r7000.chk`,
+les sous-répertoires `google/`, `keepass/`, `ssh/`
+et deux fichiers historiques YubiKey HMAC de janvier 2023
+(`yubikey-5-nabla-challenge-response-HMAC-28-01-2023` et
+`yubikey-5c-nabla-challenge-responde-HMAC-28-01-2023`).
+**Aucun contenu de ces fichiers n'a été consulté.**
+Leur nom seul n'atteste ni du format ni de la validité d'une
+copie du secret HMAC ; supposer qu'ils puissent être extrêmement
+sensibles jusqu'à inventaire local sous contrôle de l'opérateur.
+
+La liste affiche des permissions `rw-r--r--+` ou
+`rwxr-xr-x+` : **ACL étendues (signe `+`)** et modes
+potentiellement trop permissifs si les fichiers contiennent
+des clés HMAC, mots de passe, clés SSH ou sauvegardes d'accès.
+Ne pas déduire les accès effectifs du seul mode POSIX.
+Le montage `/media/backup` ne prouve pas son
+chemin dataset ZFS exact, sa réplication, son chiffrement au
+repos ou sa protection contre une suppression accidentelle.
+
+### Architecture cible — séparation des risques
+
+- **YubiKey primaire :** opérations quotidiennes avec OTP2
+  KeePassXC, FIDO2/SSH et nouvelles identités PIV age.
+- **YubiKey de secours :** identités indépendantes,
+  destinataires age et authentification testés, entreposage
+  physiquement séparé ; conserver l'OTP2 HMAC existant.
+- **TrueNAS :** dépôt de **sauvegardes chiffrées côté client**,
+  répliquées/snapshotées, sans secret de déchiffrement
+  uniquement hébergé sur la même appliance.
+- **Escrow hors ligne séparé de TrueNAS :** identité age
+  X25519 existante et/ou clés privées GPG pré-migration,
+  clé(s) de récupération KeePassXC, codes de récupération
+  MFA, matériel de révocation et parts de recovery Vault
+  sous contrôles d'accès renforcés ; ne pas placer toutes
+  les parts Vault au même endroit.
+- **Destinataires multiples :** chiffrements SOPS/age
+  pour la clé logicielle de récupération et les nouvelles
+  identités matérielles indépendantes (une par YubiKey).
+  Ne pas considérer une YubiKey clonable.
+- **Disponibilité automatisée :** TrueNAS, CI, Vault/OpenBao
+  et renouvellement TLS ne doivent pas exiger une YubiKey
+  insérée à chaque tâche planifiée.
+
+### P0 — Préflight de sécurité du répertoire (lecture seule)
+
+Sans imprimer les contenus, les secrets ni les valeurs HMAC :
+
+```bash
+findmnt -T /media/backup/lab/secret/ -o TARGET,SOURCE,FSTYPE,OPTIONS
+stat -c '%n | %a | %U:%G | %s octets' /media/backup/lab/secret/
+getfacl -p /media/backup/lab/secret/ |
+  sed -n '1,50p'
+find /media/backup/lab/secret/ -maxdepth 1 -type f \
+  -printf '%f | %m | %u:%g | %s octets\n'
+```
+
+Ne **pas** publier la sortie de `getfacl` complète sans
+l'inspecter : noms de comptes/groupes internes possibles ;
+les noms de fichiers eux-mêmes sont des métadonnées sensibles.
+Éviter `cat`, `head`, `grep`, `strings`,
+`sha256sum` des fichiers de secret dans un ticket,
+CI ou historique. Ne jamais recopier un secret YubiKey dans
+le dépôt. Les anciens fichiers HMAC pourraient être des
+matériels de récupération critiques mais aussi un risque
+de compromission si lisibles largement.
+
+### Roadmap dédiée aux sauvegardes sécurisées
+
+- [ ] **P0 ACL :** identifier les accès effectifs POSIX/NFSv4 et
+      la chaîne TrueNAS/ZFS ; restreindre au détenteur et
+      compte de backup dédié, sans casser l'accès KeePassXC.
+- [ ] **P0 classification :** inventorier localement les
+      types/risques de `Login.xlsx.zip`, `*.cfg`, `ssh/`,
+      `keepass/`, `google/` et HMAC historiques **sans
+      exporter les contenus** ; déterminer s'ils sont chiffrés.
+- [ ] **P1 sauvegarde chiffrée :** paquet d'escrow chiffré
+      **avant transfert à TrueNAS** (age à destinataires
+      multiples, ou format équivalent), permissions 0600 et
+      répertoire 0700, pas de copie plaintext durable.
+- [ ] **P1 continuité :** définir un destinataire de
+      récupération indépendant des deux YubiKeys (identité
+      age hors ligne conservée hors du pool), politique de
+      conservation et chiffrement des archives historiques.
+- [ ] **P2 résilience ZFS :** dataset chiffré si compatible,
+      snapshots avec durée documentée, réplication hors machine,
+      tests de suppression/ransomware, monitoring de la réussite.
+      Le chiffrement ZFS au repos **ne remplace pas**
+      l'enveloppe chiffrée côté client.
+- [ ] **P2 validation dual-key :** déchiffrer la même
+      fixture avec YubiKey A seule, YubiKey B seule,
+      puis sans YubiKey via clé de récupération hors ligne.
+      Réaliser également un test KeePassXC sous contrôle,
+      sans copier ni afficher la réponse HMAC.
+- [ ] **P3 tests de restauration :** GPG/git-crypt,
+      SOPS/age, SSH, Vault/OpenBao, emails/PDF et une
+      sauvegarde PostgreSQL en environnement isolé ;
+      vérifier intégrité et possibilité de réouvrir réellement.
+- [ ] **P4 DR :** scénario perte simultanée des deux YubiKeys
+      ou du TrueNAS, rotation de credentials, révocation des
+      anciennes clés/certificats et preuve de restauration.
+
+### Décision provisoire
+
+**Ne pas déplacer, supprimer, modifier les droits ou provisionner**
+des clés sur la base du seul listing. Le premier livrable est
+un audit non destructif des ACL et du chiffrement existant,
+suivi d'une stratégie de secrets hors ligne.
