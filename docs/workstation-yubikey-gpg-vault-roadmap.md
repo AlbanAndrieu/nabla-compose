@@ -2190,3 +2190,21 @@ Le préflight affiche maintenant un **rappel non sensible de la référence Last
 Le diagnostic en lecture seule de la carte secondaire indique PIN 3/3 et PUK 3/3, management key AES256 protégée par PIN, ancien certificat 9A inchangé et slot 82 vide. L'échec du plugin ne démontre pas un PIN erroné : il annonce une incompatibilité avec AES.
 
 Références LastPass confirmées par l'opérateur : principale `yubikey-5-nabla principal` ; secondaire `yubikey-5-nabla backup`. Ne conserver que les libellés, jamais les valeurs. Ne pas migrer la management key vers TDES et ne pas réinitialiser PIV ; recherche d'un chemin AES-compatible requise avant toute génération.
+
+### P1 — AES management-key compatibility: investigation and guard (2026-10-17)
+
+The upstream `str4d/age-plugin-yubikey` issue [#92](https://github.com/str4d/age-plugin-yubikey/issues/92) remains open, blocked by an upstream dependency. Version `0.5.1` does **not** establish PIN-protected AES management-key compatibility. Its latest release as checked is `0.5.1`; the reported `--generate` failure on the backup card is consistent with this known blocker, not proof of wrong PIN. See [issues #238](https://github.com/str4d/age-plugin-yubikey/issues/238) and [#92](https://github.com/str4d/age-plugin-yubikey/issues/92).
+
+Read-only guard:
+```bash
+bash scripts/workstation/check-age-yubikey-aes-compat.sh --serial 22916048
+```
+It intentionally exits **3** on incompatible AES or unapproved management-key configurations (nonzero means **blocked by policy**, not a hardware failure). Never use it as a provisioning success signal. The previous PIV82 preflight still checks slot emptiness independently.
+
+Investigation plan before any write:
+1. Check age-plugin-yubikey's current dependencies and upstream #92 fixes, with reproducible, pinned versions; test first against a disposable token if possible.
+2. Research external ECC P-256 key generation directly on-card in retired PIV 82 using AES-compatible `ykman`, **plus plugin-compatible certificate encoding** and PIN/touch policy; verify that no existing PIV applet state must be reset. Building a P-256 key alone is insufficient.
+3. Validate the resulting recipient and actual synthetic age decrypt against the plugin, and independently inspect PIV 9A and OTP2 afterwards.
+4. Document rollback, slot 83 rotation reservation, and migration impact for unattended SOPS/CI before new production recipients.
+
+No automatic TDES downgrade, no PIN guessing, no PIV reset, no wildcard `--force`. Existing SOPS X25519 and TrueNAS/SanDisk recovery remain operational.
