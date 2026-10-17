@@ -1,3 +1,14 @@
+## OpenClaw workstation P0 — heartbeat and backup hardening (2026-10-17)
+
+- [x] Copy two historical archives, main/cron/global SQLite snapshots and private heartbeat scratch to `/media/backup/lab/infra/openclaw`; operator confirmed matching SHA-256 and NFSv4.2 source `nabla:/mnt/cpool/backup/lab`.
+- [x] Keep only sanitized heartbeat scratch policy in Git; original scratch is private under NFS `recovery/`.
+- [ ] Apply sanitized scratch to native `heartbeat:main` with `--expected-revision 1` after a fresh revision check; monitor subsequent heartbeat skip/error state without forcing a billable run. Do not change LiteLLM budget or disable other cron jobs.
+- [ ] Review and isolate mail/CalDAV/WhatsApp/workboard operations into explicit, bounded schedules; prevent unapproved self-healing actions.
+- [ ] Add native NFS backup periodic systemd timer only after runtime backup verification and security acceptance; no silent fallback to local disk.
+- [ ] **TrueNAS WORM/immutability:** design retention-enforced, separately authorized immutable backup manifests and backup snapshots (ZFS snapshot holds or Object Lock where appropriate), define retention, audit deletion rights and validate independent restore path. Current SHA-256 manifests are NOT WORM.
+- [ ] Validate NFS `sec=sys` exposure, access permissions and backup encryption before scheduled confidential backups.
+- [ ] Isolated restore drill **deferred explicitly by operator**; do not represent backup as restore-tested.
+
 ## P1 — Diagnostics TrueNAS : présentation commune (2026-10-17)
 
 - [x] Centraliser la présentation terminal (ANSI/NO_COLOR, icônes UTF-8, niveaux OK/WARN/FAIL/UNKNOWN) dans `scripts/lib/diagnostic-ui.sh` ; refactoriser `diagnose-fastapi-sample.sh`, `diagnose-gatus.sh` et `diagnose-resource-usage.sh` sans modifier leurs opérations de diagnostic en lecture seule.
