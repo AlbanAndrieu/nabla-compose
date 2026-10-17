@@ -683,3 +683,24 @@ contenant des APDU ni traces d'authentification. Tester
 sans divulguer le numéro de série. Prioriser la vérification
 de la pile GnuPG/pcsc-lite et des anomalies du processus,
 pas de changements aux clés ou à l'interface USB.
+
+### P0 — GETINFO reader_list retourne un identifiant CCID (17 octobre)
+
+L'opérateur obtient `SCD GETINFO version` → `D 2.4.8`, `OK`,
+et `SCD GETINFO reader_list` → `D 1050:0407:X:0%0A`,
+`OK`. Aucune entrée USB/CCID/AppArmor n'est visible dans
+`journalctl -k` filtré sur les 30 dernières minutes.
+
+La chaîne `1050:0407:X:0` ressemble à l'identifiant de
+lecteur USB CCID exposé par scdaemon ; elle prouve que le lecteur
+est **énuméré**, mais pas que l'application OpenPGP a été
+sélectionnée. Le suffixe `%0A` est l'encodage Assuan du
+saut de ligne. Ne pas interpréter `X:0` comme un code d'erreur
+sans preuve. Documentation GnuPG :
+https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
+
+**Contrôle suivant :** distinguer lecteur énuméré et session
+applicative en demandant les statuts GnuPG à faible verbosité
+et en examinant uniquement le **code** `SCD SERIALNO`.
+Ne pas exposer les numéros de série ni utiliser de trace APDU,
+`debug-level guru`, dump mémoire, ou opération `keytocard`.
