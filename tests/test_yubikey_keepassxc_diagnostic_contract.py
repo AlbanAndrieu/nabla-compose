@@ -41,6 +41,9 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         content = script.read_text()
         self.assertIn("gpg --card-status", content)
         self.assertIn("disable-ccid", content)
+        self.assertIn("ykman-gui actif", content)
+        self.assertIn("usbfs sur CCID est attendu", content)
+        self.assertIn("Ne pas répéter reader-port", content)
         for forbidden in ("piv reset", "keytocard", "rm -rf", "gpg --delete-secret-key",
                           "gpgconf --kill", "systemctl stop", "set -x"):
             self.assertNotIn(forbidden, content)
