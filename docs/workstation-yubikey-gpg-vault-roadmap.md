@@ -2319,3 +2319,18 @@ L'opérateur a validé le précédent lot **24/24 tests PASS** au commit `8f88d7
 ### Acceptation opérateur de la chaîne CSR synthétique (18 octobre 2026)
 
 L'opérateur a exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **25 tests PASS / 25, 0,563 s**. Le test `test_offline_csr_certificate_pipeline` est notamment PASS. Le script signale correctement `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified`. **Conclusion :** génération CSR + certificat et vérifications synthétiques acceptées en local ; signature par clé privée non exportable en PIV82, installation compatible et déchiffrement age matériel restent à valider. Aucun provisionnement matériel autorisé par ce résultat.
+
+### 2026-10-18 — Chemin SDK Python pour signature PIV non exportable
+
+Recherche documentation Yubico : `ykman.piv.sign_certificate_builder(session, slot, key_type, builder, hash_algorithm)` sait signer un `cryptography.x509.CertificateBuilder` au moyen de la clé privée stockée sur PIV. Ceci ouvre une voie pour ajouter `x509.UnrecognizedExtension(ObjectIdentifier("1.3.6.1.4.1.41482.3.8"), b"\\x03\\x02")` à un certificat auto-signé, contrairement au CLI standard `ykman piv certificates generate` qui ne propose pas directement ces extensions. Sources : https://developers.yubico.com/yubikey-manager/API_Documentation/autoapi/ykman/piv/index.html et https://github.com/Yubico/yubikey-manager/blob/main/ykman/piv.py .
+
+Ajout d'un script de découverte **sans matériel** : `bash scripts/workstation/check-yubikey-piv-python-sdk.sh`. Il vérifie l'existence des modules Python `ykman`, `yubikit`, `cryptography` et de l'API `sign_certificate_builder` dans l'interpréteur sélectionné. **Exit 3** lorsque le SDK manque ou n'est pas compatible, sans tentative d'installation globale. Une nouvelle assertion de contrat porte le nombre attendu de tests `unittest` à **26** (encore à revalider sur workstation).
+
+Chemin étudié **non exécuté** :
+1. Préflight strict série + une carte + slot PIV82 vide + AES256 PIN-protected.
+2. Génération sur carte de clé ECCP256 en PIV82 avec PIN et toucher `ALWAYS`, uniquement après approbation opérateur de l'étape d'écriture.
+3. Construction `x509.CertificateBuilder` avec sujet `O=age-plugin-yubikey,OU=0.5.1,CN=nabla-age-backup`, public key PIV82, dates contrôlées, extension non critique `1.3.6.1.4.1.41482.3.8` = octets `03 02`. Signature par `ykman.piv.sign_certificate_builder` via PIV82 non exportable ; vérifier la signature avec sa clé publique.
+4. Import explicite du certificat en PIV82 avec vérification correspondance clé/certificat ; ne pas modifier PIV9A, CHUID ni la management key AES256.
+5. `age-plugin-yubikey --list-all` + lecture identité puis vrai encrypt/decrypt synthétique avec toucher/PIN, suivi inventaire slot 9A et OTP2.
+
+**NO-GO persistant :** le script d'inscription matérielle et l'ouverture d'une session PIV authentifiée AES256 ne sont pas encore implémentés/validés ; la compatibilité réelle avec le plugin demeure inconnue. Aucun appel de signature matériel ni mutation de carte n'est autorisé par cette seule découverte de l'API. Préférer un environnement virtuel à versions épinglées et une carte jetable avant déploiement sur secondaire.
