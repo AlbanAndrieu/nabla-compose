@@ -92,6 +92,24 @@ def inventory(root: Path, before: set[str]) -> list[dict]:
     return sorted(items, key=lambda item: item["path"])
 
 
+def diagnostic(root: Path) -> dict:
+    """Read-only diagnostics without exposing command stderr or secrets."""
+    check_mount(root)
+    checks = {}
+    for name, directory in (("root", root), ("sqlite", root / "sqlite"), ("main", root / "sqlite/main")):
+        checks[name] = {"exists": directory.is_dir(), "writable": os.access(directory, os.W_OK | os.X_OK) if directory.is_dir() else False}
+    for name, argv in (("sqlite_help", ("openclaw", "backup", "sqlite", "create", "--help")),
+                       ("backup_help", ("openclaw", "backup", "create", "--help"))):
+        try:
+            p = subprocess.run(argv, capture_output=True, text=True, timeout=20, check=False)
+            checks[name] = {"exit_code": p.returncode,
+                            "supports_repository": "--repository" in p.stdout,
+                            "supports_agent": "--agent" in p.stdout}
+        except (OSError, subprocess.TimeoutExpired):
+            checks[name] = {"unavailable": True}
+    return checks
+
+
 def execute(root: Path, workboard: Path, dry_run: bool = False) -> dict:
     check_mount(root)
     if dry_run:
@@ -162,10 +180,14 @@ def main() -> None:
     parser.add_argument("--workboard", type=Path,
                         default=Path.home() / ".openclaw/plugins/workboard/workboard.sqlite")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--diagnose", action="store_true", help="Read-only NFS permissions and CLI argument checks")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON only")
     args = parser.parse_args()
     os.umask(0o077)
     try:
+        if args.diagnose:
+            print(json.dumps(diagnostic(args.root), indent=2))
+            return
         result = execute(args.root, args.workboard, args.dry_run)
         if args.json:
             print(json.dumps(result, indent=2))
