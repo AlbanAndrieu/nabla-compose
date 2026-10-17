@@ -6,6 +6,8 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   return 2
 fi
 set -euo pipefail
+# shellcheck source=scripts/workstation/shell-status.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/shell-status.sh"
 umask 077
 backup=''
 usb_identity=''
@@ -49,4 +51,4 @@ sops encrypt --age "${recipient}" --input-type yaml --output-type yaml "${tmp}/t
 SOPS_AGE_KEY_FILE="${tmp}/restored.txt" SOPS_AGE_KEY='' \
   sops decrypt "${tmp}/encrypted.yaml" > "${tmp}/decrypted.yaml"
 grep -Fxq 'message: sops-recovery-ok' "${tmp}/decrypted.yaml"
-echo 'PASS: SOPS recovery with USB-backed escrow'
+nabla_status ok 'PASS: SOPS recovery with USB-backed escrow'
