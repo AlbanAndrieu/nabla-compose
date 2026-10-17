@@ -126,6 +126,40 @@ def audit_shape(data):
     return ",".join(f"{name}:{count}" for name, count in types.items())
 
 
+
+def audit_structure(data):
+    """Describe shape without exposing any JSON keys, field values, or array entries."""
+    if not isinstance(data, dict):
+        return "not_object"
+    signatures = []
+    for value in data.values():
+        if isinstance(value, dict):
+            counts = {"array": 0, "object": 0, "scalar": 0}
+            for child in value.values():
+                if isinstance(child, list):
+                    counts["array"] += 1
+                elif isinstance(child, dict):
+                    counts["object"] += 1
+                else:
+                    counts["scalar"] += 1
+            signatures.append("object(%d,%d,%d)" % (
+                counts["array"], counts["object"], counts["scalar"]))
+        elif isinstance(value, list):
+            types = {"object": 0, "array": 0, "scalar": 0}
+            for child in value:
+                if isinstance(child, dict):
+                    types["object"] += 1
+                elif isinstance(child, list):
+                    types["array"] += 1
+                else:
+                    types["scalar"] += 1
+            signatures.append("array(%d,%d,%d)" % (
+                types["object"], types["array"], types["scalar"]))
+        else:
+            signatures.append("scalar")
+    return ";".join(sorted(signatures))
+
+
 def audit():
     """Run the built-in read-only audit without displaying its potentially sensitive findings."""
     process = subprocess.run(
@@ -146,6 +180,7 @@ def audit():
     summary = audit_summary(data)
     print("secret_audit_category_schema=" + summary["schema"])
     print("secret_audit_top_level_shape=" + audit_shape(data))
+    print("secret_audit_nested_shape=" + audit_structure(data))
     for category, count in summary["categories"].items():
         print("secret_audit_" + category + "_count=" + str(count))
     print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
