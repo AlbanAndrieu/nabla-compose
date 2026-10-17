@@ -1909,3 +1909,9 @@ L'opérateur a exécuté `audit-yubikey-capabilities.sh --backup` dans un worktr
 La sortie indique `OATH Password protection: disabled` : revoir le modèle de protection avant ajout de nouveaux comptes OATH, sans activer de contrôle susceptible de bloquer les comptes existants. L'identité SSH chargée dans ssh-agent n'est pas attribuée à la YubiKey. Le contrôle principal `--primary` reste à rejouer avec la clé principale effectivement connectée et une seule clé présente.
 
 **Prochain jalon :** test de récupération d'une fixture SOPS avec le destinataire age X25519 actuel, avant génération explicite d'identités matérielles distinctes sur les deux cartes. Aucun provisionnement effectué.
+
+### P2 SOPS — identité locale trouvée, permissions à durcir (17 octobre 2026)
+
+L'opérateur rapporte `~/.config/sops/age/keys.txt` **présent**, propriétaire `albandrieu`, mode **0644**. Le chemin alternatif `~/.config/age/keys.txt` est absent. SOPS 3.13.3 est opérationnel. Attention : l'existence du fichier ne démontre pas à elle seule qu'il contient l'identité correspondant au destinataire `age1...` de `fastapi-sample/.sops.yaml`, ni qu'une restauration fonctionne.
+
+**Priorité P0 confidentialité :** resserrer sans lire/exporter la clé : `chmod 600 ~/.config/sops/age/keys.txt` et `chmod 700 ~/.config/sops/age`. Vérifier ACL de fichier et accès aux éventuelles copies historiques. Le diagnostic `audit-yubikey-capabilities.sh` signale désormais les permissions de cette identité en n'inspectant que ses métadonnées, sans afficher le contenu. Il reste à valider le déchiffrement sur une fixture SOPS non sensible et la conservation d'une copie de récupération chiffrée hors ligne **avant** de créer les identités YubiKey PIV 82. Ne pas placer la clé privée sur TrueNAS en clair.
