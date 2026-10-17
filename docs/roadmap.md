@@ -23,6 +23,12 @@ Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbook
 
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
+- [x] Operator strict secrets audit returned exit 1 with valid object JSON; category and cause unknown.
+- [x] Preflight `--audit` now emits allowlisted category counts only for recognized top-level fields and reports unknown schemas explicitly; raw findings suppressed.
+- [x] Added offline classification regression tests; execution pending.
+- [ ] If audit schema is unknown, inspect only structural key names/types with a reviewed sanitizer; never dump raw JSON or values. Fix findings before migration.
+
+
 - [x] Operator reran strict audit: `secret_audit=findings_or_error`, `secret_audit_strict_check=true`, no configuration change. Root cause unknown because raw findings intentionally suppressed; do not label as unresolved ref without evidence.
 - [x] Diagnostic preflight now reports numeric exit code and top-level JSON type only (never paths, IDs, values, or finding bodies), allowing safe first-stage triage.
 - [ ] Inspect sanitized audit exit code; if JSON is valid and findings persist, implement allowlisted aggregate classification only after verifying exact audit JSON schema. No active secret/config/index changes.
