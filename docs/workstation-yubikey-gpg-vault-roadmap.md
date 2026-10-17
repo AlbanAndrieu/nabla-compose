@@ -1104,3 +1104,26 @@ Le PASS de `gpg --card-status` ne valide pas les opérations de
 signature Git, `git-crypt` ou les restaurations PostgreSQL.
 P1 doit les valider sans migration de clés. L'activation réelle
 n'a pas été effectuée par l'agent.
+
+### P0c — Activation persistante validée par l'opérateur (17 octobre 2026)
+
+Après un `git pull --ff-only`, l'opérateur a exécuté :
+- `manage-gpg-pcsc-shared.sh --check` → `Current managed state: original`, contrôle PASS ;
+- `manage-gpg-pcsc-shared.sh --apply` → `Persistent pcsc-shared enabled and OpenPGP detected` ;
+- `manage-gpg-pcsc-shared.sh --check` → `Current managed state: shared`, contrôle PASS.
+
+**P0c PASS :** configuration principale désormais en
+`disable-ccid` + `pcsc-shared`, carte détectée, état persistant
+confirmé. La sauvegarde `scdaemon.conf.before-reader-port`
+n'a pas été réécrite. En cas de régression :
+`./scripts/workstation/manage-gpg-pcsc-shared.sh --rollback`.
+
+**P1 à faire :** ne pas assimiler l'énumération OpenPGP à une
+signature ou un déchiffrement réussi. Commencer par
+`gpg --card-status`, puis relever les empreintes de sous-clés
+disponibles et vérifier la configuration de signature Git
+sans divulguer de clés privées. Toute signature de challenge
+doit être explicitement supervisée et peut déclencher un PIN ;
+vérifier l'identité du bon jeton avant d'autoriser une opération.
+`git-crypt` et restauration PostgreSQL sont des validations
+séparées. Ne pas essayer `keytocard`.
