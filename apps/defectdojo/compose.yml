@@ -183,7 +183,17 @@ services:
       - /mnt/cpool/defectdojo/media:/usr/share/nginx/html/media
     networks:
       - intranet
+      - traefik_network
     labels:
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.defectdojo.rule: "Host(`defectdojo.int.albandrieu.com`)"
+      traefik.http.routers.defectdojo.entrypoints: websecure
+      traefik.http.routers.defectdojo.tls: "true"
+      traefik.http.routers.defectdojo.tls.certresolver: letsencrypt
+      traefik.http.routers.defectdojo.service: defectdojo
+      traefik.http.services.defectdojo.loadbalancer.server.scheme: http
+      traefik.http.services.defectdojo.loadbalancer.server.port: "8080"
       com.albandrieu.nabla.entity-ref: component:default/defectdojo
     x-nabla:
       id: defectdojo
@@ -216,3 +226,6 @@ networks:
   intranet:
     external: true
     name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network
