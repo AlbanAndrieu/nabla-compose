@@ -1,3 +1,12 @@
+
+## P2 · Cloudflare DNS OpenTofu GitOps — preparation (2026-10-17)
+
+- [x] Restore pfSense private DNS forwarding to Pi-hole and validate three internal services; retain local pfSense XML backup inventory in `docs/dns-ingress-ownership.md`.
+- [ ] Inventory existing Cloudflare DNS records and distinguish public Hello exception from unwanted `int.albandrieu.com` apex/wildcards using `scripts/security/audit-public-int-dns.sh --check`.
+- [ ] Build a dedicated OpenTofu/Terraform Cloudflare DNS module with pinned provider, explicit public DNS allowlist and no `*.int.albandrieu.com` wildcard. Import pre-existing records into state before planning changes; do not recreate or delete unmanaged resources.
+- [ ] Configure protected remote state, least-privilege API token via secret injection (never checked into Git), `fmt`/`validate`/`plan` and reviewed manual-only `apply`. Never publish state, secrets or full API payloads in CI artifacts.
+- [ ] Add read-only drift detection and tests that reject publication of private names (including DefectDojo), preserving intentional public Hello exception until separately approved.
+
 ## P1 · YubiKey age / AES256 PIV management-key compatibility — BLOCKED (2026-10-17)
 
 - [x] Validate both YubiKeys PIV82 empty (read-only), OTP2/KeePassXC and historical PIV9A preserved. Main serial `23501671`, backup serial `22916048`.
