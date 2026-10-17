@@ -50,3 +50,72 @@ def test_deployer_summarizes_revision_and_scrubs_auth_smoke_output() -> None:
     assert 'summary passed=[0-9]+ total=[0-9]+ secrets_printed=no' in script
     assert "build_revision=null" in script
     assert "FASTAPI_SAMPLE_REF=<immutable-SHA>" in script
+
+
+def test_mocked_health_board_is_redacted_and_bounded() -> None:
+    """Synthetic subprocesses: never reach TrueNAS, Cloudflare or pfSense."""
+    import os
+    import shutil
+    import tempfile
+
+    if shutil.which("jq") is None:
+        return  # jq is required by the production diagnostic.
+
+    with tempfile.TemporaryDirectory(prefix=".sample-diagnostic-", dir=ROOT) as work:
+        directory = Path(work)
+        docker = directory / "docker"
+        curl = directory / "curl"
+        docker.write_text(
+            """#!/usr/bin/env bash
+case "$1" in
+info) exit 0 ;;
+inspect) echo 'container=/fastapi-sample state=running image=sha256:fixture'; exit 0 ;;
+stats) echo 'container=fastapi-sample CPU=1.0% MEM=128MiB PIDs=2'; exit 0 ;;
+exec)
+  shift 2
+  case "$1" in
+  curl)
+    if [[ "$*" == *'/-/ready'* ]]; then exit 0; fi
+    if [[ "$*" == *'/api/v1/query'* ]]; then
+      echo '{"status":"success","data":{"result":[{"metric":{"__name__":"nabla:telemetry:gatus_up"},"value":[123,"1"]}]}}'
+      exit 0
+    fi
+    echo 'HTTP=302 DNS=0.04s TCP=0.22s TLS=0.33s TOTAL=0.45s'; exit 0 ;;
+  sh)
+    if [[ "$*" == *'/etc/resolv.conf'* ]]; then
+      echo 'nameserver 127.0.0.11'
+    fi
+    exit 0 ;;
+  esac ;;
+esac
+exit 2
+""",
+            encoding="utf-8",
+        )
+        curl.write_text(
+            """#!/usr/bin/env bash
+case "$*" in
+*'/v2/version'*) echo '{"release_version":"1.22.1","version":"v0+1.22.1","build_revision":null,"secret":"NEVER_LEAK"}' ;;
+*'/api/health-board'*) echo '{"homelab":{"probe_summary":{"public":{"completed":0,"timed_out":12},"internal":{"completed":3,"timed_out":0,"evidence":{"coverage_percent":20.9}}},"internal_services":[{"id":"garage"},{"id":"garage-admin"},{"id":"garage-webui"}],"services":[{"id":"garage","internal_state":"ok","secret":"NEVER_LEAK"}],"secret":"NEVER_LEAK"}}' ;;
+*) echo 'HTTP=302 DNS=0.05s TCP=0.06s TLS=0.07s TOTAL=0.1s' ;;
+esac
+""",
+            encoding="utf-8",
+        )
+        docker.chmod(0o755)
+        curl.chmod(0o755)
+        env = os.environ | {"PATH": f"{directory}:{os.environ['PATH']}"}
+        result = subprocess.run(
+            ["bash", str(DIAG), "--cycles", "1"],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert '"timed_out":12' in result.stdout
+        assert "garage-admin" in result.stdout
+        assert "nameserver 127.0.0.11" in result.stdout
+        assert "NEVER_LEAK" not in result.stdout + result.stderr
