@@ -33,6 +33,31 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                                                       if not line.lstrip().startswith("#")))
 
 
+    def test_piv_inventory_enforces_known_single_key_and_read_only_slots(self):
+        script = ROOT / "scripts/workstation/audit-yubikey-capabilities.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_text = subprocess.run(
+            ["bash", str(script), "--help"], capture_output=True,
+            text=True, check=True
+        ).stdout
+        for option in ("--primary", "--backup", "--serial", "--challenge"):
+            self.assertIn(option, help_text)
+        content = script.read_text()
+        for marker in (
+            "PRIMARY_SERIAL=23501671", "BACKUP_SERIAL=22916048",
+            "Exactly one YubiKey must be connected",
+            "Connected YubiKey does not match requested serial",
+            "Unrecognized YubiKey",
+            'args=(--device "$connected")',
+            'ykman "${args[@]}" piv keys info "$slot"',
+            "PIV slot summary", "UNKNOWN", "No key stored",
+            "9C 9D 9E 82 83 84 85 86 87 88 89 8A 8B 8C 8D 8E 8F 90 91 92 93 94 95",
+        ):
+            self.assertIn(marker, content)
+        for forbidden in ("piv keys generate", "piv keys import",
+                          "piv keys delete", "piv reset", "otp delete"):
+            self.assertNotIn(forbidden, content)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
