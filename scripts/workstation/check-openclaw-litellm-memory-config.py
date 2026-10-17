@@ -26,8 +26,9 @@ def schema():
 
 
 def check():
+    root = schema().get("properties", {})
     properties = (
-        schema().get("properties", {}).get("memory", {})
+        root.get("memory", {})
         .get("properties", {}).get("search", {}).get("properties", {})
     )
     remote = properties.get("remote", {}).get("properties", {})
@@ -40,8 +41,18 @@ def check():
         for variant in secret_variants
         for choice in variant.get("oneOf", [])
     )
+    providers = root.get("secrets", {}).get("properties", {}).get("providers", {})
+    provider_variants = providers.get("additionalProperties", {}).get("anyOf", [])
+    single_value_file_provider = any(
+        variant.get("properties", {}).get("source", {}).get("const") == "file"
+        and {"source", "path"}.issubset(variant.get("required", []))
+        and any(mode.get("const") == "singleValue" for mode in variant.get("properties", {}).get("mode", {}).get("anyOf", []))
+        for variant in provider_variants
+    )
+    print("file_secret_provider_schema=" + ("compatible" if single_value_file_provider else "incompatible"))
     required = (
-        "openai-compatible" in provider_description
+        single_value_file_provider
+        and         "openai-compatible" in provider_description
         and {"model", "sources", "extraPaths"}.issubset(properties)
         and {"baseUrl", "apiKey", "batch"}.issubset(remote)
         and any(item.get("const") == "memory" for item in sources)
