@@ -38,7 +38,7 @@ def discover():
                     continue
                 try:
                     with path.open("rb") as handle:
-                        if handle.read(16) == b"SQLite format 3\x5cx00":
+                        if handle.read(16) == b"SQLite format 3\x00":
                             result.add(path)
                 except OSError:
                     continue
