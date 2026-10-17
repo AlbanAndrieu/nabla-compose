@@ -9,6 +9,29 @@ Use this skill for CI failures, quality-gate work, PR continuation, formatter/li
 fixes, or any task where remote CI should remain a safety net rather than the
 edit loop.
 
+## Branch and environment ownership (mandatory)
+
+- Resolve the **user-selected open PR and its head branch** before editing.
+  When the user specifies a branch, use exactly that branch for all writes.
+- **Never push, commit or update refs directly on `master` or another
+  protected base branch.** Use a reviewed feature branch and its open PR;
+  do not merge unless explicitly requested.
+- Do not switch to a different PR for thematic reasons without the
+  operator's explicit authorization. Code already merged into master
+  remains available to the PR through its base; do not duplicate it merely
+  because it is absent from the PR's *Files changed* tab.
+- Make code, documentation and Git file-mode changes in the **agent
+  environment first**. Run available syntax and targeted contract tests,
+  publish to the chosen PR, and verify the exact remote HEAD and Git
+  `100755` index modes before declaring completion.
+- Request actions on TrueNAS, a workstation or production **only as a
+  last resort**, for hardware-dependent/runtime acceptance or a proven
+  agent-side blocker. Prefer read-only validation; never delegate ordinary
+  repository edits and chmod fixes to the operator by default.
+- If the agent's GitHub branch write fails, report the exact failure and
+  avoid claiming publication. Recover within agent tools before proposing
+  a minimal, reversible operator workaround.
+
 ## Principle
 
 Use the cheapest deterministic evidence that can falsify the current patch, then
