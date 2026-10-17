@@ -20,7 +20,14 @@ KINDS = ("main", "cron", "global")
 
 
 def run(*args: str) -> str:
-    return subprocess.run(args, check=True, capture_output=True, text=True, timeout=1800).stdout
+    try:
+        return subprocess.run(args, check=True, capture_output=True, text=True, timeout=1800).stdout
+    except subprocess.CalledProcessError as exc:
+        # Never expose stdout/stderr: provider diagnostics may contain secrets.
+        stage = "openclaw_backup" if args[:2] == ("openclaw", "backup") else "mount_check"
+        operation = args[2] if len(args) > 2 and stage == "openclaw_backup" else "command"
+        kind = "global" if "--global" in args else (args[args.index("--agent") + 1] if "--agent" in args else "none")
+        raise ValueError(f"command_failed stage={stage} operation={operation} agent={kind} exit_code={exc.returncode}") from None
 
 
 def check_mount(root: Path) -> None:
@@ -134,7 +141,7 @@ def report(result: dict) -> None:
     """Human-friendly terminal status; machine output stays available via --json."""
     color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
     def paint(value: str, code: str) -> str:
-        return f"\\033[{code}m{value}\\033[0m" if color else value
+        return f"\033[{code}m{value}\033[0m" if color else value
     print(paint("🔐 OpenClaw · NFS backup", "1;36"))
     if result.get("dry_run"):
         print(paint("✅ Montage NFS vérifié", "32"))
@@ -165,7 +172,8 @@ def main() -> None:
         else:
             report(result)
     except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired, sqlite3.Error) as exc:
-        raise SystemExit(f"❌ ERREUR : sauvegarde non confirmée ({type(exc).__name__})") from None
+        detail = str(exc) if isinstance(exc, ValueError) and str(exc).startswith("command_failed ") else type(exc).__name__
+        raise SystemExit(f"❌ ERREUR : sauvegarde non confirmée ({detail})") from None
 
 
 if __name__ == "__main__":
