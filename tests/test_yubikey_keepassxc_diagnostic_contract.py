@@ -275,6 +275,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                         'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
 
+    @unittest.skipUnless(shutil.which("openssl"), "openssl is required")
+    def test_offline_csr_certificate_pipeline(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-csr-offline.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script)], capture_output=True,
+                                text=True, env={**os.environ, "NO_COLOR": "1"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Offline CSR, P-256 self-signature", result.stdout)
+        body = script.read_text()
+        for forbidden in ("ykman", "age-plugin-yubikey --generate", "piv reset",
+                          "change-management-key"):
+            self.assertNotIn(forbidden, body)
+
     def test_offline_quality_gate_contract(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
