@@ -5,13 +5,17 @@ MODE="${1:---check}"
 TARGET="${2:-all}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 APPS=(plumber netbox dependency-track defectdojo neo4j cartography scorecard dsomm)
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/diagnostic-ui.sh
+source "${SCRIPT_DIR}/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
 
 fail() {
-  printf 'ERROR: %s\n' "$*" >&2
+  diag_fail "$*" >&2
   exit 1
 }
 warn() {
-  printf 'WARNING: %s\n' "$*" >&2
+  diag_warn "$*" >&2
 }
 
 case "${MODE}" in
@@ -29,9 +33,11 @@ if [[ "${TARGET}" != "all" ]]; then
   APPS=("${TARGET}")
 fi
 
+diag_section "" "Validation du manifeste des secrets"
 python3 scripts/secrets/render_from_bitwarden.py --check
 
 if [[ "${MODE}" == "--import-env" || "${MODE}" == "--import-env-apply" ]]; then
+  diag_section "" "Vaultwarden · ${MODE} (${TARGET})"
   args=()
   for app in "${APPS[@]}"; do
     args+=(--app "${app}")
@@ -71,9 +77,10 @@ verify_one() {
       ;;
   esac
 
-  printf 'OK: secret contract app=%s mode=%s\n' "${app}" "${MODE}"
+  diag_ok "secret contract app=${app} mode=${MODE}"
 }
 
+diag_section "" "Vérification des secrets runtime (${MODE})"
 for app in "${APPS[@]}"; do
   verify_one "${app}"
 done
