@@ -136,7 +136,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("--serial", result.stdout)
         text = script.read_text()
         for marker in ("piv keys info 82", "ykman list --serials",
-                       "Connect exactly the selected single YubiKey"):
+                       "Expected exactly one YubiKey matching requested serial"):
             self.assertIn(marker, text)
         # A single exact matching serial is required; avoid fragile sed backrefs.
         self.assertIn("mapfile -t detected_serials", text)
