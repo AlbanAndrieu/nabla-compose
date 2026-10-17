@@ -18,7 +18,7 @@ def test_executable_gate_rejects_non_executable_shebang(tmp_path):
     subprocess.run(["git", "config", "--local", "core.hooksPath", "/dev/null"], cwd=tmp_path, check=True)
     script = tmp_path / "example.sh"
     script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "add", "example.sh"], cwd=tmp_path, check=True)
+    # Explicitly stage the fixture even when the operator has a global excludesFile.\n    # Only this synthetic file bypasses ignore rules; production checks stay strict.\n    subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "add", "-f", "--", "example.sh"], cwd=tmp_path, check=True)
     invocation = function + '\nMODE=preflight\nCHANGED_FILES=(example.sh)\ncheck_exec_bits\n'
     failed = subprocess.run(["bash", "-e", "-c", invocation], cwd=tmp_path,
                             text=True, capture_output=True)
