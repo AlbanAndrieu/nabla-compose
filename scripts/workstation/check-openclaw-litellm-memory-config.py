@@ -74,6 +74,36 @@ def check():
     return 0 if required and key_ok else 2
 
 
+def audit_summary(data):
+    """Summarize only known audit category names; never echo arbitrary JSON values."""
+    if not isinstance(data, dict):
+        return {"schema": "unknown", "categories": {}, "unclassified": True}
+    # Exact top-level category keys only; no recursive scanning of secret-bearing payloads.
+    aliases = {
+        "plaintext": "plaintext",
+        "plaintextSecrets": "plaintext",
+        "unresolved": "unresolved",
+        "unresolvedRefs": "unresolved",
+        "precedenceDrift": "precedence_drift",
+        "precedence": "precedence_drift",
+    }
+    counts = {"plaintext": 0, "unresolved": 0, "precedence_drift": 0}
+    matched = False
+    for key, category in aliases.items():
+        value = data.get(key)
+        if isinstance(value, list):
+            counts[category] += len(value)
+            matched = True
+        elif isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            counts[category] += value
+            matched = True
+    return {
+        "schema": "recognized" if matched else "unknown",
+        "categories": counts if matched else {},
+        "unclassified": not matched,
+    }
+
+
 def audit():
     """Run the built-in read-only audit without displaying its potentially sensitive findings."""
     process = subprocess.run(
@@ -91,6 +121,11 @@ def audit():
         print("secret_audit=unexpected_format")
         return 2
     print("secret_audit_json_type=" + ("object" if isinstance(data, dict) else "array"))
+    summary = audit_summary(data)
+    print("secret_audit_category_schema=" + summary["schema"])
+    for category, count in summary["categories"].items():
+        print("secret_audit_" + category + "_count=" + str(count))
+    print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
     print("secret_audit=" + ("clean" if process.returncode == 0 else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
     print("secret_audit_strict_check=true")
