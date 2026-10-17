@@ -2,7 +2,8 @@
 
 - [x] Operator confirmed schema `memory.search.remote.apiKey` supports `file` secret reference with required `source`, `provider`, `id`. This validates schema shape **only**; provider identifier, file path resolution, and runtime secret-provider configuration remain unverified.
 - [x] Added reusable read-only workstation preflight `python3 scripts/workstation/check-openclaw-litellm-memory-config.py --check`: checks installed schema and private key permissions, reports no secret values; does not modify OpenClaw configuration or reset indexes.
-- [ ] Run new preflight on workstation; then inspect OpenClaw secret-provider file resolution semantics and runtime source discovery before implementing apply/rollback. Do not assume `id` is a direct filesystem path.
+- [x] Operator ran `check-openclaw-litellm-memory-config.py --check`: `memory_search_schema=compatible`, `virtual_key_file=private`, `target_provider=openai-compatible`, `target_model=embedding`, `target_endpoint=loopback`, `configuration_changed=false`.
+- [ ] Resolve `file_secret_resolution=unverified`: inspect `secrets.providers` schema and effective provider names **without displaying values**; `source_reindex_guard=pending` until source discovery is controlled. Do not assume secret `id` is a direct filesystem path.
 
 
 - [x] Operator inspected installed `openclaw config schema --json`: top-level `memory.search` exists and exposes `provider`, `model`, `remote`, `outputDimensionality`, `sources`, `extraPaths`, `store`, `enabled`; this confirms property names only, not permitted values or effective runtime configuration.
