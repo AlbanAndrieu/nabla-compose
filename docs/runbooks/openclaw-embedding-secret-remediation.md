@@ -136,3 +136,22 @@ python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit
 python3 scripts/workstation/plan-openclaw-secret-migration.py --check
 ```
 The planner's `gateway_stopped=false` is now expected and does **not** mean service failure.
+
+
+## 2026-10-18 SQLite migration dry-run and secret audit follow-up
+
+Operator ran `openclaw doctor --session-sqlite dry-run --session-sqlite-all-agents` on version 2026.9.5. It reported **2 agents, 15 legacy entries, 34 SQLite entries and 29 issues**. Agent `main`: 154 unreferenced JSONL files, validated 10/1999 events; agent `cron`: 43 unreferenced JSONL files, validated 5/88 events. The issues include one malformed session index entry without a valid `sessionId` and multiple `active_sqlite_transcript_jsonl` warnings: existing active JSONL transcripts may contain history absent from SQLite. Dry-run imported no events and archived no files. Counts of files are not counts of corrupted records or proof of data loss.
+
+Systemd metrics: `NRestarts=0`, `MemoryCurrent=6176849920` bytes (~5.75 GiB), `MemoryPeak=7645474816` bytes (~7.12 GiB), `TasksCurrent=57`. Peak cgroup memory alone does not establish a leak. The strict secret audit is unchanged: `plaintextCount=16`, `legacyResidueCount=2`, unresolved/shadowed/store residue 0, and file-secret resolution unverified. The gateway remains active; no SQLite recovery, secret apply or reindex took place.
+
+**P1 acceptance gate**: preserve all referenced and unreferenced JSONL, SQLite files and `sessions.json`; do not prune, rename, rewrite, or run `doctor --fix` while the gateway is live. Run a nonmutating `openclaw update status --json` and inspect the locally supported `doctor --session-sqlite recover` help/options. Schedule recovery only with the gateway fully stopped and independently verified private recoverable backups (operator previously validated a backup). Confirm available disk space before migration. Recovery command indicated by installed doctor:
+```bash
+# Read-only preparation, redact outputs before sharing
+openclaw update status --json
+openclaw doctor --session-sqlite dry-run --session-sqlite-all-agents
+openclaw doctor --help
+# Recovery is MUTATING; DO NOT run until explicitly approved during stopped window:
+# systemctl --user stop openclaw-gateway.service
+# openclaw doctor --session-sqlite recover --session-sqlite-all-agents
+```
+After an approved recovery: verify SQLite consistency and session counts per agent, transcript event reconciliation, previously flagged active JSONL, and rollback before service restart. Avoid echoing session keys, user identities, conversation contents or raw paths in tickets. Do not conflate session SQLite migration with memory embedding vector-index migration; those are independent operations.
