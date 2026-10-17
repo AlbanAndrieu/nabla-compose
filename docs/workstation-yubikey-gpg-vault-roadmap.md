@@ -1127,3 +1127,40 @@ doit être explicitement supervisée et peut déclencher un PIN ;
 vérifier l'identité du bon jeton avant d'autoriser une opération.
 `git-crypt` et restauration PostgreSQL sont des validations
 séparées. Ne pas essayer `keytocard`.
+
+### P1 — Régression après activation persistante (17 octobre 2026)
+
+Le profil principal annonce toujours `Current managed state: shared`
+après `--apply` et `--check`, mais un test ultérieur
+`timeout 15 gpg --card-status` retourne de nouveau
+`No such device`. La configuration Git est
+`commit.gpgsign=true`, avec une clé de signature déclarée.
+**L'intégration P1 n'est donc pas validée ; la configuration
+persistante n'implique pas une disponibilité persistante.**
+
+Une explication plausible est une interaction PC/SC après le premier
+succès : GnuPG avertit que `pcsc-shared` peut laisser un autre
+client modifier la sélection d'applet ou l'état de la carte.
+Un rapport de développement de juin 2026 signale un état
+incohérent après passage de KeePassXC sur un Nitrokey 3 ;
+**cela ne démontre pas le même défaut sur YubiKey**.
+Sources :
+https://gnupg.org/documentation/manuals/gnupg26/scdaemon.1.html
+https://lists.gnupg.org/pipermail/gnupg-devel/2026-June/036307.html
+
+Le script `manage-gpg-pcsc-shared.sh` offre désormais
+`--verify` pour tester **l'accès réel** sans modifier la config.
+`--check` reste uniquement une comparaison du fichier avec
+le modèle attendu ; `--apply` sur configuration déjà active
+valide désormais le fonctionnement au lieu d'annoncer un succès
+sur la seule présence de l'option.
+
+Investigation recommandée, sans redémarrage :
+```bash
+./scripts/workstation/manage-gpg-pcsc-shared.sh --check
+./scripts/workstation/manage-gpg-pcsc-shared.sh --verify
+pgrep -a -f '[p]cscd|[s]cdaemon|[y]kman|[s]eahorse|[k]eepassxc' || true
+```
+Ne pas utiliser `keytocard`, ne pas déclencher de signature
+ni de saisie de PIN. Si la disponibilité n'est pas stable,
+réexaminer le contournement avant toute validation Git.
