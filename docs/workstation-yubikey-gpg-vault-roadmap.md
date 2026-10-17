@@ -2246,3 +2246,9 @@ et extensions conforme si nécessaire. Vérifier ensuite
 réel avec PIN/touch avant tout usage. Les cartes existantes
 restent inchangées et le workflow `--generate` du plugin
 est toujours bloqué par AES256. Ne pas passer en TDES.
+
+### Offline certificate inspection gate (2026-10-17)
+
+Added `scripts/workstation/inspect-age-yubikey-certificate.sh` with `--certificate PATH.pem`; it reads a local public X.509 certificate only, never connects to a YubiKey or requests secrets. It validates the certificate's public key curve **EC P-256** and warns when `O=age-plugin-yubikey` is absent. Exit **3** is intentional even for a matching certificate: PIN and touch policy extension semantics, token slot binding, plugin selection, and actual age decryption are **unverified**. No certificate currently exists for PIV82, so do not run an apply workflow as a shortcut. Use `--help` and run updated `unittest` contracts (expected **20** tests) on the workstation.
+
+[Upstream external-generation issue #206](https://github.com/str4d/age-plugin-yubikey/issues/206) is **not a certified secure recipe**: its example uses `PIN=NEVER` and `touch=NEVER`. Never copy those policies; investigate supported OIDs/encoding and require `ALWAYS` for both. [Plugin README](https://github.com/str4d/age-plugin-yubikey) notes `--list-all` lists compatible retired-slot keys even if not plugin-owned, but this is a discovery check only. A successful synthetic decryption is still mandatory before any production rollout.
