@@ -1243,3 +1243,48 @@ puis `gpg --decrypt` et comparaison stricte de la sortie.
 Utiliser un répertoire temporaire en permissions 0700
 et nettoyage après contrôle ; ne pas écrire un secret réel,
 ne pas inclure `--passphrase` sur la ligne de commande.
+
+### P1 — Chiffrement GPG PASS et contrat du diagnostic enrichi (17 octobre)
+
+L'opérateur a exécuté une fixture temporaire avec
+`gpg --encrypt --recipient <identité Git>`, suivie de
+`gpg --decrypt` et d'un `cmp` strict. GnuPG a confirmé
+l'emploi de la sous-clé `rsa4096/87E6B8E5021D2E36`
+datée du 22 avril 2022 ; le test affiche
+`✅ P1 chiffrement/déchiffrement GPG validé`.
+Ce test et la vérification précédente `Good signature`
+valident l'usage **logiciel** de ces clés, pas leur présence
+sur une YubiKey ni une restauration de backup de production.
+
+**Diagnostic mis à jour :**
+- `scripts/workstation/diagnose-gpg-smartcard.sh --check` :
+  marque `pcsc-shared` comme directive de contournement
+  attendue, précise la distinction GnuPG logiciel / carte,
+  et vérifie sans export la présence de la clé secrète Git
+  et d'une sous-clé secrète ;
+- `scripts/workstation/audit-yubikey-capabilities.sh` :
+  inventorie les slots OpenPGP de **la carte actuellement
+  connectée** sans exposer les identifiants, signale le
+  slot OTP 2 HMAC KeePassXC historiquement validé,
+  et inspecte seulement la disponibilité de `ssh-agent`
+  sans afficher les clés publiques ni leurs empreintes.
+
+| Zone | État connu / attendu | À confirmer |
+| --- | --- | --- |
+| YubiKey secours | OpenPGP applet 3.4, clés Signature/Encryption/Auth vides lors de l'observation précédente | Nouvelle observation au diagnostic |
+| OTP | Slot 2 HMAC-SHA1 KeePassXC testé sur les deux YubiKeys | Vérification facultative `--challenge`, attention au touch |
+| GPG logiciel | Clé principale RSA4096 [SC] et sous-clé RSA4096 [E] présentes | Aucune migration `keytocard` |
+| GPG signature | Signature locale cryptographiquement vérifiée | Commit Git signé encore à tester |
+| GPG chiffrement | Roundtrip fixture non sensible validé avec sous-clé E | Récupération git-crypt et sauvegardes PostgreSQL |
+| GPG carte | `disable-ccid` + `pcsc-shared` : `--verify` PASS si carte insérée | Test séparé de la clé principale/backup ; absence physique ≠ régression |
+| SSH | `ssh-add -l` peut indiquer une identité chargée | Origine FIDO2/PIV/logicielle, usages SSH et FIDO2 non établis |
+| PIV | Certificat 9A historique expiré et inapproprié pour une nouvelle CA | Inventaire par carte, sans reset |
+| OATH/FIDO2 | Application accessible selon capacité matérielle | Identifiants et usages réels non inventoriés |
+
+**Prochain gate P1 :** tester la signature Git dans un
+repository jetable sans push et sans toucher à la branche
+courante, puis contrôler séparément la récupération
+`git-crypt` / sauvegardes à partir de fixtures non sensibles.
+Ne jamais confondre clé GPG logicielle, carte OpenPGP, clé SSH
+et clé PIV. Ne pas publier numéros de série, fingerprints SSH,
+réponses HMAC, clés privées, PIN ou certificats non expurgés.
