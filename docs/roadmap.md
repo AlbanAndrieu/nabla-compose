@@ -2966,3 +2966,9 @@ When restarting a ChatGPT/agent discussion, begin from **Restart context** and
 the first unchecked item in **Immediate TrueNAS acceptance queue**. Do not
 reconstruct completed history from chat memory when the repository runbook or
 current runtime evidence can answer it.
+
+### pfSense runtime evidence — 2026-10-17 23:47 CEST
+
+Operator ran `scripts/pfsense/diagnose-memory-pflow.sh --check` and `scripts/pfsense/audit-posture.sh` on workstation. pfSense uptime 13d, Unbound 1.26.1 PID 18989 uptime 816s RSS 123744 KiB, memory available 233580 KiB (free 219640 + inactive 13940), swap used 0, DNS public and private DefectDojo/S3 PASS. Kernel last OOM timestamp remains 2026-10-17 02:11:32+02:00 (historical, not a new OOM). Snort RSS 60896 KiB, pfBlocker helper 51268 KiB. pfBlocker Python loader 11809988 bytes, last DNSBL PASSED 225631 at 00:04:29; RAM swap gate missing WARN, loaded entries 0 WARN with legacy-counter semantics. pflow TrueNAS domain 1 to 172.17.0.24:2055 FAIL, Cloudflare domain 2 to 162.159.65.1:2055 FAIL, connected exporters 0 WARN. Zabbix agent stopped WARN. No services restarted.
+
+Next: confirm desired pflow destinations and whether UDP/2055 collectors exist before any pflow configuration change. Collect a second memory baseline after 24h and compare OOM timestamps. Investigate pfBlockerNG guard without package patching or DNSBL rebuild. Read-only pflow inspection reported no interfaces, but this alone cannot establish whether collector or exporter configuration is the root cause.
