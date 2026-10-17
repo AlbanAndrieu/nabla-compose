@@ -54,3 +54,21 @@ Operator successfully executed `test-openclaw-litellm-embedding.py`: the dedicat
 Next gate: inspect the **installed** OpenClaw 2026.9.5 schema and effective configuration for `memory.search.provider=openai-compatible`, `model=embedding`, `remote.baseUrl=http://127.0.0.1:4000/v1`, `remote.apiKey` SecretRef support, and explicit fallback disablement. Do not assume a file-path value is automatically dereferenced as a secret. Never place the virtual key literal in a tracked config or CLI argument. Avoid setting OpenAI fallback. After confirming secret support and an isolated restore, prepare a separately reviewed config cutover and a fresh index for **both** agents, with rollback to the saved original DBs.
 
 Deferred security debt: NFS encryption at rest and immutable retention / ZFS snapshots; these are not blockers for the embedding repair but must remain on the roadmap.
+
+
+## Temporary large-model evaluation and local independence plan
+
+Operator selected `text-embedding-3-large` **temporarily for evaluation**, retaining `embedding` → `ollama/nomic-embed-text` as the fully local future target. No OpenClaw runtime change or index migration has been applied. The installed schema has been confirmed to expose `memory.search.provider`, `model`, `fallback`, `remote.baseUrl`, and `remote.apiKey`.
+
+Diagnostics:
+
+```bash
+python3 scripts/workstation/openclaw-memory-audit.py
+python3 scripts/workstation/test-openclaw-litellm-embedding.py --profile local
+# Only after creating a separate scoped virtual key for the large model:
+python3 scripts/workstation/test-openclaw-litellm-embedding.py --profile large
+```
+
+The large profile expects a private `~/.local/share/nabla-compose/openclaw-embeddings-large.key` file (0600), model alias `text-embedding-3-large`, and **3072** dimensions. It does not reuse the local-only key. Check LiteLLM routing, upstream authorization, actual price/budget, and configured output dimensions before provisioning; a deliberately shortened large-model output will fail the current diagnostic. Avoid unrestricted master credentials and unbounded indexing.
+
+Do not index until provider configuration, SecretRef semantics, isolated restoration, expected cost, and both agents' rollback have been reviewed. A future move to nomic requires **another fresh vector index**, not a provider swap over existing vectors. NFS encryption and immutability remain deferred roadmap items.
