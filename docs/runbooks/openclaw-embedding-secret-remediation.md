@@ -75,3 +75,24 @@ Next actions:
 3. Establish consumers of the 3 dotenv findings through systemd `EnvironmentFile` and OpenClaw configuration, but do not print environment contents or `systemctl show -p Environment`; never upload full systemd unit values.
 4. Use supported OpenClaw secret-management commands in a supervised plan; evaluate providers and references against locally installed CLI version. No automatic substitutions, `secrets apply`, reload, session revocation or service restart until a validated file-by-file plan and rollback exist.
 5. Recheck audits and authentication before permitting embeddings migration or index rebuild.
+
+
+## Native OpenClaw migration path, after successful inventory (2026-10-18)
+
+OpenClaw's supported CLI provides an **interactive** `secrets configure --plan-out` to create a reviewed plan and `secrets apply --dry-run` for non-mutating validation. Prefer these official commands to an unreviewed direct JSON rewrite. Reference: https://docs.openclaw.ai/cli/secrets and https://docs.openclaw.ai/gateway/secrets/operations .
+
+The plan file itself can contain provider identifiers, paths and sensitive routing metadata. Keep it **outside the repository**, private with `umask 077`, and never paste the contents into logs/chat. File-backed secret references can use the private embedding virtual key already provisioned; the LiteLLM master key must never be used. Unsupported OAuth/refresh material may not be converted to SecretRefs (inspect native support by credential target).
+
+```bash
+cd ~/w/nabla-compose
+umask 077
+mkdir -p -m 700 "$HOME/.local/share/nabla-compose/openclaw-secret-plans"
+PLAN="$HOME/.local/share/nabla-compose/openclaw-secret-plans/migration.json"
+# Run interactively on trusted TTY. No --apply.
+openclaw secrets configure --plan-out "$PLAN"
+test -f "$PLAN" && test "$(stat -c %a "$PLAN")" = 600
+# Validation only (no --allow-exec).
+openclaw secrets apply --from "$PLAN" --dry-run
+```
+
+Only after successful dry-run and **manual review** of the plan and target consumers should a separately approved `openclaw secrets apply --from "$PLAN"` be considered. This is a mutating operation and may scrub old plaintext, so it is not performed by any diagnostic or quality-gate script. Do not restart gateway or reindex until secrets audit and auth checks pass. `secrets store` requires a running gateway, so do not select a store-based migration without coordinating restart and availability.
