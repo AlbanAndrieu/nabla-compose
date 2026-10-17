@@ -77,7 +77,7 @@ Next actions:
 5. Recheck audits and authentication before permitting embeddings migration or index rebuild.
 
 
-## Native OpenClaw migration path, after successful inventory (2026-10-18)
+## Native OpenClaw migration path — superseded for embedding key (2026-10-18)
 
 OpenClaw's supported CLI provides an **interactive** `secrets configure --plan-out` to create a reviewed plan and `secrets apply --dry-run` for non-mutating validation. Prefer these official commands to an unreviewed direct JSON rewrite. Reference: https://docs.openclaw.ai/cli/secrets and https://docs.openclaw.ai/gateway/secrets/operations .
 
@@ -96,3 +96,24 @@ openclaw secrets apply --from "$PLAN" --dry-run
 ```
 
 Only after successful dry-run and **manual review** of the plan and target consumers should a separately approved `openclaw secrets apply --from "$PLAN"` be considered. This is a mutating operation and may scrub old plaintext, so it is not performed by any diagnostic or quality-gate script. Do not restart gateway or reindex until secrets audit and auth checks pass. `secrets store` requires a running gateway, so do not select a store-based migration without coordinating restart and availability.
+
+
+## 2026-10-18 operator evidence — interactive configure cancelled and memory schema verified
+
+Environment: OpenClaw `2026.9.5 (ec9c1a1)`, workstation user Gateway intentionally stopped (`inactive`), previously `enabled`. No `secrets apply` performed.
+
+1. Without `--agent`, `openclaw secrets configure --plan-out` returned **"Multiple agents are configured, but this operation has no explicit owner"**. Subsequent `secrets apply --from ... --dry-run` failed because the plan file did not exist. Do not misclassify this as a bad LiteLLM key.
+2. With `--agent main`, the operator configured an **in-memory wizard proposal**, provider source `file`, alias `openclaw-embeddings`, path `/home/albandrieu/.local/share/nabla-compose/openclaw-embeddings.key`, mode `singleValue`, default timeout/max bytes. The initial `default` alias was removed in the wizard before re-adding the specific alias. **This was not persisted or applied.**
+3. Wizard warning: shared auth-profile store has **4 plaintext credentials**; the selected-agent local-store wizard cannot migrate the shared store. These four may overlap with the 16 plaintext findings; do not add them to reach 20 or assume four distinct compromised providers. Investigate with local-only redaction.
+4. Authored targets included Discord token, Slack app/bot tokens, Gateway token, `models.providers.litellm-cron.apiKey`, `models.providers.litellm-main.apiKey`, `models.providers.ollama.apiKey`. Derived targets also showed `models.providers.litellm.apiKey`, Telegram, Slack user token, Gateway password and skill credentials. **None of the displayed targets was `memory.search.remote.apiKey`.** Do not assign the embedding-only key to any chat, channel, gateway, or skills target.
+5. Operator selected **Show derived targets**, then **Hide derived targets**, and cancelled on `channels.discord.token`. OpenClaw printed **"Secrets configure cancelled"**. No generated plan or config mutation was confirmed.
+6. Read-only `openclaw config schema --json` confirmed `memory.search` fields: `cache`, `documentInputType`, `enabled`, `experimental`, `extraPaths`, `fallback`, `inputType`, `local`, `model`, `multimodal`, `outputDimensionality`, `provider`, `query`, `queryInputType`, `rememberAcrossConversations`, `remote`, `sources`, `store`. The `remote` schema has `apiKey`, `baseUrl`, `batch`, `headers`.
+7. Earlier schema preflight established that `remote.apiKey` supports file-backed SecretRef and `secrets.providers` supports a `singleValue` file provider. This is **schema compatibility only**, not evidence that OpenClaw resolves the reference during actual memory-index calls.
+
+**Revised procedure:**
+- Stop rerunning `secrets configure` solely to migrate the embeddings key: the interactive target list does not currently expose the desired memory field.
+- Prepare a narrowly scoped, reviewed modification to `secrets.providers.openclaw-embeddings` and the actual installed memory-search configuration for **both** `main` and `cron`. Confirm whether `memory.search` is global or per-agent from a redacted read-only runtime inventory before making changes. The desired reference is `{"source":"file","provider":"openclaw-embeddings","id":"value"}`, subject to validation against the installed schema and the provider ID contract.
+- Never repurpose `models.providers.litellm-main.apiKey` or `litellm-cron.apiKey`: those are conversational-model credentials, not embedding credentials.
+- Independently triage the four shared auth-profile entries; this workflow cannot migrate them. Do not delete or rotate without identifying consumers and testing refresh behavior.
+- Keep `openclaw-gateway.service` stopped while preparing this change. Before restart: validate JSON/schema, strict redacted audit and a real SecretRef resolution check; separately confirm LiteLLM proxy routing to the intended TrueNAS embedding backend. Then conduct explicit per-agent memory acceptance and a controlled index rebuild; 768-dimensional embeddings alone do not imply identical vector spaces.
+- Archive only **sanitized status and counts** in this repository. The provider's path, token material, auth-profile file contents, plan files and backup archives must never be committed. Historical operator console transcript path is included here solely as a local example and not a credential.
