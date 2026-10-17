@@ -213,6 +213,12 @@ class AgentQualityGateContractTests(unittest.TestCase):
             # Ordinary source files still pass through the same filter.
             source = repo / "script.sh"
             source.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            # Global Git excludes can hide untracked *.sh fixture files.
+            # Stage this synthetic source explicitly without changing production scope.
+            subprocess.run(
+                ["git", "-C", str(repo), "add", "-f", "--", "script.sh"],
+                check=True,
+            )
             rerun = subprocess.run(
                 [
                     "bash", "-euo", "pipefail", "-c",
