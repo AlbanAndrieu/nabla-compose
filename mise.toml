@@ -13,6 +13,7 @@ helm = "latest"
 argocd = "latest"
 trivy = "latest"
 pre-commit = "latest"
+uv = "0.13.0"
 task = "latest"
 just = "1.58.0"
 go = "1.25.12"
@@ -26,7 +27,6 @@ sops = "latest"
 docker-compose = "latest"
 dagger = "0.21.10"
 hyperfine = "2.0.0"
-# 1password = "latest"
 
 [settings]
 lockfile = true
@@ -43,6 +43,10 @@ PROJECT_NAME = "{{ config_root | basename }}"
 
 [tasks]
 init = "bash ./scripts/run-install.sh"
+
+[tasks.deps]
+description = "Sync the repository .venv from pyproject.toml/uv.lock (pytest, pre-commit)"
+run = "uv sync --frozen"
 
 [tasks.hooks]
 description = "Install canonical pre-commit, commit-msg and pre-push Git hooks"
