@@ -46,6 +46,7 @@ def test_explicit_limit_is_fail_closed(tmp_path: Path) -> None:
     for index in range(3):
         (tmp_path / f"module_{index}.py").write_text("value = 1\n", encoding="utf-8")
 
+    subprocess.run(["git", "add", "-f", "--", *[f"module_{i}.py" for i in range(3)]], cwd=tmp_path, check=True)
     result = invoke(tmp_path, limit="2")
     assert result.returncode == 2
     assert "offline scope 3 exceeds maximum 2" in result.stderr
@@ -54,6 +55,7 @@ def test_explicit_limit_is_fail_closed(tmp_path: Path) -> None:
 def test_invalid_bash_remains_blocking(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / "invalid.sh").write_text("if then\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-f", "--", "invalid.sh"], cwd=tmp_path, check=True)
     result = invoke(tmp_path)
     assert result.returncode != 0
 
@@ -62,7 +64,7 @@ def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None
     """A failed Git comparison must not produce a false-green empty selection."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / "existing.py").write_text("def invalid(:\n", encoding="utf-8")
-    subprocess.run(["git", "add", "existing.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "-f", "--", "existing.py"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
          "commit", "-qm", "fixture"],
@@ -95,7 +97,7 @@ def test_agent_error_excerpt_limits_remain_configurable() -> None:
     )
     assert 'LOG_TAIL="${QUALITY_LOG_TAIL:-12}"' in gate
     assert 'LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"' in gate
-    assert 'summary_limit="${QUALITY_SUMMARY_LINES:-10}"' in gate
+    assert 'summary_limit="${QUALITY_SUMMARY_LINES:-8}"' in gate
     assert 'awk -v max="${summary_limit}"' in gate
     assert "additional summary lines omitted" in gate
     assert 'print_compact_log "${log}"' in gate
