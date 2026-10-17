@@ -470,3 +470,22 @@ dans l'environnement agent ; `--check` et `--apply` à exécuter
 uniquement sur workstation une fois les opérations GPG terminées.
 Si `--apply` annonce le succès, une décision explicite distincte
 sera nécessaire avant toute configuration persistante.
+
+### P0 — Résultat de l'essai transactionnel reader-port (17 octobre 2026)
+
+Résultats de la workstation :
+- `test-gpg-reader-port.sh --check` : préflight PASS ;
+- `test-gpg-reader-port.sh --apply` : PC/SC PASS, mais
+  `gpg --card-status` ne sélectionne pas la carte avec
+  `reader-port Yubico YubiKey OTP+FIDO+CCID 00 00` ;
+- le script annonce la **restauration réussie** de
+  `scdaemon.conf` original. Ne pas répéter le même test.
+
+**Conclusion :** la sélection explicite du lecteur ne suffit pas.
+La cause reste non identifiée. Prochaines pistes : vérifier la
+bibliothèque PC/SC réellement chargée par `scdaemon`, examiner
+les journaux bornés `scdaemon` lors d'une seule tentative,
+et tester séparément (sur un profil GnuPG isolé, sans clés privées)
+le chemin CCID intégré versus PC/SC, avec contrôle de retour arrière.
+Ne pas redémarrer `pcscd` arbitrairement ni modifier les clés,
+les PIN, KeePassXC OTP, PIV ou Git-crypt.
