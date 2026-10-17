@@ -217,8 +217,8 @@ probe_container_tcp_success() {
     return 2
   }
 
+  # shellcheck disable=SC2016 -- positional arguments expand in child bash
   timeout "${timeout_seconds}" docker exec "${container}" \
-    # shellcheck disable=SC2016 -- positional arguments expand in child bash
     bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1
 }
