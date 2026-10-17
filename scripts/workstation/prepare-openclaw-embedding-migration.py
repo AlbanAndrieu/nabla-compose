@@ -62,15 +62,17 @@ def main():
     if not indexes:
         print("WARN: no SQLite memory indexes found; verify OpenClaw state path and storage backend")
     for path in indexes:
-        print("sqlite_index=" + str(path.relative_to(BASE)))
+        relative = str(path.relative_to(BASE))
+        print("sqlite_index=" + relative)
+        print("sqlite_index_class=" + ("migration_artifact" if path.name.endswith(".migrated") else "candidate"))
     print("expected_existing_dimensions=768")
     print("target_model=embedding backend=ollama/nomic-embed-text")
     print("NOTE: matching dimensions do not imply matching vector spaces")
     if args.check:
         print("NOTE: read-only; no embeddings call, configuration change or reindex")
-        return 0 if key_ok and schema_ok and bool(indexes) else 2
-    if not key_ok or not schema_ok or not indexes:
-        print("ERROR: prerequisites incomplete; backup not started", file=sys.stderr)
+        return 0 if key_ok and schema_ok and bool(indexes) and not any(p.name.endswith(".migrated") for p in indexes) else 2
+    if not key_ok or not schema_ok or not indexes or any(p.name.endswith(".migrated") for p in indexes):
+        print("ERROR: active index paths unresolved or migration artifact found; backup not started", file=sys.stderr)
         return 2
     if BACKUP.is_symlink():
         print("ERROR: backup root is symlink", file=sys.stderr)
