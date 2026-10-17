@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only OpenClaw memory coverage audit; never echo provider errors or secrets."""
 import json
+import re
 import subprocess
 
 def command(*args):
@@ -43,9 +44,28 @@ def nested_scalar(obj, names, depth=0):
                 return found
     return None
 
+def text_index_counts():
+    """Parse only known-safe summary lines, never raw provider errors."""
+    rc, output = command("openclaw", "memory", "status")
+    if rc:
+        return {}
+    found = {}
+    current = None
+    for line in output.splitlines():
+        heading = re.fullmatch(r"Memory Search \((main|cron)\)", line.strip())
+        if heading:
+            current = heading.group(1)
+            continue
+        if current:
+            match = re.fullmatch(r"Indexed: (\d+)/(\d+) files · (\d+) chunks", line.strip())
+            if match:
+                found[current] = tuple(map(int, match.groups()))
+    return found
+
 def summarize(data):
     items = agents(data)
     print(f"memory_agent_records={len(items)}")
+    fallback = text_index_counts()
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
@@ -59,6 +79,14 @@ def summarize(data):
         if total is None:
             total = scalar(files, "total", "totalFiles")
         chunks = nested_scalar(item, ("chunks", "chunkCount"))
+        if name in fallback:
+            fallback_indexed, fallback_total, fallback_chunks = fallback[name]
+            if indexed is None:
+                indexed = fallback_indexed
+            if total is None:
+                total = fallback_total
+            if chunks is None:
+                chunks = fallback_chunks
         dirty = nested_scalar(item, ("dirty",))
         provider = nested_scalar(item, ("provider",))
         model = nested_scalar(item, ("model",))
