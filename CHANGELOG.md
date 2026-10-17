@@ -1,3 +1,10 @@
+## [0.46.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.46.0...0.46.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **mise:** Update mise lock on mac ([9c24290](https://github.com/AlbanAndrieu/nabla-compose/commit/9c242900f55479d078c9833e877e56160db2e626))
+
 # [0.46.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.45.0...0.46.0) (2026-10-17)
 
 
