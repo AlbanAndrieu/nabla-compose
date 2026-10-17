@@ -33,6 +33,11 @@ printf '%s\n' '==> Problematic Docker workloads (capped)'
 docker ps -a --format '{{.Names}}\t{{.Status}}' |
   grep -Ei 'Restarting|unhealthy|Dead|Created|Exited \([1-9]' |
   awk 'NR<=40 {print} END {if(NR>40) printf "... %d additional containers omitted\n", NR-40}' || true
+printf '%s\n' '==> Shared PostgreSQL / Redis post-reboot diagnostics'
+# This check is read-only. Missing Redis credentials are reported as WARN.
+if ! bash scripts/truenas/diagnose-shared-data-services.sh; then
+  echo 'WARN: shared data services require operator investigation'
+fi
 printf '%s\n' '==> Next safe diagnostics (do not apply until the failing reason is confirmed)'
 printf '%s\n' 'sudo bash scripts/truenas/deploy-dsomm.sh --check'
 printf '%s\n' 'sudo bash scripts/truenas/diagnose-cyberbro.sh'
