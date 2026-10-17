@@ -2135,3 +2135,32 @@ Avec la principale seule branchée, `ykman list --serials` a retourné `23501671
 ### PIV 82 — les deux précontrôles matériels PASS
 
 Les deux YubiKeys ont **PASS** au script non destructif `preflight-age-yubikey-piv82.sh`, avec chacune son numéro de série et une seule carte connectée : principale `23501671`, secours `22916048`. Les slots PIV 82 sont donc vérifiés vides au moment du contrôle ; ni génération, ni écriture, ni modification des OTP2 et PIV9A. Il reste à provisionner séparément les identités age matérielles puis à effectuer les tests de déchiffrement synthétique. Les sorties des scripts shell interactifs suivent désormais `AGENTS.md` : états colorés et icônes si TTY UTF-8, repli texte pour CI/NO_COLOR/non-TTY, sans secrets dans les sorties.
+
+### Validation age-plugin-yubikey 0.5.1 et tests locaux (17 octobre 2026)
+
+Sur la YubiKey secondaire, le précontrôle PIV82 a affiché **PASS** avec
+icônes/couleurs. `age-plugin-yubikey --version` affiche `0.5.1` ;
+l'aide confirme les options `--generate`, `--identity`,
+`--list`, `--list-all`, `--name`, `--pin-policy always|once|never`,
+`--serial`, `--slot`, `--touch-policy always|cached|never`.
+Ne jamais employer `--force` : il écraserait une clé en slot occupé.
+
+L'opérateur a exécuté la suite `unittest` : **17 PASS, 1 FAIL**,
+uniquement l'assertion du texte ancien `Connect exactly the selected
+single YubiKey` alors que le script affiche désormais `Expected exactly
+one YubiKey matching requested serial`. Assertion corrigée dans la PR
+#259 ; revalider les 18 tests avant provisionnement.
+
+Commande envisagée **seulement après cette gate**, avec **une seule**
+YubiKey secondaire connectée et après une seconde vérification PIV82 :
+```bash
+age-plugin-yubikey --generate --serial 22916048 --slot 82 \
+  --pin-policy always --touch-policy always \
+  --name nabla-age-backup
+```
+Cette commande modifie réellement le slot PIV82 (clé privée non
+exportable) et pourra demander le PIN ou le toucher physique.
+Collecter **uniquement** le destinataire public/identité plugin,
+puis tester une fixture age synthétique séparément.
+Procéder à la principale après le test de la secondaire.
+Conserver OTP2, PIV9A et l'identité SOPS X25519 existants.
