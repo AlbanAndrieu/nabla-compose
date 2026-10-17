@@ -272,7 +272,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("yubikey-5-nabla principal", content)
         self.assertIn("piv keys info 82", content)
         for command in ("--force", "change-management-key -a TDES",
-                        "ykman --device \\"$serial\\" piv keys generate"):
+                        'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
 
     def test_aes_compat_gate_is_read_only(self):
