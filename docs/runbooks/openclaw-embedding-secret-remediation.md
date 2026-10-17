@@ -117,3 +117,22 @@ Environment: OpenClaw `2026.9.5 (ec9c1a1)`, workstation user Gateway intentional
 - Independently triage the four shared auth-profile entries; this workflow cannot migrate them. Do not delete or rotate without identifying consumers and testing refresh behavior.
 - Keep `openclaw-gateway.service` stopped while preparing this change. Before restart: validate JSON/schema, strict redacted audit and a real SecretRef resolution check; separately confirm LiteLLM proxy routing to the intended TrueNAS embedding backend. Then conduct explicit per-agent memory acceptance and a controlled index rebuild; 768-dimensional embeddings alone do not imply identical vector spaces.
 - Archive only **sanitized status and counts** in this repository. The provider's path, token material, auth-profile file contents, plan files and backup archives must never be committed. Historical operator console transcript path is included here solely as a local example and not a credential.
+
+
+## 2026-10-18 gateway lifecycle verification (operator evidence)
+
+Systemd user-unit state: `openclaw-gateway.service` is **active**, `MainPID=224884`, `Restart=always`, `NRestarts=0`, `ActiveEnterTimestamp=2026-10-18 00:47:45 CEST`. Only the gateway user-unit was returned by `systemctl --user list-units --all 'openclaw*'`. The listener on TCP/18789 belongs to PID 224884 and is bound only to IPv4 `127.0.0.1` and IPv6 `::1`; do not infer LAN/WAN accessibility from the browser URL.
+
+Lifecycle evidence (CEST): stopping 00:35:06, stopped 00:35:08, started 00:47:45, HTTP server starting 00:48:10, channels and heartbeat started by 00:48:39. Thus the manual stop was effective and subsequent Workboard availability is consistent with the subsequent explicit `systemctl --user start`; no unplanned restarts are established by the available logs.
+
+Additional observed warnings: `MaxListenersExceededWarning` at 00:48:38 (11 process exit listeners), delayed liveness heartbeat (2852 ms overdue), slow Codex catalog request (~1516 ms), and startup diagnostic suggesting `openclaw doctor --fix`. None proves a memory leak or warrants executing `--fix` unsupervised. Reported RSS 5.8 GiB, peak 6.3 GiB; these are process/service figures that need trend evidence.
+
+Security hygiene: operator output included channel identity metadata. Future diagnostics must suppress personal identifiers, raw journal lines, and tokens. The gateway is now **running**; prior runbook notes saying it must remain stopped are superseded. Continue read-only inspection while running; schedule a short stopped maintenance window only for a validated targeted `SecretRef` change. No secret migration or index rebuild has yet occurred.
+
+Read-only follow-up:
+```bash
+systemctl --user show openclaw-gateway.service -p ActiveState -p MainPID -p NRestarts -p Restart
+python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit
+python3 scripts/workstation/plan-openclaw-secret-migration.py --check
+```
+The planner's `gateway_stopped=false` is now expected and does **not** mean service failure.
