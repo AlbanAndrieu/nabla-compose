@@ -72,3 +72,17 @@ python3 scripts/workstation/test-openclaw-litellm-embedding.py --profile large
 The large profile expects a private `~/.local/share/nabla-compose/openclaw-embeddings-large.key` file (0600), model alias `text-embedding-3-large`, and **3072** dimensions. It does not reuse the local-only key. Check LiteLLM routing, upstream authorization, actual price/budget, and configured output dimensions before provisioning; a deliberately shortened large-model output will fail the current diagnostic. Avoid unrestricted master credentials and unbounded indexing.
 
 Do not index until provider configuration, SecretRef semantics, isolated restoration, expected cost, and both agents' rollback have been reviewed. A future move to nomic requires **another fresh vector index**, not a provider swap over existing vectors. NFS encryption and immutability remain deferred roadmap items.
+
+
+## Multi-provider fallback policy (2026-10-17)
+
+Requested preference order: `text-embedding-3-large` (primary), `text-embedding-ada-002` (secondary), `nomic-embed-text` (local tertiary). **Do not implement these as an automatic LiteLLM/OpenClaw embedding fallback for a single vector index.** Their default dimensions are 3072, 1536 and 768, respectively; equalizing dimensions where supported still does not equalize vector spaces. Mixing providers within one index would produce invalid or misleading similarity results.
+
+Execution order:
+1. Validate a separate scoped/budgeted `text-embedding-3-large` key, model routing and one-shot vector dimension test; no indexing yet.
+2. Verify OpenClaw 2026.9.5 runtime SecretRef behavior and isolated backup restore. Disable cross-model automatic fallback for embedding requests. The `memory.search.fallback` schema field must not be assumed to encode an ordered model list.
+3. Migrate both agents to a fresh large-model index only after explicit cost review and rollback plan. Preserve original databases.
+4. Prepare separately versioned indexes for `ada-002` and `nomic-embed-text` if desired. Switching between them must select the matching index and query model together; never reuse the large-model index.
+5. Later: benchmark relevance, prioritize fully local `nomic-embed-text`, then change primary after a controlled reindex.
+
+Current evidence: `main` remains `text-embedding-3-small` at 15/105 files and dirty; `cron` remains `text-embedding-3-small` at 0/63 and dirty. Local alias `embedding` was tested successfully with 768 dimensions. No large-model test or runtime cutover has been confirmed.
