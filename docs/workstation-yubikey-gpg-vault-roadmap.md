@@ -1001,3 +1001,40 @@ concurrents, confirmer le fonctionnement du lecteur sans prompt
 PIN, puis faire accepter les impacts sur Git signing,
 `git-crypt` et sauvegardes PostgreSQL. Ne pas lancer
 `keytocard`, changer les PIN, ni altérer OTP HMAC/PIV.
+
+### P0b — Essai d'intégration au profil principal, réversible (17 octobre)
+
+Le script `scripts/workstation/trial-gpg-pcsc-shared.sh`
+prépare un test du **profil GnuPG principal** :
+- `--check` : préflight en lecture seule (non-root, sauvegarde
+  historique existante et identique aux octets du fichier actif,
+  présence `disable-ccid`, absence de `reader-port` et
+  `pcsc-shared`, prise en charge binaire de `pcsc-shared`) ;
+- `--trial` : créer un fichier de configuration provisoire dans
+  le même répertoire et avec les permissions de l'original, ajouter
+  `pcsc-shared`, rafraîchir **seulement** `scdaemon`,
+  exécuter `gpg --batch --card-status` avec délai borné
+  et **restaurer systématiquement** la configuration sauvegardée,
+  même lorsque le test réussit.
+
+Le script ne touche ni aux sous-clés, ni aux PIN, ni aux applets
+OpenPGP/PIV/OTP. Il ne doit pas être exécuté pendant une
+signature, un déchiffrement, ou lorsqu'une application concurrente
+utilise la YubiKey. `SIGKILL`/panne électrique ne déclenchent pas
+de trap ; le backup historique permet alors une restauration
+manuelle. L'activation durable **n'est pas incluse** et
+demandera une décision distincte après le retour d'expérience.
+
+```bash
+cd ~/w/nabla-compose && git pull --ff-only
+./scripts/workstation/trial-gpg-pcsc-shared.sh --check
+./scripts/workstation/trial-gpg-pcsc-shared.sh --trial
+cmp -s ~/.gnupg/scdaemon.conf ~/.gnupg/scdaemon.conf.before-reader-port \
+  && echo 'Configuration restaurée'
+```
+
+**Acceptation P0b :** succès de détection dans le profil utilisateur
+et restauration du fichier, sans intervention sur les clés.
+La disponibilité cryptographique de la signature Git et de
+`git-crypt` reste à établir indépendamment ; ne pas introduire
+de PIN pendant ce test.
