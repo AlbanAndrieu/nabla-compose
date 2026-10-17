@@ -204,3 +204,24 @@ def test_diagnostic_rejects_ambiguous_sha_and_bad_presentation_mode() -> None:
             check=False,
         )
         assert run.returncode == 2
+
+
+def test_operator_runbook_never_requires_sudo_password() -> None:
+    doc = (ROOT / "docs/runbooks/fastapi-sample-truenas-diagnostics.md").read_text(
+        encoding="utf-8"
+    )
+    assert "sudo -v\\nbash scripts/truenas/diagnose-fastapi-sample.sh" not in doc
+    assert "**Do not run `sudo -v`.**" in doc
+    source = DIAG.read_text(encoding="utf-8")
+    assert "sudo -n docker" in source
+    assert "sudo -n midclt call app.query" in source
+    assert "midclt call app.query" in source
+    assert "sudo -v" not in source
+
+
+def test_midclt_attempts_unprivileged_read_before_noninteractive_sudo() -> None:
+    source = DIAG.read_text(encoding="utf-8")
+    direct = source.index('app_payload="$(midclt call app.query')
+    fallback = source.index('app_payload="$(sudo -n midclt call app.query')
+    assert direct < fallback
+    assert "aucun prompt sudo" in source

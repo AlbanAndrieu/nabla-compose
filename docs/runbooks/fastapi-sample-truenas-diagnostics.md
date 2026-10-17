@@ -108,6 +108,19 @@ The October 17 staging evidence is:
   testing an unmerged PR.
 - [ ] No restart, configuration mutation, automatic CI rerun or merge.
 
+### Latest operator diagnostic (2026-10-17)
+
+The operator's newest three-cycle run shows public completed/timed-out
+`9/3`, `1/11`, `1/11` and Garage LAN endpoint coverage `3/3`,
+`2/3`, `2/3`; this variability needs probe scheduling/cache-budget
+attribution, not blind DNS changes or inflated timeouts. Host and container
+HTTP edge requests remain individually subsecond. The locally inspected
+LanguageTool catalog contains one entry, but live consumer provenance is
+not independently proven. Three expected Prometheus synthetic recording
+families were absent from the instant-query result while `gatus_up=1`.
+The FastAPI staging checkout is still `master` `8c4492d1`, **not**
+the unmerged PR #342; do not consider its three-Garage regression accepted.
+
 ## Non-destructive diagnostic
 
 After updating the `nabla-compose` PR branch, run as its regular
@@ -116,17 +129,19 @@ repository owner (avoid running Git as root):
 ```bash
 cd /mnt/cpool/compose/nabla-compose
 git pull --ff-only origin feat/watchtower-zero-trust-service-units-20261016
-sudo -v
 bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3
 ```
 
 The existing `M fastapi-sample` Gitlink may remain after this fast-forward.
 Do not reset it or automatically stage it just to silence `git status`.
 If the fast-forward refuses due to unrelated local changes, resolve that
-state separately before using the updated script. The diagnostic invokes
-`sudo -n docker` only if the current user lacks direct Docker access; the
-`sudo -v` step refreshes the authorization ticket without exporting
-credentials.
+state separately before using the updated script. **Do not run `sudo -v`.**
+A sudo password is neither needed nor requested for read-only diagnostics.
+Docker and `midclt` are tried directly first; if permission is missing,
+the script tries narrowly scoped `sudo -n` (non-interactive) and reports
+unavailable evidence if permission is not granted. Never paste a password or
+change sudoers just to run this diagnostic. Note that direct Docker access is
+privileged and effectively grants powerful control of the host.
 
 Option `--cycles 1` is a quick check; `--cycles 3` samples cached
 `/api/health-board` at 31-second intervals (two waits). Option

@@ -79,10 +79,13 @@ if [[ "${API}" != 'http://127.0.0.1:8091' && "${API}" != 'http://172.17.0.24:809
 fi
 if docker info >/dev/null 2>&1; then
     DOCKER=(docker)
+    diag_info 'Accès Docker direct : aucune élévation sudo nécessaire'
 elif has sudo && sudo -n docker info >/dev/null 2>&1; then
     DOCKER=(sudo -n docker)
+    diag_info 'Accès Docker via sudo -n autorisé sans mot de passe'
 else
-    warn 'Docker unavailable or sudo permission denied'; exit 1
+    warn 'Accès Docker indisponible. Aucun mot de passe sudo demandé.'
+    exit 1
 fi
 run_docker() { "${DOCKER[@]}" "$@"; }
 
@@ -150,8 +153,26 @@ if [[ -f /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json ]]; then
     fi
 fi
 if has midclt; then
-    (sudo -n midclt call app.query '[["id","=","sample"]]' 2>/dev/null || true) |
-        jq -cr '.[]? | {app_id: .id, truenas_state: .state, app_chart_version: .version}' || true
+    app_query='[["id","=","sample"]]'
+    app_payload=''
+    if app_payload="$(midclt call app.query "${app_query}" 2>/dev/null)" &&
+        jq -e 'type == "array"' >/dev/null 2>&1 <<<"${app_payload}"; then
+        diag_info 'Middleware TrueNAS accessible sans sudo'
+    elif has sudo &&
+        app_payload="$(sudo -n midclt call app.query "${app_query}" 2>/dev/null)" &&
+        jq -e 'type == "array"' >/dev/null 2>&1 <<<"${app_payload}"; then
+        diag_info 'Middleware TrueNAS accessible via sudo -n sans invite'
+    else
+        app_payload=''
+        unknown 'Middleware TrueNAS non accessible en lecture seule (aucun prompt sudo)'
+    fi
+    if [[ -n "${app_payload}" ]]; then
+        jq -cr '.[]? | {app_id: .id, truenas_state: .state, app_chart_version: .version}' \
+            <<<"${app_payload}"
+        if ! jq -e 'length > 0' >/dev/null 2>&1 <<<"${app_payload}"; then
+            unknown 'Application sample absente de la réponse TrueNAS middleware'
+        fi
+    fi
 fi
 if ! run_docker inspect "${CONTAINER}" \
     --format 'container={{.Name}} state={{.State.Status}} image={{.Image}}' 2>/dev/null; then
