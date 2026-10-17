@@ -71,14 +71,7 @@ and service details before publishing outside the operational team.
 
 ### Testing the specific FastAPI PR (requires explicit operator approval)
 
-```bash
-FASTAPI_SAMPLE_DEPLOY_MODE=build \
-FASTAPI_SAMPLE_REF=748497d62881f7631801c8f8cd11bbf4c04633e8 \
-  sudo -E bash scripts/truenas/update-fastapi-sample.sh
-```
-
-The `sudo -E` form above inherits the whitelisted variables only if the
-TrueNAS sudo policy permits it. Prefer an explicit `sudo env` form:
+Use explicit `sudo env` so the requested ref is passed to the root-run helper without inheriting unrelated shell environment variables:
 
 ```bash
 sudo env FASTAPI_SAMPLE_DEPLOY_MODE=build \
