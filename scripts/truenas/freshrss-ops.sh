@@ -98,7 +98,7 @@ check_secret() {
 
 import_one() {
   local user="$1"
-  local target="/tmp/nabla-security-${user}-$.opml"
+  local target="/tmp/nabla-security-${user}-$$.opml"
   # Import only explicit opt-in or once on a newly created account.
   docker cp "${OPML}" "${CONTAINER}:${target}" >/dev/null
   if ! docker exec --user "${CLI_USER}" "${CONTAINER}" cli/import-for-user.php \

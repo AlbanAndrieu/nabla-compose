@@ -12,6 +12,24 @@ services:
     # Manual dry-run only until TrueNAS/Docker API and socket gates pass.
     image: nickfedor/watchtower:1.23.1
     profiles: ["manual-audit"]
+    x-nabla:
+      id: watchtower
+      name: Watchtower
+      kind: image-update-auditor
+      category: security
+      status: planned
+      presentationRole: support
+      description: Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.
+      runtime:
+        provider: truenas-app
+        containerService: watchtower
+      relations:
+        - target: docker-socket-proxy
+          type: consumesApi
+          strength: required
+          description: Watchtower lists containers and images through the allowlisted, POST-disabled Docker API proxy.
+          evidence:
+            - apps/watchtower/compose.yml:DOCKER_HOST
     container_name: watchtower
     restart: unless-stopped
     environment:

@@ -70,8 +70,8 @@ def test_repository_env_bootstrap_centralizes_materializations() -> None:
     assert 'ln -s "${target}" "${source}"' in script
     assert "check_private_directory" in script
     assert 'if [[ "${MODE}" == "--check" ]]' in script
-    assert "continuing read-only preview so unrelated migration debt remains visible" in script
-    assert "--check | --apply | --restage | --finalize" in script
+    assert "continuing read-only migration preview so unrelated migration debt remains visible" in script
+    assert "--check | --apply | --stage-existing | --restage | --finalize" in script
     assert "--restage requires an explicit app filter" in script
     assert "restage verification failed" in script
 
@@ -123,8 +123,9 @@ def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
     assert canonical in script
     assert 'bootstrap-repository-runtime.sh --apply "${APP_ID}"' in script
     assert 'bootstrap-repository-runtime.sh --check "${APP_ID}"' in script
-    assert "midclt call -j app.create" in script
-    assert "midclt call -j app.update" in script
+    # Jobs go through the shared truenas_job_compact helper (midclt call -j).
+    assert "truenas_job_compact app.create" in script
+    assert "truenas_job_compact app.update" in script
     assert f"apps/{app}/compose.yml" in script
     assert "custom_compose_config_string" in script
     assert "custom_compose_config" in script

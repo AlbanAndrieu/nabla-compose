@@ -176,7 +176,7 @@ verify_prometheus_observer_contract() {
     local service_samples
 
     prometheus_url="$(
-        # shellcheck disable=SC2016 -- expansion happens inside the container
+        # shellcheck disable=SC2016 # expansion happens inside the container
         run_docker exec "${CONTAINER}" sh -lc \
             'printf "%s" "${HOMELAB_PROMETHEUS_URL:-}"' 2>/dev/null || true
     )"
@@ -288,6 +288,7 @@ run_midclt_job_quiet() {
     local rc=1
 
     log="$(mktemp)"
+    # shellcheck disable=SC2024 # The log is a caller-owned mktemp file; only midclt needs sudo.
     if [[ "${VERBOSE_LOGS}" == "true" ]]; then
         if sudo midclt call -j "$@" 2>&1 | tee "${log}"; then
             rm -f "${log}"
@@ -295,7 +296,6 @@ run_midclt_job_quiet() {
         else
             rc="$?"
         fi
-    # shellcheck disable=SC2024 -- the caller owns the temporary log file
     elif sudo midclt call -j "$@" >"${log}" 2>&1; then
         printf 'OK: %s\n' "${label}"
         rm -f "${log}"
@@ -352,7 +352,7 @@ export FASTAPI_SAMPLE_IMAGE="${runtime_image}"
 
 printf 'Selected ref: %-26s SHA: %s\n' "${target_label}" "${target}"
 if [[ "${REF}" == master ]]; then
-    summary_warn 'REF defaults to master: this does not deploy changes from an unmerged PR.'
+    summary_warn 'REF defaults to master: this does not deploy changes from an unmerged PR; use FASTAPI_SAMPLE_REF=<immutable-SHA> to stage one.'
 fi
 printf 'Runtime image: %s\n' "${runtime_image}"
 
@@ -480,7 +480,7 @@ if run_docker exec "${CONTAINER}" /code/.venv/bin/python \
             pfsense_state='warning'
         fi
     else
-        summary_warn 'pfSense RBAC smoke failed (authenticated log suppressed)'
+        summary_warn 'pfSense RBAC smoke failed (authenticated log suppressed); deployment remains accepted because pfSense is optional diagnostic evidence'
         pfsense_state='warning'
     fi
     rm -f -- "${pfsense_report}"
@@ -510,6 +510,6 @@ fi
 if [[ -z "$(jq -r '.build_revision // empty' <<<"${version_payload}")" ]]; then
     summary_warn 'Running image Git SHA is not attested by /v2/version; check OCI provenance separately.'
 fi
-printf ' Rollback inputs        : legacy env retained pending reboot acceptance\n'
+printf ' Rollback inputs        : legacy env files retained; do not finalize them until controlled reboot acceptance\n'
 printf ' Next diagnostics       : bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3\n'
 printf '============================================================\n'

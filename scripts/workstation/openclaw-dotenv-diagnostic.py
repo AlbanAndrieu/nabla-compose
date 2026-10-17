@@ -25,7 +25,7 @@ def decode(raw: str | None) -> str | None:
             return None
         result = value[1:closing]
     else:
-        result = re.split(r"\\s+#", value, maxsplit=1)[0].strip()
+        result = re.split(r"\s+#", value, maxsplit=1)[0].strip()
         if result.endswith(("'", '"')):
             return None
     if not result or REFERENCE.fullmatch(result):

@@ -23,7 +23,9 @@ def test_failed_probe_does_not_mean_service_down():
                  "results": [{"success": False}]}]
     report = module.reconcile(catalog, config, statuses)
     assert report["monitors"][0]["classification"] == "investigate_probe_not_service_down"
-    assert "secret" not in str(report)
+    # The probe URL and its token must not leak (the report note may say "secrets").
+    assert "token=secret" not in str(report)
+    assert "127.0.0.1:8123/private" not in str(report)
     assert report["monitors"][0]["catalog_match"]
 
 

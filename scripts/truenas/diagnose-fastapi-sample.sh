@@ -118,7 +118,7 @@ if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
     else
         master="$(read_git -C fastapi-sample rev-parse origin/master 2>/dev/null || true)"
         if [[ -n "${master}" && "${checkout}" == "${master}" ]]; then
-            diag_info 'Le checkout correspond à origin/master : une PR ouverte n’est pas nécessairement déployée'
+            diag_info "Le checkout correspond à origin/master : une PR ouverte n'est pas nécessairement déployée"
         fi
     fi
 else
@@ -202,7 +202,7 @@ for host in garage.albandrieu.com garage-admin.albandrieu.com fastapi-sample.fas
         -w 'HTTP=%{http_code} DNS=%{time_namelookup}s TCP=%{time_connect}s TLS=%{time_appconnect}s TOTAL=%{time_total}s\n' \
         "https://${host}/" 2>/dev/null || warn 'container request failed'
 done
-diag_info 'HTTP 302/403 : route Cloudflare Access, pas preuve de santé ou d’accès anonyme à l’origine.'
+diag_info "HTTP 302/403 : route Cloudflare Access, pas preuve de santé ou d'accès anonyme à l'origine."
 
 section '3/6' 'Résolution DNS du conteneur (sans secrets)'
 run_docker exec "${CONTAINER}" sh -c \
@@ -248,7 +248,7 @@ for ((i=1; i<=CYCLES; i++)); do
 done
 
 section '5/6' 'Contrat Prometheus / Gatus'
-# shellcheck disable=SC2016 -- expansion happens inside the container
+# shellcheck disable=SC2016 # expansion happens inside the container
 if run_docker exec "${CONTAINER}" sh -c \
     'test "${HOMELAB_PROMETHEUS_URL:-}" = "http://172.17.0.24:9090"' 2>/dev/null; then
     ok 'Expected HOMELAB_PROMETHEUS_URL configured (value not printed)'

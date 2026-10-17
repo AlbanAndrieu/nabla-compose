@@ -27,7 +27,8 @@ def test_consumer_gate_root_does_not_emit_two_paths() -> None:
     end = source.index('\ncd "${ROOT}"', start)
     block = source[start:end]
     with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
+        # Resolve symlinked temp roots (macOS /var -> /private/var) like git does.
+        root = Path(tmp).resolve()
         script_dir = root / "scripts" / "quality"
         script_dir.mkdir(parents=True)
         for with_git in (True, False):

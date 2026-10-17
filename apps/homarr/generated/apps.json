@@ -1433,12 +1433,13 @@
     {
       "id": "watchtower",
       "name": "Watchtower",
-      "group": "watchtower",
+      "group": "security",
       "sourcePath": "apps/watchtower/compose.yml",
       "composeService": "watchtower",
       "dockerManaged": true,
       "href": null,
-      "syncEligible": false
+      "syncEligible": false,
+      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers."
     },
     {
       "id": "wazuh-dashboard",

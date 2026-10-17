@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:39483e365ec404846976ca159b046304feb5c147dbb7eb47d3d3e9b230c59017",
+  "catalogRevision": "sha256:2c446c3b2cdf5fa9b2fea222959caef90bc2cf80336dab5ca1b70d2d09d39786",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2396,6 +2396,24 @@
         "networks": [
           "default",
           "secrets-backend"
+        ]
+      }
+    },
+    {
+      "id": "watchtower",
+      "name": "Watchtower",
+      "kind": "image-update-auditor",
+      "category": "security",
+      "sourcePath": "apps/watchtower/compose.yml",
+      "composeService": "watchtower",
+      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
+      "presentationRole": "support",
+      "status": "planned",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "watchtower",
+        "networks": [
+          "intranet"
         ]
       }
     },

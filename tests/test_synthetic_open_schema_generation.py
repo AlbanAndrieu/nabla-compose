@@ -34,7 +34,8 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
         for service in _catalog()["services"]
         if isinstance(service, dict)
     )
-    assert public_count == 26
+    # Garage S3 API and Admin API are internal-only since #254 (no public route).
+    assert public_count == 24
     assert len(by_kind["DnsCheck"]) == public_count
     assert len(by_kind["TlsCheck"]) == public_count
     assert len(by_kind["HttpCheck"]) == public_count
@@ -50,7 +51,7 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
         and resource["metadata"]["labels"]["cloudflare_access"] == "required"
     ]
 
-    assert len(protected) == 25
+    assert len(protected) == 24
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"

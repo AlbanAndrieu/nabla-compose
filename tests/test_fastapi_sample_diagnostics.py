@@ -39,7 +39,7 @@ def test_diagnostic_never_mutates_runtime_or_shares_credentials() -> None:
     ):
         assert forbidden not in script
     assert "--max-time 12" in script
-    assert '"$API/api/health-board"' in script
+    assert '"${API}/api/health-board"' in script
     assert "--no-stream" in script
 
 

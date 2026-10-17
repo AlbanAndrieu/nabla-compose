@@ -47,6 +47,12 @@ def test_diagnostic_does_not_leak_raw_logs() -> None:
     printf 'shape=array entries=1\\n'
     """)
         jq.chmod(0o755)
+        # GNU `stat -c` is TrueNAS-specific; keep the metadata step host-independent.
+        stat = tmp_path / "stat"
+        stat.write_text("""#!/usr/bin/env bash
+    printf '640 568:568 regular file %s\\n' "${@: -1}"
+    """)
+        stat.chmod(0o755)
         env = os.environ | {"PATH": f"{tmp_path}:{os.environ['PATH']}"}
         result = subprocess.run(["bash", str(SCRIPT)], cwd=ROOT, env=env, capture_output=True, text=True, check=False)
         assert result.returncode == 0, result.stderr

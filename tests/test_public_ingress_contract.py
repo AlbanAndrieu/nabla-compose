@@ -122,18 +122,22 @@ class PublicIngressContractTests(unittest.TestCase):
         by_name = {service["name"]: service for service in overrides["services"]}
 
         self.assertEqual(
-            by_name["Garage S3"]["tunnelUrl"], "https://s3.int.albandrieu.com"
+            by_name["Garage S3 API"]["tunnelUrl"], "https://s3.int.albandrieu.com"
         )
-        self.assertFalse(by_name["Garage S3"]["tunnelSecure"])
+        self.assertFalse(by_name["Garage S3 API"]["tunnelSecure"])
+        self.assertFalse(by_name["Garage S3 API"]["external"])
         self.assertEqual(
-            by_name["Garage"]["tunnelUrl"], "https://garage.albandrieu.com"
+            by_name["Garage Web UI"]["tunnelUrl"], "https://garage.albandrieu.com"
         )
-        self.assertTrue(by_name["Garage"]["tunnelSecure"])
+        self.assertTrue(by_name["Garage Web UI"]["tunnelSecure"])
+        self.assertTrue(by_name["Garage Web UI"]["cloudflareAccessRequired"])
+        # No WAN or Cloudflare Tunnel exposure is approved for the Admin API.
         self.assertEqual(
-            by_name["Garage Admin"]["tunnelUrl"],
+            by_name["Garage Admin API"]["tunnelUrl"],
             "https://garage-admin.albandrieu.com",
         )
-        self.assertTrue(by_name["Garage Admin"]["tunnelSecure"])
+        self.assertFalse(by_name["Garage Admin API"]["tunnelSecure"])
+        self.assertFalse(by_name["Garage Admin API"]["external"])
 
     def test_truenas_observer_preflight_is_read_only_and_allowlist_aware(self) -> None:
         script = (
@@ -288,14 +292,8 @@ class PublicIngressContractTests(unittest.TestCase):
             for line in allowlist.splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         }
-        self.assertEqual(
-            exceptions,
-            {
-                "s3.int.albandrieu.com",
-                "hello.int.albandrieu.com",
-                "vaultwarden.int.albandrieu.com",
-            },
-        )
+        # Garage S3 and the legacy Vaultwarden alias must stay internal (#254).
+        self.assertEqual(exceptions, {"hello.int.albandrieu.com"})
         self.assertNotIn("*.s3.int.albandrieu.com", allowlist)
         self.assertNotIn("garage.int.albandrieu.com", allowlist)
         self.assertNotIn("garage-admin.int.albandrieu.com", allowlist)
@@ -342,22 +340,23 @@ class PublicIngressContractTests(unittest.TestCase):
         webui = by_id["garage-webui"]
         admin = by_id["garage-admin"]
 
-        self.assertEqual(s3["name"], "Garage S3")
+        self.assertEqual(s3["name"], "Garage S3 API")
         self.assertEqual(s3["internalPort"], 3900)
         self.assertEqual(s3["tunnelUrl"], "https://s3.int.albandrieu.com")
         self.assertFalse(s3["tunnelSecure"])
 
-        self.assertEqual(webui["name"], "Garage")
+        self.assertEqual(webui["name"], "Garage Web UI")
         self.assertEqual(webui["internalPort"], 3909)
         self.assertEqual(webui["tunnelUrl"], "https://garage.albandrieu.com")
         self.assertTrue(webui["tunnelSecure"])
 
-        self.assertEqual(admin["name"], "Garage Admin")
+        self.assertEqual(admin["name"], "Garage Admin API")
         self.assertEqual(admin["internalPort"], 3903)
         self.assertEqual(
             admin["tunnelUrl"], "https://garage-admin.albandrieu.com"
         )
-        self.assertTrue(admin["tunnelSecure"])
+        self.assertFalse(admin["tunnelSecure"])
+        self.assertFalse(admin["external"])
 
     def test_openwebui_tunnel_origin_is_declared_without_traefik(self) -> None:
         compose = (ROOT / "apps" / "openwebui" / "compose.yml").read_text(

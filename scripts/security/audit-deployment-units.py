@@ -31,10 +31,10 @@ def ordered_members(components: list[str], requested: object, source: str) -> li
     return requested
 
 
-def infer_probe_order(
+def probe_prerequisites(
     endpoints: list[str], containers: list[dict], relations: list[dict]
-) -> list[str]:
-    """Topologically schedule declared prerequisites before their consumers."""
+) -> dict[str, set[str]]:
+    """Map each endpoint to prerequisites from Compose depends_on and relations."""
     deps: dict[str, set[str]] = {endpoint: set() for endpoint in endpoints}
     by_service = {
         container["composeService"]: container["endpointId"]
@@ -55,6 +55,14 @@ def infer_probe_order(
             and source in deps and target in deps and source != target
         ):
             deps[source].add(target)
+    return deps
+
+
+def infer_probe_order(
+    endpoints: list[str], containers: list[dict], relations: list[dict]
+) -> list[str]:
+    """Topologically schedule declared prerequisites before their consumers."""
+    deps = probe_prerequisites(endpoints, containers, relations)
     result: list[str] = []
     while deps:
         ready = sorted(key for key, required in deps.items() if not required)
@@ -178,18 +186,17 @@ def collect(root: Path) -> dict:
         )
         probe_order = ordered_members(inferred, raw_unit.get("probeOrder"), str(path))
         order_map = {endpoint: index for index, endpoint in enumerate(probe_order)}
-        for relation in ext.get("relations", []):
-            if not isinstance(relation, dict):
-                raise ValueError(f"{path}: invalid relation")
-            source, target = relation.get("source"), relation.get("target")
-            if (
-                relation.get("type") in {"partOf", "consumesApi", "dependsOn"}
-                and source in order_map and target in order_map
-                and order_map[target] > order_map[source]
-            ):
-                raise ValueError(
-                    f"{path}: probeOrder violates {target} before {source}"
-                )
+        if any(not isinstance(relation, dict) for relation in ext.get("relations", [])):
+            raise ValueError(f"{path}: invalid relation")
+        prerequisites = probe_prerequisites(
+            endpoints, containers, ext.get("relations", [])
+        )
+        for source, required in sorted(prerequisites.items()):
+            for target in sorted(required):
+                if order_map[target] > order_map[source]:
+                    raise ValueError(
+                        f"{path}: probeOrder violates {target} before {source}"
+                    )
         max_level = max(levels, key=LEVELS.index) if levels else None
         # Future BIA dataset must provide this independently; never infer low.
         business = raw_unit.get("businessCriticality")

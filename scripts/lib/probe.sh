@@ -92,7 +92,7 @@ probe_tcp_success() {
     return 2
   }
 
-  # shellcheck disable=SC2016 -- positional arguments expand in child bash
+  # shellcheck disable=SC2016 # positional arguments expand in child bash
   timeout "${timeout_seconds}" bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1
 }
@@ -126,7 +126,7 @@ probe_dns_addresses() {
   [[ "${hostname}" =~ ^[A-Za-z0-9._-]+$ ]] || {
     printf 'invalid DNS probe hostname: %s\n' "${hostname}" >&2
     return 2
-  fi
+  }
   [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
     printf 'invalid DNS probe timeout: %s\n' "${timeout_seconds}" >&2
     return 2
@@ -177,7 +177,7 @@ probe_container_dns_records() {
   [[ "${hostname}" =~ ^[A-Za-z0-9._-]+$ ]] || {
     printf 'invalid container DNS hostname: %s\n' "${hostname}" >&2
     return 2
-  fi
+  }
   [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
     printf 'invalid container DNS timeout: %s\n' "${timeout_seconds}" >&2
     return 2
@@ -217,7 +217,7 @@ probe_container_tcp_success() {
     return 2
   }
 
-  # shellcheck disable=SC2016 -- positional arguments expand in child bash
+  # shellcheck disable=SC2016 # positional arguments expand in child bash
   timeout "${timeout_seconds}" docker exec "${container}" \
     bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1
@@ -233,7 +233,7 @@ probe_container_http_success() {
   [[ "${url}" =~ ^https?://[^[:space:]]+$ ]] || {
     printf 'invalid container HTTP URL\n' >&2
     return 2
-  fi
+  }
   [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
     printf 'invalid container HTTP timeout: %s\n' "${timeout_seconds}" >&2
     return 2

@@ -32,7 +32,7 @@ outstanding.
 | Tier | Contents | Destination | Policy |
 | --- | --- | --- | --- |
 | A: reviewed Git configuration | Minimal `HEARTBEAT.md`, sanitized templates, runbooks, deterministic scripts | `nabla-compose/apps/openclaw/workstation/` | Versioned; PR reviewed; no secrets or personal content |
-| B: owner-controlled private Git dotfiles | Encrypted `.env`, encrypted `gateway.systemd.env`, personal `USER.md`/`SOUL.md`, identity, agent and configuration templates | Private `AlbanAndrieu/nabla` | **Retain, do not migrate or delete**; verify protection before changing | 
+| B: owner-controlled private Git dotfiles | Encrypted `.env`, encrypted `gateway.systemd.env`, personal `USER.md`/`SOUL.md`, identity, agent and configuration templates | Private `AlbanAndrieu/nabla` | **Retain, do not migrate or delete**; verify protection before changing |
 | D: live runtime backup | Active per-agent `openclaw-agent.sqlite`, sessions, memory database, credentials and workspace runtime | Verified encrypted OpenClaw archive/SQLite snapshot or Restic | Do not copy live SQLite/WAL raw into Git; restore drill required |
 | C: baseline infrastructure | Compose service definitions and non-secret policies | `nabla-compose/apps/openclaw/` | Existing Git workflow |
 
