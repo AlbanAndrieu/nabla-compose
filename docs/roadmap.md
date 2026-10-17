@@ -1,4 +1,4 @@
-
+- [ ] **OpenClaw embedding routing and budgets (2026-10-17)**: explain main 15/105 files (57 chunks) and cron 0/63; enumerate effective workspace memory sources without printing file content, confirm OpenClaw 2026.9.5 remote OpenAI-compatible embedding configuration, then route embeddings via LiteLLM with a dedicated virtual key, dedicated budget and model alias. Do not assume memorySearch exists under agents.defaults, do not index until auth and limits verified.\n- [ ] **OpenClaw LiteLLM budget matrix**: map actual main, cron, memory/embedding and auxiliary model routes to hashed key IDs and read-only spend/max_budget/TPM/RPM, distinguish key/team/model budgets. Observed main $10.016404/$10 reset 2026-10-19T00:00Z, openclaw $0.25612/$2, cron hashed key ID unknown, embedding key absent. No automatic budget changes or key disclosure.\n
 ## P1 — Cutover catalogue historique et secrets runtime (2026-10-17)
 
 - [x] Corriger la syntaxe du réconciliateur Gatus après introduction accidentelle de séquences littérales `\\n` dans le code Python (PR #257). Rejouer le script sur TrueNAS et ne jamais réutiliser un ancien JSON après échec de génération.
