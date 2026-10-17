@@ -96,3 +96,22 @@ done
 ```
 
 A successful pfSense query must return `172.17.0.24` for DefectDojo without exposing the name publicly. Investigate Unbound forwarding/delegation and DNSSEC validation behavior before considering cache flushes or configuration changes.
+
+## DNS split-view investigation — operator evidence
+
+The operator observed `defectdojo.int.albandrieu.com` at Pi-hole `172.17.0.24` as A `172.17.0.24` with TTL 0 and `EDE: 3 (Stale Answer)` (no AA), while Unbound `172.17.0.1` returned NOERROR/NODATA with Cloudflare SOA. For `hello.int.albandrieu.com`, Pi-hole returned authoritative (`aa`) A `172.17.0.24`, whereas Unbound returned public A `82.66.4.247`. This is a **split-view DNS configuration issue**, not a DefectDojo routing issue; Traefik HTTPS already returned 302 with verified TLS. Do not assert Pi-hole DefectDojo authoritative health solely from its stale answer.
+
+Read-only follow-up on TrueNAS:
+
+```bash
+# Compare uncached-looking query types and full flags; do not flush caches yet.
+for dns in 172.17.0.24 172.17.0.1; do
+  for name in defectdojo.int.albandrieu.com hello.int.albandrieu.com; do
+    echo "=== $dns $name ==="
+    dig +time=2 +tries=1 +noall +comments +answer +authority @"$dns" "$name" A
+  done
+done
+sudo docker logs --since 30m pihole-dns-sync 2>&1 | grep -Ei 'defectdojo|sync|error|warn' | tail -40
+```
+
+Review pfSense DNS Resolver domain overrides / forwarding for `int.albandrieu.com`, DNSSEC behavior and Pi-hole local DNS record materialization in read-only mode. Avoid a single-name Host Override, public DNS changes, or disabling DNSSEC as a workaround. Only after confirming canonical private-zone ownership should forwarding to Pi-hole be proposed; take care to avoid a Pi-hole → Unbound → Pi-hole forwarding loop.
