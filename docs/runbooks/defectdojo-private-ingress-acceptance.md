@@ -166,3 +166,19 @@ bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandr
 ```
 
 Use the **actual** SSH port if known; never paste `PORT_SSH` literally. For local workstation-to-pfSense testing, prefer the LAN IP `172.17.0.1` if reachable and explicitly authorized, as the public hostname can follow different WAN/firewall policy. On TrueNAS, inspect the SSH configuration and key availability **separately**, without copying workstation private keys or enabling new WAN access. A TCP timeout occurs before public-key authentication and cannot establish whether a key exists. Do not paste private keys, complete verbose logs containing sensitive identifiers, or modify pfSense SSH exposure as a workaround.
+
+## Workstation SSH access and Unbound audit accepted — 2026-10-17
+
+The workstation's effective `ssh -G home.albandrieu.com` resolves to `user admin`, `port 9922`, `identityfile ~/.ssh/id_ed25519`. `ssh-add -l` lists agent identities; **no private key should be copied to TrueNAS**. SSH to `172.17.0.1:22` times out, which is consistent with the wrong port, not proof of missing keys. The earlier `user albandrieu, port 22` output was from a different SSH configuration/context; the later workstation result is the successful configuration. The read-only SSH diagnostic completed against the hostname with no explicit port, proving remote access through the workstation alias.
+
+The diagnostic returned Unbound 1.26.1, running PID 87675, uptime 45597 seconds; no generated `int.albandrieu.com` forwarding directive; public Cloudflare authoritative lookup; and kernel OOM kills for Unbound PID 84666, two PHP processes and netstat. Current Unbound RSS 131148 KiB (~128 MiB), Snort 60644 KiB, php_pfb 51172 KiB, with multiple PHP-FPM workers around 48–55 MiB RSS each. The reported Unbound cache/module counters are far below total RSS; RSS includes other allocations and shared memory, so these numbers alone do not identify the culprit. Collect dated kernel/system logs and pfSense config persistence before any change.
+
+The SSH diagnostic can be run on the workstation using its alias:
+
+```bash
+cd ~/w/nabla-compose
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandrieu.com
+bash scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
+```
+
+Do not use `172.17.0.1:22` as the SSH target. On TrueNAS, validate a separate authorized SSH identity and port before any remote automation; do not infer that workstation SSH credentials exist there. Before restoring a Domain Override, verify Pi-hole's upstream DNS path is not Unbound for `int.albandrieu.com`, to avoid a forwarding loop. Prefer a reviewed, persistent pfSense UI/API change with read-only pre/post checks; do not edit generated `/var/unbound/unbound.conf` manually.
