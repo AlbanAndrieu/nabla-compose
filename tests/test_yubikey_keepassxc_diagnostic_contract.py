@@ -163,6 +163,23 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             subprocess.run(["bash", "-n", str(script)], check=True)
             self.assertIn("shell-status.sh", script.read_text())
 
+    def test_offline_age_certificate_inspection_is_non_destructive(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-certificate.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--certificate", result.stdout)
+        missing = subprocess.run(["bash", str(script), "--certificate",
+                                  "/path/that/does/not/exist.pem"],
+                                 capture_output=True, text=True)
+        self.assertEqual(missing.returncode, 2)
+        body = script.read_text()
+        for forbidden in ("piv keys generate", "piv certificates generate",
+                          "piv reset", "change-management-key",
+                          "age-plugin-yubikey --generate"):
+            self.assertNotIn(forbidden, body)
+        self.assertIn("exit 3", body)
+
     def test_aes_compat_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
