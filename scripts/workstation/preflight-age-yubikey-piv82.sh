@@ -4,6 +4,8 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   echo 'Run with bash, never source' >&2; return 2
 fi
 set -euo pipefail
+# shellcheck source=scripts/workstation/shell-status.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/shell-status.sh"
 serial=''
 while (( $# )); do
   case "$1" in
@@ -36,7 +38,7 @@ else
     exit 1
   fi
 fi
-echo 'PASS: selected single YubiKey and PIV 82 appears empty (read-only).'
-echo 'Before any provisioning: keep OTP2 and PIV9A unchanged; never pass --force.'
-echo 'Review age-plugin-yubikey --help and plan PIN=always, touch=always.'
-echo 'Manual provisioning must be separately initiated and tested with synthetic data.'
+nabla_status ok 'PASS: selected single YubiKey and PIV 82 appears empty (read-only).'
+nabla_status warn 'Before any provisioning: keep OTP2 and PIV9A unchanged; never pass --force.'
+nabla_status info 'Review age-plugin-yubikey --help and plan PIN=always, touch=always.'
+nabla_status info 'Manual provisioning must be separately initiated and tested with synthetic data.'
