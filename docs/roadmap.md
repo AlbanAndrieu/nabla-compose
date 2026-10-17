@@ -1,3 +1,16 @@
+## P1 · YubiKey age / AES256 PIV management-key compatibility — BLOCKED (2026-10-17)
+
+- [x] Validate both YubiKeys PIV82 empty (read-only), OTP2/KeePassXC and historical PIV9A preserved. Main serial `23501671`, backup serial `22916048`.
+- [x] Verify software SOPS age recovery using encrypted TrueNAS backup and LUKS2 SanDisk escrow: synthetic SOPS fixture PASS; 18/18 targeted Python unittest PASS.
+- [x] Identify blocker: `age-plugin-yubikey 0.5.1 --generate --slot 1` fails on backup key because PIN-protected management key uses **AES256**; the plugin reports no AES support. PIN/PUK retries remain 3/3; PIV82 remains empty. Do **not** interpret this as evidence of incorrect PIN.
+- [ ] **P1 compatible provisioner research:** evaluate upstream [issue #92](https://github.com/str4d/age-plugin-yubikey/issues/92), upstream dependency status and safe external ECC P-256 PIV82 generation/certificate import via `ykman` without overwrites; confirm exact certificate metadata and plugin `--list-all` + actual synthetic decrypt interoperability **before** documenting an executable apply path.
+- [ ] **Security gate:** do not downgrade existing AES256 management keys to TDES, reset PIV, import/overwrite PIV9A, touch OTP2, use `--force`, or retry PINs without a verified need. Keep hardware operations manual and single-card, fail closed on occupied/unknown slots.
+- [ ] **P1 offsite resilience:** add separately protected offline copy of USB `recovery-identity.txt`, LUKS header backup and recovery validation. LastPass stores only references `yubikey-5-nabla principal`, `yubikey-5-nabla backup`, `USB SANDISK LUKS2`; no values in repository.
+- [ ] Generate **distinct** hardware age identities for secondary and main only after compatible method is demonstrated, test each decryption independently, and then assess SOPS multi-recipient rollout including noninteractive CI paths.
+- [ ] Preserve rollback: existing software X25519 age recipient and SanDisk/TrueNAS escrow remain in service until all dependent SOPS files and automation are successfully re-encrypted and restored.
+
+Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbooks/sops-age-usb-disaster-recovery.md`. Keep all work in current PR #259, no automatic merge.
+
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
 - [x] Operator confirmed schema `memory.search.remote.apiKey` supports `file` secret reference with required `source`, `provider`, `id`. This validates schema shape **only**; provider identifier, file path resolution, and runtime secret-provider configuration remain unverified.
