@@ -42,7 +42,7 @@ def active_databases():
             if p.is_symlink() or not p.is_file() or p.stat().st_size != expected:
                 continue
             with p.open("rb") as handle:
-                if handle.read(16) != b"SQLite format 3\\x00":
+                if handle.read(16) != b"SQLite format 3\x00":
                     continue
             result[agent] = p
         except OSError:
