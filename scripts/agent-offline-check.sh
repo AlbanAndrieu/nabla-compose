@@ -45,25 +45,25 @@ if ! scope="$(collect_scope | LC_ALL=C sort -u)"; then
   printf 'ERROR: offline file inventory failed; refusing an unverified pass\n' >&2
   exit 2
 fi
-if [[ -n "$scope" ]]; then
-  mapfile -t files <<<"$scope"
+if [[ -n "${scope}" ]]; then
+  mapfile -t files <<<"${scope}"
 fi
 if ((MAX_PATHS > 0 && ${#files[@]} > MAX_PATHS)); then
-  printf 'ERROR: offline scope %d exceeds maximum %d; narrow the change or adjust AGENT_OFFLINE_MAX_PATHS\n' "${#files[@]}" "$MAX_PATHS" >&2
+  printf 'ERROR: offline scope %d exceeds maximum %d; narrow the change or adjust AGENT_OFFLINE_MAX_PATHS\n' "${#files[@]}" "${MAX_PATHS}" >&2
   exit 2
 fi
 command -v python3 >/dev/null || { echo 'ERROR: python3 is required' >&2; exit 2; }
 checked=0
 declare -a python_files=()
 for file in "${files[@]}"; do
-  [[ -f "$file" && ! -L "$file" ]] || continue
-  case "$file" in
+  [[ -f "${file}" && ! -L "${file}" ]] || continue
+  case "${file}" in
     *.sh)
-      bash -n "$file"
+      bash -n "${file}"
       checked=$((checked + 1))
       ;;
     *.py)
-      python_files+=("$file")
+      python_files+=("${file}")
       ;;
   esac
 done
@@ -80,5 +80,5 @@ PY
 fi
 git diff --check
 git diff --cached --check
-printf 'OK: offline L1 syntax + whitespace checks passed, files=%d, parsed=%d\n' "${#files[@]}" "$checked"
+printf 'OK: offline L1 syntax + whitespace checks passed, files=%d, parsed=%d\n' "${#files[@]}" "${checked}"
 printf '%s\n' 'NOT VERIFIED: hooks, formatters, dependencies, security scanners, full pytest and publication gate'

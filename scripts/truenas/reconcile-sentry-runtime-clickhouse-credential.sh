@@ -152,12 +152,12 @@ if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
 fi
 ok "ClickHouse admin identity is usable"
 
+# shellcheck disable=SC2016 # Credentials expand inside the container shell.
 {
   printf "CREATE USER IF NOT EXISTS sentry IDENTIFIED WITH sha256_password BY '%s';\n" "${password}"
   printf "ALTER USER sentry IDENTIFIED WITH sha256_password BY '%s';\n" "${password}"
   printf '%s\n'     'GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry;'     'GRANT SELECT ON system.tables TO sentry;'
 } |
-  # shellcheck disable=SC2016
   timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
     set -eu
     clickhouse-client       --user "$CLICKHOUSE_USER"       --password "$CLICKHOUSE_PASSWORD"       --multiquery
