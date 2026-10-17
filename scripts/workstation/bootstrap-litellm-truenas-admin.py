@@ -13,11 +13,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--email", required=True, help="Personal email for the named administrator")
     parser.add_argument("--apply", action="store_true", help="Create account without password; default is dry-run")
+    parser.add_argument("--inspect-existing", action="store_true", help="Read-only check via /user/info over SSH tunnel")
     args = parser.parse_args()
     email = args.email.strip()
     if not email or "@" not in email or any(c.isspace() for c in email):
         parser.error("--email must be a valid-looking email address")
-    if not args.apply:
+    if not args.apply and not args.inspect_existing:
         print("mode=dry_run")
         print("target=truenas_via_local_ssh_tunnel")
         print("role=proxy_admin")
@@ -29,6 +30,26 @@ def main():
     if not key:
         print("ERROR: admin credential missing from environment", file=sys.stderr)
         return 2
+    if args.inspect_existing:
+        from urllib.parse import urlencode
+        request = Request(BASE + "/user/info?" + urlencode({"user_id": email}),
+                          headers={"Authorization": "Bearer " + key})
+        try:
+            with urlopen(request, timeout=15) as response:
+                data = json.load(response)
+            print("user_lookup_http_status=200")
+            if isinstance(data, dict):
+                user = data.get("user_info", data)
+                if isinstance(user, dict):
+                    print("user_role=" + str(user.get("user_role", "unresolved")))
+                    print("user_record_present=true")
+        except HTTPError as exc:
+            print(f"user_lookup_http_status={exc.code} (response body suppressed)")
+            return 1
+        except (URLError, OSError, TimeoutError, ValueError):
+            print("ERROR: user lookup unavailable or unexpected response", file=sys.stderr)
+            return 1
+        return 0
     # LiteLLM /user/new rejects password (422). Password setup uses an invitation.
     payload = json.dumps({
         "user_email": email,
@@ -44,6 +65,8 @@ def main():
             print(f"admin_create_http_status={response.status}")
     except HTTPError as exc:
         print(f"ERROR: admin_create_http_status={exc.code} (response body suppressed)", file=sys.stderr)
+        if exc.code == 409:
+            print("NEXT: run --inspect-existing to check the existing account; do not recreate blindly", file=sys.stderr)
         return 1
     except (URLError, OSError, TimeoutError):
         print("ERROR: SSH tunnel or proxy unavailable", file=sys.stderr)
