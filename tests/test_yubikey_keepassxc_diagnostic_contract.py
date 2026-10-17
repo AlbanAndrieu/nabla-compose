@@ -223,9 +223,18 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             key = Path(temp) / "synthetic.key"
             cert = Path(temp) / "synthetic.pem"
             config = Path(temp) / "extensions.cnf"
-            config.write_text("[req]\\ndistinguished_name=dn\\nx509_extensions=ext\\nprompt=no\\n"
-                              "[dn]\\nCN=nabla-age-fixture\\nO=age-plugin-yubikey\\nOU=0.5.1\\n"
-                              "[ext]\\n1.3.6.1.4.1.41482.3.8=DER:03:02\\n")
+            config.write_text(
+                "[req]\\n"
+                "distinguished_name=dn\\n"
+                "x509_extensions=ext\\n"
+                "prompt=no\\n"
+                "[dn]\\n"
+                "CN=nabla-age-fixture\\n"
+                "O=age-plugin-yubikey\\n"
+                "OU=0.5.1\\n"
+                "[ext]\\n"
+                "1.3.6.1.4.1.41482.3.8=DER:03:02\\n"
+            )
             subprocess.run(["openssl", "genpkey", "-algorithm", "EC",
                             "-pkeyopt", "ec_paramgen_curve:prime256v1",
                             "-out", str(key)], check=True, capture_output=True)
