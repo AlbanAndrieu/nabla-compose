@@ -65,6 +65,18 @@ fi
 [[ "${EUID}" == 0 ]] || die "apply must be run as root on TrueNAS"
 [[ "${FRESHRSS_APPROVE_APPLY:-}" == YES ]] ||
   die "explicit approval required: FRESHRSS_APPROVE_APPLY=YES"
+# Account bootstrap also imports feeds; block all import-capable modes when
+# the unfiltered Site Alban OPML cannot satisfy the GReader ten-feed contract.
+if [[ "${MODE}" == --apply || "${MODE}" == --import-opml ]]; then
+  opml_count="$(python3 - "${OPML}" <<'PY'
+import sys
+from xml.etree import ElementTree
+print(sum(bool(node.get("xmlUrl")) for node in ElementTree.parse(sys.argv[1]).iter("outline")))
+PY
+  )"
+  [[ "${opml_count}" == 10 ]] ||
+    die "blocked: pinned OPML contains ${opml_count} feeds, but public GReader contract requires exactly 10"
+fi
 # Global API enablement is an independent and explicitly approved operation.
 if [[ "${MODE}" == --enable-api ]]; then
   [[ "${FRESHRSS_ENABLE_GLOBAL_API:-}" == YES ]] ||
