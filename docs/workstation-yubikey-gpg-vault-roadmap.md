@@ -1901,3 +1901,11 @@ chaque YubiKey pour deux identités age indépendantes ;
 `83` réservé à la rotation. La preuve de récupération
 logicielle X25519, la fixture SOPS et l'acceptation des
 politiques PIN/touch restent des conditions préalables.
+
+### Validation terrain de l'audit matériel de la YubiKey de secours
+
+L'opérateur a exécuté `audit-yubikey-capabilities.sh --backup` dans un worktree de la PR #258 (HEAD `dc42459e`). Le contrôle de numéro de série a réussi et les 23 slots interrogés (`9C/9D/9E` et `82–95`) ont été classés EMPTY : `empty=23 occupied=0 unknown=0`. Le slot 9A reste occupé par le certificat RSA2048 expiré en janvier 2025. OpenPGP a été détecté ; les emplacements Signature, Encryption et Authentication ont chacun été observés vides. FIDO2, OATH et les outils SOPS/age sont disponibles ; l'OTP2 KeePassXC doit rester intact.
+
+La sortie indique `OATH Password protection: disabled` : revoir le modèle de protection avant ajout de nouveaux comptes OATH, sans activer de contrôle susceptible de bloquer les comptes existants. L'identité SSH chargée dans ssh-agent n'est pas attribuée à la YubiKey. Le contrôle principal `--primary` reste à rejouer avec la clé principale effectivement connectée et une seule clé présente.
+
+**Prochain jalon :** test de récupération d'une fixture SOPS avec le destinataire age X25519 actuel, avant génération explicite d'identités matérielles distinctes sur les deux cartes. Aucun provisionnement effectué.
