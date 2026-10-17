@@ -1,47 +1,54 @@
 #!/usr/bin/env bash
-# Read-only resource inventory for Linux workstation or TrueNAS.
+# Read-only host/container resource diagnostics for TrueNAS and Linux.
 set -uo pipefail
+
 MODE="${1:---all}"
-case "${MODE}" in
-  --all|--docker|--host|-h|--help) ;;
-  *) echo "Usage: ${0} [--all|--docker|--host]" >&2; exit 2 ;;
+case "$MODE" in
+  --all|--host|--docker|-h|--help) ;;
+  *) printf 'Usage: %s [--all|--host|--docker]\n' "$0" >&2; exit 2 ;;
 esac
-if [[ "${MODE}" == "-h" || "${MODE}" == "--help" ]]; then
-  echo "Read-only CPU/memory/disk/container inventory. No restart or config changes."
+if [[ "$MODE" == "-h" || "$MODE" == "--help" ]]; then
+  printf 'Read-only host and Docker resource inventory; no restarts, secrets or config changes.\n'
   exit 0
 fi
-section() { printf '\n==> %s\n' "${*}"; }
-has() { command -v "${1}" >/dev/null 2>&1; }
 
-if [[ "${MODE}" == "--all" || "${MODE}" == "--host" ]]; then
-  section "Host identity"
+section() { printf '\n==> %s\n' "$*"; }
+has() { command -v "$1" >/dev/null 2>&1; }
+
+if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
+  section "Host identity / uptime"
   hostname 2>/dev/null || true
   uname -a 2>/dev/null || true
-  section "Load and uptime"
   uptime 2>/dev/null || true
   section "Memory"
-  if has free; then free -h; elif [[ -r /proc/meminfo ]]; then head -n 8 /proc/meminfo; else echo "memory summary unavailable"; fi
-  section "Top processes by CPU"
-  if has ps; then ps -eo pid,ppid,user,comm,%cpu,%mem,rss --sort=-%cpu | head -n 16; fi
-  section "Top processes by resident memory"
-  if has ps; then ps -eo pid,ppid,user,comm,%cpu,%mem,rss --sort=-rss | head -n 16; fi
-  section "Filesystem usage"
+  if has free; then free -h; else head -n 8 /proc/meminfo; fi
+  section "CPU consumers"
+  ps -eo pid,ppid,user,comm,%cpu,%mem,rss,etime --sort=-%cpu | head -n 21 || true
+  section "RSS consumers"
+  ps -eo pid,ppid,user,comm,%cpu,%mem,rss,etime --sort=-rss | head -n 21 || true
+  section "QEMU/VMs: scoped process identifiers (no command-line arguments)"
+  ps -eo pid,ppid,user,comm,rss,etime | grep -E 'qemu-system|PID' || true
+  if has virsh; then
+    # TrueNAS may run QEMU without a default libvirt socket; failure is advisory.
+    virsh -c qemu:///system list --all 2>&1 || printf 'INFO: libvirt system socket unavailable; inspect TrueNAS VM API/UI.\n'
+  fi
+  section "Filesystems"
   if has df; then df -hT -x tmpfs -x devtmpfs 2>/dev/null | head -n 25; fi
 fi
 
-if [[ "${MODE}" == "--all" || "${MODE}" == "--docker" ]]; then
-  section "Docker daemon"
+if [[ "$MODE" == "--all" || "$MODE" == "--docker" ]]; then
+  section "Docker status"
   if ! has docker; then
-    echo "Docker CLI unavailable in this environment (expected on workstation or some TrueNAS contexts)."
+    printf 'INFO: Docker CLI unavailable.\n'
   elif ! docker info >/dev/null 2>&1; then
-    echo "Docker daemon unavailable or permission denied; rerun with sudo if appropriate."
+    printf 'INFO: Docker daemon unavailable or permission denied.\n'
   else
     docker info --format 'Containers={{.Containers}} Running={{.ContainersRunning}} Paused={{.ContainersPaused}} Stopped={{.ContainersStopped}} Images={{.Images}}'
-    section "Container CPU/memory/network/block I/O (one snapshot)"
-    docker stats --no-stream --format 'table {{.Name}}\t{{.ID}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}' 2>&1 | head -n 35
-    section "Container restart/status inventory"
-    docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}' | head -n 45
+    section "Docker statistics (single snapshot)"
+    docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.PIDs}}' 2>&1 | head -n 40 || true
+    section "Container status"
+    docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -n 60 || true
   fi
 fi
 section "Safety"
-echo "Read-only inventory; no credentials, environment variables, logs, or container config are printed."
+printf 'Read-only inventory. Process command lines, container env, secrets and logs are not printed.\n'
