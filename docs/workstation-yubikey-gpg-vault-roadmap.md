@@ -1221,3 +1221,25 @@ Vérifier séparément la capacité à déchiffrer une fixture de test
 pour la sous-clé `[E]` ; ne pas utiliser de sauvegarde
 PostgreSQL de production ni de secret réel comme fixture.
 Ne pas exporter les clés secrètes ni effectuer `keytocard`.
+
+### P1 — Signature GPG logicielle : PASS (17 octobre 2026)
+
+L'opérateur a signé une phrase de test non sensible via
+`gpg --local-user <empreinte de signature Git> --armor --clearsign`,
+puis validé le résultat avec `gpg --verify`.
+GnuPG confirme `Good signature`, signée le 17 octobre 2026
+avec la clé RSA principale `[SC]` attendue et confiance
+`[ultimate]`. **P1 signature GPG logicielle = PASS.**
+
+Ce résultat prouve la capacité à signer avec la clé privée
+logicielle installée et à vérifier la signature ; il ne prouve
+pas encore la signature d'un commit Git, ni la capacité à
+déchiffrer via la sous-clé `[E]`, ni une récupération
+`git-crypt`/PostgreSQL. Aucun slot YubiKey n'a été modifié.
+
+Étape suivante : fixture de chiffrement éphémère et non
+sensible, `gpg --encrypt --recipient <empreinte>`
+puis `gpg --decrypt` et comparaison stricte de la sortie.
+Utiliser un répertoire temporaire en permissions 0700
+et nettoyage après contrôle ; ne pas écrire un secret réel,
+ne pas inclure `--passphrase` sur la ligne de commande.
