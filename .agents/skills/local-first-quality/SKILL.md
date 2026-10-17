@@ -9,6 +9,27 @@ Use this skill for CI failures, quality-gate work, PR continuation, formatter/li
 fixes, or any task where remote CI should remain a safety net rather than the
 edit loop.
 
+## Agent-first changes; operator machines are last resort
+
+For code, documentation, permissions and Git metadata corrections, act in
+the agent's isolated checkout or GitHub-connected branch **first**.
+Do not ask the operator to modify their production TrueNAS, workstation,
+or other live environments merely to work around an agent tool limitation.
+For executable scripts, check the Git index mode (100755 versus 100644),
+fix the mode in the repository tree, test execution in an isolated agent
+checkout, and publish the fix to the open PR before asking for a rerun.
+
+Follow this order: inspect remote HEAD and differences; apply the patch in
+the agent workspace; run targeted checks and safety gates; publish via a
+fast-forward update with a checked expected SHA; verify the remote HEAD;
+only then ask the operator to run *read-only* acceptance commands.
+Operator-side changes are appropriate only for hardware-only testing,
+runtime integration, or if repository writes cannot be completed despite
+reasonable recovery attempts. In that last case, explicitly report the
+blocker, preserve prepared changes, and provide the smallest reversible
+workaround rather than offloading normal development work.
+Never claim a prepared commit is on the PR until the branch ref is verified.
+
 ## Principle
 
 Use the cheapest deterministic evidence that can falsify the current patch, then
