@@ -33,3 +33,31 @@ python3 scripts/workstation/prepare-openclaw-embedding-migration.py --verify-bac
 ```
 
 Share **only the redacted diagnostic output**, not the raw `openclaw secrets audit --json` report. If investigating a specific finding, derive a sanitized classification on the local machine; do not post values or full paths.
+
+
+## Operator approval: OpenClaw downtime permitted (2026-10-18)
+
+Redacted source classification from workstation: `openclaw_json=5`, `dotenv=3`, `other_file=10`, `unclassified=0`; total 18 findings. Source locations do not indicate individual secret values, and `other_file` must not be interpreted as safe to delete. Both `~/.openclaw/openclaw.json` and `~/.openclaw/.env` have mode 0600 and correct owner; config parses as JSON, dotenv has 28 assignments. A previous dedicated embedding probe succeeded at 768 dimensions.
+
+The operator explicitly allows OpenClaw downtime during remediation, but **not** automatic deletion or rotation of 18 findings. No permission is inferred to interrupt LiteLLM, TrueNAS, or other services.
+
+### Maintenance sequence (run on workstation, manually)
+
+1. Record current unit state using `systemctl --user is-active openclaw-gateway.service`. Inventory other relevant units/timers first; service name and scope must be verified.
+2. Create an **encrypted, offline or access-controlled** rollback copy of `openclaw.json`, `.env`, agent auth profiles and relevant systemd user overrides; any backup containing credentials is sensitive. Do not store it in repository, GitHub Actions artifacts or unencrypted shared locations. Validate restore availability before changes.
+3. Disable automation that may restart or mutate the gateway while the maintenance window is active; preserve prior enabled/disabled state. Stop OpenClaw only with explicit operator command `systemctl --user stop openclaw-gateway.service` after checking that this is the active unit. Do not run an unreviewed `systemctl disable` or kill unrelated services.
+4. Locally inspect the ten `other_file` findings for ownership and consumers, without posting paths or values. Separate provider credential files from legacy auth material. Prefer supported `openclaw secrets configure` planning workflows; validate generated references, never bulk-rewrite config from raw findings.
+5. Review and migrate the five config findings to supported `SecretRef` providers. Review three dotenv findings only after identifying current consumers; avoid breaking systemd EnvironmentFile dependencies. Store material in private files or an authenticated secret manager with per-consumer ACL and a tested renewal procedure. Never put a LiteLLM master key into OpenClaw.
+6. Treat legacy-residue findings independently; preserve OAuth/session refresh state until its consumers have been tested. Rotate exposed keys only after confirming production dependencies.
+7. Re-run the strict redacted audit. Start only the previously active gateway once required references resolve; verify service health, model routing, and authentication. Roll back from private backup if validation fails, and re-audit after rollback. If audit remains nonzero, migration stays blocked.
+8. The embeddings key and 768-dimension probe do **not** authorize a reindex; reindex requires a separate explicit activation once runtime `SecretRef` and TrueNAS routing checks pass.
+
+### One-shot safe source summary
+
+```bash
+cd ~/w/nabla-compose
+python3 -m unittest discover -s tests -p 'test_openclaw_secret_findings_classifier.py' -v
+python3 scripts/workstation/classify-openclaw-secret-findings.py
+```
+
+The classifier returns nonzero while findings remain even if grouping succeeds; this is expected and must not be bypassed. Do not upload raw `openclaw secrets audit --json` output.
