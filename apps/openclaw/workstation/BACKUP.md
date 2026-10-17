@@ -5,8 +5,12 @@
 The private repository `AlbanAndrieu/nabla` already tracks
 `env/home/dotfiles/.openclaw/workspace/HEARTBEAT.md` and other OpenClaw
 files (`openclaw.json`, agent/workspace material, `.env`,
-`gateway.systemd.env`, `exec-approvals.json`). Their presence in a
-private repository does **not** establish safe, secret-free backup.
+`gateway.systemd.env`, `exec-approvals.json`). The operator confirms that `.env` and `gateway.systemd.env` are encrypted in `nabla`.
+Keep these and all potentially personal `USER.md`, `SOUL.md`, identities and
+related dotfiles in private `nabla`; **do not migrate or delete them**.
+Encryption of two files has been reported, but has not been independently
+verified here. Review encryption boundaries and history locally without
+printing values.
 An attempted remote content read of the old HEARTBEAT.md failed decoding;
 therefore its byte-for-byte contents have NOT been migrated or validated.
 
@@ -28,7 +32,8 @@ outstanding.
 | Tier | Contents | Destination | Policy |
 | --- | --- | --- | --- |
 | A: reviewed Git configuration | Minimal `HEARTBEAT.md`, sanitized templates, runbooks, deterministic scripts | `nabla-compose/apps/openclaw/workstation/` | Versioned; PR reviewed; no secrets or personal content |
-| B: private workstation runtime | `openclaw.json`, agent/session state, SQLite, memories, credentials, approvals, environment files | Offline encrypted archive, e.g. restic to protected storage | **Never Git push raw data**; encryption, scoped access, retention, restore test |
+| B: owner-controlled private Git dotfiles | Encrypted `.env`, encrypted `gateway.systemd.env`, personal `USER.md`/`SOUL.md`, identity, agent and configuration templates | Private `AlbanAndrieu/nabla` | **Retain, do not migrate or delete**; verify protection before changing | 
+| D: live runtime backup | Active per-agent `openclaw-agent.sqlite`, sessions, memory database, credentials and workspace runtime | Verified encrypted OpenClaw archive/SQLite snapshot or Restic | Do not copy live SQLite/WAL raw into Git; restore drill required |
 | C: baseline infrastructure | Compose service definitions and non-secret policies | `nabla-compose/apps/openclaw/` | Existing Git workflow |
 
 Git is **not** a replacement for a restorable runtime backup. Commit history
@@ -68,17 +73,33 @@ restoration of the gateway service.
 
 ## Roadmap acceptance
 
-1. Establish a one-time sensitive-data inventory in old `nabla` Git history;
-   rotate any exposed tokens, redact and retire old dotfiles source only after
-   confirming the clean canonical copy.
+1. Preserve `nabla` as owner of private/encrypted dotfiles and personal agent instructions.
+   Audit encryption and history only; rotate credentials **if exposure is confirmed**.
+   Do not retire personal dotfiles or rewrite repository history by default.
 2. Verify installed OpenClaw version respects comment-only heartbeat skip
    semantics (without generating paid calls); assess whether native heartbeat
    should instead be explicitly disabled and replaced with deterministic
    monitoring.
 3. Run targeted hermetic tests and local-first quality gate, then operator
    approves `--apply`; do not change LiteLLM budgets.
-4. Configure encrypted restic repository, least-privilege credentials,
-   scheduling and retention, with a full restore to a scratch directory.
+4. Check `openclaw backup --help` and `openclaw backup sqlite --help` on installed
+   OpenClaw 2026.9.5. If available, use consistent verified per-agent SQLite
+   snapshots (including `cron`) and a full encrypted state/workspace archive;
+   otherwise use SQLite online backup API with WAL consistency, never `cp` of
+   a live database. Add scoped Restic storage, retention and scratch restore.
 5. Monitor 429, request tokens/cost per virtual key, heartbeat failures
    and 401 memory embedding separately. Do not claim success based solely
    on file match.
+
+## Current heartbeat evidence (2026-10-17)
+
+The operator validated 8 targeted pytest tests and SHA-256 parity after `--apply`.
+However latest 3 heartbeat runs still failed (`agent-runner-failure`, approximately
+279–284 seconds), and application logs in the last 30 minutes report budget 429,
+context pressure, timeouts and embedding 401. These diagnostics are aggregated,
+not per-request cost attribution. Administrative LiteLLM audit was skipped because
+its master key was absent from the script environment; do not expose that key or
+bypass budgets. OpenClaw documentation distinguishes `workspace/HEARTBEAT.md`
+from per-monitor cron scratch and documents a `reason=empty-heartbeat-file` skip.
+Identify the *active* scratch and verify skip events before calling this fixed.
+Do not perform billable manual probes.
