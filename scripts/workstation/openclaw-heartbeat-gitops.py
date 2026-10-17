@@ -6,7 +6,6 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
-import shutil
 import stat
 import tempfile
 from datetime import datetime, timezone
@@ -53,11 +52,17 @@ def operate(action: str, home: Path, source: Path = SOURCE) -> str:
     os.chmod(backup_dir, 0o700)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup = backup_dir / f"HEARTBEAT.{timestamp}.{digest(current)[:12]}.md"
-    fd = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
-    with os.fdopen(fd, "wb") as stream:
-        stream.write(current)
-        stream.flush()
-        os.fsync(stream.fileno())
+    try:
+        fd = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        # Same-second backup of unchanged bytes: retain existing snapshot, never overwrite.
+        if validated_file(backup) != current:
+            raise ValueError("backup_collision_different_content") from None
+    else:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(current)
+            stream.flush()
+            os.fsync(stream.fileno())
     if action == "backup":
         return f"backup={backup} sha256={digest(current)}"
     fd, temp_name = tempfile.mkstemp(prefix=".heartbeat-", dir=target.parent)
