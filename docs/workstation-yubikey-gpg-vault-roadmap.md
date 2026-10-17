@@ -1419,3 +1419,40 @@ L'installation du plugin n'a pas été exécutée sur la workstation par
 l'agent. Le résultat de `--list` doit être traité comme un inventaire,
 non une autorisation de provisionner un emplacement PIV. Référence :
 https://github.com/str4d/age-plugin-yubikey (prérequis PC/SC et Cargo).
+
+### Installation age-plugin-yubikey : échec Cargo PC/SC et correction (17 octobre 2026)
+
+L'opérateur a lancé `bootstrap-yubikey-manager.sh --apply`.
+Ubuntu a confirmé `libpcsclite-dev 2.4.1-1` et
+`pkg-config 2.5.1-4` déjà installés ; Cargo 1.93.1 a téléchargé
+`age-plugin-yubikey 0.5.1`, puis la compilation s'est arrêtée
+sur `pcsc-sys 1.2.1` : `Could not find a PCSC library`.
+Le contrôle `--check` a ensuite justement signalé le plugin
+absent. Le plugin **n'est pas encore installé** sur le poste.
+
+Le bootstrap exécute désormais un contrôle préalable sur
+`/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig/libpcsclite.pc`
+et teste explicitement la résolution par `/usr/bin/pkg-config`.
+Pour le sous-processus Cargo uniquement, il neutralise
+`PKG_CONFIG_LIBDIR` et `PKG_CONFIG_SYSROOT_DIR`, et fournit
+`PKG_CONFIG_PATH` pointant sur les répertoires pkg-config
+système. Aucune variable globale de la session n'est modifiée.
+Les avertissements Cargo sur les dépendances `yanked`
+du lockfile ne sont **pas** la cause directe de ce build failed ;
+un audit de dépendances reste recommandé.
+
+Après récupération de la branche :
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+bash scripts/workstation/bootstrap-yubikey-manager.sh --apply
+bash scripts/workstation/bootstrap-yubikey-manager.sh --check
+command -v age-plugin-yubikey
+age-plugin-yubikey --version
+age-plugin-yubikey --list
+```
+
+Si le préflight PC/SC échoue encore, remonter la sortie précise
+du nouveau contrôle et `/usr/bin/pkg-config --modversion libpcsclite`,
+sans retirer la carte, modifier les slots, réinitialiser PIV ou
+fournir de PIN. Compilation locale non vérifiée par l'agent.
