@@ -173,6 +173,56 @@ localement avant tout essai de `reader-port`. D'après le manuel GnuPG,
 n'est pas intrinsèquement une erreur, car le lecteur par défaut est
 normalement le premier trouvé.
 
+### Correction du runbook interactif (2026-10-17)
+
+**Attention :** le bloc d'essai précédent commençait par `set -e`
+dans le shell interactif. Si `test ! -e "$BACKUP"` échoue parce
+que le fichier existe, Bash peut fermer le terminal. De même,
+`gpg --card-status` renvoie un code non nul tant que la carte
+n'est pas sélectionnée. **Ne pas lancer `set -e` directement dans
+le terminal.** Pour désactiver ce mode dans la session :
+`set +e`.
+
+Une sauvegarde `scdaemon.conf.before-reader-port` existe déjà
+sur la workstation. Ne pas l'écraser ni présumer de son contenu.
+La restauration opérateur a réussi; contrôler les directives
+actuelles en lecture seule avant un nouvel essai :
+
+```bash
+bash scripts/workstation/plan-gpg-reader-port.sh --check
+grep -nE '^[[:space:]]*(disable-ccid|reader-port|pcsc-driver)' \
+  "$(gpgconf --list-dirs homedir)/scdaemon.conf" || true
+```
+
+Pour éviter toute sortie intempestive d'une session interactive,
+effectuer le diagnostic de la carte en conditionnelle :
+
+```bash
+if gpg --card-status; then
+  echo '✅ Carte accessible'
+else
+  printf '⚠️ Carte inaccessible (code %s)\n' "$?"
+fi
+```
+
+Le `dmesg` partagé comporte **quatre segfaults dans
+`libpcsclite_real.so.1` le 16 octobre**. Leur nom de thread
+(`pool-0`, `pool-1`, `pool-3`) ne permet pas
+d'attribuer l'incident à `scdaemon` sans identification du
+processus via `coredumpctl` et les événements système.
+Ces erreurs sont antérieures aux manipulations USB volontaires
+du 17 octobre. Priorité à une identification non destructive :
+
+```bash
+coredumpctl list --since '2026-10-16 00:00:00' --no-pager \
+  2>/dev/null | grep -E 'libpcsclite|pool-|gpg|scdaemon' || true
+journalctl -k --since '2026-10-16 00:00:00' --until '2026-10-17 00:00:00' \
+  --no-pager | grep -F 'libpcsclite_real.so.1' || true
+```
+
+Ne pas transmettre de dump mémoire ni lancer `coredumpctl dump` :
+un processus lié à GPG peut contenir des informations sensibles.
+
 ### Essai supervisé (modifie uniquement scdaemon.conf local)
 
 Ce test est à exécuter seulement après avoir terminé les opérations
@@ -180,8 +230,13 @@ Git signées ou les sauvegardes qui utilisent GPG :
 
 ```bash
 umask 077
-cp -p ~/.gnupg/scdaemon.conf \
-  ~/.gnupg/scdaemon.conf.before-reader-port
+# Stopper manuellement si le backup existe, sans activer set -e dans le shell.
+if [[ -e ~/.gnupg/scdaemon.conf.before-reader-port ]]; then
+  echo '⚠️ Sauvegarde existante : interrompre et vérifier avant toute modification.'
+else
+  cp -p ~/.gnupg/scdaemon.conf ~/.gnupg/scdaemon.conf.before-reader-port
+  echo '✅ Sauvegarde créée ; les étapes suivantes sont à lancer séparément.'
+fi
 # Vérifier que le nom du lecteur correspond exactement à pcsc_scan.
 printf '%s\n' 'reader-port Yubico YubiKey OTP+FIDO+CCID 00 00' \
   >> ~/.gnupg/scdaemon.conf
