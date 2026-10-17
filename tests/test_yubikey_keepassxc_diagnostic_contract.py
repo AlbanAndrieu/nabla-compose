@@ -126,6 +126,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "systemctl restart pcscd", "set -x"):
             self.assertNotIn(forbidden, content)
 
+    def test_yubikey_bootstrap_installs_age_plugin_without_provisioning(self):
+        script = ROOT / "scripts/workstation/bootstrap-yubikey-manager.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("age-plugin-yubikey", result.stdout)
+        body = script.read_text()
+        for required in ("cargo install --locked", "AGE_PLUGIN_VERSION",
+                         "libpcsclite-dev", "check_age_plugin"):
+            self.assertIn(required, body)
+        for forbidden in ("--generate", "piv reset", "keytocard", "set -x"):
+            self.assertNotIn(forbidden, body)
+
     def test_no_destructive_operations(self):
         text = SCRIPT.read_text()
         for forbidden in ("otp chalresp", "otp delete", "piv reset", "piv keys import",
