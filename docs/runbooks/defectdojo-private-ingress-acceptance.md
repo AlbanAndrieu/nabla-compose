@@ -50,3 +50,23 @@ dig +short @1.1.1.1 defectdojo.int.albandrieu.com A
 ```
 
 Resolve the private DNS via the canonical Pi-hole sync -> Unbound pathway; do not create an unreviewed public DNS or Cloudflare Tunnel route. Validate LAN firewall and inter-VLAN restrictions separately, as binding to an RFC1918 address does not constitute an access-control policy. Do not perform `--apply` until the authenticated endpoint, parser and engagement are approved.
+
+## TrueNAS preflight accepted, DNS still pending (operator evidence)
+
+On the current PR branch, `bash scripts/agent-quality-gate.sh --preflight` passed all Git-only checks including the destructive-diff guard. `br0` owns `172.17.0.24/24`, Docker publishes `8080/tcp -> 172.17.0.24:31085`, and unauthenticated `GET /api/v2/` returned HTTP 403. Queries against Pi-hole `172.17.0.24`, Unbound `172.17.0.1`, and public `1.1.1.1` produced no A records for the private DefectDojo name. These observations do **not** establish HTTPS, API authorization or firewall policy acceptance.
+
+Next perform read-only diagnostics, preserving DNS server response codes (NXDOMAIN versus NOERROR/NODATA) and Traefik router status:
+
+```bash
+for dns in 172.17.0.24 172.17.0.1 1.1.1.1; do
+  echo "== DNS ${dns} =="
+  dig +time=2 +tries=1 +noall +comments +answer +authority @"${dns}" defectdojo.int.albandrieu.com A
+done
+sudo docker inspect defectdojo --format '{{json .NetworkSettings.Networks}}' | jq 'keys'
+sudo docker inspect traefik --format '{{json .NetworkSettings.Networks}}' | jq 'keys'
+curl --noproxy '*' -sS -D - -o /dev/null --max-time 10 \
+  --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
+  https://defectdojo.int.albandrieu.com/
+```
+
+Do not use `curl -k` for acceptance. A missing DNS A record should be corrected in the existing label-driven Pi-hole sync path, after confirming the sync's container selection, labels and successful reconciliation. Do not create an unrelated pfSense override or public record. The `--apply` importer remains gated on approved authenticated API validation and a reviewed scan report.
