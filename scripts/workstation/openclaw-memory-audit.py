@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Read-only, redacted OpenClaw memory status and embedding configuration audit."""
+"""Read-only OpenClaw memory coverage audit; never echo provider errors or secrets."""
 import json
-import re
 import subprocess
 
 def command(*args):
@@ -11,16 +10,57 @@ def command(*args):
     except (OSError, subprocess.TimeoutExpired):
         return 127, ""
 
-def walk(obj, keys):
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if k in keys:
-                yield k, v
-            if isinstance(v, (dict, list)):
-                yield from walk(v, keys)
-    elif isinstance(obj, list):
-        for v in obj:
-            yield from walk(v, keys)
+def agents(data):
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("agents", "results", "statuses"):
+            if isinstance(data.get(key), list):
+                return data[key]
+        return [data]
+    return []
+
+def scalar(obj, *names):
+    if not isinstance(obj, dict):
+        return None
+    for name in names:
+        if type(obj.get(name)) in (str, int, float, bool):
+            return obj[name]
+    return None
+
+def summarize(data):
+    items = agents(data)
+    print(f"memory_agent_records={len(items)}")
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        raw_name = scalar(item, "agentId", "agent", "id")
+        name = raw_name if raw_name in ("main", "cron") else f"record_{index}"
+        files = item.get("files") if isinstance(item.get("files"), dict) else {}
+        indexed = scalar(item, "indexedFiles", "filesIndexed")
+        if indexed is None:
+            indexed = scalar(files, "indexed", "indexedFiles")
+        total = scalar(item, "totalFiles")
+        if total is None:
+            total = scalar(files, "total", "totalFiles")
+        chunks = scalar(item, "chunks")
+        dirty = scalar(item, "dirty")
+        provider = scalar(item, "provider")
+        model = scalar(item, "model")
+        for key, value in (("indexed_files", indexed), ("total_files", total), ("chunks", chunks), ("dirty", dirty)):
+            if type(value) in (int, float, bool):
+                print(f"memory_{name}_{key}={str(value).lower() if isinstance(value, bool) else value}")
+        if provider in ("openai", "openai-compatible", "ollama", "local", "gemini", "voyage", "mistral", "bedrock", "deepinfra", "github-copilot", "lmstudio"):
+            print(f"memory_{name}_provider={provider}")
+        if model in ("text-embedding-3-small", "text-embedding-3-large"):
+            print(f"memory_{name}_model={model}")
+        if type(indexed) is int and type(total) is int and total > 0:
+            print(f"memory_{name}_coverage_pct={100 * indexed / total:.1f}")
+            if indexed < total:
+                print(f"WARN: memory_{name}_index_incomplete")
+        if dirty is True:
+            print(f"WARN: memory_{name}_index_dirty")
+    print("NOTE: no deep probe or credential output; embedding 401 requires separate safe evidence")
 
 def main():
     rc, raw = command("openclaw", "memory", "status", "--json")
@@ -33,25 +73,16 @@ def main():
         print("memory_status=invalid_json")
         return 2
     print("memory_status=available")
-    # Avoid printing raw fields: provider errors may contain partial API keys.
-    for key, value in walk(data, {"provider", "model", "dirty", "indexedFiles", "totalFiles", "chunks", "vectorSearch", "embeddings"}):
-        if isinstance(value, (str, int, float, bool)) and key not in ("embeddings",):
-            if key in ("provider", "model") and not re.fullmatch(r"[a-zA-Z0-9._:/-]{1,100}", str(value)):
-                continue
-            if key not in ("provider", "model") or len(str(value)) < 100:
-                print(f"memory_{key}={value}")
-    # Probe can contact remote provider: opt-in only, do not print raw errors.
-    rc, schema = command("openclaw", "config", "schema", "--json")
+    summarize(data)
+    rc, raw = command("openclaw", "config", "schema", "--json")
     if rc == 0:
         try:
-            tree = json.loads(schema)
-            props = tree.get("properties", {})
-            memory = props.get("memory", {})
-            search = memory.get("properties", {}).get("search", {}).get("properties", {})
-            print("memory_search_schema=" + ("available" if search else "unresolved"))
-            if search:
-                print("memory_search_schema_fields=" + ",".join(sorted(search.keys())))
-        except ValueError:
+            tree = json.loads(raw)
+            props = tree.get("properties", {}).get("memory", {}).get("properties", {}).get("search", {}).get("properties", {})
+            print("memory_search_schema=" + ("available" if props else "unresolved"))
+            if props:
+                print("memory_search_supports_openai_compatible=" + str("provider" in props and "remote" in props).lower())
+        except (ValueError, AttributeError):
             print("memory_search_schema=invalid_json")
     else:
         print("memory_search_schema=unavailable")
