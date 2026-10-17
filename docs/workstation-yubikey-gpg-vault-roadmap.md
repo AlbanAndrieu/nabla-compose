@@ -1919,3 +1919,9 @@ L'opérateur rapporte `~/.config/sops/age/keys.txt` **présent**, propriétaire 
 ### SOPS age — correspondance de la clé logicielle confirmée
 
 Le contrôle `age-keygen -y ~/.config/sops/age/keys.txt` a produit le destinataire public `age1t8wn2gqcpzxwvwhjwxwtdwp0tvr6k2z9j39v4q2fr55qhmqz7f2qvn25cp`, identique au destinataire de `fastapi-sample/.sops.yaml`. Le fichier contient donc une identité age correspondant à ce destinataire (vérification de correspondance publique, pas encore un test de déchiffrement SOPS). Ne jamais journaliser `AGE-SECRET-KEY-*`. Les permissions initialement constatées étaient 0644 ; la correction 0600/0700 n'a pas encore été confirmée par la workstation. Prochain contrôle : fixture SOPS synthétique en répertoire privé temporaire puis test de déchiffrement, et sauvegarde chiffrée indépendante avant génération age PIV 82 sur chacune des deux YubiKeys.
+
+### Acceptation SOPS/age logicielle — fixture validée (17 octobre 2026)
+
+Sur la workstation, SOPS 3.13.3 a chiffré une fixture YAML synthétique pour le destinataire age `age1t8wn2gqcpzxwvwhjwxwtdwp0tvr6k2z9j39v4q2fr55qhmqz7f2qvn25cp`, puis `sops decrypt` a produit exactement `message: yubikey-sops-recovery-test`. Résultat **PASS** : chiffrement et déchiffrement de bout en bout avec l'identité logicielle présente localement. La fixture a été supprimée après l'essai.
+
+**Gates encore ouverts avant PIV 82 :** confirmer `stat` mode `600` sur `~/.config/sops/age/keys.txt` et mode `700` sur son dossier ; établir une copie de secours chiffrée hors workstation, vérifier sa lisibilité et son moyen de récupération indépendant. Ensuite seulement tester deux destinataires YubiKey matériels distincts (sans supprimer le destinataire age X25519, sans modifier OTP2 ou PIV 9A). Aucune identité matérielle provisionnée à cette date.
