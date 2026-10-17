@@ -538,3 +538,22 @@ sans `set -e` interactif. Interroger `gpg-connect-agent` avec un
 timeout, puis regarder les PIDs et mappings. Ne pas utiliser
 `gpgconf --kill all`, ne pas créer de profil avec des secrets
 et ne pas modifier `scdaemon.conf`.
+
+### P0 — Scdaemon vivant, /proc/PID/maps restreint (17 octobre 2026)
+
+L'opérateur a exécuté `SCD GETINFO version` : `D 2.4.8`,
+`OK`. `gpg --card-status` échoue `No such device`. Un
+`scdaemon --multi-server` PID 1053989 reste actif. Lire
+`/proc/1053989/maps` comme l'utilisateur produit `Permission denied`.
+Cela **ne prouve pas** que `libpcsclite` manque : accès `/proc`
+potentiellement limité par les protections noyau/ptrace.
+L'essai root `pgrep -u "$(id -u)"` cherchait UID 0, pas
+l'instance UID 1000 : aucune conclusion possible de sa sortie vide.
+
+Prochain contrôle sans privilèges : `gpgconf --list-options scdaemon`,
+`ldconfig -p` et statut `pcscd` sont déjà validés. Si un contrôle
+de mapping est indispensable, cibler le bon UID/PID, sans désactiver
+les protections du noyau. Préférer ensuite un diagnostic isolé
+`GNUPGHOME` temporaire pour comparer transport CCID intégré et
+PC/SC, sans importer de clés privées, sans toucher aux slots, et
+sans interrompre le profil GnuPG utilisateur.
