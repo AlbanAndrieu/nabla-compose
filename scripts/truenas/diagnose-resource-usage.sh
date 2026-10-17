@@ -18,6 +18,7 @@ has() { command -v "$1" >/dev/null 2>&1; }
 if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
   section "Host identity / uptime"
   hostname 2>/dev/null || true
+  uname -a 2>/dev/null || true
   uptime 2>/dev/null || true
   section "Memory"
   if has free; then free -h; else head -n 8 /proc/meminfo; fi
@@ -42,7 +43,7 @@ if [[ "$MODE" == "--all" || "$MODE" == "--docker" ]]; then
   elif ! docker info >/dev/null 2>&1; then
     printf 'INFO: Docker daemon unavailable or permission denied.\n'
   else
-    docker info --format 'Containers={{.Containers}} Running={{.ContainersRunning}} Stopped={{.ContainersStopped}}'
+    docker info --format 'Containers={{.Containers}} Running={{.ContainersRunning}} Paused={{.ContainersPaused}} Stopped={{.ContainersStopped}} Images={{.Images}}'
     section "Docker statistics (single snapshot)"
     docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.PIDs}}' 2>&1 | head -n 40 || true
     section "Container status"
