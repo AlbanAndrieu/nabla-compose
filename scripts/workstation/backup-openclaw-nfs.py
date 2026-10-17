@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 import sqlite3
@@ -110,6 +111,36 @@ def diagnostic(root: Path) -> dict:
     return checks
 
 
+def transfer_staged(source: Path, destination: Path) -> list[Path]:
+    """Copy staged artifacts without following symlinks; verify NFS contents."""
+    copied = []
+    for item in source.rglob("*"):
+        if item.is_symlink():
+            raise ValueError("staging_symlink_refused")
+        if not item.is_file():
+            continue
+        relative = item.relative_to(source)
+        target = destination / relative
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if target.exists() or target.is_symlink():
+            raise ValueError("backup_target_already_exists")
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        try:
+            with os.fdopen(fd, "wb") as out, item.open("rb") as inp:
+                shutil.copyfileobj(inp, out)
+                out.flush()
+                os.fsync(out.fileno())
+        except BaseException:
+            target.unlink(missing_ok=True)
+            raise
+        if item.stat().st_size != target.stat().st_size or sha(item) != sha(target):
+            raise ValueError("staged_copy_sha256_mismatch")
+        copied.append(target)
+    if not copied:
+        raise ValueError("no_staged_artifacts")
+    return copied
+
+
 def execute(root: Path, workboard: Path, dry_run: bool = False) -> dict:
     check_mount(root)
     if dry_run:
@@ -118,12 +149,25 @@ def execute(root: Path, workboard: Path, dry_run: bool = False) -> dict:
     safe_dirs(root)
     before = {str(p.relative_to(root)) for base in (root / "archives", root / "sqlite")
               for p in base.rglob("*") if p.is_file()}
-    for kind in KINDS:
-        args = ["openclaw", "backup", "sqlite", "create"]
-        args += ["--global"] if kind == "global" else ["--agent", kind]
-        run(*(args + ["--repository", str(root / "sqlite" / kind)]))
+    # OpenClaw rejects NFS ancestors that permit cross-user path replacement.
+    # Keep its security guard intact: snapshot to private local staging first.
+    stage_base = Path.home() / ".local/share/nabla-compose"
+    if stage_base.is_symlink() or not stage_base.is_dir() or stage_base.stat().st_mode & 0o022:
+        raise ValueError("unsafe_local_staging_parent")
+    with tempfile.TemporaryDirectory(prefix="openclaw-nfs-stage-", dir=stage_base) as temp:
+        stage = Path(temp)
+        for kind in KINDS:
+            args = ["openclaw", "backup", "sqlite", "create"]
+            args += ["--global"] if kind == "global" else ["--agent", kind]
+            staged_repo = stage / "sqlite" / kind
+            run(*(args + ["--repository", str(staged_repo)]))
+            transfer_staged(staged_repo, root / "sqlite" / kind)
+        # The general archive is also staged locally and verified before NFS copy.
+        archive_stage = stage / "archives"
+        archive_stage.mkdir(mode=0o700)
+        run("openclaw", "backup", "create", "--output", str(archive_stage), "--verify")
+        transfer_staged(archive_stage, root / "archives")
     workboard_file = snapshot_workboard(workboard, root / "sqlite/workboard")
-    run("openclaw", "backup", "create", "--output", str(root / "archives"), "--verify")
     entries = inventory(root, before)
     if not entries or not any(e["path"].startswith("archives/") for e in entries):
         raise ValueError("no_new_archive_detected")
