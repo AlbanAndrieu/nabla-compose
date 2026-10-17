@@ -32,3 +32,21 @@ Expected: Pi-hole and Unbound both resolve the private name to `172.17.0.24`; th
 On October 17, 2026, Pi-hole returned `172.17.0.24` for Hello but no A answer for DefectDojo; pfSense/Unbound returned the public `82.66.4.247` for Hello; `pihole-dns-sync` was healthy (historical restart count 1); DefectDojo's frontend was on the `intranet` network prior to applying the merged Traefik change. The `--check` gate failed because `catalog/service-topology.json` was stale.
 
 The DNS discrepancy requires independent diagnosis. Do not introduce a per-service pfSense Host Override unless the documented delegated-zone architecture is deliberately changed. Do not expose DefectDojo as a Hello-style public canary. No runtime acceptance is claimed by this document.
+
+## LAN API bind and importer contract (follow-up to PR #258)
+
+Operator observations: Docker publishes `172.17.0.24:31085` (not `127.0.0.1:31085`); unauthenticated `GET http://172.17.0.24:31085/api/v2/` returned HTTP 403; `defectdojo.int.albandrieu.com` was unresolved through the default resolver. HTTP 403 confirms a reachable HTTP endpoint, **not** a successful authenticated API call. No public exposure has been validated.
+
+The scan importer now uses the fixed TrueNAS LAN binding `http://172.17.0.24:31085/api/v2/reimport-scan/`. The existing host checkout requirement is supplemented by a local-interface check for `172.17.0.24` prior to reading credentials or sending the scan. The endpoint is not configurable, the importer disables proxies, redirects and HTTPS downgrade/fallback, and the apply path still requires root, explicit approval and the protected token file.
+
+Read-only checks before first import:
+
+```bash
+sudo ss -ltnp | grep ':31085'
+curl --noproxy '*' --max-time 5 -sS -o /dev/null -w 'HTTP %{http_code}\n' http://172.17.0.24:31085/api/v2/
+dig +short @172.17.0.24 defectdojo.int.albandrieu.com A
+dig +short @172.17.0.1 defectdojo.int.albandrieu.com A
+dig +short @1.1.1.1 defectdojo.int.albandrieu.com A
+```
+
+Resolve the private DNS via the canonical Pi-hole sync -> Unbound pathway; do not create an unreviewed public DNS or Cloudflare Tunnel route. Validate LAN firewall and inter-VLAN restrictions separately, as binding to an RFC1918 address does not constitute an access-control policy. Do not perform `--apply` until the authenticated endpoint, parser and engagement are approved.
