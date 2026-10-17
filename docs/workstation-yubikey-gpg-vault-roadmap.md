@@ -211,9 +211,9 @@ Source : https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
 `timeout 5 pcsc_scan -n` détecte `Yubico YubiKey OTP+FIDO+CCID 00 00`
 et un ATR identique lors de deux lectures. Le scanner affiche
 successivement `Card inserted, Shared Mode`, puis `Waiting for the
-first reader` avant de retrouver la carte. Cela **suggère** une
-réénumération temporaire du lecteur, sans établir si elle est due à
-l'USB, à pcscd ou à un logiciel concurrent.
+first reader` avant de retrouver la carte. **L'opérateur a explicitement débranché et rebranché la clé** pour
+vérifier la détection : cette réénumération USB est attendue et
+**ne constitue pas un indice d'instabilité matérielle**.
 
 Prochain contrôle en lecture seule : relevé ciblé des événements
 `journalctl -k --since '-10 min' --no-pager` et
@@ -221,3 +221,18 @@ Prochain contrôle en lecture seule : relevé ciblé des événements
 d'une seule tentative `gpg --card-status`. Inspecter localement
 les identifiants et chemins avant de partager les journaux.
 Ne pas redémarrer PC/SC et ne pas changer de slot.
+
+### Clarification opérateur — 17 octobre 2026, 12:36
+
+Les déconnexions/reconnexions USB de 12:33 sont **volontaires**.
+Les erreurs PC/SC `SCardConnect ... Not Found` à 12:33:28
+correspondent à la période de réénumération et ne prouvent
+aucune panne persistante du lecteur. Une nouvelle tentative
+`gpg --card-status` à 12:36:31 échoue toujours par
+`No such device` alors que la carte est connectée.
+
+**Priorité corrigée :** investiguer la sélection de l'applet par
+`scdaemon` et la configuration GnuPG/PCSC, plutôt que l'USB.
+Ne pas demander d'autres cycles de débranchement ni redémarrer
+`pcscd` sans justification. La procédure réversible `reader-port`
+reste une hypothèse à tester, non une correction confirmée.
