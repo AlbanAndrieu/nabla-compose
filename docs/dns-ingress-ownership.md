@@ -321,3 +321,14 @@ These backups can contain credentials, API tokens, certificates, and private key
 The operator also removed a public Cloudflare DNS record named `int.albandrieu.com`, which they had expected to behave as a wildcard. This change is distinct from the private pfSense Domain Override and must not be reversed for private services. A DNS record at `int.albandrieu.com` does not wildcard `*.int.albandrieu.com`; an explicit wildcard record would be needed for that public behavior, which is prohibited by the private-zone policy. The remaining public Hello exception must be reviewed separately. Re-run the Cloudflare DNS inventory to establish whether the prior unexpected record finding is cleared.
 
 Cloudflare DNS configuration should be managed through reviewed OpenTofu/Terraform infrastructure as code, with imports of existing resources before changes, a read-only drift audit, least-privilege scoped API token sourced from a secret store, explicit protected exceptions, and CI `plan` without automatic `apply`. Never place Terraform state containing secrets in Git; use a protected remote backend. No Cloudflare API modification has been performed by this documentation update.
+
+### Cloudflare inventory follow-up — 2026-10-17 23:39 CEST
+
+Read-only `scripts/security/audit-public-int-dns.sh --check` returned exit 3, identifying exactly one unexpected record:
+
+| Public Cloudflare record | Type | Target | Classification |
+| --- | --- | --- | --- |
+| `hello.int.albandrieu.com` | A | `82.66.4.247` | TEMPORARY-EXCEPTION (allowed) |
+| `s3.int.albandrieu.com` | CNAME | `albandrieu.com` | UNEXPECTED (not allowlisted) |
+
+Cloudflare record ID for the unexpected S3 alias: `8ed02a21a1b0b9e4cab48cea079962c7`. The operator has already removed the separate `int.albandrieu.com` record. **Do not add S3 to the public exceptions allowlist**: `config/public-int-dns-exceptions.txt` explicitly requires Garage S3 to remain internal. First inventory any external S3 clients and their dependencies, confirm internal `dig @172.17.0.1 s3.int.albandrieu.com A` and internal HTTPS/S3 operations, then remove the public CNAME through a reviewed change and rerun the audit. DNS publication does not by itself prove the S3 API is reachable through public ingress; test separately. No Cloudflare DNS record was modified by this documentation update.
