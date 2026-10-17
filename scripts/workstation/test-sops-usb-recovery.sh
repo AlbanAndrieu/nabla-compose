@@ -22,28 +22,31 @@ while (( $# )); do
     *) echo 'Unknown option' >&2; exit 2 ;;
   esac
 done
-[[ -f "$backup" && ! -L "$backup" && -r "$backup" && -f "$usb_identity" && ! -L "$usb_identity" && -r "$usb_identity" ]] || {
+[[ -f "${backup}" && ! -L "${backup}" && -r "${backup}" && -f "${usb_identity}" && ! -L "${usb_identity}" && -r "${usb_identity}" ]] || {
   echo 'Backup and USB identity must be regular readable files' >&2; exit 2;
 }
-[[ "$(stat -c %a "$usb_identity")" == 600 ]] || { echo 'USB identity permissions must be 600' >&2; exit 2; }
+[[ "$(stat -c %a "${usb_identity}")" == 600 ]] || { echo 'USB identity permissions must be 600' >&2; exit 2; }
 [[ "$(findmnt -n -o FSTYPE -T /dev/shm)" == tmpfs ]] || { echo '/dev/shm is not tmpfs' >&2; exit 2; }
-for cmd in age age-keygen sops mktemp grep; do command -v "$cmd" >/dev/null || {
-  echo "Missing dependency: $cmd" >&2; exit 1;
-}; done
+for cmd in age age-keygen sops mktemp grep; do
+  command -v "${cmd}" >/dev/null || {
+    echo "Missing dependency: ${cmd}" >&2
+    exit 1
+  }
+done
 tmp="$(mktemp -d /dev/shm/nabla-sops-smoke.XXXXXXXX)"
 cleanup() {
-  rm -f -- "$tmp/restored.txt" "$tmp/test.yaml" "$tmp/encrypted.yaml" "$tmp/decrypted.yaml"
-  rmdir -- "$tmp"
+  rm -f -- "${tmp}/restored.txt" "${tmp}/test.yaml" "${tmp}/encrypted.yaml" "${tmp}/decrypted.yaml"
+  rmdir -- "${tmp}"
 }
 trap cleanup EXIT
-age -d -i "$usb_identity" -o "$tmp/restored.txt" "$backup"
-[[ "$(age-keygen -y "$tmp/restored.txt" 2>/dev/null)" == "$recipient" ]] || {
+age -d -i "${usb_identity}" -o "${tmp}/restored.txt" "${backup}"
+[[ "$(age-keygen -y "${tmp}/restored.txt" 2>/dev/null)" == "${recipient}" ]] || {
   echo 'Recovered age identity mismatch' >&2; exit 1;
 }
-printf 'message: sops-recovery-ok\n' > "$tmp/test.yaml"
-sops encrypt --age "$recipient" --input-type yaml --output-type yaml "$tmp/test.yaml" > "$tmp/encrypted.yaml"
+printf 'message: sops-recovery-ok\n' > "${tmp}/test.yaml"
+sops encrypt --age "${recipient}" --input-type yaml --output-type yaml "${tmp}/test.yaml" > "${tmp}/encrypted.yaml"
 # Prevent SOPS from falling back to the workstation home identity.
-SOPS_AGE_KEY_FILE="$tmp/restored.txt" SOPS_AGE_KEY='' \
-  sops decrypt "$tmp/encrypted.yaml" > "$tmp/decrypted.yaml"
-grep -Fxq 'message: sops-recovery-ok' "$tmp/decrypted.yaml"
+SOPS_AGE_KEY_FILE="${tmp}/restored.txt" SOPS_AGE_KEY='' \
+  sops decrypt "${tmp}/encrypted.yaml" > "${tmp}/decrypted.yaml"
+grep -Fxq 'message: sops-recovery-ok' "${tmp}/decrypted.yaml"
 echo 'PASS: SOPS recovery with USB-backed escrow'

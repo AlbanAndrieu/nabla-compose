@@ -12,20 +12,20 @@ while (( $# )); do
     *) echo 'Unknown argument' >&2; exit 2 ;;
   esac
 done
-[[ "$serial" =~ ^[0-9]+$ ]] || { echo 'Explicit serial required' >&2; exit 2; }
+[[ "${serial}" =~ ^[0-9]+$ ]] || { echo 'Explicit serial required' >&2; exit 2; }
 command -v ykman >/dev/null || { echo 'ykman missing' >&2; exit 1; }
 command -v age-plugin-yubikey >/dev/null || { echo 'age-plugin-yubikey missing' >&2; exit 1; }
 connected="$(ykman list --serials | sed -nE 's/^[[:space:]]*([0-9]+)[[:space:]]*$/\\1/p')"
-[[ "$connected" == "$serial" ]] || { echo 'Connect exactly the selected single YubiKey' >&2; exit 2; }
+[[ "${connected}" == "${serial}" ]] || { echo 'Connect exactly the selected single YubiKey' >&2; exit 2; }
 # ykman commonly returns nonzero for an EMPTY retired slot, e.g. "No key in slot 82".
 # An empty-slot error is an expected safe result; all other errors fail closed.
-if info="$(ykman --device "$serial" piv keys info 82 2>&1)"; then
-  if ! grep -Eiq 'no key( in slot)?|not found|empty' <<< "$info"; then
+if info="$(ykman --device "${serial}" piv keys info 82 2>&1)"; then
+  if ! grep -Eiq 'no key( in slot)?|not found|empty' <<< "${info}"; then
     echo 'PIV slot 82 contains a key or is not confirmed empty; do not overwrite.' >&2
     exit 2
   fi
 else
-  if ! grep -Eiq 'no key( in slot)?|no key present|slot 82.*empty' <<< "$info"; then
+  if ! grep -Eiq 'no key( in slot)?|no key present|slot 82.*empty' <<< "${info}"; then
     echo 'PIV 82 info unavailable for an unknown reason (e.g. PCSC/permission); fail closed.' >&2
     echo 'Diagnostic: confirm one YubiKey, then try ykman --device SERIAL piv keys info 82.' >&2
     exit 1
