@@ -6,10 +6,10 @@ if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb ]]; then
 else
   GREEN='' RED='' YELLOW='' BLUE='' RESET=''
 fi
-section() { printf '\n%b🔎 %s%b\n' "$BLUE" "$1" "$RESET"; }
-pass() { printf '%b✅ PASS%b %s\n' "$GREEN" "$RESET" "$1"; }
-warn() { printf '%b⚠️ WARN%b %s\n' "$YELLOW" "$RESET" "$1"; }
-fail() { printf '%b❌ FAIL%b %s\n' "$RED" "$RESET" "$1" >&2; }
+section() { printf '\n%b🔎 %s%b\n' "${BLUE}" "$1" "${RESET}"; }
+pass() { printf '%b✅ PASS%b %s\n' "${GREEN}" "${RESET}" "$1"; }
+warn() { printf '%b⚠️ WARN%b %s\n' "${YELLOW}" "${RESET}" "$1"; }
+fail() { printf '%b❌ FAIL%b %s\n' "${RED}" "${RESET}" "$1" >&2; }
 failures=0
 warnings=0
 command -v docker >/dev/null || { fail 'docker absent'; exit 2; }
@@ -30,8 +30,8 @@ if ! docker inspect redis --format '{{.State.Running}}' 2>/dev/null | grep -qx t
 else
   password="${REDIS_AUTH:-}"
   secret_file=/mnt/cpool/secrets/runtime/redis/.env.secrets
-  if [[ -z "$password" && -r "$secret_file" ]]; then
-    password="$(python3 - "$secret_file" <<'PY'
+  if [[ -z "${password}" && -r "${secret_file}" ]]; then
+    password="$(python3 - "${secret_file}" <<'PY'
 import pathlib
 import sys
 for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
@@ -44,13 +44,13 @@ for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
 PY
 )"
   fi
-  if [[ -z "$password" ]]; then
+  if [[ -z "${password}" ]]; then
     warn 'Redis : secret indisponible ; authentification non testée'
     warnings=$((warnings + 1))
   else
     # Supply the credential on stdin, not on the command line.
     redis_exec() {
-      printf '%s\n' "$password" | docker exec -i redis sh -c '
+      printf '%s\n' "${password}" | docker exec -i redis sh -c '
         IFS= read -r REDISCLI_AUTH
         export REDISCLI_AUTH
         redis-cli --raw "$@" 2>/dev/null
@@ -68,7 +68,7 @@ PY
   unset password
 fi
 if (( failures > 0 )); then
-  fail "Bilan : $failures échec(s), $warnings avertissement(s)"
+  fail "Bilan : ${failures} échec(s), ${warnings} avertissement(s)"
   exit 1
 fi
-pass "Bilan : 0 échec, $warnings avertissement(s)"
+pass "Bilan : 0 échec, ${warnings} avertissement(s)"
