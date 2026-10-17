@@ -1154,6 +1154,7 @@ Delete the flat model, not the intent.
 | `endpointEnabled` | desired presence only when intentional; observed route/runtime condition separately |
 | `healthNote` | observation condition/documentation |
 | `securityException` | structured risk acceptance only |
+| `probePriority` | single global probe rank; folds into the deployment-unit `probePolicy` (PR #257), never a second ranking |
 
 ### Provider authority
 
@@ -1652,4 +1653,3 @@ When the highest-priority remaining entries are `unclassified`, switch to
 RTO, RPO, MBCO or impact dimensions merely to create a descriptor. Inspect one
 coherent runtime group, establish statefulness/dependencies and owner evidence,
 then materialize only the entities whose classification can be justified.
-
