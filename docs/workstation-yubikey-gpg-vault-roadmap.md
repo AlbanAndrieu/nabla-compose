@@ -835,3 +835,58 @@ Ne pas changer les PIN ni réinitialiser l'applet. Préparer une
 instrumentation minimale et isolée de `scdaemon` avant
 toute nouvelle manipulation de la carte, sans logs APDU
 ni extraction de secrets.
+
+## Recherche amont approfondie — piste pcsc-shared (17 octobre 2026)
+
+**Priorité P0 suivante :** tester `disable-ccid` **avec**
+`pcsc-shared` dans un `GNUPGHOME` jetable et isolé.
+Les essais déjà réalisés n'incluaient pas `pcsc-shared`.
+Il ne s'agit pas de répéter le comparatif PC/SC/CCID :
+le nouveau facteur expérimental est **le mode d'ouverture PC/SC**.
+
+### Éléments amont et limites des preuves
+
+- https://dev.gnupg.org/T5712 — un cas YubiKey 5 NFC a été
+  amélioré en activant `pcsc-shared`.
+- https://lists.gnupg.org/pipermail/gnupg-users/2022-January/065739.html —
+  un utilisateur YubiKey 5 confirme le retour de `gpg --card-status`
+  après `pcsc-shared`.
+- https://dev.gnupg.org/T5436.html — un autre utilisateur avait
+  besoin de `pcsc-shared` pour contourner `No such device`,
+  mais a rencontré des problèmes de cache PIN.
+- https://lists.gnupg.org/pipermail/gnupg-users/2024-April/067055.html —
+  GnuPG 2.4.5 échouait dans un cas alors que 2.2.42 fonctionnait ;
+  **l'auteur indique que `pcsc-shared` ne corrigeait pas son cas**.
+- https://dev.gnupg.org/T6383.html — le même `ERR 100696144`
+  peut aussi masquer `LIBUSB_ERROR_ACCESS` ; le code n'identifie
+  pas à lui seul le défaut.
+- https://gnupg.org/documentation/manuals/gnupg26/scdaemon.1.html —
+  `pcsc-shared` est un mode **explicitement déconseillé par défaut**
+  par GnuPG : sélection d'applet et état du PIN peuvent devenir
+  incohérents lorsqu'il y a d'autres clients.
+- https://dev.gnupg.org/T5484 — détails sur interférence des
+  clients PC/SC et invalidation des états OpenPGP/PIV.
+
+### Protocole proposé, sans intervention sur les clés
+
+1. Préflight côté agent : vérifier l'existence de l'option dans
+   `scdaemon --dump-options` (ou `gpgconf --list-options scdaemon`).
+2. Dans un dossier temporaire `GNUPGHOME` mode 0700, écrire
+   uniquement `disable-ccid` et `pcsc-shared`.
+   Ne copier aucun `gpg-agent.conf`, trousseau ou secret de
+   `~/.gnupg`. Ne pas stopper le daemon utilisateur principal.
+3. Demander une unique lecture `gpg --batch --card-status`
+   à délai borné, en supprimant l'affichage de l'identifiant de
+   carte. Fermer uniquement l'agent temporaire, supprimer ses
+   fichiers et vérifier que le profil principal est inchangé.
+4. **Si succès :** `pcsc-shared` est un contournement possible,
+   pas une résolution prouvée de la cause racine. Réévaluer le
+   risque de concurrence et de PIN avant toute activation durable.
+5. **Si échec :** ne pas persister l'option. Préparer des logs
+   `scdaemon` filtrés (sans APDU, PIN ou secrets) et comparer
+   les versions GnuPG dans un espace isolé, pas en remplaçant
+   les paquets Ubuntu.
+
+**Ne pas** modifier OpenPGP/PIV/OTP, installer de PPA,
+changer les ACL USB, tenter un PIN, activer `debug-level guru`
+ou désactiver les mécanismes de protection.
