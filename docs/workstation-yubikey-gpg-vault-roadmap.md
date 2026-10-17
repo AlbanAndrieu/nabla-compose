@@ -489,3 +489,36 @@ et tester séparément (sur un profil GnuPG isolé, sans clés privées)
 le chemin CCID intégré versus PC/SC, avec contrôle de retour arrière.
 Ne pas redémarrer `pcscd` arbitrairement ni modifier les clés,
 les PIN, KeePassXC OTP, PIV ou Git-crypt.
+
+### P0 — Liaison dynamique scdaemon / PC/SC (17 octobre, 14:19)
+
+Le `ldd /usr/lib/gnupg/scdaemon` de la workstation retourne
+`libgcrypt.so.20`, `libassuan.so.9` et `libusb-1.0.so.0`,
+mais pas `libpcsclite.so.1`. Ce n'est **pas une preuve d'absence
+de PC/SC** : scdaemon peut charger ce pilote dynamiquement.
+
+`gpgconf --list-options scdaemon` confirme :
+- `reader-port` (lecteur sélectionné explicitement, déjà essayé sans succès),
+- `pcsc-driver` (valeur par défaut `libpcsclite.so.1`),
+- `disable-ccid` (déjà présent dans la configuration),
+- `disable-pinpad` (sans rapport démontré avec la sélection).
+
+**Nouvelle hypothèse vérifiable :** pilote PC/SC mal résolu ou échec
+lors du chargement dynamique ou de l'appel PC/SC par scdaemon.
+Contrôles en lecture seule sur la workstation :
+
+```bash
+ldconfig -p | grep -F libpcsclite.so.1 || true
+readlink -f /usr/lib/x86_64-linux-gnu/libpcsclite.so.1
+pgrep -a -u "$(id -u)" -x scdaemon || true
+# En cas de processus scdaemon actif, confirmer le pilote chargé
+for pid in $(pgrep -u "$(id -u)" -x scdaemon); do
+  grep -F libpcsclite /proc/"$pid"/maps || true
+done
+```
+
+La présence de la bibliothèque sur disque confirme sa disponibilité
+pour le chargeur ; son absence dans `/proc/PID/maps` **à cet instant**
+ne prouve pas qu'elle n'a jamais été chargée. L'essai `reader-port`
+a échoué avec rollback réussi ; ne pas le répéter à l'identique.
+Aucune réinitialisation ou transfert de clés.
