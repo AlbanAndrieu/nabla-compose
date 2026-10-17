@@ -925,3 +925,40 @@ Un mode **`--pcsc-shared`** est ajouté à `scripts/workstation/compare-gpg-card
 ./scripts/workstation/compare-gpg-card-transports.sh --check
 ./scripts/workstation/compare-gpg-card-transports.sh --pcsc-shared
 ```
+
+### P0 — Succès expérimental confirmé avec pcsc-shared (17 octobre 2026)
+
+**Résultat réel workstation :**
+`./scripts/workstation/compare-gpg-card-transports.sh --pcsc-shared`
+→ `✅ pcsc-shared: OpenPGP card detected`, suivi du nettoyage du
+`GNUPGHOME` temporaire. Les deux essais précédents sans
+`pcsc-shared` (PC/SC exclusif et CCID intégré) retournaient
+`No such device`. Cela identifie le mode d'accès partagé PC/SC
+comme **contournement fonctionnel pour la détection**, et non
+comme résolution démontrée de la cause racine.
+
+**Phase P0b — Acceptation avant activation durable :**
+1. Conserver le profil habituel intact. Vérifier après l'essai :
+   `cmp -s ~/.gnupg/scdaemon.conf
+   ~/.gnupg/scdaemon.conf.before-reader-port` (si sauvegarde
+   toujours présente), puis noter le résultat sans publier de
+   données de carte.
+2. Tester les deux YubiKeys séparément avec le profil temporaire
+   si l'opérateur souhaite les utiliser pour OpenPGP. Ne copier
+   aucune clé dans le profil de test.
+3. Examiner les avertissements amont de `pcsc-shared` : une
+   autre application PC/SC peut modifier la sélection de l'applet
+   et l'état de vérification du PIN. Préférer l'absence de clients
+   concurrents lors des opérations cryptographiques sensibles.
+4. Ne **pas** conclure que la signature Git, la récupération
+   `git-crypt` ou les sauvegardes chiffrées fonctionneront :
+   la carte a été détectée mais ces opérations n'ont pas été
+   validées ; en outre elles peuvent dépendre de clés différentes.
+5. Une activation durable doit être une décision explicite,
+   avec sauvegarde préservée, préflight, rollback automatisé,
+   et tests de non-régression adaptés, sans `keytocard`,
+   sans PIN ni changement de slots.
+
+État : **P0 détection dans profil isolé = PASS** ;
+**P0 intégration au profil principal et acceptation sécurité =
+EN ATTENTE**. Aucun changement sur l'utilisateur réel.
