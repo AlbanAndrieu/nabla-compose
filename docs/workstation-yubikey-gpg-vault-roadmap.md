@@ -962,3 +962,42 @@ comme résolution démontrée de la cause racine.
 État : **P0 détection dans profil isolé = PASS** ;
 **P0 intégration au profil principal et acceptation sécurité =
 EN ATTENTE**. Aucun changement sur l'utilisateur réel.
+
+### P0 — Contrôle final de non-régression du profil principal (17 octobre 2026)
+
+Après la réussite de l'essai `--pcsc-shared` dans un
+`GNUPGHOME` temporaire, l'opérateur a confirmé :
+
+```text
+cmp -s ~/.gnupg/scdaemon.conf \
+  ~/.gnupg/scdaemon.conf.before-reader-port
+✅ Configuration GnuPG principale inchangée
+```
+
+**Résultat validé :** le contournement `pcsc-shared` permet
+à GnuPG de détecter l'applet OpenPGP 3.4 de la YubiKey en
+mode PC/SC partagé, tandis que le profil GnuPG principal
+reste identique à sa sauvegarde de référence.
+
+**Statut opérationnel exact :**
+- ✅ `ykman openpgp info` : applet accessible ;
+- ❌ `gpg --card-status` sur le profil habituel : erreur
+  `ERR 100696144 No such device <SCD>` constatée avant l'essai ;
+- ❌ profil isolé PC/SC exclusif et pilote CCID intégré :
+  `No such device` ;
+- ✅ profil isolé `disable-ccid` + `pcsc-shared` :
+  carte OpenPGP détectée ;
+- ✅ configuration utilisateur d'origine préservée, comparaison
+  binaire avec la sauvegarde réussie.
+
+**Décision :** conserver ce contournement comme candidat
+documenté, sans le présenter comme une correction persistante.
+La cause racine du rejet de l'accès exclusif PC/SC reste
+indéterminée. `pcsc-shared` peut exposer des risques d'état
+de sélection d'applet / cache de PIN avec d'autres clients PC/SC.
+Avant de modifier `~/.gnupg/scdaemon.conf`, préparer une
+procédure transactionnelle réversible, identifier les clients
+concurrents, confirmer le fonctionnement du lecteur sans prompt
+PIN, puis faire accepter les impacts sur Git signing,
+`git-crypt` et sauvegardes PostgreSQL. Ne pas lancer
+`keytocard`, changer les PIN, ni altérer OTP HMAC/PIV.
