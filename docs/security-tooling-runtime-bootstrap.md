@@ -280,3 +280,39 @@ The security-tooling runtime wave is accepted only when:
 - one controlled reboot restores the persistent Apps in dependency order;
 - post-reboot `deploy-security-tooling.sh --check all` is green;
 - no new secret value is committed or exposed in logs.
+
+## Migration progressive des autres services vers Vaultwarden
+
+Le bootstrap DefectDojo prouve le parcours d'import, matérialisation et
+vérification. Il **ne prouve pas** que les autres applications utilisent déjà
+Vaultwarden. `config/secrets/manifest.json` décrit plusieurs contrats
+existants, notamment infrastructure-bootstrap, truenas-csi, n8n, crowdsec,
+keycloak, cyberbro et les autres services de sécurité. Le wrapper
+`prepare-security-tooling-secrets.sh` ne gère actuellement que
+plumber, netbox, dependency-track, defectdojo, neo4j, cartography,
+scorecard et dsomm : **ne pas appeler `all` pour migrer tout TrueNAS**.
+
+Procédure pour chaque service, sans interruption de production :
+
+1. Inventorier la source actuellement consommée (Compose, TrueNAS app,
+   environnement, fichier protégé) et la correspondance avec le manifeste.
+   Vérifier le bootstrap circulaire de Vaultwarden séparément.
+2. Sauvegarder la source existante dans un emplacement root-only et
+   vérifier que le secret actuel est récupérable. Ne jamais régénérer les
+   secrets `rotation: preserve` ni faire de rotation opportuniste.
+3. Importer dans l'item Vaultwarden exact uniquement après un dry-run et
+   vérification d'absence de collision. Ne pas écraser un item existant.
+4. Matérialiser le cache runtime root:root 0600, comparer avec la source
+   existante sans afficher les valeurs, puis vérifier la parité Vaultwarden.
+5. Adapter **uniquement** le consommateur concerné, valider son readiness,
+   son authentification et sa persistance après redéploiement contrôlé.
+   Conserver le chemin de retour jusqu'à acceptation post-reboot.
+
+Ordre proposé : services non critiques déjà déclarés et sans dépendances
+circulaires ; puis observabilité et sécurité ; enfin fondations partagées
+(PostgreSQL, Redis, réseau, Vaultwarden). Les services hors wrapper demandent
+un adaptateur spécifique et des tests de non-régression avant toute écriture.
+
+Critère de fin par service : contrat documenté, Vaultwarden vérifié,
+matérialisation correcte, consommateur actif confirmé, rollback testé et
+aucun secret exposé dans Git, logs ou arguments de processus.
