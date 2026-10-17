@@ -786,7 +786,7 @@
     },
     {
       "id": "garage",
-      "name": "Garage S3",
+      "name": "Garage S3 API",
       "kind": "object-storage",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
@@ -803,7 +803,7 @@
     },
     {
       "id": "garage-admin",
-      "name": "Garage Admin",
+      "name": "Garage Admin API",
       "kind": "api",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
@@ -815,7 +815,7 @@
     },
     {
       "id": "garage-webui",
-      "name": "Garage",
+      "name": "Garage Web UI",
       "kind": "application",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
@@ -2548,6 +2548,23 @@
         "networks": [
           "default",
           "secrets-backend"
+        ]
+      }
+    },
+    {
+      "id": "watchtower",
+      "name": "Watchtower",
+      "kind": "image-update-auditor",
+      "category": "security",
+      "sourcePath": "apps/watchtower/compose.yml",
+      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
+      "presentationRole": "support",
+      "status": "planned",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "watchtower",
+        "networks": [
+          "intranet"
         ]
       }
     },
@@ -5229,6 +5246,26 @@
       "description": "The compatibility adapter authenticates against Vaultwarden.",
       "evidence": [
         "apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com"
+      ]
+    },
+    {
+      "source": "watchtower",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/watchtower/compose.yml:watchtower.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "watchtower",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Watchtower lists containers and images through the allowlisted, POST-disabled Docker API proxy.",
+      "evidence": [
+        "apps/watchtower/compose.yml:DOCKER_HOST"
       ]
     },
     {

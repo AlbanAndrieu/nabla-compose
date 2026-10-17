@@ -27,7 +27,7 @@ prepare_log_dir() {
       printf 'ERROR: cannot create diagnostic log directory: %s\n' "${log_dir}" >&2
       exit 2
     }
-    chmod 700 -- "${log_dir}" || {
+    chmod -- 700 "${log_dir}" || {
       printf 'ERROR: cannot secure diagnostic log directory: %s\n' "${log_dir}" >&2
       exit 2
     }
@@ -68,7 +68,7 @@ prepare_explicit_log_file() {
     printf 'ERROR: cannot create diagnostic log file: %s\n' "${requested}" >&2
     exit 2
   }
-  chmod 600 -- "${requested}" || {
+  chmod -- 600 "${requested}" || {
     printf 'ERROR: cannot secure diagnostic log file: %s\n' "${requested}" >&2
     exit 2
   }
@@ -81,11 +81,20 @@ if [[ -n "${DIAGNOSTIC_LOG_FILE:-}" ]]; then
   prepare_explicit_log_file "${log_file}"
 else
   umask 077
-  if ! log_file="$(mktemp "${log_dir%/}/${name}-${timestamp}.XXXXXX.log")"; then
+  # BSD mktemp only randomizes a trailing XXXXXX: reserve a unique name, then
+  # create the .log sibling exclusively (noclobber refuses existing paths).
+  if ! reserved="$(mktemp "${log_dir%/}/${name}-${timestamp}.XXXXXX")"; then
     printf 'ERROR: cannot allocate diagnostic log file in %s\n' "${log_dir}" >&2
     exit 2
   fi
-  chmod 600 -- "${log_file}" || {
+  log_file="${reserved}.log"
+  if ! (set -C && : >"${log_file}") 2>/dev/null; then
+    rm -f -- "${reserved}"
+    printf 'ERROR: cannot allocate diagnostic log file in %s\n' "${log_dir}" >&2
+    exit 2
+  fi
+  rm -f -- "${reserved}"
+  chmod -- 600 "${log_file}" || {
     printf 'ERROR: cannot secure diagnostic log file: %s\n' "${log_file}" >&2
     exit 2
   }

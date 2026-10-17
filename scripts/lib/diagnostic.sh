@@ -20,10 +20,11 @@ nabla_diagnostic_maybe_wrap() {
 
   script_dir="$(cd -- "$(dirname -- "${script_path}")" && pwd)"
   wrapper="$(dirname -- "${script_dir}")/run-diagnostic.sh"
-  [[ -x "${wrapper}" ]] || {
-    printf 'ERROR: diagnostic wrapper is missing or not executable: %s\n' "${wrapper}" >&2
+  # Invoke through bash so a checkout that lost Git exec bits still works.
+  [[ -r "${wrapper}" ]] || {
+    printf 'ERROR: diagnostic wrapper is missing or unreadable: %s\n' "${wrapper}" >&2
     return 2
   }
 
-  exec "${wrapper}" "${script_path}" "$@"
+  exec bash "${wrapper}" "${script_path}" "$@"
 }

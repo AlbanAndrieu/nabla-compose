@@ -1,6 +1,12 @@
 ---
 name: garage
 x-nabla:
+  deploymentUnit:
+    id: garage
+    criticality: high
+    stateful: true
+    upgradePolicy: controlled
+    probeOrder: [garage, garage-admin, garage-webui]
   nodes:
     - id: garage-admin
       name: Garage Admin API
@@ -93,6 +99,7 @@ services:
     networks: ["traefik_network"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/garage"
+      - "com.centurylinklabs.watchtower.enable=false"
       - "traefik.enable=true"
       # S3 API
       - "traefik.http.routers.garage-s3.rule=Host(`s3.int.albandrieu.com`) || HostRegexp(`{subdomain:.+}.s3.int.albandrieu.com`)"
@@ -144,6 +151,7 @@ services:
     networks: ["traefik_network"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/garage-webui"
+      - "com.centurylinklabs.watchtower.enable=false"
 
 networks:
   traefik_network:

@@ -83,15 +83,16 @@ probe_tcp_success() {
     printf 'invalid TCP probe host: %s\n' "${host}" >&2
     return 2
   }
-  [[ "${port}" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535)) || {
+  if ! [[ "${port}" =~ ^[0-9]+$ ]] || ! ((port >= 1 && port <= 65535)); then
     printf 'invalid TCP probe port: %s\n' "${port}" >&2
     return 2
-  }
+  fi
   [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
     printf 'invalid TCP probe timeout: %s\n' "${timeout_seconds}" >&2
     return 2
   }
 
+  # shellcheck disable=SC2016 # positional arguments expand in child bash
   timeout "${timeout_seconds}" bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1
 }
@@ -207,15 +208,16 @@ probe_container_tcp_success() {
     printf 'invalid container TCP host: %s\n' "${host}" >&2
     return 2
   }
-  [[ "${port}" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535)) || {
+  if ! [[ "${port}" =~ ^[0-9]+$ ]] || ! ((port >= 1 && port <= 65535)); then
     printf 'invalid container TCP port: %s\n' "${port}" >&2
     return 2
-  }
+  fi
   [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]] || {
     printf 'invalid container TCP timeout: %s\n' "${timeout_seconds}" >&2
     return 2
   }
 
+  # shellcheck disable=SC2016 # positional arguments expand in child bash
   timeout "${timeout_seconds}" docker exec "${container}" \
     bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${host}" "${port}" \
     >/dev/null 2>&1

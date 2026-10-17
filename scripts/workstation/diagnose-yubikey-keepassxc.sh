@@ -26,8 +26,8 @@ while (($#)); do
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
-if [[ -n "$serial" && ! "$serial" =~ ^[0-9]+$ ]]; then echo 'Invalid serial' >&2; exit 2; fi
-if "$verify_secret"; then
+if [[ -n "${serial}" && ! "${serial}" =~ ^[0-9]+$ ]]; then echo 'Invalid serial' >&2; exit 2; fi
+if "${verify_secret}"; then
   command -v python3 >/dev/null || { echo 'python3 missing' >&2; exit 1; }
   # Suppress echoing/debug; inherited environment already holds HMAC_SECRET.
   python3 - <<'PY'
@@ -57,44 +57,44 @@ if command -v keepassxc >/dev/null; then keepassxc --version 2>&1 | head -n 2 ||
 echo '== Connected devices =='
 ykman list --serials
 devices="$(ykman list --serials | grep -Ec '^[0-9]+$' || true)"
-if [[ "$devices" != 1 ]]; then
+if [[ "${devices}" != 1 ]]; then
   echo 'Connect exactly one key for reliable device diagnosis.' >&2
   exit 2
 fi
 connected="$(ykman list --serials | grep -E '^[0-9]+$' | head -n 1)"
-if [[ -n "$serial" && "$connected" != "$serial" ]]; then
+if [[ -n "${serial}" && "${connected}" != "${serial}" ]]; then
   echo 'Requested serial is not the connected device' >&2; exit 2
 fi
-args=(--device "$connected")
+args=(--device "${connected}")
 ykman "${args[@]}" info
 ykman "${args[@]}" otp info
 echo '== USB HID =='
 if command -v lsusb >/dev/null; then lsusb -d 1050: || true; fi
 if command -v udevadm >/dev/null; then
   for dev in /dev/hidraw*; do
-    [[ -e "$dev" ]] || continue
-    props="$(udevadm info --query=property --name="$dev" 2>/dev/null || true)"
-    if [[ "$props" == *'ID_VENDOR_ID=1050'* || "$props" == *'00001050'* ]]; then
-      stat -c '%n %A %U:%G' "$dev"
-      [[ -r "$dev" && -w "$dev" ]] || echo "WARN: no user-level HID access: $dev"
+    [[ -e "${dev}" ]] || continue
+    props="$(udevadm info --query=property --name="${dev}" 2>/dev/null || true)"
+    if [[ "${props}" == *'ID_VENDOR_ID=1050'* || "${props}" == *'00001050'* ]]; then
+      stat -c '%n %A %U:%G' "${dev}"
+      [[ -r "${dev}" && -w "${dev}" ]] || echo "WARN: no user-level HID access: ${dev}"
     fi
   done
 fi
-if "$check_slots"; then
+if "${check_slots}"; then
   echo '== HMAC-SHA1 probes (responses suppressed) =='
   for slot in 1 2; do
-    if result="$(ykman "${args[@]}" otp calculate "$slot" "$challenge" 2>&1)" &&
-        [[ "$result" =~ ^[[:xdigit:]]{40}$ ]]; then
-      echo "slot $slot: HMAC-SHA1 responds"
-      if [[ "$slot" == 2 ]]; then
-        if [[ "${result,,}" == "$reference" ]]; then
+    if result="$(ykman "${args[@]}" otp calculate "${slot}" "${challenge}" 2>&1)" &&
+        [[ "${result}" =~ ^[[:xdigit:]]{40}$ ]]; then
+      echo "slot ${slot}: HMAC-SHA1 responds"
+      if [[ "${slot}" == 2 ]]; then
+        if [[ "${result,,}" == "${reference}" ]]; then
           echo 'slot 2: MATCH with verified KeePassXC reference'
         else
           echo 'slot 2: DIFFERENT from verified KeePassXC reference'
         fi
       fi
     else
-      echo "slot $slot: not HMAC-SHA1 responsive (OTP rejection or transport error)"
+      echo "slot ${slot}: not HMAC-SHA1 responsive (OTP rejection or transport error)"
     fi
   done
 fi

@@ -25,6 +25,9 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("CHUID: [REDACTED]", content.replace('\\1 [REDACTED]', 'CHUID: [REDACTED]'))
         self.assertIn("NO_COLOR", content)
         self.assertIn("EXPIRED", content)
+        self.assertIn("SSH local", content)
+        self.assertIn("Signature key", content)
+        self.assertIn("OTP slot 2 HMAC-SHA1", content)
         for forbidden in ("piv reset", "otp chalresp 2", "gpg --export-secret-keys"):
             self.assertNotIn(forbidden, "\\n".join(line for line in content.splitlines()
                                                       if not line.lstrip().startswith("#")))
@@ -41,9 +44,104 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         content = script.read_text()
         self.assertIn("gpg --card-status", content)
         self.assertIn("disable-ccid", content)
+        self.assertIn("pcsc-shared", content)
+        self.assertIn("Clé secrète de signature Git", content)
+        self.assertIn("ykman-gui actif", content)
+        self.assertIn("usbfs sur CCID est attendu", content)
+        self.assertIn("Ne pas répéter reader-port", content)
         for forbidden in ("piv reset", "keytocard", "rm -rf", "gpg --delete-secret-key",
                           "gpgconf --kill", "systemctl stop", "set -x"):
             self.assertNotIn(forbidden, content)
+
+    def test_reader_port_plan_is_read_only(self):
+        script = ROOT / "scripts/workstation/plan-gpg-reader-port.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--check", result.stdout)
+        content = script.read_text()
+        self.assertIn("before-reader-port", content)
+        self.assertIn("pcsc_scan", content)
+        for forbidden in ("gpgconf --kill", "keytocard", "piv reset",
+                          "systemctl restart", ">> ${cfg}", "sudo "):
+            self.assertNotIn(forbidden, content)
+
+    def test_transactional_reader_port_trial_safety(self):
+        script = ROOT / "scripts/workstation/test-gpg-reader-port.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--apply", result.stdout)
+        body = script.read_text()
+        for expected in ("cmp -s", "trap cleanup EXIT", "changed=true",
+                         "gpgconf --kill scdaemon", "cp -p --", "Card inserted"):
+            self.assertIn(expected, body)
+        for forbidden in ("keytocard", "piv reset", "gpgconf --kill all",
+                          "systemctl restart pcscd", "set -x"):
+            self.assertNotIn(forbidden, body)
+
+    def test_isolated_gpg_transport_comparison_contract(self):
+        script = ROOT / "scripts/workstation/compare-gpg-card-transports.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        out = subprocess.run(["bash", str(script), "--help"],
+                             capture_output=True, text=True, check=True)
+        self.assertIn("--run", out.stdout)
+        self.assertIn("--pcsc-shared", out.stdout)
+        self.assertIn("pcsc-shared) printf", script.read_text())
+        body = script.read_text()
+        for required in ("GNUPGHOME=", "disable-ccid", "timeout 18", "trap cleanup EXIT"):
+            self.assertIn(required, body)
+        for forbidden in ("keytocard", "piv reset", "gpgconf --kill all",
+                          "systemctl restart", "set -x"):
+            self.assertNotIn(forbidden, body)
+
+    def test_main_profile_pcsc_shared_trial_contract(self):
+        script = ROOT / "scripts/workstation/trial-gpg-pcsc-shared.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--trial", result.stdout)
+        body = script.read_text()
+        for token in ("cmp -s --", "pcsc-shared", "trap cleanup EXIT",
+                      "cp -p --", "gpgconf --kill scdaemon",
+                      "Main GnuPG profile detects"):
+            self.assertIn(token, body)
+        for token in ("keytocard", "piv reset", "gpgconf --kill all",
+                      "systemctl restart pcscd", "set -x"):
+            self.assertNotIn(token, body)
+
+    def test_managed_pcsc_shared_apply_rollback_contract(self):
+        script = ROOT / "scripts/workstation/manage-gpg-pcsc-shared.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_out = subprocess.run(["bash", str(script), "--help"],
+                                  capture_output=True, text=True, check=True)
+        for name in ("--check", "--verify", "--apply", "--rollback"):
+            self.assertIn(name, help_out.stdout)
+        content = script.read_text()
+        for marker in ("cmp -s --", "trap cleanup EXIT", "before-reader-port",
+                       "gpgconf --kill scdaemon", "No change", "pcsc-shared"):
+            if marker != "No change":
+                self.assertIn(marker, content)
+        for forbidden in ("keytocard", "piv reset", "gpgconf --kill all",
+                          "systemctl restart pcscd", "set -x"):
+            self.assertNotIn(forbidden, content)
+
+    def test_yubikey_bootstrap_installs_age_plugin_without_provisioning(self):
+        script = ROOT / "scripts/workstation/bootstrap-yubikey-manager.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("age-plugin-yubikey", result.stdout)
+        body = script.read_text()
+        for required in ("cargo install --locked", "AGE_PLUGIN_VERSION",
+                         "libpcsclite-dev", "check_age_plugin",
+                         "libpcsclite.pc", "dpkg-architecture",
+                         "env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR",
+                         "PKG_CONFIG=/usr/bin/pkg-config",
+                         "--modversion libpcsclite"):
+            self.assertIn(required, body)
+        for forbidden in ("--generate", "piv reset", "keytocard", "set -x"):
+            self.assertNotIn(forbidden, body)
 
     def test_no_destructive_operations(self):
         text = SCRIPT.read_text()

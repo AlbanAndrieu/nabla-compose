@@ -13,9 +13,9 @@ def test_pyroscope_diagnostic_is_read_only_and_executable() -> None:
     mode = path.stat().st_mode
 
     assert mode & stat.S_IXUSR
-    assert "http://127.0.0.1:4040/ready" in script
+    assert "http://172.17.0.24:4040/" in script
     assert "docker inspect" in script
-    assert "docker logs --tail 200" in script
+    assert "docker logs --tail 80" in script
     assert "v2/metastore/raft" in script
     assert "v2/metastore/data" in script
     assert "READ-ONLY" in script
@@ -43,7 +43,7 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
     assert "buildx prune" not in script
     assert "DOCKER_BUILDKIT=0" not in script
     assert script.index("build_fastapi_sample") < script.index(
-        "Removing the previous FastAPI Sample container after successful build",
+        "Now replacing the staging container",
     )
     assert "/mnt/cpool/secrets/runtime/sample" in script
     assert "verify_runtime_env_pair" in script

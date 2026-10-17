@@ -100,8 +100,8 @@ explicit operator environment:
 ```bash
 cd /mnt/cpool/compose/nabla-compose
 
-sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --apply netbox
-sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden netbox
+bash scripts/truenas/prepare-security-tooling-secrets.sh --apply netbox
+bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden netbox
 ```
 
 Acceptance:
@@ -118,6 +118,29 @@ Repeat one service at a time before broad deployment.
 DSOMM reuses this materialization path for its manual GitHub baseline runner,
 but its UI is deployed separately from `deploy-security-tooling.sh`; see
 `apps/dsomm/README.md`.
+
+### DefectDojo-specific preflight
+
+After the shared PostgreSQL and Redis diagnostic succeeds, run:
+
+```bash
+sudo bash scripts/truenas/preflight-defectdojo.sh
+```
+
+This is read-only and does not create Vaultwarden items or start containers.
+The currently observed Redis keyspace contains DB 0 and DB 3; proposed DB 10
+and DB 11 are not yet reserved. Check all Redis consumers before assigning them.
+
+DefectDojo must set `DD_DATABASE_HOST=172.17.0.24` in the TrueNAS Custom
+App environment: its initializer and workers use this setting for
+`wait-for-it.sh` independently of `DD_DATABASE_URL`.
+Pin compatible Django and nginx image versions and restrict
+`DD_ALLOWED_HOSTS` before applying the deployment. Do not expose
+`docker compose config` output containing interpolated secrets.
+
+The materialization wrapper explicitly refuses root for `--apply` and
+`--verify-vaultwarden`: run these as the unlocked operator. Only the
+final root-owned file installation escalates privileges.
 
 ## 6. Validate shared PostgreSQL prerequisites
 
@@ -257,3 +280,74 @@ The security-tooling runtime wave is accepted only when:
 - one controlled reboot restores the persistent Apps in dependency order;
 - post-reboot `deploy-security-tooling.sh --check all` is green;
 - no new secret value is committed or exposed in logs.
+
+## Migration progressive des autres services vers Vaultwarden
+
+Le bootstrap DefectDojo prouve le parcours d'import, matérialisation et
+vérification. Il **ne prouve pas** que les autres applications utilisent déjà
+Vaultwarden. `config/secrets/manifest.json` décrit plusieurs contrats
+existants, notamment infrastructure-bootstrap, truenas-csi, n8n, crowdsec,
+keycloak, cyberbro et les autres services de sécurité. Le wrapper
+`prepare-security-tooling-secrets.sh` ne gère actuellement que
+plumber, netbox, dependency-track, defectdojo, neo4j, cartography,
+scorecard et dsomm : **ne pas appeler `all` pour migrer tout TrueNAS**.
+
+Procédure pour chaque service, sans interruption de production :
+
+1. Inventorier la source actuellement consommée (Compose, TrueNAS app,
+   environnement, fichier protégé) et la correspondance avec le manifeste.
+   Vérifier le bootstrap circulaire de Vaultwarden séparément.
+2. Sauvegarder la source existante dans un emplacement root-only et
+   vérifier que le secret actuel est récupérable. Ne jamais régénérer les
+   secrets `rotation: preserve` ni faire de rotation opportuniste.
+3. Importer dans l'item Vaultwarden exact uniquement après un dry-run et
+   vérification d'absence de collision. Ne pas écraser un item existant.
+4. Matérialiser le cache runtime root:root 0600, comparer avec la source
+   existante sans afficher les valeurs, puis vérifier la parité Vaultwarden.
+5. Adapter **uniquement** le consommateur concerné, valider son readiness,
+   son authentification et sa persistance après redéploiement contrôlé.
+   Conserver le chemin de retour jusqu'à acceptation post-reboot.
+
+Ordre proposé : services non critiques déjà déclarés et sans dépendances
+circulaires ; puis observabilité et sécurité ; enfin fondations partagées
+(PostgreSQL, Redis, réseau, Vaultwarden). Les services hors wrapper demandent
+un adaptateur spécifique et des tests de non-régression avant toute écriture.
+
+Critère de fin par service : contrat documenté, Vaultwarden vérifié,
+matérialisation correcte, consommateur actif confirmé, rollback testé et
+aucun secret exposé dans Git, logs ou arguments de processus.
+
+### DefectDojo : acceptation du premier déploiement (17 octobre 2026)
+
+L'opérateur a confirmé : Vaultwarden 5/5 importé et vérifié, base PostgreSQL
+`defectdojo` et rôle dédiés, application TrueNAS RUNNING, initialiseur
+`Exited (0)`, uWSGI stable sans redémarrage, `migrate --check` réussi,
+HTTP 302 vers `/login?next=/`. Les réponses HTTP 502 étaient transitoires
+pendant l'initialisation ; elles ne constituent pas un incident persistant.
+
+Durcissement préparé dans la branche (non encore appliqué au runtime) :
+- images Django et Nginx épinglées sur les digests observés en production ;
+- `DD_ALLOWED_HOSTS` restreint à `172.17.0.24,defectdojo.int.albandrieu.com` ;
+- cible PostgreSQL par défaut `172.17.0.24` pour les attentes de disponibilité.
+
+Avant redéploiement, vérifier les variables persistantes de l'application
+TrueNAS : une surcharge `DD_ALLOWED_HOSTS=*` annulerait le durcissement.
+Contrôler la résolution DNS du nom interne avant de l'utiliser, et conserver
+l'accès LAN pendant la bascule. Ne pas exposer DefectDojo publiquement.
+
+Validation opérateur, après `git pull --ff-only` :
+```bash
+bash -n scripts/truenas/deploy-security-tooling.sh
+sudo docker compose -f apps/defectdojo/compose.yml config --quiet --no-interpolate --no-env-resolution
+sudo bash scripts/truenas/deploy-security-tooling.sh --check defectdojo
+# Après revue des paramètres persistants, sur fenêtre contrôlée :
+# sudo bash scripts/truenas/deploy-security-tooling.sh --apply defectdojo
+sudo docker exec defectdojo-uwsgi python manage.py migrate --check
+sudo docker exec defectdojo-uwsgi python manage.py check
+curl -sS -D - -o /dev/null --max-time 10 http://172.17.0.24:31085/
+```
+
+Critère P0 : disparition de `dojo.W004`, absence de nouvelles migrations,
+redirection attendue, workers Celery stables et images réellement résolues
+aux digests épinglés. L'acceptation métier (authentification, MFA,
+premier import SAST/SCA/DAST, déduplication) reste distincte.

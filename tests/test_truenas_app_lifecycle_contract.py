@@ -1046,7 +1046,11 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             script,
         )
         self.assertIn("keeping Gatus evidence shadow-only", script)
-        self.assertIn("verify_prometheus_observer_contract || true", script)
+        # Optional evidence: a failed contract only warns, never aborts the deploy.
+        self.assertIn(
+            'if prometheus_details="$(verify_prometheus_observer_contract 2>&1)"; then',
+            script,
+        )
 
         compose = self.read("apps/sample/compose.yml")
         self.assertIn(

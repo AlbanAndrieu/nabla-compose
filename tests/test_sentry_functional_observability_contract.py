@@ -109,8 +109,11 @@ class SentryFunctionalObservabilityContractTest(unittest.TestCase):
 
     def test_sentry_smoke_does_not_require_wrapper_exec_bit(self) -> None:
         script = self.read("scripts/truenas/smoke-sentry-event.sh")
-        self.assertIn('exec bash "${NABLA_DIAGNOSTIC_WRAPPER}"', script)
-        self.assertNotIn('exec "${NABLA_DIAGNOSTIC_WRAPPER}"', script)
+        helper = self.read("scripts/lib/diagnostic.sh")
+        # The smoke script delegates to the shared bootstrap, which owns the exec.
+        self.assertIn('nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"', script)
+        self.assertIn('exec bash "${wrapper}"', helper)
+        self.assertNotIn('exec "${wrapper}"', helper)
 
     def test_exporter_conflict_preflight_is_read_only(self) -> None:
         path = ROOT / "scripts/truenas/check-observability-exporter-conflicts.sh"

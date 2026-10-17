@@ -28,7 +28,8 @@
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
       "securityException": "Garage S3 s3.int.albandrieu.com is internal-only; public DNS and WAN HAProxy/NAT routes are unauthorized. Verify OpenTofu state backend connectivity before the infrastructure-side cutover.",
-      "tunnelUrl": "https://s3.int.albandrieu.com"
+      "tunnelUrl": "https://s3.int.albandrieu.com",
+      "probePriority": 0
     },
     {
       "name": "Garage Web UI",
@@ -37,7 +38,8 @@
       "cloudflareAccessRequired": true,
       "tunnelUrl": "https://garage.albandrieu.com",
       "endpointEnabled": true,
-      "healthNote": "Garage WebUI is exposed through Cloudflare Tunnel at https://garage.albandrieu.com and forwards directly to 172.17.0.24:3909 without Traefik."
+      "healthNote": "Garage WebUI is exposed through Cloudflare Tunnel at https://garage.albandrieu.com and forwards directly to 172.17.0.24:3909 without Traefik.",
+      "probePriority": 2
     },
     {
       "name": "Garage Admin API",
@@ -47,7 +49,8 @@
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "endpointEnabled": true,
       "healthNote": "Garage Admin API :3903 must be LAN/VPN only. Existing garage-admin.albandrieu.com public Tunnel mapping is suspected drift until live Cloudflare config is audited.",
-      "securityException": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API."
+      "securityException": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API.",
+      "probePriority": 1
     },
     {
       "name": "Bichon",
@@ -61,7 +64,8 @@
       "external": true,
       "tunnelSecure": true,
       "cloudflareAccessRequired": true,
-      "securityException": "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth."
+      "securityException": "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth.",
+      "probePriority": 10
     },
     {
       "name": "Scrutiny",
@@ -77,7 +81,8 @@
       "tunnelSecure": false,
       "endpointEnabled": true,
       "cloudflareAccessRequired": false,
-      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. The canonical endpoint is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/5432."
+      "healthNote": "⚠️ Internal-only database service. FastAPI Sample cloud uses Supabase instead of this PostgreSQL instance. The canonical endpoint is retained for identity/presentation but must not be probed externally while external=false. Internal health uses TCP/5432.",
+      "probePriority": 3
     },
     {
       "name": "ClamAV",
@@ -96,6 +101,22 @@
       "endpointEnabled": true,
       "cloudflareAccessRequired": false,
       "healthNote": "Reactive Resume is intentionally exposed at https://reactive.albandrieu.com. Runtime, public HTTPS reachability and tunnel/edge evidence should reconcile to green when healthy."
+    },
+    {
+      "name": "Vaultwarden",
+      "probePriority": 6
+    },
+    {
+      "name": "Sentry",
+      "probePriority": 7
+    },
+    {
+      "name": "Prometheus",
+      "probePriority": 8
+    },
+    {
+      "name": "Grafana",
+      "probePriority": 9
     }
   ]
 }

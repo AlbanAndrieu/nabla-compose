@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.albanandrieu.com/schemas/nabla-homelab-exposure-overrides.schema.json",
+  "title": "Nabla homelab exposure overrides (legacy v1)",
+  "description": "Reviewed exposure policy applied by service name (case-insensitive) over catalog/homelab-services.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["services"],
+  "properties": {
+    "services": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      }
+    }
+  },
+  "$defs": {
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "external": {
+          "type": "boolean"
+        },
+        "tunnelUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "healthPath": {
+          "type": "string"
+        },
+        "tunnelSecure": {
+          "type": "boolean"
+        },
+        "endpointEnabled": {
+          "type": "boolean"
+        },
+        "tunnelTitle": {
+          "type": "string"
+        },
+        "cloudflareAccessRequired": {
+          "type": "boolean"
+        },
+        "securityException": {
+          "type": "string"
+        },
+        "healthNote": {
+          "type": "string"
+        },
+        "probePriority": {
+          "description": "Ascending probe rank consumed by fastapi-sample; absent means ordinary rotation. Ranks must be unique across overrides.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    }
+  }
+}

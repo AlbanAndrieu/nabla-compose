@@ -50,6 +50,7 @@ fi
 ok "ClickHouse admin identity is usable"
 
 user_count="$(
+  # shellcheck disable=SC2016 # Credentials expand inside the container shell.
   printf "%s\n" "SELECT count() FROM system.users WHERE name = 'sentry';" |
     timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
       clickhouse-client         --user "$CLICKHOUSE_USER"         --password "$CLICKHOUSE_PASSWORD"         --format TabSeparatedRaw

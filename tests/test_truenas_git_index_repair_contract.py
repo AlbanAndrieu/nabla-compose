@@ -10,8 +10,8 @@ def test_script_parses() -> None:
 
 def test_scoped_repair_and_cleanup() -> None:
     text = SCRIPT.read_text()
-    assert 'sudo chown albandrieu:apps -- "$INDEX"' in text
-    assert 'sudo chmod 0644 -- "$INDEX"' in text
+    assert 'sudo chown albandrieu:apps -- "${INDEX}"' in text
+    assert 'sudo chmod 0644 -- "${INDEX}"' in text
     assert "git restore --source=HEAD --staged --worktree" in text
     assert "scripts/quality/check-compose-config.sh" in text
     assert "scripts/workstation/openclaw-auth-presence.py" in text

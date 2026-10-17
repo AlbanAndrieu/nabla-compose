@@ -39,6 +39,7 @@ FIELD_DISPOSITIONS: dict[str, str] = {
     "healthNote": "observer-condition-or-documentation",
     "healthPath": "observer-condition-or-route",
     "securityException": "risk-acceptance",
+    "probePriority": "deployment-unit-probe-policy",
 }
 
 RESOURCE_KINDS = {

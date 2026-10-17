@@ -84,6 +84,37 @@ model_list:
     model_info:
       mode: embedding
 
+  # OpenClaw embedding governance: model-specific aliases. Do NOT configure
+  # cross-model fallback: each model requires its own vector index.
+  # These routes reuse the existing scoped workstation upstream credential;
+  # verify its allowlist and upstream model availability before deployment.
+  - model_name: text-embedding-3-large
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 300
+    model_info:
+      mode: embedding
+
+  - model_name: text-embedding-ada-002
+    litellm_params:
+      model: openai/text-embedding-ada-002
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 300
+    model_info:
+      mode: embedding
+
+  # Personal OpenAI API last-resort route intentionally NOT active.
+  # Activation requires separate runtime secret, cost cap, and explicit review.
+  # - model_name: text-embedding-3-small
+  #   litellm_params:
+  #     model: openai/text-embedding-3-small
+  #     api_key: os.environ/OPENAI_PERSONAL_EMBEDDINGS_API_KEY
+  #   model_info:
+  #     mode: embedding
+
   # Future proxy path for consumers that should traverse TrueNAS LiteLLM first.
   - model_name: workstation-qwen
     litellm_params:
@@ -124,6 +155,9 @@ general_settings:
   # disable_cache_on_db_queries: true
   # store_model_in_db: false # change to true or fix : Invalid proxy server token passed ... not found in db
   store_model_in_db: true
+  # P1 hardening: named proxy_admin verified with access to models, users and budgets.
+  # Deploy only after validating Cloudflare Access and rollback procedure.
+  disable_env_credential_login: true
   store_prompts_in_spend_logs: true
   custom_headers:
     forward_headers:

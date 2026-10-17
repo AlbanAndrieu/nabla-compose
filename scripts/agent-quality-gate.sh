@@ -381,7 +381,7 @@ check_exec_bits() {
 
     if [[ ! -x "${path}" ]]; then
       if [[ "${MODE}" == "fix" ]]; then
-        chmod u+x -- "${path}"
+        chmod -- u+x "${path}"
         printf '🛠️  owner execute permission restored for %s\n' "${path}"
       else
         printf '❌ QG_EXEC_BIT: owner cannot execute tracked script %s; run chmod u+x %q\n' \
@@ -401,7 +401,7 @@ check_exec_bits() {
     [[ "${first_line:-}" == '#!'* ]] || continue
     if [[ ! -x "${file}" ]]; then
       if [[ "${MODE}" == "fix" ]]; then
-        chmod u+x -- "${file}"
+        chmod -- u+x "${file}"
         printf '🛠️  owner execute permission restored for untracked %s\n' "${file}"
       else
         printf '❌ QG_EXEC_BIT: untracked shebang %s is not executable\n' "${file}" >&2

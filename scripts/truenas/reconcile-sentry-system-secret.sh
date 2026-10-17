@@ -168,10 +168,12 @@ awk -F= '
   $1 != "RELAY_PUBLIC_KEY" &&
   $1 != "RELAY_SECRET_KEY" { print }
 ' "${LEGACY_FILE}" >"${tmp}"
-printf 'SENTRY_SECRET_KEY=%s\n' "${secret}" >>"${tmp}"
-printf 'RELAY_ID=%s\n' "${relay_id}" >>"${tmp}"
-printf 'RELAY_PUBLIC_KEY=%s\n' "${relay_public_key}" >>"${tmp}"
-printf 'RELAY_SECRET_KEY=%s\n' "${relay_secret_key}" >>"${tmp}"
+{
+  printf 'SENTRY_SECRET_KEY=%s\n' "${secret}"
+  printf 'RELAY_ID=%s\n' "${relay_id}"
+  printf 'RELAY_PUBLIC_KEY=%s\n' "${relay_public_key}"
+  printf 'RELAY_SECRET_KEY=%s\n' "${relay_secret_key}"
+} >>"${tmp}"
 
 install -o root -g root -m 600 "${tmp}" "${LEGACY_FILE}"
 rm -f "${tmp}"

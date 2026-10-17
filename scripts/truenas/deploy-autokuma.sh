@@ -2,7 +2,6 @@
 set -euo pipefail
 
 APP_ID="${AUTOKUMA_APP_ID:-autokuma}"
-CONTAINER="${AUTOKUMA_CONTAINER:-autokuma}"
 CANONICAL_ROOT="${AUTOKUMA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRET_FILE="${AUTOKUMA_SECRET_FILE:-/mnt/cpool/secrets/runtime/autokuma/.env.secrets}"
 

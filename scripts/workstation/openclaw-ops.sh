@@ -11,13 +11,13 @@ fi
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 usage() {
-  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--disable-irc]'
+  printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--memory-audit|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --smoke-model makes one billable request (24h cooldown). --disable-irc explicitly changes one config setting.'
 }
 mode="${1:---check}"
 (($# <= 1)) || { usage >&2; exit 2; }
 case "${mode}" in
-  --check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--disable-irc) ;;
+  --check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--memory-audit|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
 esac
 command -v openclaw >/dev/null 2>&1 || { echo 'ERROR: openclaw CLI missing' >&2; exit 2; }
@@ -57,6 +57,8 @@ case "${mode}" in
     diagnose_skill_review
     echo '==> Memory index summary'
     diagnose_memory
+    echo '==> Structured memory coverage and schema audit (read-only)'
+    python3 "${ROOT}/scripts/workstation/openclaw-memory-audit.py"
     echo '==> CLI authentication presence (redacted)'
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
     echo '==> OpenClaw dotenv credential syntax (redacted)'
@@ -71,6 +73,7 @@ case "${mode}" in
   --heartbeat) diagnose_heartbeat ;;
   --recent-errors) python3 "${ROOT}/scripts/workstation/openclaw-application-log-summary.py" 30 ;;
   --memory) diagnose_memory ;;
+  --memory-audit) python3 "${ROOT}/scripts/workstation/openclaw-memory-audit.py" ;;
   --auth)
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
     python3 "${ROOT}/scripts/workstation/openclaw-dotenv-diagnostic.py"
