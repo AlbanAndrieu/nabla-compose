@@ -1164,3 +1164,34 @@ pgrep -a -f '[p]cscd|[s]cdaemon|[y]kman|[s]eahorse|[k]eepassxc' || true
 Ne pas utiliser `keytocard`, ne pas déclencher de signature
 ni de saisie de PIN. Si la disponibilité n'est pas stable,
 réexaminer le contournement avant toute validation Git.
+
+### P0c — Clarification finale : carte volontairement retirée (17 octobre 2026)
+
+**Correction d'interprétation :** l'opérateur explique avoir
+volontairement retiré la YubiKey pour raisons de sécurité lors du
+précédent `gpg --card-status` négatif. Le retour
+`No such device` à ce moment **n'est pas une régression démontrée**
+de `pcsc-shared` ; il est cohérent avec l'absence de carte.
+
+Après réinsertion de la YubiKey de secours (numéro masqué dans
+les sorties publiables), les contrôles sont tous positifs :
+- `gpg --card-status` détecte un lecteur Yubico, applet
+  OpenPGP 3.4 ;
+- `manage-gpg-pcsc-shared.sh --check` annonce `shared` ;
+- `manage-gpg-pcsc-shared.sh --verify` annonce
+  `Live OpenPGP selection operational` ;
+- `pcscd`, `scdaemon` et KeePassXC sont actifs.
+  Ceci établit la coexistence pendant ce contrôle ponctuel,
+  sans prouver la sécurité de toutes leurs opérations simultanées.
+
+**Point de sécurité :** les trois emplacements OpenPGP
+(signature, encryption, authentication) de cette carte sont
+`[none]`. Ne pas confondre carte détectée et sous-clé GPG
+stockée dessus. Le compte Git a `commit.gpgsign=true` et
+`user.signingkey` configuré, mais l'usage de cette identité
+sur carte n'est pas démontré. Aucune commande `keytocard`,
+aucun changement de PIN, aucune écriture sur carte.
+
+**Statut :** P0 accès OpenPGP **PASS pour la carte connectée** ;
+P1 signature Git, récupération git-crypt et chiffrement/
+restauration PostgreSQL **non validés**.
