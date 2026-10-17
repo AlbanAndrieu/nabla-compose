@@ -22,6 +22,17 @@
 - [ ] Verify pflow interface/exporter status and actual UDP flow ingestion via Akvorado metrics (counter deltas, not just `up`), plus pfSense memory/CPU, Unbound, DNS and pfBlockerNG after activation; stop and revert for memory below 128 MiB, fresh OOM, DNS failure or sustained CPU pressure.
 - [ ] Tomorrow: compare 24h before/after resource trends, collector packet deltas, dropped flows and gateway health. Decide keep/revert, document outcome. Do not call the trial complete without observed traffic and stability.
 
+### P1 — OpenRAG/OpenClaw shared embeddings and safe fallback (planned)
+
+- [x] OpenRAG 0.7.1 already targets the workstation LiteLLM `embedding` alias through its OpenAI-compatible backend and shared Langflow. OpenClaw `main`/`cron` migration is still pending.
+- [ ] Reconcile both consumers on a stable `embedding` alias and identical embedding model revision/configuration. Keep application-specific LiteLLM virtual keys, budgets and audit trails; **do not** reuse the OpenClaw file token as OpenRAG's chat credential.
+- [ ] Test TrueNAS LiteLLM/Ollama as fallback from both consumers, including upstream model identity, sentinel-vector compatibility, retrieval correctness, observability and bounded retry. Never auto-failover across distinct vector spaces, even if dimensions match.
+- [ ] If incompatible fallback is desired, use explicit collection/index versioning and a controlled re-embedding cutover. Fail closed on retrieval rather than mixing vectors.
+- [ ] Keep OpenRAG 0.7.1 `LITELLM_IDE_API_KEY` until separate chat/embedding credentials are supported; determine supported upgrade or restricted per-consumer proxy before changing secrets.
+- [ ] Accept staged OpenRAG ingestion/query and OpenClaw memory smoke, then enable failover with rollback. Do not redeploy TrueNAS or rebuild indexes from documentation-only changes.
+
+Design/acceptance: `apps/openrag/README.md#shared-embedding-contract-with-openclaw-planned-not-deployed`.
+
 ### OpenClaw backup and gateway restoration — operator, 2026-10-18
 
 - [x] Gateway quiesced before backup; archive `openclaw-20261017T223508Z-121931.tar.gz` verified (106934 files, SHA-256 recorded in operator output), temporary restore test successful.
