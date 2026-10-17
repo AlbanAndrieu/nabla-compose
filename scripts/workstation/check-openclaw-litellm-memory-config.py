@@ -61,7 +61,7 @@ def check():
     print("memory_search_schema=" + ("compatible" if required else "incompatible"))
     try:
         metadata = KEY.lstat()
-        key_ok = stat.S_ISREG(metadata.st_mode) and metadata.st_mode & 0o077 == 0
+        key_ok = stat.S_ISREG(metadata.st_mode) and metadata.st_uid == os.geteuid() and metadata.st_mode & 0o077 == 0
     except OSError:
         key_ok = False
     print("virtual_key_file=" + ("private" if key_ok else "missing_or_insecure"))
@@ -104,6 +104,28 @@ def audit_summary(data):
     }
 
 
+def audit_shape(data):
+    """Emit only type distribution; arbitrary JSON property names and values stay private."""
+    if not isinstance(data, dict):
+        return "non_object"
+    types = {"array": 0, "object": 0, "string": 0, "number": 0,
+             "boolean": 0, "null": 0}
+    for value in data.values():
+        if isinstance(value, list):
+            types["array"] += 1
+        elif isinstance(value, dict):
+            types["object"] += 1
+        elif isinstance(value, bool):
+            types["boolean"] += 1
+        elif isinstance(value, (int, float)):
+            types["number"] += 1
+        elif isinstance(value, str):
+            types["string"] += 1
+        elif value is None:
+            types["null"] += 1
+    return ",".join(f"{name}:{count}" for name, count in types.items())
+
+
 def audit():
     """Run the built-in read-only audit without displaying its potentially sensitive findings."""
     process = subprocess.run(
@@ -123,15 +145,16 @@ def audit():
     print("secret_audit_json_type=" + ("object" if isinstance(data, dict) else "array"))
     summary = audit_summary(data)
     print("secret_audit_category_schema=" + summary["schema"])
+    print("secret_audit_top_level_shape=" + audit_shape(data))
     for category, count in summary["categories"].items():
         print("secret_audit_" + category + "_count=" + str(count))
     print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
-    print("secret_audit=" + ("clean" if process.returncode == 0 else "findings_or_error"))
+    print("secret_audit=" + ("clean" if process.returncode == 0 and not summary["unclassified"] else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
     print("secret_audit_strict_check=true")
     print("file_secret_resolution=unverified")
     print("configuration_changed=false")
-    return 0 if process.returncode == 0 else 2
+    return 0 if process.returncode == 0 and not summary["unclassified"] else 2
 
 
 def main():
