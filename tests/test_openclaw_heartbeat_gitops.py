@@ -48,3 +48,14 @@ def test_refuses_missing_heartbeat(tmp_path):
         assert str(exc) == "current_heartbeat_missing_refuse_unsafe_replace"
     else:
         raise AssertionError("missing heartbeat must be refused")
+
+def test_repeated_backup_does_not_fail_in_same_second(tmp_path):
+    source = tmp_path / "source.md"
+    source.write_text("# safe\n")
+    workspace = tmp_path / "state/workspace"
+    workspace.mkdir(parents=True)
+    (workspace / "HEARTBEAT.md").write_text("previous\n")
+    first = mod.operate("backup", tmp_path / "state", source)
+    second = mod.operate("backup", tmp_path / "state", source)
+    assert first == second
+    assert len(list((tmp_path / "state/backups/heartbeat-gitops").glob("HEARTBEAT.*.md"))) == 1
