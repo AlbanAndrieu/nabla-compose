@@ -2334,3 +2334,17 @@ Chemin étudié **non exécuté** :
 5. `age-plugin-yubikey --list-all` + lecture identité puis vrai encrypt/decrypt synthétique avec toucher/PIN, suivi inventaire slot 9A et OTP2.
 
 **NO-GO persistant :** le script d'inscription matérielle et l'ouverture d'une session PIV authentifiée AES256 ne sont pas encore implémentés/validés ; la compatibilité réelle avec le plugin demeure inconnue. Aucun appel de signature matériel ni mutation de carte n'est autorisé par cette seule découverte de l'API. Préférer un environnement virtuel à versions épinglées et une carte jetable avant déploiement sur secondaire.
+
+### SDK Python manquant — préparation isolée (2026-10-18)
+
+L'opérateur a validé la quality gate **26/26 PASS**, puis `check-yubikey-piv-python-sdk.sh` a indiqué l'absence des modules Python `ykman`, `yubikit` et `cryptography` dans l'interpréteur `mise` Python 3.14.8. Il ne s'agit pas d'un échec YubiKey ni d'un défaut de PIN.
+
+Nouveau `scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh` : mode `--check` implicite (sans téléchargement), `--apply` explicite pour installer un environnement virtuel privé sous `~/.local/share/nabla/piv-sdk-venv`; dépendances top-level épinglées à `yubikey-manager==5.8.0` et `cryptography==46.0.3`, transitive lock encore à produire après résolution. L'installation nécessite un index Python fiable et l'examen de la politique d'approvisionnement logiciel. Le diagnostic SDK accepte désormais `NABLA_PIV_PYTHON` pour sélectionner cet interpréteur sans modifier Python global.
+
+```bash
+bash scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh --check
+# Si dépôt, sources et versions approuvés :
+bash scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh --apply
+```
+
+Aucune carte requise, aucun PIN et aucune commande de génération/import PIV. Un contrat ajouté porte le total attendu à **27 tests**, à confirmer localement. **Ne pas confondre capacité Python et GO matériel** ; le chemin CSR/certificat signé par PIV82 et le déchiffrement age ne sont pas encore validés.
