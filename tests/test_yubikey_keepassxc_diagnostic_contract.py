@@ -90,6 +90,21 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "systemctl restart", "set -x"):
             self.assertNotIn(forbidden, body)
 
+    def test_main_profile_pcsc_shared_trial_contract(self):
+        script = ROOT / "scripts/workstation/trial-gpg-pcsc-shared.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--trial", result.stdout)
+        body = script.read_text()
+        for token in ("cmp -s --", "pcsc-shared", "trap cleanup EXIT",
+                      "cp -p --", "gpgconf --kill scdaemon",
+                      "Main GnuPG profile detects"):
+            self.assertIn(token, body)
+        for token in ("keytocard", "piv reset", "gpgconf --kill all",
+                      "systemctl restart pcscd", "set -x"):
+            self.assertNotIn(token, body)
+
     def test_no_destructive_operations(self):
         text = SCRIPT.read_text()
         for forbidden in ("otp chalresp", "otp delete", "piv reset", "piv keys import",
