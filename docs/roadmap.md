@@ -13,6 +13,11 @@ Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbook
 
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
+- [x] Operator reran strict audit: `secret_audit=findings_or_error`, `secret_audit_strict_check=true`, no configuration change. Root cause unknown because raw findings intentionally suppressed; do not label as unresolved ref without evidence.
+- [x] Diagnostic preflight now reports numeric exit code and top-level JSON type only (never paths, IDs, values, or finding bodies), allowing safe first-stage triage.
+- [ ] Inspect sanitized audit exit code; if JSON is valid and findings persist, implement allowlisted aggregate classification only after verifying exact audit JSON schema. No active secret/config/index changes.
+
+
 - [x] Operator ran initial `check-openclaw-litellm-memory-config.py --audit`: `secret_audit=completed`, raw output suppressed, no configuration change. Initial mode did **not** pass OpenClaw's `--check`, so no claim of zero findings.
 - [x] Updated reusable `--audit` to invoke `openclaw secrets audit --check --json` (no `--allow-exec`), report `secret_audit=clean` only on strict success and otherwise `findings_or_error`; no raw findings exposed.
 - [ ] Rerun strict audit locally; resolve any findings through a separately reviewed diagnostic. Runtime LiteLLM file-secret resolution and source isolation remain pending.
