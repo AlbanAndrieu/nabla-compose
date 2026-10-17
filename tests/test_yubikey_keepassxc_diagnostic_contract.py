@@ -134,7 +134,11 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("age-plugin-yubikey", result.stdout)
         body = script.read_text()
         for required in ("cargo install --locked", "AGE_PLUGIN_VERSION",
-                         "libpcsclite-dev", "check_age_plugin"):
+                         "libpcsclite-dev", "check_age_plugin",
+                         "libpcsclite.pc", "dpkg-architecture",
+                         "env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR",
+                         "PKG_CONFIG=/usr/bin/pkg-config",
+                         "--modversion libpcsclite"):
             self.assertIn(required, body)
         for forbidden in ("--generate", "piv reset", "keytocard", "set -x"):
             self.assertNotIn(forbidden, body)
