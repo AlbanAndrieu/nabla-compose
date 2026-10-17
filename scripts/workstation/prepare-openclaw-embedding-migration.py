@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 from pathlib import Path
-import shutil
 import sqlite3
 import subprocess
 import sys
@@ -22,15 +21,26 @@ def cli(*args):
         return None
 
 def discover():
-    # Only expected SQLite index names under the OpenClaw state directory.
-    roots = [BASE / "memory", BASE / "agents" / "main" / "memory", BASE / "agents" / "cron" / "memory"]
-    result = []
+    """Discover SQLite databases within OpenClaw memory trees, without following symlinks."""
+    roots = [BASE / "memory", BASE / "agents" / "main" / "memory",
+             BASE / "agents" / "cron" / "memory"]
+    result = set()
     for root in roots:
-        if root.is_dir() and not root.is_symlink():
-            for path in root.glob("*.sqlite"):
-                if path.is_file() and not path.is_symlink():
-                    result.append(path)
-    return sorted(set(result))
+        if not root.is_dir() or root.is_symlink():
+            continue
+        for directory, dirs, files in os.walk(root, followlinks=False):
+            dirs[:] = [d for d in dirs if not (Path(directory) / d).is_symlink()]
+            for filename in files:
+                path = Path(directory) / filename
+                if path.is_symlink() or not path.is_file():
+                    continue
+                try:
+                    with path.open("rb") as handle:
+                        if handle.read(16) == b"SQLite format 3\\x00":
+                            result.add(path)
+                except OSError:
+                    continue
+    return sorted(result)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -47,6 +57,8 @@ def main():
     print("memory_search_schema=" + ("compatible" if schema_ok else "unresolved"))
     indexes = discover()
     print(f"sqlite_indexes_discovered={len(indexes)}")
+    if not indexes:
+        print("WARN: no SQLite memory indexes found; verify OpenClaw state path and storage backend")
     for path in indexes:
         print("sqlite_index=" + str(path.relative_to(BASE)))
     print("expected_existing_dimensions=768")
@@ -54,7 +66,7 @@ def main():
     print("NOTE: matching dimensions do not imply matching vector spaces")
     if args.check:
         print("NOTE: read-only; no embeddings call, configuration change or reindex")
-        return 0 if key_ok and schema_ok else 2
+        return 0 if key_ok and schema_ok and bool(indexes) else 2
     if not key_ok or not schema_ok or not indexes:
         print("ERROR: prerequisites incomplete; backup not started", file=sys.stderr)
         return 2
