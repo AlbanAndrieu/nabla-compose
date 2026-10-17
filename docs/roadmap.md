@@ -13,6 +13,11 @@ Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbook
 
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
+- [x] Operator reran updated `check-openclaw-litellm-memory-config.py --check`: `file_secret_provider_schema=compatible`, `memory_search_schema=compatible`, `virtual_key_file=private`, `target_provider=openai-compatible`, `target_model=embedding`, `target_endpoint=loopback`, `configuration_changed=false`.
+- [ ] Runtime file secret reference remains `file_secret_resolution=unverified`; do not claim the `singleValue` reference ID works until tested without disclosing the key.
+- [ ] Historical source isolation remains `source_reindex_guard=pending`; no index reset or source removal until proven.
+
+
 - [x] Operator inspected `secrets.providers` schema: a named provider may use `source=file`, `path`, `mode=singleValue`; `memory.search.remote.apiKey` may reference `{source:file,provider,id}`. These are schema declarations, not proof of runtime secret resolution.
 - [x] Extended reusable `check-openclaw-litellm-memory-config.py --check` to validate the `secrets.providers` file/singleValue shape; rerun workstation acceptance pending.
 - [ ] Verify OpenClaw's documented/runtime `singleValue` secret-ref ID semantics (do not assume `id=value` works); avoid writing untested configuration or exposing key values.
