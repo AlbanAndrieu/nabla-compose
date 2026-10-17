@@ -624,3 +624,26 @@ mais ne prouve pas une cause déterminée.
 
 Ne pas modifier YubiKey OTP/HMAC KeePassXC, OpenPGP, PIV,
 ni perturber signature Git, git-crypt ou restaurations.
+
+### P0 — USB visible et client GUI YubiKey actif (17 octobre)
+
+L'opérateur observe `1050:0407` (YubiKey 4/5 composite) sur
+Bus 001, Device 044 ; interface 2 `Chip/SmartCard` utilisant
+`usbfs` — comportement normal pour l'interface CCID pilotée en
+espace utilisateur, pas une panne. `pcscd.socket` et
+`pcscd.service` sont actifs. Aucun événement dans
+`journalctl -u pcscd --since '20 minutes ago'` : ce silence
+ne démontre ni fonctionnement parfait ni panne.
+
+**Nouvel élément important :** `ykman-gui` est actif
+(PID 2114157), simultanément à `scdaemon` (PID 1053989).
+Il s'agit d'un **concurrent potentiel**, pas d'une preuve
+de verrouillage. Le diagnostic détecte désormais ce client.
+
+**Prochain test discriminant P0 :** terminer normalement
+`ykman-gui` via son interface (ne pas `kill -9`) ;
+attendre qu'il n'apparaisse plus dans `pgrep`, puis exécuter
+une seule fois `gpg --card-status`. Ne pas débrancher la clé,
+ne pas redémarrer `pcscd`, ne pas modifier les PIN ni
+répéter les essais `reader-port`. Si toujours KO, investiguer
+les journaux scdaemon et permissions USB, avec collecte expurgée.
