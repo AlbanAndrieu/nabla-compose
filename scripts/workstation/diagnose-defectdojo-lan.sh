@@ -26,13 +26,25 @@ case "$code" in
   *) echo "WARN: unexpected status $code; inspect route and backend"; exit 1 ;;
 esac
 echo '==> TLS certificate validation (system trust store)'
-if curl -fsS --connect-timeout 5 --max-time 12 --resolve "$host:443:$edge" -o /dev/null "https://$host/"; then
-  echo 'PASS: TLS certificate trusted (HTTP 2xx)'
-else
-  # A 302/401/403 HTTP status is not a certificate failure; isolate transport with curl -w.
-  tls=$(curl -sS --connect-timeout 5 --max-time 12 --resolve "$host:443:$edge" -o /dev/null -w '%{ssl_verify_result}' "https://$host/" 2>/dev/null || true)
-  if [[ "$tls" == "0" ]]; then echo 'PASS: TLS certificate trusted (HTTP response may be non-2xx)'; else echo "WARN: TLS trust verification failed or unavailable (verify result: ${tls:-unknown})"; fi
+# curl without -k; a redirect is an acceptable HTTP response and does not invalidate TLS.
+tls_result=$(curl -sS --connect-timeout 5 --max-time 12 --resolve "$host:443:$edge" -o /dev/null -w '%{ssl_verify_result} %{http_code}' "https://$host/" 2>/dev/null) || {
+  echo 'FAIL: TLS handshake, trust verification, or HTTPS transport failed' >&2
+  exit 1
+}
+read -r verify_code verified_http <<< "$tls_result"
+if [[ "$verify_code" != 0 ]]; then
+  echo "FAIL: TLS certificate verify result=$verify_code" >&2
+  exit 1
 fi
+echo "PASS: TLS certificate trusted (HTTP $verified_http)"
 echo '==> Redirect metadata (no cookies or authentication headers)'
-curl -sS -k --connect-timeout 5 --max-time 12 --resolve "$host:443:$edge" -o /dev/null -w 'HTTP %{http_code}; redirect %{redirect_url}\n' "https://$host/" | sed -E 's#(https?://[^/?]+)[^ ]*#\1/[path redacted]#g'
-echo 'NOTE: redirect metadata is sanitized; application, authentication and worker readiness require separate checks.'
+# Show only whether redirect remains on the same origin, without leaking query parameters.
+redirect=$(curl -sS --connect-timeout 5 --max-time 12 --resolve "$host:443:$edge" -o /dev/null -w '%{redirect_url}' "https://$host/")
+if [[ -z "$redirect" ]]; then
+  echo 'No redirect'
+elif [[ "$redirect" == "https://$host/"* ]]; then
+  echo 'Redirect: same HTTPS origin (path and query redacted)'
+else
+  echo 'WARN: redirect leaves expected HTTPS origin (destination redacted)'
+fi
+echo 'NOTE: HTTP response and TLS verified; application authentication, database and workers remain unverified.'
