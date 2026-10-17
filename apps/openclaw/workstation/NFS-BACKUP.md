@@ -20,3 +20,15 @@ Use `bash scripts/workstation/openclaw-ops.sh --memory-audit` for a **read-only,
 
 Budget evidence from the read-only LiteLLM audit: `openclaw-main` spend $10.016404 / $10 weekly (reset 2026-10-19 00:00 UTC); `openclaw` $0.25612 / $2; `openclaw-cron` hashed key ID not supplied. Propose dedicated `openclaw-embeddings` virtual key and separate limited budget, plus a verified LiteLLM embedding model alias. Check dimension compatibility with the existing 768-dimensional vectors before migrating; dimension/model changes can require a reviewed reindex. Never substitute `LITELLM_MASTER_KEY` for a virtual key or print it. Budget changes and indexing require explicit operator approval.
 
+
+## Provisioning a dedicated embeddings virtual key
+
+Run on the GPU workstation, against its loopback LiteLLM proxy. The tracked TrueNAS proxy configuration declares an `embedding` alias routed upstream and an `embedding-local` alternative; **verify the workstation LiteLLM model catalog** before selecting an alias. The provisioning script does not test embeddings or check vector dimensions.
+
+```bash
+python3 scripts/workstation/provision-openclaw-embeddings-litellm-key.py --check
+# Only after confirming the alias and reviewing the policy:
+python3 scripts/workstation/provision-openclaw-embeddings-litellm-key.py --apply --model embedding
+```
+
+`--apply` requires `LITELLM_MASTER_KEY` in the operator shell, sends it **only to** `http://127.0.0.1:4000/key/generate` (or equivalent loopback origin), and requests `key_alias=openclaw-embeddings`, `models=[embedding]`, `max_budget=1` USD, `budget_duration=30d`, `rpm_limit=5`, `tpm_limit=20000`. It creates a new private key file at `~/.local/share/nabla-compose/openclaw-embeddings.key` (0600), never prints the token and refuses to overwrite an existing file. The file is **not** automatically injected into OpenClaw; configure a supported SecretRef only after verifying runtime config and model/dimension compatibility. The master key must not be injected into OpenClaw. This operation is mutating and can create an orphaned virtual key if storage fails; revoke it in LiteLLM if that happens. Do not commit the generated key, run `memory index`, or change model dimensions as part of provisioning.
