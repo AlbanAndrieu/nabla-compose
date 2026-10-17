@@ -77,7 +77,7 @@ def check():
 def audit():
     """Run the built-in read-only audit without displaying its potentially sensitive findings."""
     process = subprocess.run(
-        ["openclaw", "secrets", "audit", "--json"],
+        ["openclaw", "secrets", "audit", "--check", "--json"],
         capture_output=True, text=True, timeout=60, check=False,
     )
     try:
@@ -88,8 +88,9 @@ def audit():
     if not isinstance(data, (dict, list)):
         print("secret_audit=unexpected_format")
         return 2
-    print("secret_audit=completed" if process.returncode == 0 else "secret_audit=findings_or_error")
+    print("secret_audit=" + ("clean" if process.returncode == 0 else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
+    print("secret_audit_strict_check=true")
     print("file_secret_resolution=unverified")
     print("configuration_changed=false")
     return 0 if process.returncode == 0 else 2
