@@ -914,3 +914,14 @@ Ne lancer aucun essai `pcsc-shared` avant d'avoir vérifié la
 disponibilité sur le binaire installé. Sa documentation signale
 des risques d'incohérence d'état et de cache PIN en mode partagé :
 préférer, si applicable, un `GNUPGHOME` jetable sans clé.
+
+### P0 — Validation options pcsc-shared (17 octobre 2026)
+
+La workstation confirme via `scdaemon --dump-options` les deux directives `--pcsc-shared` et `--disable-ccid`. L'absence de `pcsc-shared` dans `gpgconf --list-options scdaemon` ne suffit pas à contredire le binaire.
+
+Un mode **`--pcsc-shared`** est ajouté à `scripts/workstation/compare-gpg-card-transports.sh`. Il crée un seul `GNUPGHOME` temporaire, contenant seulement `disable-ccid` et `pcsc-shared`, tente une lecture `gpg --batch --card-status` bornée, ne publie pas les données de la carte, puis ferme uniquement l'agent temporaire et nettoie. Ne pas utiliser de profil ou de clés privées réels. Le mode partagé est expérimental et peut affecter l'état de sélection et de PIN si d'autres clients sont actifs ; n'envisager aucune activation permanente sans analyse de risque.
+
+```bash
+./scripts/workstation/compare-gpg-card-transports.sh --check
+./scripts/workstation/compare-gpg-card-transports.sh --pcsc-shared
+```
