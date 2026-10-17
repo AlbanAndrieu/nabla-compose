@@ -522,3 +522,19 @@ pour le chargeur ; son absence dans `/proc/PID/maps` **à cet instant**
 ne prouve pas qu'elle n'a jamais été chargée. L'essai `reader-port`
 a échoué avec rollback réussi ; ne pas le répéter à l'identique.
 Aucune réinitialisation ou transfert de clés.
+
+### P0 — Vérification bibliothèque disponible, processus absent (17 octobre)
+
+`ldconfig -p` résout `libpcsclite.so.1` vers
+`/usr/lib/x86_64-linux-gnu/libpcsclite.so.1`, et
+`readlink -f` confirme le même chemin. La boucle
+`pgrep -u "$(id -u)" -x scdaemon` n'a affiché aucun PID au
+moment du contrôle : impossible de consulter `/proc/PID/maps`.
+Ne pas conclure à une bibliothèque manquante ou non chargée.
+
+Prochain diagnostic : interroger l'état de scdaemon immédiatement
+après une tentative OpenPGP, dans **une seule session de commandes**
+sans `set -e` interactif. Interroger `gpg-connect-agent` avec un
+timeout, puis regarder les PIDs et mappings. Ne pas utiliser
+`gpgconf --kill all`, ne pas créer de profil avec des secrets
+et ne pas modifier `scdaemon.conf`.
