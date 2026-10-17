@@ -13,6 +13,11 @@ Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbook
 
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
+- [x] Operator confirmed OpenClaw 2026.9.5 supports `openclaw secrets audit --json` and `--check`; `--allow-exec` is opt-in (default false). `configure`, `apply`, `reload` are potentially mutating and remain out of scope.
+- [x] Reusable preflight now offers `--audit`, invoking read-only audit without `--allow-exec` and suppressing raw JSON/finding details. An audit of existing config does **not** prove a not-yet-configured LiteLLM file SecretRef resolves.
+- [ ] Run `check-openclaw-litellm-memory-config.py --audit` locally and interpret outcome; test file SecretRef runtime resolution with a synthetic secret/provider in an isolated configuration before touching active config.
+
+
 - [x] Operator reran updated `check-openclaw-litellm-memory-config.py --check`: `file_secret_provider_schema=compatible`, `memory_search_schema=compatible`, `virtual_key_file=private`, `target_provider=openai-compatible`, `target_model=embedding`, `target_endpoint=loopback`, `configuration_changed=false`.
 - [ ] Runtime file secret reference remains `file_secret_resolution=unverified`; do not claim the `singleValue` reference ID works until tested without disclosing the key.
 - [ ] Historical source isolation remains `source_reindex_guard=pending`; no index reset or source removal until proven.
