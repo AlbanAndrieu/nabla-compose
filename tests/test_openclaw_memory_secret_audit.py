@@ -41,6 +41,17 @@ class AuditSummaryTests(unittest.TestCase):
         self.assertNotIn("sensitive", result)
         self.assertNotIn("private", result)
 
+    def test_nested_shape_does_not_disclose_identifiers_or_values(self):
+        result = module.audit_structure({
+            "path-/home/private": [{"secret": "sk-private", "path": "/home/private"}],
+            "config": {"password": "private", "findings": [1]},
+            "notes": "private",
+        })
+        self.assertEqual(result, "array(1,0,0);object(1,0,1);scalar")
+        self.assertNotIn("private", result)
+        self.assertNotIn("password", result)
+        self.assertNotIn("secret", result)
+
     def test_invalid_or_boolean_counts_not_accepted(self):
         result = module.audit_summary({"plaintext": True})
         self.assertEqual(result["schema"], "unknown")
