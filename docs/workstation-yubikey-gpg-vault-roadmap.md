@@ -443,3 +443,30 @@ clé via `keytocard` ; ce chantier ne réalise aucun transfert.
 
 Documentation de référence :
 https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
+
+### P0 — Essai transactionnel de reader-port (agent, 17 octobre)
+
+Le script `scripts/workstation/test-gpg-reader-port.sh` sépare
+`--check` (lecture seule) de `--apply` (essai supervisé).
+Il contrôle l'égalité byte-à-byte du `scdaemon.conf` courant avec
+`scdaemon.conf.before-reader-port`, la présence du lecteur,
+`disable-ccid`, et l'absence de directive `reader-port`.
+Il refuse root, ne remplace jamais la sauvegarde et ne modifie
+aucune clé, certificat ou PIN.
+
+`--apply` utilise un fichier temporaire dans le même répertoire
+avec permissions préservées, sélectionne temporairement le lecteur
+`Yubico YubiKey OTP+FIDO+CCID 00 00`, rafraîchit uniquement
+`scdaemon` et teste `gpg --card-status` avec un délai borné.
+Un trap restaure ensuite la sauvegarde et rafraîchit `scdaemon`,
+même si le test réussit. Le script est exécuté dans un processus Bash
+séparé : il ne change jamais `errexit` dans le terminal parent.
+Les terminaisons brutales non interceptables (SIGKILL, coupure secteur)
+ne permettent pas un rollback automatique : dans ce cas utiliser la
+sauvegarde préexistante avant tout nouvel essai.
+
+**Gates :** `bash -n`, test de contrat Python et mode Git 100755
+dans l'environnement agent ; `--check` et `--apply` à exécuter
+uniquement sur workstation une fois les opérations GPG terminées.
+Si `--apply` annonce le succès, une décision explicite distincte
+sera nécessaire avant toute configuration persistante.
