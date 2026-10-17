@@ -100,8 +100,8 @@ explicit operator environment:
 ```bash
 cd /mnt/cpool/compose/nabla-compose
 
-sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --apply netbox
-sudo -E bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden netbox
+bash scripts/truenas/prepare-security-tooling-secrets.sh --apply netbox
+bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden netbox
 ```
 
 Acceptance:
@@ -118,6 +118,29 @@ Repeat one service at a time before broad deployment.
 DSOMM reuses this materialization path for its manual GitHub baseline runner,
 but its UI is deployed separately from `deploy-security-tooling.sh`; see
 `apps/dsomm/README.md`.
+
+### DefectDojo-specific preflight
+
+After the shared PostgreSQL and Redis diagnostic succeeds, run:
+
+```bash
+sudo bash scripts/truenas/preflight-defectdojo.sh
+```
+
+This is read-only and does not create Vaultwarden items or start containers.
+The currently observed Redis keyspace contains DB 0 and DB 3; proposed DB 10
+and DB 11 are not yet reserved. Check all Redis consumers before assigning them.
+
+DefectDojo must set `DD_DATABASE_HOST=172.17.0.24` in the TrueNAS Custom
+App environment: its initializer and workers use this setting for
+`wait-for-it.sh` independently of `DD_DATABASE_URL`.
+Pin compatible Django and nginx image versions and restrict
+`DD_ALLOWED_HOSTS` before applying the deployment. Do not expose
+`docker compose config` output containing interpolated secrets.
+
+The materialization wrapper explicitly refuses root for `--apply` and
+`--verify-vaultwarden`: run these as the unlocked operator. Only the
+final root-owned file installation escalates privileges.
 
 ## 6. Validate shared PostgreSQL prerequisites
 
