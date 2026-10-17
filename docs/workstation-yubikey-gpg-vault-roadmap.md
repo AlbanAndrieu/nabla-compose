@@ -2212,3 +2212,37 @@ No automatic TDES downgrade, no PIN guessing, no PIV reset, no wildcard `--force
 ### Acceptation locale AES guard — 17 octobre 2026
 
 L'opérateur a synchronisé le worktree PR #259 au commit `9464f03d`, puis exécuté `bash -n scripts/workstation/check-age-yubikey-aes-compat.sh` et `python3 -m unittest discover -s tests -p test_yubikey_keepassxc_diagnostic_contract.py -v` : **19 tests PASS / 19**. Avec la YubiKey secondaire `22916048` connectée, `check-age-yubikey-aes-compat.sh --serial 22916048` a affiché le blocage attendu AES PIV management key et retourné **3**, par politique de sécurité. Cela valide le garde-fou local en lecture seule, pas la compatibilité age-plugin-yubikey ni le provisionnement matériel. PIV82 reste non provisionné ; ne pas convertir en TDES, ne pas saisir de PIN pour refaire ce diagnostic. Prochaine tâche : analyser les métadonnées d'un certificat compatible age-plugin-yubikey et un chemin de génération P-256 via ykman compatible AES, d'abord sans écriture.
+
+### Investigation external P-256 via ykman (lecture seule — 17 octobre 2026)
+
+L'aide de la version `ykman` installée confirme que
+`piv keys generate SLOT PUBLIC-KEY` propose `ECCP256`,
+`--pin-policy ALWAYS` et `--touch-policy ALWAYS`.
+La génération de certificat utilise
+`piv certificates generate SLOT PUBLIC-KEY --subject SUBJECT`.
+La commande `age-plugin-yubikey --list-all` n'a produit
+aucune entrée avec la carte secondaire présente : **aucune identité
+age détectée** à ce stade.
+
+Source amont importante :
+[age-plugin-yubikey issue #206](https://github.com/str4d/age-plugin-yubikey/issues/206)
+décrit une **méthode expérimentale de génération externe**
+par `ykman` suivie d'un certificat X.509. L'auteur précise
+que l'organisation de sujet `O=age-plugin-yubikey` joue
+sur la découverte automatique, et que des extensions OID
+peuvent porter les politiques PIN/touch. **Cette expérience
+n'établit pas** que le certificat ordinaire émis par
+`ykman piv certificates generate` reproduise toutes
+les métadonnées attendues, ni que le plugin détecte
+correctement les politiques ALWAYS. Le témoignage amont
+utilise même des politiques NEVER : **ne pas copier cet
+exemple** sur des cartes opérationnelles.
+
+**Avant écriture :** analyser source/format de certificat
+du plugin et préparer un test de compatibilité sur clé
+jetable ou certificat simulé ; prévoir un outil de signature
+et extensions conforme si nécessaire. Vérifier ensuite
+`age-plugin-yubikey --list-all` et un déchiffrement
+réel avec PIN/touch avant tout usage. Les cartes existantes
+restent inchangées et le workflow `--generate` du plugin
+est toujours bloqué par AES256. Ne pas passer en TDES.
