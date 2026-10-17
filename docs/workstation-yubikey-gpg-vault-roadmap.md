@@ -2121,3 +2121,9 @@ bash scripts/workstation/test-sops-usb-recovery.sh \
 - [ ] Intégration multi-recipient SOPS uniquement après
   démonstration de recovery et identification des contraintes
   des environnements CI et headless.
+
+### Runbook pérenne PRA et diagnostic PIV 82 (17 octobre 2026)
+
+La procédure **autonome de récupération** est désormais dans [`docs/runbooks/sops-age-usb-disaster-recovery.md`](runbooks/sops-age-usb-disaster-recovery.md) : emplacements TrueNAS/workstation/USB, empreinte SHA-256 vérifiée, référence de la phrase secrète **LastPass → USB SANDISK LUKS2**, UUID LUKS, destinataires publics, restauration testée, limites de recréation d'une SanDisk perdue, contrôles de permissions et commandes de secours. Ne jamais confondre sauvegarde de la clé SOPS avec sauvegarde de la clé **escrow** de la SanDisk : la deuxième copie de celle-ci reste à réaliser.
+
+Lors du PIV82 preflight : `Connect exactly the selected single YubiKey` sur le secours et `PIV 82 info unavailable` sur la principale. Le script a été corrigé pour traiter **uniquement** les messages explicites « no key » comme slot vide, y compris si `ykman` retourne un code non nul ; tous les autres échecs restent bloquants. Ne pas provisionner tant que les diagnostics ne renvoient pas PASS.
