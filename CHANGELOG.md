@@ -1,3 +1,28 @@
+# [0.46.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.45.0...0.46.0) (2026-10-17)
+
+
+### Bug Fixes
+
+* **agent:** fiabiliser le scope Compose et Git offline ([#251](https://github.com/AlbanAndrieu/nabla-compose/issues/251)) ([6d98d16](https://github.com/AlbanAndrieu/nabla-compose/commit/6d98d16afddbd273f5a49dc18ddcce0146ba5ae6))
+* **agent:** lever le blocage offline et borner les diagnostics ([#250](https://github.com/AlbanAndrieu/nabla-compose/issues/250)) ([d4cb4fd](https://github.com/AlbanAndrieu/nabla-compose/commit/d4cb4fd2e8f2a63ae8d719e9bfd239d337ca50db))
+* **gatus:** réparer l'accès au YAML généré et reprendre la stabilisation runtime ([#253](https://github.com/AlbanAndrieu/nabla-compose/issues/253)) ([42e0521](https://github.com/AlbanAndrieu/nabla-compose/commit/42e0521d9653b381c2670d30da634ff98c1cf899))
+* **gatus:** sécuriser la reprise et la validation du script de recovery ([#255](https://github.com/AlbanAndrieu/nabla-compose/issues/255)) ([74faf84](https://github.com/AlbanAndrieu/nabla-compose/commit/74faf841809baab92df2eac07bac742cb471b30f))
+* **pfsense:** restaurer le bit exécutable du diagnostic [skip ci] ([#252](https://github.com/AlbanAndrieu/nabla-compose/issues/252)) ([38552ce](https://github.com/AlbanAndrieu/nabla-compose/commit/38552ce6a77189414470142b7c25e50c0f55518e))
+* rendre le PoC Dagger reproductible avant benchmark ([#247](https://github.com/AlbanAndrieu/nabla-compose/issues/247)) ([704a145](https://github.com/AlbanAndrieu/nabla-compose/commit/704a145eb24d6544c7b83dbb054939454ba68e9b))
+* **runtime:** finaliser Sentry, DSOMM et l’outillage TrueNAS ([#243](https://github.com/AlbanAndrieu/nabla-compose/issues/243)) ([d6a8238](https://github.com/AlbanAndrieu/nabla-compose/commit/d6a8238abf3b5bee7ccf3ca5188617e936e198d2))
+* stabiliser DSOMM, Sentry et les migrations runtime TrueNAS ([#240](https://github.com/AlbanAndrieu/nabla-compose/issues/240)) ([1ffe637](https://github.com/AlbanAndrieu/nabla-compose/commit/1ffe637a7dae81ec11773f0b7bfeac05598e415d))
+* **truenas:** diagnostiquer les Apps bloquées après reboot ([#239](https://github.com/AlbanAndrieu/nabla-compose/issues/239)) ([ca6792e](https://github.com/AlbanAndrieu/nabla-compose/commit/ca6792ee8bf3ecb9f462a8b9b376807a5901a7b0))
+* **truenas:** stabiliser DSOMM et compacter les deployers ([#249](https://github.com/AlbanAndrieu/nabla-compose/issues/249)) ([64e7088](https://github.com/AlbanAndrieu/nabla-compose/commit/64e7088c20a9105d6a875da887278da5a6ba5d19))
+
+
+### Features
+
+* intégrer Context7 en mode free-first ([#244](https://github.com/AlbanAndrieu/nabla-compose/issues/244)) ([f93fbfd](https://github.com/AlbanAndrieu/nabla-compose/commit/f93fbfde7fbaaee67d7f0d6c6690f43fc26cf2aa))
+* **observability:** generate outside-in SOS contracts [skip ci] ([#245](https://github.com/AlbanAndrieu/nabla-compose/issues/245)) ([c7fe16f](https://github.com/AlbanAndrieu/nabla-compose/commit/c7fe16faba4f1cc0615da56c398533b48ffbfef5))
+* **pfsense:** durcir le diagnostic OOM et l’identité exporter ([#248](https://github.com/AlbanAndrieu/nabla-compose/issues/248)) ([8b03204](https://github.com/AlbanAndrieu/nabla-compose/commit/8b032048a5a10ec97d3f98b065f1628f79afbae4))
+* préparer le PoC Dagger local-first ([#246](https://github.com/AlbanAndrieu/nabla-compose/issues/246)) ([74eadd2](https://github.com/AlbanAndrieu/nabla-compose/commit/74eadd295ca5663becda4430c33c75c8482f2eb7))
+* **security:** préremplir DSOMM, déclarer OpenCRE et publier l’audit ([#238](https://github.com/AlbanAndrieu/nabla-compose/issues/238)) ([5e9516e](https://github.com/AlbanAndrieu/nabla-compose/commit/5e9516e54686e06c8f149c81689cbf0dbc14c80d))
+
 # [0.45.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.44.0...0.45.0) (2026-10-03)
 
 
