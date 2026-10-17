@@ -1,3 +1,5 @@
 # path	base_blob	current_blob	reason
 .github/workflows/production-security.yml	88e06bff401730950af0fe9aead738cb3b2bed21	b6d9bd3151033767b0b0e9b6699c63c646ee1419	ZAP/DAST delegated to fastapi-sample; bounded runtime smoke retained
 docs/pfsense-dns-incident-20260927.md	f3d9a84707815176ecdd7ce46eaeb590c3029f8f	DELETED	duplicate incident consolidated under docs/incidents/
+.gitlab-ci.yml	c563d0e8a19c92468c8983a5858bdd99c15d7d0c	DELETED	Reviewed in merged PR #258: legacy GitLab CI removed during GitHub Actions migration; exact base blob only
+api/main.py	5d82d4899bd3a0ff9559b1633e809d504032b213	DELETED	Reviewed in merged PR #258: legacy API entrypoint removed; FastAPI sample runs from its dedicated repository; exact base blob only
