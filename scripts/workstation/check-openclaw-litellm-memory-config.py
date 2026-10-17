@@ -80,14 +80,17 @@ def audit():
         ["openclaw", "secrets", "audit", "--check", "--json"],
         capture_output=True, text=True, timeout=60, check=False,
     )
+    print("secret_audit_exit_code=" + str(process.returncode))
     try:
         data = json.loads(process.stdout)
     except ValueError:
-        print("secret_audit=unavailable")
+        print("secret_audit=invalid_json_or_command_error")
+        print("secret_audit_raw_output=suppressed")
         return 2
     if not isinstance(data, (dict, list)):
         print("secret_audit=unexpected_format")
         return 2
+    print("secret_audit_json_type=" + ("object" if isinstance(data, dict) else "array"))
     print("secret_audit=" + ("clean" if process.returncode == 0 else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
     print("secret_audit_strict_check=true")
