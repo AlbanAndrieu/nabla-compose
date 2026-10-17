@@ -14,9 +14,9 @@ from pathlib import Path
 import yaml
 
 
-def reconcile(catalog: dict, config: dict, statuses: list | None = None) -> dict:
+def reconcile(\n    catalog: dict, config: dict, statuses: list | None = None,\n    topology: dict | None = None,\n) -> dict:
     services = {entry["id"]: entry for entry in catalog["services"] if entry.get("id")}
-    monitors = {}
+    topology_ids = {node["id"] for node in (topology or {}).get("nodes", []) if node.get("id")}\n    monitors = {}
     duplicates = []
     for endpoint in config.get("endpoints", []):
         labels = endpoint.get("extra-labels") or {}
@@ -57,15 +57,15 @@ def reconcile(catalog: dict, config: dict, statuses: list | None = None) -> dict
     rows = []
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
-        state = runtime.get(monitor_id, "not_checked")
+        state = runtime.get(monitor_id, "not_checked")\n        historical_match = bool(service_id and service_id in services)\n        topology_match = bool(service_id and service_id in topology_ids)\n        mapping = (\n            "historical_catalog" if historical_match\n            else "canonical_topology" if topology_match\n            else "infrastructure_unmapped" if not service_id\n            else "unresolved"\n        )
         rows.append({
             "monitor_id": monitor_id,
             "service_id": service_id,
-            "catalog_match": bool(service_id and service_id in services),
+            "catalog_match": historical_match,\n            "topology_match": topology_match,\n            "mapping_source": mapping,
             "probe_type": mon["probe_type"],
             "evidence": state,
             "classification": (
-                "needs_service_mapping" if service_id and service_id not in services
+                "needs_service_mapping" if mapping == "unresolved"
                 else "investigate_probe_not_service_down"
                 if state == "probe_failed_unconfirmed"
                 else state
@@ -79,7 +79,7 @@ def reconcile(catalog: dict, config: dict, statuses: list | None = None) -> dict
         "unmonitored_catalog_ids": sorted(set(services) - {
             m["service_id"] for m in monitors.values() if m["service_id"]
         }),
-        "classification_counts": dict(sorted(counts.items())),
+        "classification_counts": dict(sorted(counts.items())),\n        "mapping_counts": dict(sorted(Counter(row["mapping_source"] for row in rows).items())),\n        "unresolved_monitor_ids": [row["monitor_id"] for row in rows if row["mapping_source"] == "unresolved"],
         "monitors": rows,
         "note": "Probe failure is not proof of application downtime. No URLs or secrets exported.",
     }
@@ -92,9 +92,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="Optional JSON report path")
     args = parser.parse_args()
     catalog = json.loads((args.root / "catalog/homelab-services.json").read_text())
-    config = yaml.safe_load((args.root / "apps/gatus/config/config.yml").read_text())
+    config = yaml.safe_load((args.root / "apps/gatus/config/config.yml").read_text())\n    topology = json.loads((args.root / "catalog/service-topology.json").read_text())
     statuses = json.loads(args.statuses.read_text()) if args.statuses else None
-    report = reconcile(catalog, config, statuses)
+    report = reconcile(catalog, config, statuses, topology)
     payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.write_text(payload)
