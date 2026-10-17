@@ -2352,3 +2352,15 @@ Aucune carte requise, aucun PIN et aucune commande de génération/import PIV. U
 ### SDK isolé accepté par l'opérateur (2026-10-18)
 
 Le retour workstation confirme **27/27 tests PASS**. L'opérateur a exécuté `bootstrap-yubikey-piv-python-sdk.sh --apply` avec succès : environnement isolé `~/.local/share/nabla/piv-sdk-venv` sous Python 3.14.8, `yubikey-manager==5.8.0`, `cryptography==46.0.3`, et dépendances résolues. `check-yubikey-piv-python-sdk.sh` rapporte `Python SDK imports and signing-builder capability available` puis `SDK capability gate ... available without downgrading AES`. C'est une validation d'import/API, **pas** une validation de session PIV ni de signature sur carte. Aucun PIN, aucune écriture matérielle ni altération AES256 confirmés par ces commandes. Avant opération matérielle : figer dépendances transitives, inspecter les signatures exactes de `PivSession`, du constructeur X.509 et de `sign_certificate_builder`, puis vérifier l'authentification AES256 dans un mode strictement contrôlé. Les YubiKeys restent NO-GO matériel jusqu'à procédure signée et interopérabilité age validées.
+
+### 2026-10-18 — Validation de l'API réelle de signature avec session PIV simulée
+
+Ajout de `scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py`. Ce test n'utilise **pas** `openssl x509 -signkey` : il appelle réellement `ykman.piv.sign_certificate_builder` (Yubico Manager 5.8.0), avec une fausse session PIV dont la méthode `sign` est exécutée par une clé P-256 éphémère en mémoire. Il vérifie la signature ECDSA du certificat final, la correspondance de la clé publique, le sujet, la présence d'une extension **non critique** `1.3.6.1.4.1.41482.3.8` valant exactement `03 02` et le slot `SLOT.RETIRED1` simulé. Le script n'ouvre aucune connexion PC/SC, ne persiste aucune clé, ne demande aucun PIN et ne modifie aucune carte.
+
+Nouveau contrat dans `tests/test_yubikey_keepassxc_diagnostic_contract.py` : test statique systématique et exécution du PoC avec `~/.local/share/nabla/piv-sdk-venv/bin/python` lorsque cet environnement existe. **28 tests attendus**, à vérifier sur workstation. Commandes en une fois :
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py
+```
+
+**Restent NO-GO :** authentification AES256 on-card, import du certificat en PIV82 et vérification de l'identité/du déchiffrement du vrai plugin. Le test par session simulée prouve la structure du certificat et l'API de substitution de signature, **pas** la compatibilité matérielle. Refuser tout script `--apply` sur les deux clés jusqu'à validation séparée et autorisation explicite.
