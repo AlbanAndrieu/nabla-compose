@@ -35,6 +35,28 @@
 - [ ] Évaluer les risques du socket Docker et la maintenance du projet Watchtower archivé, puis ajouter préflight/backup/smoke/rollback manuel avant toute activation de l'automatisation.
 - [ ] Exécuter quality gate locale et contrats FastAPI/Nabla sur le schéma partagé, puis tests runtime en lecture seule ; pas de merge ni redéploiement sans approbation.
 
+## P0/P1 — YubiKey / GnuPG / Vault PKI (2026-10-16)
+
+- [x] Diagnostiquer les deux clés KeePassXC sur slot OTP 2, réponses HMAC identiques.
+- [x] Préparer un diagnostic GnuPG/PCSC en lecture seule : `scripts/workstation/diagnose-gpg-smartcard.sh --check`.
+- [ ] **P0** Corriger `gpg --card-status: No such device` sur GnuPG 2.4.8 malgré `disable-ccid`, avec tests sur les deux clés et retour arrière.
+- [ ] **P0** Protéger la clé de signature Git / git-crypt et les sous-clés de déchiffrement PostgreSQL; valider une restauration isolée avant toute migration de clés sur carte.
+- [ ] **P1** Créer une nouvelle CA racine hors ligne compatible Vault PKI intermédiaire; l'ancienne CA slot 9A est expirée, `CA:TRUE,pathlen:0`, à préserver pendant l'audit.
+- [ ] **P2** Étudier SSH FIDO2, PAM U2F dual-key, age-plugin-yubikey et GNOME Keyring.
+- **Détails et critères d'acceptation :** [roadmap YubiKey / GPG / Vault](workstation-yubikey-gpg-vault-roadmap.md).
+
+## P0/P1 — Reprise PR #255 : Gatus, diagnostics ressources et import FreshRSS sûr (mise à jour 2026-10-15)
+
+- [x] Préserver le script de récupération Gatus et son test de formatage ; ne pas confondre le préflight avec une acceptation runtime (App précédemment STOPPED, HTTP 8085 indisponible).
+- [ ] **P0 Gatus runtime** : les commandes de diagnostic récentes ont été exécutées dans un environnement qui n'est pas le TrueNAS attendu : `/mnt/cpool/compose/nabla-compose` absent, `docker inspect gatus` sans conteneur et `midclt` absent. Ne pas appliquer de chmod dans ce contexte. Se connecter au shell TrueNAS, découvrir le vrai chemin du dépôt/app et identifier le conteneur via `docker ps -a`/`midclt`; vérifier `GroupAdd=568` et le montage exact `/config` avant toute réparation. Préserver `/mnt/cpool/gatus/gatus.db`. Accepter HTTP, endpoints et Prometheus après rétablissement.
+- [x] **P1 garde-fou FreshRSS** : interdire `--apply` et `--import-opml` lorsque l'OPML épinglé ne compte pas exactement dix sources ; corriger le chemin temporaire d'import. Les 78 flux du site ne doivent pas entrer accidentellement dans les comptes `securitypublic` et `securityagent`.
+- [ ] **P1 implémentation suivante** : produire un OPML filtré par les dix URLs explicitement approuvées (et tester l'égalité des ensembles URL, pas uniquement la cardinalité), sauvegarder FreshRSS, vérifier l'idempotence de l'import puis accepter via GReader avant autorisation runtime. **Ne pas importer les 78 flux sans arbitrage explicite**.
+- [ ] **P0/P1 télémétrie et CrowdSec** : l'audit Prometheus fourni le 15 octobre confirme `scrape_down` pour Gatus, FastAPI Sample et PostgreSQL exporter ; Redis, pfSense et CrowdSec sont `scrape_up` ; Cloudflare `not_declared`. Exécuter l'audit depuis un réseau qui atteint réellement Prometheus, puis diagnostiquer sans régénération de secrets ni faux statut DOWN applicatif. Le script CrowdSec exige `midclt` et doit être exécuté sur TrueNAS, pas la workstation.
+- [x] **P0 CI GitHub** : Pre-commit et CodeQL de la PR #255 réussis sur le commit `641f090857cfadbd84701b135ff6cc3e62880aee` (14/10/2026).
+- [ ] **P0 quality gate locale** : exécuter les contrats concernés dans un checkout complet avec dépendances installées ; CI verte ne remplace pas les preuves runtime, aucun merge automatique.
+- [x] **P0 diagnostic ressources** : ajouter `scripts/truenas/diagnose-resource-usage.sh` — snapshot en lecture seule des processus CPU/RSS, mémoire, disques, `docker stats` et états des conteneurs ; il tolère l'absence de Docker/midclt sur la workstation.
+- [ ] **P0 resource baseline** : exécuter le script sur TrueNAS et conserver les sorties CPU/mémoire/IO sans environnement ni secrets ; corréler avec les cibles Prometheus indisponibles avant de redémarrer quoi que ce soit.
+
 ## P1 — Cloudflare DNS/Tunnel as code et réconciliation Garage (2026-10-13)
 
 - [x] Marquer **Garage Admin API :3903** comme strictement `external=false` dans le catalogue canonique et les overrides ; **Garage Web UI :3909** demeure temporairement accessible à distance.
