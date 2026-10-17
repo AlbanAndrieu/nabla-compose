@@ -57,6 +57,8 @@ case "${mode}" in
     diagnose_skill_review
     echo '==> Memory index summary'
     diagnose_memory
+    echo '==> Structured memory coverage and schema audit (read-only)'
+    python3 "${ROOT}/scripts/workstation/openclaw-memory-audit.py"
     echo '==> CLI authentication presence (redacted)'
     python3 "${ROOT}/scripts/workstation/openclaw-auth-presence.py"
     echo '==> OpenClaw dotenv credential syntax (redacted)'
