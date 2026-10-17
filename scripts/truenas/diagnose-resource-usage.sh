@@ -3,11 +3,11 @@
 set -uo pipefail
 
 MODE="${1:---all}"
-case "$MODE" in
+case "${MODE}" in
   --all|--host|--docker|-h|--help) ;;
   *) printf 'Usage: %s [--all|--host|--docker]\n' "$0" >&2; exit 2 ;;
 esac
-if [[ "$MODE" == "-h" || "$MODE" == "--help" ]]; then
+if [[ "${MODE}" == "-h" || "${MODE}" == "--help" ]]; then
   printf 'Read-only host and Docker resource inventory; no restarts, secrets or config changes.\n'
   exit 0
 fi
@@ -15,7 +15,7 @@ fi
 section() { printf '\n==> %s\n' "$*"; }
 has() { command -v "$1" >/dev/null 2>&1; }
 
-if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
+if [[ "${MODE}" == "--all" || "${MODE}" == "--host" ]]; then
   section "Host identity / uptime"
   hostname 2>/dev/null || true
   uname -a 2>/dev/null || true
@@ -27,7 +27,7 @@ if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
   section "RSS consumers"
   ps -eo pid,ppid,user,comm,%cpu,%mem,rss,etime --sort=-rss | head -n 21 || true
   section "QEMU/VMs: scoped process identifiers (no command-line arguments)"
-  ps -eo pid,ppid,user,comm,rss,etime | grep -E 'qemu-system|PID' || true
+  ps -eo pid,ppid,user,comm,rss,etime | awk 'NR == 1 || /qemu-system/'
   if has virsh; then
     # TrueNAS may run QEMU without a default libvirt socket; failure is advisory.
     virsh -c qemu:///system list --all 2>&1 || printf 'INFO: libvirt system socket unavailable; inspect TrueNAS VM API/UI.\n'
@@ -36,7 +36,7 @@ if [[ "$MODE" == "--all" || "$MODE" == "--host" ]]; then
   if has df; then df -hT -x tmpfs -x devtmpfs 2>/dev/null | head -n 25; fi
 fi
 
-if [[ "$MODE" == "--all" || "$MODE" == "--docker" ]]; then
+if [[ "${MODE}" == "--all" || "${MODE}" == "--docker" ]]; then
   section "Docker status"
   if ! has docker; then
     printf 'INFO: Docker CLI unavailable.\n'
