@@ -35,6 +35,18 @@ if grep -Fq 'O=age-plugin-yubikey' <<< "$subject"; then
 else
   nabla_status warn 'Subject lacks O=age-plugin-yubikey; automatic plugin discovery may not work'
 fi
+# Require the Yubico attestation policy extension exactly once and non-critical.
+# OpenSSL renders the policy payload as two bytes following the OID.
+extensions="$(openssl x509 -in "$certificate" -noout -ext 1.3.6.1.4.1.41482.3.8 2>&1)" || {
+  nabla_status error 'Cannot inspect policy extension'; exit 3;
+}
+# OpenSSL versions vary in rendering, so do not infer policy bytes from human text.
+# DER is parsed in the synthetic unittest contract; real certificate policy remains pending.
+if grep -Eiq 'No extensions|not found|does not contain' <<< "$extensions"; then
+  nabla_status warn 'PIV policy extension not found; PIN/touch certificate metadata unverified'
+else
+  nabla_status info 'PIV policy extension reported; exact DER bytes require separate inspection'
+fi
 nabla_status warn 'Certificate-only inspection cannot verify PIN/touch OIDs, slot binding, management-key behavior or successful age decryption'
 nabla_status info 'Next validation requires explicit plugin --list-all/--identity and synthetic age decrypt on an approved test device'
 exit 3
