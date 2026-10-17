@@ -393,7 +393,8 @@
         "provider": "truenas-app",
         "containerService": "defectdojo",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ]
       },
       "monitoring": {
