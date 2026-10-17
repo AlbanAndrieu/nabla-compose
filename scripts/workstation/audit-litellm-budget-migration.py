@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Read-only budget migration preflight across LiteLLM proxies; no secrets printed."""
+import argparse
 import json
 import os
 import sys
@@ -12,11 +13,27 @@ PROXIES = (
 )
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--truenas-transport", choices=("tunnel", "health-only"), default="health-only",
+                        help="Tunnel uses 127.0.0.1:14000; health-only never sends credentials to TrueNAS")
+    args = parser.parse_args()
     print("migration_mode=read_only")
     print("NOTE: TrueNAS admin audit requires an encrypted tunnel on localhost:14000; direct LAN port 4000 is health-only")
     print("truenas_health_url=http://172.17.0.24:4000/health/liveliness")
     for label, base, variable in PROXIES:
+        if label == "truenas" and args.truenas_transport == "health-only":
+            try:
+                with urlopen("http://172.17.0.24:4000/health/liveliness", timeout=5) as response:
+                    print(f"truenas: liveliness_http_status={response.status}")
+            except (HTTPError, URLError, TimeoutError, OSError):
+                print("truenas: liveliness=unavailable")
+            print("truenas: admin_audit=skipped_no_encrypted_transport")
+            continue
         key = os.environ.get(variable)
+        if label == "truenas" and not key:
+            key = os.environ.get("LITELLM_MASTER_KEY")
+            if key:
+                print("truenas: credential_source=workstation_master_assumed_not_verified")
         if not key:
             print(f"{label}: credential=missing (set {variable} privately)")
             continue
