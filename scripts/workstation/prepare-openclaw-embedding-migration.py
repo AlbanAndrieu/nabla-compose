@@ -13,6 +13,29 @@ KEY = Path.home() / ".local/share/nabla-compose/openclaw-embeddings.key"
 BASE = Path.home() / ".openclaw"
 BACKUP = Path.home() / ".local/share/nabla-compose/openclaw-memory-migration"
 
+def decorate(line):
+    """Human-friendly TTY output; plain stable key=value for CI and pipes."""
+    if not sys.stdout.isatty() or "NO_COLOR" in os.environ or os.getenv("TERM") == "dumb":
+        return line
+    if line.startswith("runtime_") and line.endswith("=verified"):
+        return "\033[32m✔ " + line + "\033[0m"
+    if line.startswith("runtime_") and line.endswith("=unresolved"):
+        return "\033[31m✘ " + line + "\033[0m"
+    if line.startswith("WARN:"):
+        return "\033[33m⚠ " + line + "\033[0m"
+    if line.startswith("ERROR:"):
+        return "\033[31m✘ " + line + "\033[0m"
+    if line.startswith("NOTE:"):
+        return "\033[36mℹ " + line + "\033[0m"
+    if line.startswith(("migration_stage=", "active_databases_verified=", "sqlite_backups_verified=")):
+        return "\033[1;34m◆ " + line + "\033[0m"
+    if line in ("virtual_key_file=private", "memory_search_schema=compatible"):
+        return "\033[32m✔ " + line + "\033[0m"
+    return line
+
+def report(line):
+    print(decorate(line))
+
 def cli(*args):
     try:
         p = subprocess.run(args, capture_output=True, text=True, timeout=30, check=False)
@@ -55,22 +78,22 @@ def main():
     modes.add_argument("--check", action="store_true")
     modes.add_argument("--apply", action="store_true", help="Back up discovered SQLite indexes only; does NOT migrate")
     args = parser.parse_args()
-    print("migration_stage=preflight" if args.check else "migration_stage=backup_only")
+    report("migration_stage=preflight" if args.check else "migration_stage=backup_only")
     key_ok = KEY.is_file() and not KEY.is_symlink() and KEY.stat().st_mode & 0o077 == 0
-    print("virtual_key_file=" + ("private" if key_ok else "missing_or_insecure"))
+    report("virtual_key_file=" + ("private" if key_ok else "missing_or_insecure"))
     schema = cli("openclaw", "config", "schema", "--json")
     props = (schema or {}).get("properties", {}).get("memory", {}).get("properties", {}).get("search", {}).get("properties", {})
     schema_ok = all(k in props for k in ("provider", "model", "remote"))
-    print("memory_search_schema=" + ("compatible" if schema_ok else "unresolved"))
+    report("memory_search_schema=" + ("compatible" if schema_ok else "unresolved"))
     indexes = active_databases()
     for agent in ("main", "cron"):
-        print(f"runtime_{agent}_database=" + ("verified" if agent in indexes else "unresolved"))
-    print(f"active_databases_verified={len(indexes)}")
-    print("expected_existing_dimensions=768")
-    print("target_model=embedding backend=ollama/nomic-embed-text")
-    print("NOTE: matching dimensions do not imply matching vector spaces")
+        report(f"runtime_{agent}_database=" + ("verified" if agent in indexes else "unresolved"))
+    report(f"active_databases_verified={len(indexes)}")
+    report("expected_existing_dimensions=768")
+    report("target_model=embedding backend=ollama/nomic-embed-text")
+    report("NOTE: matching dimensions do not imply matching vector spaces")
     if args.check:
-        print("NOTE: read-only; no embeddings call, configuration change or reindex")
+        report("NOTE: read-only; no embeddings call, configuration change or reindex")
         return 0 if key_ok and schema_ok and len(indexes) == 2 else 2
     if not key_ok or not schema_ok or len(indexes) != 2:
         print("ERROR: active index paths unresolved or migration artifact found; backup not started", file=sys.stderr)
@@ -103,9 +126,9 @@ def main():
         except (OSError, sqlite3.Error, RuntimeError):
             print("ERROR: SQLite backup failed; inspect private backup directory", file=sys.stderr)
             return 1
-    print(f"sqlite_backups_verified={len(indexes)}")
-    print("migration_applied=false")
-    print("NOTE: no configuration changes, provider requests or reindex performed")
+    report(f"sqlite_backups_verified={len(indexes)}")
+    report("migration_applied=false")
+    report("NOTE: no configuration changes, provider requests or reindex performed")
     return 0
 
 if __name__ == "__main__":
