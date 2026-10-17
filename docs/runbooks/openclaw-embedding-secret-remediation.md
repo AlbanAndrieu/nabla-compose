@@ -155,3 +155,25 @@ openclaw doctor --help
 # openclaw doctor --session-sqlite recover --session-sqlite-all-agents
 ```
 After an approved recovery: verify SQLite consistency and session counts per agent, transcript event reconciliation, previously flagged active JSONL, and rollback before service restart. Avoid echoing session keys, user identities, conversation contents or raw paths in tickets. Do not conflate session SQLite migration with memory embedding vector-index migration; those are independent operations.
+
+
+## 2026-10-18 decision: prioritize embeddings; session-loss risk accepted
+
+Operator explicitly accepts losing historical session transcripts; session SQLite reconciliation is **deferred**, not a prerequisite to the embedding cutover. Do not delete sessions unnecessarily, and do not confuse session transcript SQLite databases with OpenClaw's **memory vector index** databases.
+
+`openclaw update status --json`: installed package OpenClaw 2026.9.5; npm registry stable reports 2026.10.4 available, with a previous dry-run target 2026.9.9 (historical dry-run, not installed). Slack migration remains pending. Do **not** upgrade or run `doctor --fix` as part of the embedding change; version compatibility must be revalidated separately.
+
+Workstation root filesystem: 456 GB total, 409 GB used, **24 GB free at 95% usage**. Before any *actual* index rebuild, estimate output size and enforce free-space headroom/rollback. Existing vector indexes for `main` and `cron` need rebuilding after switching from `text-embedding-3-small` to `embedding` even if the reported dimension is also 768, since same dimension does not guarantee vector-space compatibility.
+
+New read-only preflight:
+```bash
+cd ~/w/nabla-compose
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_plan.py' -v
+python3 scripts/workstation/check-openclaw-litellm-memory-config.py --check
+python3 scripts/workstation/test-openclaw-litellm-embedding.py --profile local
+python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
+```
+
+The planner checks only local permissions, validates schema field presence, and checks that the intended provider alias is not already configured differently. It proposes `memory.search` globally for both agents, file-backed SecretRef, loopback LiteLLM endpoint, model `embedding` and no fallback unless vector identity is proven. **It does not write the config**; running gateway is allowed during preflight. Runtime field semantics and actual OpenClaw SecretRef resolution require a dedicated acceptance step before a write/apply/restart.
+
+OpenRAG already points to the shared `embedding` LiteLLM alias. Policy is identical for both applications, but key identities and budgets must be separated when OpenRAG's combined chat/embeddings authentication permits. Fallback to another model must fail closed to avoid mixed vector indexes.
