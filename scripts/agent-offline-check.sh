@@ -4,17 +4,17 @@ set -euo pipefail
 # Dependency-free L1 syntax gate for disconnected workspaces.
 # This never replaces agent-pre-push, pre-commit, Betterleaks or remote CI.
 ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT"
+cd "${ROOT}"
 MAX_PATHS="${AGENT_OFFLINE_MAX_PATHS:-0}"
-[[ "$MAX_PATHS" =~ ^(0|[1-9][0-9]*)$ ]] || {
+[[ "${MAX_PATHS}" =~ ^(0|[1-9][0-9]*)$ ]] || {
   echo "ERROR: AGENT_OFFLINE_MAX_PATHS must be a nonnegative integer" >&2
   exit 2
 }
 BASE="${QUALITY_BASE_REF:-}"
-if [[ -z "$BASE" ]]; then
+if [[ -z "${BASE}" ]]; then
   for candidate in origin/master origin/main master main; do
-    if git rev-parse --verify "$candidate^{commit}" >/dev/null 2>&1; then
-      BASE="$candidate"
+    if git rev-parse --verify "${candidate}^{commit}" >/dev/null 2>&1; then
+      BASE="${candidate}"
       break
     fi
   done
@@ -22,16 +22,16 @@ fi
 declare -a files=()
 base_paths=""
 use_base=false
-if [[ -n "$BASE" ]] && git rev-parse --verify "$BASE^{commit}" >/dev/null 2>&1 &&
-  git merge-base "$BASE" HEAD >/dev/null 2>&1; then
-  if base_paths="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD")"; then
+if [[ -n "${BASE}" ]] && git rev-parse --verify "${BASE}^{commit}" >/dev/null 2>&1 &&
+  git merge-base "${BASE}" HEAD >/dev/null 2>&1; then
+  if base_paths="$(git diff --name-only --diff-filter=ACMR "${BASE}...HEAD")"; then
     use_base=true
   fi
 fi
 
 collect_scope() {
-  if [[ "$use_base" == true ]]; then
-    printf '%s\n' "$base_paths"
+  if [[ "${use_base}" == true ]]; then
+    printf '%s\n' "${base_paths}"
     git diff --name-only --diff-filter=ACMR || return
     git diff --cached --name-only --diff-filter=ACMR || return
   else
