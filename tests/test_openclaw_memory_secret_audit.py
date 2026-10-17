@@ -28,6 +28,19 @@ class AuditSummaryTests(unittest.TestCase):
         self.assertTrue(result["unclassified"])
         self.assertNotIn("sensitive", str(result))
 
+    def test_audit_shape_never_exposes_arbitrary_names_or_values(self):
+        result = module.audit_shape({
+            "top-secret-name": "sk-sensitive",
+            "private-path": ["/private/secrets"],
+            "metadata": {"value": "sensitive"},
+            "enabled": True,
+        })
+        self.assertEqual(
+            result, "array:1,object:1,string:1,number:0,boolean:1,null:0"
+        )
+        self.assertNotIn("sensitive", result)
+        self.assertNotIn("private", result)
+
     def test_invalid_or_boolean_counts_not_accepted(self):
         result = module.audit_summary({"plaintext": True})
         self.assertEqual(result["schema"], "unknown")
