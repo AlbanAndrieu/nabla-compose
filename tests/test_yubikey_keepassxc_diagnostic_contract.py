@@ -288,6 +288,26 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv_sdk_signing_builder_mock_only(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        content = script.read_text()
+        self.assertIn("InMemoryPivSession", content)
+        self.assertIn("sign_certificate_builder", content)
+        self.assertIn("critical=False", content)
+        self.assertIn("policy_bytes = bytes((3, 2))", content)
+        for forbidden in ("SmartCardConnection", "PivSession(", "generate_key(",
+                          "put_certificate(", "authenticate(", "verify_pin("):
+            if forbidden == "PivSession(":
+                self.assertNotIn("PivSession(connection", content)
+            else:
+                self.assertNotIn(forbidden, content)
+        sdk_python = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk_python):
+            result = subprocess.run([sdk_python, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("PASS: real Yubico certificate builder", result.stdout)
+
     def test_piv_sdk_bootstrap_is_check_only_by_default(self):
         script = ROOT / "scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
