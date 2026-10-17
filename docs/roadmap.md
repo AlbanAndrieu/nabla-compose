@@ -1,7 +1,10 @@
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
 - [x] Operator inspected installed `openclaw config schema --json`: top-level `memory.search` exists and exposes `provider`, `model`, `remote`, `outputDimensionality`, `sources`, `extraPaths`, `store`, `enabled`; this confirms property names only, not permitted values or effective runtime configuration.
-- [ ] Inspect schema of `memory.search.provider`, `.model`, `.remote`, `.sources`, `.extraPaths`, `.store` without printing effective secrets; confirm how remote OpenAI-compatible LiteLLM URL and dedicated virtual key are represented. Validate `memory.search` settings with OpenClaw before applying.
+- [x] Operator inspected installed schema: `memory.search.provider` supports `openai-compatible`; `remote.baseUrl`, `remote.apiKey` (string or secret ref via env/file/exec/store), `remote.batch.enabled`, `sources` (`memory`/`sessions`), `extraPaths`, and `outputDimensionality` are declared. No runtime configuration changed.
+- [ ] Prepare `memory.search` target provider=`openai-compatible`, model=`embedding`, baseUrl=`http://127.0.0.1:4000/v1`, dedicated private virtual-key secret reference, sources=`["memory"]`, extraPaths=`[]`, remote.batch.enabled=false; confirm `file` secret-ref provider/id semantics and validate config locally before applying. Do not persist key material in config or git.
+- [ ] To ensure a truly clean index, quarantine original `MEMORY.md` and `memory/*.md` sources in a private directory **outside indexed paths** (after verified backup) or otherwise suppress their discovery; merely setting sources=`["memory"]` does not prevent reindex. No automatic source deletion.
+- [ ] Do not set `outputDimensionality=768` without verifying Ollama backend compatibility; LiteLLM local smoke already returned 768-dimensional vectors.
 
 
 - [x] Operator executed `backup-openclaw-memory-markdown.py --check` and `--apply`: 2 workspaces, 617 Markdown files, `backup_verified=true`, `source_files_modified=false`. Archive checksums were verified locally; backup remains unencrypted and should be kept on encrypted private storage.
