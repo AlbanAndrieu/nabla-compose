@@ -48,6 +48,28 @@ run_docker() {
     "${DOCKER[@]}" "$@"
 }
 
+step() { printf '\n== [%s] %s ==\n' "$1" "$2"; }
+summary_ok() { printf '✅ %s\n' "$*"; }
+summary_warn() { printf '⚠️  %s\n' "$*" >&2; }
+
+# Keep success output short; retain a bounded diagnostic only on failure.
+quiet_step() {
+    local label="$1" log rc
+    shift
+    log="$(mktemp)"
+    if "$@" >"${log}" 2>&1; then
+        summary_ok "${label}"
+        rm -f -- "${log}"
+        return 0
+    else
+        rc=$?
+    fi
+    printf '❌ %s (exit=%d)\n' "${label}" "${rc}" >&2
+    tail -n "${DEPLOY_LOG_TAIL}" "${log}" >&2 || true
+    rm -f -- "${log}"
+    return "${rc}"
+}
+
 case "${DEPLOY_MODE}" in
     auto | pull | build) ;;
     *) fail "FASTAPI_SAMPLE_DEPLOY_MODE must be one of: auto, pull, build" ;;
@@ -93,11 +115,11 @@ verify_runtime_env_pair() {
     if sudo test -f "${legacy}"; then
         sudo cmp -s "${legacy}" "${canonical}" ||
             fail "Sample ${name} changed after staging: ${legacy} differs from ${canonical}; restage before redeploy"
-        printf 'Verified staged Sample %s matches legacy source byte-for-byte.\n' "${name}"
+        summary_ok "Canonical Sample ${name} matches legacy copy"
     fi
 }
 
-printf 'Validating canonical Sample runtime materialization...\n'
+step '1/6' 'Validate runtime secrets'
 verify_runtime_env_pair ".env"
 verify_runtime_env_pair ".env.secrets"
 
@@ -286,8 +308,9 @@ run_midclt_job_quiet() {
     return "${rc}"
 }
 
-run_git git submodule sync --recursive
-run_git git submodule update --init --recursive "${SUBMODULE}"
+step '2/6' 'FastAPI Git checkout / provenance'
+quiet_step 'FastAPI submodule URL synchronized' run_git git submodule sync -- "${SUBMODULE}"
+quiet_step 'FastAPI submodule initialized' run_git git submodule update --init --recursive "${SUBMODULE}"
 
 if [[ -n "$(run_git git -C "${SUBMODULE}" status --porcelain --untracked-files=no)" ]]; then
     fail "${SUBMODULE} contains tracked local changes; refusing to overwrite them"
@@ -296,7 +319,7 @@ fi
 before="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 printf 'FastAPI Sample current revision: %s\n' "${before}"
 
-run_git git -C "${SUBMODULE}" fetch --prune --tags origin
+quiet_step 'FastAPI origin refs fetched' run_git git -C "${SUBMODULE}" fetch --prune --tags origin
 if target="$(run_git git -C "${SUBMODULE}" rev-parse --verify --quiet "refs/tags/${REF}^{commit}")" &&
     [[ -n "${target}" ]]; then
     target_label="tag/${REF}"
@@ -304,13 +327,13 @@ elif target="$(run_git git -C "${SUBMODULE}" rev-parse --verify --quiet "origin/
     [[ -n "${target}" ]]; then
     target_label="origin/${REF}"
 else
-    run_git git -C "${SUBMODULE}" fetch --prune origin "${REF}"
+    quiet_step "FastAPI ref fetched: ${REF}" run_git git -C "${SUBMODULE}" fetch --prune origin "${REF}"
     target="$(run_git git -C "${SUBMODULE}" rev-parse FETCH_HEAD)"
     target_label="${REF}"
 fi
 
-run_git git -C "${SUBMODULE}" checkout --detach "${target}"
-run_git git -C "${SUBMODULE}" submodule update --init --recursive
+quiet_step "Detached checkout of ${target_label}" run_git git -C "${SUBMODULE}" checkout --detach "${target}"
+quiet_step 'FastAPI nested submodules initialized' run_git git -C "${SUBMODULE}" submodule update --init --recursive
 
 package_version="$(
     awk -F'"' '/^version = "/ {print $2; exit}' "${SUBMODULE}/pyproject.toml"
@@ -325,8 +348,10 @@ release_ref=false
 [[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]] && release_ref=true
 export FASTAPI_SAMPLE_IMAGE="${runtime_image}"
 
-printf 'FastAPI Sample target %s: %s (version %s)\n' \
-    "${target_label}" "${target}" "${package_version}"
+printf 'Selected ref: %-26s SHA: %s\n' "${target_label}" "${target}"
+if [[ "${REF}" == master ]]; then
+    summary_warn 'REF defaults to master: this does not deploy changes from an unmerged PR.'
+fi
 printf 'Runtime image: %s\n' "${runtime_image}"
 
 run_docker compose -f apps/sample/compose.yml config --quiet --no-interpolate --no-env-resolution
@@ -361,10 +386,11 @@ if [[ "${image_source}" == "local-build" ]]; then
     fi
     build_args+=(fastapi-sample)
 
-    printf 'Building fastapi-sample before runtime replacement...\n'
+    step '3/6' 'Build image before replacing runtime'
     build_fastapi_sample
 fi
 
+step '4/6' 'Observer network and TrueNAS allowlist'
 network_contract=""
 if run_docker network inspect "${OBSERVER_NETWORK}" >/dev/null 2>&1; then
     network_contract="$(
@@ -374,18 +400,19 @@ if run_docker network inspect "${OBSERVER_NETWORK}" >/dev/null 2>&1; then
 fi
 
 if [[ -z "${network_contract}" ]]; then
-    sudo bash scripts/truenas/prepare-sample-observer-network.sh
+    quiet_step 'Observer network prepared' sudo bash scripts/truenas/prepare-sample-observer-network.sh
 elif [[ "${network_contract}" != "v2" ]]; then
     printf 'Observer network contract is %s; recreating v2 safely.\n' "${network_contract:-<missing>}"
     run_docker rm -f "${CONTAINER}" 2>/dev/null || true
-    sudo bash scripts/truenas/prepare-sample-observer-network.sh --recreate
+    quiet_step 'Observer network recreated (v2)' sudo bash scripts/truenas/prepare-sample-observer-network.sh --recreate
 else
-    sudo bash scripts/truenas/prepare-sample-observer-network.sh
+    quiet_step 'Observer network checked (v2)' sudo bash scripts/truenas/prepare-sample-observer-network.sh
 fi
 
-sudo bash scripts/security/reconcile-truenas-observer-allowlist.sh --apply
+quiet_step 'TrueNAS observer allowlist reconciled' sudo bash scripts/security/reconcile-truenas-observer-allowlist.sh --apply
 
-printf 'Removing the previous FastAPI Sample container after successful build...\n'
+step '5/6' 'Redeploy staging and verify health'
+summary_warn 'Now replacing the staging container (brief interruption possible).'
 run_docker rm -f "${CONTAINER}" 2>/dev/null || true
 
 compose_path="${ROOT}/apps/sample/compose.yml"
@@ -410,7 +437,7 @@ health_payload="$(
         90 \
         2
 )"
-jq . <<<"${health_payload}"
+jq -cr '{status, version, components: (.components | with_entries(.value |= .status))}' <<<"${health_payload}"
 
 printf 'FastAPI Sample version:\n'
 version_payload="$(
@@ -420,34 +447,67 @@ version_payload="$(
         15 \
         1
 )"
-jq . <<<"${version_payload}"
-
-sudo bash scripts/security/verify-truenas-observer-access.sh
-
-printf 'Checking Prometheus/Gatus synthetic observer contract...\n'
-verify_prometheus_observer_contract || true
-
-printf 'Checking optional pfSense split-identity observer...\n'
-if run_docker exec "${CONTAINER}" /code/.venv/bin/python -c     'import nabla.api.pfsense_auth_smoke' >/dev/null 2>&1; then
-    if run_docker exec "${CONTAINER}" /code/.venv/bin/python         -m nabla.api.pfsense_auth_smoke         --url https://home.albandrieu.com:10443; then
-        printf 'OK: pfSense posture/security least-privilege matrix validated from TrueNAS runtime.\n'
-    else
-        printf 'WARN: pfSense observer authentication/authorization is degraded; FastAPI deployment remains accepted because pfSense is optional diagnostic evidence.\n' >&2
-    fi
-else
-    printf 'NOTE: deployed FastAPI Sample revision does not yet provide pfsense_auth_smoke; skipping optional pfSense identity validation.\n'
+jq -cr '{release_version, version, build_revision}' <<<"${version_payload}"
+if [[ -z "$(jq -r '.build_revision // empty' <<<"${version_payload}")" ]]; then
+    summary_warn 'build_revision=null: the API package version does not attest an exact Git SHA.'
 fi
 
-printf 'Rechecking canonical Sample runtime env after deployment...\n'
-sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+quiet_step 'TrueNAS observer least-privilege checks' sudo bash scripts/security/verify-truenas-observer-access.sh
 
-printf 'NOTE: legacy Sample env files remain rollback material; do not finalize them until controlled reboot acceptance.\n'
+step '6/6' 'Optional integrations and deployment summary'
+prometheus_state='warning'
+if prometheus_details="$(verify_prometheus_observer_contract 2>&1)"; then
+    summary_ok "${prometheus_details}"
+    prometheus_state='ok'
+else
+    summary_warn "${prometheus_details}"
+fi
+
+pfsense_state='not-run'
+if run_docker exec "${CONTAINER}" /code/.venv/bin/python \
+    -c 'import nabla.api.pfsense_auth_smoke' >/dev/null 2>&1; then
+    pfsense_report="$(mktemp)"
+    if run_docker exec "${CONTAINER}" /code/.venv/bin/python \
+        -m nabla.api.pfsense_auth_smoke --url https://home.albandrieu.com:10443 >"${pfsense_report}" 2>&1; then
+        pfsense_summary="$(grep -E '^summary passed=[0-9]+ total=[0-9]+ secrets_printed=no$' "${pfsense_report}" | tail -n 1 || true)"
+        if [[ -n "${pfsense_summary}" ]]; then
+            summary_ok "pfSense RBAC: ${pfsense_summary}"
+            pfsense_state='ok'
+        else
+            summary_warn 'pfSense check returned success without expected summary'
+            pfsense_state='warning'
+        fi
+    else
+        summary_warn 'pfSense RBAC smoke failed (authenticated log suppressed)'
+        pfsense_state='warning'
+    fi
+    rm -f -- "${pfsense_report}"
+else
+    summary_warn 'pfSense auth-smoke module unavailable (optional)'
+fi
+
+quiet_step 'Canonical Sample runtime env post-check' sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
-printf 'OK: FastAPI Sample %s deployed from %s via %s\n' "${REF}" "${runtime_sha}" "${image_source}"
-
 pinned_sha="$(run_git git ls-files -s "${SUBMODULE}" | awk '{print $2}')"
+runtime_version="$(jq -r '.release_version // .version // "unknown"' <<<"${version_payload}")"
+printf '\n============================================================\n'
+printf ' FASTAPI SAMPLE · DEPLOYMENT SUMMARY\n'
+printf '============================================================\n'
+printf ' App / runtime          : %s / staging :8091\n' "${APP_ID}"
+printf ' Requested ref          : %s\n' "${REF}"
+printf ' Checked-out Git SHA    : %s\n' "${runtime_sha}"
+printf ' Runtime API version    : %s\n' "${runtime_version}"
+printf ' Image / source         : %s / %s\n' "${runtime_image}" "${image_source}"
+printf ' Health                 : %s\n' "$(jq -r '.status // "unknown"' <<<"${health_payload}")"
+printf ' Prometheus / Gatus     : %s\n' "${prometheus_state}"
+printf ' pfSense RBAC           : %s\n' "${pfsense_state}"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
-    printf 'NOTE: parent repository still pins %s; working tree now uses %s.\n' "${pinned_sha}" "${runtime_sha}"
-    printf '      Update the parent gitlink in a reviewed PR if this revision is promoted.\n'
+    summary_warn "Parent gitlink ${pinned_sha:0:12} differs from checkout ${runtime_sha:0:12}. Not automatically staged."
 fi
+if [[ -z "$(jq -r '.build_revision // empty' <<<"${version_payload}")" ]]; then
+    summary_warn 'Running image Git SHA is not attested by /v2/version; check OCI provenance separately.'
+fi
+printf ' Rollback inputs        : legacy env retained pending reboot acceptance\n'
+printf ' Next diagnostics       : bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3\n'
+printf '============================================================\n'

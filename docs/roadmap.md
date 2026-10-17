@@ -1,3 +1,12 @@
+## P1 — Diagnostic FastAPI Sample TrueNAS (2026-10-17)
+
+- [x] Rendre `scripts/truenas/update-fastapi-sample.sh` lisible (étapes numérotées, stdout Git/TrueNAS regroupés, état API/Prometheus/pfSense, avertissement `REF=master` et gitlink distinct, `build_revision=null` explicite) sans éluder les erreurs ni retirer les contrôles de sécurité.
+- [x] Ajouter `scripts/truenas/diagnose-fastapi-sample.sh --cycles 3` : inventaire version SHA, trois domaines publics mesurés depuis hôte et conteneur, DNS, sondes Garage, métriques Gatus, statistiques Docker ; lecture seule et sorties assainies. Runbook : `docs/runbooks/fastapi-sample-truenas-diagnostics.md`.
+- [ ] Valider sur TrueNAS le nouvel affichage avec un déploiement explicitement approuvé (le dernier `update-fastapi-sample.sh` sans REF a installé `master` `8c4492d1`, **pas** fastapi-sample #342) ; ne pas déclencher de redéploiement pour tester la présentation.
+- [ ] Recueillir trois cycles du health-board avant/après installation volontaire de #342 ; corréler le budget de 4 s des 12 sondes aux temps réseau, au taux `completed/timed_out`, au CPU et aux réponses Cloudflare Access. Les mesures récentes de 0,44–0,64 s depuis le conteneur n'établissent pas de panne DNS.
+- [ ] Confirmer la publication des rangs `probePriority` et la correction du doublon `languagetool` dans le catalogue canonique ; ne pas supprimer le fallback bootstrap avant acceptation complète.
+- [ ] Rejouer `bash -n`, les tests ciblés et les quality gates local-first sur le HEAD intégral de #257. Ne pas merger automatiquement.
+
 ## P0 — OpenClaw workstation GitOps and recoverable backups (2026-10-17)
 
 - [x] Inventory historical dotfiles under private `AlbanAndrieu/nabla/env/home/dotfiles/.openclaw/`: versioned heartbeat, OpenClaw configuration, gateway unit, `.env`, environment and approval material are present; old heartbeat blob could not be decoded via the connector. **No content migration or Git history scrubbing yet.**
