@@ -2315,3 +2315,7 @@ Ajout de `scripts/workstation/test-age-yubikey-csr-offline.sh` et de son contrat
 **Limite essentielle :** ce PoC emploie une clé privée logicielle via `openssl x509 -signkey`. Cette commande **ne peut pas être copiée telle quelle sur une clé PIV privée non exportable**. Il manque une voie de signature depuis PIV82 (PKCS#11 provider, outil utilisant `ykman piv keys attest`/signature ou SDK), qui ajoute exactement la même extension non critique tout en préservant le certificat existant 9A, la management key AES256 et les politiques on-card. Il faut aussi vérifier les octets DER et réellement déchiffrer avec le plugin. **Pas de GO matériel** sur la base de cette seule fixture.
 
 L'opérateur a validé le précédent lot **24/24 tests PASS** au commit `8f88d706`; aucune nouvelle intervention n'est nécessaire avant la prochaine vérification groupée.
+
+### Acceptation opérateur de la chaîne CSR synthétique (18 octobre 2026)
+
+L'opérateur a exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **25 tests PASS / 25, 0,563 s**. Le test `test_offline_csr_certificate_pipeline` est notamment PASS. Le script signale correctement `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified`. **Conclusion :** génération CSR + certificat et vérifications synthétiques acceptées en local ; signature par clé privée non exportable en PIV82, installation compatible et déchiffrement age matériel restent à valider. Aucun provisionnement matériel autorisé par ce résultat.
