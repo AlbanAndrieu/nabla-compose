@@ -7,25 +7,25 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != "dumb" ]]; then
-  green=$'\033[32m'; yellow=$'\033[33m'; red=$'\033[31m'; blue=$'\033[36m'; reset=$'\033[0m'
-else green=''; yellow=''; red=''; blue=''; reset=''; fi
-heading() { printf '\n%s🔐 %s%s\n' "$blue" "$1" "$reset"; }
-ok() { printf '%s✅ %s%s\n' "$green" "$1" "$reset"; }
-warn() { printf '%s⚠️  %s%s\n' "$yellow" "$1" "$reset"; }
+  green=$'\033[32m'; yellow=$'\033[33m'; blue=$'\033[36m'; reset=$'\033[0m'
+else green=''; yellow=''; blue=''; reset=''; fi
+heading() { printf '\n%s🔐 %s%s\n' "${blue}" "$1" "${reset}"; }
+ok() { printf '%s✅ %s%s\n' "${green}" "$1" "${reset}"; }
+warn() { printf '%s⚠️  %s%s\n' "${yellow}" "$1" "${reset}"; }
 heading 'YubiKey / KeePassXC'
-bash "$here/diagnose-yubikey-keepassxc.sh" "$@"
+bash "${here}/diagnose-yubikey-keepassxc.sh" "$@"
 heading 'FIDO2'
 if ykman fido info; then ok 'FIDO2 disponible'; else warn 'FIDO2 non accessible'; fi
 heading 'PIV / certificats'
 if piv="$(ykman piv info 2>&1)"; then
   # Redact the unique CHUID; dates/slots/fingerprints can still be identifying.
-  printf '%s\n' "$piv" | sed -E 's/^(CHUID:).*/\1 [REDACTED]/'
+  printf '%s\n' "${piv}" | sed -E 's/^(CHUID:).*/\1 [REDACTED]/'
   ok 'PIV disponible'
 else warn 'PIV non accessible'; fi
 # ykman 5.8.0 has no `piv certificates list`; inventory is reported by piv info.
 # Check certificate expiry without requiring a PIN and without revealing key material.
 if command -v python3 >/dev/null && [[ -n "${piv:-}" ]]; then
-  PIV_AUDIT_TEXT="$piv" python3 - <<'PY'
+  PIV_AUDIT_TEXT="${piv}" python3 - <<'PY'
 import datetime
 import os
 import re
@@ -51,7 +51,7 @@ heading 'OATH'
 if ykman oath info; then ok 'OATH disponible'; else warn 'OATH non accessible'; fi
 heading 'Outils SSH / GPG / age / PAM / Keyring'
 for tool in gpg ssh-keygen pamu2fcfg age age-plugin-yubikey secret-tool seahorse; do
-  if command -v "$tool" >/dev/null 2>&1; then ok "$tool installé"; else warn "$tool absent"; fi
+  if command -v "${tool}" >/dev/null 2>&1; then ok "${tool} installé"; else warn "${tool} absent"; fi
 done
 heading 'Sécurité'
 warn 'Ne pas réinitialiser PIV : sauvegarder et examiner les usages du certificat expiré.'

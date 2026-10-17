@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: watchtower
+  title: Watchtower
+  description: Manual monitor-only image update audit through the read-only Docker socket proxy; no automatic updates.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - security
+    - supply-chain
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/watchtower/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: tool
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
