@@ -79,6 +79,24 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         ):
             self.assertNotIn(dangerous, content)
 
+    def test_usb_escrow_recovery_contract(self):
+        script = ROOT / "scripts/workstation/manage-age-escrow-usb.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(
+            ["bash", str(script), "--help"],
+            capture_output=True, text=True, check=True
+        )
+        for marker in ("--luks-uuid", "--check", "--open", "--close",
+                       "--init-identity"):
+            self.assertIn(marker, result.stdout)
+        body = script.read_text()
+        self.assertIn("age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938", body)
+        self.assertIn("Existing original age identity verified", body)
+        self.assertIn("CREATE-NEW-IDENTITY", body)
+        for forbidden in ("luksFormat", "wipefs", "mkfs.ext4",
+                          "parted -s", "reset PIV"):
+            self.assertNotIn(forbidden, body)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
