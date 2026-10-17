@@ -1486,3 +1486,87 @@ Gate avant provisioning : inventorier les slots PIV retired, vérifier
 les possibilités de restauration SOPS avec l'identité age logicielle
 et tester d'abord un fichier chiffré de démonstration. Ne jamais
 forcer un slot, effacer 9A ni toucher à l'OTP 2 KeePassXC.
+
+## Répartition détaillée des slots PIV et gouvernance age (17 octobre 2026)
+
+PIV signifie **Personal Identity Verification**. La YubiKey
+héberge plusieurs applications **indépendantes** : OTP (dont
+KeePassXC HMAC slot 2), OpenPGP (signature/chiffrement/auth),
+FIDO2, OATH et PIV. Le numéro d'un slot PIV n'a **aucun**
+rapport avec les numéros 1 et 2 des slots OTP.
+
+### Slots PIV : terminologie exacte
+
+| Identifiant hexadécimal | Fonction standard | Politique Nabla |
+| --- | --- | --- |
+| `9A` | PIV Authentication, clé/certificat pour authentification | **OCCUPÉ** : RSA2048 / ancien certificat « Nabla Root CA » expiré le 2025-01-22 ; ne pas effacer ni réutiliser |
+| `9C` | Digital Signature, signature numérique, PIN normalement requis à chaque opération | Inconnu ; réserver pour signature PIV si besoin |
+| `9D` | Key Management, clé d'accord/déchiffrement, PIN en général requis | Inconnu ; réserver à l'usage PIV classique |
+| `9E` | Card Authentication, authentification de carte, opération normalement sans PIN | Inconnu ; préserver |
+| `82`–`95` | **20 slots Retired Key Management** pour clés historiques de déchiffrement | **Candidats age-plugin-yubikey**, premier libre compatible seulement après inventaire |
+| `9B` | Management Key PIV, clé symétrique, AES256 protégée par PIN constatée | Ne pas changer |
+| `80`/`81` | Métadonnées PIN/PUK (pas de slots de clés asymétriques applicatives) | Ne pas changer |
+| `F9` | Attestation des clés générées sur YubiKey | Réservé au constructeur/attestation ; ne pas écraser |
+
+**Attention à l'hexadécimal :** les vingt emplacements retraités
+sont `82 83 84 85 86 87 88 89 8A 8B 8C 8D 8E 8F 90 91 92 93 94 95`.
+Sur le firmware 5.4.3, ces slots PIV sont pris en charge,
+mais aucune disponibilité individuelle n'a encore été démontrée.
+Il faut distinguer certificat présent, clé privée présente
+et métadonnées absentes : l'absence d'un certificat visible ne
+prouve pas systématiquement qu'un slot ne contient aucune clé.
+
+### Répartition par application sur la YubiKey de secours
+
+- **OTP 1 :** programmé, usage non documenté → préserver.
+- **OTP 2 :** HMAC-SHA1 KeePassXC confirmé → préserver.
+- **OpenPGP :** applet 3.4 reconnue par GnuPG avec
+  `disable-ccid` + `pcsc-shared`; trois slots de clés
+  Sign/Encrypt/Auth observés vides ; les clés GPG RSA4096
+  (signature et déchiffrement de fixture validés) sont
+  actuellement dans le trousseau **logiciel**, non dans PIV.
+- **PIV 9A :** occupé (ancien certificat autosigné expiré).
+  **PIV 9C/9D/9E et retired 82–95 : inconnus**, pas « libres ».
+- **FIDO2 :** présent, identités SSH ou passkeys non inventoriées ;
+  **OATH :** présent ; ne pas reset.
+- **age/SOPS :** `age-plugin-yubikey 0.5.1` installé et
+  `--list` vide sur la carte de secours : aucune identité
+  reconnue trouvée, sans preuve de disponibilité de chaque slot.
+
+### Plan d'allocation age / SOPS
+
+| Slot proposé | Intention | Décision |
+| --- | --- | --- |
+| `82` | Première identité age pour SOPS | **Conditionnel** : après preuve qu'il est libre |
+| `83` | Domaine cryptographique distinct / future rotation | Réserve conditionnelle |
+| `84`–`95` | Rotations et déchiffrement historique | Ne pas provisionner par défaut |
+| Seconde YubiKey, premier retired libre | Autre destinataire age, capacité de récupération | Identité indépendante et testée séparément |
+
+La clé actuelle SOPS `age1...` X25519 reste destinataire
+et facteur de récupération : **ne pas tenter de l'importer
+dans un slot PIV**, ni modifier les règles des fichiers chiffrés
+avant des tests hors production.
+
+### Inventaire strictement en lecture seule
+
+```bash
+ykman piv keys info 9A
+ykman piv keys info 82
+ykman piv keys info 83
+age-plugin-yubikey --list-all
+```
+
+Pour chaque slot PIV `82`–`95`, vérifier individuellement
+avec `ykman piv keys info SLOT`. Cette commande expose
+les métadonnées de clé si disponibles ; son échec ou la non-
+présence d'un certificat n'autorise **pas** un écrasement.
+Ne pas lancer `keys generate/import/move/delete`,
+`certificates generate/import/delete`, `piv reset`,
+`age-plugin-yubikey --generate` ou `--force`
+avant la revue explicite d'un slot.
+
+Sources officielles :
+- https://docs.yubico.com/yesdk/users-manual/application-piv/slots.html
+- https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-apps-piv.html
+- https://docs.yubico.com/software/yubikey/tools/ykman/PIV_Commands.html
+- https://github.com/str4d/age-plugin-yubikey
