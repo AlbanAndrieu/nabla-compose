@@ -25,7 +25,7 @@ if info="$(ykman --device "${serial}" piv keys info 82 2>&1)"; then
     exit 2
   fi
 else
-  if ! grep -Eiq 'no key( in slot)?|no key present|slot 82.*empty' <<< "${info}"; then
+  if ! grep -Eiq 'no key( (stored )?in slot)?|no key present|slot 82.*empty' <<< "${info}"; then
     echo 'PIV 82 info unavailable for an unknown reason (e.g. PCSC/permission); fail closed.' >&2
     echo 'Diagnostic: confirm one YubiKey, then try ykman --device SERIAL piv keys info 82.' >&2
     exit 1
