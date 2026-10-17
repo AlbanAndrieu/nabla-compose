@@ -18,6 +18,7 @@ def main():
                         help="Tunnel uses 127.0.0.1:14000; health-only never sends credentials to TrueNAS")
     args = parser.parse_args()
     print("migration_mode=read_only")
+    counts = {}
     print("NOTE: TrueNAS admin audit requires an encrypted tunnel on localhost:14000; direct LAN port 4000 is health-only")
     print("truenas_health_url=http://172.17.0.24:4000/health/liveliness")
     for label, base, variable in PROXIES:
@@ -52,8 +53,12 @@ def main():
             continue
         # Only aggregate counts. Never print token IDs, aliases, user identifiers or spend logs.
         keys = data.get("keys")
-        print(f"{label}: key_list=accessible count={len(keys) if isinstance(keys, list) else 'unresolved'}")
+        counts[label] = len(keys) if isinstance(keys, list) else None
+        print(f"{label}: key_list=accessible count={counts[label] if counts[label] is not None else 'unresolved'}")
         print(f"{label}: budget_export=not_attempted")
+    if counts.get("workstation") is not None and counts.get("truenas") is not None:
+        print(f"migration_candidate_key_count={counts['workstation']}")
+        print("migration_ready=false (budgets, permissions, expirations and key ownership not inventoried)")
     print("NOTE: this is a connectivity/authorization preflight, not a spend or budget migration")
     print("NOTE: preserve historical spend/reset state in source until verified; never copy hashed keys as live tokens")
     return 0
