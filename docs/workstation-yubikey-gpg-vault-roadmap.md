@@ -2288,3 +2288,18 @@ ykman --device 22916048 piv certificates generate --help
 Le contrôle X.509 de base peut désormais afficher la présence de l'OID, mais il est délibérément **non conclusif** : il ne vérifie pas complètement les octets ou les politiques effectives, et retourne le code 3. Les tests synthétiques `unittest` ne remplacent pas un essai du binaire réel ni un déchiffrement sur matériel.
 
 **Décision :** aucun provisionnement sur les deux clés tant que le point 1 + la méthode de signature/installation ne sont pas validés. Il est acceptable de conserver durablement le blocage et de surveiller la correction amont d'age-plugin-yubikey AES.
+
+### Exécution regroupée hors matériel — 18 octobre 2026
+
+Le dernier résultat opérateur confirme **23/23 tests PASS** après réparation du contrat d'inscription AES256. Pour éviter des commandes répétées et les erreurs de `pytest` manquant, utiliser désormais une seule quality gate standard-library :
+
+```bash
+cd /tmp/nabla-yubikey-pr259
+git fetch origin fix/quality-reviewed-deletions-defectdojo-lan-20261017
+git switch --detach origin/fix/quality-reviewed-deletions-defectdojo-lan-20261017
+bash scripts/workstation/verify-age-yubikey-offline.sh
+```
+
+Cette commande réalise `py_compile` puis `unittest discover` sur le contrat YubiKey, et **ne contacte aucune carte**. Son nouveau test porte le total attendu à **24** (à confirmer sur workstation). Les contrôles de préflight matériel séparés restent strictement en lecture seule. Aucun script de provisionnement `--apply` n'est proposé tant que la chaîne de signature et d'import du certificat avec l'OID `1.3.6.1.4.1.41482.3.8` et les politiques `PIN=ALWAYS` / `touch=ALWAYS` n'a pas été prouvée.
+
+**Point de reprise :** étudier comment obtenir un certificat P-256 signé par la clé de PIV82 avec extensions personnalisées sans jamais exporter la clé privée ; démontrer l'outil sur un jeton jetable ou environnement de test avant d'utiliser les deux YubiKeys opérationnelles. Ne pas confondre validation du certificat synthétique et acceptation par le plugin matériel.
