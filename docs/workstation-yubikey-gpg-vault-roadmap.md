@@ -368,3 +368,78 @@ pas une séquence interactive qui continue après l'échec d'un
 `test`. La sauvegarde existante est à conserver ; aucune routine
 ne doit l'écraser. Avant un essai réel, confirmer que le poste
 n'effectue ni signature Git ni déchiffrement GPG.
+
+## Architecture PC/SC et hypothèse reader-port — décision P0 (17 octobre 2026)
+
+### À quoi sert PC/SC ?
+
+**PC/SC** (Personal Computer/Smart Card) est l'interface standard
+permettant aux logiciels Linux d'utiliser les lecteurs de cartes à puce.
+Sur Ubuntu, `pcscd` expose les lecteurs CCID et arbitre leur accès via
+`libpcsclite`. `pcsc_scan` **énumère le lecteur et voit la carte** :
+il ne démontre pas que GnuPG a sélectionné l'application OpenPGP.
+
+Le chemin recherché est :
+`gpg --card-status` → `gpg-agent` → `scdaemon` →
+bibliothèque PC/SC → `pcscd` → interface USB CCID →
+applet OpenPGP de la YubiKey.
+
+`ykman openpgp info` constitue un contrôle **indépendant** : son
+succès confirme que le périphérique et l'applet répondent par le
+chemin choisi par ykman, pas nécessairement que `scdaemon` sait
+utiliser le même lecteur.
+
+### Que fait reader-port ?
+
+Dans `~/.gnupg/scdaemon.conf`, `reader-port` indique **quel
+lecteur** scdaemon doit sélectionner. En mode PC/SC, la valeur
+peut correspondre au nom du lecteur (à confirmer sur la machine).
+Ce n'est ni un port TCP, ni un port USB physique, ni un secret,
+et ce n'est **pas une modification sur la YubiKey**.
+
+`disable-ccid` demande à scdaemon de ne pas employer son
+pilote CCID intégré et de privilégier la pile PC/SC. L'absence
+de `reader-port` est normalement valide : scdaemon sait
+chercher un lecteur. L'essai d'une sélection explicite est donc
+**un test d'hypothèse, pas un correctif présumé**.
+
+### Pourquoi le tester dans notre cas ?
+
+Observations confirmées sur workstation : lecteur
+`Yubico YubiKey OTP+FIDO+CCID 00 00` et carte visibles par
+`pcsc_scan`, applet visible par `ykman`, `scdaemon`
+répond à `GETINFO version`, mais `SCD SERIALNO` et
+`gpg --card-status` répondent `No such device`.
+Un `SCD GETINFO reader_list` terminé par `OK` ne confirme
+pas la sélection de l'applet. Seahorse n'était pas actif lors du
+dernier échec ; ses SIGSEGV PC/SC antérieurs ne prouvent
+pas qu'il soit la cause du blocage actuel.
+
+### Protocole, garde-fous et critères d'acceptation
+
+1. **Préflight déjà réussi :** `scdaemon.conf` et
+   `scdaemon.conf.before-reader-port` sont strictement identiques ;
+   aucun `reader-port` actif ; `pcsc_scan` voit la carte.
+   Préserver la sauvegarde préexistante sans jamais l'écraser.
+2. **Essai supervisé uniquement sur workstation :** terminer les
+   opérations utilisant GPG ; vérifier le nom PC/SC exact ; appliquer
+   *une seule* directive `reader-port` dans une procédure isolée
+   qui contrôle toutes les erreurs. **Ne jamais activer `set -e`
+   dans le terminal interactif de l'opérateur.**
+3. **Rafraîchir seulement scdaemon** si et seulement si l'essai est
+   autorisé ; comparer `SCD SERIALNO` et `gpg --card-status`
+   avant/après, avec délai borné. Ne toucher ni à `pcscd`, ni
+   aux PIN, ni aux slots OpenPGP/PIV/OTP.
+4. **Succès :** la carte OpenPGP est affichée par
+   `gpg --card-status`; vérifier séparément les deux YubiKeys
+   sans transférer ou supprimer de sous-clé.
+5. **Échec :** restaurer la sauvegarde octet pour octet, rafraîchir
+   uniquement scdaemon, vérifier `cmp`, consigner les résultats
+   et investiguer les traces PC/SC/GnuPG sans exfiltrer les dumps.
+
+La continuité **Git signing, git-crypt et restauration des sauvegardes
+PostgreSQL** est une condition préalable à tout futur transfert de
+clé via `keytocard` ; ce chantier ne réalise aucun transfert.
+
+Documentation de référence :
+https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
