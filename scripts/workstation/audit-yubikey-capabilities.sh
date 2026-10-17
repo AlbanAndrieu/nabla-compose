@@ -12,9 +12,9 @@ usage() {
 }
 while (($#)); do
   case "$1" in
-    --primary) [[ -z "$expected" ]] || { echo 'Select only one device' >&2; exit 2; }; expected="$PRIMARY_SERIAL"; shift ;;
-    --backup) [[ -z "$expected" ]] || { echo 'Select only one device' >&2; exit 2; }; expected="$BACKUP_SERIAL"; shift ;;
-    --serial) [[ $# -ge 2 && -z "$expected" && "$2" =~ ^[0-9]+$ ]] || { echo 'Invalid serial/selection' >&2; exit 2; }; expected="$2"; shift 2 ;;
+    --primary) [[ -z "${expected}" ]] || { echo 'Select only one device' >&2; exit 2; }; expected="${PRIMARY_SERIAL}"; shift ;;
+    --backup) [[ -z "${expected}" ]] || { echo 'Select only one device' >&2; exit 2; }; expected="${BACKUP_SERIAL}"; shift ;;
+    --serial) [[ $# -ge 2 && -z "${expected}" && "$2" =~ ^[0-9]+$ ]] || { echo 'Invalid serial/selection' >&2; exit 2; }; expected="$2"; shift 2 ;;
     --challenge) challenge=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
@@ -22,21 +22,21 @@ while (($#)); do
 done
 command -v ykman >/dev/null || { echo 'ykman missing' >&2; exit 1; }
 device_lines="$(ykman list --serials)" || { echo 'Device discovery failed' >&2; exit 1; }
-mapfile -t devices < <(printf '%s\n' "$device_lines" | grep -E '^[0-9]+$' || true)
+mapfile -t devices < <(printf '%s\n' "${device_lines}" | grep -E '^[0-9]+$' || true)
 [[ "${#devices[@]}" -eq 1 ]] || { echo 'Exactly one YubiKey must be connected' >&2; exit 2; }
 connected="${devices[0]}"
-case "$connected" in
-  "$PRIMARY_SERIAL") role=primary ;;
-  "$BACKUP_SERIAL") role=backup ;;
+case "${connected}" in
+  "${PRIMARY_SERIAL}") role=primary ;;
+  "${BACKUP_SERIAL}") role=backup ;;
   *) echo 'Unrecognized YubiKey; refusing to audit unknown device' >&2; exit 2 ;;
 esac
-[[ -z "$expected" || "$expected" == "$connected" ]] || {
+[[ -z "${expected}" || "${expected}" == "${connected}" ]] || {
   echo 'Connected YubiKey does not match requested serial' >&2; exit 2;
 }
-args=(--device "$connected")
-printf 'Selected YubiKey: %s (serial %s), verified single device\n' "$role" "$connected"
-diag_args=(--serial "$connected")
-if "$challenge"; then diag_args+=(--challenge); fi
+args=(--device "${connected}")
+printf 'Selected YubiKey: %s (serial %s), verified single device\n' "${role}" "${connected}"
+diag_args=(--serial "${connected}")
+if "${challenge}"; then diag_args+=(--challenge); fi
 if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != "dumb" ]]; then
   green=$'\033[32m'; yellow=$'\033[33m'; blue=$'\033[36m'; reset=$'\033[0m'
 else green=''; yellow=''; blue=''; reset=''; fi
@@ -80,19 +80,19 @@ heading 'PIV : inventory 9C/9D/9E and retired 82-95 (read only)'
 empty=0; occupied=0; unknown=0
 slots=(9C 9D 9E 82 83 84 85 86 87 88 89 8A 8B 8C 8D 8E 8F 90 91 92 93 94 95)
 for slot in "${slots[@]}"; do
-  result="$(ykman "${args[@]}" piv keys info "$slot" 2>&1)" && rc=0 || rc=$?
-  if [[ $rc -ne 0 && "$result" == *'No key stored'* ]]; then
-    printf '%s : EMPTY\n' "$slot"
+  result="$(ykman "${args[@]}" piv keys info "${slot}" 2>&1)" && rc=0 || rc=$?
+  if [[ ${rc} -ne 0 && "${result}" == *'No key stored'* ]]; then
+    printf '%s : EMPTY\n' "${slot}"
     empty=$((empty + 1))
-  elif [[ $rc -eq 0 && "$result" == *'Key slot:'* ]]; then
-    printf '%s : OCCUPIED\n' "$slot"
+  elif [[ ${rc} -eq 0 && "${result}" == *'Key slot:'* ]]; then
+    printf '%s : OCCUPIED\n' "${slot}"
     occupied=$((occupied + 1))
   else
-    printf '%s : UNKNOWN (tool/status error; raw output hidden)\n' "$slot"
+    printf '%s : UNKNOWN (tool/status error; raw output hidden)\n' "${slot}"
     unknown=$((unknown + 1))
   fi
 done
-printf 'PIV slot summary for %s: empty=%s occupied=%s unknown=%s / %s\n' "$role" "$empty" "$occupied" "$unknown" "${#slots[@]}"
+printf 'PIV slot summary for %s: empty=%s occupied=%s unknown=%s / %s\n' "${role}" "${empty}" "${occupied}" "${unknown}" "${#slots[@]}"
 if ((unknown > 0)); then warn 'PIV inventory incomplete; do NOT provision a slot based on this scan'; fi
 
 heading 'OpenPGP'
@@ -119,15 +119,15 @@ fi
 heading 'OpenPGP : état des emplacements (lecture seule, valeurs masquées)'
 if command -v gpg >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
   card="$(timeout 15 gpg --card-status 2>/dev/null || true)"
-  if [[ "$card" == *'Application type .: OpenPGP'* ]]; then
+  if [[ "${card}" == *'Application type .: OpenPGP'* ]]; then
     ok 'OpenPGP reconnu par scdaemon'
     for label in 'Signature key' 'Encryption key' 'Authentication key'; do
-      if printf '%s\n' "$card" | grep -Eq "^$label[.[:space:]]*:[[:space:]]*\\[none\\]"; then
-        printf 'ℹ️ %s: vide sur la carte connectée\n' "$label"
-      elif printf '%s\n' "$card" | grep -Eq "^$label[.[:space:]]*:"; then
-        printf 'ℹ️ %s: présent ou indéterminé (identifiant masqué)\n' "$label"
+      if printf '%s\n' "${card}" | grep -Eq "^${label}[.[:space:]]*:[[:space:]]*\\[none\\]"; then
+        printf 'ℹ️ %s: vide sur la carte connectée\n' "${label}"
+      elif printf '%s\n' "${card}" | grep -Eq "^${label}[.[:space:]]*:"; then
+        printf 'ℹ️ %s: présent ou indéterminé (identifiant masqué)\n' "${label}"
       else
-        printf '⚠️ %s: non déterminé\n' "$label"
+        printf '⚠️ %s: non déterminé\n' "${label}"
       fi
     done
   else
