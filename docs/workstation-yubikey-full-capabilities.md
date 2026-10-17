@@ -307,3 +307,26 @@ de récupération ; garder l'identité SOPS X25519, distribuer
 plusieurs destinataires matériels et tester la perte de carte
 sans manipuler de secrets de production. Le firmware 5.4.3
 n'autorise pas de présumer les fonctions introduites en 5.7.
+
+### Mise à jour de l'inventaire principal/secours (PR #258)
+
+La principale (23501671) a été inspectée avec
+`ykman piv info` : firmware 5.4.3, PIN/PUK PIV 3/3,
+management key AES256 protégée par PIN, slot 9A avec
+certificat Nabla Root CA historique expiré le 2025-01-22.
+`age-plugin-yubikey --list` n'a trouvé aucune identité.
+L'état réel des slots retired 82–95 et des slots 9C/9D/9E
+**reste inconnu sur la principale**.
+
+La secours (22916048) a été inventoriée avec
+`ykman piv keys info` : 9C/9D/9E **vides** et
+82–95 **tous vides** ; 9A reste occupé. Les certificats
+9A affichés sont identiques dans les sorties, mais
+la correspondance avec les clés privées ne constitue pas
+une preuve cryptographique sans opération de vérification.
+
+Allocation cible inchangée : slot 82 pour une identité age
+distincte par YubiKey après inventaire et validation de
+l'escrow X25519 ; slot 83 réservé aux rotations.
+Les autres usages SSH, GPG, PDF, S/MIME, Vault et backups
+sont planifiés sans provisionnement automatique.
