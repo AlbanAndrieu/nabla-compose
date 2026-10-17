@@ -1,3 +1,14 @@
+## P0 — OpenClaw workstation GitOps and recoverable backups (2026-10-17)
+
+- [x] Inventory historical dotfiles under private `AlbanAndrieu/nabla/env/home/dotfiles/.openclaw/`: versioned heartbeat, OpenClaw configuration, gateway unit, `.env`, environment and approval material are present; old heartbeat blob could not be decoded via the connector. **No content migration or Git history scrubbing yet.**
+- [x] Add canonical reviewed, comment-only workstation heartbeat at `apps/openclaw/workstation/HEARTBEAT.md`, explicit `--check|--backup|--apply` script with local private copies and hermetic unit tests. No Git push of runtime state; runtime unchanged until operator opt-in.
+- [x] Document three backup tiers and restore responsibilities at `apps/openclaw/workstation/BACKUP.md`: Git for allowlisted, reviewed configuration only; encrypted offline/offsite backups for sessions, SQLite, memory and secrets; Compose service source retained separately.
+- [ ] Verify heartbeat comment-only behavior against OpenClaw 2026.9.5 and confirm actual workspace resolution, then operator-approved change on workstation. Do not assume the main heartbeat stopped solely due to the file change.
+- [ ] Audit historical secrets in `nabla` locally and rotate anything exposed; plan safe retirement of stale dotfiles **only after** clean GitOps parity and verified backup/restore. Private repository != secret-safe.
+- [ ] Implement encrypted restic backups with scoped repository credentials, explicit retention, integrity checks and a scratch restore drill. Never commit `~/.openclaw` wholesale or add raw `.env`/SQLite/session snapshots to Git.
+- [ ] Collect sanitized LiteLLM per-key/model token and cost metrics for the OpenClaw heartbeat, fix runner/context/embedding faults, keep the current monetary budget ceiling and no unlimited fallback.
+- [ ] Run local-first targeted regression, security scan and full quality gate; do not merge PR #257 automatically.
+
 ## P1 — Catalogue de criticité, sondes par unité et Watchtower (2026-10-17)
 
 - [x] **Préparation hors homelab / PR #257** : audit read-only `scripts/security/audit-deployment-units.py --json`, schéma `catalog/deployment-unit-preview.schema.json`, unités déclaratives `truenas:garage` et `truenas:homarr`, ordre topologique de sondes, vérifications de cycles et `maxConcurrentPerUnit=1`. Sortie **préliminaire**, distincte du catalogue v2 publié ; aucune modification runtime FastAPI.
