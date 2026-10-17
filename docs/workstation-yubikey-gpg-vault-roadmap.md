@@ -1288,3 +1288,70 @@ courante, puis contrôler séparément la récupération
 Ne jamais confondre clé GPG logicielle, carte OpenPGP, clé SSH
 et clé PIV. Ne pas publier numéros de série, fingerprints SSH,
 réponses HMAC, clés privées, PIN ou certificats non expurgés.
+
+## P2 — Identité age matérielle YubiKey pour SOPS / fastapi-sample (étude du 17 octobre 2026)
+
+Source consultée : `AlbanAndrieu/fastapi-sample@master:.sops.yaml`
+(https://github.com/AlbanAndrieu/fastapi-sample/blob/master/.sops.yaml).
+Elle définit un destinataire `age1...` **X25519 logiciel** pour
+`.*\\.env\\.sops$`, YAML et JSON ; une règle
+`secrets.*\\.yaml` associe age et AWS KMS dans un même groupe.
+**Attention :** le nom littéral `.env.secret` ne correspond pas
+à la règle `.*\\.env\\.sops$` ; vérifier les noms réellement
+chiffrés et leurs métadonnées SOPS avant toute migration.
+
+**Faisabilité : OUI, sous réserve d'un slot PIV disponible et
+du support `age-plugin-yubikey`.** Une YubiKey 5 NFC peut héberger
+une nouvelle clé matérielle age (clé P-256 via PIV et plugin).
+Cela n'est pas une importation de l'identité X25519 existante :
+elle doit rester disponible comme mécanisme de récupération.
+SOPS récent peut accepter un destinataire
+`age1yubikey1...` fourni par le plugin ; il faut vérifier la
+version réelle `sops` et sa capacité à lire une identité
+`AGE-PLUGIN-YUBIKEY-...` avant modification.
+
+**Occupation constatée sur la YubiKey de secours :**
+- OTP slots 1 et 2 **programmés** ; slot 2 HMAC KeePassXC : à préserver ;
+- PIV 9A : clé RSA2048 + certificat CA historique expiré ; ne pas écraser ;
+- PIV 9C / 9D / 9E : état **non connu**, ne pas présumer libres ;
+- OpenPGP Sign/Enc/Auth observés vides : namespace distinct de PIV ;
+- FIDO2, OATH et SSH : vérifier les usages sans provisionnement automatique.
+
+`age-plugin-yubikey` emploie PIV (et ses emplacements supportés)
+sans consommer les deux slots OTP ni les slots OpenPGP. Avant tout
+provisionnement, contrôler les options de slots et leurs correspondances
+dans la **version installée** du plugin. Préférer un slot PIV libre
+compatible avec les usages du plugin, en évitant 9A. Un certificat
+expiré sur 9A ne signifie pas que cet emplacement peut être effacé
+sans conséquence.
+
+**Séquence secure-by-design :**
+1. Inventaire **lecture seule** par carte et par slot :
+   `ykman piv info` (sortie à expurger),
+   `command -v age-plugin-yubikey`,
+   `command -v sops`, `sops --version`,
+   `age-plugin-yubikey --help` si installé ; aucun `--generate`.
+2. Vérifier sauvegarde/recovery de l'identité age actuelle
+   **sans exporter ni divulguer la clé secrète**. Faire un test
+   de déchiffrement de fixture existante sur stockage temporaire,
+   jamais de dump des `.env.secret`.
+3. Uniquement après décision explicite, provisionner une identité
+   PIV age **nouvelle** dans un emplacement réellement libre,
+   avec PIN non trivial et touch policy adaptée ; ne jamais reset PIV.
+4. Ajouter son destinataire public comme **destinataire additionnel**
+   (pas en remplacement de l'existant) dans les règles SOPS
+   applicables. Attention aux groupes SOPS et à leur threshold.
+   Tester d'abord une fixture, puis appliquer `sops updatekeys`
+   aux fichiers chiffrés existants et valider le déchiffrement
+   via clé logicielle **et** YubiKey séparément.
+5. Stratégie de secours : seconde YubiKey avec identité distincte
+   et destinataire additionnel si désiré, plus identité age
+   logicielle protégée hors ligne. Documenter l'usage CI/serveurs :
+   **ne pas** rendre le déchiffrement automatique dépendant
+   d'une YubiKey physiquement absente.
+
+**Ne jamais** copier `AGE-SECRET-KEY` dans Git, logs ou chat ;
+ne pas écraser 9A, OTP2, PIV, OpenPGP ou SSH pour faire de la place.
+Sources : https://github.com/str4d/age-plugin-yubikey ,
+https://getsops.io/docs/reference/ ,
+https://github.com/getsops/sops/blob/main/age/keysource.go .
