@@ -17,7 +17,7 @@ dig +noall +comments +answer +authority @172.17.0.24 defectdojo.int.albandrieu.c
 dig +noall +comments +answer +authority @172.17.0.1 defectdojo.int.albandrieu.com A
 dig +short @172.17.0.24 hello.int.albandrieu.com A
 dig +short @172.17.0.1 hello.int.albandrieu.com A
-sudo bash scripts/truenas/verify-pihole-dns-sync.sh
+sudo bash scripts/truenas/diagnose-defectdojo.sh --check
 sudo docker inspect defectdojo --format '{{json .NetworkSettings.Networks}}' | jq 'keys'
 curl -sS -D - -o /dev/null --max-time 10 \
   --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
@@ -76,3 +76,23 @@ Do not use `curl -k` for acceptance. A missing DNS A record should be corrected 
 Run `sudo bash scripts/truenas/diagnose-defectdojo.sh --check` on TrueNAS. It checks the local interface, Docker networks and published port, unauthenticated HTTP reachability, internal/public DNS A answers, and verified HTTPS with SNI. It does not query API tokens, retrieve application logs, modify containers or create DNS records. Nonzero exit means at least one acceptance failure. No restart or deployment is performed automatically.
 
 Observed failure baseline: `defectdojo` has only `intranet`, while `traefik` has `traefik_network`; both internal DNS resolvers returned NOERROR/NODATA and public DNS had no A record; HTTPS SNI returned 404. Reconcile the declared `traefik_network` attachment through an approved TrueNAS app deployment and fix Pi-hole sync before considering the service accepted. Preserve LAN-only publication and do not create a public route.
+
+## Runtime acceptance update — October 17, 2026
+
+The operator ran `sudo bash scripts/truenas/deploy-security-tooling.sh --apply defectdojo` successfully. TrueNAS reconciled the custom app, shared PostgreSQL and stable containers. The frontend is now attached to both `intranet` and `traefik_network` with the intended Traefik labels. HTTPS with verified TLS and SNI returns HTTP 302 to `/login?next=/`; Pi-hole `172.17.0.24` resolves the private hostname to `172.17.0.24`, and `pihole-dns-sync` logs `Added DNS: defectdojo.int.albandrieu.com -> 172.17.0.24`. Public `1.1.1.1` returns no A record. **Only pfSense/Unbound `172.17.0.1` still fails to resolve the private A record**. No authenticated API import has been tested.
+
+The previously referenced `scripts/truenas/verify-pihole-dns-sync.sh` is not available in the operator's checkout; use the existing `diagnose-defectdojo.sh` and DNS queries below. The diagnostic's expected nonzero exit is currently attributable to Unbound only. Do not restart pfSense or alter public DNS to repair this.
+
+```bash
+# Distinguish a missing forwarder/delegation from stale cache without changing DNS.
+for name in defectdojo.int.albandrieu.com hello.int.albandrieu.com; do
+  for resolver in 172.17.0.24 172.17.0.1; do
+    echo "=== $resolver $name ==="
+    dig +time=2 +tries=1 +noall +comments +answer +authority @"$resolver" "$name" A
+  done
+done
+# Inspect existing Unbound domain override / forwarding for int.albandrieu.com
+# in pfSense UI or its read-only configuration audit; preserve canonical ownership.
+```
+
+A successful pfSense query must return `172.17.0.24` for DefectDojo without exposing the name publicly. Investigate Unbound forwarding/delegation and DNSSEC validation behavior before considering cache flushes or configuration changes.
