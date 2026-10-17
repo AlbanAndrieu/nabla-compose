@@ -176,6 +176,7 @@ verify_prometheus_observer_contract() {
     local service_samples
 
     prometheus_url="$(
+        # shellcheck disable=SC2016 -- expansion happens inside the container
         run_docker exec "${CONTAINER}" sh -lc \
             'printf "%s" "${HOMELAB_PROMETHEUS_URL:-}"' 2>/dev/null || true
     )"
@@ -294,6 +295,7 @@ run_midclt_job_quiet() {
         else
             rc="$?"
         fi
+    # shellcheck disable=SC2024 -- the caller owns the temporary log file
     elif sudo midclt call -j "$@" >"${log}" 2>&1; then
         printf 'OK: %s\n' "${label}"
         rm -f "${log}"
