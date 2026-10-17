@@ -1,0 +1,272 @@
+# YubiKey workstation — full feature inventory and migration from nabla
+
+> **No automatic enrollment.** Keep the working KeePassXC OTP slot 2 untouched
+> on both keys (primary 23501671, backup 22916048).
+> The two devices share a verified HMAC-SHA1 response. Other applications
+> (PIV, OpenPGP, FIDO2, OATH) are logically separate from OTP slot 2.
+
+## Scope and original sources
+
+The original `nabla/env/linux/run-yubikey-ca.sh`,
+`run-yubikey-webauthn.sh`, `run-yubikey.sh`, `run-yubikey-old.sh`,
+`run-ssh-keygen.sh`, `run-gpg.sh`, and `run-keepass2.sh` mixed
+documentation and commands with side effects. Preserve the intent below.
+History is recoverable from nabla master (before PR #66) and Git history.
+**Do not execute old scripts as-is.** In particular, avoid `set -x`,
+PIV reset, hard-coded management secrets, private-key exports into the repo,
+clobbering PAM files, and `ssh-add -D`.
+
+## Capability and credential separation
+
+| Capability | Key storage / workflow | Validation | Caveat |
+|---|---|---|---|
+| KeePassXC | OTP slot 2, HMAC-SHA1 challenge response | `diagnose-yubikey-keepassxc.sh --challenge` | BOTH keys already configured; preserve |
+| FIDO2/WebAuthn | FIDO2 authenticator, resident/discoverable credentials | `ykman fido info` | Register each key separately per relying party |
+| SSH FIDO2 | OpenSSH security key `ed25519-sk` or `ecdsa-sk` | `ssh-keygen -lf ~/.ssh/id_ed25519_sk.pub` | private *handle* stays on disk; private key material stays inside authenticator |
+| SSH PIV | PIV slot 9a/9c via PKCS#11 (alternative) | `ykman piv info`, `ssh-add -s /usr/lib/.../opensc-pkcs11.so` | Do not mix with SSH FIDO setup blindly |
+| Smart-card CA / TLS | PIV asymmetric slots 9a/9c/9d/9e and certificates | `ykman piv certificates list` | 9a is authentication, 9c signing; CA key policy requires offline root and separate CA design |
+| GPG signing/encryption | OpenPGP applet; smart-card-backed GPG subkeys | `gpg --card-status` | Move or generate *subkeys*, keep offline backup and revocation certificate |
+| age encryption | `age-plugin-yubikey` using PIV identity | `age-plugin-yubikey --list` (where supported) | age X25519 identities are not interchangeable with GPG or KeePass HMAC; plugin typically uses PIV slot |
+| PAM login/sudo | pam_u2f enrollment; one key per registration | `pamu2fcfg` (enrollment), inspect `~/.config/Yubico/u2f_keys` | never edit PAM automatically; test backup login |
+| GNOME keyring | GNOME Keyring/libsecret (Seahorse) independent of token | `secret-tool`/Seahorse inventory | YubiKey does not natively unlock GNOME Keyring; requires a carefully reviewed integration |
+| OATH TOTP | Yubico Authenticator OATH applet | `ykman oath info` | Back up recovery codes; OATH is separate from OTP slot 2 |
+| PIV Windows/macOS login | Platform-specific smart-card workflow | platform validation | outside Linux workstation scope |
+
+## Safe read-only inventory
+
+With one YubiKey connected:
+```bash
+bash scripts/workstation/bootstrap-yubikey-manager.sh --check
+bash scripts/workstation/diagnose-yubikey-keepassxc.sh --challenge
+ykman fido info
+ykman piv info
+ykman piv certificates list
+ykman openpgp info
+ykman oath info
+gpg --card-status
+ssh -V
+command -v age-plugin-yubikey || true
+```
+Some GPG tools may prompt for PIN or connect via pcscd; these commands
+do not deliberately change applet credentials. Do not post unredacted
+smart-card serials, PIN attempts, public identities or detailed logs.
+
+## PIV certificates and historical CA
+
+The historical `run-yubikey-ca.sh` described a locally generated
+self-signed RSA-2048 `CN=nabla` certificate with an expiry in 2036,
+import into 9a using files `cnf/ca-nabla.cer` and `cnf/ca-nabla.key`,
+plus management key rotation. **These are historical notes, not proof
+of the present hardware state.** Do not blindly reset PIV or import
+the old software private key.
+
+Recommended flow after explicit inventory/backup and approval:
+
+1. Inventory existing PIV objects/slots and certificate chains; identify
+   actual ownership and workloads, including any SSH or age integrations.
+2. Secure PIN/PUK and management key in a vault, avoiding command-line
+   arguments and logs; record recovery procedures.
+3. For *new* keys prefer on-device key generation in intended PIV slots;
+   use an externally reviewed CA and a CSR/signing workflow, rather than
+   uploading a CA root private key to a general-purpose device.
+4. For SSH authentication consider slot 9a via PKCS#11. For certificate
+   signing use 9c only after algorithm/application compatibility testing.
+5. Validate certificate chain, expiry, hardware-bound private-key use,
+   revocation, and backup/offline recovery.
+
+Reference: https://docs.yubico.com/software/yubikey/tools/ykman/PIV_Commands.html
+
+## SSH: recommended FIDO2 first
+
+For a **new separate SSH key**, after confirming support and having
+a recovery route, provision interactively:
+```bash
+ssh-keygen -t ed25519-sk -O verify-required -C "yubikey-workstation"
+ssh-keygen -lf ~/.ssh/id_ed25519_sk.pub
+```
+Avoid overwriting an existing `id_ed25519_sk`; choose a unique `-f`
+path per key. Add each public key individually to GitHub/GitLab/hosts.
+A second authenticator cannot reproduce the first one's private SSH
+key; enroll it separately. Resident keys are optional (`-O resident`)
+and influence portability and credential capacity. Prefer PIN/touch
+and do not disable existing software SSH identities before testing.
+Check existing `run-ssh-keygen.sh` intentions: SSH agent, Git signing,
+GitHub and GitLab authentication, authorized signers.
+
+Reference: https://developers.yubico.com/SSH/
+
+## OpenPGP/GPG: signing, encryption, authentication
+
+The original `run-gpg.sh` recorded `pass`, Git commit signing,
+Docker credential-store, and GPG subkeys. Before migrating existing
+key material, capture **fingerprints** with `gpg --list-secret-keys
+--with-subkey-fingerprint`, verify where existing secret keys are
+actually stored, and make an encrypted **offline** backup plus a
+revocation certificate. Do not run `gpg --export-secret-keys` into
+worktrees or in CI.
+
+Preferred strategy: keep an offline primary key, create independent
+signing/encryption/authentication subkeys, and place intended subkeys
+on the OpenPGP card (after verified recovery). `gpg --edit-key` /
+`keytocard` can move existing subkeys and may remove local usable
+copies; only do so after verification and approval. Test GPG signing,
+file decryption and optional SSH via gpg-agent on **each** key before
+changing git config or password-store recipients.
+
+OpenPGP card keys and PIV keys are separate applets, both available on
+YubiKey 5; using one does not imply mirroring the other.
+
+Reference: https://developers.yubico.com/PGP/
+
+## age: two supported architectures
+
+- Native age file keys (`age-keygen`) live in a software file — not
+  automatically on YubiKey.
+- `age-plugin-yubikey` implements hardware-backed age identities using
+  the PIV functionality of the token. Check available PIV slots first
+  and document plugin/version compatibility. Enrollment may consume a
+  PIV credential and could conflict with existing PIV CA/SSH plans.
+  Provision *distinct identities* for both YubiKeys, then encrypt to
+  **both recipient identities** for recoverability.
+- `age`, `sops`, and their version-specific plugin integrations
+  should be tested with one throwaway test document first.
+
+Reference: https://github.com/str4d/age-plugin-yubikey
+
+## PAM U2F (sudo/login) and keyring
+
+Historical `run-yubikey-webauthn.sh` used `pamu2fcfg` but
+overwrote `~/.config/Yubico/u2f_keys`, then proposed editing
+`/etc/pam.d/sudo` and `/etc/pam.d/gdm-password`. NEVER apply this
+automatically: a wrong PAM line can lock out console, sudo, and recovery.
+Create an operator-reviewed enrollment with **both** keys, append
+additional authenticators to the same identity, maintain a separate
+administrator/recovery route and working root session, test sudo/login
+before enabling a required factor. Do not confuse PAM U2F with
+`ykpamcfg` / legacy challenge-response PAM modules.
+
+GNOME Keyring/libsecret/Seahorse is not a YubiKey applet. Explore
+independent PAM/keyring auto-unlock settings and the effects of FIDO2
+authentication, particularly when the user does not enter a login
+password. Never assume FIDO2 automatically unlocks encrypted keyrings.
+
+References:
+- https://developers.yubico.com/pam-u2f/
+- https://github.com/Yubico/pam-u2f
+
+## Acceptance / roadmap (no provisioning yet)
+
+- [x] KeePassXC challenge-response identical on both YubiKeys.
+- [x] Central read-only diagnostic and bootstrap `ykman`.
+- [ ] Inventory PIV slot occupancy/certificates for both devices.
+- [ ] Inventory OpenPGP, OATH, FIDO2 discoverable-credential usage.
+- [ ] Decide SSH FIDO2 vs SSH PIV; register **both keys** and test.
+- [ ] Choose GPG offline primary/subkey and disaster recovery policy.
+- [ ] Evaluate age-plugin-yubikey slots and dual-recipient recovery.
+- [ ] Stage PAM U2F dual-key enrollment with rollback, not production edits.
+- [ ] Evaluate GNOME Keyring effects; avoid circular unlock dependency.
+- [ ] Add fixture-based tests, shellcheck and a no-secrets/no-destructive-ops gate.
+
+## Hardware audit evidence — backup YubiKey 22916048, 2026-10-16
+
+Validated on workstation with ykman 5.8.0 and KeePassXC 2.7.10:
+
+| Capability | Finding | Priority |
+| --- | --- | --- |
+| OTP slot 2 | HMAC-SHA1 matches primary 23501671 | ✅ Preserve |
+| FIDO2 | AAGUID detected, PIN enabled, 8 attempts left | ✅ Inventory credential registrations |
+| PIV key slot 9A | RSA2048 key with self-signed Nabla Root CA certificate | ⚠️ Determine actual usage |
+| PIV certificate | Expired 2025-01-22 (issued 2024-12-23) | 🔴 Replace only after dependency and recovery analysis |
+| PIV management | AES256 protected by PIN | ✅ Protect management recovery |
+| PIV PIN / PUK | 3 / 3 attempts remaining | ⚠️ Avoid PIN/PUK guessing |
+| OpenPGP | v3.4; user PIN 3 tries; admin PIN 3 tries; reset code 0 | ⚠️ Inventory card keys and recovery before any attempt |
+| OATH | Password protection disabled | ⚠️ Review device threat model and backup codes |
+| SSH | ssh-keygen available | ⏳ Provision distinct FIDO2 identities after inventory |
+| age | age installed, age-plugin-yubikey absent | ⏳ Plan plugin/recipients after PIV slot inventory |
+| PAM | pamu2fcfg absent | ⏳ Keep existing login working |
+| Keyring | secret-tool and Seahorse installed | ⏳ Check existing keyrings/read-only |
+
+`ykman piv certificates list` **does not exist in ykman 5.8.0**. The
+canonical audit now relies on `ykman piv info`, redacts CHUID from its
+output, checks the certificate expiry, and reports actionable statuses
+with ANSI colours on terminals (respects `NO_COLOR`).
+
+Never place the raw CHUID, HMAC_SECRET, PIN or PUK in public logs. A
+self-signed certificate having “Root CA” in its common name does not
+prove correct CA key usage or trust anchor registration: verify the
+certificate extensions, trust stores and dependent applications.
+
+No hardware changes have been made by these scripts; the manually
+programmed HMAC slot 2 is retained.
+
+## Critical ownership: future Vault PKI and existing PostgreSQL GPG backups
+
+Operator clarified on 2026-10-16 that the historical **Nabla Root CA**
+was probably intended to be the master trust anchor of a future Vault
+deployment, and existing GPG material signs Git commits **and is used for
+PostgreSQL backups**. These are different security domains. Treat the
+latter as *production recovery-critical* until proven otherwise.
+
+### PKI: audit before choosing a Vault architecture
+
+- The current certificate in PIV slot 9A is self-signed and expired.
+  Its subject name `Nabla Root CA` alone does **not** establish
+  `basicConstraints=CA:TRUE` nor `keyCertSign`. Export the **public**
+  certificate for inspection, never the private key:
+  ```bash
+  ykman --device 22916048 piv certificates export 9a /tmp/nabla-9a-public.pem
+  openssl x509 -in /tmp/nabla-9a-public.pem -noout -text
+  ```
+- First verify provenance and trust stores, certificate extensions,
+  certificate validity, whether the 9A key is actually on-token or was
+  imported, and whether any service depends upon it.
+- A future Vault/OpenBao PKI intermediate may be signed by an **offline**
+  Root CA only with a supported signing mechanism and proper CA key
+  policy. A PIV 9A authentication slot should not be assumed to be an
+  appropriate long-lived CA signing slot.
+- Plan CA recovery, publication of trust anchors, revocation/CRL,
+  path-length constraints, intermediate rotation and short-lived
+  leaf certificate issuance. Keep the trust-root independent of Vault
+  availability; avoid a circular bootstrap dependency.
+- Do **not** renew/reissue/import or reset PIV automatically.
+
+### OpenPGP/GPG: PostgreSQL backup recovery is P0
+
+- Signing Git commits and decrypting encrypted backups are **different
+  cryptographic capabilities**. Determine whether the same primary key
+  owns both signing and encryption subkeys; never infer from the
+  OpenPGP applet's mere availability that the required backup-decryption
+  secret material lives on the token.
+- Inventory locally without exporting secrets:
+  ```bash
+  gpg --list-secret-keys --with-subkey-fingerprint --keyid-format LONG
+  gpg --card-status
+  git config --get user.signingkey || true
+  ```
+- Inventory backup scripts for `gpg`, `pg_dump`, `pgbackrest`,
+  `wal-g`, `barman`, and `age`: identify encrypting recipients and
+  private key escrow. Do not dump PostgreSQL credentials or backup
+  paths into CI logs.
+- **P0 acceptance**: decrypt an existing, encrypted PostgreSQL backup
+  into an isolated and access-controlled test environment, validate
+  checksums, and perform an actual test restore into a disposable
+  PostgreSQL database, with zero changes to production. A GPG decrypt
+  success alone is not proof of a usable backup.
+- Before moving subkeys to any YubiKey, make verified encrypted offline
+  backups and revocation material. `gpg --edit-key keytocard` can
+  remove locally usable secret material; never do it as a diagnostic.
+- For future backups, use a documented encryption recipient/rotation
+  strategy that retains access to historical data. An offline escrow
+  decryption key or well-controlled recovery recipient may be
+  appropriate. A hardware YubiKey cannot simply be cloned by copying a
+  GPG smart-card private key from one token to another.
+
+### Acceptance order
+
+1. [ ] Map PostgreSQL backup encryption scripts and key/subkey IDs.
+2. [ ] Demonstrate decryption and isolated PostgreSQL restore of a
+       representative encrypted backup.
+3. [ ] Inspect public 9A cert and current CA dependencies.
+4. [ ] Approve offline root + Vault/OpenBao PKI intermediate model.
+5. [ ] Only then consider GPG subkey placement and PIV reprovisioning.
+
