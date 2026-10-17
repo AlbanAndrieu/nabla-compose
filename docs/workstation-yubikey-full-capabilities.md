@@ -270,3 +270,40 @@ latter as *production recovery-critical* until proven otherwise.
 4. [ ] Approve offline root + Vault/OpenBao PKI intermediate model.
 5. [ ] Only then consider GPG subkey placement and PIV reprovisioning.
 
+
+## Répartition cible multi-usages, deux YubiKeys (17 octobre 2026)
+
+Le plan d'exécution détaillé, la matrice de récupération, les
+critères d'acceptation et l'inventaire des emplacements sont
+centralisés dans
+[`workstation-yubikey-gpg-vault-roadmap.md`](workstation-yubikey-gpg-vault-roadmap.md)
+(section **Architecture cible « YubiKey full capabilities »**).
+
+Résumé opérationnel :
+
+| Application | Usage ciblé | Emplacement / gouvernance |
+| --- | --- | --- |
+| OTP | KeePassXC | Slot 2 HMAC SHA1 programmé sur les deux clés, ne jamais modifier |
+| PIV | SOPS / age | Retired 82 sur chaque YubiKey (nouvelle identité P-256 indépendante), 83 pour rotation |
+| OpenPGP | Git signé, chiffrement e-mail, fichiers, PDF enveloppés GPG | Sign / Encrypt / Auth à provisionner seulement après protection de la récupération |
+| FIDO2 | SSH humain, passkeys, authentification forte | Identités séparées par clé, secours SSH obligatoire |
+| PIV 9C | S/MIME / signature PDF PAdES avec X.509 | Certificat compatible et outil de vérification requis |
+| PIV 9D | Confidentialité S/MIME / clients | Non confirmé libre ; ne pas écraser |
+| PIV 9A | Historique Nabla Root CA, import RSA2048 | **OCCUPÉ** ; certificat expiré, pas d'écrasement |
+| PIV 9E | Authentification de carte | À inventorier |
+| TLS public | Certificats de sites web | ACME côté proxy/serveur ; ne pas nécessiter présence de YubiKey |
+| Vault/OpenBao | Administration, amorçage, parts de récupération, PKI | Root CA hors ligne, intermédiaire, recovery partagé ; ne pas considérer YubiKey comme auto-unseal HA |
+| Chiffrement backups | TrueNAS/Postgres et fichiers | Destinataires de récupération indépendants, fixture et test de restauration isolé |
+
+**État réel constaté sur la carte de secours :** `ykman piv keys
+info 9A` indique RSA2048 **IMPORTED** avec PIN **ONCE** et touch
+**NEVER**. `ykman piv keys info 82` et `83` affichent
+`No key stored` : ils sont vides **sur cette seule carte**.
+L'état des 18 autres slots retired et de 9C/9D/9E n'est pas
+connu. Aucune nouvelle clé age/PIV n'a été provisionnée.
+
+**Sécurité :** ne pas substituer une clé physique à un plan
+de récupération ; garder l'identité SOPS X25519, distribuer
+plusieurs destinataires matériels et tester la perte de carte
+sans manipuler de secrets de production. Le firmware 5.4.3
+n'autorise pas de présumer les fonctions introduites en 5.7.
