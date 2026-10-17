@@ -35,7 +35,7 @@ fi
 heading 'Configuration effective (noms de directives seulement)'
 cfg="${GNUPGHOME:-${HOME}/.gnupg}/scdaemon.conf"
 if [[ -r "${cfg}" ]]; then
-  for setting in disable-ccid pcsc-driver reader-port; do
+  for setting in disable-ccid pcsc-shared pcsc-driver reader-port; do
     if grep -Eq "^[[:space:]]*${setting}([[:space:]]|$)" "${cfg}"; then
       if [[ "${setting}" == pcsc-driver || "${setting}" == reader-port ]]; then
         warn "${setting} défini (valeur masquée)"
@@ -131,11 +131,24 @@ fi
 if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --check-programs 2>/dev/null | awk -F: '$1 ~ /scdaemon/ { if ($3 == "1") print "⚠️ scdaemon signale une erreur de programme"; else print "ℹ️ scdaemon référencé dans GnuPG" }' || true
 fi
-if [[ -r "${cfg}" ]] && grep -Eq '^[[:space:]]*disable-ccid([[:space:]]|$)' "${cfg}" && ! grep -Eq '^[[:space:]]*reader-port([[:space:]]|$)' "${cfg}"; then
-  warn 'disable-ccid sans reader-port : essai explicite déjà réalisé sans succès sur cette workstation'
-  printf 'ℹ️ Ne pas répéter reader-port ; poursuivre le diagnostic des clients et de l’accès USB.\n'
+if [[ -r "${cfg}" ]] && grep -Eq '^[[:space:]]*disable-ccid([[:space:]]|$)' "${cfg}" && ! grep -Eq '^[[:space:]]*pcsc-shared([[:space:]]|$)' "${cfg}"; then
+  warn 'disable-ccid sans pcsc-shared : ancien état ayant échoué à sélectionner la carte'
+  printf 'ℹ️ Le contournement confirmé est PC/SC partagé ; ne pas répéter reader-port.\n'
 fi
-warn 'Piste : scdaemon/PCSC, sélection de lecteur ou accès concurrent; aucune modification automatique'
+printf '%s\n' 'ℹ️ GnuPG logiciel et OpenPGP sur YubiKey sont indépendants ; la carte de secours observée avait ses trois clés OpenPGP absentes.'
+heading 'Référence P1 GPG logiciel (sans export de clé)'
+if command -v gpg >/dev/null 2>&1; then
+  key_info="$(gpg --batch --with-colons --list-secret-keys F4C4B79A80826A5E5ADAD2C8B12DECD437E9E1C8 2>/dev/null || true)"
+  if printf '%s\n' "$key_info" | grep -q '^sec:'; then
+    ok 'Clé secrète de signature Git présente dans le trousseau local (usage déjà testé avec Good signature)'
+  else warn 'Clé secrète Git de référence non présente'; fi
+  if printf '%s\n' "$key_info" | grep -q '^ssb:.*:e:'; then
+    ok 'Sous-clé secrète de chiffrement répertoriée (roundtrip de fixture déjà testé)'
+  elif printf '%s\n' "$key_info" | grep -q '^ssb:'; then
+    ok 'Sous-clé secrète répertoriée ; vérifier les capacités séparément'
+  else warn 'Sous-clé secrète de chiffrement non trouvée'; fi
+fi
+printf '%s\n' 'ℹ️ Attendu établi : signature GPG logicielle PASS ; roundtrip RSA4096 [E] PASS ; Git commit signé / git-crypt réels non validés.'
 heading 'Diagnostic matériel GPG (sans sortie brute)'
 if command -v gpg >/dev/null; then
   if output="$(timeout 15 gpg --card-status 2>&1)"; then
