@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import sqlite3
 import subprocess
 import tempfile
@@ -24,6 +23,7 @@ def run(*args: str) -> str:
 
 
 def check_mount(root: Path) -> None:
+    root = root.absolute()
     if not root.is_relative_to(EXPECTED_MOUNT):
         raise ValueError("backup_root_outside_approved_mount")
     info = json.loads(run("findmnt", "-J", "-T", str(root), "-o", "TARGET,SOURCE,FSTYPE,OPTIONS"))
@@ -101,6 +101,8 @@ def execute(root: Path, workboard: Path, dry_run: bool = False) -> dict:
     entries = inventory(root, before)
     if not entries or not any(e["path"].startswith("archives/") for e in entries):
         raise ValueError("no_new_archive_detected")
+    if len(entries) < 4:
+        raise ValueError("missing_expected_sqlite_or_archive_artifacts")
     if workboard_file and not any(e["path"] == str(workboard_file.relative_to(root)) for e in entries):
         raise ValueError("workboard_snapshot_not_detected")
     for e in entries:
