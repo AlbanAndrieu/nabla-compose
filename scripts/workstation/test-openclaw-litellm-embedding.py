@@ -15,11 +15,15 @@ URL = "http://127.0.0.1:4000/v1/embeddings"
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=("local", "large"), default="local")
+    parser.add_argument("--profile", choices=("local", "large", "ada", "small"), default="local")
     args = parser.parse_args()
-    model = "embedding" if args.profile == "local" else "text-embedding-3-large"
-    expected = 768 if args.profile == "local" else 3072
-    key_path = LOCAL_KEY if args.profile == "local" else LARGE_KEY
+    profiles = {
+        "local": ("embedding", 768, LOCAL_KEY),
+        "large": ("text-embedding-3-large", 3072, LARGE_KEY),
+        "ada": ("text-embedding-ada-002", 1536, Path.home() / ".local/share/nabla-compose/openclaw-embeddings-ada.key"),
+        "small": ("text-embedding-3-small", 1536, Path.home() / ".local/share/nabla-compose/openclaw-embeddings-small.key"),
+    }
+    model, expected, key_path = profiles[args.profile]
     if key_path.is_symlink() or not key_path.is_file() or stat.S_IMODE(key_path.stat().st_mode) != 0o600:
         print("✘ virtual_key=missing_or_insecure", file=sys.stderr)
         return 2
