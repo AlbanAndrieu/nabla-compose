@@ -86,7 +86,28 @@ check_install || fail "packaged ykman failed post-install self-check"
 
 if ! check_age_plugin; then
   command -v cargo >/dev/null 2>&1 || fail "Cargo not found: install approved Rust toolchain before --apply"
-  cargo install --locked --version "${AGE_PLUGIN_VERSION}" age-plugin-yubikey
+  # pcsc-sys discovers libpcsclite through pkg-config, not via pcscd.
+  # Some workstations export a restrictive PKG_CONFIG_LIBDIR or SYSROOT.
+  # Use the distro's canonical multiarch pkg-config directory for this build.
+  command -v dpkg-architecture >/dev/null 2>&1 ||
+    fail "dpkg-architecture missing: cannot resolve system PC/SC pkg-config directory"
+  triplet="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+  pc_dir="/usr/lib/${triplet}/pkgconfig"
+  pc_file="${pc_dir}/libpcsclite.pc"
+  [[ -r "${pc_file}" ]] ||
+    fail "PC/SC metadata missing: ${pc_file} (check libpcsclite-dev installation)"
+  command -v /usr/bin/pkg-config >/dev/null 2>&1 ||
+    fail "system pkg-config missing at /usr/bin/pkg-config"
+  # Scoped environment: no changes to the user's global Rust or pkg-config config.
+  pc_paths="${pc_dir}:/usr/lib/pkgconfig:/usr/share/pkgconfig"
+  pc_version="$(env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR \
+    PKG_CONFIG=/usr/bin/pkg-config PKG_CONFIG_PATH="${pc_paths}" \
+    /usr/bin/pkg-config --modversion libpcsclite 2>/dev/null)" ||
+    fail "system libpcsclite is not resolvable by pkg-config despite installed headers"
+  printf 'OK: PC/SC build dependency libpcsclite %s resolved through %s\n' "${pc_version}" "${pc_dir}"
+  env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR \
+    PKG_CONFIG=/usr/bin/pkg-config PKG_CONFIG_PATH="${pc_paths}" \
+    cargo install --locked --version "${AGE_PLUGIN_VERSION}" age-plugin-yubikey
   [[ -x "${AGE_PLUGIN_BIN}" ]] || fail "Cargo binary missing: ${AGE_PLUGIN_BIN}"
   ln -sfn "${AGE_PLUGIN_BIN}" "${AGE_PLUGIN_LINK}"
 fi
