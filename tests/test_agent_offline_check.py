@@ -32,6 +32,9 @@ def test_disconnected_monorepo_checks_more_than_200_files(tmp_path: Path) -> Non
             "value = 1\n", encoding="utf-8"
         )
 
+    # Stage the synthetic files explicitly: global excludesFile patterns may
+    # ignore module_*.py on an operator workstation.
+    subprocess.run(["git", "add", "-f", "--", *[f"module_{i:03d}.py" for i in range(205)]], cwd=tmp_path, check=True)
     result = invoke(tmp_path)
     assert result.returncode == 0, result.stderr
     assert "files=205, parsed=205" in result.stdout
