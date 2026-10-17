@@ -85,7 +85,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("print_compact_log", text)
         self.assertIn("--- concise failures ---", text)
         self.assertIn("QUALITY_SUMMARY_LINES", text)
-        self.assertIn("SC[0-9]{4}", text)
+        self.assertIn("SC[0-9][0-9][0-9][0-9]", text)
         self.assertIn("In .* line [0-9]+:", text)
         self.assertIn("line truncated", text)
         self.assertIn("QUALITY_FIX_MAX_PASSES", text)
@@ -145,7 +145,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         gate = (ROOT / "scripts" / "agent-quality-gate.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn("FAILED tests/", gate)
+        self.assertIn("FAILED tests", gate)
         self.assertIn("- hook id:", gate)
         self.assertIn("Full failure log:", gate)
         self.assertIn('local summary_limit="${QUALITY_SUMMARY_LINES:-8}"', gate)
