@@ -12,10 +12,8 @@ READY_URL="${PYROSCOPE_READY_URL:-http://172.17.0.24:4040/}"
 METRICS_URL="${PYROSCOPE_METRICS_URL:-http://172.17.0.24:4040/metrics}"
 DATA_ROOT="${PYROSCOPE_DATA_ROOT:-/mnt/cpool/pyroscope/data}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 for command in curl docker du df find stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"

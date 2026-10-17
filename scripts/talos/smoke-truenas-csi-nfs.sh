@@ -6,6 +6,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 # shellcheck source=scripts/lib/truenas.sh
 source "${ROOT}/scripts/lib/truenas.sh"
+# shellcheck source=../lib/common.sh
+source "${ROOT}/scripts/lib/common.sh"
 # Shared TrueNAS helpers own the pool.dataset.query and sharing.nfs.query calls used below.
 nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
@@ -23,11 +25,6 @@ NAMESPACE_DELETE_TIMEOUT_SECONDS="${CSI_NAMESPACE_DELETE_TIMEOUT_SECONDS:-120}"
 DIAGNOSTIC_TAIL="${CSI_DIAGNOSTIC_TAIL:-100}"
 KEEP_ON_FAILURE="${CSI_SMOKE_KEEP_ON_FAILURE:-false}"
 TRUENAS_RECLAIM_TIMEOUT_SECONDS="${CSI_TRUENAS_RECLAIM_TIMEOUT_SECONDS:-120}"
-
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
 
 ok() {
   printf '✅ %s\n' "$*"

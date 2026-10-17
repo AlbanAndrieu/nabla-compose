@@ -4,10 +4,8 @@ set -euo pipefail
 APP_ID="${FASTAPI_SAMPLE_APP_ID:-sample}"
 COMPOSE_FILE="${FASTAPI_SAMPLE_COMPOSE_FILE:-/mnt/cpool/compose/nabla-compose/apps/sample/compose.yml}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib/common.sh"
 
 for command in jq midclt sudo; do
   command -v "${command}" >/dev/null 2>&1 ||

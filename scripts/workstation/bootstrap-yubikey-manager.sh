@@ -10,7 +10,8 @@ AGE_PLUGIN_VERSION="${NABLA_AGE_PLUGIN_YUBIKEY_VERSION:-0.5.1}"
 AGE_PLUGIN_BIN="${HOME}/.cargo/bin/age-plugin-yubikey"
 AGE_PLUGIN_LINK="${BIN_DIR}/age-plugin-yubikey"
 
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check|--apply) ;;
@@ -48,7 +49,7 @@ check_age_plugin() {
   [[ "$(readlink -f "${AGE_PLUGIN_LINK}")" == "${AGE_PLUGIN_BIN}" ]] || return 1
   local version
   version="$("${AGE_PLUGIN_BIN}" --version 2>/dev/null || true)"
-  [[ "$version" == *"${AGE_PLUGIN_VERSION}"* ]]
+  [[ "${version}" == *"${AGE_PLUGIN_VERSION}"* ]]
 }
 
 report_path() {

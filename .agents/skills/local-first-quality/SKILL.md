@@ -431,9 +431,12 @@ already expresses the required contract.
 
 ## Shell operator experience and refactoring
 
-When creating or refactoring operator-facing Shell scripts, use
-`scripts/lib/terminal-ui.sh` and `nabla_ui_init` / `nabla_ui_status`
-for consistent ✅/⚠️/❌/ℹ️ statuses and green/yellow/red/cyan terminal colors.
+When creating or refactoring operator-facing Shell scripts, source
+`scripts/lib/common.sh` and use `ok` / `warn` / `fail` / `info` / `section`
+for consistent ✅/⚠️/❌/ℹ️ statuses and green/yellow/red/cyan terminal colors
+(`nabla_ui_init` exposes `NABLA_UI_*` colors for custom lines). Read-only
+diagnostics with warning/failure counters use `scripts/lib/diagnostic-ui.sh`.
+Never redefine `fail()` locally after sourcing `common.sh`.
 Preserve plain, stable text in CI, logs and redirected output; respect
 `NO_COLOR`, `TERM=dumb`, and `NABLA_UI_ASCII=1`. Never color JSON, probes,
 machine-readable records or secrets. Do not pipe errors through a coloring

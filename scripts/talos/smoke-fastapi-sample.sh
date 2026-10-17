@@ -19,10 +19,8 @@ IMAGE="${FASTAPI_SAMPLE_K8S_IMAGE:-}"
 MODE="${1:---render}"
 TMPDIR_SMOKE=""
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 cleanup_tmp() {
   [[ -n "${TMPDIR_SMOKE}" ]] && rm -rf "${TMPDIR_SMOKE}"

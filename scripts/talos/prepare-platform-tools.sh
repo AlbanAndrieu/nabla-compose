@@ -5,10 +5,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 MODE="${1:---summary}"
 KUBARA_WORKDIR="${KUBARA_WORKDIR:-${ROOT}}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 info() {
   printf 'ℹ️  %s\n' "$*"

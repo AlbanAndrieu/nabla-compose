@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import unittest
 from pathlib import Path
@@ -125,6 +126,22 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
         self.assertIn("validate_stage()", text)
         self.assertIn("verify_bundle()", text)
         self.assertIn('bash -n "${STAGE}/${path}"', text)
+
+    def test_reboot_bundle_ships_every_library_its_scripts_source(self) -> None:
+        text = MATERIALIZER.read_text(encoding="utf-8")
+        files = set(re.findall(r"^\s+(scripts/\S+)$", text.split("FILES=(", 1)[1].split(")", 1)[0], re.M))
+        missing = []
+        for path in sorted(f for f in files if f.endswith(".sh")):
+            source = (ROOT / path).read_text(encoding="utf-8")
+            needed = {f"scripts/lib/{name}" for name in re.findall(r"lib/([a-z-]+\.sh)", source)}
+            needed |= {
+                str(Path(path).parent / name)
+                for name in re.findall(r'"\$\{SCRIPT_DIR\}/([a-z-]+\.(?:py|sh))"', source)
+            }
+            if "nabla_diagnostic_maybe_wrap" in source:
+                needed.add("scripts/run-diagnostic.sh")
+            missing += [f"{path} -> {dep}" for dep in sorted(needed - files)]
+        self.assertEqual(missing, [])
 
     def test_resume_reconciler_preserves_dependency_barriers(self) -> None:
         text = RESUME_RECONCILER.read_text(encoding="utf-8")

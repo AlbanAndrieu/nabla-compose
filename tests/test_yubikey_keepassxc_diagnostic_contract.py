@@ -33,6 +33,84 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                                                       if not line.lstrip().startswith("#")))
 
 
+    def test_piv_inventory_enforces_known_single_key_and_read_only_slots(self):
+        script = ROOT / "scripts/workstation/audit-yubikey-capabilities.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_text = subprocess.run(
+            ["bash", str(script), "--help"], capture_output=True,
+            text=True, check=True
+        ).stdout
+        for option in ("--primary", "--backup", "--serial", "--challenge"):
+            self.assertIn(option, help_text)
+        content = script.read_text()
+        for marker in (
+            "PRIMARY_SERIAL=23501671", "BACKUP_SERIAL=22916048",
+            "Exactly one YubiKey must be connected",
+            "Connected YubiKey does not match requested serial",
+            "Unrecognized YubiKey",
+            'args=(--device "${connected}")',
+            'ykman "${args[@]}" piv keys info "${slot}"',
+            "PIV slot summary", "UNKNOWN", "No key stored",
+            "9C 9D 9E 82 83 84 85 86 87 88 89 8A 8B 8C 8D 8E 8F 90 91 92 93 94 95",
+        ):
+            self.assertIn(marker, content)
+        for forbidden in ("piv keys generate", "piv keys import",
+                          "piv keys delete", "piv reset", "otp delete"):
+            self.assertNotIn(forbidden, content)
+
+    def test_age_escrow_backup_contract(self):
+        script = ROOT / "scripts/workstation/backup-sops-age-identity.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(
+            ["bash", str(script), "--help"],
+            capture_output=True, text=True, check=True
+        )
+        self.assertIn("--apply", result.stdout)
+        content = script.read_text()
+        for marker in (
+            "umask 077", "age -e -r", "findmnt",
+            "independent", "CHECK ONLY", "OFFLINE DECRYPTION",
+            "chmod 600", "ln \"${temp}\" \"${output}\"",
+        ):
+            self.assertIn(marker, content)
+        for dangerous in (
+            "age -d", "age-keygen -o", "piv reset",
+            "piv keys generate", "cat \"$source_file\"",
+        ):
+            self.assertNotIn(dangerous, content)
+
+    def test_usb_escrow_recovery_contract(self):
+        script = ROOT / "scripts/workstation/manage-age-escrow-usb.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(
+            ["bash", str(script), "--help"],
+            capture_output=True, text=True, check=True
+        )
+        for marker in ("--luks-uuid", "--check", "--open", "--close",
+                       "--init-identity"):
+            self.assertIn(marker, result.stdout)
+        body = script.read_text()
+        self.assertIn("age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938", body)
+        self.assertIn("Existing original age identity verified", body)
+        self.assertIn("CREATE-NEW-IDENTITY", body)
+        for forbidden in ("luksFormat", "wipefs", "mkfs.ext4",
+                          "parted -s", "reset PIV"):
+            self.assertNotIn(forbidden, body)
+
+    def test_age_escrow_restore_script_contract(self):
+        script = ROOT / "scripts/workstation/verify-sops-age-escrow.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_text = subprocess.run(
+            ["bash", str(script), "--help"], capture_output=True,
+            text=True, check=True
+        ).stdout
+        self.assertIn("--backup", help_text)
+        self.assertIn("--identity", help_text)
+        body = script.read_text()
+        for marker in ("umask 077", "/dev/shm", "tmpfs", "trap cleanup EXIT",
+                       "age -d -i", "age-keygen -y", "PASS:"):
+            self.assertIn(marker, body)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
@@ -48,7 +126,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("Clé secrète de signature Git", content)
         self.assertIn("ykman-gui actif", content)
         self.assertIn("usbfs sur CCID est attendu", content)
-        self.assertIn("Ne pas répéter reader-port", content)
+        self.assertIn("ne pas répéter reader-port", content)
         for forbidden in ("piv reset", "keytocard", "rm -rf", "gpg --delete-secret-key",
                           "gpgconf --kill", "systemctl stop", "set -x"):
             self.assertNotIn(forbidden, content)

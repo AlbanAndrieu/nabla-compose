@@ -16,10 +16,8 @@ WORKER_B_IP="${TALOS_WORKER_B_IP:-172.17.0.52}"
 NAMESPACE="${K8S_SMOKE_NAMESPACE:-nabla-network-smoke-$$}"
 IMAGE="${K8S_SMOKE_IMAGE:-busybox:1.37.0}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 cleanup() {
   if [[ "${namespace_created:-false}" == "true" ]]; then

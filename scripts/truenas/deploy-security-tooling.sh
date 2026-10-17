@@ -8,10 +8,8 @@ CANONICAL_ROOT="${NABLA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 PERSISTENT_APPS=(plumber netbox dependency-track defectdojo neo4j)
 MANUAL_APPS=(cartography scorecard)
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 note() {
   printf '==> %s\n' "$*"
 }
@@ -69,7 +67,7 @@ app_url() {
 
 wait_http() {
   local app="$1" url="$2" timeout_seconds=300
-  local status='' attempts=0 started=$SECONDS
+  local status='' attempts=0 started=${SECONDS}
   case "${app}" in
     netbox | dependency-track | defectdojo) timeout_seconds=600 ;;
   esac

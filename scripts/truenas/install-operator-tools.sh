@@ -15,10 +15,8 @@ PROFILE_FILE="${NABLA_OPERATOR_PROFILE:-${HOME}/.profile}"
 TMP=""
 STAGED=""
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 warn() {
   printf '⚠️  %s\n' "$*" >&2

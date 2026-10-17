@@ -5,10 +5,8 @@ RUNTIME_CONFIG="${PFSENSE_EXPORTER_CONFIG:-/mnt/cpool/prometheus/secrets/pfsense
 PFSENSE_URL="${PFSENSE_EXPORTER_AUTH_URL:-https://172.17.0.1:10443}"
 ENDPOINT="${PFSENSE_EXPORTER_AUTH_ENDPOINT:-/api/v2/status/services}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 for command in python3 curl mktemp; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"

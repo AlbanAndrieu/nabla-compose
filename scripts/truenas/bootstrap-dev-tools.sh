@@ -17,10 +17,8 @@ PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
 export MISE_LOCKFILE=false
 PERSIST_SHELL_PATH=false
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${1:-}" in
   --persist-shell-path)

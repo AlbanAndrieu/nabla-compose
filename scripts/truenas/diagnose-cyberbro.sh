@@ -8,10 +8,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 VERBOSE="${CYBERBRO_DIAGNOSTIC_VERBOSE:-false}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 for command in midclt jq docker curl; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"

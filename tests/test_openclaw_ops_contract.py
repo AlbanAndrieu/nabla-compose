@@ -27,7 +27,7 @@ def test_default_diagnostics_are_nonmutating() -> None:
 
 def test_routes_option_is_accepted_and_dispatched() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
-    assert "--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--disable-irc) ;;" in text
+    assert "--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--memory-audit|--disable-irc) ;;" in text
     assert '--routes) python3 "${ROOT}/scripts/workstation/openclaw-route-metadata.py" ;;' in text
 
 
@@ -51,6 +51,7 @@ def test_smoke_is_explicit_and_budget_guarded() -> None:
 
 def test_litellm_audit_is_explicit_read_only() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
-    assert "--smoke-model|--litellm-audit|--disable-irc) ;;" in text
+    assert "--smoke-model|--litellm-audit|--memory-audit|--disable-irc) ;;" in text
+    assert '--memory-audit) python3 "${ROOT}/scripts/workstation/openclaw-memory-audit.py" ;;' in text
     assert '--litellm-audit) python3 "${ROOT}/scripts/workstation/openclaw-litellm-audit.py" ;;' in text
     assert "openclaw-litellm-audit.py" not in text.split('  --check)', 1)[1].split('  --cron)', 1)[0]

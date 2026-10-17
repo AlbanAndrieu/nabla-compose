@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:2c446c3b2cdf5fa9b2fea222959caef90bc2cf80336dab5ca1b70d2d09d39786",
+  "catalogRevision": "sha256:84c2e63f7834cf1b51e3423591e0de68983c10181bf8e5c93fd03e7a05178522",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -366,7 +366,8 @@
         "provider": "truenas-app",
         "containerService": "defectdojo",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ]
       }
     },

@@ -11,8 +11,8 @@ for arg in "${@}"; do
   esac
 done
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=../lib/terminal-ui.sh
-source "${ROOT}/scripts/lib/terminal-ui.sh"
+# shellcheck source=../lib/common.sh
+source "${ROOT}/scripts/lib/common.sh"
 nabla_ui_init
 GREEN="${NABLA_UI_GREEN}" RED="${NABLA_UI_RED}"
 YELLOW="${NABLA_UI_YELLOW}" RESET="${NABLA_UI_RESET}"

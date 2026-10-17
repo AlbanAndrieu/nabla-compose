@@ -13,10 +13,8 @@ PUBLIC_HOST="${PUBLIC_BASE#*://}"
 PUBLIC_HOST="${PUBLIC_HOST%%/*}"
 PUBLIC_HOST="${PUBLIC_HOST%%:*}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply | --flush-host-cache) ;;

@@ -5,10 +5,8 @@ MODE="${1:---check}"
 UPDATE_EXISTING="${CYBERBRO_UPDATE_EXISTING:-0}"
 CANONICAL_ROOT="${CYBERBRO_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

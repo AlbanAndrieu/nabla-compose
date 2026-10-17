@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/probe.sh
 source "${SCRIPT_DIR}/../lib/probe.sh"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 
 SYNC_CONTAINER="${NABLA_PIHOLE_SYNC_CONTAINER:-pihole-dns-sync}"
 PIHOLE_CONTAINER="${NABLA_PIHOLE_CONTAINER:-pihole}"
@@ -12,11 +14,6 @@ PROXY_ALIAS="${NABLA_DOCKER_PROXY_ALIAS:-docker-socket-proxy}"
 EXPECTED_MAX_SESSIONS="${NABLA_PIHOLE_EXPECTED_MAX_SESSIONS:-16}"
 TIMEOUT_SECONDS="${NABLA_PIHOLE_SYNC_TIMEOUT_SECONDS:-60}"
 POLL_SECONDS="${NABLA_PIHOLE_SYNC_POLL_SECONDS:-2}"
-
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root"
 for command in docker grep jq timeout; do

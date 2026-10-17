@@ -5,10 +5,8 @@ MODE="${1:-}"
 APP="${2:-}"
 SOURCE="${3:-}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --install | --verify) ;;

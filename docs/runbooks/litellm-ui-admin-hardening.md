@@ -36,3 +36,17 @@ python3 scripts/workstation/check-litellm-ui-hardening.py --probe-public --probe
 The second command requires the optional SSH forward `127.0.0.1:14000 -> 127.0.0.1:4000` for its tunnel check. A redirect to Cloudflare Access is a **positive signal only**, not proof of an adequate Access policy. Review the Cloudflare Zero Trust application policy for identity, MFA, service tokens, bypass rules, and all admin/API paths.
 
 Budget migration remains a separate change: copy policy intent only; **do not transfer historical consumption or reset state**.
+
+## Post-merge runtime validation — PR #258
+
+PR #257 has been merged and the operator restarted the TrueNAS LiteLLM app. Previous check output still says `runtime_setting=not_verified` because the checker observes **declared Git configuration**, Cloudflare Access redirect, and basic process health; none proves the application has loaded the setting or rejects environment credentials.
+
+Run from the workstation with the established SSH forward to TrueNAS:
+
+```bash
+python3 scripts/workstation/check-litellm-ui-hardening.py --probe-public --probe-tunnel --probe-tunnel-ui
+```
+
+Acceptance must be done in two fresh, independent browser sessions: (1) `aa@albandrieu.com` logs in and can access models/users/budgets; (2) a controlled attempt to use the **old UI environment credential** is rejected, without pasting a master key into a browser. Review proxy logs for errors without disclosing credential material. If the second test unexpectedly succeeds, treat the setting as not applied and inspect TrueNAS **effective mounted config** and LiteLLM version before attempting further hardening. Do **not** automatically rotate the master key: it remains an API administration credential and is potentially shared by both proxies.
+
+Cloudflare Access redirect observed at `/ui/` is a useful outside-in check but does not independently verify all admin endpoints, MFA, or bypass policies. Historical spend migration is explicitly **out of scope**; only future budget policy and scoped key permissions should be reconciled.

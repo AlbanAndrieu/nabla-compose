@@ -10,7 +10,8 @@ SERVICE_ID="${DEFECTDOJO_SERVICE_ID:-}"
 ENGAGEMENT="${DEFECTDOJO_ENGAGEMENT_ID:-}"
 TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdojo/import-token}"
 API="http://127.0.0.1:31085/api/v2/reimport-scan/"
-fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in --check|--apply) ;; *) fail "usage: bash $0 [--check|--apply] /absolute/report.json" ;; esac
 [[ -n "${REPORT}" && -f "${REPORT}" && ! -L "${REPORT}" && "${REPORT}" == /* ]] || fail "report must be an absolute regular path"
 size="$(stat -c %s "${REPORT}")"

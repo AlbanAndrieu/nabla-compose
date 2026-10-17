@@ -7,10 +7,8 @@ RUNTIME_DIR="${CYBERBRO_RUNTIME_DIR:-/mnt/cpool/secrets/runtime/cyberbro}"
 ENV_FILE="${CYBERBRO_ENV_FILE:-${RUNTIME_DIR}/.env}"
 SECRETS_FILE="${CYBERBRO_SECRETS_FILE:-${RUNTIME_DIR}/.env.secrets}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

@@ -27,14 +27,24 @@ def main():
         print("ERROR: invalid model alias", file=sys.stderr)
         return 2
     output = Path(args.output).expanduser().absolute()
-    if output.is_symlink() or output.exists():
-        print("ERROR: output already exists; refusing to overwrite", file=sys.stderr)
+    if output.is_symlink():
+        print("ERROR: output is a symlink; refusing to follow", file=sys.stderr)
         return 2
     if args.check:
-        print(f"provisioning=ready_for_review alias={ALIAS} model={args.model} max_budget_usd=1 budget_duration=30d")
-        print("NOTE: verify the model alias is an embedding model and the target is writable before --apply")
+        if output.exists():
+            if not output.is_file() or output.stat().st_mode & 0o077:
+                print("ERROR: existing key file is not a private regular file", file=sys.stderr)
+                return 2
+            print(f"provisioning=already_present alias={ALIAS} model={args.model}")
+            print("NOTE: existing key was not read or validated against LiteLLM")
+        else:
+            print(f"provisioning=ready_for_review alias={ALIAS} model={args.model} max_budget_usd=1 budget_duration=30d")
+            print("NOTE: verify the model alias is an embedding model and the target is writable before --apply")
         print("NOTE: no network request, no key generated")
         return 0
+    if output.exists():
+        print("ERROR: output already exists; refusing to overwrite", file=sys.stderr)
+        return 2
     master = os.getenv("LITELLM_MASTER_KEY")
     if not master:
         print("ERROR: LITELLM_MASTER_KEY must be set in the operator shell", file=sys.stderr)

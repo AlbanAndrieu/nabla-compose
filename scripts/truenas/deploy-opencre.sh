@@ -8,10 +8,8 @@ OPENCRE_URL="${OPENCRE_URL:-http://172.17.0.24:31089/rest/v1/health}"
 OPENCRE_IMAGE="${OPENCRE_IMAGE:-ghcr.io/owasp/opencre/opencre:latest}"
 WAIT_SECONDS="${OPENCRE_WAIT_SECONDS:-600}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

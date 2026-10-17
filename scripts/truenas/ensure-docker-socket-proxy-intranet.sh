@@ -6,10 +6,8 @@ APP_ID="${NABLA_DOCKER_PROXY_APP_ID:-docker-socket-proxy}"
 NETWORK="${NABLA_DOCKER_PROXY_NETWORK:-intranet}"
 ALIAS="${NABLA_DOCKER_PROXY_ALIAS:-docker-socket-proxy}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

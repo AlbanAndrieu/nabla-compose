@@ -11,10 +11,8 @@ DSOMM_MODEL_VERSION="${DSOMM_MODEL_VERSION:-5.0.2}"
 DSOMM_MODEL_REF="${DSOMM_MODEL_REF:-a2c1b7e6c7cc22de0d478027d76fd8d02c41fd7a}"
 DSOMM_MODEL_URL="${DSOMM_MODEL_URL:-https://raw.githubusercontent.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data/${DSOMM_MODEL_REF}/generated/model.yaml}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check | --apply) ;;

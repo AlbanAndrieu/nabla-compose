@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/probe.sh
 source "${SCRIPT_DIR}/../lib/probe.sh"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 
 FASTAPI_URL="${FASTAPI_URL:-http://127.0.0.1:8091}"
 FASTAPI_URL="${FASTAPI_URL%/}"
@@ -15,11 +17,6 @@ APP_NAME="${FASTAPI_OBSERVABILITY_APP_NAME:-fastapi-sample}"
 ATTEMPTS="${FASTAPI_OBSERVABILITY_ATTEMPTS:-30}"
 DELAY_SECONDS="${FASTAPI_OBSERVABILITY_DELAY_SECONDS:-2}"
 PYROSCOPE_LOOKBACK_SECONDS="${PYROSCOPE_LOOKBACK_SECONDS:-3600}"
-
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
 
 for command in curl docker jq python3 grep date timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"

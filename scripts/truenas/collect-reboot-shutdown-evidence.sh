@@ -6,10 +6,8 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 DEST="${OUTPUT_DIR}/${STAMP}"
 PREVIOUS_BOOT="${NABLA_PREVIOUS_BOOT_OFFSET:--1}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] || fail "run as root"
 for command in journalctl systemctl systemd-analyze midclt uname date install grep awk sed cat find; do

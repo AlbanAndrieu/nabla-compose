@@ -11,10 +11,8 @@ MODE="${1:---check}"
 APP_ID="${WAZUH_APP_ID:-wazuh}"
 CORE_CONTAINERS=(wazuh-indexer wazuh-manager wazuh-dashboard)
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
   --check) ;;

@@ -16,10 +16,8 @@ OUTPUT_DIR="${TALOS_OUTPUT_DIR:-${ROOT}/.talos/generated}"
 OVERWRITE="${TALOS_OVERWRITE:-false}"
 NAMESERVER="${TALOS_NAMESERVER:-172.17.0.1}"
 
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 command -v talosctl >/dev/null 2>&1 || fail "talosctl is required"
 

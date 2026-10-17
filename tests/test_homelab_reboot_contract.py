@@ -122,7 +122,9 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_ipam_check_filters_address_families(self) -> None:
         text = IPAM.read_text(encoding="utf-8")
-        self.assertIn("if network.version != target.version:", text)
+        # The address-family filter lives in the extracted pool checker.
+        helper = (IPAM.parent / "check-docker-address-pool.py").read_text(encoding="utf-8")
+        self.assertIn("if network.version != target.version:", helper)
         self.assertIn("--post-reboot-check", text)
         self.assertIn("10.200.0.0/16", text)
 

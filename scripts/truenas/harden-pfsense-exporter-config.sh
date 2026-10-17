@@ -5,10 +5,8 @@ RUNTIME_CONFIG="${PFSENSE_EXPORTER_CONFIG:-/mnt/cpool/prometheus/secrets/pfsense
 ROOT="$(git rev-parse --show-toplevel)"
 TEMPLATE="${ROOT}/apps/prometheus/pfsense-exporter.example.yml"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so the runtime config remains root-owned mode 0600"

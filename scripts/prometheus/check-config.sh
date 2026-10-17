@@ -9,10 +9,8 @@ CONFIG="${PROMETHEUS_CONFIG:-${PROMETHEUS_DIR}/prometheus.yml}"
 RULES_DIR="${PROMETHEUS_RULES_DIR:-${PROMETHEUS_DIR}/rules}"
 IMAGE="${PROMETHEUS_IMAGE:-prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 command -v docker >/dev/null 2>&1 || fail "docker is required for runtime-equivalent promtool validation"
 [[ -f "${CONFIG}" ]] || fail "Prometheus config not found: ${CONFIG}"

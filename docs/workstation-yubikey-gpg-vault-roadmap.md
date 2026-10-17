@@ -1800,3 +1800,284 @@ de compromission si lisibles largement.
 des clés sur la base du seul listing. Le premier livrable est
 un audit non destructif des ACL et du chiffrement existant,
 suivi d'une stratégie de secrets hors ligne.
+
+## Reprise dans la PR #258 — inventaire des deux YubiKeys (17 octobre 2026)
+
+La PR #257 est fusionnée ; poursuivre les travaux uniquement sur
+la branche de la PR #258, sans fusion automatique. Cette PR traite
+également DefectDojo : les changements YubiKey restent limités
+à leur documentation et aux scripts workstation dédiés.
+
+### État matériel vérifié
+
+| Constat | YubiKey principale | YubiKey de secours |
+| --- | --- | --- |
+| Numéro de série d'identification locale | 23501671 | 22916048 |
+| Firmware et application PIV | 5.4.3 | 5.4.3 |
+| PIV PIN / PUK | 3/3 et 3/3 | 3/3 et 3/3 |
+| Management key PIV | AES256, protégée par PIN | AES256, protégée par PIN |
+| PIV 9A | RSA2048, certificat « Nabla Root CA » expiré 2025-01-22 | RSA2048 importée, même certificat historique déclaré |
+| PIV 9C / 9D / 9E | **Inconnus** | **Vides**, testés par `ykman piv keys info` |
+| PIV retired 82–95 | **Inconnus** | **20/20 vides**, testés par `ykman piv keys info` |
+| age-plugin-yubikey --list | Aucune identité listée | Aucune identité listée |
+| OTP slot 2 | HMAC KeePassXC historique : préserver | HMAC KeePassXC historique : préserver |
+
+Les deux cartes affichent les mêmes éléments de certificat
+X.509 en PIV 9A, dont empreinte et numéro de certificat.
+Cela **ne démontre pas** que leurs clés privées soient identiques,
+ni même que le certificat corresponde à une clé privée utilisable
+sur les deux cartes. Une vérification cryptographique distincte,
+non destructive, serait nécessaire. Ne pas publier CHUID ni
+certificats bruts.
+
+### TrueNAS — durcissement confirmé
+
+Dataset `cpool/backup/lab` : `acltype=nfsv4`,
+`aclmode=passthrough`, `aclinherit=passthrough`.
+Le répertoire `lab/` est passé de 777 à 750 ;
+`secret/`, `secret/keepass/`, `secret/ssh/` sont en
+700. Les ACL natives relevées via `nfs4xdr_getfacl`
+pour les trois dossiers sensibles sont triviales :
+`owner@` a lecture/écriture/traversée ;
+`group@` et `everyone@` ne disposent pas des droits
+de contenu/traversée `r/w/x`. Les ACL des fichiers et
+l'export NFS `sec=sys` restent à auditer. Éviter
+tout `chmod -R` destructif.
+
+### P2 — Prochain ordre d'exécution
+
+1. Sur la **principale uniquement**, une seule clé branchée,
+   inventorier PIV 9C/9D/9E puis 82–95 avec
+   `ykman piv keys info SLOT` sans générer de clé.
+2. Valider une fixture de chiffrement/déchiffrement SOPS
+   avec l'identité X25519 existante, indépendamment de TrueNAS ;
+   aucune sortie de `.env.secret` en clair.
+3. Confirmer une sauvegarde **chiffrée hors ligne** de l'identité
+   de récupération existante. Ne jamais supposer que les deux
+   YubiKeys, ni TrueNAS, constituent une copie de la clé X25519.
+4. Une fois les deux inventaires et la récupération validés,
+   proposer une identité age P-256 différente dans le
+   premier slot retired libre (préférence 82) de **chaque** clé,
+   avec PIN/touch et vérification d'une fixture.
+5. Ajouter les deux destinataires matériels aux règles SOPS
+   **sans retirer** le destinataire X25519 ni casser
+   les automatisations de déploiement. Tester la lecture avec
+   chacune des trois identités séparément.
+6. Poursuivre ensuite SSH/FIDO2, signatures Git/OpenPGP,
+   PIV X.509/PDF, e-mails, récupération Vault et backups selon
+   l'architecture globale déjà documentée.
+
+Aucune génération age, aucun `keytocard`, aucun reset PIV,
+aucune modification d'un slot OTP ou de fichier secret.
+
+### P2 — Audit PIV lié au numéro de série (PR #258)
+
+Sur la **YubiKey principale**, l'opérateur a exécuté
+`ykman piv keys info` pour chacun des 23 slots
+`9C 9D 9E` et `82–95` : les **23 réponses indiquent
+`No key stored`**. Cela complète l'inventaire de la
+carte de secours, qui avait les mêmes 23 slots sans clé.
+Les slots PIV `9A` sont historiques et **à préserver**.
+
+Le script `scripts/workstation/audit-yubikey-capabilities.sh`
+identifie maintenant l'appareil **avant** les diagnostics,
+refuse zéro, plusieurs ou une YubiKey inconnue, et propose :
+```bash
+./scripts/workstation/audit-yubikey-capabilities.sh --primary
+./scripts/workstation/audit-yubikey-capabilities.sh --backup
+# ou explicitement --serial NUMERO
+```
+Une seule carte doit être connectée. Les commandes `ykman`
+sont liées au numéro de série vérifié via `--device` ;
+les 23 slots sont classés **EMPTY / OCCUPIED / UNKNOWN** sans
+publier les métadonnées cryptographiques détaillées. Tout
+état `UNKNOWN` interdit de déduire qu'un slot est libre.
+Le mode `--challenge` reste optionnel pour l'OTP HMAC.
+L'inventaire ne génère ni ne déplace de clé, et ne modifie
+ni PIV ni OTP.
+
+**Allocation P2 proposée** : slot retired `82` sur
+chaque YubiKey pour deux identités age indépendantes ;
+`83` réservé à la rotation. La preuve de récupération
+logicielle X25519, la fixture SOPS et l'acceptation des
+politiques PIN/touch restent des conditions préalables.
+
+### Validation terrain de l'audit matériel de la YubiKey de secours
+
+L'opérateur a exécuté `audit-yubikey-capabilities.sh --backup` dans un worktree de la PR #258 (HEAD `dc42459e`). Le contrôle de numéro de série a réussi et les 23 slots interrogés (`9C/9D/9E` et `82–95`) ont été classés EMPTY : `empty=23 occupied=0 unknown=0`. Le slot 9A reste occupé par le certificat RSA2048 expiré en janvier 2025. OpenPGP a été détecté ; les emplacements Signature, Encryption et Authentication ont chacun été observés vides. FIDO2, OATH et les outils SOPS/age sont disponibles ; l'OTP2 KeePassXC doit rester intact.
+
+La sortie indique `OATH Password protection: disabled` : revoir le modèle de protection avant ajout de nouveaux comptes OATH, sans activer de contrôle susceptible de bloquer les comptes existants. L'identité SSH chargée dans ssh-agent n'est pas attribuée à la YubiKey. Le contrôle principal `--primary` reste à rejouer avec la clé principale effectivement connectée et une seule clé présente.
+
+**Prochain jalon :** test de récupération d'une fixture SOPS avec le destinataire age X25519 actuel, avant génération explicite d'identités matérielles distinctes sur les deux cartes. Aucun provisionnement effectué.
+
+### P2 SOPS — identité locale trouvée, permissions à durcir (17 octobre 2026)
+
+L'opérateur rapporte `~/.config/sops/age/keys.txt` **présent**, propriétaire `albandrieu`, mode **0644**. Le chemin alternatif `~/.config/age/keys.txt` est absent. SOPS 3.13.3 est opérationnel. Attention : l'existence du fichier ne démontre pas à elle seule qu'il contient l'identité correspondant au destinataire `age1...` de `fastapi-sample/.sops.yaml`, ni qu'une restauration fonctionne.
+
+**Priorité P0 confidentialité :** resserrer sans lire/exporter la clé : `chmod 600 ~/.config/sops/age/keys.txt` et `chmod 700 ~/.config/sops/age`. Vérifier ACL de fichier et accès aux éventuelles copies historiques. Le diagnostic `audit-yubikey-capabilities.sh` signale désormais les permissions de cette identité en n'inspectant que ses métadonnées, sans afficher le contenu. Il reste à valider le déchiffrement sur une fixture SOPS non sensible et la conservation d'une copie de récupération chiffrée hors ligne **avant** de créer les identités YubiKey PIV 82. Ne pas placer la clé privée sur TrueNAS en clair.
+
+### SOPS age — correspondance de la clé logicielle confirmée
+
+Le contrôle `age-keygen -y ~/.config/sops/age/keys.txt` a produit le destinataire public `age1t8wn2gqcpzxwvwhjwxwtdwp0tvr6k2z9j39v4q2fr55qhmqz7f2qvn25cp`, identique au destinataire de `fastapi-sample/.sops.yaml`. Le fichier contient donc une identité age correspondant à ce destinataire (vérification de correspondance publique, pas encore un test de déchiffrement SOPS). Ne jamais journaliser `AGE-SECRET-KEY-*`. Les permissions initialement constatées étaient 0644 ; la correction 0600/0700 n'a pas encore été confirmée par la workstation. Prochain contrôle : fixture SOPS synthétique en répertoire privé temporaire puis test de déchiffrement, et sauvegarde chiffrée indépendante avant génération age PIV 82 sur chacune des deux YubiKeys.
+
+### Acceptation SOPS/age logicielle — fixture validée (17 octobre 2026)
+
+Sur la workstation, SOPS 3.13.3 a chiffré une fixture YAML synthétique pour le destinataire age `age1t8wn2gqcpzxwvwhjwxwtdwp0tvr6k2z9j39v4q2fr55qhmqz7f2qvn25cp`, puis `sops decrypt` a produit exactement `message: yubikey-sops-recovery-test`. Résultat **PASS** : chiffrement et déchiffrement de bout en bout avec l'identité logicielle présente localement. La fixture a été supprimée après l'essai.
+
+**Gates encore ouverts avant PIV 82 :** confirmer `stat` mode `600` sur `~/.config/sops/age/keys.txt` et mode `700` sur son dossier ; établir une copie de secours chiffrée hors workstation, vérifier sa lisibilité et son moyen de récupération indépendant. Ensuite seulement tester deux destinataires YubiKey matériels distincts (sans supprimer le destinataire age X25519, sans modifier OTP2 ou PIV 9A). Aucune identité matérielle provisionnée à cette date.
+
+### Acceptation des permissions de la clé SOPS et coffre de secours (17 octobre 2026)
+
+L'opérateur a confirmé sur la workstation :
+```text
+700 albandrieu:albandrieu ~/.config/sops/age
+600 albandrieu:albandrieu ~/.config/sops/age/keys.txt
+```
+P0 permissions **PASS**. Le chiffrement/déchiffrement de
+fixture SOPS avec le destinataire X25519 existant est également
+PASS ; la sauvegarde de récupération indépendante **reste à faire**.
+
+Nouvel utilitaire workstation
+`scripts/workstation/backup-sops-age-identity.sh` :
+mode `--check` implicite, `--apply` explicite.
+Il vérifie la source 600/700, le destinataire age public
+indépendant du destinataire de la source, un répertoire de
+destination déjà monté sur un autre système de fichiers,
+puis chiffre côté client avec `age -e -r` avant toute
+écriture de la copie chiffrée sur le stockage de secours.
+Il refuse l'écrasement et n'affiche ni clé privée ni contenu.
+Aucune clé escrow n'est générée automatiquement ;
+le propriétaire doit avoir **déjà créé** et mis hors machine
+la clé privée de récupération associée au destinataire
+public utilisé. Ne pas utiliser la même identité X25519
+pour chiffrer sa propre sauvegarde : risque de circularité.
+Vérifier séparément la sécurité des métadonnées/fichiers
+temporaires et des exports NFS.
+
+Exemple, seulement après validation d'un **destinataire de
+récupération distinct** et de sa clé privée hors machine :
+```bash
+bash scripts/workstation/backup-sops-age-identity.sh \
+  --destination /media/backup/lab/secret/keepass \
+  --recipient 'age1DESTINATAIRE_DE_RECUPERATION'  # check only
+# Recommencer avec --apply pour créer la copie chiffrée.
+```
+L'emplacement sous `keepass/` est une option, pas un
+choix obligé : réserver de préférence un dossier spécifique
+`secret/sops-escrow` avec ACL NFSv4 strictes et jamais
+de fichier en clair. Éviter de partager les chemins réels
+et métadonnées de récupération. L'opération n'est **pas**
+une preuve de récupération : réaliser un test de déchiffrement
+sur un poste isolé avec la **clé privée escrow**, comparer le
+destinataire public dérivé, et confirmer l'ouverture d'une
+fixture SOPS sans exfiltrer d'identité privée.
+Ne pas modifier les deux YubiKeys avant cette preuve.
+
+### Escrow SanDisk LUKS2 opérationnel — 17 octobre 2026
+
+La SanDisk USB 3.2Gen1 (114,6 Gio, ancien support d'installation pfSense)
+a été repartitionnée volontairement après vérification de son identité
+USB, puis formatée en **LUKS2 + ext4**. Mapper
+`nabla_escrow_usb`, ext4 label `NABLA_ESCROW`, montage temporaire
+`/mnt/nabla-escrow`. Le support a été fermé proprement après création
+d'une identité age indépendante sous
+`age-escrow/recovery-identity.txt` (mode `600`, compte local).
+La clé privée n'a pas été transmise dans ce chat ou stockée dans Git.
+
+**Destinataire public age escrow :**
+`age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938`.
+
+**Référence de la phrase secrète LUKS :** coffre **LastPass**,
+entrée intitulée **« USB SANDISK LUKS2 »**.
+Ne jamais documenter la phrase elle-même. Le mot de passe LUKS
+est distinct de l'identité age et **ne permet pas de régénérer**
+sa clé privée : récupérer le même destinataire age requiert la
+sauvegarde exacte de `recovery-identity.txt` ; toute nouvelle
+exécution de `age-keygen` crée une clé différente, incapable
+de déchiffrer les anciennes sauvegardes.
+
+Script reproductible :
+`scripts/workstation/manage-age-escrow-usb.sh` prend
+`--luks-uuid UUID` (celui de la **partition LUKS**, pas
+de l'ext4 interne), puis
+`--check`, `--open`, `--close` ou `--init-identity`.
+Il ne formate pas et n'écrase aucune identité existante.
+Une régénération non équivalente requiert une confirmation
+interactive explicite. Pour un nouveau support, reproduire
+séparément, après identification physique robuste, la préparation
+GPT/LUKS2/ext4 documentée ; copier/restaurer ensuite
+l'identité age originale depuis son **backup indépendant**,
+ou traiter toute nouvelle identité comme une rotation avec
+rechiffrement de toutes les données existantes.
+
+**Important :** le périphérique était `/dev/sdd` lors de
+l'installation, mais ce nom n'est **pas stable**.
+Lire son UUID après nouveau branchement :
+```bash
+lsblk -o NAME,TRAN,SIZE,FSTYPE,UUID,MOUNTPOINTS
+sudo blkid -s UUID -o value /dev/sdX1  # vérifier sdX1 avant utilisation
+bash scripts/workstation/manage-age-escrow-usb.sh --luks-uuid UUID --check
+```
+Aucune phrase secrète n'est transmise sur la ligne de commande.
+Ne pas sauvegarder automatiquement un header LUKS sur TrueNAS en clair.
+
+Le volume TrueNAS
+`nabla:/mnt/cpool/backup/lab` est confirmé NFSv4.2
+`sec=sys`, montage workstation `/media/backup/lab`.
+`secret/` est en mode `700`, et ses sous-répertoires
+`keepass/` et `ssh/` sont également protégés.
+Le script existant de backup SOPS doit employer **le destinataire
+public réel**, jamais `age1DESTINATAIRE_PUBLIC_REEL` :
+```bash
+bash scripts/workstation/backup-sops-age-identity.sh \
+ --destination /media/backup/lab/secret/keepass \
+ --recipient age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938
+# Après preflight et contrôle de la rétention : répéter avec --apply
+```
+
+**Gates restants :**
+- [ ] Créer la sauvegarde de l'identité age SOPS courante, chiffrée
+  sous le nouveau destinataire et stockée sur TrueNAS.
+- [ ] Rouvrir la SanDisk, déchiffrer la copie dans un contexte privé
+  et comparer l'identité publique dérivée à la source sans
+  journaliser la clé privée.
+- [ ] Disposer d'une **seconde copie indépendante et chiffrée**
+  de `recovery-identity.txt` ou d'une politique de
+  récupération alternative. Un volume USB unique reste un SPOF.
+- [ ] Tester le recovery de bout en bout, puis seulement
+  provisionner les PIV 82 sur les deux YubiKeys.
+
+### SanDisk reconnue et prévalidation SOPS passée (17 octobre 2026, suite)
+
+Nouvelle vérification : UUID **de partition LUKS2** `3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, mapper créé automatiquement par udisks `luks-3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, montage `/run/media/albandrieu/NABLA_ESCROW` (ext4 UUID `82b61d3f-f921-4159-b8f3-426a3da2f1c5`). Le script de gestion du support a été corrigé pour détecter ce montage via le disque LUKS ciblé par UUID, y compris s'il a été ouvert par GNOME/udisks ; pas de seconde ouverture. Fermeture udisks par `udisksctl unmount` puis `udisksctl lock` pour son montage automatique ; les montages non reconnus restent bloqués.
+
+Le contrôle `backup-sops-age-identity.sh --destination /media/backup/lab/secret/keepass --recipient age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938` a répondu `Escrow preflight OK`, suivi de `CHECK ONLY`: **pas encore de sauvegarde créée**. Prochaine acceptation : exécuter `--apply`, puis déchiffrer le fichier créé avec la clé privée USB sur un flux sans afficher le contenu ; comparer les destinataires publics de l'identité restaurée et de la source, puis tester une fixture SOPS. Ne pas confondre le déverrouillage LUKS avec la récupération de la clé privée age.
+
+### Backup SOPS vers TrueNAS créé deux fois ; contrôle LUKS corrigé
+
+Deux exécutions explicites de `backup-sops-age-identity.sh --apply`
+ont chacune affiché `Encrypted backup created` après validation
+des permissions et du destinataire escrow public. Ce sont deux
+fichiers chiffrés distincts horodatés : ne pas supposer qu'ils
+ont des noms différents sans contrôler l'inventaire. Le test
+de récupération avec la SanDisk reste en attente ; **ne pas
+provisionner les slots PIV 82** avant PASS.
+
+Le contrôle `manage-age-escrow-usb.sh --check` échouait
+avec `Selected partition is not LUKS`, alors que la
+partition par UUID était vue comme `crypto_LUKS` dans
+`lsblk`. Un `blkid` non privilégié peut retourner vide ;
+la validation a été corrigée pour utiliser `lsblk`, en
+comparant **type crypto_LUKS ET UUID exact**.
+
+Nouveau test non destructif :
+`scripts/workstation/verify-sops-age-escrow.sh`
+avec `--backup /media/backup/lab/secret/keepass/FICHIER.age`
+et `--identity /run/media/albandrieu/NABLA_ESCROW/age-escrow/recovery-identity.txt`.
+Le script restaure uniquement dans un répertoire privé en
+`/dev/shm` (tmpfs), valide que le destinataire public de
+l'identité récupérée correspond au destinataire X25519 connu,
+et efface le fichier temporaire au retour. Ne pas utiliser
+avec un autre dossier temporaire sur disque ou exposer la
+clé en sortie. Le test du déchiffrement SOPS de fixture reste
+une étape indépendante.

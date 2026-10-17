@@ -5,10 +5,8 @@ APP_ID="${AUTOKUMA_APP_ID:-autokuma}"
 CANONICAL_ROOT="${AUTOKUMA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRET_FILE="${AUTOKUMA_SECRET_FILE:-/mnt/cpool/secrets/runtime/autokuma/.env.secrets}"
 
-fail() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 for command in git docker jq sudo midclt grep stat; do
   command -v "${command}" >/dev/null 2>&1 ||

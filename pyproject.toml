@@ -1,0 +1,39 @@
+# Repository tooling only: nabla-compose ships Compose files and operator
+# scripts, not a Python package. Scripts and tests use the standard library
+# plus the `test` group below.
+[project]
+name = "nabla-compose"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+test = [
+  "jsonschema==4.22.0",
+  "pytest==9.1.1",
+  "python-dotenv==1.2.4",
+  "PyYAML==6.0.3",
+]
+dev = [
+  { include-group = "test" },
+  "pre-commit==4.6.2",
+]
+# Optional Ansible/SQL tooling, formerly in Pipfile: `uv sync --group ansible`.
+ansible = [
+  "ansible-builder>=1.1.0",
+  "ansible-core>=2.16.8",
+  "ansible-lint>=25.8.2",
+  "ansible-navigator>=1.1.0",
+  "ansible-playbook-grapher>=1.2.0",
+  "ansible-runner>=2.2.1",
+  "netaddr>=0.8.0",
+  "sqlfluff>=3.5.0",
+  "zabbix-api>=0.5.4",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
