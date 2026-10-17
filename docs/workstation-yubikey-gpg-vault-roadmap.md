@@ -2052,3 +2052,32 @@ bash scripts/workstation/backup-sops-age-identity.sh \
 Nouvelle vérification : UUID **de partition LUKS2** `3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, mapper créé automatiquement par udisks `luks-3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, montage `/run/media/albandrieu/NABLA_ESCROW` (ext4 UUID `82b61d3f-f921-4159-b8f3-426a3da2f1c5`). Le script de gestion du support a été corrigé pour détecter ce montage via le disque LUKS ciblé par UUID, y compris s'il a été ouvert par GNOME/udisks ; pas de seconde ouverture. Fermeture udisks par `udisksctl unmount` puis `udisksctl lock` pour son montage automatique ; les montages non reconnus restent bloqués.
 
 Le contrôle `backup-sops-age-identity.sh --destination /media/backup/lab/secret/keepass --recipient age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938` a répondu `Escrow preflight OK`, suivi de `CHECK ONLY`: **pas encore de sauvegarde créée**. Prochaine acceptation : exécuter `--apply`, puis déchiffrer le fichier créé avec la clé privée USB sur un flux sans afficher le contenu ; comparer les destinataires publics de l'identité restaurée et de la source, puis tester une fixture SOPS. Ne pas confondre le déverrouillage LUKS avec la récupération de la clé privée age.
+
+### Backup SOPS vers TrueNAS créé deux fois ; contrôle LUKS corrigé
+
+Deux exécutions explicites de `backup-sops-age-identity.sh --apply`
+ont chacune affiché `Encrypted backup created` après validation
+des permissions et du destinataire escrow public. Ce sont deux
+fichiers chiffrés distincts horodatés : ne pas supposer qu'ils
+ont des noms différents sans contrôler l'inventaire. Le test
+de récupération avec la SanDisk reste en attente ; **ne pas
+provisionner les slots PIV 82** avant PASS.
+
+Le contrôle `manage-age-escrow-usb.sh --check` échouait
+avec `Selected partition is not LUKS`, alors que la
+partition par UUID était vue comme `crypto_LUKS` dans
+`lsblk`. Un `blkid` non privilégié peut retourner vide ;
+la validation a été corrigée pour utiliser `lsblk`, en
+comparant **type crypto_LUKS ET UUID exact**.
+
+Nouveau test non destructif :
+`scripts/workstation/verify-sops-age-escrow.sh`
+avec `--backup /media/backup/lab/secret/keepass/FICHIER.age`
+et `--identity /run/media/albandrieu/NABLA_ESCROW/age-escrow/recovery-identity.txt`.
+Le script restaure uniquement dans un répertoire privé en
+`/dev/shm` (tmpfs), valide que le destinataire public de
+l'identité récupérée correspond au destinataire X25519 connu,
+et efface le fichier temporaire au retour. Ne pas utiliser
+avec un autre dossier temporaire sur disque ou exposer la
+clé en sortie. Le test du déchiffrement SOPS de fixture reste
+une étape indépendante.
