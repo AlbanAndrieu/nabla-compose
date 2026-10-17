@@ -330,3 +330,72 @@ distincte par YubiKey après inventaire et validation de
 l'escrow X25519 ; slot 83 réservé aux rotations.
 Les autres usages SSH, GPG, PDF, S/MIME, Vault et backups
 sont planifiés sans provisionnement automatique.
+
+## Audit de migration avant fusion de nabla PR #66 (17 octobre 2026)
+
+Source effectivement revue : `AlbanAndrieu/nabla` PR #66,
+`refactor(security): centraliser les diagnostics YubiKey et KeePassXC`,
+six chemins modifiés. **Décision :** les wrappers restent
+dans `nabla` pour compatibilité, et l'implémentation
+canonique ainsi que la documentation d'exploitation restent
+dans `nabla-compose`.
+
+| Fichier historique / PR #66 | Information utile conservée | Sort |
+| --- | --- | --- |
+| `env/linux/YUBIKEY-DIAGNOSTIC.md` | Incident HMAC-SHA1 du 16 octobre, restauration du slot OTP2 de secours, précautions HMAC_SECRET, nécessité du test d'ouverture KDBX avec chacune des cartes | Couvert par `docs/workstation-yubikey-keepassxc.md`; conserver le wrapper et la référence |
+| `env/linux/run-yubikey.sh` | Ancien enchaînement PCSC, PIV, PAM/U2F, yubikey-agent, SSH FIDO2, OpenSC | Roadmap d'exploitation ici ; **ne pas** récupérer les commandes de purge de paquets, changement de PAM et génération de clés |
+| `env/linux/run-yubikey-old.sh` | Références historiques ykman, personnalisation, attestation PIV, PKCS#11 | Documentation historique, wrapper déprécié |
+| `env/linux/run-yubikey-webauthn.sh` | Enrôlement PAM U2F, `pamu2fcfg`, `~/.config/Yubico/u2f_keys`, login GNOME/sudo | Prévoir contrôle et rollback sur session secondaire ; **ne jamais écraser** `u2f_keys` ni modifier PAM sans plan de récupération |
+| `env/linux/run-yubikey-ca.sh` | Projet de CA Nabla, ancien certificat PIV 9A importé, ykman/PIV, diagnostics PCSC | Conserver l'architecture de PKI ; **ne pas reprendre** reset PIV, PIN par défaut, echo de passphrase ni import non contrôlé de clé CA |
+| `env/linux/yubikey-diagnostic.sh` | Résolution `NABLA_COMPOSE_ROOT` puis dépôts voisins ou `$HOME/w/nabla-compose` | Wrapper de compatibilité à laisser dans `nabla` |
+
+**Références historiques supplémentaires** évoquées dans l'ancien
+`run-yubikey.sh` : `run-ssh-keygen.sh`, `run-gpg.sh`,
+`run-keepass2.sh`. Elles ne sont **pas** modifiées dans
+la PR #66 et leur contenu n'est **pas** garanti migré ligne par
+ligne par ce contrôle des six fichiers. Pour les supprimer ensuite,
+faire un audit séparé et conserver seulement usages, diagnostics et
+procédures sûres. L'historique Git demeure une source d'archive,
+pas un runbook à exécuter.
+
+### Points de migration à verrouiller
+
+1. `nabla-compose` reste la source de vérité pour les
+   diagnostics et l'inventaire : `diagnose-yubikey-keepassxc.sh`,
+   `audit-yubikey-capabilities.sh`, bootstrap, age/SOPS et tests.
+2. PR #66 garde des wrappers minces pour `run-yubikey*.sh` ;
+   l'utilisateur doit pouvoir définir `NABLA_COMPOSE_ROOT`.
+   Ne pas supprimer ces wrappers avant vérification des appels
+   par cron, scripts, documentation ou autres dépôts.
+3. L'ancien `ykman piv certificates list` n'est pas pris en
+   charge par la version ykman 5.8.0 constatée ; préférer
+   `ykman piv info` et `ykman piv keys info SLOT`
+   avec identité de carte liée au numéro de série.
+4. Le certificat 9A historique de « Nabla Root CA »
+   est expiré depuis janvier 2025. Vérifier les dépendances
+   avant rotation ; préserver la clé PIV et tout coffre CA
+   historique. Ne pas exposer dans Git d'anciens noms de
+   fichier de clé privée CA, de passphrases ou de PIN.
+5. Garder les preuves des tests de récupération : OTP2 sur
+   les deux cartes, PIV 23 slots libres sur chaque carte,
+   sauvegarde age TrueNAS restaurable avec la SanDisk.
+   L'ouverture KDBX sur chaque carte et le déchiffrement
+   SOPS complet avec identité restaurée restent des gates
+   distincts de reprise après sinistre.
+6. Ne pas réécrire les vieux fichiers de `nabla` au-delà
+   des wrappers sûrs sans une vérification indépendante
+   des consommateurs. **Aucun merge automatique.**
+
+### Nouvel état de la copie de récupération age
+
+Une sauvegarde chiffrée age créée le 17 octobre 2026
+a été déplacée vers `~/Downloads/` avec suffixe
+`.age.log`, mais elle reste un fichier age chiffré,
+pas un journal. La seconde copie est toujours sur
+`/media/backup/lab/secret/keepass/` et a été copiée
+sous `~/.local/share/nabla/age-backups/` ; les deux
+copies de ce second fichier ont la même empreinte
+SHA-256 déclarée par l'opérateur. La copie TrueNAS
+a **PASS** au test de récupération de l'identité age
+avec la clé indépendante conservée sur la SanDisk.
+Aucun contenu privé ni passphrase enregistré dans Git.
