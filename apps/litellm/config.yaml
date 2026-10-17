@@ -155,6 +155,9 @@ general_settings:
   # disable_cache_on_db_queries: true
   # store_model_in_db: false # change to true or fix : Invalid proxy server token passed ... not found in db
   store_model_in_db: true
+  # P1: enable ONLY after a separate DB-backed admin account is created,
+  # successfully tested in a fresh session, and rollback access is verified.
+  # disable_env_credential_login: true
   store_prompts_in_spend_logs: true
   custom_headers:
     forward_headers:
