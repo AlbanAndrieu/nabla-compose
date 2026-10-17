@@ -72,12 +72,52 @@ def active_databases():
             continue
     return result
 
+def verify_backups():
+    """Verify an existing private snapshot without reading or changing active indexes."""
+    if BACKUP.is_symlink() or not BACKUP.is_dir() or BACKUP.stat().st_mode & 0o077:
+        report("ERROR: private backup directory missing or insecure")
+        return 2
+    snapshots = sorted((p for p in BACKUP.iterdir() if p.is_dir() and not p.is_symlink()), reverse=True)
+    if not snapshots:
+        report("ERROR: no backup snapshot available")
+        return 2
+    for snapshot in snapshots:
+        if snapshot.stat().st_mode & 0o077:
+            continue
+        valid = True
+        for agent in ("main", "cron"):
+            path = snapshot / (agent + ".sqlite")
+            if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o077:
+                valid = False
+                break
+            try:
+                connection = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True, timeout=5)
+                try:
+                    valid = connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+                finally:
+                    connection.close()
+            except (OSError, sqlite3.Error):
+                valid = False
+            if not valid:
+                break
+        if valid:
+            report("backup_snapshot=verified")
+            report("sqlite_backups_verified=2")
+            report("migration_applied=false")
+            return 0
+    report("ERROR: no complete, private, integrity-checked backup snapshot found")
+    return 2
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
+    modes.add_argument("--verify-backup", action="store_true", help="Read-only integrity verification of existing private SQLite snapshots")
     modes.add_argument("--apply", action="store_true", help="Back up discovered SQLite indexes only; does NOT migrate")
     args = parser.parse_args()
+    if args.verify_backup:
+        report("migration_stage=verify_backup")
+        return verify_backups()
     report("migration_stage=preflight" if args.check else "migration_stage=backup_only")
     key_ok = KEY.is_file() and not KEY.is_symlink() and KEY.stat().st_mode & 0o077 == 0
     report("virtual_key_file=" + ("private" if key_ok else "missing_or_insecure"))

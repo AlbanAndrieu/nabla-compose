@@ -63,7 +63,9 @@ class FreshRSSHandoffContract(unittest.TestCase):
         self.assertIn("close_old_findings=false", dojo)
         self.assertIn("auto_create_context=false", dojo)
         self.assertIn("/api/v2/reimport-scan/", dojo)
-        self.assertIn("http://127.0.0.1:31085", dojo)
+        # The API binds to the TrueNAS LAN address, guarded by a host identity check.
+        self.assertIn("http://172.17.0.24:31085", dojo)
+        self.assertIn("TrueNAS LAN address 172.17.0.24 not assigned on this host", dojo)
         self.assertIn("--noproxy", dojo)
         self.assertIn("NABLA_SBOM_APPROVED", sbom)
         self.assertIn("@sha256:", sbom)

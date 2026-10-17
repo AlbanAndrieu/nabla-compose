@@ -111,6 +111,39 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                        "age -d -i", "age-keygen -y", "PASS:"):
             self.assertIn(marker, body)
 
+    def test_sops_usb_roundtrip_does_not_mutate_caller_shell(self):
+        script = ROOT / "scripts/workstation/test-sops-usb-recovery.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        output = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--usb-identity", output.stdout)
+        # Sourcing must return nonzero WITHOUT enabling errexit on the parent shell.
+        cmd = f'source "{script}"; result=$?; [[ "$result" == 2 ]] && echo SHELL_ALIVE'
+        sourced = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
+        self.assertEqual(sourced.returncode, 0, sourced.stderr)
+        self.assertIn("SHELL_ALIVE", sourced.stdout)
+        body = script.read_text()
+        for expected in ('BASH_SOURCE[0]', 'SOPS_AGE_KEY_FILE', '/dev/shm',
+                         'trap cleanup EXIT', 'grep -Fxq'):
+            self.assertIn(expected, body)
+
+    def test_piv82_guard_is_non_destructive(self):
+        script = ROOT / "scripts/workstation/preflight-age-yubikey-piv82.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--serial", result.stdout)
+        text = script.read_text()
+        for marker in ("piv keys info 82", "ykman list --serials",
+                       "Connect exactly the selected single YubiKey"):
+            self.assertIn(marker, text)
+        # Regression: ykman prints a bare serial; sed must use a real backref.
+        self.assertIn("s/^[[:space:]]*([0-9]+)[[:space:]]*$/\\1/p", text)
+        self.assertIn("no key( (stored )?in slot)?", text)
+        for forbidden in ("--generate", "piv reset", "piv keys import",
+                          "otp chalresp", "ykman otp", "set -x"):
+            self.assertNotIn(forbidden, text)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
