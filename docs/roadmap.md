@@ -14,6 +14,13 @@
 - [ ] Add conditional read-only capture under 128 MiB with rate limiting, retention and secrets redaction; only after validating no resource amplification on 1 GiB Netgate.
 - [ ] Close pfSense incident only after 24 h stable DNS, no *new* OOM, pfBlockerNG completion and verified rollback. Treat exporter `up` as telemetry evidence, not DNS/application proof.
 
+### DefectDojo LAN runtime evidence — operator, 2026-10-18
+
+- [x] pfSense Unbound resolves `defectdojo.int.albandrieu.com` to `172.17.0.24`; HTTPS returns 302 via nginx; previous strict workstation TLS check passed.
+- [x] TrueNAS `app.query`: defectdojo RUNNING. Docker: `defectdojo` frontend, `defectdojo-uwsgi`, `defectdojo-celeryworker`, `defectdojo-celerybeat` Up ~2h; `defectdojo-initializer` Exited (0). Frontend binds `172.17.0.24:31085->8080/tcp`.
+- [ ] Confirm 302 Location safely (do not publish token/query), verify app readiness and authenticated API, Celery worker responsiveness, database/migrations, synthetic test import and retention/rollback. Container Up and initializer exit 0 alone do not prove these.
+- [ ] No change to pfSense DNS, Traefik, firewall or Cloudflare until a specific failure is demonstrated.
+
 ### P1 — TrueNAS / Prometheus target quality
 
 - [x] `node_memory_MemAvailable_bytes=6732337152` (~6.27 GiB) and `nabla:core:truenas_memory_available_ratio=0.1011855` at sampled time; `node_vmstat_oom_kill=5` is a cumulative counter, not five recent OOMs. Use `increase(...[1h])` with counter-reset awareness.
