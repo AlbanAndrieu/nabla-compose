@@ -127,6 +127,20 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                          'trap cleanup EXIT', 'grep -Fxq'):
             self.assertIn(expected, body)
 
+    def test_piv82_guard_is_non_destructive(self):
+        script = ROOT / "scripts/workstation/preflight-age-yubikey-piv82.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("--serial", result.stdout)
+        text = script.read_text()
+        for marker in ("piv keys info 82", "ykman list --serials",
+                       "Connect exactly the selected single YubiKey"):
+            self.assertIn(marker, text)
+        for forbidden in ("--generate", "piv reset", "piv keys import",
+                          "otp chalresp", "ykman otp", "set -x"):
+            self.assertNotIn(forbidden, text)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
