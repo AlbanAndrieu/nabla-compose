@@ -1972,3 +1972,77 @@ sur un poste isolé avec la **clé privée escrow**, comparer le
 destinataire public dérivé, et confirmer l'ouverture d'une
 fixture SOPS sans exfiltrer d'identité privée.
 Ne pas modifier les deux YubiKeys avant cette preuve.
+
+### Escrow SanDisk LUKS2 opérationnel — 17 octobre 2026
+
+La SanDisk USB 3.2Gen1 (114,6 Gio, ancien support d'installation pfSense)
+a été repartitionnée volontairement après vérification de son identité
+USB, puis formatée en **LUKS2 + ext4**. Mapper
+`nabla_escrow_usb`, ext4 label `NABLA_ESCROW`, montage temporaire
+`/mnt/nabla-escrow`. Le support a été fermé proprement après création
+d'une identité age indépendante sous
+`age-escrow/recovery-identity.txt` (mode `600`, compte local).
+La clé privée n'a pas été transmise dans ce chat ou stockée dans Git.
+
+**Destinataire public age escrow :**
+`age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938`.
+
+**Référence de la phrase secrète LUKS :** coffre **LastPass**,
+entrée intitulée **« USB SANDISK LUKS2 »**.
+Ne jamais documenter la phrase elle-même. Le mot de passe LUKS
+est distinct de l'identité age et **ne permet pas de régénérer**
+sa clé privée : récupérer le même destinataire age requiert la
+sauvegarde exacte de `recovery-identity.txt` ; toute nouvelle
+exécution de `age-keygen` crée une clé différente, incapable
+de déchiffrer les anciennes sauvegardes.
+
+Script reproductible :
+`scripts/workstation/manage-age-escrow-usb.sh` prend
+`--luks-uuid UUID` (celui de la **partition LUKS**, pas
+de l'ext4 interne), puis
+`--check`, `--open`, `--close` ou `--init-identity`.
+Il ne formate pas et n'écrase aucune identité existante.
+Une régénération non équivalente requiert une confirmation
+interactive explicite. Pour un nouveau support, reproduire
+séparément, après identification physique robuste, la préparation
+GPT/LUKS2/ext4 documentée ; copier/restaurer ensuite
+l'identité age originale depuis son **backup indépendant**,
+ou traiter toute nouvelle identité comme une rotation avec
+rechiffrement de toutes les données existantes.
+
+**Important :** le périphérique était `/dev/sdd` lors de
+l'installation, mais ce nom n'est **pas stable**.
+Lire son UUID après nouveau branchement :
+```bash
+lsblk -o NAME,TRAN,SIZE,FSTYPE,UUID,MOUNTPOINTS
+sudo blkid -s UUID -o value /dev/sdX1  # vérifier sdX1 avant utilisation
+bash scripts/workstation/manage-age-escrow-usb.sh --luks-uuid UUID --check
+```
+Aucune phrase secrète n'est transmise sur la ligne de commande.
+Ne pas sauvegarder automatiquement un header LUKS sur TrueNAS en clair.
+
+Le volume TrueNAS
+`nabla:/mnt/cpool/backup/lab` est confirmé NFSv4.2
+`sec=sys`, montage workstation `/media/backup/lab`.
+`secret/` est en mode `700`, et ses sous-répertoires
+`keepass/` et `ssh/` sont également protégés.
+Le script existant de backup SOPS doit employer **le destinataire
+public réel**, jamais `age1DESTINATAIRE_PUBLIC_REEL` :
+```bash
+bash scripts/workstation/backup-sops-age-identity.sh \
+ --destination /media/backup/lab/secret/keepass \
+ --recipient age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938
+# Après preflight et contrôle de la rétention : répéter avec --apply
+```
+
+**Gates restants :**
+- [ ] Créer la sauvegarde de l'identité age SOPS courante, chiffrée
+  sous le nouveau destinataire et stockée sur TrueNAS.
+- [ ] Rouvrir la SanDisk, déchiffrer la copie dans un contexte privé
+  et comparer l'identité publique dérivée à la source sans
+  journaliser la clé privée.
+- [ ] Disposer d'une **seconde copie indépendante et chiffrée**
+  de `recovery-identity.txt` ou d'une politique de
+  récupération alternative. Un volume USB unique reste un SPOF.
+- [ ] Tester le recovery de bout en bout, puis seulement
+  provisionner les PIV 82 sur les deux YubiKeys.
