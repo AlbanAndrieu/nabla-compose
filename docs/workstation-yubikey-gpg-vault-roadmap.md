@@ -1064,3 +1064,43 @@ d'état PC/SC partagé ; validation des usages Git et
 git-crypt distincte, sans transférer de clés ou dévoiler
 de secrets. L'opérateur doit lancer volontairement
 l'activation sur sa workstation.
+
+### P0c — Activation persistante contrôlée et retour arrière (17 octobre)
+
+Nouveau script : `scripts/workstation/manage-gpg-pcsc-shared.sh`
+avec `--check`, `--apply` et `--rollback`. Il **ne touche
+pas aux clés privées, PIN ou slots**. Avant toute écriture il
+vérifie la sauvegarde historique immuable
+`scdaemon.conf.before-reader-port`, puis compare le fichier
+courant soit avec les octets de cette référence, soit avec la
+version exactement dérivée par l'ajout de `pcsc-shared`.
+Toute autre modification déclenche un arrêt (drift guard).
+Le script ne remplace pas la sauvegarde historique.
+
+`--apply` ajoute l'option au profil usuel, rafraîchit seulement
+`scdaemon`, puis teste `gpg --batch --card-status` avec timeout ;
+un échec de détection entraîne un rollback automatique vers la
+sauvegarde. `--rollback` restaure la version originale vérifiée.
+Les deux actions sont idempotentes lorsque l'état est déjà cible.
+Une extinction brutale peut interrompre la transaction : la copie
+historique reste disponible pour la restauration.
+
+**Exécution supervisée, workstation uniquement**, après avoir
+arrêté toute opération utilisant GPG et tout autre client CCID :
+```bash
+cd ~/w/nabla-compose && git pull --ff-only
+./scripts/workstation/manage-gpg-pcsc-shared.sh --check
+./scripts/workstation/manage-gpg-pcsc-shared.sh --apply
+./scripts/workstation/manage-gpg-pcsc-shared.sh --check
+# Retour arrière sur demande :
+./scripts/workstation/manage-gpg-pcsc-shared.sh --rollback
+```
+
+**Point de vigilance sécurité :** le mode PC/SC partagé laisse
+d'autres clients communiquer avec la carte et potentiellement
+modifier la sélection d'applet ou l'état de validation du PIN.
+Éviter les clients simultanés pendant les opérations sensibles.
+Le PASS de `gpg --card-status` ne valide pas les opérations de
+signature Git, `git-crypt` ou les restaurations PostgreSQL.
+P1 doit les valider sans migration de clés. L'activation réelle
+n'a pas été effectuée par l'agent.
