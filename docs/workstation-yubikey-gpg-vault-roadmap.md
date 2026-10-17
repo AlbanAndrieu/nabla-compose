@@ -1038,3 +1038,29 @@ et restauration du fichier, sans intervention sur les clés.
 La disponibilité cryptographique de la signature Git et de
 `git-crypt` reste à établir indépendamment ; ne pas introduire
 de PIN pendant ce test.
+
+### P0b — Validation opérateur du profil GnuPG principal (17 octobre)
+
+Le script `trial-gpg-pcsc-shared.sh --check` a confirmé le
+préflight et la prise en charge binaire de `pcsc-shared`.
+Le mode `--trial` a ensuite produit :
+`✅ Main GnuPG profile detects OpenPGP with pcsc-shared enabled temporarily`.
+Le trap a indiqué `✅ Historical configuration restored byte-for-byte`.
+Un contrôle `cmp -s ~/.gnupg/scdaemon.conf
+~/.gnupg/scdaemon.conf.before-reader-port` indépendant a
+également confirmé `✅ Configuration d'origine restaurée`.
+
+**P0b validé :** mode partagé PC/SC efficace dans le profil
+GnuPG usuel pour l'énumération de la carte, sans persistance.
+**État du système :** `pcsc-shared` reste désactivé dans la
+configuration réelle après rollback. Ne pas affirmer que
+les signatures Git ou déchiffrements sont vérifiés.
+
+**Prochain jalon P0c :** préparer une activation durable
+idempotente et réversible avec sauvegarde immuable,
+contrôles `gpg --card-status` et procédure
+`--rollback` explicite. Analyser le risque
+d'état PC/SC partagé ; validation des usages Git et
+git-crypt distincte, sans transférer de clés ou dévoiler
+de secrets. L'opérateur doit lancer volontairement
+l'activation sur sa workstation.
