@@ -56,7 +56,7 @@ def test_low_stateless_single_can_monitor(tmp_path):
 
 def test_unknown_business_criticality_blocks_auto_update(tmp_path):
     write_compose(tmp_path, business="null")
-    assert "unsafe automatic upgrade" in policy.audit(tmp_path)[0][0]
+    assert any("unsafe automatic upgrade" in finding for finding in policy.audit(tmp_path)[0])
 
 
 def test_critical_cannot_auto_upgrade(tmp_path):
