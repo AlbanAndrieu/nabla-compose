@@ -5,12 +5,13 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
 fi
 set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/shell-status.sh"
+python_bin="${NABLA_PIV_PYTHON:-python3}"
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   printf 'Usage: bash scripts/workstation/check-yubikey-piv-python-sdk.sh (offline, read-only)\n'; exit 0
 fi
 (($# == 0)) || { nabla_status error 'Unexpected argument'; exit 2; }
-command -v python3 >/dev/null || { nabla_status error 'python3 unavailable'; exit 1; }
-if python3 - <<'PY'
+command -v "$python_bin" >/dev/null || { nabla_status error "Python unavailable: $python_bin"; exit 1; }
+if "$python_bin" - <<'PY'
 import importlib.util
 import sys
 modules = ["ykman", "yubikit", "cryptography"]
