@@ -1,7 +1,7 @@
 ## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
 
 - [x] Operator executed `backup-openclaw-memory-markdown.py --check` and `--apply`: 2 workspaces, 617 Markdown files, `backup_verified=true`, `source_files_modified=false`. Archive checksums were verified locally; backup remains unencrypted and should be kept on encrypted private storage.
-- [ ] Run `python3 scripts/workstation/backup-openclaw-memory-markdown.py --verify-restore` to verify an isolated reconstruction of the 617 archived Markdown files and their SHA-256 hashes; implementation committed, workstation acceptance pending.
+- [x] Operator ran `python3 scripts/workstation/backup-openclaw-memory-markdown.py --verify-restore`: `isolated_restore_verified=true markdown_files=617` and `active_workspaces_modified=false`; isolated archive restoration and SHA-256 verification succeeded.
 - [ ] Confirm OpenClaw memory-source auto-indexing is disabled or isolated before any reset; do not delete source files or active indexes yet.
 
 - [x] Operator permits abandoning existing and pending **index entries**: latest runtime reports main 15 files/57 chunks, vector index unverified, dirty=true; cron 0 files/0 chunks, index empty, dirty=true. Prior deep scan reported additional candidate source files (main 105, cron 63); do not assume these source files were deleted.
