@@ -1,3 +1,36 @@
+## CURRENT · Prometheus correlation → pfSense stabilization → DefectDojo LAN (2026-10-18)
+
+**Execution order: pfSense safety gate first; DefectDojo only after pfSense DNS and memory remain stable.** Evidence is operator-provided, not a live deployment validation.
+
+### P1 — pfSense memory, DNSBL and observability
+
+- [x] Read-only memory sampling `scripts/pfsense/diagnose-memory-pressure.sh --check --samples 10 --interval 30`: 00:22–00:26 CEST, available free+inactive 223.8–234.4 MiB, Unbound PID 75160 stable, pfBlockerNG cron absent; this does **not** explain earlier transient 24.2 MiB at 00:16.
+- [x] pfBlockerNG latest DNSBL `225631 PASSED` and latest update END marker complete; localhost and LAN Unbound DNS checks PASS. Historical OOM at 2026-10-17 02:11 is not a new incident.
+- [x] Existing Prometheus multi-target pfSense exporter `172.17.0.24:9945/metrics?target=172.17.0.1`, `up=1`; scrape duration ~5.13–5.22 s. `pfsense_system_memory_usage_ratio=0.31`, recorded `nabla:core:pfsense_memory_available_ratio=0.69`. **Do not equate** exporter ratio with FreeBSD `free+inactive` MiB; compare semantics and sample timestamps before alert thresholds.
+- [x] Existing pfSense `pfsense_service_up` confirms unbound, snort, haproxy, kea-dhcp4, pfb_dnsbl, pfb_filter running; ntopng, softflowd, zabbix intentionally off. `pfsense_gateway_up{name="WANGW"}=1`. CrowdSec service=0 but firewall bouncer=1: diagnose before claiming full CrowdSec health.
+- [x] Read-only cross-platform `scripts/pfsense/diagnose-prometheus-telemetry.sh --check` executed on workstation: pfSense, TrueNAS node, Akvorado inlet/outlet scrapes UP; FastAPI Sample metrics scrape DOWN.
+- [ ] **Next pfSense closure:** capture 24 h trend around cron windows (minimum, duration below 128 MiB, process/UMA snapshot on recurrence), compare Prometheus memory ratio to SSH sampling, check Unbound PID/response and OOM event *deltas*, confirm DNSBL update completes without sustained memory pressure. No proactive reboot, package patch, DNSBL rebuild or pflow activation.
+- [ ] Investigate `dnsbl_ram_swap_gate=missing` and legacy `dnsbl_loaded_entries=0` semantics without mutating pfSense. pflow kernel module not loaded and zero exporters; retain disabled pending stable memory, supported persistent configuration and rollback. Cloudflare IPFIX exporter must be justified before enabling.
+- [ ] Add conditional read-only capture under 128 MiB with rate limiting, retention and secrets redaction; only after validating no resource amplification on 1 GiB Netgate.
+- [ ] Close pfSense incident only after 24 h stable DNS, no *new* OOM, pfBlockerNG completion and verified rollback. Treat exporter `up` as telemetry evidence, not DNS/application proof.
+
+### P1 — TrueNAS / Prometheus target quality
+
+- [x] `node_memory_MemAvailable_bytes=6732337152` (~6.27 GiB) and `nabla:core:truenas_memory_available_ratio=0.1011855` at sampled time; `node_vmstat_oom_kill=5` is a cumulative counter, not five recent OOMs. Use `increase(...[1h])` with counter-reset awareness.
+- [ ] Investigate scrape failures separately from application health: `pihole_exporter`, `haproxy`, `opensearch-security`, `postgres_exporter`, `fastapi_sample`, `opensearch`, `docling`. Inspect `/api/v1/targets` lastError, expected metric path/port/auth and intended service lifecycle; do not restart blindly.
+- [ ] Confirm scrape timeout configured for pfSense (observed ~5.2 s); `scrape_timeout_seconds` series absent in sample. Inspect Prometheus scrape configuration rather than treating absent metric as zero.
+- [ ] Reuse Prometheus, Alertmanager, Grafana, Loki and Alloy; no new pfSense daemon by default. Keep Cloudflare Access on public Prometheus; use LAN API or least-privilege service token for automation.
+
+### P1 — FastAPI Sample probes and DefectDojo LAN
+
+- [ ] Explain `up{job="fastapi_sample"}=0`: inspect Prometheus target `lastError`, `metrics_path`, scrape port, and independent `http://172.17.0.24:8091` HTTP/health checks. Never classify app DOWN solely because metrics scrape fails.
+- [ ] In FastAPI Sample's own PR, add Prometheus corroboration with explicit `healthy / degraded / unknown` evidence and timestamps: scrape missing/stale/timeout → telemetry warning, not service DOWN. Preserve TrueNAS-primary, direct HTTP/HTTPS/TCP, pfSense and Cloudflare probe precedence; no silent fallback to fabricated values.
+- [ ] **DefectDojo LAN gate:** validate `defectdojo.int.albandrieu.com` via pfSense Unbound → Pi-hole → Traefik → DefectDojo with DNS, TLS/Host/SNI, HTTP response and authentication checks. No public `.int` DNS, no external ingress, no unreviewed deployment changes.
+- [ ] Verify DefectDojo containers/DB/migrations/worker readiness and authorized API endpoint using secrets from private runtime store; perform synthetic import in an isolated test product, confirm ingestion and rollback. Document exact errors before changes.
+- [ ] Add read-only repeatable DefectDojo LAN smoke/runbook and local quality gate; finish validation before marking complete. Do not merge PR automatically.
+
+---
+
 ## P1 · pfSense memory stability and pflow recovery — active (2026-10-17)
 
 - [x] Restore Unbound outgoing interfaces `WAN -> All`, verify DefectDojo/Vaultwarden/Hello/S3 private DNS, and document pfSense XML backup paths.
