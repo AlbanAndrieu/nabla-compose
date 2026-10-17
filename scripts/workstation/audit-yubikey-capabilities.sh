@@ -101,7 +101,7 @@ else
   warn 'age-plugin-yubikey absent : identité age matérielle non vérifiée'
 fi
 printf '%s\n' 'ℹ️ age X25519 existant de fastapi-sample : identité logicielle ; non importable telle quelle dans PIV.'
-printf '%s\n' 'ℹ️ PIV 9A occupé, 9C/9D/9E non confirmés libres ; inventaire avant tout provisioning.'
+printf '%s\n' 'ℹ️ PIV 9A occupé ; age-plugin-yubikey utilise normalement les slots retired 82-95, dont la disponibilité reste à vérifier.'
 printf '%s\n' 'ℹ️ Une identité age YubiKey serait un destinataire SOPS supplémentaire, jamais un remplacement sans tests.'
 
 heading 'Sécurité'
