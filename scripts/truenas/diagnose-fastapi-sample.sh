@@ -153,6 +153,7 @@ for ((i=1; i<=CYCLES; i++)); do
 done
 
 section '5/6 · Prometheus/Gatus connectivity'
+# shellcheck disable=SC2016 -- expansion happens inside the container
 if run_docker exec "${CONTAINER}" sh -c \
     'test "${HOMELAB_PROMETHEUS_URL:-}" = "http://172.17.0.24:9090"' 2>/dev/null; then
     ok 'Expected HOMELAB_PROMETHEUS_URL configured (value not printed)'
