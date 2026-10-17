@@ -20,29 +20,34 @@ def cli(*args):
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return None
 
-def discover():
-    """Discover SQLite databases within OpenClaw memory trees, without following symlinks."""
-    roots = [BASE / "memory", BASE / "agents" / "main" / "memory",
-             BASE / "agents" / "cron" / "memory"]
-    result = set()
-    print("openclaw_state_root=" + str(BASE))
-    for root in roots:
-        print("memory_search_root=" + str(root.relative_to(BASE)) + " exists=" + str(root.is_dir()).lower())
-        if not root.is_dir() or root.is_symlink():
+def active_databases():
+    """Use runtime-declared dbPath for both agents, without exposing paths."""
+    data = cli("openclaw", "memory", "status", "--json")
+    if not isinstance(data, list):
+        return {}
+    result = {}
+    for record in data:
+        if not isinstance(record, dict):
             continue
-        for directory, dirs, files in os.walk(root, followlinks=False):
-            dirs[:] = [d for d in dirs if not (Path(directory) / d).is_symlink()]
-            for filename in files:
-                path = Path(directory) / filename
-                if path.is_symlink() or not path.is_file():
+        agent = record.get("agentId")
+        status = record.get("status")
+        if agent not in ("main", "cron") or not isinstance(status, dict):
+            continue
+        name = status.get("dbPath")
+        expected = status.get("storage", {}).get("databaseBytes")
+        if not isinstance(name, str) or not Path(name).is_absolute():
+            continue
+        p = Path(name)
+        try:
+            if p.is_symlink() or not p.is_file() or p.stat().st_size != expected:
+                continue
+            with p.open("rb") as handle:
+                if handle.read(16) != b"SQLite format 3\\x00":
                     continue
-                try:
-                    with path.open("rb") as handle:
-                        if handle.read(16) == b"SQLite format 3\x00":
-                            result.add(path)
-                except OSError:
-                    continue
-    return sorted(result)
+            result[agent] = p
+        except OSError:
+            continue
+    return result
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -57,21 +62,17 @@ def main():
     props = (schema or {}).get("properties", {}).get("memory", {}).get("properties", {}).get("search", {}).get("properties", {})
     schema_ok = all(k in props for k in ("provider", "model", "remote"))
     print("memory_search_schema=" + ("compatible" if schema_ok else "unresolved"))
-    indexes = discover()
-    print(f"sqlite_indexes_discovered={len(indexes)}")
-    if not indexes:
-        print("WARN: no SQLite memory indexes found; verify OpenClaw state path and storage backend")
-    for path in indexes:
-        relative = str(path.relative_to(BASE))
-        print("sqlite_index=" + relative)
-        print("sqlite_index_class=" + ("migration_artifact" if path.name.endswith(".migrated") else "candidate"))
+    indexes = active_databases()
+    for agent in ("main", "cron"):
+        print(f"runtime_{agent}_database=" + ("verified" if agent in indexes else "unresolved"))
+    print(f"active_databases_verified={len(indexes)}")
     print("expected_existing_dimensions=768")
     print("target_model=embedding backend=ollama/nomic-embed-text")
     print("NOTE: matching dimensions do not imply matching vector spaces")
     if args.check:
         print("NOTE: read-only; no embeddings call, configuration change or reindex")
-        return 0 if key_ok and schema_ok and bool(indexes) and not any(p.name.endswith(".migrated") for p in indexes) else 2
-    if not key_ok or not schema_ok or not indexes or any(p.name.endswith(".migrated") for p in indexes):
+        return 0 if key_ok and schema_ok and len(indexes) == 2 else 2
+    if not key_ok or not schema_ok or len(indexes) != 2:
         print("ERROR: active index paths unresolved or migration artifact found; backup not started", file=sys.stderr)
         return 2
     if BACKUP.is_symlink():
@@ -84,8 +85,9 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest = BACKUP / stamp
     dest.mkdir(mode=0o700)
-    for source in indexes:
-        target = dest / source.relative_to(BASE)
+    for agent in ("main", "cron"):
+        source = indexes[agent]
+        target = dest / (agent + ".sqlite")
         target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
         try:
             source_conn = sqlite3.connect(f"file:{source}?mode=ro", uri=True, timeout=5)
