@@ -185,7 +185,7 @@
   },
   {
     "type": "port",
-    "name": "Garage S3",
+    "name": "Garage S3 API",
     "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
     "interval": 60,
     "max_retries": 3,
@@ -195,7 +195,7 @@
   },
   {
     "type": "port",
-    "name": "Garage",
+    "name": "Garage Web UI",
     "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
     "interval": 60,
     "max_retries": 3,
