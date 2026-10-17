@@ -33,8 +33,12 @@ done
 }
 device="/dev/disk/by-uuid/${uuid}"
 [[ -b "${device}" ]] || { echo 'LUKS UUID device not found' >&2; exit 1; }
-[[ "$(blkid -s TYPE -o value "${device}")" == crypto_LUKS ]] || {
-  echo 'Selected partition is not LUKS' >&2; exit 1;
+# Unprivileged blkid may return no TYPE for a block device: use lsblk/udev.
+physical_device="$(readlink -f -- "$device")"
+fstype="$(lsblk -dn -o FSTYPE "$physical_device" | tr -d '[:space:]')"
+actual_uuid="$(lsblk -dn -o UUID "$physical_device" | tr -d '[:space:]')"
+[[ "$fstype" == crypto_LUKS && "${actual_uuid,,}" == "${uuid,,}" ]] || {
+  echo 'Selected partition TYPE/UUID does not match LUKS escrow' >&2; exit 1;
 }
 # Resolve child crypt device from the UUID-selected partition, not a fixed mapper name.
 mapfile -t children < <(lsblk -nr -o PATH,TYPE "$device" | awk '$2=="crypt" {print $1}')
