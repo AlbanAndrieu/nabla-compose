@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Bootstrap one named LiteLLM TrueNAS admin via SSH tunnel; never disable bootstrap login."""
 import argparse
-import getpass
 import json
 import os
 import sys
@@ -13,7 +12,7 @@ BASE = "http://127.0.0.1:14000"
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--email", required=True, help="Personal email for the named administrator")
-    parser.add_argument("--apply", action="store_true", help="Create account; default is dry-run")
+    parser.add_argument("--apply", action="store_true", help="Create account without password; default is dry-run")
     args = parser.parse_args()
     email = args.email.strip()
     if not email or "@" not in email or any(c.isspace() for c in email):
@@ -30,16 +29,10 @@ def main():
     if not key:
         print("ERROR: admin credential missing from environment", file=sys.stderr)
         return 2
-    # A named admin requires an independent password; avoid passing it via CLI or env.
-    password = getpass.getpass("New named admin password (hidden): ")
-    confirm = getpass.getpass("Confirm password (hidden): ")
-    if password != confirm or len(password) < 16:
-        print("ERROR: passwords mismatch or shorter than 16 characters", file=sys.stderr)
-        return 2
+    # LiteLLM /user/new rejects password (422). Password setup uses an invitation.
     payload = json.dumps({
         "user_email": email,
         "user_role": "proxy_admin",
-        "password": password,
         "auto_create_key": False,
     }).encode("utf-8")
     request = Request(BASE + "/user/new", data=payload, method="POST",
@@ -55,10 +48,10 @@ def main():
     except (URLError, OSError, TimeoutError):
         print("ERROR: SSH tunnel or proxy unavailable", file=sys.stderr)
         return 1
-    finally:
-        password = confirm = ""
     print("NOTE: verify fresh private-window login with named account and permissions")
-    print("NOTE: password reset may be required on first login; bootstrap UI login remains enabled")
+    print("NEXT: create an invitation in LiteLLM UI > Internal Users > Invite User")
+    print("NEXT: follow the invitation link privately to set a unique password")
+    print("NOTE: bootstrap UI login remains enabled until named admin login is verified")
     print("NOTE: do NOT enable disable_env_credential_login before independent login succeeds")
     return 0
 
