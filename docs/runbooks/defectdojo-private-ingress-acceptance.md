@@ -182,3 +182,25 @@ bash scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com
 ```
 
 Do not use `172.17.0.1:22` as the SSH target. On TrueNAS, validate a separate authorized SSH identity and port before any remote automation; do not infer that workstation SSH credentials exist there. Before restoring a Domain Override, verify Pi-hole's upstream DNS path is not Unbound for `int.albandrieu.com`, to avoid a forwarding loop. Prefer a reviewed, persistent pfSense UI/API change with read-only pre/post checks; do not edit generated `/var/unbound/unbound.conf` manually.
+
+## Domain Override applied: forwarding timeout, Hello public fallback — 2026-10-17 23:25 CEST
+
+After adding the `int.albandrieu.com` Domain Override, Unbound restarted (PID 55374, uptime 110 seconds). `unbound-control lookup defectdojo.int.albandrieu.com` now reports `forwarding request` to `172.17.0.24`, but with `rto 24064 msec`; direct `dig @172.17.0.1` returns SERVFAIL for DefectDojo and Hello, while the existing Vaultwarden Host Override returns authoritative A `172.17.0.24`. Pi-hole directly returns private A records for DefectDojo and Hello; verified Traefik HTTPS for DefectDojo returns 302. Therefore the remaining fault is **Unbound-to-Pi-hole forwarding reachability/behavior**, not missing domain configuration or Traefik routing.
+
+Hello still resolves via public Cloudflare DNS `82.66.4.247` and may work through that WAN ingress or client DNS cache/fallback despite Unbound SERVFAIL; its success is **not** proof that split DNS works. DefectDojo has no public A record and must stay private. Authenticated Cloudflare inventory reports one unexpected public `.int` DNS record: inspect the detailed audit report and its exact hostname before any deletion; the public Hello exception is intentional and may not be the unexpected record.
+
+Read-only, run from workstation and TrueNAS to isolate source-specific DNS behavior:
+
+```bash
+# On workstation: check effective LAN and public answers separately.
+dig +time=2 +tries=1 @172.17.0.1 hello.int.albandrieu.com A
+dig +time=2 +tries=1 @172.17.0.24 hello.int.albandrieu.com A
+dig +time=2 +tries=1 @1.1.1.1 hello.int.albandrieu.com A
+# On pfSense via the configured SSH alias: check LAN routing and interface policy.
+ssh home.albandrieu.com 'netstat -rn -f inet | grep 172.17; grep -nE "outgoing-interface|interface:|forward-addr|private-domain|domain-insecure" /var/unbound/unbound.conf'
+# On TrueNAS: inspect Pi-hole DNS listener and direct query.
+sudo ss -lunpt | grep ':53 '
+dig +time=2 +tries=1 @172.17.0.24 defectdojo.int.albandrieu.com A
+```
+
+Check pfSense DNS Resolver **Outgoing Network Interfaces**; previous incidents showed a WAN-only setting causing exactly this forwarding failure, whereas `All` allowed reaching the LAN Pi-hole. Do not change settings, flush cache, restart Unbound, or publish DefectDojo until source-specific reachability and the Pi-hole upstream path have been verified. Check for a Pi-hole→Unbound→Pi-hole forwarding loop. The existing `scripts/security/diagnose-private-int-dns.sh --check` correctly reports the DNS failure, but its simple A-value check does not prove Pi-hole's answer is authoritative rather than stale (EDE 3).
