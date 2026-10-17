@@ -115,3 +115,22 @@ sudo docker logs --since 30m pihole-dns-sync 2>&1 | grep -Ei 'defectdojo|sync|er
 ```
 
 Review pfSense DNS Resolver domain overrides / forwarding for `int.albandrieu.com`, DNSSEC behavior and Pi-hole local DNS record materialization in read-only mode. Avoid a single-name Host Override, public DNS changes, or disabling DNSSEC as a workaround. Only after confirming canonical private-zone ownership should forwarding to Pi-hole be proposed; take care to avoid a Pi-hole → Unbound → Pi-hole forwarding loop.
+
+## Unbound incident correlation and missing private forward — 2026-10-17
+
+The operator's `unbound-control -c /var/unbound/unbound.conf lookup defectdojo.int.albandrieu.com` selected Cloudflare authoritative nameservers (`poppy`, `vasilii`) instead of the expected Pi-hole forwarder. This is strong evidence that the active Unbound view is **not** applying the documented `int.albandrieu.com -> 172.17.0.24` Domain Override; verify effective generated config, view selection, and whether the override survived yesterday's Unbound outage before editing. The public DNS records `hello.int.albandrieu.com`, `int.albandrieu.com`, `home.albandrieu.com` point to WAN `82.66.4.247` (operator Cloudflare inventory); Hello is a documented temporary public canary, not a model for DefectDojo.
+
+Historical precedent: `docs/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md` records Unbound being killed by kernel memory reclaim on Netgate 1100, with CrowdSec failed-send busy-spin and pfBlockerNG ASN retries as contributors. **Do not assume yesterday's failure had the same cause without logs.** Capture current-boot and previous-day kernel/service evidence before restarting or flushing DNS.
+
+On pfSense interactive tcsh (read-only, one command per line):
+
+```text
+unbound-control -c /var/unbound/unbound.conf status
+unbound-control -c /var/unbound/unbound.conf lookup defectdojo.int.albandrieu.com
+grep -nE 'int[.]albandrieu[.]com|172[.]17[.]0[.]24|forward-zone|forward-addr|domain-insecure|private-domain' /var/unbound/unbound.conf
+dmesg | egrep -i 'unbound|killed|failed to reclaim|out of swap' | tail -60
+ps axo pid,rss,vsz,pcpu,pmem,command | sort -nr -k2 | head -20
+unbound-control -c /var/unbound/unbound.conf stats_noreset | egrep '^mem[.]'
+```
+
+From workstation run the existing read-only `scripts/pfsense/diagnose-recover.sh --check` and `scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com` with existing SSH configuration. Redact secrets and avoid pasting `/conf/config.xml` wholesale. Do not add HAProxy WAN routing for private DefectDojo; DNS must be fixed first. No appliance mutation or recovery action is approved by this runbook.
