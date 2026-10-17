@@ -152,3 +152,17 @@ bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandr
 ```
 
 This script collects Unbound status, effective forward directives, lookup selection, kernel OOM evidence, top memory processes and Unbound counters without dumping credentials or modifying pfSense. If SSH remains blocked, use the already available pfSense console to run the documented individual read-only commands. Do not attempt brute-force port discovery or enable WAN SSH for this audit.
+
+## Correction of execution host and SSH preflight — 2026-10-17
+
+Correction to the preceding incident narrative: the operator executed `scripts/pfsense/diagnose-recover.sh --check` and `audit-posture.sh --ssh home.albandrieu.com` **from the workstation**, not TrueNAS. The `cd ~/w/nabla-compose` command had failed in the particular shell, but the subsequent commands ran from an existing checkout; do not infer execution host from the failed `cd` alone. The workstation's `ssh -G home.albandrieu.com` reports user `albandrieu`, hostname `home.albandrieu.com`, port `22`. A TCP timeout on port 22 is a connectivity/filtering/listener problem, **not** proof of missing SSH credentials. The operator's `--port PORT_SSH` invocation was rejected by the script's numeric-port validation; `PORT_SSH` was documentation placeholder text, not a real port.
+
+Workstation read-only checks (run from the actual checkout):
+
+```bash
+ssh -G home.albandrieu.com | grep -E '^(hostname|user|port|identityfile) '
+ssh -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 -vv home.albandrieu.com true
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check --target home.albandrieu.com
+```
+
+Use the **actual** SSH port if known; never paste `PORT_SSH` literally. For local workstation-to-pfSense testing, prefer the LAN IP `172.17.0.1` if reachable and explicitly authorized, as the public hostname can follow different WAN/firewall policy. On TrueNAS, inspect the SSH configuration and key availability **separately**, without copying workstation private keys or enabling new WAN access. A TCP timeout occurs before public-key authentication and cannot establish whether a key exists. Do not paste private keys, complete verbose logs containing sensitive identifiers, or modify pfSense SSH exposure as a workaround.
