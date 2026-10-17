@@ -2176,3 +2176,11 @@ age-plugin-yubikey --generate --serial 22916048 --slot 1 \\
 ```
 
 ATTENTION : la clé de gestion PIV existante est **AES256 PIN-protected** ; le plugin 0.5.1 peut ne pas supporter certains formats de management key. En cas d'erreur, arrêter, documenter et rechercher une option compatible ; **ne pas** réinitialiser PIV, convertir sa clé de gestion, utiliser `--force`, ni modifier le slot 9A ou OTP2 pour contourner l'échec. Une éventuelle écriture doit être confirmée après opération avec `ykman piv keys info 82`, puis test sur fixture de chiffrement avant tout usage SOPS.
+
+### Blocage matériel age-plugin-yubikey AES et référence PIN (17 octobre 2026)
+
+Sur la YubiKey secondaire `22916048`, `age-plugin-yubikey 0.5.1 --generate --slot 1 --pin-policy always --touch-policy always` a échoué après demande de PIN : `Failed to authenticate with the PIN-protected management key`; le message précise explicitement **AES non supporté** (issue [str4d/age-plugin-yubikey#92](https://github.com/str4d/age-plugin-yubikey/issues/92)). La carte utilise une clé de gestion PIV **AES256 protégée par PIN**. **L'échec ne prouve pas un PIN erroné.** L'opérateur a sélectionné le PIN depuis LastPass **« yubikey-5-nabla principal »** alors que **la carte secondaire** était connectée. Cette entrée est désignée pour la principale et ne prouve pas que les PIN sont identiques. Vérifier la bonne entrée secondaire sans révéler la valeur. Éviter les essais répétés (compteur PIN limité).
+
+**Aucune génération réussie confirmée.** Avant toute autre action, effectuer un inventaire PIV 82 et des compteurs PIN en lecture seule. Ne pas suivre automatiquement la suggestion du plugin de migrer la management key vers TDES : rétrogradation crypto pour contourner une incompatibilité logicielle, avec risques opérationnels pour le slot historique 9A. Conserver PIV 9A et OTP2. Chercher prioritairement une version/fork du plugin prenant en charge AES ou un processus compatible et contrôlé, puis tester sur fixture avec une carte uniquement. La génération de l'identité age matérielle reste **BLOCKED** tant que compatibilité et PIN de secours ne sont pas validés.
+
+Le préflight affiche maintenant un **rappel non sensible de la référence LastPass** selon le numéro de série ; jamais la valeur du PIN.
