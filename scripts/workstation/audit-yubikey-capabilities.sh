@@ -89,6 +89,21 @@ heading 'Outils SSH / GPG / age / PAM / Keyring'
 for tool in gpg ssh-keygen pamu2fcfg age age-plugin-yubikey secret-tool seahorse; do
   if command -v "${tool}" >/dev/null 2>&1; then ok "${tool} installé"; else warn "${tool} absent"; fi
 done
+heading 'SOPS / age : possibilité de clé matérielle (lecture seule)'
+if command -v sops >/dev/null 2>&1; then
+  ok 'sops installé ; vérifier la version et le support des destinataires age plugin'
+else
+  warn 'sops non trouvé dans PATH'
+fi
+if command -v age-plugin-yubikey >/dev/null 2>&1; then
+  ok 'age-plugin-yubikey installé ; aucun slot provisionné automatiquement'
+else
+  warn 'age-plugin-yubikey absent : identité age matérielle non vérifiée'
+fi
+printf '%s\n' 'ℹ️ age X25519 existant de fastapi-sample : identité logicielle ; non importable telle quelle dans PIV.'
+printf '%s\n' 'ℹ️ PIV 9A occupé, 9C/9D/9E non confirmés libres ; inventaire avant tout provisioning.'
+printf '%s\n' 'ℹ️ Une identité age YubiKey serait un destinataire SOPS supplémentaire, jamais un remplacement sans tests.'
+
 heading 'Sécurité'
 warn 'Ne pas réinitialiser PIV : sauvegarder et examiner les usages du certificat expiré.'
 ok 'Aucune opération de provisionnement ou modification PAM effectuée.'
