@@ -275,6 +275,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                         'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
 
+    def test_offline_quality_gate_contract(self):
+        script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_result = subprocess.run(["bash", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("no hardware", script.read_text().lower())
+        self.assertIn("verify-age-yubikey-offline.sh", help_result.stdout)
+        body = script.read_text()
+        self.assertIn("python3 -m unittest discover", body)
+        for forbidden in ("piv keys generate", "piv reset", "otp delete",
+                          "change-management-key", "age-plugin-yubikey --generate"):
+            self.assertNotIn(forbidden, body)
+
     def test_aes_compat_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
