@@ -2,7 +2,7 @@
 # Read-only DefectDojo prerequisites. No secrets, migrations or deployment.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
+cd "${ROOT}"
 failures=0
 warnings=0
 pass() { printf '✅ PASS %s\n' "$1"; }
@@ -10,7 +10,7 @@ warn() { printf '⚠️ WARN %s\n' "$1"; warnings=$((warnings+1)); }
 fail() { printf '❌ FAIL %s\n' "$1" >&2; failures=$((failures+1)); }
 printf '🔎 DefectDojo · préflight lecture seule\n'
 for tool in docker python3; do
-  if command -v "$tool" >/dev/null; then pass "$tool disponible"; else fail "$tool absent"; fi
+  if command -v "${tool}" >/dev/null; then pass "${tool} disponible"; else fail "${tool} absent"; fi
 done
 if [[ -d /mnt/cpool/defectdojo ]]; then pass 'Dataset DefectDojo présent'; else fail 'Dataset DefectDojo absent'; fi
 if docker inspect ix-postgres-postgres-1 --format '{{.State.Running}}' 2>/dev/null | grep -qx true &&
@@ -47,5 +47,5 @@ fi
 if [[ -z "${DD_ALLOWED_HOSTS:-}" || "${DD_ALLOWED_HOSTS}" == '*' ]]; then
   warn 'DD_ALLOWED_HOSTS non restreint : définir les hôtes autorisés'
 fi
-printf '📋 Bilan : %d échec(s), %d avertissement(s)\n' "$failures" "$warnings"
+printf '📋 Bilan : %d échec(s), %d avertissement(s)\n' "${failures}" "${warnings}"
 (( failures == 0 ))
