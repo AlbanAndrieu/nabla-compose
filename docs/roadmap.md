@@ -1,8 +1,17 @@
+## P1 · pfSense memory stability and pflow recovery — active (2026-10-17)
+
+- [x] Restore Unbound outgoing interfaces `WAN -> All`, verify DefectDojo/Vaultwarden/Hello/S3 private DNS, and document pfSense XML backup paths.
+- [x] Add read-only `scripts/pfsense/diagnose-memory-pflow.sh --check` for resident memory, swap, Unbound status, OOM history and pflow interfaces.
+- [ ] Execute new diagnostic and `scripts/pfsense/audit-posture.sh` from workstation; record timestamped memory baseline and compare with 2026-10-17 pre-change Unbound RSS ~125–131 MiB and historical OOM. Do not infer new OOM from old dmesg lines.
+- [ ] Investigate pfBlockerNG `dnsbl_ram_swap_gate missing` and `dnsbl_loaded_entries 0` without changing package files on pfSense or triggering DNSBL rebuild on memory-constrained Netgate 1100.
+- [ ] Diagnose `pflow.truenas missing` (domain 1, 172.17.0.24:2055), `pflow.cloudflare missing` (domain 2, 162.159.65.1:2055), and `pflow.connected_exporters 0`; validate actual desired collectors and routing before any exporter changes.
+- [ ] After 24h of stable memory and DNS, close pfSense regression acceptance; retain historical incident evidence and avoid disruptive service restarts.
+
 
 ## P2 · Cloudflare DNS OpenTofu GitOps — preparation (2026-10-17)
 
 - [x] Restore pfSense private DNS forwarding to Pi-hole and validate three internal services; retain local pfSense XML backup inventory in `docs/dns-ingress-ownership.md`.
-- [ ] Inventory existing Cloudflare DNS records and distinguish public Hello exception from unwanted `int.albandrieu.com` apex/wildcards using `scripts/security/audit-public-int-dns.sh --check`.
+- [x] Inventory Cloudflare public `.int` records; remove unexpected `s3.int.albandrieu.com` CNAME, retain approved Hello exception; audit exit=0, warnings=1.
 - [ ] Build a dedicated OpenTofu/Terraform Cloudflare DNS module with pinned provider, explicit public DNS allowlist and no `*.int.albandrieu.com` wildcard. Import pre-existing records into state before planning changes; do not recreate or delete unmanaged resources.
 - [ ] Configure protected remote state, least-privilege API token via secret injection (never checked into Git), `fmt`/`validate`/`plan` and reviewed manual-only `apply`. Never publish state, secrets or full API payloads in CI artifacts.
 - [ ] Add read-only drift detection and tests that reject publication of private names (including DefectDojo), preserving intentional public Hello exception until separately approved.
