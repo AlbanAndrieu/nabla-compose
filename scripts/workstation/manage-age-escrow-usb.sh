@@ -36,9 +36,6 @@ device="/dev/disk/by-uuid/$uuid"
 [[ "$(blkid -s TYPE -o value "$device")" == crypto_LUKS ]] || {
   echo 'Selected partition is not LUKS' >&2; exit 1;
 }
-[[ "$(cryptsetup luksDump "$device" 2>/dev/null | head -n 1)" == *LUKS* ]] || {
-  echo 'LUKS header cannot be inspected' >&2; exit 1;
-}
 if [[ "$action" == check ]]; then
   echo 'LUKS partition found (read-only); verify model and physical drive before open.'
   lsblk -o NAME,TRAN,SIZE,FSTYPE,MOUNTPOINTS "$device"
@@ -50,6 +47,7 @@ if [[ "$action" == check ]]; then
 fi
 if [[ "$action" == open ]]; then
   [[ ! -e "/dev/mapper/$mapper" ]] || { echo 'Mapper already exists; check first' >&2; exit 2; }
+  sudo mkdir -p "$mountpoint"
   sudo cryptsetup open "$device" "$mapper"
   if ! sudo mount "/dev/mapper/$mapper" "$mountpoint"; then
     echo 'Mount failed; mapper remains open for inspection' >&2
