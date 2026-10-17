@@ -140,3 +140,24 @@ Known relevant upstream reports:
 - https://dev.gnupg.org/T4998
 - https://github.com/LudovicRousseau/PCSC/issues/215
 - https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
+
+## 2026-10-17 — lecteur PC/SC confirmé sur workstation
+
+- `pcsc-tools` installé sur Ubuntu workstation (`pcsc_scan` v1.7.4).
+- Le lecteur `Yubico YubiKey OTP+FIDO+CCID 00 00` est bien reconnu
+  avec carte insérée en **Shared Mode** et ATR décodé.
+- `gpg --card-status` échoue toujours `No such device`.
+  **Conclusion : l'absence de lecteur PC/SC est écartée**. Investiguer
+  le chemin scdaemon→PC/SC→sélection applet OpenPGP, les conflits
+  d'accès concurrent ou la configuration GnuPG 2.4.8.
+- Le bootstrap workstation `bootstrap-yubikey-manager.sh --apply`
+  installe désormais `pcsc-tools` et `--check` vérifie
+  `pcsc_scan`. Ne pas effectuer cette installation sur TrueNAS.
+- Une mise à jour noyau Ubuntu (7.0.0-34 en exécution, 7.0.0-38 installé)
+  est en attente, avec services redémarrés différés. Prévoir un reboot
+  contrôlé de la workstation hors sessions et travaux en cours ;
+  ne pas attribuer le problème de carte au noyau sans nouvelle preuve.
+
+**Gate suivante :** `gpg --card-status` fonctionne sur la workstation,
+puis test de signature avec clé de test / contrôle de clé existante sans
+`keytocard`, sans migration de sous-clé et sans réinitialisation.
