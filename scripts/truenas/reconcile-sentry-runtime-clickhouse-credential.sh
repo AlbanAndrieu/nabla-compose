@@ -97,9 +97,11 @@ write_triplet() {
       $1 != "CLICKHOUSE_TRACE_PASSWORD" { print }
     ' "${file}" >"${tmp}"
   fi
-  printf 'CLICKHOUSE_PASSWORD=%s\n' "${password}" >>"${tmp}"
-  printf 'CLICKHOUSE_READONLY_PASSWORD=%s\n' "${password}" >>"${tmp}"
-  printf 'CLICKHOUSE_TRACE_PASSWORD=%s\n' "${password}" >>"${tmp}"
+  {
+    printf 'CLICKHOUSE_PASSWORD=%s\n' "${password}"
+    printf 'CLICKHOUSE_READONLY_PASSWORD=%s\n' "${password}"
+    printf 'CLICKHOUSE_TRACE_PASSWORD=%s\n' "${password}"
+  } >>"${tmp}"
   install -o root -g root -m 0600 "${tmp}" "${file}"
   rm -f "${tmp}"
   trap - RETURN
@@ -142,6 +144,7 @@ fi
 write_triplet "${LEGACY_FILE}" "${password}"
 write_triplet "${CANONICAL_FILE}" "${password}"
 
+ # shellcheck disable=SC2016
 if ! timeout "${TIMEOUT_SECONDS}" docker exec "${CLICKHOUSE_CONTAINER}" sh -lc '
   clickhouse-client     --user "$CLICKHOUSE_USER"     --password "$CLICKHOUSE_PASSWORD"     --query "SELECT 1" >/dev/null
 '; then
@@ -154,6 +157,7 @@ ok "ClickHouse admin identity is usable"
   printf "ALTER USER sentry IDENTIFIED WITH sha256_password BY '%s';\n" "${password}"
   printf '%s\n'     'GRANT SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON sentry.* TO sentry;'     'GRANT SELECT ON system.tables TO sentry;'
 } |
+  # shellcheck disable=SC2016
   timeout "${TIMEOUT_SECONDS}" docker exec -i "${CLICKHOUSE_CONTAINER}" sh -lc '
     set -eu
     clickhouse-client       --user "$CLICKHOUSE_USER"       --password "$CLICKHOUSE_PASSWORD"       --multiquery
