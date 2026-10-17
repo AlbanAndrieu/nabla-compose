@@ -83,8 +83,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         )
         self.assertIn("QUALITY_LOG_LINE_MAX", text)
         self.assertIn("print_compact_log", text)
-        self.assertIn("failure summary", text)
-        self.assertIn("shellcheck_summary", text)
+        self.assertIn("--- concise failures ---", text)
+        self.assertIn("QUALITY_SUMMARY_LINES", text)
         self.assertIn("SC[0-9]{4}", text)
         self.assertIn("In .* line [0-9]+:", text)
         self.assertIn("line truncated", text)
@@ -148,7 +148,9 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("FAILED tests/", gate)
         self.assertIn("- hook id:", gate)
         self.assertIn("Full failure log:", gate)
-        self.assertIn('if [[ -z "${summary}" ]]', gate)
+        self.assertIn('local summary_limit="${QUALITY_SUMMARY_LINES:-8}"', gate)
+        self.assertIn('print_compact_log "${log}"', gate)
+        self.assertIn('if [[ "${QUALITY_VERBOSE:-0}" == "1" ]]', gate)
         self.assertNotIn(
             'print_compact_log "${log}"\n    rm -f "${log}"',
             gate,
