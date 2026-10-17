@@ -205,3 +205,19 @@ Ne pas répéter ce test si la configuration contient déjà un
 les modifications précédentes et arbitrer manuellement.
 
 Source : https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html
+
+### Observation PC/SC du 17 octobre à 12:33
+
+`timeout 5 pcsc_scan -n` détecte `Yubico YubiKey OTP+FIDO+CCID 00 00`
+et un ATR identique lors de deux lectures. Le scanner affiche
+successivement `Card inserted, Shared Mode`, puis `Waiting for the
+first reader` avant de retrouver la carte. Cela **suggère** une
+réénumération temporaire du lecteur, sans établir si elle est due à
+l'USB, à pcscd ou à un logiciel concurrent.
+
+Prochain contrôle en lecture seule : relevé ciblé des événements
+`journalctl -k --since '-10 min' --no-pager` et
+`journalctl -u pcscd.service --since '-10 min' --no-pager` autour
+d'une seule tentative `gpg --card-status`. Inspecter localement
+les identifiants et chemins avant de partager les journaux.
+Ne pas redémarrer PC/SC et ne pas changer de slot.
