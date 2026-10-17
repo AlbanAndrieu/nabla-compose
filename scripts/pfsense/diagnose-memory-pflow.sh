@@ -48,6 +48,24 @@ echo '==> pflow boot references (file names and matching lines only)'
 for config in /boot/loader.conf /boot/loader.conf.local /etc/rc.conf /etc/rc.conf.local; do
   [ ! -r "$config" ] || grep -Hni 'pflow' "$config" || true
 done
+echo '==> pflow XML paths (read-only, names only; values never printed)'
+if command -v php >/dev/null 2>&1; then
+  php -r '
+    $xml = @simplexml_load_file("/conf/config.xml");
+    if ($xml === false) { fwrite(STDERR, "WARN: pfSense config unavailable\n"); exit(0); }
+    $nodes = $xml->xpath("//*[local-name()=\"pflow\"]");
+    echo "pflow leaf count: ", count($nodes), "\n";
+    foreach ($nodes as $node) {
+      $path = [];
+      $dom = dom_import_simplexml($node);
+      while ($dom && $dom->nodeType === XML_ELEMENT_NODE) {
+        array_unshift($path, $dom->nodeName);
+        $dom = $dom->parentNode;
+      }
+      echo "/", implode("/", $path), " [", trim((string)$node) === "" ? "empty" : "populated", "]\n";
+    }
+  ' 2>&1 || true
+fi
 echo '==> pflowctl status (nonzero is diagnostic, not a script failure)'
 pflowctl -v -l 2>&1 || true
 echo '==> pflow interfaces and sockets'
