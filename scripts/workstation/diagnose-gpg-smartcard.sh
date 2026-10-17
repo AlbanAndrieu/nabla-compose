@@ -105,6 +105,24 @@ fi
 if command -v coredumpctl >/dev/null 2>&1; then
   warn 'Si erreur libpcsclite observée, consulter coredumpctl list (jamais dump)'
 fi
+heading 'Clients YubiKey concurrents (lecture seule)'
+if command -v pgrep >/dev/null 2>&1; then
+  if pgrep -u "$(id -u)" -f '(^|/)(ykman-gui|yubikey-manager-qt)([[:space:]]|$)' >/dev/null 2>&1; then
+    warn 'ykman-gui actif : client YubiKey potentiel ; fermer normalement la GUI avant un prochain test contrôlé'
+    warn 'Sa présence seule ne prouve pas un verrouillage de la carte'
+  else
+    ok 'Aucun ykman-gui actif détecté'
+  fi
+fi
+if command -v lsusb >/dev/null 2>&1; then
+  if lsusb -d 1050:0407 2>/dev/null | grep -q '1050:0407'; then
+    ok 'YubiKey USB composite 1050:0407 visible (usbfs sur CCID est attendu)'
+  else
+    warn 'YubiKey USB 1050:0407 non confirmée'
+  fi
+fi
+printf '%s\n' 'ℹ️ Journal pcscd vide : pas une preuve de panne ; aucun service redémarré.'
+
 heading 'Conflits potentiels et état scdaemon'
 if command -v pgrep >/dev/null 2>&1; then
   scd_count="$(pgrep -u "$(id -u)" -xc scdaemon 2>/dev/null || true)"
@@ -114,8 +132,8 @@ if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --check-programs 2>/dev/null | awk -F: '$1 ~ /scdaemon/ { if ($3 == "1") print "⚠️ scdaemon signale une erreur de programme"; else print "ℹ️ scdaemon référencé dans GnuPG" }' || true
 fi
 if [[ -r "${cfg}" ]] && grep -Eq '^[[:space:]]*disable-ccid([[:space:]]|$)' "${cfg}" && ! grep -Eq '^[[:space:]]*reader-port([[:space:]]|$)' "${cfg}"; then
-  warn 'disable-ccid présent mais reader-port absent : piste connue GnuPG T4998 (PC/SC No such device)'
-  printf 'ℹ️ Examiner https://dev.gnupg.org/T4998 ; ne pas écrire reader-port automatiquement.\n'
+  warn 'disable-ccid sans reader-port : essai explicite déjà réalisé sans succès sur cette workstation'
+  printf 'ℹ️ Ne pas répéter reader-port ; poursuivre le diagnostic des clients et de l’accès USB.\n'
 fi
 warn 'Piste : scdaemon/PCSC, sélection de lecteur ou accès concurrent; aucune modification automatique'
 heading 'Diagnostic matériel GPG (sans sortie brute)'
