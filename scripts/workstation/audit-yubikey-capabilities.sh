@@ -49,6 +49,42 @@ heading 'OpenPGP'
 if ykman openpgp info; then ok 'OpenPGP disponible'; else warn 'OpenPGP non accessible'; fi
 heading 'OATH'
 if ykman oath info; then ok 'OATH disponible'; else warn 'OATH non accessible'; fi
+heading 'Inventaire attendu : usage vs emplacement'
+printf '%s\n' '✅ Confirmé : OTP slot 2 HMAC-SHA1 partagé entre YubiKeys pour KeePassXC (sans exporter la réponse)'
+printf '%s\n' '✅ Confirmé : clé GPG logicielle RSA4096 [SC], sous-clé RSA4096 [E] ; signature et chiffrement/déchiffrement de test validés'
+printf '%s\n' 'ℹ️ Carte de secours précédemment observée : OpenPGP signature/encryption/authentication [none] ; ne pas présumer que la carte présente est la même.'
+printf '%s\n' '⚠️ Non validé : clés SSH stockées sur YubiKey, FIDO2 discoverable credentials, slots PIV SSH, ssh-agent ou PIV comme backend de SSH.'
+printf '%s\n' '⚠️ Non validé : signature de commit Git, git-crypt et restauration PostgreSQL en conditions réelles.'
+heading 'SSH local (aucune empreinte ni clé affichée)'
+if command -v ssh-add >/dev/null 2>&1; then
+  if ssh-add -l >/dev/null 2>&1; then
+    ok 'SSH agent contient au moins une identité ; provenance YubiKey non démontrée'
+  else
+    warn 'Aucune identité SSH utilisable confirmée par ssh-add -l (ou agent inaccessible)'
+  fi
+fi
+if command -v ssh-keygen >/dev/null 2>&1; then
+  ok 'ssh-keygen disponible ; aucune opération de création/export de clé exécutée'
+fi
+heading 'OpenPGP : état des emplacements (lecture seule, valeurs masquées)'
+if command -v gpg >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+  card="$(timeout 15 gpg --card-status 2>/dev/null || true)"
+  if [[ "$card" == *'Application type .: OpenPGP'* ]]; then
+    ok 'OpenPGP reconnu par scdaemon'
+    for label in 'Signature key' 'Encryption key' 'Authentication key'; do
+      if printf '%s\n' "$card" | grep -Eq "^$label[.[:space:]]*:[[:space:]]*\\[none\\]"; then
+        printf 'ℹ️ %s: vide sur la carte connectée\n' "$label"
+      elif printf '%s\n' "$card" | grep -Eq "^$label[.[:space:]]*:"; then
+        printf 'ℹ️ %s: présent ou indéterminé (identifiant masqué)\n' "$label"
+      else
+        printf '⚠️ %s: non déterminé\n' "$label"
+      fi
+    done
+  else
+    warn 'Carte OpenPGP non accessible via GnuPG (absente, transport ou client)'
+  fi
+fi
+
 heading 'Outils SSH / GPG / age / PAM / Keyring'
 for tool in gpg ssh-keygen pamu2fcfg age age-plugin-yubikey secret-tool seahorse; do
   if command -v "${tool}" >/dev/null 2>&1; then ok "${tool} installé"; else warn "${tool} absent"; fi
