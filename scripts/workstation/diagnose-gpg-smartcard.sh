@@ -94,6 +94,17 @@ if command -v pcsc_scan >/dev/null 2>&1 && command -v timeout >/dev/null; then
 else
   warn 'pcsc_scan absent : installer pcsc-tools sur la workstation si nécessaire'
 fi
+heading 'Clients PC/SC GNOME (lecture seule)'
+if command -v pgrep >/dev/null 2>&1; then
+  if pgrep -u "$(id -u)" -x seahorse >/dev/null 2>&1; then
+    warn 'Seahorse actif : client GPG/PCSC potentiel, pas une preuve de verrouillage'
+  else
+    ok 'Seahorse non actif actuellement'
+  fi
+fi
+if command -v coredumpctl >/dev/null 2>&1; then
+  warn 'Si erreur libpcsclite observée, consulter coredumpctl list (jamais dump)'
+fi
 heading 'Conflits potentiels et état scdaemon'
 if command -v pgrep >/dev/null 2>&1; then
   scd_count="$(pgrep -u "$(id -u)" -xc scdaemon 2>/dev/null || true)"
