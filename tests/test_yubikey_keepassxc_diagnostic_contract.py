@@ -110,7 +110,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         subprocess.run(["bash", "-n", str(script)], check=True)
         help_out = subprocess.run(["bash", str(script), "--help"],
                                   capture_output=True, text=True, check=True)
-        for name in ("--check", "--apply", "--rollback"):
+        for name in ("--check", "--verify", "--apply", "--rollback"):
             self.assertIn(name, help_out.stdout)
         content = script.read_text()
         for marker in ("cmp -s --", "trap cleanup EXIT", "before-reader-port",
