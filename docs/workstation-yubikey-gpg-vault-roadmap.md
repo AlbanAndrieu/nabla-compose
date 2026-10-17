@@ -1570,3 +1570,117 @@ Sources officielles :
 - https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-apps-piv.html
 - https://docs.yubico.com/software/yubikey/tools/ykman/PIV_Commands.html
 - https://github.com/str4d/age-plugin-yubikey
+
+## Architecture cible « YubiKey full capabilities » — 17 octobre 2026
+
+**Objectif :** couvrir avec deux YubiKeys les besoins de chiffrement,
+déchiffrement, signatures, KeePassXC, SOPS/age, SSH, certificats
+client, administrateurs Vault/OpenBao et sauvegardes du homelab.
+**Ne pas confondre maximisation des capacités utiles avec saturation
+des slots** : séparation des usages, récupération et continuité
+de service priment. Aucune action d'écriture sur la carte n'est
+autorisée par cette roadmap.
+
+### Inventaire factuel du dernier contrôle
+
+La YubiKey de secours connectée a livré :
+
+```text
+PIV 9A : RSA2048, IMPORTED, PIN ONCE, touch NEVER — OCCUPÉ
+PIV 82 (RETIRED1) : ERROR No key stored — AUCUNE CLÉ
+PIV 83 (RETIRED2) : ERROR No key stored — AUCUNE CLÉ
+age-plugin-yubikey --list-all : aucun résultat communiqué
+```
+
+Les réponses de `ykman piv keys info 82` et `83`
+sont des **observations explicites d'absence de clé**, plus
+fortes que l'absence de certificat dans `piv info` ;
+cela n'autorise toujours **pas** un provisionnement sans
+contrôler le numéro de série, les politiques PIN/touch,
+la récupération et les outils. L'occupation de `84–95`,
+`9C`, `9D` et `9E` n'a pas été contrôlée. L'inventaire
+n'établit rien sur la première YubiKey.
+
+### Répartition proposée : les applications sont indépendantes
+
+| Besoin | Interface / slots retenus | Prérequis et politique |
+| --- | --- | --- |
+| KeePassXC | OTP slot 2, deux YubiKeys | HMAC-SHA1 déjà programmé ; **ne jamais toucher à OTP2** ; maintenir une restauration KeePassXC |
+| SOPS/age local | PIV retired **82** sur chaque clé | Deux clés P-256 indépendantes et deux destinataires publics ; **82 vide vérifié seulement sur la YubiKey de secours** ; ajouter aux destinataires X25519 actuels, sans remplacer |
+| Rotation age / archives | PIV retired **83** puis 84–95 si nécessaire | **83 vide vérifié sur la clé de secours** ; réserver, pas provisionner maintenant ; préserver anciens destinataires pour déchiffrer les archives |
+| Signature Git et certifications GPG | OpenPGP Signature, éventuellement sous-clé dédiée | GPG logiciel RSA4096 [SC] et tests de signature PASS ; sauvegarde/recovery + procédure Git avant tout `keytocard`, ne pas déplacer automatiquement la clé primaire |
+| Chiffrement e-mails OpenPGP | OpenPGP Encryption | Sous-clé distincte, historique de déchiffrement préservé ; GPG logiciel RSA4096 [E] et fixture PASS ; deux clés physiques ne sont pas des clones |
+| Signatures de documents et PDF | OpenPGP Signature ou PIV 9C + logiciel PDF compatible | Pour les **signatures PDF intégrées** et S/MIME, certificat X.509 approprié en PIV 9C ; ne pas assimiler signature GPG détachée et signature PDF PAdES |
+| Chiffrement de PDF et fichiers | OpenPGP Encryption ou age PIV 82 | Envelopper le PDF dans un fichier `.gpg`/`.age` plutôt que supposer prise en charge universelle d'un PDF chiffré natif ; plusieurs destinataires de récupération |
+| SSH humain | FIDO2 SSH `ed25519-sk` si compatible | Générer de **nouvelles** identités SSH par clé, enregistrer les publiques partout où nécessaire et garder un accès SSH de secours ; inventorier les passkeys et agents existants |
+| PIV 9A, authentification client | **Préserver la clé RSA2048 importée** et certificat Nabla Root CA expiré | Inventorier usages avant migration, ne pas la transformer en racine PKI de confiance actuelle |
+| PIV 9C et 9D | Réserver pour signature de documents / S/MIME ou identité client | Vérifier disponibilité réelle ; définir certificats, renouvellement et PIN/touch spécifiques ; ne pas réutiliser la même clé pour tous les usages |
+| PIV 9E | Réserver à authentification de carte | Vérifier occupation et pertinence ; pas de déploiement automatique |
+| Sites publics (bababou.com, autres domaines) | ACME automatisé côté proxy/serveur, DNS challenge si utile | **Ne pas dépendre d'une YubiKey hors ligne** pour le TLS en continu ; clés TLS privées sur le serveur avec permissions/rotation, clés d'administrateur protégées par YubiKey |
+| Futur Vault / OpenBao PKI | Root CA **hors ligne**, CA intermédiaire serveur pour l'émission | Une YubiKey peut protéger une **clé d'opérateur** ou un certificat administrateur, pas servir seule de HA CA / auto-unseal ; garder séparation des rôles et rotation |
+| Initialisation Vault, recovery/unseal | Initialisation en environnement contrôlé, Shamir ou auto-unseal pris en charge | Ne jamais mettre l'unique master/recovery key sur une seule YubiKey ; remettre les parts à des détenteurs distincts et les conserver sous chiffrement indépendant ; tester scénario perte de carte |
+| Sauvegardes TrueNAS/PostgreSQL | age et/ou GPG avec identité de récupération hors ligne + destinataires matériels | Tests d'encrypt/decrypt puis **restauration complète isolée** ; CI et services automatiques ne dépendent pas d'un jeton physique absent |
+| age / SOPS CI | Identité automatique séparée avec droits minimaux et secret manager | Ne pas exposer la clé age logicielle dans le dépôt ; éviter de rendre l'automatisation dépendante du PIN ou touch physique |
+| 9B, 80, 81, F9 | Management Key, PIN, PUK et attestation | Emplacements spéciaux PIV, **pas** utilisables comme espaces libres age ; aucun reset |
+
+### Modèle de récupération et de défaillance
+
+Les clés générées dans une YubiKey ne sont normalement pas
+exportables. Chaque YubiKey reçoit des clés **différentes** ;
+on chiffre à plusieurs destinataires, ou on conserve une copie
+sécurisée de la clé secrète d'origine avant migration,
+plutôt que chercher à dupliquer physiquement la carte.
+Tester systématiquement : YubiKey primaire perdue,
+YubiKey de secours seule, PIV PIN bloqué, aucune clé connectée,
+panne TrueNAS, expiration certificat, rotation des destinataires.
+Pour GPG, conserver hors ligne la capacité de déchiffrer les
+anciens messages et sauvegardes ; pour Vault, séparation
+des parts de recovery et des politiques d'accès.
+
+### Roadmap de réalisation graduelle
+
+- [x] P0 GnuPG PCSC partagé opérationnel, cartes détectées.
+- [x] P1 GPG logiciel RSA4096 : signature vérifiée et roundtrip
+      chiffrement/déchiffrement non sensible validés.
+- [x] P2 installation `age-plugin-yubikey 0.5.1` effectuée.
+- [x] P2 inventaire PIV secours : 9A occupé, 82 et 83 vides.
+- [ ] P2 inventaire complet des deux cartes : PIV 9C/9D/9E/82–95,
+      OpenPGP, FIDO2, SSH, OTP, OATH sans exporter de secrets.
+- [ ] P2 fixture SOPS X25519 : déchiffrement et récupération,
+      examiner les règles réelles `fastapi-sample/.sops.yaml`.
+- [ ] P2 proposition de création **explicite** d'une identité
+      `age-plugin-yubikey` en PIV 82 sur chaque YubiKey,
+      avec politiques PIN/touch, démonstration déchiffrement
+      de fixture et récupération sans carte.
+- [ ] P2 mise à jour SOPS destinataires : conserver X25519,
+      ajouter les deux destinataires matériels, `sops updatekeys`
+      sur un fichier de démonstration puis inventaire applicatif.
+- [ ] P3 Git signed commit de test dans dépôt jetable ; audit
+      git-crypt et backups chiffrés existants avant migration.
+- [ ] P3 définir nouvelles sous-clés OpenPGP hardware, ou choisir
+      de conserver les clés GPG logicielles si récupération fragile.
+- [ ] P3 PIV client-auth, signature PDF, S/MIME : choisir un
+      fournisseur de certificats et outils vérificateurs.
+- [ ] P3 SSH-FIDO2 sur les deux clés avec accès de secours et
+      plan de distribution de clés publiques sur GitHub/serveurs.
+- [ ] P4 PKI sites et futur Vault/OpenBao : architecture root
+      hors ligne, intermédiaire, ACME, bootstrap, auth et recovery
+      documentés. Pas de root CA privée exposée à une app publique.
+- [ ] P4 backup/DR : restauration réelle de PostgreSQL dans un
+      bac à sable isolé, perte de YubiKey, révocation/rotation.
+
+### Sources et limites
+
+- PIV slots et rôles :
+  https://docs.yubico.com/yesdk/users-manual/application-piv/slots.html
+- YubiKey PIV :
+  https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-apps-piv.html
+- `age-plugin-yubikey` :
+  https://github.com/str4d/age-plugin-yubikey
+- HashiCorp Vault PKCS#11 auto-unseal :
+  https://developer.hashicorp.com/vault/docs/configuration/seal/pkcs11
+  (Vault Enterprise requis pour seal PKCS#11).
+- La compatibilité Vault/OpenBao et les options d'auto-unseal
+  doivent être validées selon **édition/version déployée** ;
+  une YubiKey 5 NFC n'est pas supposée être un HSM d'auto-unseal
+  ou une solution PKI serveur autonome.
