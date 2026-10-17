@@ -8,6 +8,7 @@
 - [ ] **Acceptation secrets par service** : inventaire → staging byte-identique → contrôle permissions root-only → `env_file` canonique → test Compose → redéploiement contrôlé → smoke fonctionnel → validation de persistance après redémarrage → retrait du fichier historique seulement après backup et preuve de rollback. Préserver séparément le bootstrap Vaultwarden, ne pas lancer de rotation implicite et ne jamais supprimer les sources avant acceptation.
 - [ ] **Qualité** : exécuter les tests et quality gate complète après la vague de migrations demandée ; ne pas annoncer PASS sans preuve.
 
+- [ ] **OpenClaw memory search (17 Oct)**: main 15/105 files, cron 0/63, both dirty/vector paused; inspect resolved embedding provider, endpoint and 401 without printing credentials or forcing indexing. Do not infer the LiteLLM generic loopback provider is used for embeddings. After auth is repaired, perform bounded, operator-approved indexing and verify status.\n- [ ] **LiteLLM audit**: operator has exported `LITELLM_MASTER_KEY` for current shell; run read-only `openclaw-ops.sh --litellm-audit` and inspect budget metadata without exposing key. Avoid persisting master key or changing budgets.\n
 ## OpenClaw workstation P0 — heartbeat and backup hardening (2026-10-17)
 
 - [x] Copy two historical archives, main/cron/global SQLite snapshots and private heartbeat scratch to `/media/backup/lab/infra/openclaw`; operator confirmed matching SHA-256 and NFSv4.2 source `nabla:/mnt/cpool/backup/lab`.
