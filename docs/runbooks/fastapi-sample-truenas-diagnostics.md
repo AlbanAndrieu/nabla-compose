@@ -42,6 +42,72 @@ unredacted verbose logs.
 may reconcile observer allowlists, replaces the staging container and runs
 TrueNAS app.update/redeploy. Confirm reviewed ref and rollback state first.
 
+## Terminal UI, shared formatting, and diagnostic interpretation
+
+The shell-only helper `scripts/lib/diagnostic-ui.sh` is shared by the
+FastAPI, Gatus and resource-usage diagnostics. It makes WARN / FAIL / UNKNOWN
+visually distinct from connectivity and HTTP evidence. No Docker or network
+operations live in this helper.
+
+The FastAPI diagnostic accepts `--color auto|always|never` and
+`--icons auto|always|never` (auto by default).
+- Auto colors are active only on a TTY; a normal tee pipe receives clean,
+  color-free diagnostic output.
+- `NO_COLOR` disables ANSI coloring in all modes, including forced color.
+- Icons require a UTF-8 locale in auto mode, but can be forced or disabled.
+- `--expected-sha` is a full 40-character Git commit expectation;
+  discrepancies are warnings and **never** cause deployment.
+
+Plain output to the operational log:
+
+```bash
+set -o pipefail
+bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3 --color never \
+  | tee "/tmp/fastapi-sample-diagnostic-$(date +%Y%m%d-%H%M%S).log"
+```
+
+For colored terminal output with a plain log, while connected to an
+interactive SSH terminal:
+
+```bash
+set -o pipefail
+LOG="/tmp/fastapi-sample-diagnostic-$(date +%Y%m%d-%H%M%S).log"
+bash scripts/truenas/diagnose-fastapi-sample.sh \
+  --cycles 3 --color always --icons always \
+  | tee /dev/tty \
+  | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' > "$LOG"
+```
+
+The terminal shows colored status labels while the log is ANSI-free. Do
+not use `/dev/tty` in headless automation; use the plain command instead.
+
+The October 17 staging evidence is:
+
+- FastAPI checkout and parent Gitlink were both 8c4492d1 (master), not PR
+  #342; build_revision was null, so version 1.22.1 is not exact-source proof.
+- Local LanguageTool catalog reported one entry (earlier duplicate resolved
+  locally); three Garage entries lacked probePriority and deploymentUnitId.
+- Internal probe completion was 12, but only Garage Admin appeared in its
+  internal-service evidence. Public probes returned completed=2, timed_out=10
+  over two successful cycles; the first cycle was unavailable/unknown.
+- Docker-container public HTTP probes were 0.28-0.61 s end-to-end, with
+  fast DNS. These results **do not prove** a DNS problem; they warrant
+  correlated measurement of the 4 s aggregate fan-out deadline.
+- Prometheus /-/ready responded, but the metric query yielded only
+  nabla:telemetry:gatus_up. Missing current series are UNKNOWN telemetry
+  until their recording rules and scrape targets are verified.
+
+## Required acceptance after publishing these scripts
+
+- [ ] Verify shell syntax, local mock contracts and pre-commit rules on the
+  exact nabla-compose PR head.
+- [ ] Rerun read-only diagnostics on TrueNAS; check that warnings describe
+  actual missing evidence and colors do not enter ordinary logs.
+- [ ] Confirm FastAPI PR #342 runtime explicitly on staging before using
+  the full 3/3 Garage acceptance gate; do not conflate running master with
+  testing an unmerged PR.
+- [ ] No restart, configuration mutation, automatic CI rerun or merge.
+
 ## Non-destructive diagnostic
 
 After updating the `nabla-compose` PR branch, run as its regular

@@ -1,3 +1,11 @@
+## P1 — Diagnostics TrueNAS : présentation commune (2026-10-17)
+
+- [x] Centraliser la présentation terminal (ANSI/NO_COLOR, icônes UTF-8, niveaux OK/WARN/FAIL/UNKNOWN) dans `scripts/lib/diagnostic-ui.sh` ; refactoriser `diagnose-fastapi-sample.sh`, `diagnose-gatus.sh` et `diagnose-resource-usage.sh` sans modifier leurs opérations de diagnostic en lecture seule.
+- [x] Ajouter au diagnostic FastAPI la vérification optionnelle du SHA attendu, un résumé de sévérité, les warnings d'expiration des sondes publiques et de couverture LAN Garage et les preuves Prometheus absentes au statut UNKNOWN. Différencier catalogue LanguageTool local (doublon disparu) et consommateurs réellement synchronisés.
+- [ ] Exécuter les tests ciblés `tests/test_fastapi_sample_diagnostics.py`, `tests/test_gatus_diagnostic_contract.py`, `bash -n`, ShellCheck, shfmt et la quality gate complète sur le HEAD exact de #257 ; ne pas engager de CI GitHub coûteuse ni annoncer PASS sans preuve.
+- [ ] Rejouer le diagnostic coloré sur TrueNAS, comparer 3 cycles et vérifier les temps hôte/conteneur, `public.completed=2`/`timed_out=10` historiques et les preuves Gatus/Prometheus. Les 302 Cloudflare Access ne confirment pas l'origine.
+- [ ] Déployer explicitement fastapi-sample PR #342 en staging avant de déclarer ses 3 sondes Garage acceptées : le relevé d'octobre 17 est encore basé sur `master` `8c4492d1`, pas la PR.
+
 ## P1 — Diagnostic FastAPI Sample TrueNAS (2026-10-17)
 
 - [x] Rendre `scripts/truenas/update-fastapi-sample.sh` lisible (étapes numérotées, stdout Git/TrueNAS regroupés, état API/Prometheus/pfSense, avertissement `REF=master` et gitlink distinct, `build_revision=null` explicite) sans éluder les erreurs ni retirer les contrôles de sécurité.

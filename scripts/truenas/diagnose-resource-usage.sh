@@ -2,6 +2,11 @@
 # Read-only host/container resource diagnostics for TrueNAS and Linux.
 set -uo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/diagnostic-ui.sh
+source "${SCRIPT_DIR}/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+
 MODE="${1:---all}"
 case "${MODE}" in
   --all|--host|--docker|-h|--help) ;;
@@ -12,7 +17,7 @@ if [[ "${MODE}" == "-h" || "${MODE}" == "--help" ]]; then
   exit 0
 fi
 
-section() { printf '\n==> %s\n' "$*"; }
+section() { diag_section '' "$*"; }
 has() { command -v "$1" >/dev/null 2>&1; }
 
 if [[ "${MODE}" == "--all" || "${MODE}" == "--host" ]]; then
@@ -51,4 +56,4 @@ if [[ "${MODE}" == "--all" || "${MODE}" == "--docker" ]]; then
   fi
 fi
 section "Safety"
-printf 'Read-only inventory. Process command lines, container env, secrets and logs are not printed.\n'
+diag_info 'Read-only inventory. Process command lines, container env, secrets and logs are not printed.'

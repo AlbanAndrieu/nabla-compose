@@ -119,3 +119,88 @@ esac
         assert "garage-admin" in result.stdout
         assert "nameserver 127.0.0.11" in result.stdout
         assert "NEVER_LEAK" not in result.stdout + result.stderr
+
+
+UI = ROOT / "scripts/lib/diagnostic-ui.sh"
+GATUS = ROOT / "scripts/truenas/diagnose-gatus.sh"
+RESOURCES = ROOT / "scripts/truenas/diagnose-resource-usage.sh"
+
+
+def test_shared_diagnostic_ui_in_three_scripts() -> None:
+    assert UI.is_file()
+    for script in (DIAG, GATUS, RESOURCES):
+        assert "diagnostic-ui.sh" in script.read_text(encoding="utf-8")
+        result = subprocess.run(
+            ["bash", "-n", str(script)], capture_output=True, text=True, check=False
+        )
+        assert result.returncode == 0, result.stderr
+
+
+def test_color_icons_and_no_color_contract() -> None:
+    import os
+
+    expression = (
+        'source "$1"; diag_ui_init always always; '
+        'diag_section "4/6" "Health-board"; '
+        'diag_ok "ready"; diag_warn "stale"; diag_unknown "no evidence"; '
+        'diag_summary'
+    )
+    env = dict(os.environ)
+    env.pop("NO_COLOR", None)
+    display = subprocess.run(
+        ["bash", "-c", expression, "bash", str(UI)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert display.returncode == 0
+    assert "\\x1b[" in repr(display.stdout)
+    assert "✅" in display.stdout
+    assert "⚠️" in display.stdout
+    assert "❔" in display.stdout
+    assert "warnings=1 failures=0 unknown=1" in display.stdout
+
+    env["NO_COLOR"] = "1"
+    plain = subprocess.run(
+        ["bash", "-c", expression, "bash", str(UI)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert plain.returncode == 0
+    assert "\\x1b[" not in repr(plain.stdout)
+    assert "WARN:" in plain.stdout
+
+
+def test_auto_color_is_disabled_when_output_is_piped() -> None:
+    import os
+
+    env = dict(os.environ)
+    env.pop("NO_COLOR", None)
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; diag_ui_init auto never; diag_warn "offline"', "bash", str(UI)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "\\x1b[" not in repr(result.stdout)
+    assert result.stdout.strip() == "WARN: offline"
+
+
+def test_diagnostic_rejects_ambiguous_sha_and_bad_presentation_mode() -> None:
+    for args in (
+        ["--expected-sha", "master"],
+        ["--color", "rainbow"],
+        ["--icons", "broken"],
+    ):
+        run = subprocess.run(
+            ["bash", str(DIAG), *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert run.returncode == 2
