@@ -3,8 +3,8 @@
 set -euo pipefail
 mode="${1:---check}"
 case "$mode" in
-  --check|--apply|--rollback) ;;
-  --help|-h) echo 'Usage: manage-gpg-pcsc-shared.sh [--check|--apply|--rollback]'; exit 0 ;;
+  --check|--verify|--apply|--rollback) ;;
+  --help|-h) echo 'Usage: manage-gpg-pcsc-shared.sh [--check|--verify|--apply|--rollback]'; exit 0 ;;
   *) echo 'Invalid option' >&2; exit 2 ;;
 esac
 [[ "$EUID" -ne 0 ]] || { echo '❌ Refusing root' >&2; exit 2; }
@@ -53,8 +53,24 @@ if [[ "$mode" == --check ]]; then
   echo '✅ Baseline and managed-state verification complete (no profile changes)'
   exit 0
 fi
+if [[ "$mode" == --verify ]]; then
+  if timeout 18 gpg --batch --card-status >/dev/null 2>&1; then
+    echo '✅ Live OpenPGP selection operational (no config change)'
+  else
+    echo '❌ Live OpenPGP selection failed despite saved configuration state' >&2
+    echo 'ℹ️ Check other PC/SC clients and stale scdaemon state; do not reapply blindly' >&2
+    exit 1
+  fi
+  exit 0
+fi
 if [[ "$mode" == --apply && "$current" == shared ]]; then
-  echo '✅ pcsc-shared already enabled (no change)'
+  echo 'ℹ️ pcsc-shared already configured; validating actual card access'
+  if timeout 18 gpg --batch --card-status >/dev/null 2>&1; then
+    echo '✅ Live OpenPGP selection operational'
+  else
+    echo '❌ Live OpenPGP selection failed; leaving configuration unchanged' >&2
+    exit 1
+  fi
   exit 0
 fi
 if [[ "$mode" == --rollback && "$current" == original ]]; then
