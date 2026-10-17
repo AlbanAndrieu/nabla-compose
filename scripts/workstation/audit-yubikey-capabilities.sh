@@ -156,12 +156,12 @@ printf '%s\n' 'ℹ️ Une identité age YubiKey serait un destinataire SOPS supp
 
 heading 'SOPS age: private identity permissions (metadata only)'
 age_identity="${HOME}/.config/sops/age/keys.txt"
-if [[ -L "$age_identity" ]]; then
+if [[ -L "${age_identity}" ]]; then
   warn 'SOPS age identity is a symlink: manually verify destination security'
-elif [[ -f "$age_identity" ]]; then
-  owner="$(stat -c '%u' "$age_identity" 2>/dev/null || true)"
-  mode="$(stat -c '%a' "$age_identity" 2>/dev/null || true)"
-  if [[ "$owner" == "$(id -u)" && "$mode" == 600 ]]; then
+elif [[ -f "${age_identity}" ]]; then
+  owner="$(stat -c '%u' "${age_identity}" 2>/dev/null || true)"
+  mode="$(stat -c '%a' "${age_identity}" 2>/dev/null || true)"
+  if [[ "${owner}" == "$(id -u)" && "${mode}" == 600 ]]; then
     ok 'SOPS age identity owned by current user with mode 600'
   else
     warn "SOPS age identity file has unsafe or unverified owner/mode (${mode:-unknown}); expected 600"
