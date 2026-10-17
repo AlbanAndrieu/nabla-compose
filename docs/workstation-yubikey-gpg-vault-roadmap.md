@@ -1394,3 +1394,28 @@ Sources :
 https://github.com/str4d/age-plugin-yubikey
 https://github.com/str4d/age-plugin-yubikey/blob/main/src/main.rs
 https://github.com/Yubico/Yubico.NET.SDK/blob/develop/docs/users-manual/application-piv/slots.md/
+
+### Préparation outillage age-plugin-yubikey (17 octobre 2026)
+
+Le bootstrap workstation existant `scripts/workstation/bootstrap-yubikey-manager.sh`
+installe désormais **age-plugin-yubikey 0.5.1** (version épinglée)
+avec `cargo install --locked`, ainsi que `libpcsclite-dev` et
+`pkg-config` nécessaires à la compilation Linux. Prérequis : un
+outil `cargo` approuvé et présent dans le PATH ; le script échoue
+explicitement s'il manque. Le binaire Cargo est lié sous
+`~/.local/bin/age-plugin-yubikey`. Mode `--check` : aucun changement.
+Mode `--apply` : installation d'outillage uniquement, **aucune**
+génération de clé, opération PIV ni modification OTP.
+
+```bash
+cd ~/w/nabla-compose && git pull --ff-only
+bash scripts/workstation/bootstrap-yubikey-manager.sh --apply
+bash scripts/workstation/bootstrap-yubikey-manager.sh --check
+age-plugin-yubikey --help
+age-plugin-yubikey --list
+```
+
+L'installation du plugin n'a pas été exécutée sur la workstation par
+l'agent. Le résultat de `--list` doit être traité comme un inventaire,
+non une autorisation de provisionner un emplacement PIV. Référence :
+https://github.com/str4d/age-plugin-yubikey (prérequis PC/SC et Cargo).
