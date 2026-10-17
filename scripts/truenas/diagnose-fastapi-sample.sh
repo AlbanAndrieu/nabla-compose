@@ -59,9 +59,17 @@ run_docker() { "${DOCKER[@]}" "$@"; }
 section '1/6 · Version, code et contexte'
 if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
     cd /mnt/cpool/compose/nabla-compose || exit 1
-    parent="$(git rev-parse --short HEAD 2>/dev/null || true)"
-    pinned="$(git ls-files -s fastapi-sample 2>/dev/null | awk 'NR==1 {print $2}')"
-    checkout="$(git -C fastapi-sample rev-parse HEAD 2>/dev/null || true)"
+    owner="$(stat -c '%U' . 2>/dev/null || true)"
+    read_git() {
+        if [[ "${EUID}" -eq 0 && -n "$owner" && "$owner" != root ]]; then
+            sudo -u "$owner" -H git "$@"
+        else
+            git "$@"
+        fi
+    }
+    parent="$(read_git rev-parse --short HEAD 2>/dev/null || true)"
+    pinned="$(read_git ls-files -s fastapi-sample 2>/dev/null | awk 'NR==1 {print $2}')"
+    checkout="$(read_git -C fastapi-sample rev-parse HEAD 2>/dev/null || true)"
     printf 'nabla-compose: %s\n' "${parent:-unavailable}"
     printf 'fastapi-sample checkout: %s\n' "${checkout:-unavailable}"
     printf 'parent gitlink: %s\n' "${pinned:-unavailable}"
@@ -70,6 +78,19 @@ if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
     fi
 else
     warn 'nabla-compose checkout missing: Git revision not collected'
+fi
+if [[ -f /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json ]]; then
+    printf 'Canonical catalog candidates: '
+    jq -cr '
+      [.services[]? | select(.id == "languagetool" or .name == "Language Tool") |
+        {id, name, external}] as $rows |
+      {languagetool_entries: ($rows | length), entries: $rows}
+    ' /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json ||
+        warn 'Canonical catalog unavailable or invalid'
+    printf 'Garage catalog entries: '
+    jq -cr '[.services[]? | select((.id // "") | startswith("garage")) |
+       {id, external, probePriority, deploymentUnitId}]' \
+        /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json || true
 fi
 if has midclt; then
     (sudo -n midclt call app.query '[["id","=","sample"]]' 2>/dev/null || true) |
