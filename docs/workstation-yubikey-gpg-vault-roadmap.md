@@ -589,3 +589,38 @@ Résultats à interpréter :
 Le succès de `--run` ne migre aucune clé GPG. Ne pas
 exécuter `keytocard`. En cas d'arrêt non interceptable, des
 agents temporaires peuvent nécessiter une inspection avant nettoyage.
+
+### P0 — Résultat comparatif transports, 17 octobre 2026
+
+L'opérateur a exécuté `compare-gpg-card-transports.sh --check` :
+PASS. L'essai `--run` sur deux homes GnuPG isolés a retourné
+`No such device` avec **PC/SC** (`disable-ccid`) **et CCID
+intégré** (sans `disable-ccid`). Le script a terminé avec le
+nettoyage des profils temporaires. La configuration originale
+et les clés privées restent inchangées.
+
+**Décision :** ne pas reproduire l'essai `reader-port` et
+ne pas refaire à l'identique le comparatif. Les deux pilotes
+ont échoué dans le même environnement matériel/logiciel ;
+cela oriente vers une cause commune (accès au périphérique,
+contention de client, état USB, règles udev, journal scdaemon)
+mais ne prouve pas une cause déterminée.
+
+**Prochaine investigation P0, lecture seule :**
+1. Contrôler les processus détenteurs d'une interface USB CCID :
+   `lsusb` et `lsusb -t` (sans dump de descripteur privé),
+   `fuser` ou `lsof` sur le périphérique USB sélectionné,
+   ne pas déconnecter arbitrairement la clé.
+2. Examiner `journalctl -u pcscd --since '10 minutes ago'`
+   et les éventuelles erreurs CCID/scdaemon associées à
+   une seule tentative **bornée**. Filtrer et anonymiser tout
+   identifiant de carte avant publication.
+3. Distinguer problème de droits (udev, groupe, ACL)
+   d'une contention active ; ne pas désactiver la sécurité
+   du système, ne pas réinitialiser PC/SC.
+4. Si nécessaire, préparer une capture de debug scdaemon
+   **isolée et expurgée** sans carte privée, jamais en mode
+   `set -x`, avant toute autre action matérielle.
+
+Ne pas modifier YubiKey OTP/HMAC KeePassXC, OpenPGP, PIV,
+ni perturber signature Git, git-crypt ou restaurations.
