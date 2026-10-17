@@ -38,5 +38,5 @@ if ! bash scripts/truenas/diagnose-shared-data-services.sh; then
   printf '%b⚠️  Vérifier les services de données%b\n' "$YELLOW" "$RESET"
 fi
 section 'Prochains diagnostics sûrs'
-printf '%s\n' 'sudo bash scripts/truenas/deploy-dsomm.sh --check' 'sudo bash scripts/truenas/diagnose-cyberbro.sh' 'sudo bash scripts/truenas/bootstrap-cyberbro-env.sh --check' 'sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check' 'sudo bash scripts/truenas/restore-optional-apps.sh --check'
+printf '%s\n' 'sudo bash scripts/truenas/diagnose-gatus.sh' 'sudo bash scripts/truenas/repair-gatus-config-access.sh --check' 'sudo bash scripts/truenas/deploy-gatus.sh --check' 'sudo bash scripts/truenas/deploy-dsomm.sh --check' 'sudo bash scripts/truenas/diagnose-cyberbro.sh' 'sudo bash scripts/truenas/bootstrap-cyberbro-env.sh --check' 'sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check' 'sudo bash scripts/truenas/restore-optional-apps.sh --check'
 printf '\n%b📋 Triage terminé · aucune modification runtime%b\n' "$GREEN" "$RESET"
