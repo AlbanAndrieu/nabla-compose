@@ -69,18 +69,25 @@ app_url() {
 
 wait_http() {
   local app="$1" url="$2" timeout_seconds=300
+  local status='' attempts=0 started=$SECONDS
   case "${app}" in
     netbox | dependency-track | defectdojo) timeout_seconds=600 ;;
   esac
   local deadline=$((SECONDS + timeout_seconds))
+  printf 'INFO: %s waiting for HTTP readiness (timeout=%ss)\n' "${app}" "${timeout_seconds}"
   while ((SECONDS < deadline)); do
-    if curl -fsS --connect-timeout 5 --max-time 10 -o /dev/null "${url}"; then
-      printf 'OK: %s HTTP ready: %s\n' "${app}" "${url}"
+    attempts=$((attempts + 1))
+    status="$(curl -sS --connect-timeout 5 --max-time 10 -o /dev/null -w '%{http_code}' "${url}" 2>/dev/null)" || status='000'
+    if [[ "${status}" =~ ^[23][0-9][0-9]$ ]]; then
+      printf 'OK: %s HTTP ready: %s status=%s elapsed=%ss attempts=%s\n' "${app}" "${url}" "${status}" "$((SECONDS - started))" "${attempts}"
       return 0
+    fi
+    if (( attempts == 1 || attempts % 6 == 0 )); then
+      printf 'INFO: %s HTTP not ready yet (status=%s elapsed=%ss)\n' "${app}" "${status}" "$((SECONDS - started))"
     fi
     sleep 5
   done
-  fail "${app}: HTTP endpoint did not become ready within ${timeout_seconds}s: ${url}"
+  fail "${app}: HTTP not ready within ${timeout_seconds}s (last_status=${status}, attempts=${attempts}): ${url}"
 }
 
 note "validate generated topology/catalog contracts"
