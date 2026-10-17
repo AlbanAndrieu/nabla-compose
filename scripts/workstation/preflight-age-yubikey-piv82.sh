@@ -15,8 +15,13 @@ done
 [[ "${serial}" =~ ^[0-9]+$ ]] || { echo 'Explicit serial required' >&2; exit 2; }
 command -v ykman >/dev/null || { echo 'ykman missing' >&2; exit 1; }
 command -v age-plugin-yubikey >/dev/null || { echo 'age-plugin-yubikey missing' >&2; exit 1; }
-connected="$(ykman list --serials | sed -nE 's/^[[:space:]]*([0-9]+)[[:space:]]*$/\\1/p')"
-[[ "${connected}" == "${serial}" ]] || { echo 'Connect exactly the selected single YubiKey' >&2; exit 2; }
+# Parse ykman one serial per line without fragile sed replacement escaping.
+mapfile -t detected_serials < <(ykman list --serials | grep -E '^[[:space:]]*[0-9]+[[:space:]]*$' | tr -d '[:space:]' || true)
+if (( ${#detected_serials[@]} != 1 )) || [[ "${detected_serials[0]:-}" != "$serial" ]]; then
+  echo "Expected exactly one YubiKey matching requested serial; detected count: ${#detected_serials[@]}" >&2
+  echo 'Run ykman list --serials and verify the current checkout is on the PR branch.' >&2
+  exit 2
+fi
 # ykman commonly returns nonzero for an EMPTY retired slot, e.g. "No key in slot 82".
 # An empty-slot error is an expected safe result; all other errors fail closed.
 if info="$(ykman --device "${serial}" piv keys info 82 2>&1)"; then
