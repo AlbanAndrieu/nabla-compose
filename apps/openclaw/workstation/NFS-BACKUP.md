@@ -32,3 +32,16 @@ python3 scripts/workstation/provision-openclaw-embeddings-litellm-key.py --apply
 ```
 
 `--apply` requires `LITELLM_MASTER_KEY` in the operator shell, sends it **only to** `http://127.0.0.1:4000/key/generate` (or equivalent loopback origin), and requests `key_alias=openclaw-embeddings`, `models=[embedding]`, `max_budget=1` USD, `budget_duration=30d`, `rpm_limit=5`, `tpm_limit=20000`. It creates a new private key file at `~/.local/share/nabla-compose/openclaw-embeddings.key` (0600), never prints the token and refuses to overwrite an existing file. The file is **not** automatically injected into OpenClaw; configure a supported SecretRef only after verifying runtime config and model/dimension compatibility. The master key must not be injected into OpenClaw. This operation is mutating and can create an orphaned virtual key if storage fails; revoke it in LiteLLM if that happens. Do not commit the generated key, run `memory index`, or change model dimensions as part of provisioning.
+
+## Embedding migration staging (2026-10-17)
+
+Operator confirmed workstation LiteLLM alias `embedding` routes to `ollama/nomic-embed-text` at `172.17.0.57:11434`. The dedicated key permits only `embedding`, and its local file has permissions 0600. This is **not** a runtime embedding success or vector-dimension test. Azure aliases `text-embedding-3-large` and `text-embedding-ada-002` are separate and not authorized by this virtual key.
+
+```bash
+python3 -m py_compile scripts/workstation/prepare-openclaw-embedding-migration.py
+python3 scripts/workstation/prepare-openclaw-embedding-migration.py --check
+# Only after reviewing discovered SQLite paths and existing NFS backup:
+python3 scripts/workstation/prepare-openclaw-embedding-migration.py --apply
+```
+
+`--apply` here means **backup only**: SQLite online backups are written under `~/.local/share/nabla-compose/openclaw-memory-migration/<UTC timestamp>/` with 0700 directories and 0600 files, checked with `PRAGMA integrity_check`. It does not migrate OpenClaw, run embeddings, index, or restart services. Discoverability is deliberately limited to conventional state paths; if the tool finds no SQLite files, do not force anything. Review the OpenClaw runtime paths and extend the script before proceeding. This local backup is not a substitute for verified NFS/offsite and restore procedures. A later separately reviewed change must implement supported secret injection, model test (768 dimensions), model-specific fresh index migration and rollback. Never copy an OpenAI embedding index directly into the Ollama vector space.
