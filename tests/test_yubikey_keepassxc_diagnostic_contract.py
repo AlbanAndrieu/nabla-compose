@@ -58,6 +58,27 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "piv keys delete", "piv reset", "otp delete"):
             self.assertNotIn(forbidden, content)
 
+    def test_age_escrow_backup_contract(self):
+        script = ROOT / "scripts/workstation/backup-sops-age-identity.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(
+            ["bash", str(script), "--help"],
+            capture_output=True, text=True, check=True
+        )
+        self.assertIn("--apply", result.stdout)
+        content = script.read_text()
+        for marker in (
+            "umask 077", "age -e -r", "findmnt",
+            "independent", "CHECK ONLY", "OFFLINE DECRYPTION",
+            "chmod 600", "ln \"$temp\" \"$output\"",
+        ):
+            self.assertIn(marker, content)
+        for dangerous in (
+            "age -d", "age-keygen -o", "piv reset",
+            "piv keys generate", "cat \"$source_file\"",
+        ):
+            self.assertNotIn(dangerous, content)
+
     def test_gpg_smartcard_triage_read_only(self):
         script = ROOT / "scripts/workstation/diagnose-gpg-smartcard.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
