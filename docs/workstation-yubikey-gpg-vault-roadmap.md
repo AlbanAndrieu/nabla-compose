@@ -704,3 +704,30 @@ applicative en demandant les statuts GnuPG à faible verbosité
 et en examinant uniquement le **code** `SCD SERIALNO`.
 Ne pas exposer les numéros de série ni utiliser de trace APDU,
 `debug-level guru`, dump mémoire, ou opération `keytocard`.
+
+### P0 — Code d'erreur SCD confirmé ; comparaison amont GnuPG (17 octobre)
+
+`gpg-connect-agent 'SCD SERIALNO' /bye` retourne
+`ERR 100696144 No such device <SCD>` (numéro de carte non
+divulgué). Il s'agit de l'erreur de **scdaemon**, et non d'une
+erreur d'accès du shell à `/dev/bus/usb`.
+
+Documentation amont pertinente :
+- https://lists.gnupg.org/pipermail/gnupg-users/2024-April/067055.html :
+  un utilisateur observe **le même code 100696144** avec
+  GnuPG 2.3/2.4, mais un fonctionnement avec 2.2 ; cela établit
+  un précédent, **pas la cause de notre panne**.
+- https://lists.gnupg.org/pipermail/gnupg-users/2022-January/065855.html :
+  `1050:0407:X:0` est une chaîne typique d'énumération
+  de lecteur CCID. Un seul lecteur n'exige pas forcément
+  `reader-port`.
+- https://dev.gnupg.org/T5632.html : pas de fallback
+  automatique CCID vers PC/SC depuis GnuPG 2.3 ;
+  notre comparatif isolé a déjà testé les deux chemins.
+
+**Prochaine action prioritaire :** capturer uniquement les lignes
+de diagnostic non sensibles de `scdaemon` sur un profil
+temporaire, ou comparer une version GnuPG distribuée et
+supportée dans un environnement totalement isolé sans modifier
+les binaires système. Ne pas conseiller downgrade global, compilation
+non contrôlée ou `debug-level guru`.
