@@ -36,39 +36,68 @@ device="/dev/disk/by-uuid/${uuid}"
 [[ "$(blkid -s TYPE -o value "${device}")" == crypto_LUKS ]] || {
   echo 'Selected partition is not LUKS' >&2; exit 1;
 }
-if [[ "${action}" == check ]]; then
-  echo 'LUKS partition found (read-only); verify model and physical drive before open.'
-  lsblk -o NAME,TRAN,SIZE,FSTYPE,MOUNTPOINTS "${device}"
-  if [[ -e "/dev/mapper/${mapper}" ]]; then
-    cryptsetup status "${mapper}" | head -n 2
-    findmnt "${mountpoint}" || true
+# Resolve child crypt device from the UUID-selected partition, not a fixed mapper name.
+mapfile -t children < <(lsblk -nr -o PATH,TYPE "$device" | awk '$2=="crypt" {print $1}')
+if (( ${#children[@]} > 1 )); then
+  echo 'Ambiguous multiple unlocked crypt mappings; refusing' >&2; exit 2
+fi
+active_mapper="${children[0]:-}"
+active_mount=''
+if [[ -n "$active_mapper" ]]; then
+  active_mount="$(lsblk -nr -o MOUNTPOINTS "$active_mapper" | grep '^/' | head -n 1 || true)"
+fi
+if [[ "$action" == check ]]; then
+  echo 'LUKS UUID verified; current state:'
+  lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS "$device"
+  if [[ -n "$active_mount" ]]; then
+    echo 'Unlocked and mounted; auto-mount path detected.'
+  elif [[ -n "$active_mapper" ]]; then
+    echo 'Unlocked but not mounted.'
+  else
+    echo 'Locked.'
   fi
   exit 0
 fi
-if [[ "${action}" == open ]]; then
-  [[ ! -e "/dev/mapper/${mapper}" ]] || { echo 'Mapper already exists; check first' >&2; exit 2; }
-  sudo mkdir -p "${mountpoint}"
-  sudo cryptsetup open "${device}" "${mapper}"
-  if ! sudo mount "/dev/mapper/${mapper}" "${mountpoint}"; then
-    echo 'Mount failed; mapper remains open for inspection' >&2
-    exit 1
+if [[ "$action" == open ]]; then
+  if [[ -n "$active_mount" ]]; then
+    echo 'Existing unlocked USB mount detected; no changes made.'
+    exit 0
+  fi
+  [[ -z "$active_mapper" ]] || {
+    echo 'Already unlocked but unmounted; manual inspection required' >&2; exit 2;
+  }
+  sudo mkdir -p "$mountpoint"
+  sudo cryptsetup open "$device" "$mapper"
+  if ! sudo mount "/dev/mapper/$mapper" "$mountpoint"; then
+    echo 'Mount failed; mapper remains open for inspection' >&2; exit 1
   fi
   echo 'Escrow unlocked and mounted.'
   exit 0
 fi
-[[ "$(findmnt -n -o SOURCE -T "${mountpoint}" 2>/dev/null)" == "/dev/mapper/${mapper}" ]] || {
-  echo 'Expected encrypted escrow filesystem is not mounted' >&2; exit 2;
+[[ -n "$active_mapper" && -n "$active_mount" ]] || {
+  echo 'Escrow device is not mounted; refusing' >&2; exit 2;
 }
-if [[ "${action}" == close ]]; then
+[[ "$(findmnt -rn -o FSTYPE -T "$active_mount")" == ext4 ]] || {
+  echo 'Unexpected escrow filesystem type; refusing' >&2; exit 2;
+}
+if [[ "$action" == close ]]; then
   sync
-  sudo umount "${mountpoint}"
-  sudo cryptsetup close "${mapper}"
+  if [[ "$active_mount" == /run/media/"$(id -un)"/* ]]; then
+    command -v udisksctl >/dev/null || { echo 'udisksctl required for automount close' >&2; exit 1; }
+    udisksctl unmount -b "$active_mapper"
+    udisksctl lock -b "$device"
+  elif [[ "$active_mount" == "$mountpoint" && "$active_mapper" == "/dev/mapper/$mapper" ]]; then
+    sudo umount "$active_mount"
+    sudo cryptsetup close "$mapper"
+  else
+    echo 'Unexpected mount/mapping; refuse automatic close' >&2; exit 2;
+  fi
   echo 'Escrow closed.'
   exit 0
 fi
-[[ "${action}" == init-identity ]] || exit 2
-folder="${mountpoint}/age-escrow"
-identity="${folder}/recovery-identity.txt"
+[[ "$action" == init-identity ]] || exit 2
+folder="$active_mount/age-escrow"
+identity="$folder/recovery-identity.txt"
 if [[ -e "${identity}" || -L "${identity}" ]]; then
   derived="$(age-keygen -y "${identity}")" || { echo 'Existing identity unreadable' >&2; exit 1; }
   [[ "${derived}" == "${expected_recipient}" ]] || {
