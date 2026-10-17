@@ -1,3 +1,13 @@
+
+## P1 — Cutover catalogue historique et secrets runtime (2026-10-17)
+
+- [x] Corriger la syntaxe du réconciliateur Gatus après introduction accidentelle de séquences littérales `\\n` dans le code Python (PR #257). Rejouer le script sur TrueNAS et ne jamais réutiliser un ancien JSON après échec de génération.
+- [ ] **Décommissionner `catalog/homelab-services.json`** : identifier tous ses consommateurs, migrer les entrées/alias/URLs et intentions d'exposition utiles vers Backstage + Compose + `x-nabla` minimal et les projections générées. Ne pas supprimer physiquement le fichier tant que la parité des consommateurs, des IDs et des sondes n'est pas vérifiée. Les écarts non critiques peuvent rester suivis dans un rapport versionné ; aucun service critique ne doit disparaître silencieusement.
+- [ ] **Gatus acceptation différée, non bloquante** : service HTTP/API opérationnel au dernier contrôle ; conserver la vérification des 85 moniteurs, de la stabilité des redémarrages, des 25 sondes précédemment négatives et des correspondances v2. Ne pas redémarrer ni modifier Gatus pour forcer un résultat vert.
+- [ ] **Secrets runtime, prochaine vague** : appliquer `docs/secrets-migration-roadmap.md` et `config/secrets/manifest.json` comme contrat ; inventorier les sources historiques et les fichiers canoniques `/mnt/cpool/secrets/runtime/<app>/.env.secrets` sans lire les valeurs dans les logs. Prioriser Scanopy, AutoKuma, Joplin, puis Sentry/ClickHouse, FastAPI Sample et les autres services selon leurs prérequis et dépendances.
+- [ ] **Acceptation secrets par service** : inventaire → staging byte-identique → contrôle permissions root-only → `env_file` canonique → test Compose → redéploiement contrôlé → smoke fonctionnel → validation de persistance après redémarrage → retrait du fichier historique seulement après backup et preuve de rollback. Préserver séparément le bootstrap Vaultwarden, ne pas lancer de rotation implicite et ne jamais supprimer les sources avant acceptation.
+- [ ] **Qualité** : exécuter les tests et quality gate complète après la vague de migrations demandée ; ne pas annoncer PASS sans preuve.
+
 ## OpenClaw workstation P0 — heartbeat and backup hardening (2026-10-17)
 
 - [x] Copy two historical archives, main/cron/global SQLite snapshots and private heartbeat scratch to `/media/backup/lab/infra/openclaw`; operator confirmed matching SHA-256 and NFSv4.2 source `nabla:/mnt/cpool/backup/lab`.
