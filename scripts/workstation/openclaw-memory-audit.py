@@ -28,6 +28,21 @@ def scalar(obj, *names):
             return obj[name]
     return None
 
+def nested_scalar(obj, names, depth=0):
+    if depth > 5 or not isinstance(obj, dict):
+        return None
+    direct = scalar(obj, *names)
+    if direct is not None:
+        return direct
+    for key, value in obj.items():
+        if key.lower() in ("error", "errors", "credentials", "auth", "apikey", "config", "env"):
+            continue
+        if isinstance(value, dict):
+            found = nested_scalar(value, names, depth + 1)
+            if found is not None:
+                return found
+    return None
+
 def summarize(data):
     items = agents(data)
     print(f"memory_agent_records={len(items)}")
@@ -37,16 +52,16 @@ def summarize(data):
         raw_name = scalar(item, "agentId", "agent", "id")
         name = raw_name if raw_name in ("main", "cron") else f"record_{index}"
         files = item.get("files") if isinstance(item.get("files"), dict) else {}
-        indexed = scalar(item, "indexedFiles", "filesIndexed")
+        indexed = nested_scalar(item, ("indexedFiles", "filesIndexed", "indexed"))
         if indexed is None:
             indexed = scalar(files, "indexed", "indexedFiles")
-        total = scalar(item, "totalFiles")
+        total = nested_scalar(item, ("totalFiles", "filesTotal"))
         if total is None:
             total = scalar(files, "total", "totalFiles")
-        chunks = scalar(item, "chunks")
-        dirty = scalar(item, "dirty")
-        provider = scalar(item, "provider")
-        model = scalar(item, "model")
+        chunks = nested_scalar(item, ("chunks", "chunkCount"))
+        dirty = nested_scalar(item, ("dirty",))
+        provider = nested_scalar(item, ("provider",))
+        model = nested_scalar(item, ("model",))
         for key, value in (("indexed_files", indexed), ("total_files", total), ("chunks", chunks), ("dirty", dirty)):
             if type(value) in (int, float, bool):
                 print(f"memory_{name}_{key}={str(value).lower() if isinstance(value, bool) else value}")
@@ -60,6 +75,8 @@ def summarize(data):
                 print(f"WARN: memory_{name}_index_incomplete")
         if dirty is True:
             print(f"WARN: memory_{name}_index_dirty")
+        if indexed is None or total is None:
+            print(f"WARN: memory_{name}_coverage_unresolved")
     print("NOTE: no deep probe or credential output; embedding 401 requires separate safe evidence")
 
 def main():
