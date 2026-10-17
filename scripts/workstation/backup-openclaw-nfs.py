@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -129,18 +130,42 @@ def execute(root: Path, workboard: Path, dry_run: bool = False) -> dict:
             "worm": False}
 
 
+def report(result: dict) -> None:
+    """Human-friendly terminal status; machine output stays available via --json."""
+    color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    def paint(value: str, code: str) -> str:
+        return f"\\033[{code}m{value}\\033[0m" if color else value
+    print(paint("🔐 OpenClaw · NFS backup", "1;36"))
+    if result.get("dry_run"):
+        print(paint("✅ Montage NFS vérifié", "32"))
+        print(f"📂 Destination : {result['destination']}")
+        print(f"🔗 Source      : {result['source']}")
+        print("ℹ️  Simulation : aucune sauvegarde créée")
+    else:
+        print(paint("✅ Sauvegarde et empreintes vérifiées", "32"))
+        print(f"📦 Fichiers contrôlés : {result['files_verified']}")
+        print(f"🗃️  Workboard SQLite : {'snapshot vérifié' if result['workboard_snapshot'] else 'absent (non sauvegardé)'}")
+        print(f"🧾 Manifest : {result['manifest']}")
+        print(paint("⚠️  Manifest non WORM ; stockage/chiffrement à contrôler", "33"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--workboard", type=Path,
                         default=Path.home() / ".openclaw/plugins/workboard/workboard.sqlite")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON only")
     args = parser.parse_args()
     os.umask(0o077)
     try:
-        print(json.dumps(execute(args.root, args.workboard, args.dry_run), indent=2))
+        result = execute(args.root, args.workboard, args.dry_run)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            report(result)
     except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired, sqlite3.Error) as exc:
-        raise SystemExit(f"ERROR: backup_not_confirmed ({type(exc).__name__})") from None
+        raise SystemExit(f"❌ ERREUR : sauvegarde non confirmée ({type(exc).__name__})") from None
 
 
 if __name__ == "__main__":
