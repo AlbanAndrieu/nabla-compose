@@ -2307,3 +2307,11 @@ Cette commande réalise `py_compile` puis `unittest discover` sur le contrat Yub
 ### Acceptation opérateur de la quality gate hors matériel (2026-10-18)
 
 L'opérateur a synchronisé le worktree au commit `8f88d706` puis exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **24/24 tests PASS en 0,518 s**, compilation Python comprise, sans contact matériel. L'avertissement final `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified` est le comportement attendu. Ces résultats sont une acceptation du parcours local-first, **pas** une autorisation de créer une clé en PIV82. La prochaine étape consiste à valider hors matériel la signature X.509 avec extension OID, puis la compatibilité réelle avant écriture sur la YubiKey secondaire.
+
+### CSR → certificat P-256 : PoC hors matériel ajouté (2026-10-18)
+
+Ajout de `scripts/workstation/test-age-yubikey-csr-offline.sh` et de son contrat `unittest` : génération d'une clé **logicielle éphémère**, d'un CSR, autosignature X.509, inclusion de l'OID de politiques `1.3.6.1.4.1.41482.3.8=DER:03:02` et vérification que la clé publique certifiée correspond à celle de la clé générée. Fichiers temporaires privés supprimés à la sortie ; aucune commande `ykman` et aucun PIN. Le modèle équivalent OpenSSL a été exécuté hors matériel ; la quality gate intégrée (désormais **25 tests attendus**) reste à confirmer sur la workstation.
+
+**Limite essentielle :** ce PoC emploie une clé privée logicielle via `openssl x509 -signkey`. Cette commande **ne peut pas être copiée telle quelle sur une clé PIV privée non exportable**. Il manque une voie de signature depuis PIV82 (PKCS#11 provider, outil utilisant `ykman piv keys attest`/signature ou SDK), qui ajoute exactement la même extension non critique tout en préservant le certificat existant 9A, la management key AES256 et les politiques on-card. Il faut aussi vérifier les octets DER et réellement déchiffrer avec le plugin. **Pas de GO matériel** sur la base de cette seule fixture.
+
+L'opérateur a validé le précédent lot **24/24 tests PASS** au commit `8f88d706`; aucune nouvelle intervention n'est nécessaire avant la prochaine vérification groupée.
