@@ -1472,3 +1472,17 @@ pas la version utilisée ; maintenir une tâche de suivi des dépendances.
 connectée, puis cartographie des slots retired PIV 82–95. Il n'existe
 aucune preuve de génération d'une identité age, et aucun changement PIV
 n'a été effectué. Conserver l'identité age X25519 existante pour SOPS.
+
+### P2 — Inventaire age-plugin-yubikey initial (17 octobre 2026)
+
+Avec la YubiKey de secours connectée, l'opérateur rapporte que
+`age-plugin-yubikey --list` ne retourne **aucune identité**. Ceci
+indique qu'aucune identité reconnue par le plugin n'est listée sur
+la carte à ce stade. Cela **ne prouve pas** que tous les slots
+PIV retired 82–95 soient vides : d'autres usages PIV pourraient
+y résider. Aucune identité age nouvelle n'a été générée.
+
+Gate avant provisioning : inventorier les slots PIV retired, vérifier
+les possibilités de restauration SOPS avec l'identité age logicielle
+et tester d'abord un fichier chiffré de démonstration. Ne jamais
+forcer un slot, effacer 9A ni toucher à l'OTP 2 KeePassXC.
