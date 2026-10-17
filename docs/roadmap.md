@@ -5,7 +5,8 @@
 - [x] Operator preflight: OpenClaw memory schema compatible; active `main` and `cron` SQLite indexes found; private embedding virtual-key file confirmed.
 - [x] Workstation LiteLLM `embedding` probe returned one 768-dimensional vector. This validates API reachability and vector shape, **not** existing index/vector-space compatibility or TrueNAS LiteLLM routing.
 - [x] Operator ran `prepare-openclaw-embedding-migration.py --apply`: two SQLite backups passed integrity checks; `migration_applied=false`.
-- [ ] Verify backup artifacts independently with `python3 scripts/workstation/prepare-openclaw-embedding-migration.py --verify-backup`; verify ownership, private storage and an isolated restore before cutover.
+- [x] Operator ran `python3 scripts/workstation/prepare-openclaw-embedding-migration.py --verify-backup`: `backup_snapshot=verified`, `sqlite_backups_verified=2`, `migration_applied=false`. This establishes private-file and SQLite integrity checks, **not** a completed isolated restore.
+- [ ] Restore a copy of each backup in an isolated temporary directory, test representative read-only queries and compare schema/metadata without disclosing memory content. Do not overwrite active indexes.
 - [ ] Confirm actual OpenClaw memory provider/model, existing index metadata, and embedding model fingerprint for **both** agents. Equal 768 dimensions do not prove identical vector spaces.
 - [ ] Establish authenticated private TrueNAS LiteLLM route with explicit trust/TLS policy, least-privilege virtual key, RPM/TPM and budget controls. Do not reuse master key; do not expose embeddings publicly.
 - [ ] Test end-to-end model output and verify retrieval quality using non-sensitive fixtures before altering active OpenClaw memory configuration. Keep workload and backup rollback plans per agent.
