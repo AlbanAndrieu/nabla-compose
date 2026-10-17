@@ -1456,3 +1456,19 @@ Si le préflight PC/SC échoue encore, remonter la sortie précise
 du nouveau contrôle et `/usr/bin/pkg-config --modversion libpcsclite`,
 sans retirer la carte, modifier les slots, réinitialiser PIV ou
 fournir de PIN. Compilation locale non vérifiée par l'agent.
+
+### P2 — Installation age-plugin-yubikey validée (17 octobre 2026)
+
+L'opérateur confirme que la compilation Cargo de `age-plugin-yubikey
+v0.5.1` s'est terminée avec succès (`Finished release`, `Installed
+package`) après la correction des chemins PC/SC. Le bootstrap indique
+`OK: age-plugin-yubikey 0.5.1 ready (no provisioning)` et la commande
+`age-plugin-yubikey --version` affiche `0.5.1`. Le correctif du bootstrap
+pour `libpcsclite` a donc été validé sur la workstation. L'avertissement
+`num-bigint-dig v0.8.4` sur de futures incompatibilités Rust ne bloque
+pas la version utilisée ; maintenir une tâche de suivi des dépendances.
+
+**Étape suivante :** `age-plugin-yubikey --list` avec une YubiKey
+connectée, puis cartographie des slots retired PIV 82–95. Il n'existe
+aucune preuve de génération d'une identité age, et aucun changement PIV
+n'a été effectué. Conserver l'identité age X25519 existante pour SOPS.
