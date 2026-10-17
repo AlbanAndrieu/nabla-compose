@@ -1355,3 +1355,42 @@ ne pas écraser 9A, OTP2, PIV, OpenPGP ou SSH pour faire de la place.
 Sources : https://github.com/str4d/age-plugin-yubikey ,
 https://getsops.io/docs/reference/ ,
 https://github.com/getsops/sops/blob/main/age/keysource.go .
+
+### P2 — Relevé opérateur SOPS et correction du slot age (17 octobre 2026)
+
+L'opérateur confirme `sops 3.13.3` installé via
+`~/.local/share/mise/installs/sops/3.13.3/sops`,
+`age-plugin-yubikey` **absent du PATH**, et
+`ykman piv info` fonctionnel. Le PIN et PUK PIV affichent
+3/3 essais ; la management key est AES256 et protégée par PIN.
+Le slot 9A contient la clé RSA2048 et son certificat historique
+expiré le 22 janvier 2025. **Ne pas modifier ce slot.**
+
+**Correction de la première recommandation 9D :**
+`age-plugin-yubikey` utilise normalement les slots PIV
+*Retired Key Management* **82 à 95**, pas nécessairement 9D.
+Le code du plugin accepte `--slot` en tant que slot retired.
+La prochaine sélection devra donc porter sur un slot 82–95
+réellement libre (par exemple 82, seulement après inventaire).
+`ykman piv info` ne listant ici que 9A n'établit pas
+l'absence de matériel cryptographique dans les slots retired ;
+ne pas interpréter cette sortie comme une autorisation d'écrire.
+
+**P2 phase préparatoire, lecture seule :**
+1. Installer le plugin par une source/version vérifiée, idéalement
+   paquet reproductible avec empreinte ou release signée ;
+   ne pas lancer l'interface interactive par défaut si elle
+   propose de provisionner la clé.
+2. `age-plugin-yubikey --help`, puis `--list`
+   pour inventorier les identités age existantes ;
+   **pas de `--generate`, `--force` ou reset PIV**.
+3. Vérifier le support des destinataires `age1yubikey1...`
+   sous SOPS 3.13.3 via une fixture isolée, tout en conservant
+   la clé X25519 actuelle comme destinataire.
+4. Inventorier les slots 82–95 avant toute écriture.
+   Ne pas publier CHUID, numéros de série ou certificats bruts.
+
+Sources :
+https://github.com/str4d/age-plugin-yubikey
+https://github.com/str4d/age-plugin-yubikey/blob/main/src/main.rs
+https://github.com/Yubico/Yubico.NET.SDK/blob/develop/docs/users-manual/application-piv/slots.md/
