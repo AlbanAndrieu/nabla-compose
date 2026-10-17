@@ -238,9 +238,11 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             subprocess.run(["openssl", "genpkey", "-algorithm", "EC",
                             "-pkeyopt", "ec_paramgen_curve:prime256v1",
                             "-out", str(key)], check=True, capture_output=True)
-            subprocess.run(["openssl", "req", "-x509", "-new", "-key", str(key),
-                            "-days", "1", "-config", str(config), "-out", str(cert)],
-                           check=True, capture_output=True)
+            req = subprocess.run(
+                ["openssl", "req", "-x509", "-new", "-key", str(key),
+                 "-days", "1", "-config", str(config), "-out", str(cert)],
+                capture_output=True, text=True)
+            self.assertEqual(req.returncode, 0, req.stderr)
             inspection = subprocess.run(
                 ["bash", str(ROOT / "scripts/workstation/inspect-age-yubikey-certificate.sh"),
                  "--certificate", str(cert)],
