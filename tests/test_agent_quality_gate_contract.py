@@ -27,7 +27,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("git ls-files --stage", section)
         self.assertIn('[[ "${mode}" != "100755" ]]', section)
         self.assertIn('git add --chmod=+x -- "${path}"', section)
-        self.assertIn('chmod u+x -- "${path}"', section)
+        # Options before the mode: BSD chmod treats a trailing "--" as a file.
+        self.assertIn('chmod -- u+x "${path}"', section)
         self.assertIn("tracked shebang", section)
         self.assertNotIn('chmod 755 -- "${path}"', section)
         # Guarding only CHANGED_FILES misses a 100644 shebang already on HEAD.
