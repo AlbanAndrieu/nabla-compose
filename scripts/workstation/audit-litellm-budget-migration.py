@@ -8,11 +8,12 @@ from urllib.request import Request, urlopen
 
 PROXIES = (
     ("workstation", "http://127.0.0.1:4000", "LITELLM_MASTER_KEY"),
-    ("truenas", "http://172.17.0.24:4000", "LITELLM_TRUENAS_MASTER_KEY"),
+    ("truenas", "http://127.0.0.1:14000", "LITELLM_TRUENAS_MASTER_KEY"),
 )
 
 def main():
     print("migration_mode=read_only")
+    print("NOTE: TrueNAS requires an operator-established SSH tunnel on localhost:14000; never send its master key over LAN HTTP")
     for label, base, variable in PROXIES:
         key = os.environ.get(variable)
         if not key:
