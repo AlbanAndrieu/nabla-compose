@@ -215,6 +215,40 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                     self.assertIn(expected, result.stdout + result.stderr)
                     self.assertNotIn("\\x1b", result.stdout + result.stderr)
 
+    @unittest.skipUnless(shutil.which("openssl"), "openssl is required")
+    def test_plugin_policy_oid_synthetic_certificate(self):
+        # age-plugin-yubikey src/util.rs: PIN ALWAYS=03, TOUCH ALWAYS=02.
+        # This validates X.509 DER encoding, NOT YubiKey policy enforcement.
+        with tempfile.TemporaryDirectory(prefix="age-policy-") as temp:
+            key = Path(temp) / "synthetic.key"
+            cert = Path(temp) / "synthetic.pem"
+            config = Path(temp) / "extensions.cnf"
+            config.write_text("[req]\\ndistinguished_name=dn\\nx509_extensions=ext\\nprompt=no\\n"
+                              "[dn]\\nCN=nabla-age-fixture\\nO=age-plugin-yubikey\\nOU=0.5.1\\n"
+                              "[ext]\\n1.3.6.1.4.1.41482.3.8=DER:03:02\\n")
+            subprocess.run(["openssl", "genpkey", "-algorithm", "EC",
+                            "-pkeyopt", "ec_paramgen_curve:prime256v1",
+                            "-out", str(key)], check=True, capture_output=True)
+            subprocess.run(["openssl", "req", "-x509", "-new", "-key", str(key),
+                            "-days", "1", "-config", str(config), "-out", str(cert)],
+                           check=True, capture_output=True)
+            inspection = subprocess.run(
+                ["bash", str(ROOT / "scripts/workstation/inspect-age-yubikey-certificate.sh"),
+                 "--certificate", str(cert)],
+                capture_output=True, text=True, env={**os.environ, "NO_COLOR": "1"})
+            self.assertEqual(inspection.returncode, 3)
+            self.assertIn("Subject organization matches", inspection.stdout)
+            details = subprocess.run(["openssl", "x509", "-in", str(cert),
+                                      "-noout", "-text"], check=True,
+                                     capture_output=True, text=True).stdout
+            self.assertIn("1.3.6.1.4.1.41482.3.8", details)
+            der = subprocess.run(["openssl", "x509", "-in", str(cert),
+                                  "-outform", "DER"], check=True,
+                                 capture_output=True).stdout
+            # OID DER and extension OCTET STRING containing exactly 03 02.
+            self.assertIn(bytes.fromhex("2b0601040182c40a0308"), der)
+            self.assertIn(bytes.fromhex("04020302"), der)
+
     def test_aes_compat_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-age-yubikey-aes-compat.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
