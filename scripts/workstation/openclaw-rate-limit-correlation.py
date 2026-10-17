@@ -7,7 +7,7 @@ request bodies, tokens, messages, or model output. Correlation is temporal only.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
