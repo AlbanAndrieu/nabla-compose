@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Read-only LiteLLM UI hardening checks; never send administrator credentials over LAN."""
 import argparse
-import json
 import pathlib
 import re
-import ssl
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -13,6 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "apps/litellm/config.yaml"
 PUBLIC = "https://litellm.albandrieu.com/ui/"
 LOCAL = "http://127.0.0.1:14000/health/liveliness"
+LOCAL_UI = "http://127.0.0.1:14000/ui/"
 
 def check_config():
     data = CONFIG.read_text(encoding="utf-8")
@@ -49,6 +48,23 @@ def public_probe():
     print("public_ui_access_challenge=" + ("observed" if access_redirect else "not_observed"))
     print("NOTE: one unauthenticated probe cannot verify all routes, policy scope or MFA")
 
+def unauthenticated_tunnel_ui_probe():
+    """Report live UI response without credentials; not proof login mode is disabled."""
+    from urllib.request import build_opener, HTTPRedirectHandler
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    try:
+        with build_opener(NoRedirect()).open(Request(LOCAL_UI), timeout=5) as response:
+            status = response.status
+    except HTTPError as exc:
+        status = exc.code
+    except (URLError, OSError, TimeoutError):
+        print("truenas_tunnel_ui=unavailable")
+        return
+    print(f"truenas_tunnel_ui_http_status={status}")
+    print("NOTE: an unauthenticated UI response does not prove environment login is disabled")
+
 def local_probe():
     try:
         with urlopen(LOCAL, timeout=5) as response:
@@ -60,13 +76,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe-public", action="store_true", help="Unauthenticated HTTPS UI request, no redirects")
     parser.add_argument("--probe-tunnel", action="store_true", help="Health request to local SSH tunnel only")
+    parser.add_argument("--probe-tunnel-ui", action="store_true", help="Unauthenticated UI request through SSH tunnel; no credentials sent")
     args = parser.parse_args()
     ok = check_config()
     if args.probe_public:
         public_probe()
     if args.probe_tunnel:
         local_probe()
-    print("runtime_setting=not_verified")
+    if args.probe_tunnel_ui:
+        unauthenticated_tunnel_ui_probe()
+    print("runtime_setting=not_verified (requires manual old-login rejection test)")
     print("named_admin_login=manual_acceptance_required")
     print("legacy_env_login_rejection=manual_acceptance_required")
     print("migration_or_deployment=not_performed")
