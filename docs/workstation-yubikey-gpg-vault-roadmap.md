@@ -2046,3 +2046,9 @@ bash scripts/workstation/backup-sops-age-identity.sh \
   récupération alternative. Un volume USB unique reste un SPOF.
 - [ ] Tester le recovery de bout en bout, puis seulement
   provisionner les PIV 82 sur les deux YubiKeys.
+
+### SanDisk reconnue et prévalidation SOPS passée (17 octobre 2026, suite)
+
+Nouvelle vérification : UUID **de partition LUKS2** `3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, mapper créé automatiquement par udisks `luks-3742c7b9-ccb7-4b5e-b1db-18bcf916c548`, montage `/run/media/albandrieu/NABLA_ESCROW` (ext4 UUID `82b61d3f-f921-4159-b8f3-426a3da2f1c5`). Le script de gestion du support a été corrigé pour détecter ce montage via le disque LUKS ciblé par UUID, y compris s'il a été ouvert par GNOME/udisks ; pas de seconde ouverture. Fermeture udisks par `udisksctl unmount` puis `udisksctl lock` pour son montage automatique ; les montages non reconnus restent bloqués.
+
+Le contrôle `backup-sops-age-identity.sh --destination /media/backup/lab/secret/keepass --recipient age10lxlddwul3eaxs8fq7sh49hcks42tamy7cke7ny945kfwxaxqfaq46a938` a répondu `Escrow preflight OK`, suivi de `CHECK ONLY`: **pas encore de sauvegarde créée**. Prochaine acceptation : exécuter `--apply`, puis déchiffrer le fichier créé avec la clé privée USB sur un flux sans afficher le contenu ; comparer les destinataires publics de l'identité restaurée et de la source, puis tester une fixture SOPS. Ne pas confondre le déverrouillage LUKS avec la récupération de la clé privée age.
