@@ -56,15 +56,15 @@ def validate(manifest: object, root: Path) -> list[str]:
             continue
         ids.add(ident)
         phase = item["phase"]
-        if phase not in PHASES or phase in VERIFIED:
+        if not isinstance(phase, str) or phase not in PHASES or phase in VERIFIED:
             errors.append(f"{ident}: live acceptance cannot be asserted by this offline manifest")
-        if item["priority"] not in {"P0", "P1", "P2", "P3"}:
+        if not isinstance(item["priority"], str) or item["priority"] not in {"P0", "P1", "P2", "P3"}:
             errors.append(f"{ident}: invalid priority")
         requires = item["requires"]
         if not isinstance(requires, list) or any(not isinstance(x, str) for x in requires):
             errors.append(f"{ident}: requires must contain identifiers")
             requires = []
-        if len(requires) != len(set(requires)):
+        if any(not isinstance(dep, str) for dep in requires) or len(requires) != len(set(dep for dep in requires if isinstance(dep, str))):
             errors.append(f"{ident}: duplicate dependency")
         deps[ident] = requires
         artifacts = item["artifacts"]

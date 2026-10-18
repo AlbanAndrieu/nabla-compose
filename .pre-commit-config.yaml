@@ -478,3 +478,10 @@ repos:
         pass_filenames: false
         files: >-
           ^(config/migrations/workstreams[.]json|scripts/security/check-migration-readiness[.]py|tests/test_migration_readiness_contract[.]py|docs/migration-batch-execution-2026-10-18[.]md)$
+
+      - id: quality-gate-content-scope
+        name: "✅ quality · Validate content-only lint scope without skipping exec-bit checks"
+        language: system
+        entry: python3 -m pytest -q tests/test_quality_gate_content_scope.py
+        pass_filenames: false
+        files: '^(scripts/quality-gate[.]sh|tests/test_quality_gate_content_scope[.]py)$'
