@@ -16,6 +16,12 @@
       "hosts": []
     }
   },
-  "deny": ["BetterLeaks", "GitGuardian", "Secret Scan", "Unverified Scan", "SARIF"],
+  "deny": [
+    "BetterLeaks",
+    "GitGuardian",
+    "Secret Scan",
+    "Unverified Scan",
+    "SARIF"
+  ],
   "notice": "Explicit reviewed scan types only; site intake limited to Trivy HIGH/CRITICAL, Nuclei HIGH/CRITICAL and ZAP HIGH through the private provenance collector. Never import plaintext secret findings, PII, raw auth headers, SARIF or arbitrary tools."
 }
