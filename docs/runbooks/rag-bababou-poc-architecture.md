@@ -60,7 +60,7 @@ Le rôle de LiteLLM est la **passerelle modèle** (chat/embeddings), pas l'orche
 Diagnostic opératoire associé : [OpenRAG — ingestion du dataset Babou](openrag-babou-ingestion-diagnostics.md). Il détaille la découverte du mountpoint, les contrôles D0–D8 et les limites de confidentialité.
 
 
-Le répertoire exact sur `/mnt/cpool` **n'est pas établi par ce document**. Ne pas inventer un montage `/mnt/cpool/bababou` ; découvrir le chemin avec l'opérateur et confirmer qu'il s'agit de la copie Google Drive attendue. Ne jamais faire de `find /mnt/cpool` non borné ou de copie globale sans accord.
+Le dataset a été confirmé : **`cpool/bababou`**, owner `albandrieu:albandrieu`. Le Compose prépare un bind read-only vers `/mnt/babou-source` avec `/mnt/cpool/bababou` comme valeur par défaut, mais **le mountpoint ZFS réel et les ACL doivent être vérifiés** avant déploiement. Utiliser `OPENRAG_BABOU_SOURCE` si le mountpoint diffère. Aucun import automatique ; ne jamais parcourir `/mnt/cpool` globalement.
 
 1. **Inventaire sans lecture du contenu** : découvrir le dataset et le point de montage par `zfs list` / `stat`, compter fichiers et extensions avec un parcours borné au répertoire confirmé ; identifier doublons, pièces sensibles, fichiers Google natifs éventuellement non exportés, symlinks, MIME et tailles.
 2. **Sélection POC** : commencer par 10–20 documents expressément validés, PDF (texte/OCR), DOCX et tableaux, sans correspondance privée ou pièce juridique nominative non approuvée. Source strictement en lecture seule, service UID non privilégié ; n'indexer ni toutes les pièces automatiquement ni le chemin brut sur un service exposé.
