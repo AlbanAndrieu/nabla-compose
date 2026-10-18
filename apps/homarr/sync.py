@@ -214,8 +214,8 @@ def reconcile_board(
 
 def main() -> int:
     if not API_KEY:
-        log("HOMARR_API_KEY is not set; skipping reconciliation without failing the stack")
-        return 0
+        log("HOMARR_API_KEY is required for declarative reconciliation")
+        return 2
 
     manifest = load_json(MANIFEST_PATH, {})
     if not isinstance(manifest, dict) or not isinstance(manifest.get("applications"), list):
